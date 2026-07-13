@@ -18,7 +18,8 @@
 - Modul-Grenzen: `app/Modules/Events/{Models,Actions,Policies,Filament}`; kein Modul greift in die Tabellen eines anderen. Tests gespiegelt unter `tests/{Feature,Unit}/Events/` bzw. `tests/{Feature,Unit}/Identity/`.
 - Qualitäts-Gate **nach jedem Task**: `composer check` (pint --test, phpstan level 8, pest) grün; bei Frontend-Tasks zusätzlich `npm run lint && npm run build`.
 - Uploads (kein M1-Thema, aber Regel): Laravel Storage, nie Base64. `profile_color` ist ein Hex-String, kein Upload.
-- **2026-Best-Practices-Regel:** Vor dem Verwenden einer Framework-API (Filament-Resource-Discovery/Actions, Inertia-Shared-Props, Enum-Casts, `HasSlug`) die aktuelle offizielle Doku über **laravel-boost**/**context7**-MCP oder WebFetch verifizieren. Bei Abweichung der Doku folgen und die Abweichung im Commit-Message-Body vermerken. Konkrete Doku-Seiten sind in den betreffenden Steps genannt.
+- **2026-Best-Practices-Regel:** Vor dem Verwenden einer Framework-API (Filament-Resource-Discovery/Actions, Inertia-Shared-Props, Enum-Casts, `Str::slug()`) die aktuelle offizielle Doku über **laravel-boost**/**context7**-MCP oder WebFetch verifizieren. Bei Abweichung der Doku folgen und die Abweichung im Commit-Message-Body vermerken. Konkrete Doku-Seiten sind in den betreffenden Steps genannt.
+- **First-party-only:** Für den Event-Slug wird **kein** Drittanbieter-Paket verwendet (Entscheidung des Controllers, gemäß CLAUDE.md „Prefer first-party"). Slug-Generierung ausschließlich über `Illuminate\Support\Str::slug()` in einem typisierten `booted()`/`static::creating()`-Model-Hook, Eindeutigkeit über eine Zähler-Schleife (`slug`, `slug-2`, `slug-3`, …) gegen die `events`-Tabelle. Der Slug ist nach Erstellung unveränderlich (wird bei Namensänderung nicht neu generiert).
 
 ## Voraussetzungen aus M0 (dürfen als vorhanden angenommen werden)
 
@@ -39,7 +40,7 @@
 - Test: `tests/Unit/Events/EventModelTest.php`
 
 **Interfaces:**
-- Produces: `App\Modules\Events\Models\Event` mit Feldern `name, slug (unique), status (cast EventStatus, siehe Task 2), location, starts_at (datetime), ends_at (datetime), max_participants (int, nullable), settings (array-cast jsonb)`. Auto-Slug aus `name`. `Event::factory()` mit State-Methoden pro Status. Task 2–6 bauen darauf auf.
+- Produces: `App\Modules\Events\Models\Event` mit Feldern `name, slug (unique), status (cast EventStatus, siehe Task 2), location, starts_at (datetime), ends_at (datetime), max_participants (int, nullable), settings (array-cast jsonb)`. Auto-Slug aus `name` via `Str::slug()` + Kollisions-Suffix (first-party, kein Drittanbieter-Paket), unveränderlich nach Erstellung. `Event::factory()` mit State-Methoden pro Status. Task 2–6 bauen darauf auf.
 
 > **Reihenfolge-Hinweis:** Die Spalte `status` referenziert das `EventStatus`-Enum aus Task 2. Um TDD sauber zu halten, legt dieser Task das Enum als *minimalen* Platzhalter mit allen sechs Cases an; die Übergangs-Map und die Action folgen in Task 2. Alternativ Task 1 und 2 als ein zusammenhängendes Arbeitspaket behandeln.
 
@@ -73,13 +74,30 @@ Create `tests/Unit/Events/EventModelTest.php`:
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 
-it('generates a unique slug from the name', function () {
+it('generates a slug from the name', function () {
+    $event = Event::factory()->create(['name' => 'Winter LAN 2027']);
+
+    expect($event->slug)->toBe('winter-lan-2027');
+});
+
+it('appends a counter suffix when the slug already exists', function () {
     $a = Event::factory()->create(['name' => 'Winter LAN 2027']);
     $b = Event::factory()->create(['name' => 'Winter LAN 2027']);
+    $c = Event::factory()->create(['name' => 'Winter LAN 2027']);
 
     expect($a->slug)->toBe('winter-lan-2027')
-        ->and($b->slug)->not->toBe($a->slug)
-        ->and($b->slug)->toStartWith('winter-lan-2027');
+        ->and($b->slug)->toBe('winter-lan-2027-2')
+        ->and($c->slug)->toBe('winter-lan-2027-3');
+});
+
+it('keeps the slug unchanged when the name is updated later', function () {
+    $event = Event::factory()->create(['name' => 'Winter LAN 2027']);
+
+    $event->update(['name' => 'Renamed LAN']);
+
+    expect($event->fresh())
+        ->slug->toBe('winter-lan-2027')
+        ->name->toBe('Renamed LAN');
 });
 
 it('casts status to the EventStatus enum and settings to an array', function () {
@@ -141,9 +159,11 @@ return new class extends Migration
 };
 ```
 
-- [ ] **Step 5: Model mit Auto-Slug**
+- [ ] **Step 5: Model mit Auto-Slug (first-party, kein Drittanbieter-Paket)**
 
-Verify first (2026): `spatie/laravel-sluggable` `HasSlug` API bzw. Alternative — Doku prüfen (context7 „spatie/laravel-sluggable"). Falls das Paket nicht bereits vorhanden ist, installieren: `composer require spatie/laravel-sluggable`. (Erstes-Party-Alternative: Slug im `creating`-Model-Event via `Str::slug` + Uniqueness-Suffix. Der Plan nutzt `spatie/laravel-sluggable` wegen der eingebauten Kollisionsauflösung; wenn die Doku eine schlankere Lösung nahelegt, dieser folgen und im Commit vermerken.)
+Verify first (2026): `Illuminate\Support\Str::slug()`-Signatur über laravel-boost/context7 („laravel/framework" Str-Helper) bestätigen — keine neue Dependency nötig, das Helper ist Teil des Frameworks.
+
+> **Entscheidung des Controllers:** Kein `spatie/laravel-sluggable`, keine sonstige Drittanbieter-Slug-Library (CLAUDE.md „Prefer first-party"). Stattdessen: `Str::slug($name)` in einem typisierten `booted()`/`static::creating()`-Hook, Eindeutigkeit durch eine Zähler-Schleife (`slug`, `slug-2`, `slug-3`, …), die gegen die `events`-Tabelle prüft. Der Slug wird **nur bei der Erstellung** gesetzt und bei einer späteren Namensänderung **nicht** neu generiert (Slug ist nach Erstellung unveränderlich).
 
 Create `app/Modules/Events/Models/Event.php`:
 
@@ -154,17 +174,14 @@ namespace App\Modules\Events\Models;
 
 use App\Modules\Events\Enums\EventStatus;
 use Database\Factories\EventFactory;
-use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Sluggable\HasSlug;
-use Spatie\Sluggable\SlugOptions;
+use Illuminate\Support\Str;
 
 class Event extends Model
 {
     /** @use HasFactory<EventFactory> */
     use HasFactory;
-    use HasSlug;
 
     protected $fillable = [
         'name',
@@ -188,11 +205,27 @@ class Event extends Model
         ];
     }
 
-    public function getSlugOptions(): SlugOptions
+    protected static function booted(): void
     {
-        return SlugOptions::create()
-            ->generateSlugsFrom('name')
-            ->saveSlugsTo('slug');
+        static::creating(function (Event $event): void {
+            if (blank($event->slug)) {
+                $event->slug = self::uniqueSlugFrom($event->name);
+            }
+        });
+    }
+
+    private static function uniqueSlugFrom(string $name): string
+    {
+        $base = Str::slug($name);
+        $slug = $base;
+        $suffix = 2;
+
+        while (static::query()->where('slug', $slug)->exists()) {
+            $slug = "{$base}-{$suffix}";
+            $suffix++;
+        }
+
+        return $slug;
     }
 
     public function getRouteKeyName(): string
@@ -207,7 +240,7 @@ class Event extends Model
 }
 ```
 
-> **Hinweis:** `HasSlug` generiert den Slug im `creating`-Event nur, wenn `slug` nicht bereits gesetzt ist — die Factory darf `slug` daher nicht hart setzen. Die ULID-`use`-Zeile ist optional; Standard bleibt Auto-Increment-`id` (Migration nutzt `$table->id()`). Falls ULIDs gewünscht: Migration + Model konsistent umstellen — für M1 nicht nötig, `HasUlids` wieder entfernen, wenn nicht verwendet.
+> **Hinweis:** Der `creating`-Hook generiert den Slug nur, wenn `slug` nicht bereits gesetzt ist — die Factory darf `slug` daher nicht hart setzen. Der Slug bleibt danach für die Lebensdauer des Datensatzes unverändert; ein Rename des `name`-Felds regeneriert ihn **nicht** (kein Hook auf `updating`). Auto-Increment-`id` bleibt Standard (Migration nutzt `$table->id()`).
 
 - [ ] **Step 6: Factory**
 
@@ -235,7 +268,7 @@ class EventFactory extends Factory
 
         return [
             'name' => fake()->unique()->words(2, true).' LAN '.fake()->year(),
-            // slug intentionally omitted: generated by HasSlug on create
+            // slug intentionally omitted: generated by the Event::booted() creating-hook
             'status' => EventStatus::Draft,
             'location' => fake()->city(),
             'starts_at' => $start,
