@@ -1,4 +1,4 @@
-# LANoMAT v3 — Bauplan für die Neuaufsetzung
+# LANoMAT v2 — Bauplan für die Neuaufsetzung
 
 **Datum:** 2026-07-13
 **Status:** Entwurf zur Review
@@ -10,13 +10,13 @@
 
 Ein einziges, modulares Tool, über das die **gesamte LAN-Party-Organisation** läuft: Anmeldung & Tickets, Sitzplan, Turniere mit Brackets, Zeitplan, Catering, Mitspielersuche, Abstimmungen, Infoscreens, Discord-Integration und Gameserver. Selbst gehostet, betrieben von einem kleinen Orga-Team, genutzt von einer Discord-Community.
 
-Die Neuaufsetzung ersetzt LANoMAT v2 (Nuxt-Nitro + NestJS + Plain-JS-Bot). Sie ist keine 1:1-Portierung, sondern eine Konsolidierung plus gezielte Feature-Erweiterung.
+Die Neuaufsetzung ersetzt LANoMAT v1 (Nuxt-Nitro + NestJS + Plain-JS-Bot). Sie ist keine 1:1-Portierung, sondern eine Konsolidierung plus gezielte Feature-Erweiterung.
 
-## 2. Lehren aus v2 (Ist-Analyse, Juli 2026)
+## 2. Lehren aus v1 (Ist-Analyse, Juli 2026)
 
-Das vollständige Inventar wurde aus dem bestehenden Code erhoben. Die strukturellen Probleme, die v3 beheben muss:
+Das vollständige Inventar wurde aus dem bestehenden Code erhoben. Die strukturellen Probleme, die v2 beheben muss:
 
-| Problem in v2 | Konsequenz | v3-Antwort |
+| Problem in v1 | Konsequenz | v2-Antwort |
 |---|---|---|
 | 3 Runtimes (Nitro-Backend, NestJS, Bot-Prozess) | 3× Deployment, 3× Auth, doppelte Typen | **Ein modularer Monolith** |
 | 2 Persistenz-Stile (raw `pg` + MikroORM) | Kein einheitliches Datenmodell, Bot schreibt an der App vorbei direkt in die DB | **Ein ORM (Eloquent), eine DB, alle Schreibzugriffe durch die App** |
@@ -25,7 +25,7 @@ Das vollständige Inventar wurde aus dem bestehenden Code erhoben. Die strukture
 | Kein Echtzeit-Layer (nur Polling) | Projector/Brackets laggen | **Laravel Reverb (WebSockets)** |
 | Handgebautes Admin-UI (~50 % des Frontend-Aufwands) | Enormer Pflegeaufwand | **Filament v5 Admin-Panel** |
 | Bracket-Logik doppelt (eigene in `scheduler.ts` **und** `brackets-manager` mit Schema-Mismatch) | Tech-Debt, Bugs | **Eine eigene, getestete Bracket-Engine** |
-| Gameserver-Management als Eigenbau (SSH-Tunnel, CS2-Cache-Sync, RCON — die komplexesten Teile von v2) | Dauerhafter Wartungs-Klotz | **Pelican Panel integrieren statt neu bauen** |
+| Gameserver-Management als Eigenbau (SSH-Tunnel, CS2-Cache-Sync, RCON — die komplexesten Teile von v1) | Dauerhafter Wartungs-Klotz | **Pelican Panel integrieren statt neu bauen** |
 | Voting halb gebaut, TeamSpeak halb verdrahtet, Backups/Konsole „geplant" | Tote Baustellen | Bewusste Phasen + Backlog statt angefangener Features |
 
 ## 3. Architektur-Entscheidung
@@ -34,7 +34,7 @@ Das vollständige Inventar wurde aus dem bestehenden Code erhoben. Die strukture
 
 **Option A — Laravel-13-Monolith (Empfehlung).** Laravel 13 (PHP 8.4) als modularer Monolith. Filament v5 für das komplette Admin-/Orga-Panel, Inertia v2 + Vue 3 für die Teilnehmer-UI, Reverb für Echtzeit, Scheduler/Queues für Hintergrundjobs, Socialite für Discord-OAuth, Discord REST + Interactions-Endpoint statt Bot-Prozess, Pelican Panel für Gameserver.
 
-**Option B — Unified-TypeScript (Nuxt 4 Full-Stack).** Eine Sprache, bestehendes Vue-Know-how, discord.js und dockerode nativ. Aber: kein Filament-Äquivalent (Admin-UI wieder komplett handgebaut), Auth/Queues/Scheduler/Policies/Notifications alles selbst zusammengesteckt — strukturell dieselbe Glue-Code-Falle wie v2.
+**Option B — Unified-TypeScript (Nuxt 4 Full-Stack).** Eine Sprache, bestehendes Vue-Know-how, discord.js und dockerode nativ. Aber: kein Filament-Äquivalent (Admin-UI wieder komplett handgebaut), Auth/Queues/Scheduler/Policies/Notifications alles selbst zusammengesteckt — strukturell dieselbe Glue-Code-Falle wie v1.
 
 **Option C — NestJS als Single-Backend, Nuxt als reine SPA.** Geringste Lernkurve, aber löst das Kernproblem (Eigenbau von Admin + Betriebs-Infrastruktur) nicht. NestJS' Stärken (Microservices, große Teams) treffen diesen Anwendungsfall nicht.
 
@@ -43,10 +43,10 @@ Das vollständige Inventar wurde aus dem bestehenden Code erhoben. Die strukture
 Der dominante Aufwandstreiber dieses Projekts ist nicht Algorithmik, sondern **Admin-CRUD + Betriebs-Glue** (Auth, Rollen, Jobs, Benachrichtigungen, Validierung). Genau das ist Laravels Kernkompetenz:
 
 1. **Filament v5** ersetzt das gesamte handgebaute Admin-Panel (Turniere, Spiele, User, Sitzplan, Catering, Hosts) durch deklarative Resources — der größte einzelne Zeitgewinn der Neuaufsetzung.
-2. **Scheduler + Queues** bilden exakt das v2-Jobprofil ab (Check-in-Fenster, Turnier-Autostart, Match-Timeouts, Erinnerungen) — first-party, mit Retry, Locking und Monitoring, statt `setInterval` mit In-Memory-State.
-3. **Notifications** (Datenbank/In-App + eigener Discord-Channel) vereinheitlichen alles, was v2 über drei Systeme verstreut hat.
-4. **Der Bot-Prozess entfällt.** Das Bot-Inventar belegt: Alle Slash-Commands, Channel-CRUD, DMs, Embeds und Announcements sind über Discord REST + HTTP-Interactions abbildbar. Auch das Verschieben von Usern aus Voice-Channels geht per REST (`PATCH /guilds/{id}/members/{user}` mit `channel_id`). Es gibt **keine** Gateway-Pflicht-Funktion in v2.
-5. **Pelican Panel** (Laravel-basiert, De-facto-Nachfolger von Pterodactyl) übernimmt das Gameserver-Management — die drei größten Komplexitäts-Hotspots von v2 (SSH-Tunnel-Docker, CS2-Cache-Sync, RCON-Handling) werden zu einer API-Integration.
+2. **Scheduler + Queues** bilden exakt das v1-Jobprofil ab (Check-in-Fenster, Turnier-Autostart, Match-Timeouts, Erinnerungen) — first-party, mit Retry, Locking und Monitoring, statt `setInterval` mit In-Memory-State.
+3. **Notifications** (Datenbank/In-App + eigener Discord-Channel) vereinheitlichen alles, was v1 über drei Systeme verstreut hat.
+4. **Der Bot-Prozess entfällt.** Das Bot-Inventar belegt: Alle Slash-Commands, Channel-CRUD, DMs, Embeds und Announcements sind über Discord REST + HTTP-Interactions abbildbar. Auch das Verschieben von Usern aus Voice-Channels geht per REST (`PATCH /guilds/{id}/members/{user}` mit `channel_id`). Es gibt **keine** Gateway-Pflicht-Funktion in v1.
+5. **Pelican Panel** (Laravel-basiert, De-facto-Nachfolger von Pterodactyl) übernimmt das Gameserver-Management — die drei größten Komplexitäts-Hotspots von v1 (SSH-Tunnel-Docker, CS2-Cache-Sync, RCON-Handling) werden zu einer API-Integration.
 
 Bewusst in Kauf genommene Trade-offs:
 
@@ -60,17 +60,17 @@ Bewusst in Kauf genommene Trade-offs:
 |---|---|---|
 | Backend | **Laravel 13**, PHP 8.4 | Support bis 2028 |
 | Admin-Panel | **Filament v5** | Livewire 4; alle Orga-CRUDs |
-| Teilnehmer-UI | **Inertia v2 + Vue 3 + Tailwind CSS v4 + shadcn-vue** | Vue-Know-how aus v2 wiederverwendbar |
+| Teilnehmer-UI | **Inertia v2 + Vue 3 + Tailwind CSS v4 + shadcn-vue** | Vue-Know-how aus v1 wiederverwendbar |
 | Echtzeit | **Laravel Reverb + Echo** | Brackets, Infoscreen, Match-Status |
 | Jobs | Laravel Scheduler + Queues (Redis-Treiber) | Horizon optional |
-| DB | **PostgreSQL 16** | wie v2, eine Datenbank |
+| DB | **PostgreSQL 16** | wie v1, eine Datenbank |
 | Cache/Queue | Redis | auch für Deduplizierung/Locks |
 | Auth | Socialite (Discord OAuth) + Session | Rollen: admin, orga, participant |
 | Discord | Eigener `DiscordService` (REST) + Interactions-Endpoint (Route + Ed25519-Signaturprüfung) | kein Gateway, kein Bot-Prozess; nur Text/Announcements |
 | Voice | **Mumble** (mumble-server im Compose-Stack) + REST-Sidecar über die Ice-API | Low-Latency-Voice am Event; Channel-Orchestrierung aus Laravel |
 | Gameserver | **Pelican Panel + Wings** via Application-API | eigenes Modul nur als Client/Verknüpfung |
 | Tests | **Pest** | Bracket-Engine mit hoher Abdeckung |
-| Runtime/Deploy | Docker Compose: **FrankenPHP** (App + Octane), Postgres, Redis, Reverb, Pelican, Wings | ein `compose.yml`, keine Varianten-Matrix wie v2 |
+| Runtime/Deploy | Docker Compose: **FrankenPHP** (App + Octane), Postgres, Redis, Reverb, Pelican, Wings | ein `compose.yml`, keine Varianten-Matrix wie v1 |
 | Code-Qualität | Pint (Format), PHPStan/Larastan (Level ≥ 8), ESLint + Prettier (Vue) | CI via GitHub Actions |
 
 ## 5. Systemarchitektur
@@ -109,39 +109,39 @@ Eine LAN-Party-Ausgabe (`Winter-LAN 2027`) ist ein `Event` mit Lifecycle `draft 
 
 1. **Identity** (M0–M1) — Discord-OAuth-Login, User-Profil (Nickname, Avatar, Bio, Steam-Link, Profilfarbe), Rollen `admin`/`orga`/`participant` via Policies. Kein Passwort-Login für Teilnehmer.
 2. **Events** (M1) — Event-CRUD (Filament), Lifecycle, globaler „aktuelles Event"-Kontext für Teilnehmer-UI, Archiv-Ansicht vergangener Events.
-3. **Registration** (M2) — Anmeldung zum Event, Ticket-Stufen (z. B. Früher Vogel/Standard, frei konfigurierbar), Bezahlstatus **manuell** durch Orga markierbar (v2-Realität: PayPal-QR auf der Display-Wall; echte Payment-Provider sind Backlog), personalisierter QR-Code, Vor-Ort-Check-in per QR-Scan (Orga-Handy genügt), Teilnehmerliste.
+3. **Registration** (M2) — Anmeldung zum Event, Ticket-Stufen (z. B. Früher Vogel/Standard, frei konfigurierbar), Bezahlstatus **manuell** durch Orga markierbar (v1-Realität: PayPal-QR auf der Display-Wall; echte Payment-Provider sind Backlog), personalisierter QR-Code, Vor-Ort-Check-in per QR-Scan (Orga-Handy genügt), Teilnehmerliste.
 4. **Seating** (M2) — Sitzplan-Editor im Admin (Tische/Reihen als Raster mit x/y-Position), Teilnehmer wählen Platz bei/nach Anmeldung, Team-Nachbarschaft sichtbar, öffentliche „Wer sitzt wo"-Ansicht, optionale Felder je Platz (Switch-Port, IP) als Netzwerkdoku.
-5. **Teams** (M3) — Globale Stamm-Teams (Name, Tag, Logo, Captain, Mitglieder, Join-Requests). Turnierteilnahme friert das Roster als Snapshot ein → Umbenennungen/Wechsel zerstören keine Historie (v2-Schwäche).
+5. **Teams** (M3) — Globale Stamm-Teams (Name, Tag, Logo, Captain, Mitglieder, Join-Requests). Turnierteilnahme friert das Roster als Snapshot ein → Umbenennungen/Wechsel zerstören keine Historie (v1-Schwäche).
 6. **Tournaments** (M3, Herzstück) —
    - Formate: Single Elimination, Double Elimination, Round Robin (Swiss: Backlog).
-   - Anmeldung solo oder als Team, Auto-Team-Bildung (Shuffle) wie v2, Seeding (manuell + zufällig).
+   - Anmeldung solo oder als Team, Auto-Team-Bildung (Shuffle) wie v1, Seeding (manuell + zufällig).
    - Check-in-Fenster (öffnet/schließt X Min vor Start, konfigurierbar), Auto-Start via Scheduler.
-   - **Bracket-Engine als eigene, Pest-getestete Domain-Schicht** (`BracketGenerator`, `BracketProgressor`): erzeugt Matches inkl. Loser-Bracket-Progression, Byes, Grand Final. Kein externes Bracket-Paket (Lehre aus dem brackets-manager-Schema-Mismatch in v2).
-   - Ergebnis-Erfassung **neu**: Teilnehmer melden Ergebnis, Gegner bestätigt; bei Konflikt → Dispute-Status für Orga. Forfeit/No-Show als expliziter Ausgang. (v2: nur Admin konnte Ergebnisse eintragen — Flaschenhals.)
-   - Optimistic Locking auf Match-Updates (aus v2 übernehmen).
-   - Bracket-Visualisierung als Vue-Komponente (Adaption der v2-Komponenten `BracketMatch`/`BracketRound`, Connector-Linien diesmal fertigstellen), live via Reverb.
+   - **Bracket-Engine als eigene, Pest-getestete Domain-Schicht** (`BracketGenerator`, `BracketProgressor`): erzeugt Matches inkl. Loser-Bracket-Progression, Byes, Grand Final. Kein externes Bracket-Paket (Lehre aus dem brackets-manager-Schema-Mismatch in v1).
+   - Ergebnis-Erfassung **neu**: Teilnehmer melden Ergebnis, Gegner bestätigt; bei Konflikt → Dispute-Status für Orga. Forfeit/No-Show als expliziter Ausgang. (v1: nur Admin konnte Ergebnisse eintragen — Flaschenhals.)
+   - Optimistic Locking auf Match-Updates (aus v1 übernehmen).
+   - Bracket-Visualisierung als Vue-Komponente (Adaption der v1-Komponenten `BracketMatch`/`BracketRound`, Connector-Linien diesmal fertigstellen), live via Reverb.
 7. **Schedule** (M4) — Zeitplan je Event: Turniere erscheinen automatisch, manuelle Slots (Essen, Siegerehrung, Filmabend), „Jetzt & gleich"-Widget, ICS-Export.
 8. **Catering** (M4) — Sammelbestellungen: Orga öffnet Bestellfenster (z. B. Pizza mit Artikelliste), Teilnehmer wählen, Orga schließt Fenster und erhält Sammelliste + Kostenaufteilung pro Person, Bezahlt-Häkchen. Bewusst simpel; Kiosk/Guthaben: Backlog.
-9. **Voting** (M4) — Game-Votes und generische Umfragen je Event (öffnen/schließen, 1 Stimme pro User, Live-Ergebnis). In v2 nur als DB-Schema vorhanden — hier fertig bauen.
+9. **Voting** (M4) — Game-Votes und generische Umfragen je Event (öffnen/schließen, 1 Stimme pro User, Live-Ergebnis). In v1 nur als DB-Schema vorhanden — hier fertig bauen.
 10. **LFG** (M4) — Mitspielersuche je Event: Titel, Spiel, gesuchte Spieler, Skill-Level, Ablaufzeit; Announcements via Discord.
 11. **Discord** (M2–M3, Querschnitt) —
     - `DiscordClient` (REST): Channels, Nachrichten, DMs, Rollen, Member-Voice-Move.
     - **Interactions-Endpoint** als Laravel-Route mit Ed25519-Signaturprüfung; Slash-Commands: `/tournament (list|info|checkin|bracket)`, `/lfg (create|list)`, `/schedule`, `/help` — dünne Wrapper, die dieselben Actions aufrufen wie das Web-UI.
-    - Match-Text-Channels wie v2 (Team-Berechtigungen, Willkommens-Embed mit Mumble-Join-Link, Cleanup nach Match-Ende) — ausgelöst durch Laravel-Events (`MatchReady`, `MatchCompleted`), ausgeführt als Queue-Jobs. **Keine Discord-Voice-Channels** — Voice läuft über Mumble (Modul 12), das Voice-Move-Handling aus v2 entfällt ersatzlos.
-    - Announcements (Turnier-Reminder 24 h/1 h, Ergebnisse, LFG) als Notifications; Deduplizierung in der DB statt In-Memory (v2-Bug: Duplikate nach Bot-Restart).
+    - Match-Text-Channels wie v1 (Team-Berechtigungen, Willkommens-Embed mit Mumble-Join-Link, Cleanup nach Match-Ende) — ausgelöst durch Laravel-Events (`MatchReady`, `MatchCompleted`), ausgeführt als Queue-Jobs. **Keine Discord-Voice-Channels** — Voice läuft über Mumble (Modul 12), das Voice-Move-Handling aus v1 entfällt ersatzlos.
+    - Announcements (Turnier-Reminder 24 h/1 h, Ergebnisse, LFG) als Notifications; Deduplizierung in der DB statt In-Memory (v1-Bug: Duplikate nach Bot-Restart).
 12. **Voice (Mumble)** (M3, Querschnitt) — [Mumble](https://www.mumble.info/) als Voice-Server am Event (niedrigste Latenz, self-hosted, LAN-lokal). `mumble-server`-Container im Compose-Stack; Administration über die Ice-API via **REST-Sidecar** (murmur-rest oder ein minimaler eigener Sidecar — PHP-Ice-Bindings sind unmaintained, daher bewusst dieses Muster). `MumbleClient`-Interface in Laravel (mockbar).
     - **Channel-Orchestrierung:** je Turnier ein Channel-Baum (`🏆 <Turnier>` → ein Channel pro Team), je Match temporäre Team-Channels; Erstellung/Umbenennung/Cleanup über dieselben Domain-Events wie die Discord-Text-Channels (`TournamentStarted`, `MatchReady`, `MatchCompleted`).
     - **Join-Links:** `mumble://host:port/<channel-pfad>` auf der Match-Seite, im Match-Embed (Discord) und auf dem Infoscreen; Kanal-Referenzen in `matches.voice_channels`/`teams`-Spalten.
     - Zugriff simpel halten: Server-Passwort pro Event (LAN-intern), keine Zertifikats-Registrierung im MVP.
-13. **Infoscreen** (M5, ehem. Projector + Display-Wall) — Vollbild-Ansichten für Beamer: rotierende Szenen (Bracket, nächste Matches, Zeitplan, Ankündigung, Sitzplan, PayPal-/Beitrags-QR, Sponsorenlogos). Szenen + Dauer im Admin konfigurierbar, Sofort-Einblendung („Essen ist da!") via Reverb-Push, Winner-Animation (Konfetti) wie v2.
+13. **Infoscreen** (M5, ehem. Projector + Display-Wall) — Vollbild-Ansichten für Beamer: rotierende Szenen (Bracket, nächste Matches, Zeitplan, Ankündigung, Sitzplan, PayPal-/Beitrags-QR, Sponsorenlogos). Szenen + Dauer im Admin konfigurierbar, Sofort-Einblendung („Essen ist da!") via Reverb-Push, Winner-Animation (Konfetti) wie v1.
 14. **GameServers** (M6) — `PelicanClient` gegen die Pelican Application-API: Server anlegen/starten/stoppen aus dem Admin, **Ein-Klick „Server für dieses Match"** aus dem Turnierkontext (Spiel → Egg-Mapping), Join-Info (IP:Port, Passwort, `connect`-String) automatisch in den Match-Discord-Channel und die Match-Seite. Teilnehmer-Serverliste („welche Server laufen") auf Infoscreen + Web. RCON/Datei-Manager/Konsole/Backups liefert Pelican selbst — wird **nicht** dupliziert; Orga-Deeplink ins Pelican-Panel genügt.
 15. **Notifications** (M2, Querschnitt) — Laravel Notifications mit Kanälen `database` (In-App-Glocke), `discord` (eigener Channel-Treiber: Channel-Post oder DM), Mail optional. Benutzer-Präferenzen pro Kategorie.
 16. **Stats** (M6) — Über Events hinweg: Turniersiege, Podiumsplätze, Teilnahmen, einfache Badges; Leaderboard-Seite. Fällt aus dem Event-Datenmodell heraus, bewusst klein gehalten.
 
 ### Explizit gestrichen / Backlog
 
-- **TeamSpeak-Integration**: In v2 halb verdrahtet (5 Hintergrund-Tasks im Bot, Frontend nur Platzhalter). v3 ersetzt sie durch das **Mumble-Modul** (niedrigere Latenz, vollständig self-hosted) — TeamSpeak entfällt ersatzlos.
-- **Discord-Voice-Match-Channels**: entfallen zugunsten Mumble; damit auch das komplette Voice-State-/Voice-Move-Handling aus v2.
+- **TeamSpeak-Integration**: In v1 halb verdrahtet (5 Hintergrund-Tasks im Bot, Frontend nur Platzhalter). v2 ersetzt sie durch das **Mumble-Modul** (niedrigere Latenz, vollständig self-hosted) — TeamSpeak entfällt ersatzlos.
+- **Discord-Voice-Match-Channels**: entfallen zugunsten Mumble; damit auch das komplette Voice-State-/Voice-Move-Handling aus v1.
 - Payment-Provider (Stripe/PayPal-API), Kiosk mit Guthaben, Swiss-Format, Foto-Galerie, Sponsor-Verwaltung über Logos hinaus, automatisches LFG-Matching.
 
 ## 7. Datenmodell (Kern)
@@ -179,11 +179,11 @@ notifications        (Laravel-Standard) · discord_outbox (id, kind, dedup_key U
 
 Entscheidungen darin:
 
-- **`tournament_entries` vereinheitlicht Solo & Team** (v2 hatte drei parallele Wege: `tournament_enrollments`, `tournament_teams`, `participant*_id`-Spalten in `matches`). Matches referenzieren nur noch Entries.
+- **`tournament_entries` vereinheitlicht Solo & Team** (v1 hatte drei parallele Wege: `tournament_enrollments`, `tournament_teams`, `participant*_id`-Spalten in `matches`). Matches referenzieren nur noch Entries.
 - **`roster_snapshot`** friert das Team-Lineup zum Turnierstart ein.
 - **`match_reports`** trägt den neuen Bestätigungs-/Dispute-Flow; `matches` bleibt der bestätigte Zustand.
-- **`discord_outbox` mit `dedup_key`** ersetzt die In-Memory-Deduplizierung des v2-Bots.
-- Icons/Logos als Dateien im Storage (`icon_path`), nicht Base64 in der DB (v2-Altlast).
+- **`discord_outbox` mit `dedup_key`** ersetzt die In-Memory-Deduplizierung des v1-Bots.
+- Icons/Logos als Dateien im Storage (`icon_path`), nicht Base64 in der DB (v1-Altlast).
 
 ## 8. Discord-Integration im Detail
 
@@ -194,9 +194,9 @@ Entscheidungen darin:
 
 ## 9. Gameserver-Strategie
 
-- **Pelican Panel + Wings** als eigenständige Container im selben Compose-Stack; Wings zusätzlich auf jedem weiteren Host (ersetzt v2-SSH-Tunnel-Eigenbau vollständig, inkl. Multi-Host).
+- **Pelican Panel + Wings** als eigenständige Container im selben Compose-Stack; Wings zusätzlich auf jedem weiteren Host (ersetzt v1-SSH-Tunnel-Eigenbau vollständig, inkl. Multi-Host).
 - LANoMAT spricht die **Application-API** (Server-CRUD, Power-Actions, Status) über `PelicanClient`; API-Key im Config.
-- **Egg-Mapping:** `games.pelican_egg_id` + `default_server_config` (Startparameter, Slots, Tickrate). Für Minecraft/CS2 existieren gepflegte Eggs; für CS 1.6/UT2004 werden Community-Eggs verwendet oder eigene aus den v2-Docker-Images (`goldsrc-engine:cs16`, `ut2004-server`) erstellt — die v2-Images bleiben als Referenz wertvoll.
+- **Egg-Mapping:** `games.pelican_egg_id` + `default_server_config` (Startparameter, Slots, Tickrate). Für Minecraft/CS2 existieren gepflegte Eggs; für CS 1.6/UT2004 werden Community-Eggs verwendet oder eigene aus den v1-Docker-Images (`goldsrc-engine:cs16`, `ut2004-server`) erstellt — die v1-Images bleiben als Referenz wertvoll.
 - **Match-Integration:** „Server erstellen" am Match/Turnier → Job provisioniert via Pelican, pollt bis `running`, schreibt `server_links.join_info` und postet die Join-Info in den Match-Channel.
 - **Risiko-Fallback:** Sollte Pelican sich für ein Spiel als unpraktikabel erweisen, wird nur für dieses Spiel ein manueller Modus genutzt (Orga trägt IP/Port händisch am Match ein). Ein Eigenbau-Orchestrator ist ausdrücklich **kein** Plan-B mehr.
 
@@ -238,9 +238,9 @@ Konventionen: Code, Kommentare, Commits, Doku **Englisch**; Conventional Commits
 
 ## 13. Deployment
 
-Ein `compose.yml` (dev + prod via Env-Overrides, statt fünf Varianten wie v2): `app` (FrankenPHP/Octane), `queue` (Queue-Worker; Horizon optional), `reverb`, `postgres`, `redis`, `mumble` (mumble-server), `mumble-admin` (Ice-REST-Sidecar), `pelican`, `wings`. `.env.example` vollständig dokumentiert. Erst-Setup per `php artisan lanomat:install` (Migrationen, Admin aus Discord-ID, Command-Registrierung) — ersetzt `make-admin.sh`.
+Ein `compose.yml` (dev + prod via Env-Overrides, statt fünf Varianten wie v1): `app` (FrankenPHP/Octane), `queue` (Queue-Worker; Horizon optional), `reverb`, `postgres`, `redis`, `mumble` (mumble-server), `mumble-admin` (Ice-REST-Sidecar), `pelican`, `wings`. `.env.example` vollständig dokumentiert. Erst-Setup per `php artisan lanomat:install` (Migrationen, Admin aus Discord-ID, Command-Registrierung) — ersetzt `make-admin.sh`.
 
-## 14. Datenübernahme aus v2
+## 14. Datenübernahme aus v1
 
 Keine automatische Migration (Neuaufsetzung = frischer Start). Optional (Backlog): Import-Command für `users` (Discord-IDs) und abgeschlossene Turniere als „Legacy-Event" für die Historie. Entscheidung erst nach M3.
 
@@ -265,7 +265,7 @@ MVP für die erste echte LAN = **M0–M3**; M4–M6 sind einzeln nachschiebbar.
 | Risiko | Einschätzung | Gegenmaßnahme |
 |---|---|---|
 | PHP/Laravel-Lernkurve | mittel | Filament/Eloquent-Konventionen strikt folgen; M0/M1 bewusst klein |
-| Pelican-Eggs für CS 1.6/UT2004 | mittel | Früh in M6 testen; eigene Eggs aus v2-Docker-Images; manueller Modus als Fallback |
+| Pelican-Eggs für CS 1.6/UT2004 | mittel | Früh in M6 testen; eigene Eggs aus v1-Docker-Images; manueller Modus als Fallback |
 | Interactions-Endpoint braucht öffentliche HTTPS-URL (auch dev) | klein | dev via Tunnel (z. B. cloudflared); Commands funktionieren unabhängig vom Web-UI |
 | Double-Elim-Engine unterschätzt | mittel | Eigene Domain-Schicht mit erschöpfenden Pest-Tests vor jeder UI-Arbeit (TDD) |
 | Mumble-Ice-Sidecar (murmur-rest ist Flask/Ice, wenig gepflegt) | mittel | Sidecar hinter `MumbleClient`-Interface kapseln; Fallback: statischer Channel-Baum je Event (einmalig provisioniert) statt dynamischer Match-Channels |
@@ -276,8 +276,8 @@ MVP für die erste echte LAN = **M0–M3**; M4–M6 sind einzeln nachschiebbar.
 1. Modul-Struktur: schlichte `app/Modules/`-Ordner (empfohlen, weniger Magie) vs. `nwidart/laravel-modules`.
 2. Deutsch oder Englisch als UI-Sprache (empfohlen: Deutsch, `lang/`-Dateien von Anfang an).
 3. ~~TeamSpeak: endgültig streichen oder Backlog-Modul~~ → **Entschieden (2026-07-14): Voice läuft über Mumble**; TeamSpeak und Discord-Voice entfallen.
-4. v2-Datenimport: ja/nein (Entscheidung nach M3).
+4. v1-Datenimport: ja/nein (Entscheidung nach M3).
 
 ---
 
-*Grundlage: vollständiges Feature-Inventar von LANoMAT v2 (Frontend/DB, NestJS-Gameserver-Backend, Discord-Bot/TeamSpeak), erhoben am 2026-07-13 aus dem Repo-Stand `main@f029980`.*
+*Grundlage: vollständiges Feature-Inventar von LANoMAT v1 (Frontend/DB, NestJS-Gameserver-Backend, Discord-Bot/TeamSpeak), erhoben am 2026-07-13 aus dem Repo-Stand `main@f029980`.*

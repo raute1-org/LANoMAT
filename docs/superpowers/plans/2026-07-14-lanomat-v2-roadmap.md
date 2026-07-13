@@ -1,8 +1,8 @@
-# LANoMAT v3 — Implementierungs-Roadmap M0–M6
+# LANoMAT v2 — Implementierungs-Roadmap M0–M6
 
 > **For agentic workers:** Dies ist die Master-Roadmap. Pro Phase existiert (bzw. entsteht beim Phasenstart) ein Detailplan in `docs/superpowers/plans/` mit bite-sized TDD-Steps. Für die Ausführung eines Detailplans: REQUIRED SUB-SKILL `superpowers:subagent-driven-development` oder `superpowers:executing-plans`.
 
-**Goal:** Neuaufsetzung von LANoMAT als modularer Laravel-13-Monolith gemäß [Design-Dokument](../specs/2026-07-13-lanomat-v3-rebuild-design.md), in 7 Phasen mit je einem benutzbaren Ergebnis.
+**Goal:** Neuaufsetzung von LANoMAT als modularer Laravel-13-Monolith gemäß [Design-Dokument](../specs/2026-07-13-lanomat-v2-rebuild-design.md), in 7 Phasen mit je einem benutzbaren Ergebnis.
 
 **Architecture:** Ein Laravel-13-Monolith (`app/Modules/*`), Filament v5 als Orga-Panel, Inertia v2 + Vue 3 als Teilnehmer-UI, Reverb für Echtzeit. Discord über REST + Interactions-Endpoint (kein Bot-Prozess), Voice über Mumble (Ice-REST-Sidecar), Gameserver über Pelican Panel.
 
@@ -68,7 +68,7 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 | 1.3 | Filament `EventResource` (CRUD) + Status-Action-Buttons (rufen 1.2) | `/admin/events` |
 | 1.4 | `CurrentEvent`-Resolver: aktuellstes Event mit Status ∈ {announced, registration, live}; als Inertia-Shared-Prop via Middleware | `CurrentEvent::get(): ?Event`, Prop `currentEvent` |
 | 1.5 | Öffentliche Event-Seite (Inertia `Pages/Event/Show.vue`): Name, Zeitraum, Ort, Status-abhängige CTAs; Archiv-Liste vergangener Events | Route `/`, `/events/{slug}`, `/events` |
-| 1.6 | Profil: Migration (`bio, steam_url, profile_color`), `UpdateProfile`-Action + Inertia-Seite `Pages/Profile/Edit.vue`; Zufalls-`profile_color` bei User-Erstellung (App-Code, kein DB-Trigger wie v2) | `PATCH /profile` |
+| 1.6 | Profil: Migration (`bio, steam_url, profile_color`), `UpdateProfile`-Action + Inertia-Seite `Pages/Profile/Edit.vue`; Zufalls-`profile_color` bei User-Erstellung (App-Code, kein DB-Trigger wie v1) | `PATCH /profile` |
 | 1.7 | Öffentliches Profil `Pages/Profile/Show.vue` (`/users/{id}`) | — |
 
 **Abnahme:** Feature-Tests: Lifecycle-Kanten, `CurrentEvent`-Auswahl, Profil-Update-Validierung. Manuell: Event „Testlan 2026" durchklickbar von draft → archived.
@@ -125,7 +125,7 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 |---|------|
 | 3.9 | Migrationen `tournaments`, `tournament_entries` (Check: genau eines von `team_id`/`user_id`; `roster_snapshot jsonb`), `matches` (`lock_version`, `discord_channels jsonb`, `voice_channels jsonb`), `match_reports` |
 | 3.10 | Enrollment: `EnrollSolo`, `EnrollTeam` (schreibt `roster_snapshot`), `WithdrawEntry`; Check-in-Fenster (`OpenCheckin`/`CloseCheckin` via Scheduler, `CheckInEntry`) — TDD inkl. Fenstergrenzen |
-| 3.11 | `StartTournament`-Action: Auto-Team-Shuffle bei Solo-Team-Turnieren (wie v2), Seeding, ruft `BracketGenerator`, persistiert Matches, Status → live; als Job + Scheduler-Autostart. Transaktional, Test: Doppelstart unmöglich |
+| 3.11 | `StartTournament`-Action: Auto-Team-Shuffle bei Solo-Team-Turnieren (wie v1), Seeding, ruft `BracketGenerator`, persistiert Matches, Status → live; als Job + Scheduler-Autostart. Transaktional, Test: Doppelstart unmöglich |
 | 3.12 | Ergebnis-Flow: `SubmitMatchReport` (Teilnehmer), `ConfirmMatchReport` (Gegner → ruft `BracketProgressor`, `lock_version`-Guard), `DisputeMatchReport`; Filament: Dispute-Queue + Orga-Override. TDD: confirm/conflict/stale-lock |
 | 3.13 | Reverb einrichten (`php artisan install:broadcasting` → Reverb wählen, Echo-Client-Setup, Compose-Service `reverb`); Domain-Events: `TournamentStarted`, `MatchReady`, `MatchCompleted`, `TournamentCompleted` (Broadcasting auf `tournament.{id}`) |
 | 3.14 | Turnier-UI: `Pages/Tournaments/{Index,Show}.vue` — Anmelden/Check-in/Ergebnis melden; Bracket-Komponenten `BracketView/BracketRound/BracketMatchCard/BracketConnector` (SVG-Linien diesmal fertig); Echo-Subscription für Live-Updates |
@@ -175,8 +175,8 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 |---|------|
 | 5.1 | Migration `infoscreen_scenes` (`type, config jsonb, duration_sec, sort, enabled`); Filament-Verwaltung (Szenen sortieren, an/aus) |
 | 5.2 | Screen-Shell `Pages/Screen/Show.vue` (Route `/screen/{event}`, ohne Auth lesbar, ohne Navigation, dark): Rotations-Engine (client-seitiger Timer aus Szenen-Config), Reverb-Subscription `event.{id}` für `SceneOverride`-Push („Essen ist da!") und Config-Reload |
-| 5.3 | Szenen-Komponenten: `SceneBracket` (nutzt M3-`BracketView` in Beamer-Größe), `SceneUpcomingMatches`, `SceneSchedule`, `SceneAnnouncement`, `SceneSeatmap`, `ScenePaymentQr` (Beitrags-QR wie v2-Display-Wall), `SceneSponsors` (Logo-Grid aus Uploads) |
-| 5.4 | Winner-Moment: `MatchCompleted` bei Finals → Konfetti-Overlay + „WINNER"-Einblendung (Adaption v2) |
+| 5.3 | Szenen-Komponenten: `SceneBracket` (nutzt M3-`BracketView` in Beamer-Größe), `SceneUpcomingMatches`, `SceneSchedule`, `SceneAnnouncement`, `SceneSeatmap`, `ScenePaymentQr` (Beitrags-QR wie v1-Display-Wall), `SceneSponsors` (Logo-Grid aus Uploads) |
+| 5.4 | Winner-Moment: `MatchCompleted` bei Finals → Konfetti-Overlay + „WINNER"-Einblendung (Adaption v1) |
 | 5.5 | Orga-Fernbedienung: Filament-Action „Sofort einblenden" (Szene + Dauer) → Broadcast |
 | 5.6 | Produktions-Deployment: FrankenPHP-`app`-Image (`docker/Dockerfile`), Compose-Profile `prod` (app, queue, reverb, scheduler), `.env.example` final, Deploy-Doku in README; `lanomat:install` im Container verifiziert |
 
@@ -190,7 +190,7 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 
 | # | Task |
 |---|------|
-| 6.1 | Compose: `pelican` + `wings` Services; Pelican einrichten (Node, Eggs für Minecraft/CS2 importieren); Doku `docs/pelican-setup.md`. **Spike zuerst:** CS 1.6/UT2004-Eggs aus v2-Docker-Images (`goldsrc-engine:cs16`, `ut2004-server`) bauen und verifizieren — Ausgang entscheidet, ob diese Spiele Ein-Klick oder manuellen Modus bekommen |
+| 6.1 | Compose: `pelican` + `wings` Services; Pelican einrichten (Node, Eggs für Minecraft/CS2 importieren); Doku `docs/pelican-setup.md`. **Spike zuerst:** CS 1.6/UT2004-Eggs aus v1-Docker-Images (`goldsrc-engine:cs16`, `ut2004-server`) bauen und verifizieren — Ausgang entscheidet, ob diese Spiele Ein-Klick oder manuellen Modus bekommen |
 | 6.2 | `PelicanClient`-Interface (`createServer(eggId, config): PelicanServer`, `getServer(id)`, `powerAction(id, action)`, `deleteServer(id)`) + `HttpPelicanClient` (Application-API, Token) + Fake; `games.pelican_egg_id` + `default_server_config jsonb` Migration |
 | 6.3 | Migration `server_links` (`match_id/tournament_id nullable, pelican_server_id, join_info jsonb, status`); `ProvisionMatchServerJob`: erstellen → Status-Polling (Queue-Retry) → `join_info` schreiben → Embed-Update im Match-Channel + Match-Seite; `TournamentCompleted` → Server-Cleanup-Job. Manueller Modus: Orga trägt `join_info` händisch am Match ein (Fallback-UI) |
 | 6.4 | UI: Filament-Server-Übersicht (Power-Actions, Deeplink ins Pelican-Panel); Teilnehmer-Serverliste `Pages/Servers/Index.vue` + Infoscreen-Szene `SceneServers` |
