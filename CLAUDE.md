@@ -8,11 +8,13 @@ LANoMAT v2 — a modular LAN party management tool (events, registration/tickets
 
 ## Current state
 
-**Pre-scaffold: the application does not exist yet.** This repo currently contains only the approved design and implementation plans. All work follows them — read before building anything:
+**M0 (Fundament) is implemented.** The Laravel app lives in this repo root: Vue starter kit (Inertia v2 + Vue 3 + Tailwind v4 + shadcn-vue + Pest 4), Fortify session auth with Discord-only OAuth (SocialiteProviders), Docker Compose dev stack (Postgres 16 + Redis 7), `User` model with `discord_id`/`role`/`avatar_url`, role middleware + admin `Gate::before`, Filament v5 panel at `/admin`, `lanomat:install` console command, and CI (pint, phpstan level 8, pest, eslint, prettier, vue-tsc, build). See `docs/architecture.md` for the module convention and data-model sketch.
+
+Design and planning docs (still the source of truth for M1–M6):
 
 - `docs/superpowers/specs/2026-07-13-lanomat-v2-rebuild-design.md` — approved architecture & module design
 - `docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md` — master roadmap, phases M0–M6 with task numbers
-- `docs/superpowers/plans/2026-07-14-m0-fundament.md` — fully detailed, executable plan for phase M0
+- `docs/superpowers/plans/2026-07-14-m0-fundament.md` — fully detailed, executable plan for phase M0 (completed)
 
 Detailed plans for M1–M6 are derived from the roadmap just-in-time at each phase start, in the same format as the M0 plan. Update the roadmap when a phase produces new insights (it is a living document).
 
@@ -30,15 +32,18 @@ PHP 8.4 · Laravel 13 · Filament v5 (admin panel at `/admin`) · Inertia v2 + V
 
 External systems (Discord, Mumble, Pelican) are accessed **only** through contracts (`DiscordClient`, `MumbleClient`, `PelicanClient`) with fake implementations for tests — never call real APIs in tests.
 
-## Commands (once scaffolded in M0)
+## Commands
 
 ```bash
-docker compose up -d          # postgres + redis (dev)
-composer run dev              # app + vite dev server
-composer check                # pint --test, larastan (level 8), pest — must be green after every task
-./vendor/bin/pest --filter=X  # run a single test
-npm run lint && npm run build # frontend checks
-php artisan lanomat:install --admin-discord-id=<id>   # migrate + create admin
+docker compose up -d           # postgres (host port 5434) + redis (host port 6380) — dev, non-default ports
+composer run dev               # app + queue + vite dev server (via `php artisan dev`)
+composer check                 # pint --test, phpstan (level 8), pest — must be green after every task
+./vendor/bin/pest --filter=X   # run a single test
+npm run lint:check             # eslint
+npm run format:check           # prettier --check
+npm run types:check            # vue-tsc --noEmit
+npm run build                  # vite build — frontend checks, all must be green
+php artisan lanomat:install --admin-discord-id=<id>   # migrate + promote/create admin
 ```
 
 ## MCP servers
@@ -63,3 +68,4 @@ php artisan lanomat:install --admin-discord-id=<id>   # migrate + create admin
 - PHP: Pint (Laravel preset), Larastan level 8, no `mixed` returns in own code, enums over magic strings.
 - Vue: `<script setup lang="ts">`, no `<style>` blocks, Tailwind + shadcn-vue only.
 - Each phase ends with green CI, its acceptance checklist fulfilled, and a git tag (`m0`, `m1`, …).
+- `.env.testing` is committed with a fixed `APP_KEY`. This is intentional and not a secret leak: it only encrypts ephemeral session/cookie data in CI and local test runs against a throwaway test database, never production data.
