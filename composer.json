@@ -62,6 +62,11 @@
         "lint:check": [
             "pint --parallel --test"
         ],
+        "check": [
+            "./vendor/bin/pint --test",
+            "./vendor/bin/phpstan analyse --memory-limit=1G",
+            "./vendor/bin/pest"
+        ],
         "ci:check": [
             "Composer\\Config::disableProcessTimeout",
             "npm run lint:check",
