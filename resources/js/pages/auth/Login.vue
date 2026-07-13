@@ -1,25 +1,16 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import InputError from '@/components/InputError.vue';
-import PasskeyVerify from '@/components/PasskeyVerify.vue';
-import PasswordInput from '@/components/PasswordInput.vue';
+import { Head } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/login';
 
 defineOptions({
     layout: {
         title: 'Log in to your account',
-        description: 'Enter your email and password below to log in',
+        description: 'Log in with your Discord account to continue',
     },
 });
 
 defineProps<{
     status?: string;
-    canResetPassword: boolean;
 }>();
 </script>
 
@@ -33,62 +24,23 @@ defineProps<{
         {{ status }}
     </div>
 
-    <PasskeyVerify />
-
-    <Form
-        v-bind="store.form()"
-        :reset-on-success="['password']"
-        v-slot="{ errors, processing }"
-        class="flex flex-col gap-6"
+    <Button
+        as="a"
+        href="/auth/discord/redirect"
+        class="w-full"
+        data-test="login-discord-button"
     >
-        <div class="grid gap-6">
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    required
-                    autofocus
-                    :tabindex="1"
-                    autocomplete="email"
-                    placeholder="email@example.com"
-                />
-                <InputError :message="errors.email" />
-            </div>
-
-            <div class="grid gap-2">
-                <div class="flex items-center justify-between">
-                    <Label for="password">Password</Label>
-                </div>
-                <PasswordInput
-                    id="password"
-                    name="password"
-                    required
-                    :tabindex="2"
-                    autocomplete="current-password"
-                    placeholder="Password"
-                />
-                <InputError :message="errors.password" />
-            </div>
-
-            <div class="flex items-center justify-between">
-                <Label for="remember" class="flex items-center space-x-3">
-                    <Checkbox id="remember" name="remember" :tabindex="3" />
-                    <span>Remember me</span>
-                </Label>
-            </div>
-
-            <Button
-                type="submit"
-                class="mt-4 w-full"
-                :tabindex="4"
-                :disabled="processing"
-                data-test="login-button"
-            >
-                <Spinner v-if="processing" />
-                Log in
-            </Button>
-        </div>
-    </Form>
+        <svg
+            viewBox="0 0 127.14 96.36"
+            xmlns="http://www.w3.org/2000/svg"
+            class="size-4"
+            fill="currentColor"
+            aria-hidden="true"
+        >
+            <path
+                d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"
+            />
+        </svg>
+        Mit Discord anmelden
+    </Button>
 </template>
