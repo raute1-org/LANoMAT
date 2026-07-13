@@ -839,15 +839,15 @@ git add -A && git commit -m "feat: lanomat:install command for migrations and in
 ### Task 9: Modul-Konvention + Repo-Doku (Roadmap 0.9)
 
 **Files:**
-- Create: `CLAUDE.md`, `docs/architecture.md`
-- Modify: `README.md`
+- Create: `docs/architecture.md`
+- Modify: `CLAUDE.md` (existiert bereits im Repo-Root), `README.md`
 
 **Interfaces:**
 - Produces: verbindliche Modul-Konvention für M1–M6; Onboarding-Doku.
 
-- [ ] **Step 1: CLAUDE.md schreiben**
+- [ ] **Step 1: CLAUDE.md aktualisieren**
 
-Inhalt (Englisch): Projektüberblick (eine Zeile), Verweis auf `docs/architecture.md`, Kommandos (`composer run dev`, `composer check`, `./vendor/bin/pest -- --filter=…`, `docker compose up -d`), Modul-Konvention (`app/Modules/<Name>/{Models,Actions,Policies,Filament,Jobs,Events,Contracts}`; Tests gespiegelt unter `tests/{Feature,Unit}/<Name>/`), Regeln: Policies für jede Autorisierung, externe Systeme nur über Contracts + Fakes, Conventional Commits, Pint/Larastan/Pest müssen grün sein, UI-Texte über `lang/de/`.
+`CLAUDE.md` existiert bereits im Repo-Root (Stack, Modul-Konvention, State-of-the-art-2026-Prinzip, Kommandos). Nach dem Scaffold aktualisieren: Abschnitt „Current state" (Pre-Scaffold-Hinweis entfernen, auf laufende App umstellen), alle Kommandos gegen die tatsächlichen `composer.json`/`package.json`-Scripts verifizieren, Abweichungen aus Task 1–8 nachtragen.
 
 - [ ] **Step 2: docs/architecture.md**
 
