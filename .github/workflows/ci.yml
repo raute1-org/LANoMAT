@@ -31,5 +31,6 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run lint:check
+      - run: npm run format:check
       - run: npm run types:check
       - run: npm run build

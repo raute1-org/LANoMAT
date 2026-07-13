@@ -50,9 +50,15 @@ const handleDelete = () => {
                     </span>
                 </div>
                 <p class="text-sm text-muted-foreground">
-                    <template v-if="passkey.created_at_diff">Added {{ passkey.created_at_diff }}</template>
+                    <template v-if="passkey.created_at_diff"
+                        >Added {{ passkey.created_at_diff }}</template
+                    >
                     <template v-if="passkey.last_used_at_diff">
-                        <span v-if="passkey.created_at_diff" class="mx-1 text-muted-foreground/50">/</span>
+                        <span
+                            v-if="passkey.created_at_diff"
+                            class="mx-1 text-muted-foreground/50"
+                            >/</span
+                        >
                         Last used {{ passkey.last_used_at_diff }}
                     </template>
                 </p>
