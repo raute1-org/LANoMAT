@@ -11,7 +11,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware(['guest'])->group(function () {
     Route::get('auth/discord/redirect', [DiscordAuthController::class, 'redirect'])->name('login.discord');
-    Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
 });
+
+// Not behind 'guest': the callback must be able to complete the OAuth handshake
+// regardless of prior auth state (double tab, back-button replay, stale redirect
+// hitting an already-authenticated session).
+Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
 
 require __DIR__.'/settings.php';

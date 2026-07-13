@@ -51,3 +51,18 @@ it('reuses the existing user and keeps their role on relogin', function () {
         ->and($existing->refresh()->role)->toBe(Role::Admin)
         ->and($existing->name)->toBe('RenamedUser');
 });
+
+it('processes the callback even when a user is already authenticated', function () {
+    $loggedInUser = User::factory()->create(['discord_id' => '111111111']);
+    $this->actingAs($loggedInUser);
+
+    Socialite::shouldReceive('driver->user')->andReturn(fakeDiscordUser(id: '222222222', name: 'OtherUser'));
+
+    $response = $this->get('/auth/discord/callback');
+
+    $response->assertRedirect('/');
+
+    $newUser = User::where('discord_id', '222222222')->firstOrFail();
+    $this->assertAuthenticatedAs($newUser);
+    expect(User::count())->toBe(2);
+});
