@@ -41,6 +41,11 @@ npm run lint && npm run build # frontend checks
 php artisan lanomat:install --admin-discord-id=<id>   # migrate + create admin
 ```
 
+## MCP servers
+
+- **context7** (`.mcp.json`, project-scoped): up-to-date docs for any library (Laravel, Filament, Inertia, Tailwind, shadcn-vue, …). Use it to satisfy the "verify before you build" rule.
+- **laravel-boost**: installed in M0 Task 1 right after scaffolding (`composer require laravel/boost --dev && php artisan boost:install`) — first-party MCP with tinker, database queries, log reading and Laravel-ecosystem docs search. Prefer its docs tools over context7 for Laravel-ecosystem packages once available.
+
 ## Architecture rules
 
 - **Modular monolith:** `app/Modules/<Name>/{Models,Actions,Policies,Filament,Jobs,Events,Contracts}`; tests mirrored in `tests/{Feature,Unit}/<Name>/`. Modules communicate via Laravel events and explicit service interfaces — never reach into another module's tables.

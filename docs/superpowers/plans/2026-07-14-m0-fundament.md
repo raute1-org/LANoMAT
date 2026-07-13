@@ -26,20 +26,19 @@
 **Interfaces:**
 - Produces: lauffähige Laravel-App mit Inertia v2/Vue 3/Tailwind 4/Pest; Basis für alle Folge-Tasks.
 
-- [ ] **Step 1: Neues Repo anlegen**
-
-```bash
-mkdir lanomat && cd lanomat && git init -b main
-```
+- [ ] **Step 1: Bestehendes Repo nutzen** *(Plan-Abweichung, entschieden 2026-07-14: kein neues Repo — die App wird in den Root des bestehenden LANoMAT_v2-Repos gescaffoldet; `docs/`, `CLAUDE.md` und `.mcp.json` bleiben erhalten.)*
 
 - [ ] **Step 2: Laravel 13 mit Vue-Starter-Kit scaffolden**
 
+Da `laravel new` ein leeres Verzeichnis verlangt: in ein temporäres Verzeichnis scaffolden und den Inhalt (inkl. Dotfiles, ohne `.git`) in den Repo-Root verschieben.
+
 ```bash
 composer global require laravel/installer
-laravel new . --using=laravel/vue-starter-kit --pest --no-interaction
+laravel new /tmp/lanomat-scaffold --using=laravel/vue-starter-kit --pest --no-interaction
+rsync -a --exclude=.git /tmp/lanomat-scaffold/ ./ && rm -rf /tmp/lanomat-scaffold
 ```
 
-Falls der Installer das Flag anders nennt (Doku prüfen!): `laravel new .` interaktiv ausführen und **Vue**-Starter-Kit + **Pest** wählen.
+Falls der Installer das Flag anders nennt (Doku prüfen!): `laravel new` interaktiv ausführen und **Vue**-Starter-Kit + **Pest** wählen.
 
 - [ ] **Step 3: Verifizieren**
 
@@ -59,7 +58,19 @@ Das Starter-Kit bringt E-Mail/Passwort-Registrierung mit. Wir behalten nur die S
 Run: `./vendor/bin/pest`
 Expected: PASS (nur noch verbleibende Tests)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Laravel Boost (First-Party-MCP-Server) installieren**
+
+```bash
+composer require laravel/boost --dev
+php artisan boost:install
+```
+
+Boost registriert sich beim Install selbst als MCP-Server (`php artisan boost:mcp`) in `.mcp.json` — der bestehende `context7`-Eintrag muss dabei erhalten bleiben. Generierte AI-Guideline-Dateien prüfen und ggf. mit der bestehenden `CLAUDE.md` zusammenführen statt sie zu überschreiben.
+
+Run: `claude mcp list`
+Expected: `laravel-boost` und `context7` verbunden
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add -A && git commit -m "feat: scaffold Laravel 13 app with Vue starter kit (Inertia, Tailwind, Pest)"
@@ -216,15 +227,14 @@ jobs:
 Run: `composer check`
 Expected: pint PASS, phpstan 0 errors, pest PASS
 
-- [ ] **Step 6: Commit + Push (Repo auf GitHub anlegen)**
+- [ ] **Step 6: Commit + Push** *(Plan-Abweichung, entschieden 2026-07-14: GitHub-Repo existiert bereits — kein `gh repo create`. Remote-URL beim User erfragen bzw. `git remote -v` prüfen und als `origin` hinzufügen, dann pushen.)*
 
 ```bash
-gh repo create lanomat --private --source=. --push
 git add -A && git commit -m "ci: add pint, larastan level 8 and github actions pipeline"
-git push
+git push -u origin main   # setzt konfiguriertes origin voraus
 ```
 
-Expected: CI-Lauf auf GitHub grün.
+Expected: CI-Lauf auf GitHub grün (sobald Remote konfiguriert ist; andernfalls Push aufschieben und weiterarbeiten).
 
 ---
 
