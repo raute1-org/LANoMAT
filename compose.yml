@@ -1,0 +1,26 @@
+name: lanomat
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lanomat
+      POSTGRES_PASSWORD: lanomat
+      POSTGRES_DB: lanomat
+    # host port 5434: defaults 5432/5433 are taken for other local containers
+    ports: ['5434:5432']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lanomat']
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # host port 6380: default 6379 is taken by another local container
+    ports: ['6380:6379']
+
+volumes:
+  pgdata:

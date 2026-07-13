@@ -87,6 +87,8 @@ git add -A && git commit -m "feat: scaffold Laravel 13 app with Vue starter kit 
 **Interfaces:**
 - Produces: `docker compose up -d` liefert Postgres (`lanomat`/`lanomat_test`) und Redis; App läuft via `composer run dev`.
 
+> **Plan-Abweichung (2026-07-14, User):** Auf dem Dev-Rechner laufen bereits Container auf 6379/3306. Host-Ports daher verschoben: Postgres **5434**→5432, Redis **6380**→6379. Gilt für compose.yml, `.env`, `.env.example`, `.env.testing`. Der CI-Workflow (Task 3) nutzt weiterhin Standard-Port 5432 im Service-Container und muss `DB_PORT=5432` setzen bzw. `.env.testing` überschreiben.
+
 - [ ] **Step 1: compose.yml schreiben**
 
 ```yaml
@@ -99,7 +101,7 @@ services:
       POSTGRES_USER: lanomat
       POSTGRES_PASSWORD: lanomat
       POSTGRES_DB: lanomat
-    ports: ['5432:5432']
+    ports: ['5434:5432']
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
@@ -110,7 +112,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ['6379:6379']
+    ports: ['6380:6379']
 
 volumes:
   pgdata:
@@ -126,7 +128,7 @@ CREATE DATABASE lanomat_test OWNER lanomat;
 
 - [ ] **Step 3: Env-Dateien**
 
-`.env` und `.env.example`: `DB_CONNECTION=pgsql`, `DB_HOST=127.0.0.1`, `DB_PORT=5432`, `DB_DATABASE=lanomat`, `DB_USERNAME=lanomat`, `DB_PASSWORD=lanomat`, `CACHE_STORE=redis`, `QUEUE_CONNECTION=redis`, `REDIS_HOST=127.0.0.1`.
+`.env` und `.env.example`: `DB_CONNECTION=pgsql`, `DB_HOST=127.0.0.1`, `DB_PORT=5434`, `DB_DATABASE=lanomat`, `DB_USERNAME=lanomat`, `DB_PASSWORD=lanomat`, `CACHE_STORE=redis`, `QUEUE_CONNECTION=redis`, `REDIS_HOST=127.0.0.1`, `REDIS_PORT=6380`.
 
 Create `.env.testing` (wie `.env`, aber `DB_DATABASE=lanomat_test`, `QUEUE_CONNECTION=sync`, `CACHE_STORE=array`).
 
