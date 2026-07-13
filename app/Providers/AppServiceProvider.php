@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureSocialite();
+        $this->configureAuthorization();
     }
 
     /**
@@ -60,5 +63,13 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(function (SocialiteWasCalled $event) {
             $event->extendSocialite('discord', DiscordProvider::class);
         });
+    }
+
+    /**
+     * Configure authorization and gates.
+     */
+    protected function configureAuthorization(): void
+    {
+        Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
     }
 }
