@@ -58,6 +58,7 @@ return [
         'finals' => 'Finale',
         'enroll' => 'Anmelden',
         'check_in' => 'Einchecken',
+        'join_voice' => 'Voice beitreten',
     ],
 
     'format' => [

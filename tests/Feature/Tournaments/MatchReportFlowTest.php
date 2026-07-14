@@ -26,6 +26,17 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    // Most tests here run the report/confirm/override flow without scoping
+    // Event::fake(), so TournamentStarted/MatchReady/MatchCompleted/
+    // TournamentCompleted dispatch for real and reach both the Discord
+    // match-channel listener (Task 18) and the voice-provisioning listener
+    // (Task 21) — fake both clients globally so this bracket-progression
+    // suite never hits a real server.
+    fakeDiscord();
+    fakeMumble();
+});
+
 /**
  * Submits and confirms a report for `$match` (score1-score2), returning the
  * confirmed `GameMatch`. Used by the double-elimination grand-final tests to

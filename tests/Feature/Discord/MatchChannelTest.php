@@ -22,6 +22,11 @@ beforeEach(function () {
         'services.discord.guild_id' => 'guild-1',
         'services.discord.match_category_id' => 'category-1',
     ]);
+
+    // MatchReady also triggers Task 21's voice-channel provisioning
+    // listener; fake it too so these Discord-focused tests never hit a
+    // real Mumble server.
+    fakeMumble();
 });
 
 function readyMatch(): GameMatch

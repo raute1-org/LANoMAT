@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import BracketView from '@/components/bracket/BracketView.vue';
+import { Button } from '@/components/ui/button';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
 import { index as tournamentsIndex } from '@/routes/tournaments';
-import type { BracketMatchDto, TournamentDetail } from '@/types';
+import type {
+    BracketMatchDto,
+    MatchVoiceLink,
+    TournamentDetail,
+} from '@/types';
 
 const props = defineProps<{
     tournament: TournamentDetail;
     matches: BracketMatchDto[];
     myEntryId: number | null;
+    myMatchVoiceLink: MatchVoiceLink;
     labels: Record<string, string>;
     matchStatusLabels: Record<string, string>;
     reportLabels: Record<string, string>;
@@ -34,6 +40,12 @@ useTournamentChannel(props.tournament.id);
         <p class="text-sm text-muted-foreground">
             {{ tournament.event.name }}
         </p>
+
+        <div v-if="myMatchVoiceLink" class="mt-4">
+            <Button as="a" :href="myMatchVoiceLink" variant="outline">
+                {{ labels.join_voice }}
+            </Button>
+        </div>
 
         <div class="mt-8">
             <BracketView

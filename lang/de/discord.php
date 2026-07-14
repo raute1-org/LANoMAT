@@ -47,5 +47,6 @@ return [
         'welcome_title' => ':entry1 vs. :entry2',
         'welcome_description' => "Willkommen in eurem Match-Channel!\n:entry1 vs. :entry2\nDetails zum Match: :url",
         'result_announcement' => 'Ergebnis: :entry1 vs. :entry2 – Sieger: :winner',
+        'voice_links_heading' => 'Voice-Channel beitreten:',
     ],
 ];

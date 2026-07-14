@@ -3,14 +3,15 @@
 namespace App\Modules\Discord\Support;
 
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
+use App\Modules\Voice\Support\MumbleJoinLink;
 
 /**
  * Builds the Discord embed payload sent into a freshly created match
- * channel. Carries the match deep-link and both opponent names.
- *
- * The voice-channel join link (Mumble) is a later task (21) — the Mumble
- * client does not exist yet, so it is intentionally omitted here rather than
- * invented. Once Task 21 lands, its link can be appended to the description.
+ * channel. Carries the match deep-link, both opponent names, and — once
+ * {@see ProvisionMatchVoiceJob} has provisioned the
+ * match's per-team Mumble channels (`matches.voice_channels`) — a Mumble
+ * join link for each roster's own channel.
  */
 class MatchEmbed
 {
@@ -27,15 +28,43 @@ class MatchEmbed
 
         $url = route('tournaments.show', $match->tournament);
 
+        $description = __('discord.match_channel.welcome_description', [
+            'entry1' => $entry1Name,
+            'entry2' => $entry2Name,
+            'url' => $url,
+        ]);
+
+        $voiceLink = self::voiceLink($match, $entry1Name, $entry2Name);
+
+        if ($voiceLink !== null) {
+            $description .= "\n".$voiceLink;
+        }
+
         return [
             'title' => __('discord.match_channel.welcome_title', ['entry1' => $entry1Name, 'entry2' => $entry2Name]),
-            // TODO(Task 21): append the Mumble voice-channel join link once
-            // the Mumble client contract exists.
-            'description' => __('discord.match_channel.welcome_description', [
-                'entry1' => $entry1Name,
-                'entry2' => $entry2Name,
-                'url' => $url,
-            ]),
+            'description' => $description,
         ];
+    }
+
+    private static function voiceLink(GameMatch $match, string $entry1Name, string $entry2Name): ?string
+    {
+        $entry1ChannelId = $match->voice_channels['entry1_channel_id'] ?? null;
+        $entry2ChannelId = $match->voice_channels['entry2_channel_id'] ?? null;
+
+        if ($entry1ChannelId === null && $entry2ChannelId === null) {
+            return null;
+        }
+
+        $lines = [];
+
+        if ($entry1ChannelId !== null) {
+            $lines[] = "{$entry1Name}: ".MumbleJoinLink::for($entry1Name);
+        }
+
+        if ($entry2ChannelId !== null) {
+            $lines[] = "{$entry2Name}: ".MumbleJoinLink::for($entry2Name);
+        }
+
+        return __('discord.match_channel.voice_links_heading')."\n".implode("\n", $lines);
     }
 }

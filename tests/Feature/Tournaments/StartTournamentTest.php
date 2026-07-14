@@ -16,6 +16,15 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    // StartTournament dispatches a real TournamentStarted in every test here
+    // except the one that explicitly fakes it. TournamentStarted had no
+    // listener before Task 21's voice-provisioning listener, so fake Mumble
+    // globally to keep these bracket-generation tests from ever hitting a
+    // real server.
+    fakeMumble();
+});
+
 it('starts an 8-entry single-elimination tournament, persists 7 matches and dispatches TournamentStarted', function () {
     $tournament = Tournament::factory()->checkIn()->singleElim()->create();
     TournamentEntry::factory()->checkedIn()->count(8)->create(['tournament_id' => $tournament->id]);

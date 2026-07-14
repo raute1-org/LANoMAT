@@ -14,6 +14,15 @@ use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    // startEightEntrySingleElim() and the report/confirm routes dispatch
+    // real TournamentStarted/MatchReady/MatchCompleted events, which now
+    // also reach Task 18's Discord listener and Task 21's voice-provisioning
+    // listener — fake both globally so this suite never hits a real server.
+    fakeDiscord();
+    fakeMumble();
+});
+
 /**
  * Starts an 8-entry single-elimination tournament (7 matches total: 4 + 2 +
  * 1) and returns it, freshly reloaded.
@@ -53,6 +62,41 @@ it('renders the bracket for an 8-entry single-elimination tournament with 7 matc
             ->has('matches.0', fn (AssertableInertia $match) => $match
                 ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'lockVersion'])
             )
+        );
+});
+
+it('exposes null myMatchVoiceLink when the viewer has no match voice channel provisioned', function () {
+    $tournament = startEightEntrySingleElim();
+    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $viewer = User::find($entry1->user_id);
+
+    $this->actingAs($viewer)
+        ->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Tournaments/Show')
+            ->where('myEntryId', $entry1->id)
+            ->where('myMatchVoiceLink', null)
+        );
+});
+
+it('exposes the viewer own mumble join link once their match has voice channels provisioned', function () {
+    config(['services.mumble.host' => 'voice.example.test', 'services.mumble.port' => 64738]);
+
+    $tournament = startEightEntrySingleElim();
+    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $viewer = User::find($entry1->user_id);
+
+    $match->update(['voice_channels' => ['entry1_channel_id' => 101, 'entry2_channel_id' => 102]]);
+
+    $this->actingAs($viewer)
+        ->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Tournaments/Show')
+            ->where('myMatchVoiceLink', 'mumble://voice.example.test:64738/'.$entry1->display_name)
         );
 });
 

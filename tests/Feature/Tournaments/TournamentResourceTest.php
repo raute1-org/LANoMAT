@@ -14,6 +14,13 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    // Starting a tournament via the header action dispatches a real
+    // TournamentStarted, which Task 21's voice-provisioning listener reacts
+    // to — fake Mumble globally so this suite never hits a real server.
+    fakeMumble();
+});
+
 it('lists tournaments for orga in the admin panel', function () {
     Tournament::factory()->create(['name' => 'Testlan Finals']);
 

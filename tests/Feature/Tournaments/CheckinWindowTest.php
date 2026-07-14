@@ -14,6 +14,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    // The scheduler-tick autostart tests dispatch a real TournamentStarted,
+    // which Task 21's voice-provisioning listener reacts to — fake Mumble
+    // globally so this suite never hits a real server.
+    fakeMumble();
+});
+
 it('rejects check-in outside the check-in window', function () {
     $tournament = Tournament::factory()->enrollment()->create();
     $entry = app(EnrollSolo::class)->handle($tournament, User::factory()->create());

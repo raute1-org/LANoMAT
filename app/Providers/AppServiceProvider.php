@@ -22,6 +22,8 @@ use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Policies\TeamPolicy;
 use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Events\MatchReady;
+use App\Modules\Tournaments\Events\TournamentCompleted;
+use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
@@ -29,6 +31,9 @@ use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Policies\TournamentPolicy;
 use App\Modules\Voice\Contracts\MumbleClient;
 use App\Modules\Voice\HttpMumbleClient;
+use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
+use App\Modules\Voice\Listeners\ProvisionMatchVoiceOnReady;
+use App\Modules\Voice\Listeners\ProvisionVoiceOnStart;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -128,5 +133,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);
         Event::listen(MatchReady::class, CreateMatchChannelOnReady::class);
         Event::listen(MatchCompleted::class, AnnounceAndCleanupOnCompleted::class);
+        Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);
+        Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
+        Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
     }
 }

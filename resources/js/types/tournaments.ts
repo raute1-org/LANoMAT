@@ -15,6 +15,9 @@ export interface TournamentDetail {
     winnerEntryId: number | null;
 }
 
+/** A `mumble://` deep link to the viewer's own match voice channel, or null if none has been provisioned (yet, or any more). */
+export type MatchVoiceLink = string | null;
+
 export type MatchStatusValue =
     'pending' | 'ready' | 'reported' | 'disputed' | 'completed';
 

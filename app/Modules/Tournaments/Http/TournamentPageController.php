@@ -20,6 +20,8 @@ use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
+use App\Modules\Voice\Support\MumbleJoinLink;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,6 +85,10 @@ class TournamentPageController extends Controller
         $user = $request->user();
         $myEntry = $user === null ? null : $this->entryFor($tournament, $user);
 
+        $myMatch = $myEntry === null ? null : $matches->first(
+            fn (GameMatch $match): bool => $match->entry1_id === $myEntry->id || $match->entry2_id === $myEntry->id,
+        );
+
         return Inertia::render('Tournaments/Show', [
             'tournament' => [
                 'id' => $tournament->id,
@@ -94,6 +100,7 @@ class TournamentPageController extends Controller
             ],
             'matches' => $matches->map(fn (GameMatch $match): array => $this->matchDto($match))->all(),
             'myEntryId' => $myEntry?->id,
+            'myMatchVoiceLink' => $myMatch === null ? null : $this->voiceLinkFor($myMatch, $myEntry),
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title')],
             'matchStatusLabels' => trans('tournaments.match_status'),
             'reportLabels' => trans('tournaments.report'),
@@ -288,5 +295,29 @@ class TournamentPageController extends Controller
             ->where('match_id', $match->id)
             ->latest('id')
             ->first();
+    }
+
+    /**
+     * The Mumble join link for `$myEntry`'s own voice channel on `$match`,
+     * once {@see ProvisionMatchVoiceJob} has
+     * provisioned it — or null if voice channels have not been (or are no
+     * longer) provisioned for this match.
+     */
+    private function voiceLinkFor(GameMatch $match, TournamentEntry $myEntry): ?string
+    {
+        $voiceChannels = $match->voice_channels;
+
+        if ($voiceChannels === null) {
+            return null;
+        }
+
+        $isEntry1 = $match->entry1_id === $myEntry->id;
+        $channelId = $isEntry1 ? ($voiceChannels['entry1_channel_id'] ?? null) : ($voiceChannels['entry2_channel_id'] ?? null);
+
+        if ($channelId === null) {
+            return null;
+        }
+
+        return MumbleJoinLink::for($myEntry->display_name);
     }
 }
