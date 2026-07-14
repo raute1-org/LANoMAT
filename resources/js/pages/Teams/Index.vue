@@ -96,10 +96,7 @@ function submit() {
             </Dialog>
         </div>
 
-        <p
-            v-if="teams.length === 0"
-            class="mt-8 text-sm text-muted-foreground"
-        >
+        <p v-if="teams.length === 0" class="mt-8 text-sm text-muted-foreground">
             {{ labels.no_teams }}
         </p>
 

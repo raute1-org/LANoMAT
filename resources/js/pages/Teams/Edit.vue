@@ -3,7 +3,11 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { leave as leaveTeam, respond as respondToRequest, update as updateTeam } from '@/routes/teams';
+import {
+    leave as leaveTeam,
+    respond as respondToRequest,
+    update as updateTeam,
+} from '@/routes/teams';
 import type { TeamEditDetail } from '@/types';
 
 const props = defineProps<{
@@ -105,7 +109,10 @@ function leave() {
             >
                 {{ labels.no_requests }}
             </p>
-            <ul v-else class="mt-4 divide-y divide-border rounded-lg border border-border">
+            <ul
+                v-else
+                class="mt-4 divide-y divide-border rounded-lg border border-border"
+            >
                 <li
                     v-for="request in team.joinRequests"
                     :key="request.id"
@@ -138,7 +145,9 @@ function leave() {
 
         <section class="mt-10">
             <h2 class="text-xl font-semibold">{{ labels.members }}</h2>
-            <ul class="mt-4 divide-y divide-border rounded-lg border border-border">
+            <ul
+                class="mt-4 divide-y divide-border rounded-lg border border-border"
+            >
                 <li
                     v-for="member in team.members"
                     :key="member.id"

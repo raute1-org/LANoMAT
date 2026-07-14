@@ -70,7 +70,9 @@ function join() {
 
         <section class="mt-10">
             <h2 class="text-xl font-semibold">{{ labels.members }}</h2>
-            <ul class="mt-4 divide-y divide-border rounded-lg border border-border">
+            <ul
+                class="mt-4 divide-y divide-border rounded-lg border border-border"
+            >
                 <li
                     v-for="member in team.members"
                     :key="member.id"
