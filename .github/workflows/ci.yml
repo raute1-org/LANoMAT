@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  php:
+  ci:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -15,22 +15,35 @@ jobs:
           --health-cmd "pg_isready -U lanomat" --health-interval 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+
       - uses: shivammathur/setup-php@v2
         with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
-      - run: composer install --no-interaction --prefer-dist
-      - run: cp .env.testing .env && php artisan key:generate
-      - run: ./vendor/bin/pint --test
-      - run: ./vendor/bin/phpstan analyse --memory-limit=1G
-      - run: php artisan migrate --force && ./vendor/bin/pest
 
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - run: composer install --no-interaction --prefer-dist
       - run: npm ci
+
+      - run: cp .env.testing .env && php artisan key:generate
+
+      # The Vite plugin shells out to this at buildStart; run it explicitly so
+      # resources/js/{routes,actions,wayfinder} exist before type-checking/build.
+      - run: php artisan wayfinder:generate --with-form
+
+      - run: npm run build
+      - run: ./vendor/bin/pint --test
+      - run: ./vendor/bin/phpstan analyse --memory-limit=1G
       - run: npm run lint:check
       - run: npm run format:check
       - run: npm run types:check
-      - run: npm run build
+
+      - run: php artisan migrate --force
+      - run: ./vendor/bin/pest
