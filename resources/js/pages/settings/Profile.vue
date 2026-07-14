@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
@@ -9,6 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/profile';
+
+const props = defineProps<{
+    profile: {
+        bio: string | null;
+        steamUrl: string | null;
+        profileColor: string | null;
+    };
+    labels: Record<string, string>;
+}>();
 
 defineOptions({
     layout: {
@@ -23,6 +32,7 @@ defineOptions({
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+const bio = ref(props.profile.bio ?? '');
 </script>
 
 <template>
@@ -69,6 +79,46 @@ const user = computed(() => page.props.auth.user);
                     placeholder="Email address"
                 />
                 <InputError class="mt-2" :message="errors.email" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="bio">{{ props.labels.bio }}</Label>
+                <textarea
+                    id="bio"
+                    v-model="bio"
+                    name="bio"
+                    rows="4"
+                    class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
+                    :placeholder="props.labels.bio_placeholder"
+                />
+                <InputError class="mt-2" :message="errors.bio" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="steam_url">{{ props.labels.steam_url }}</Label>
+                <Input
+                    id="steam_url"
+                    type="url"
+                    class="mt-1 block w-full"
+                    name="steam_url"
+                    :default-value="props.profile.steamUrl ?? ''"
+                    placeholder="https://steamcommunity.com/id/…"
+                />
+                <InputError class="mt-2" :message="errors.steam_url" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="profile_color">{{
+                    props.labels.profile_color
+                }}</Label>
+                <Input
+                    id="profile_color"
+                    type="color"
+                    class="h-10 w-16 p-1"
+                    name="profile_color"
+                    :default-value="props.profile.profileColor ?? '#000000'"
+                />
+                <InputError class="mt-2" :message="errors.profile_color" />
             </div>
 
             <div class="flex items-center gap-4">

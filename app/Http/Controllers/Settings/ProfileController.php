@@ -6,6 +6,7 @@ use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Modules\Identity\Actions\UpdateProfile;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,26 +23,26 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $this->authUser($request);
+
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'profile' => [
+                'bio' => $user->bio,
+                'steamUrl' => $user->steam_url,
+                'profileColor' => $user->profile_color,
+            ],
+            'labels' => trans('profile.form'),
         ]);
     }
 
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request, UpdateProfile $action): RedirectResponse
     {
-        $user = $this->authUser($request);
-
-        $user->fill($request->validated());
-
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
-
-        $user->save();
+        $action->handle($this->authUser($request), $request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
 
