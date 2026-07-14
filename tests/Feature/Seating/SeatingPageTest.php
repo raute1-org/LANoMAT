@@ -6,8 +6,11 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Seating\Actions\ClaimSeat;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Testing\AssertableInertia;
+
+uses(RefreshDatabase::class);
 
 it('renders the seating map with seats and occupants', function () {
     $event = Event::factory()->live()->create();

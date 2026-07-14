@@ -9,7 +9,10 @@ use App\Modules\Seating\Exceptions\SeatException;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+
+uses(RefreshDatabase::class);
 
 it('claims a free seat for a registration', function () {
     $event = Event::factory()->live()->create();
