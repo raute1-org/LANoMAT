@@ -23,7 +23,14 @@ class DiscordOutboxGuard
                 DiscordOutbox::create(['kind' => $kind, 'dedup_key' => $dedupKey]);
             });
         } catch (QueryException $e) {
-            // Unique violation: already sent (or racing) -> do not send again.
+            // Only a unique-key violation on dedup_key means "already sent
+            // (or racing)" -> do not send again. Any other failure (e.g. a
+            // connection error, a schema problem) is a real error and must
+            // not be silently swallowed as if it were a dedup no-op.
+            if ($e->getCode() !== '23505') {
+                throw $e;
+            }
+
             return false;
         }
 
