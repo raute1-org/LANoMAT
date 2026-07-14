@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
-
+use App\Modules\Discord\Contracts\DiscordClient;
+use App\Modules\Discord\Testing\FakeDiscordClient;
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -14,12 +13,22 @@ use Tests\TestCase;
 |
 */
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
 pest()->extend(TestCase::class)
     ->in('Feature', 'Unit/Identity', 'Unit/Discord');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Unit/Events', 'Unit/Registration', 'Unit/Seating');
+
+// Prevent stray HTTP requests in Discord tests to ensure all external
+// communication is properly faked or declared with Http::fake.
+beforeEach(function () {
+    Http::preventStrayRequests();
+})->in('Feature/Discord', 'Unit/Discord');
 
 /*
 |--------------------------------------------------------------------------
@@ -35,3 +44,17 @@ pest()->extend(TestCase::class)
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
+function fakeDiscord(): FakeDiscordClient
+{
+    $fake = new FakeDiscordClient;
+    app()->instance(DiscordClient::class, $fake);
+
+    return $fake;
+}
