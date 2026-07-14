@@ -26,7 +26,7 @@ it('has no result and is incomplete when freshly constructed', function () {
     expect($match->score1)->toBeNull()
         ->and($match->score2)->toBeNull()
         ->and($match->winnerSlot)->toBeNull()
-        ->and($match->isComplete())->toBeFalse();
+        ->and($match->isDecided())->toBeFalse();
 });
 
 it('withResult records score and winner state without touching routing', function () {
@@ -37,14 +37,14 @@ it('withResult records score and winner state without touching routing', functio
     expect($completed->score1)->toBe(3)
         ->and($completed->score2)->toBe(1)
         ->and($completed->winnerSlot)->toBe(1)
-        ->and($completed->isComplete())->toBeTrue()
+        ->and($completed->isDecided())->toBeTrue()
         // Routing fields are generation-time data and stay untouched.
         ->and($completed->nextMatch)->toBe($match->nextMatch)
         ->and($completed->nextSlot)->toBe($match->nextSlot)
         ->and($completed->loserNextMatch)->toBe($match->loserNextMatch)
         ->and($completed->loserNextSlot)->toBe($match->loserNextSlot)
         // Original is untouched.
-        ->and($match->isComplete())->toBeFalse()
+        ->and($match->isDecided())->toBeFalse()
         ->and($completed)->not->toBe($match);
 });
 
@@ -67,7 +67,7 @@ it('withRouting rewires next/loserNext fields without touching result state', fu
         ->and($rewired->score1)->toBe(2)
         ->and($rewired->score2)->toBe(0)
         ->and($rewired->winnerSlot)->toBe(1)
-        ->and($rewired->isComplete())->toBeTrue();
+        ->and($rewired->isDecided())->toBeTrue();
 });
 
 it('withSlot preserves any already-recorded result', function () {
@@ -79,5 +79,5 @@ it('withSlot preserves any already-recorded result', function () {
         ->and($updated->score1)->toBe(5)
         ->and($updated->score2)->toBe(2)
         ->and($updated->winnerSlot)->toBe(1)
-        ->and($updated->isComplete())->toBeTrue();
+        ->and($updated->isDecided())->toBeTrue();
 });

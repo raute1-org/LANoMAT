@@ -43,9 +43,32 @@ final readonly class BracketMatch
     /**
      * Whether this match has a recorded result (a winner).
      */
-    public function isComplete(): bool
+    public function isDecided(): bool
     {
         return $this->winnerSlot !== null;
+    }
+
+    /**
+     * Whether this match is ready to be reported: both slots hold real
+     * entries. A slot that is still pending, empty or a bye is not
+     * playable — the match cannot be reported yet (or, for a bye, is
+     * auto-resolved instead of being reported at all).
+     */
+    public function isPlayable(): bool
+    {
+        return $this->slot1->isEntry() && $this->slot2->isEntry();
+    }
+
+    /**
+     * The entry id of the recorded winner, or null if undecided.
+     */
+    public function winnerEntryId(): ?int
+    {
+        return match ($this->winnerSlot) {
+            1 => $this->slot1->entryId(),
+            2 => $this->slot2->entryId(),
+            default => null,
+        };
     }
 
     /**

@@ -64,11 +64,11 @@ it('replaces a match immutably via withMatch', function () {
     $newPlan = $plan->withMatch($updatedMatch1);
 
     // Original plan is untouched.
-    expect($plan->match(1)->isComplete())->toBeFalse()
+    expect($plan->match(1)->isDecided())->toBeFalse()
         ->and($plan->match(1)->nextMatch)->toBe(2)
         ->and($newPlan)->not->toBe($plan)
         ->and($newPlan->match(1))->toBe($updatedMatch1)
-        ->and($newPlan->match(1)->isComplete())->toBeTrue()
+        ->and($newPlan->match(1)->isDecided())->toBeTrue()
         ->and($newPlan->match(1)->nextMatch)->toBe(2)
         ->and($newPlan->match(2)->id)->toBe(2);
 });
