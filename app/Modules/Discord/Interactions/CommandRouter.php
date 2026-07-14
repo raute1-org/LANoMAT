@@ -2,20 +2,25 @@
 
 namespace App\Modules\Discord\Interactions;
 
+use App\Modules\Discord\Interactions\Commands\HelpCommand;
+use App\Modules\Discord\Interactions\Commands\TournamentCommand;
+
 class CommandRouter
 {
     /**
      * Command name => handler class-string map.
      *
      * Handlers are invoked as `$handler->handle(array $payload): array` and
-     * must return a Discord interaction response body. Empty for now — filled
-     * in by a later task once the first slash commands are implemented.
+     * must return a Discord interaction response body.
      *
      * @return array<string, class-string>
      */
     private static function commandMap(): array
     {
-        return [];
+        return [
+            'tournament' => TournamentCommand::class,
+            'help' => HelpCommand::class,
+        ];
     }
 
     /**

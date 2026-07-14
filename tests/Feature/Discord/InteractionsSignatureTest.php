@@ -1,20 +1,6 @@
 <?php
 
-use Illuminate\Support\Facades\Config;
-
-function signedInteraction(array $body): array
-{
-    $keypair = sodium_crypto_sign_keypair();
-    $secret = sodium_crypto_sign_secretkey($keypair);
-    $public = sodium_crypto_sign_publickey($keypair);
-    Config::set('services.discord.public_key', bin2hex($public));
-
-    $json = json_encode($body);
-    $timestamp = (string) time();
-    $sig = bin2hex(sodium_crypto_sign_detached($timestamp.$json, $secret));
-
-    return [$json, $timestamp, $sig];
-}
+// signedInteraction() is a shared test helper declared in tests/Pest.php.
 
 it('rejects an invalid signature', function () {
     [$json, $timestamp] = signedInteraction(['type' => 1]);
