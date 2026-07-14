@@ -71,6 +71,7 @@ class TournamentPageController extends Controller
         $tournament->load('event');
         $event = $tournament->event;
         abort_if($event === null, 500, 'Tournament has no associated event.');
+        abort_unless($event->isPubliclyVisible(), 404);
 
         $matches = GameMatch::query()
             ->where('tournament_id', $tournament->id)
@@ -109,6 +110,7 @@ class TournamentPageController extends Controller
             if ($tournament->team_size > 1) {
                 $teamId = $request->integer('team_id');
                 $team = Team::query()->findOrFail($teamId);
+                $this->authorize('update', $team);
                 $enrollTeam->handle($tournament, $team);
             } else {
                 $enrollSolo->handle($tournament, $user);

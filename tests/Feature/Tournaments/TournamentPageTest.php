@@ -2,6 +2,8 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Teams\Models\Team;
+use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Tournaments\Actions\StartTournament;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -18,7 +20,8 @@ uses(RefreshDatabase::class);
  */
 function startEightEntrySingleElim(): Tournament
 {
-    $tournament = Tournament::factory()->checkIn()->singleElim()->create();
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->checkIn()->singleElim()->create();
     TournamentEntry::factory()->checkedIn()->count(8)->create(['tournament_id' => $tournament->id]);
 
     return app(StartTournament::class)->handle($tournament)->fresh();
@@ -53,6 +56,14 @@ it('renders the bracket for an 8-entry single-elimination tournament with 7 matc
         );
 });
 
+it('404s on show for a tournament whose event is still draft', function () {
+    $event = Event::factory()->draft()->create();
+    $tournament = Tournament::factory()->for($event)->enrollment()->create();
+
+    $this->get("/tournaments/{$tournament->id}")
+        ->assertNotFound();
+});
+
 it('creates an entry on POST enroll while the tournament is in enrollment', function () {
     $tournament = Tournament::factory()->enrollment()->create();
     $user = User::factory()->create();
@@ -72,6 +83,36 @@ it('rejects enroll outside the enrollment window', function () {
     $this->actingAs($user)
         ->post("/tournaments/{$tournament->id}/enroll")
         ->assertForbidden();
+});
+
+it('lets a team owner enroll their team into a team tournament', function () {
+    $tournament = Tournament::factory()->enrollment()->create(['team_size' => 2]);
+    $owner = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id]);
+
+    $this->actingAs($owner)
+        ->post("/tournaments/{$tournament->id}/enroll", ['team_id' => $team->id])
+        ->assertRedirect();
+
+    expect(TournamentEntry::query()->where('tournament_id', $tournament->id)->where('team_id', $team->id)->exists())
+        ->toBeTrue();
+});
+
+it('forbids enrolling a team the acting user does not own or manage', function () {
+    $tournament = Tournament::factory()->enrollment()->create(['team_size' => 2]);
+    $team = Team::factory()->create();
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $team->owner_id]);
+    TeamMember::factory()->create(['team_id' => $team->id]);
+    $stranger = User::factory()->create();
+
+    $this->actingAs($stranger)
+        ->post("/tournaments/{$tournament->id}/enroll", ['team_id' => $team->id])
+        ->assertForbidden();
+
+    expect(TournamentEntry::query()->where('tournament_id', $tournament->id)->where('team_id', $team->id)->exists())
+        ->toBeFalse();
 });
 
 it('creates a report on POST by a match participant', function () {
