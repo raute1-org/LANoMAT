@@ -37,6 +37,9 @@ class UserFactory extends Factory
             'discord_id' => (string) fake()->unique()->numerify('9########'),
             'role' => Role::Participant,
             'avatar_url' => null,
+            'bio' => null,
+            'steam_url' => null,
+            'profile_color' => null, // let the creating hook assign one
         ];
     }
 

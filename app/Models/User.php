@@ -30,15 +30,31 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $discord_id
  * @property Role $role
  * @property string|null $avatar_url
+ * @property string|null $bio
+ * @property string|null $steam_url
+ * @property string|null $profile_color
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url'])]
+#[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'profile_color'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    /**
+     * Assign a random profile_color on creation (app code, not a DB trigger —
+     * a lesson from v1). Deterministically testable via the hex regex.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            if (blank($user->profile_color)) {
+                $user->profile_color = sprintf('#%06X', random_int(0, 0xFFFFFF));
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -68,5 +84,15 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->isOrga();
+    }
+
+    /**
+     * Whether the user has a local password set. Discord-provisioned users
+     * have none, so password-dependent flows (security settings, password
+     * confirmation) must not be surfaced to them as unreachable dead ends.
+     */
+    public function hasPassword(): bool
+    {
+        return $this->password !== null;
     }
 }
