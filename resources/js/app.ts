@@ -2,6 +2,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import PublicShell from '@/layouts/PublicShell.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -11,13 +12,18 @@ createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
-            // Prefix matches strip the app layout from EVERY page under that
-            // directory. Future authenticated pages must not be placed under
-            // these directories unless they also want no layout — otherwise
-            // set an explicit layout via `defineOptions({ layout: ... })`.
+            // Event/* and Orga/* pages flash toasts (registration, seating,
+            // check-in) but have no sidebar/header chrome, so they get the
+            // minimal PublicShell instead of no layout — it exists solely to
+            // mount <Toaster/> so those flashes have somewhere to render.
             case name.startsWith('Event/'):
-            case name.startsWith('Profile/'):
             case name.startsWith('Orga/'):
+                return PublicShell;
+            // Prefix match strips the app layout from EVERY page under this
+            // directory. Future authenticated pages must not be placed here
+            // unless they also want no layout — otherwise set an explicit
+            // layout via `defineOptions({ layout: ... })`.
+            case name.startsWith('Profile/'):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

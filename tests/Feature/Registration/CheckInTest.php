@@ -68,6 +68,34 @@ it('checks in via the orga endpoint', function () {
     expect($reg->fresh()->checked_in_at)->not->toBeNull();
 });
 
+it('flashes a success toast reaching the Inertia response on check-in', function () {
+    $event = Event::factory()->live()->create();
+    $participant = User::factory()->create(['name' => 'Sitter']);
+    $reg = EventRegistration::factory()->for($event)->for($participant)->create();
+
+    $response = $this->actingAs(User::factory()->orga()->create())
+        ->post("/orga/events/{$event->slug}/checkin", ['qr_token' => $reg->qr_token]);
+
+    $response->assertRedirect();
+    $response->assertInertiaFlash('toast', [
+        'type' => 'success',
+        'message' => trans('registration.checkin.done', ['name' => 'Sitter']),
+    ]);
+});
+
+it('flashes an error toast reaching the Inertia response for an unknown token', function () {
+    $event = Event::factory()->live()->create();
+
+    $response = $this->actingAs(User::factory()->orga()->create())
+        ->post("/orga/events/{$event->slug}/checkin", ['qr_token' => 'nope']);
+
+    $response->assertRedirect();
+    $response->assertInertiaFlash('toast', [
+        'type' => 'error',
+        'message' => trans('registration.checkin.errors.unknown_token'),
+    ]);
+});
+
 it('shows a translated label on the check-in page', function () {
     $event = Event::factory()->live()->create();
 

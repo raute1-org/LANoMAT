@@ -90,8 +90,10 @@ it('redirects back with a german error when the event is full', function () {
         ->post("/events/{$event->slug}/register", ['ticket_type' => 'standard']);
 
     $response->assertRedirect("/events/{$event->slug}/register");
-    $response->assertSessionHas('toast.type', 'error');
-    $response->assertSessionHas('toast.message', __('registration.errors.full'));
+    $response->assertInertiaFlash('toast', [
+        'type' => 'error',
+        'message' => __('registration.errors.full'),
+    ]);
     expect(EventRegistration::where('user_id', $user->id)->exists())->toBeFalse();
 });
 
@@ -105,8 +107,10 @@ it('redirects back with a german error when already registered', function () {
         ->post("/events/{$event->slug}/register", ['ticket_type' => 'standard']);
 
     $response->assertRedirect("/events/{$event->slug}/register");
-    $response->assertSessionHas('toast.type', 'error');
-    $response->assertSessionHas('toast.message', __('registration.errors.already_registered'));
+    $response->assertInertiaFlash('toast', [
+        'type' => 'error',
+        'message' => __('registration.errors.already_registered'),
+    ]);
     expect(EventRegistration::where('user_id', $user->id)->count())->toBe(1);
 });
 

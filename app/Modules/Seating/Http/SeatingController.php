@@ -67,10 +67,9 @@ class SeatingController extends Controller
         try {
             $action->handle($seat, $registration);
         } catch (SeatException $e) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => trans($e->translationKey),
-            ]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
         }
 
         return back();

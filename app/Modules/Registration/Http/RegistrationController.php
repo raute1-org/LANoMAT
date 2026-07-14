@@ -50,10 +50,9 @@ class RegistrationController extends Controller
         try {
             $action->handle($event, $this->authUser($request), $request->validated()['ticket_type']);
         } catch (RegistrationException $exception) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => trans($exception->translationKey),
-            ]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey)]);
+
+            return back();
         }
 
         $this->authUser($request)->notify(new RegistrationConfirmed($event->name));

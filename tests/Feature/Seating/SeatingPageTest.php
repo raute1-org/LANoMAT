@@ -103,8 +103,10 @@ it('redirects with a german toast when the seat is already taken', function () {
         ->post("/events/{$event->slug}/seating/{$seat->id}");
 
     $response->assertRedirect();
-    $response->assertSessionHas('toast', fn ($toast) => $toast['type'] === 'error'
-        && $toast['message'] === __('seating.errors.taken'));
+    $response->assertInertiaFlash('toast', [
+        'type' => 'error',
+        'message' => __('seating.errors.taken'),
+    ]);
 });
 
 it('lets a user release their own seat', function () {

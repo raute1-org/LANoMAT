@@ -25,17 +25,18 @@ class CheckInController
         try {
             $registration = $action->handle($event, $request->validated()['qr_token']);
         } catch (CheckInException $e) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => trans($e->translationKey),
-            ]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
         }
 
         $participant = $registration->user()->firstOrFail();
 
-        return back()->with('toast', [
+        Inertia::flash('toast', [
             'type' => 'success',
             'message' => trans('registration.checkin.done', ['name' => $participant->name]),
         ]);
+
+        return back();
     }
 }
