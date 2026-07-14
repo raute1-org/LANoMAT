@@ -5,6 +5,9 @@ use App\Modules\Teams\Enums\TeamRole;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('exposes owner and members relations', function () {
     $team = Team::factory()->create();

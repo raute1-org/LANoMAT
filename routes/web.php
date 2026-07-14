@@ -7,12 +7,16 @@ use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
 use App\Modules\Seating\Http\SeatingController;
+use App\Modules\Teams\Http\TeamController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
 Route::get('/events', [EventPageController::class, 'archive'])->name('events.index');
 Route::get('/events/{event:slug}', [EventPageController::class, 'show'])->name('events.show');
 Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.show');
+
+Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
+Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
 
 // Public "who sits where" seat map — readable without authentication;
 // claiming/releasing a seat requires auth + an active registration (see below).
@@ -29,6 +33,13 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/events/{event:slug}/seating', [SeatingController::class, 'release'])->name('events.seating.release');
 
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+
+    Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
+    Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
+    Route::patch('/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
+    Route::post('/teams/{team}/join', [TeamController::class, 'join'])->name('teams.join');
+    Route::post('/teams/{team}/requests/{teamRequest}', [TeamController::class, 'respond'])->name('teams.respond');
+    Route::delete('/teams/{team}/leave', [TeamController::class, 'leave'])->name('teams.leave');
 });
 
 Route::middleware(['auth', 'role:orga'])->group(function () {

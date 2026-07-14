@@ -2,6 +2,9 @@
 
 use App\Models\User;
 use App\Modules\Teams\Models\Team;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('allows only owner or orga to update a team', function () {
     $owner = User::factory()->create();
