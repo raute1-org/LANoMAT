@@ -119,6 +119,29 @@ it('handles decline → reapply → decline again without error', function () {
             ->count())->toBe(1);
 });
 
+it('handles accept → leave → re-request → accept without a unique-constraint violation', function () {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Alpha', 'ALP');
+    $user = User::factory()->create();
+
+    $first = app(RequestToJoin::class)->handle($user, $team);
+    app(RespondToJoinRequest::class)->handle($first, accept: true);
+    expect($team->members()->where('user_id', $user->id)->exists())->toBeTrue();
+
+    app(LeaveTeam::class)->handle($user, $team);
+    expect($team->members()->where('user_id', $user->id)->exists())->toBeFalse();
+
+    // Re-requesting after leaving must not collide with the now-terminal
+    // Accepted row from the first request (unique on team_id/user_id/status
+    // would otherwise permanently block this once the earlier row is
+    // Accepted, not just Declined).
+    $second = app(RequestToJoin::class)->handle($user, $team);
+    app(RespondToJoinRequest::class)->handle($second, accept: true);
+
+    expect($second->fresh()->status)->toBe(JoinRequestStatus::Accepted)
+        ->and($team->members()->where('user_id', $user->id)->exists())->toBeTrue();
+});
+
 it('transfers ownership to a member', function () {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Alpha', 'ALP');

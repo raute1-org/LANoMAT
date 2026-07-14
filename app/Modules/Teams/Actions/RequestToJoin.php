@@ -27,13 +27,17 @@ class RequestToJoin
         }
 
         try {
-            // A prior request may have reached a terminal (declined) state.
-            // We keep no request history, so remove it first: otherwise the
-            // new pending row could later collide with it on
-            // (team_id, user_id, status) once it too is declined.
+            // A prior request may have reached either terminal state
+            // (Accepted — e.g. the user later left the team via LeaveTeam
+            // and is now re-requesting — or Declined). We keep no request
+            // history, so remove both first: otherwise the new pending row's
+            // eventual response could later collide with the stale terminal
+            // row on (team_id, user_id, status) once it reaches that same
+            // status (e.g. a second Accepted row after a former member
+            // rejoins).
             $team->joinRequests()
                 ->where('user_id', $user->id)
-                ->where('status', JoinRequestStatus::Declined->value)
+                ->whereIn('status', [JoinRequestStatus::Accepted->value, JoinRequestStatus::Declined->value])
                 ->delete();
 
             return TeamJoinRequest::create([
