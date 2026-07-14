@@ -26,6 +26,8 @@ class RegistrationController extends Controller
 
     public function show(Request $request, Event $event, QrCode $qr): Response
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $registration = $this->activeRegistration($event, $this->authUser($request)->id);
 
         return Inertia::render('Event/Register', [
@@ -45,6 +47,8 @@ class RegistrationController extends Controller
 
     public function store(RegisterRequest $request, Event $event, RegisterForEvent $action): RedirectResponse
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $this->authorize('create', [EventRegistration::class, $event]);
 
         try {
@@ -62,6 +66,8 @@ class RegistrationController extends Controller
 
     public function destroy(Request $request, Event $event, CancelRegistration $action): RedirectResponse
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $registration = $this->activeRegistration($event, $this->authUser($request)->id);
 
         if ($registration !== null) {

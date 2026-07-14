@@ -130,3 +130,9 @@ it('forbids releasing without a registration', function () {
         ->delete("/events/{$event->slug}/seating")
         ->assertForbidden();
 });
+
+it('returns 404 for a draft event on the seating page', function () {
+    $event = Event::factory()->draft()->create();
+
+    $this->get("/events/{$event->slug}/seating")->assertNotFound();
+});

@@ -27,6 +27,8 @@ class SeatingController extends Controller
      */
     public function index(Request $request, Event $event): Response
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $seats = Seat::query()
             ->where('event_id', $event->id)
             ->with('assignment.registration.user')
@@ -60,6 +62,8 @@ class SeatingController extends Controller
 
     public function claim(Request $request, Event $event, Seat $seat, ClaimSeat $action): RedirectResponse
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $registration = $this->requireRegistration($request, $event);
 
         $this->authorize('claim-seat', $registration);
@@ -77,6 +81,8 @@ class SeatingController extends Controller
 
     public function release(Request $request, Event $event, ReleaseSeat $action): RedirectResponse
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $registration = $this->requireRegistration($request, $event);
 
         $this->authorize('claim-seat', $registration);

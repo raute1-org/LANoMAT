@@ -126,6 +126,14 @@ it('rejects an invalid ticket type with a 422 validation error', function () {
     expect(EventRegistration::where('user_id', $user->id)->exists())->toBeFalse();
 });
 
+it('returns 404 for a draft event on the registration page', function () {
+    $event = Event::factory()->draft()->create();
+
+    $this->actingAs(User::factory()->create())
+        ->get("/events/{$event->slug}/register")
+        ->assertNotFound();
+});
+
 it('does not leak another users registration or qr code on the show page', function () {
     $event = Event::factory()->registration()->create();
     $owner = User::factory()->create();
