@@ -23,6 +23,13 @@ return [
         'closed' => 'Die Anmeldung ist derzeit nicht geöffnet.',
     ],
 
+    'errors' => [
+        'already_registered' => 'Du bist für dieses Event bereits angemeldet.',
+        'full' => 'Das Event hat die maximale Teilnehmerzahl erreicht.',
+        'invalid_ticket' => 'Der gewählte Ticket-Typ ist ungültig.',
+        'event_not_open' => 'Die Anmeldung für dieses Event ist derzeit nicht geöffnet.',
+    ],
+
     'admin' => [
         'title' => 'Anmeldungen',
         'participant' => 'Teilnehmer',

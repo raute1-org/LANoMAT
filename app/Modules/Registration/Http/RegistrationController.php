@@ -8,6 +8,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Actions\RegisterForEvent;
 use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Http\Requests\RegisterRequest;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Support\QrCode;
@@ -45,7 +46,14 @@ class RegistrationController extends Controller
     {
         $this->authorize('create', [EventRegistration::class, $event]);
 
-        $action->handle($event, $this->authUser($request), $request->validated()['ticket_type']);
+        try {
+            $action->handle($event, $this->authUser($request), $request->validated()['ticket_type']);
+        } catch (RegistrationException $exception) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => trans($exception->translationKey),
+            ]);
+        }
 
         return back();
     }
@@ -76,8 +84,6 @@ class RegistrationController extends Controller
      */
     private function tickets(Event $event): array
     {
-        $tickets = $event->settings['tickets'] ?? [];
-
-        return empty($tickets) ? ['standard'] : array_values($tickets);
+        return RegisterForEvent::allowedTickets($event);
     }
 }

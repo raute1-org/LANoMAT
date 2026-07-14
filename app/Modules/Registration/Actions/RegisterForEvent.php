@@ -19,7 +19,7 @@ class RegisterForEvent
             throw RegistrationException::eventNotOpen();
         }
 
-        if (! in_array($ticketType, $this->allowedTickets($event), true)) {
+        if (! in_array($ticketType, self::allowedTickets($event), true)) {
             throw RegistrationException::invalidTicketType($ticketType);
         }
 
@@ -87,7 +87,7 @@ class RegisterForEvent
     /**
      * @return array<int, string>
      */
-    private function allowedTickets(Event $event): array
+    public static function allowedTickets(Event $event): array
     {
         $tickets = $event->settings['tickets'] ?? [];
 

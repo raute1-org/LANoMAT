@@ -79,3 +79,63 @@ it('forbids cancelling someone else registration', function () {
 it('shows the translated status label for a pending registration', function () {
     expect(RegistrationStatus::Pending->label())->toBe('Ausstehend');
 });
+
+it('redirects back with a german error when the event is full', function () {
+    $event = Event::factory()->registration()->create(['max_participants' => 1]);
+    EventRegistration::factory()->for($event)->create();
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)
+        ->from("/events/{$event->slug}/register")
+        ->post("/events/{$event->slug}/register", ['ticket_type' => 'standard']);
+
+    $response->assertRedirect("/events/{$event->slug}/register");
+    $response->assertSessionHas('toast.type', 'error');
+    $response->assertSessionHas('toast.message', __('registration.errors.full'));
+    expect(EventRegistration::where('user_id', $user->id)->exists())->toBeFalse();
+});
+
+it('redirects back with a german error when already registered', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create();
+
+    $response = $this->actingAs($user)
+        ->from("/events/{$event->slug}/register")
+        ->post("/events/{$event->slug}/register", ['ticket_type' => 'standard']);
+
+    $response->assertRedirect("/events/{$event->slug}/register");
+    $response->assertSessionHas('toast.type', 'error');
+    $response->assertSessionHas('toast.message', __('registration.errors.already_registered'));
+    expect(EventRegistration::where('user_id', $user->id)->count())->toBe(1);
+});
+
+it('rejects an invalid ticket type with a 422 validation error', function () {
+    $event = Event::factory()->registration()->create(['settings' => ['tickets' => ['standard']]]);
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)
+        ->from("/events/{$event->slug}/register")
+        ->post("/events/{$event->slug}/register", ['ticket_type' => 'not-a-real-ticket']);
+
+    $response->assertSessionHasErrors('ticket_type');
+    expect(EventRegistration::where('user_id', $user->id)->exists())->toBeFalse();
+});
+
+it('does not leak another users registration or qr code on the show page', function () {
+    $event = Event::factory()->registration()->create();
+    $owner = User::factory()->create();
+    $registration = EventRegistration::factory()->for($event)->for($owner)->create();
+
+    $otherUser = User::factory()->create();
+
+    $this->actingAs($otherUser)
+        ->get("/events/{$event->slug}/register")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration', null)
+            ->missing('registration.qrSvg')
+        );
+
+    expect($registration->fresh()->status)->toBe(RegistrationStatus::Confirmed);
+});
