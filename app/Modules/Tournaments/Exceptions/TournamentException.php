@@ -53,4 +53,19 @@ class TournamentException extends DomainException
     {
         return new self('This match is not ready to be reported.', 'tournaments.errors.match_not_ready');
     }
+
+    public static function notAParticipant(): self
+    {
+        return new self('This entry is not a participant of the match.', 'tournaments.errors.not_a_participant');
+    }
+
+    public static function cannotConfirmOwnReport(): self
+    {
+        return new self('The reporting entry cannot confirm or dispute its own report.', 'tournaments.errors.cannot_confirm_own_report');
+    }
+
+    public static function reporterHasNoOwner(): self
+    {
+        return new self('Reporting entry has neither a user nor a team owner.', 'tournaments.errors.reporter_has_no_owner');
+    }
 }

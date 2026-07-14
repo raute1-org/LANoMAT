@@ -14,6 +14,7 @@ use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentCompleted;
 use App\Modules\Tournaments\Exceptions\StaleMatchException;
+use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
@@ -168,6 +169,62 @@ it('sets the match and report to Disputed when the opponent disputes a report', 
 
     expect($disputed->status)->toBe(ReportStatus::Disputed)
         ->and($match->fresh()->status)->toBe(MatchStatus::Disputed);
+});
+
+it('rejects the reporter confirming their own report', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 2, 1);
+    $lockVersion = $match->fresh()->lock_version;
+
+    expect(fn () => app(ConfirmMatchReport::class)->handle($report, $reporter, $lockVersion))
+        ->toThrow(TournamentException::class);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Reported);
+});
+
+it('rejects an unrelated entry confirming a report', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+    $stranger = TournamentEntry::factory()->checkedIn()->create(['tournament_id' => $match->tournament_id]);
+
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 2, 1);
+    $lockVersion = $match->fresh()->lock_version;
+
+    expect(fn () => app(ConfirmMatchReport::class)->handle($report, $stranger, $lockVersion))
+        ->toThrow(TournamentException::class);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Reported);
+});
+
+it('rejects the reporter disputing their own report', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 2, 1);
+
+    expect(fn () => app(DisputeMatchReport::class)->handle($report, $reporter))
+        ->toThrow(TournamentException::class);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Reported);
+});
+
+it('rejects an unrelated entry disputing a report', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+    $stranger = TournamentEntry::factory()->checkedIn()->create(['tournament_id' => $match->tournament_id]);
+
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 2, 1);
+
+    expect(fn () => app(DisputeMatchReport::class)->handle($report, $stranger))
+        ->toThrow(TournamentException::class);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Reported);
 });
 
 it('allows an orga to override a match result, bypassing confirmation', function () {

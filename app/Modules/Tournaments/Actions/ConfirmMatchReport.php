@@ -5,10 +5,13 @@ namespace App\Modules\Tournaments\Actions;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
 use App\Modules\Tournaments\Exceptions\StaleMatchException;
+use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Policies\TournamentPolicy;
+use App\Modules\Tournaments\Support\EntryOwner;
 use App\Modules\Tournaments\Support\MatchProgression;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +28,13 @@ use Illuminate\Support\Facades\DB;
  * On success, writes the score/winner onto the match, hands off to
  * {@see MatchProgression} to advance the bracket, and marks the report
  * `Confirmed`. All inside one transaction.
+ *
+ * Identity guard: the domain rule is "the opponent confirms" — the
+ * confirmer must be a participant of the match (`entry1_id`/`entry2_id`)
+ * and must not be the entry that submitted the report itself. This is
+ * enforced here directly (not only via {@see TournamentPolicy}),
+ * so the Action is safe even if a future caller forgets to authorize
+ * through the Policy first.
  */
 class ConfirmMatchReport
 {
@@ -34,8 +44,11 @@ class ConfirmMatchReport
 
     public function handle(MatchReport $report, TournamentEntry $confirmer, int $lockVersion): GameMatch
     {
-        return DB::transaction(function () use ($report, $lockVersion): GameMatch {
+        return DB::transaction(function () use ($report, $confirmer, $lockVersion): GameMatch {
             $match = GameMatch::query()->findOrFail($report->match_id);
+
+            $this->assertIsOpponent($match, $report, $confirmer);
+
             $score1 = $report->score1;
             $score2 = $report->score2;
             $winnerEntryId = $score1 > $score2 ? $match->entry1_id : $match->entry2_id;
@@ -67,5 +80,16 @@ class ConfirmMatchReport
 
             return $match;
         });
+    }
+
+    private function assertIsOpponent(GameMatch $match, MatchReport $report, TournamentEntry $confirmer): void
+    {
+        if ($confirmer->id !== $match->entry1_id && $confirmer->id !== $match->entry2_id) {
+            throw TournamentException::notAParticipant();
+        }
+
+        if (EntryOwner::userId($confirmer) === $report->reported_by) {
+            throw TournamentException::cannotConfirmOwnReport();
+        }
     }
 }
