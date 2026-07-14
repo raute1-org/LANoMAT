@@ -9,6 +9,7 @@ return [
         'request_pending' => 'Es liegt bereits eine offene Beitrittsanfrage vor.',
         'owner_must_transfer' => 'Der Kapitän muss die Teamleitung übergeben, bevor er das Team verlassen kann.',
         'not_a_member' => 'Der neue Kapitän muss bereits Mitglied des Teams sein.',
+        'stale_request' => 'Diese Beitrittsanfrage ist nicht mehr gültig.',
     ],
 
     'page' => [
