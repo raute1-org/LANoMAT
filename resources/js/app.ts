@@ -11,8 +11,10 @@ createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
-            case name === 'Welcome':
-                return null;
+            // Prefix matches strip the app layout from EVERY page under that
+            // directory. Future authenticated pages must not be placed under
+            // these directories unless they also want no layout — otherwise
+            // set an explicit layout via `defineOptions({ layout: ... })`.
             case name.startsWith('Event/'):
             case name.startsWith('Profile/'):
                 return null;
