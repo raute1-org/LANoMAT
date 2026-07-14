@@ -42,15 +42,32 @@ it('creates a participant user on first discord login', function () {
     $this->assertAuthenticatedAs($user);
 });
 
-it('reuses the existing user and keeps their role on relogin', function () {
-    $existing = User::factory()->admin()->create(['discord_id' => '123456789']);
+it('reuses the existing user, keeps their role and their user-owned name on relogin', function () {
+    // Deliberate behaviour change (M0 whole-branch review, mandatory addition 1):
+    // `name` is user-owned once set. Discord relogin must NOT clobber a name the
+    // user (or a prior login) already established — only Discord-owned fields
+    // (avatar_url) are refreshed on relogin. Previously this test asserted the
+    // opposite (name overwritten from Discord on every login).
+    $existing = User::factory()->admin()->create(['discord_id' => '123456789', 'name' => 'EditedName']);
     Socialite::shouldReceive('driver->user')->andReturn(fakeDiscordUser(name: 'RenamedUser'));
 
     $this->get('/auth/discord/callback');
 
     expect(User::count())->toBe(1)
         ->and($existing->refresh()->role)->toBe(Role::Admin)
-        ->and($existing->name)->toBe('RenamedUser');
+        ->and($existing->name)->toBe('EditedName');
+});
+
+it('updates the discord-owned avatar_url on relogin', function () {
+    $existing = User::factory()->create([
+        'discord_id' => '123456789',
+        'avatar_url' => 'https://cdn.discordapp.com/avatars/123/old.png',
+    ]);
+    Socialite::shouldReceive('driver->user')->andReturn(fakeDiscordUser());
+
+    $this->get('/auth/discord/callback');
+
+    expect($existing->refresh()->avatar_url)->toContain('abc.png');
 });
 
 it('processes the callback even when a user is already authenticated', function () {
@@ -84,4 +101,17 @@ it('redirects to login when the oauth state is invalid or expired', function () 
     $response->assertRedirect(route('login'));
     $this->assertGuest();
     expect(User::count())->toBe(0);
+});
+
+it('creates a new discord user with a null email instead of a 500 when the email collides', function () {
+    User::factory()->create(['discord_id' => '999999999', 'email' => 'test@example.com']);
+
+    Socialite::shouldReceive('driver->user')->andReturn(fakeDiscordUser(id: '123456789', name: 'SecondUser'));
+
+    $response = $this->get('/auth/discord/callback');
+
+    $response->assertRedirect('/');
+    $newUser = User::where('discord_id', '123456789')->firstOrFail();
+    expect($newUser->email)->toBeNull();
+    $this->assertAuthenticatedAs($newUser);
 });
