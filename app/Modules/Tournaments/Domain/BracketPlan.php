@@ -10,13 +10,20 @@ use InvalidArgumentException;
  * Immutable wrapper around the full set of {@see BracketMatch} value objects
  * that make up a tournament bracket.
  *
- * Invariant: exactly one match in the plan has `nextMatch === null` — the
- * final match. For single elimination this is simply the last match of the
- * winners bracket. For double elimination it is the grand-final match: the
- * first grand-final match (GF1) always chains into a reset match (GF2) via
- * `nextMatch`, so GF1 is never the no-next match — GF2 is, whether or not
- * the reset is actually needed once results are known. This keeps the
- * invariant true for every plan shape the generator can produce.
+ * Invariant: for a *progressing* plan — one where at least one match has a
+ * non-null `nextMatch` — exactly one match must have `nextMatch === null` —
+ * the final match. For single elimination this is simply the last match of
+ * the winners bracket. For double elimination it is the grand-final match:
+ * the first grand-final match (GF1) always chains into a reset match (GF2)
+ * via `nextMatch`, so GF1 is never the no-next match — GF2 is, whether or
+ * not the reset is actually needed once results are known. This keeps the
+ * invariant true for every progressing plan shape the generator can produce.
+ *
+ * Round-robin plans are exempt: none of their matches progress anywhere, so
+ * every match has `nextMatch === null` by design (standings are derived by
+ * counting wins, not by chaining matches forward). When zero matches in the
+ * plan have a non-null `nextMatch`, the exactly-one-terminal check does not
+ * apply and {@see finalMatch()} is not meaningful for such a plan.
  */
 final readonly class BracketPlan
 {
@@ -26,6 +33,17 @@ final readonly class BracketPlan
     public function __construct(
         private array $matches,
     ) {
+        $progressing = array_filter(
+            $this->matches,
+            static fn (BracketMatch $match): bool => $match->nextMatch !== null,
+        );
+
+        if ($progressing === []) {
+            // Non-progressing (e.g. round-robin) plan: every match terminates
+            // by design, so the exactly-one-terminal-match check is exempt.
+            return;
+        }
+
         $withoutNext = array_filter(
             $this->matches,
             static fn (BracketMatch $match): bool => $match->nextMatch === null,

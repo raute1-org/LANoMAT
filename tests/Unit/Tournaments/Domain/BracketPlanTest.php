@@ -132,13 +132,17 @@ it('throws when no match lacks a next match', function () {
     new BracketPlan([1 => $match1, 2 => $match2]);
 })->throws(InvalidArgumentException::class);
 
-it('throws when more than one match lacks a next match', function () {
+it('throws when more than one match lacks a next match in a progressing plan', function () {
+    // Match 3 progresses into match 1 (so this is unambiguously a
+    // progressing/elimination-style plan, not a round-robin shape) — yet
+    // both match 1 and match 2 are left without a next match, which must
+    // still be rejected as "more than one final".
     $match1 = new BracketMatch(
         id: 1,
-        round: 1,
+        round: 2,
         bracket: Bracket::Winners,
         position: 1,
-        slot1: Slot::entry(10),
+        slot1: Slot::pendingFrom(3),
         slot2: Slot::entry(20),
         nextMatch: null,
         nextSlot: null,
@@ -159,11 +163,72 @@ it('throws when more than one match lacks a next match', function () {
         loserNextSlot: null,
     );
 
-    new BracketPlan([1 => $match1, 2 => $match2]);
+    $match3 = new BracketMatch(
+        id: 3,
+        round: 1,
+        bracket: Bracket::Winners,
+        position: 1,
+        slot1: Slot::entry(10),
+        slot2: Slot::entry(50),
+        nextMatch: 1,
+        nextSlot: 1,
+        loserNextMatch: null,
+        loserNextSlot: null,
+    );
+
+    new BracketPlan([1 => $match1, 2 => $match2, 3 => $match3]);
 })->throws(InvalidArgumentException::class);
 
 it('accepts a valid plan with exactly one final match', function () {
     $plan = twoMatchChain();
 
     expect($plan->finalMatch()->id)->toBe(2);
+});
+
+it('accepts a round-robin-shaped plan where every match lacks a next match', function () {
+    // Round-robin: no progression at all, so *every* match has nextMatch ===
+    // null by design. The exactly-one-terminal-match invariant does not
+    // apply to such a non-progressing plan.
+    $match1 = new BracketMatch(
+        id: 1,
+        round: 1,
+        bracket: Bracket::Winners,
+        position: 1,
+        slot1: Slot::entry(10),
+        slot2: Slot::entry(20),
+        nextMatch: null,
+        nextSlot: null,
+        loserNextMatch: null,
+        loserNextSlot: null,
+    );
+
+    $match2 = new BracketMatch(
+        id: 2,
+        round: 2,
+        bracket: Bracket::Winners,
+        position: 1,
+        slot1: Slot::entry(10),
+        slot2: Slot::entry(30),
+        nextMatch: null,
+        nextSlot: null,
+        loserNextMatch: null,
+        loserNextSlot: null,
+    );
+
+    $match3 = new BracketMatch(
+        id: 3,
+        round: 3,
+        bracket: Bracket::Winners,
+        position: 1,
+        slot1: Slot::entry(20),
+        slot2: Slot::entry(30),
+        nextMatch: null,
+        nextSlot: null,
+        loserNextMatch: null,
+        loserNextSlot: null,
+    );
+
+    $plan = new BracketPlan([1 => $match1, 2 => $match2, 3 => $match3]);
+
+    expect($plan->matches())->toHaveCount(3);
 });
