@@ -5,6 +5,7 @@ namespace App\Modules\Registration\Http;
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Modules\Events\Models\Event;
+use App\Modules\Notifications\Notifications\RegistrationConfirmed;
 use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Actions\RegisterForEvent;
 use App\Modules\Registration\Enums\RegistrationStatus;
@@ -54,6 +55,8 @@ class RegistrationController extends Controller
                 'message' => trans($exception->translationKey),
             ]);
         }
+
+        $this->authUser($request)->notify(new RegistrationConfirmed($event->name));
 
         return back();
     }

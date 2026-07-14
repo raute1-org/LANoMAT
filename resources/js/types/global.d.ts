@@ -1,5 +1,6 @@
 import type { Auth } from '@/types/auth';
 import type { EventSummary } from '@/types/events';
+import type { NotificationItem } from '@/types/notifications';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -21,6 +22,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             currentEvent: EventSummary | null;
+            notificationLabels: Record<string, string>;
+            unreadNotifications: NotificationItem[];
             [key: string]: unknown;
         };
     }

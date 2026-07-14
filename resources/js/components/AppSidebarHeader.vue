@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import NotificationBell from '@/components/NotificationBell.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem } from '@/types';
 
@@ -11,6 +14,10 @@ withDefaults(
         breadcrumbs: () => [],
     },
 );
+
+const page = usePage();
+const isAuthenticated = computed(() => page.props.auth.user !== null);
+const notificationLabels = computed(() => page.props.notificationLabels);
 </script>
 
 <template>
@@ -22,6 +29,10 @@ withDefaults(
             <template v-if="breadcrumbs && breadcrumbs.length > 0">
                 <Breadcrumbs :breadcrumbs="breadcrumbs" />
             </template>
+        </div>
+
+        <div v-if="isAuthenticated" class="ml-auto flex items-center">
+            <NotificationBell :labels="notificationLabels" />
         </div>
     </header>
 </template>

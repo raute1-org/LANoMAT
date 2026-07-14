@@ -43,6 +43,17 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'notificationLabels' => trans('notifications.bell'),
+            'unreadNotifications' => fn () => $request->user()
+                ?->unreadNotifications
+                ->map(fn ($notification) => [
+                    'id' => $notification->id,
+                    'title' => $notification->data['title'] ?? '',
+                    'body' => $notification->data['body'] ?? '',
+                    'createdAt' => $notification->created_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all() ?? [],
             'currentEvent' => fn () => ($event = app(CurrentEvent::class)->get()) === null
                 ? null
                 : [
