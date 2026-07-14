@@ -27,3 +27,37 @@ it('throws after exhausting retries against a persistent 429', function () {
     // retry(3, ...) means 3 total attempts (not 3 retries after the first).
     Http::assertSentCount(3);
 });
+
+it('retries once after a transient 500 and then succeeds', function () {
+    Http::fake([
+        'discord.com/*' => Http::sequence()
+            ->push(['message' => 'Internal Server Error'], 500)
+            ->push(['id' => '99'], 200),
+    ]);
+
+    (new HttpDiscordClient('test-token'))->sendMessage('42', 'hi');
+
+    Http::assertSentCount(2);
+});
+
+it('does not retry a 403 forbidden client error and throws immediately', function () {
+    Http::fake([
+        'discord.com/*' => Http::response(['message' => 'Missing Access'], 403),
+    ]);
+
+    expect(fn () => (new HttpDiscordClient('test-token'))->sendMessage('42', 'hi'))
+        ->toThrow(RequestException::class);
+
+    Http::assertSentCount(1);
+});
+
+it('does not retry a 401 unauthorized client error and throws immediately', function () {
+    Http::fake([
+        'discord.com/*' => Http::response(['message' => '401: Unauthorized'], 401),
+    ]);
+
+    expect(fn () => (new HttpDiscordClient('test-token'))->sendMessage('42', 'hi'))
+        ->toThrow(RequestException::class);
+
+    Http::assertSentCount(1);
+});

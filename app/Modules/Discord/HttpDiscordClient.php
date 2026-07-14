@@ -3,6 +3,7 @@
 namespace App\Modules\Discord;
 
 use App\Modules\Discord\Contracts\DiscordClient;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
@@ -63,7 +64,30 @@ class HttpDiscordClient implements DiscordClient
             ->acceptJson()
             ->retry(3, function (int $attempt, Throwable $exception) {
                 return $this->retryDelayMilliseconds($exception);
+            }, when: function (Throwable $exception): bool {
+                return $this->isTransient($exception);
             }, throw: false);
+    }
+
+    /**
+     * Only retry transient failures: connection errors and HTTP 429/5xx
+     * responses. Non-transient client errors (401, 403, 404, ...) can never
+     * succeed on retry, so they are surfaced immediately instead of being
+     * hammered against a permanently-broken endpoint.
+     */
+    private function isTransient(Throwable $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        if ($exception instanceof RequestException) {
+            $status = $exception->response->status();
+
+            return $status === 429 || $status >= 500;
+        }
+
+        return false;
     }
 
     /**
