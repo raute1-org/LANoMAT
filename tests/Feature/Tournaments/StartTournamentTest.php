@@ -1,7 +1,9 @@
 <?php
 
+use App\Modules\Teams\Models\Team;
 use App\Modules\Tournaments\Actions\StartTournament;
 use App\Modules\Tournaments\Domain\Bracket;
+use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Events\TournamentStarted;
@@ -128,6 +130,48 @@ it('shuffles solo entries into ad-hoc teams when auto_team is enabled', function
 
     expect($seededEntryIds->sort()->values()->all())
         ->toBe($teamEntries->pluck('id')->sort()->values()->all());
+});
+
+it('creates internally consistent ad-hoc teams when auto_team is enabled, with no orphaned/memberless team', function () {
+    $tournament = Tournament::factory()->checkIn()->singleElim()->create([
+        'team_size' => 2,
+        'settings' => ['auto_team' => true],
+    ]);
+    TournamentEntry::factory()->solo()->checkedIn()->count(8)->create(['tournament_id' => $tournament->id]);
+
+    app(StartTournament::class)->handle($tournament);
+
+    $teamEntries = TournamentEntry::where('tournament_id', $tournament->id)
+        ->whereNotNull('team_id')
+        ->get();
+
+    expect($teamEntries)->toHaveCount(4);
+
+    $teams = Team::whereIn('id', $teamEntries->pluck('team_id'))->get();
+    expect($teams)->toHaveCount(4);
+
+    foreach ($teams as $team) {
+        expect($team->members()->count())->toBe($tournament->team_size)
+            ->and($team->members()->pluck('user_id'))->toContain($team->owner_id);
+    }
+
+    // Team tags must be unique (no collisions between the ad-hoc teams).
+    expect($teams->pluck('tag')->unique())->toHaveCount(4);
+});
+
+it('starts a tournament with require_checkin=false using non-checked-in Registered entries', function () {
+    $tournament = Tournament::factory()->checkIn()->singleElim()->create([
+        'settings' => ['require_checkin' => false],
+    ]);
+    TournamentEntry::factory()->count(4)->create([
+        'tournament_id' => $tournament->id,
+        'status' => EntryStatus::Registered,
+    ]);
+
+    $started = app(StartTournament::class)->handle($tournament);
+
+    expect($started->status)->toBe(TournamentStatus::Live)
+        ->and(GameMatch::where('tournament_id', $tournament->id)->count())->toBe(3);
 });
 
 it('respects manually assigned seeds before randomizing the rest', function () {
