@@ -131,6 +131,41 @@ it('updates a team on PATCH including a logo upload', function () {
     Storage::disk('public')->assertExists($team->logo_path);
 });
 
+it('deletes old logo when replacing with a new one', function () {
+    Storage::fake('public');
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Alpha Squad', 'ALP');
+
+    // Upload first logo
+    $this->actingAs($owner)
+        ->patch("/teams/{$team->id}", [
+            'name' => 'Alpha Squad',
+            'tag' => 'ALP',
+            'logo' => UploadedFile::fake()->image('logo-a.png'),
+        ])
+        ->assertRedirect();
+
+    $team->refresh();
+    $oldLogoPath = $team->logo_path;
+    Storage::disk('public')->assertExists($oldLogoPath);
+
+    // Upload second logo
+    $this->actingAs($owner)
+        ->patch("/teams/{$team->id}", [
+            'name' => 'Alpha Squad',
+            'tag' => 'ALP',
+            'logo' => UploadedFile::fake()->image('logo-b.png'),
+        ])
+        ->assertRedirect();
+
+    $team->refresh();
+    $newLogoPath = $team->logo_path;
+
+    expect($newLogoPath)->not->toBe($oldLogoPath);
+    Storage::disk('public')->assertExists($newLogoPath);
+    Storage::disk('public')->assertMissing($oldLogoPath);
+});
+
 it('forbids a non-owner from updating a team', function () {
     $team = Team::factory()->create();
 
@@ -160,6 +195,19 @@ it('forbids a non-owner from responding to a join request', function () {
     $this->actingAs(User::factory()->create())
         ->post("/teams/{$team->id}/requests/{$request->id}", ['accept' => true])
         ->assertForbidden();
+});
+
+it('rejects cross-team join-request spoofing via 404', function () {
+    $owner = User::factory()->create();
+    $teamA = app(CreateTeam::class)->handle($owner, 'Alpha Squad', 'ALP');
+    $teamB = Team::factory()->create();
+    $requestOfTeamB = TeamJoinRequest::factory()->for($teamB)->create();
+
+    $this->actingAs($owner)
+        ->post("/teams/{$teamA->id}/requests/{$requestOfTeamB->id}", ['accept' => true])
+        ->assertNotFound();
+
+    expect($requestOfTeamB->fresh()->status)->toBe(JoinRequestStatus::Pending);
 });
 
 it('lets a member leave the team on DELETE', function () {

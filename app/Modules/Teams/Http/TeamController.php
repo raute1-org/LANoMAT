@@ -18,6 +18,7 @@ use App\Modules\Teams\Models\TeamMember;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -99,9 +100,15 @@ class TeamController extends Controller
 
         $logo = $request->file('logo');
         if ($logo !== null) {
+            $oldLogoPath = $team->logo_path;
+
             $path = $logo->store('team-logos', 'public');
             abort_if($path === false, 500, 'Failed to store the uploaded logo.');
             $team->logo_path = $path;
+
+            if ($oldLogoPath !== null) {
+                Storage::disk('public')->delete($oldLogoPath);
+            }
         }
 
         $team->save();

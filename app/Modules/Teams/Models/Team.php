@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $owner_id
@@ -36,6 +37,17 @@ class Team extends Model
     public function joinRequests(): HasMany
     {
         return $this->hasMany(TeamJoinRequest::class);
+    }
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::deleting(function (self $team) {
+            if ($team->logo_path !== null) {
+                Storage::disk('public')->delete($team->logo_path);
+            }
+        });
     }
 
     protected static function newFactory(): TeamFactory
