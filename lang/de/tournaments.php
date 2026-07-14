@@ -43,6 +43,8 @@ return [
         'roster_size_mismatch' => 'Die Teamgröße stimmt nicht mit der geforderten Teamgröße überein.',
         'already_started' => 'Das Turnier hat bereits begonnen.',
         'unsupported_double_elimination_size' => 'Doppel-K.-o.-System wird nur für 2, 4, 6, 8 oder 16 teilnehmende Anmeldungen unterstützt.',
+        'match_not_ready' => 'Dieses Match ist noch nicht bereit, um gemeldet zu werden.',
+        'stale_match' => 'Dieses Match wurde inzwischen von jemand anderem aktualisiert. Bitte lade die Seite neu und versuche es erneut.',
     ],
 
     'enrollment' => [
@@ -60,5 +62,12 @@ return [
 
     'auto_team' => [
         'name' => 'Team :number',
+    ],
+
+    'report' => [
+        'submitted' => 'Ergebnis gemeldet. Warte auf Bestätigung durch den Gegner.',
+        'confirmed' => 'Ergebnis bestätigt.',
+        'disputed' => 'Ergebnis angefochten. Die Orga wird sich darum kümmern.',
+        'overridden' => 'Ergebnis von der Orga überschrieben.',
     ],
 ];

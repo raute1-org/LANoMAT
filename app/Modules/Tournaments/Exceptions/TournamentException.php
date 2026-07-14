@@ -48,4 +48,9 @@ class TournamentException extends DomainException
             'tournaments.errors.unsupported_double_elimination_size',
         );
     }
+
+    public static function matchNotReady(): self
+    {
+        return new self('This match is not ready to be reported.', 'tournaments.errors.match_not_ready');
+    }
 }
