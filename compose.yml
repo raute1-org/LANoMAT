@@ -22,5 +22,26 @@ services:
     # host port 6380: default 6379 is taken by another local container
     ports: ['6380:6379']
 
+  # Dev-only Reverb (websocket) server. There is no dedicated `app` image yet
+  # (that's the FrankenPHP image planned for M5.6's prod compose profile), so
+  # this reuses the official PHP CLI image against the working tree — same
+  # approach `composer run dev` uses to run the app natively today. The base
+  # image lacks the pgsql/redis/sodium extensions the app normally runs with
+  # (see .github/workflows/ci.yml); `reverb:start` itself only needs the app
+  # booted plus Redis (for `REVERB_SCALING_ENABLED`, off by default), but if
+  # you hit missing-extension errors, run `composer run dev`'s reverb process
+  # on the host instead, or extend this image once M5.6 ships a real Dockerfile.
+  reverb:
+    image: php:8.4-cli
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    env_file: .env
+    # host port 8081: default 8080 is commonly taken by other local dev
+    # servers, mirroring the postgres/redis non-default-port convention above
+    ports: ['8081:8080']
+    depends_on: [redis]
+
 volumes:
   pgdata:
