@@ -9,6 +9,9 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Seating\Actions\ClaimSeat;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 /**
  * End-to-end guard for the full registration/seating lifecycle seam chain —

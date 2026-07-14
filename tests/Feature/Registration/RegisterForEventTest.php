@@ -7,6 +7,9 @@ use App\Modules\Registration\Actions\RegisterForEvent;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 function register(Event $event, User $user, string $ticket = 'standard'): EventRegistration
 {

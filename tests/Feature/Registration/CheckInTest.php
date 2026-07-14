@@ -5,6 +5,9 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Actions\CheckInRegistration;
 use App\Modules\Registration\Exceptions\CheckInException;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('checks in a registration by qr token', function () {
     $event = Event::factory()->live()->create();

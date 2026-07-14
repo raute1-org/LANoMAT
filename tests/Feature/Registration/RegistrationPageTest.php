@@ -4,7 +4,10 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+
+uses(RefreshDatabase::class);
 
 it('requires auth to view the registration page', function () {
     $event = Event::factory()->registration()->create();

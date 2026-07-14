@@ -4,7 +4,10 @@ use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+
+uses(RefreshDatabase::class);
 
 it('cancels a registration', function () {
     $reg = EventRegistration::factory()->create();

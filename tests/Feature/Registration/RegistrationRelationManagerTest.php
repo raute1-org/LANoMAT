@@ -5,7 +5,10 @@ use App\Modules\Events\Filament\Resources\Events\Pages\EditEvent;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Filament\RelationManagers\RegistrationsRelationManager;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
 
 it('lists registrations on the event edit page for orga', function () {
     $event = Event::factory()->registration()->create();

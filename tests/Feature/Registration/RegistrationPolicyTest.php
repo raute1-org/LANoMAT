@@ -4,6 +4,9 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('allows any logged-in user to create a registration when the event is open', function () {
     $event = Event::factory()->registration()->create();
