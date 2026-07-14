@@ -1,4 +1,4 @@
-# LANoMAT v2 — Implementierungs-Roadmap M0–M6
+# LANoMAT v2 — Implementierungs-Roadmap M0–M7
 
 > **For agentic workers:** Dies ist die Master-Roadmap. Pro Phase existiert (bzw. entsteht beim Phasenstart) ein Detailplan in `docs/superpowers/plans/` mit bite-sized TDD-Steps. Für die Ausführung eines Detailplans: REQUIRED SUB-SKILL `superpowers:subagent-driven-development` oder `superpowers:executing-plans`.
 
@@ -30,9 +30,11 @@ M0 Fundament ─▶ M1 Events & Identity ─▶ M2 Anmeldung/Sitzplan/Notificati
                                             M4 Schedule/Catering/Voting/LFG ◀────┤ (M4 braucht nur M2)
                                             M5 Infoscreen ◀──────────────────────┤ (Szenen nutzen M3-Brackets)
                                             M6 Gameserver & Stats ◀──────────────┘ (Match-Server braucht M3)
+
+M7 Infra & Betrieb (Backlog, aus Issues nach LAN 2025) — unabhängig, jederzeit nachschiebbar
 ```
 
-MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinander nachschiebbar.
+MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinander nachschiebbar. M7 bündelt die Infra-/Betriebs-Wünsche aus den GitHub-Issues (erstellt nach der LAN 2025-11) und ist ohne Abhängigkeit zu den Feature-Phasen umsetzbar.
 
 ---
 
@@ -231,6 +233,32 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 | 6.5 | Stats: Query-Schicht über `tournaments/matches/entries` (Siege, Podien, Teilnahmen je User/Team, event-übergreifend); `Pages/Stats/Leaderboard.vue`; Badges minimal (`first_win`, `hattrick`, `veteran` ab 3 Events) als berechnete Werte, keine eigene Tabelle |
 
 **Abnahme:** Feature-Test Provisioning-Flow gegen Fake (inkl. Poll-Retry + Fehlerpfad → manueller Modus); manuell: Minecraft-Server aus Match-Kontext erstellt, Join-Info erscheint in Discord-Embed und auf der Match-Seite; Leaderboard zeigt Daten aus 2 Test-Events.
+
+---
+
+## M7 — Infra & Betrieb (Backlog aus GitHub-Issues, erstellt nach LAN 2025-11)
+
+**Ergebnis:** Betriebsfähiges Deployment mit eigenem Ingress, eigener Image-Bereitstellung, LAN-Filesharing und flexibleren Gameserver-Starts. Rein infrastruktur-/betriebslastig, ohne Abhängigkeit zu den Feature-Phasen M1–M6 — jeder Task einzeln nachschiebbar. Detailplan (Format wie die übrigen Phasen) wird just-in-time bei Phasenstart abgeleitet.
+
+| # | Task | Issue |
+|---|------|-------|
+| 7.1 | **Traefik Reverse Proxy:** Traefik als Ingress vor `app`/`reverb`/`admin` (+ ggf. Pelican/Mumble), TLS (ACME/interne CA), Router-/Middleware-Config; Integration ins prod-Compose-Profil (M5.6). Reverb-WebSocket-Upgrade und Filament-`/admin` mit abbilden | [#7](https://github.com/raute1-org/LANoMAT/issues/7) |
+| 7.2 | **Eigene Docker-Registry:** private Registry für LANoMAT-Service-Images (FrankenPHP-`app` aus M5.6) und Gameserver-Images/Pelican-Eggs (M6.1); Push/Pull in CI + Deploy-Doku; Auth/Zugriffsschutz | [#3](https://github.com/raute1-org/LANoMAT/issues/3) |
+| 7.3 | **Filesharing-Service:** LAN-Dateiablage (Installer, Treiber, Medien) — Upload/Download über Laravel Storage (kein Base64 in DB, Konvention!), Teilnehmer-UI (`Pages/Files/*`) + Orga-Verwaltung im Filament-Panel, Quota/Sichtbarkeit pro Event. **Spike zuerst:** reicht Laravel-Storage + einfache UI, oder dedizierter Service (z. B. WebDAV/S3-kompatibel im Compose)? | [#1](https://github.com/raute1-org/LANoMAT/issues/1) |
+| 7.4 | **Custom Docker Command & Compose-Startup:** freie Gameserver/Services jenseits der Pelican-Eggs starten — Orga hinterlegt Docker-Command bzw. Compose-Fragment, Start/Stop/Status über bestehende Betriebs-UI. Baut auf M6 auf (Pelican als Standardweg, dieser Task als Ausweichweg für nicht-abgedeckte Spiele) | [#6](https://github.com/raute1-org/LANoMAT/issues/6) |
+
+**Abnahme:** `docker compose --profile prod up` liefert ein über Traefik erreichbares System mit TLS; ein Image wird aus der eigenen Registry gezogen; eine Datei lässt sich als Teilnehmer hoch- und wieder herunterladen; ein nicht-Pelican-Gameserver startet über den Custom-Docker-Weg.
+
+---
+
+## Backlog — Erweiterungen an geplanten Modulen (aus Issues nach LAN 2025-11)
+
+Diese Wünsche sind keine eigene Phase, sondern erweitern bereits geplante Bausteine. Beim Detailplan der jeweiligen Phase mitziehen:
+
+- **Voice-Provider-Abstraktion** ([#2](https://github.com/raute1-org/LANoMAT/issues/2)): M3 plant Mumble (`MumbleClient`, 3.19–3.21). Gewünscht sind zusätzlich **TeamSpeak** und **Discord-Voice** als wählbare Optionen. Umsetzung: `MumbleClient` zu einem allgemeinen `VoiceClient`-Contract verallgemeinern (Mumble-/TeamSpeak-/Discord-Implementierung), Provider pro Event/Turnier konfigurierbar. Erweiterung von M3.20/3.21.
+- **Minecraft-Konfigurations-Panel** ([#4](https://github.com/raute1-org/LANoMAT/issues/4), Referenz: setupmc.com/java-server): M6 deckt generisches Provisioning (create/power/delete) ab. Gewünscht ist ein dediziertes Config-Panel (server.properties, Mods/Plugins, Whitelist, Version) über den generischen `PelicanClient` hinaus. Erweiterung von M6.
+- **Discord-Auth per Guild-Membership** ([#8](https://github.com/raute1-org/LANoMAT/issues/8)): Discord-OAuth-Login existiert (M0). Gewünscht: Login/Registrierung auf Mitglieder einer bestimmten Discord-Guild beschränken (Guild-Membership im OAuth-Callback prüfen, ggf. rollenbasiert). Erweiterung der M0-Auth.
+- **„Build LANoMAT from scratch"** ([#5](https://github.com/raute1-org/LANoMAT/issues/5)): entspricht dieser Roadmap (M0–M7) — der komplette Rebuild ist die Umsetzung dieses Epics; kein separater Task.
 
 ---
 
