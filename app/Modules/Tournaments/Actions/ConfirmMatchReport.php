@@ -49,6 +49,14 @@ class ConfirmMatchReport
 
             $this->assertIsOpponent($match, $report, $confirmer);
 
+            // A report that is no longer Pending (already Confirmed, or
+            // Disputed and routed to the orga queue) must not be confirmed a
+            // second time — most importantly, a Disputed report must not be
+            // silently confirmed out from under the dispute.
+            if ($report->status !== ReportStatus::Pending) {
+                throw TournamentException::reportNotPending();
+            }
+
             $score1 = $report->score1;
             $score2 = $report->score2;
 

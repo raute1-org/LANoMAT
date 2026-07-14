@@ -335,6 +335,56 @@ it('lets the opponent dispute a report', function () {
     expect($match->fresh()->status->value)->toBe('disputed');
 });
 
+it('404s confirming a report that has already been disputed', function () {
+    $tournament = startEightEntrySingleElim();
+    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $entry2 = TournamentEntry::find($match->entry2_id);
+    $reporter = User::find($entry1->user_id);
+    $opponent = User::find($entry2->user_id);
+
+    $this->actingAs($reporter)
+        ->post("/matches/{$match->id}/report", ['score1' => 2, 'score2' => 1])
+        ->assertRedirect();
+
+    $this->actingAs($opponent)
+        ->post("/matches/{$match->id}/dispute")
+        ->assertRedirect();
+
+    // pendingReportFor() must no longer resolve the (now Disputed) report,
+    // so confirm 404s instead of re-confirming a disputed report.
+    $this->actingAs($opponent)
+        ->post("/matches/{$match->id}/confirm", ['lock_version' => $match->fresh()->lock_version])
+        ->assertNotFound();
+
+    expect($match->fresh()->status->value)->toBe('disputed');
+});
+
+it('404s disputing a report on a match that already completed', function () {
+    $tournament = startEightEntrySingleElim();
+    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $entry2 = TournamentEntry::find($match->entry2_id);
+    $reporter = User::find($entry1->user_id);
+    $opponent = User::find($entry2->user_id);
+
+    $this->actingAs($reporter)
+        ->post("/matches/{$match->id}/report", ['score1' => 2, 'score2' => 1])
+        ->assertRedirect();
+
+    $this->actingAs($opponent)
+        ->post("/matches/{$match->id}/confirm", ['lock_version' => $match->fresh()->lock_version])
+        ->assertRedirect();
+
+    // pendingReportFor() must no longer resolve the (now Confirmed) report,
+    // so dispute 404s instead of flipping a Completed match back to Disputed.
+    $this->actingAs($opponent)
+        ->post("/matches/{$match->id}/dispute")
+        ->assertNotFound();
+
+    expect($match->fresh()->status->value)->toBe('completed');
+});
+
 it('creates an entry on POST checkin while the entry owner acts during the check-in window', function () {
     $tournament = Tournament::factory()->checkIn()->create();
     $user = User::factory()->create();

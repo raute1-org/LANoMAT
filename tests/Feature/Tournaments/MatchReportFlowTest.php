@@ -191,6 +191,42 @@ it('sets the match and report to Disputed when the opponent disputes a report', 
         ->and($match->fresh()->status)->toBe(MatchStatus::Disputed);
 });
 
+it('rejects confirming a report that was already disputed', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+    $opponent = TournamentEntry::find($match->entry2_id);
+
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 2, 1);
+    app(DisputeMatchReport::class)->handle($report, $opponent);
+
+    $lockVersion = $match->fresh()->lock_version;
+
+    expect(fn () => app(ConfirmMatchReport::class)->handle($report->fresh(), $opponent, $lockVersion))
+        ->toThrow(TournamentException::class);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Disputed);
+});
+
+it('rejects disputing a report on a match that has already progressed past Reported (e.g. Completed)', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+    $opponent = TournamentEntry::find($match->entry2_id);
+
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 2, 1);
+    $lockVersion = $match->fresh()->lock_version;
+    app(ConfirmMatchReport::class)->handle($report, $opponent, $lockVersion);
+
+    // The match is now Completed; attempting to dispute the (already
+    // Confirmed) report must not flip a finished, already-progressed match
+    // back to Disputed.
+    expect(fn () => app(DisputeMatchReport::class)->handle($report->fresh(), $opponent))
+        ->toThrow(TournamentException::class);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Completed);
+});
+
 it('rejects the reporter confirming their own report', function () {
     [, $round1] = startFourEntrySingleElim();
     $match = $round1->first();

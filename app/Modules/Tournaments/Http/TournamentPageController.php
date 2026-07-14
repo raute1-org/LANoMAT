@@ -14,6 +14,7 @@ use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\EnrollTeam;
 use App\Modules\Tournaments\Actions\SubmitMatchReport;
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Enums\ReportStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Http\Requests\ConfirmReportRequest;
 use App\Modules\Tournaments\Http\Requests\SubmitReportRequest;
@@ -319,8 +320,14 @@ class TournamentPageController extends Controller
 
     private function pendingReportFor(GameMatch $match): ?MatchReport
     {
+        // Scoped to Pending specifically: a match can accumulate more than
+        // one MatchReport over its lifetime (submit, dispute, re-report
+        // after an orga override, etc.) — the latest row regardless of
+        // status could be an already-Confirmed or already-Disputed report,
+        // which must not be reachable for a second confirm/dispute.
         return MatchReport::query()
             ->where('match_id', $match->id)
+            ->where('status', ReportStatus::Pending->value)
             ->latest('id')
             ->first();
     }

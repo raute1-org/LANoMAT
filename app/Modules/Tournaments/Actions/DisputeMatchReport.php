@@ -29,6 +29,18 @@ class DisputeMatchReport
 
         $this->assertIsOpponent($match, $report, $disputer);
 
+        // A report that is no longer Pending cannot be disputed again — most
+        // importantly, a match that has already progressed past Reported
+        // (e.g. Completed, via a confirm or orga override) must not be
+        // flipped back to Disputed after the fact.
+        if ($report->status !== ReportStatus::Pending) {
+            throw TournamentException::reportNotPending();
+        }
+
+        if ($match->status !== MatchStatus::Reported) {
+            throw TournamentException::matchNotDisputable();
+        }
+
         $report->status = ReportStatus::Disputed;
         $report->save();
 
