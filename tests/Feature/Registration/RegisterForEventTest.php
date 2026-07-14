@@ -67,3 +67,36 @@ it('rejects a double registration of the same user', function () {
 
     expect(fn () => register($event, $user))->toThrow(RegistrationException::class);
 });
+
+it('reactivates a cancelled registration on re-register', function () {
+    $event = Event::factory()->registration()->create([
+        'settings' => ['tickets' => ['standard', 'early_bird']],
+    ]);
+    $user = User::factory()->create();
+
+    $original = register($event, $user, 'standard');
+    app(CancelRegistration::class)->handle($original);
+    $originalToken = $original->fresh()->qr_token;
+
+    $reactivated = register($event, $user, 'early_bird');
+
+    expect($reactivated->id)->toBe($original->id)
+        ->and($reactivated->status)->toBe(RegistrationStatus::Confirmed)
+        ->and($reactivated->ticket_type)->toBe('early_bird')
+        ->and($reactivated->qr_token)->not->toBe($originalToken)
+        ->and(EventRegistration::where('user_id', $user->id)->count())->toBe(1);
+});
+
+it('re-checks capacity on reactivation and leaves the row cancelled when full', function () {
+    $event = Event::factory()->registration()->create(['max_participants' => 1]);
+    $user = User::factory()->create();
+
+    $own = register($event, $user);
+    app(CancelRegistration::class)->handle($own);
+
+    // Fill the single slot with someone else while $user's registration is cancelled.
+    register($event, User::factory()->create());
+
+    expect(fn () => register($event, $user))->toThrow(RegistrationException::class);
+    expect($own->fresh()->status)->toBe(RegistrationStatus::Cancelled);
+});
