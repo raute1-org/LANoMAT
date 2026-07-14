@@ -8,15 +8,17 @@ LANoMAT v2 — a modular LAN party management tool (events, registration/tickets
 
 ## Current state
 
-**M0 (Fundament) is implemented.** The Laravel app lives in this repo root: Vue starter kit (Inertia v2 + Vue 3 + Tailwind v4 + shadcn-vue + Pest 4), Fortify session auth with Discord-only OAuth (SocialiteProviders), Docker Compose dev stack (Postgres 16 + Redis 7), `User` model with `discord_id`/`role`/`avatar_url`, role middleware + admin `Gate::before`, Filament v5 panel at `/admin`, `lanomat:install` console command, and CI (pint, phpstan level 8, pest, eslint, prettier, vue-tsc, build). See `docs/architecture.md` for the module convention and data-model sketch.
+**M0–M2 are implemented.** The Laravel app lives in this repo root: Vue starter kit (Inertia v2 + Vue 3 + Tailwind v4 + shadcn-vue + Pest 4), Fortify session auth with Discord-only OAuth (SocialiteProviders), Docker Compose dev stack (Postgres 16 + Redis 7), `User` model with `discord_id`/`role`/`avatar_url`, role middleware + admin `Gate::before`, Filament v5 panel at `/admin`, `lanomat:install` console command, and CI (pint, phpstan level 8, pest, eslint, prettier, vue-tsc, build) — that's M0.
 
-Design and planning docs (still the source of truth for M1–M6):
+M1 added the `Event` aggregate (lifecycle enum + transitions), the public event page, and profile editing. M2 added: event registration with QR-code tickets and orga check-in (`Registration` module), a seating chart with a participant SVG grid and a standalone Filament `SeatResource` for grid bulk-creation/per-seat network metadata (`Seating` module — a dedicated resource, not an Event tab; see the roadmap's M2 insights for why), in-app notifications with a bell dropdown and category preferences (`Notifications` module), and a Discord base: `DiscordClient` contract + `HttpDiscordClient`/`FakeDiscordClient`, a per-user DM notification channel, and outbox-deduplicated event announcements/reminders driven by a scheduler command (`Discord` module). See `docs/architecture.md` for the module list and data-model sketch.
+
+Design and planning docs (still the source of truth for M3–M6):
 
 - `docs/superpowers/specs/2026-07-13-lanomat-v2-rebuild-design.md` — approved architecture & module design
-- `docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md` — master roadmap, phases M0–M6 with task numbers
+- `docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md` — master roadmap, phases M0–M6 with task numbers, including "Erkenntnisse" (insights) sections after each completed phase
 - `docs/superpowers/plans/2026-07-14-m0-fundament.md` — fully detailed, executable plan for phase M0 (completed)
 
-Detailed plans for M1–M6 are derived from the roadmap just-in-time at each phase start, in the same format as the M0 plan. Update the roadmap when a phase produces new insights (it is a living document).
+Detailed plans for M3–M6 are derived from the roadmap just-in-time at each phase start, in the same format as the M0 plan. Update the roadmap when a phase produces new insights (it is a living document).
 
 ## Guiding principle: state of the art, 2026 best practices
 

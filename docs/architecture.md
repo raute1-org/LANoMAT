@@ -103,7 +103,22 @@ every page must remain correct after a plain reload.
 
 ## Current implementation status
 
-M0 is complete: Laravel 13 + Filament v5 + Inertia/Vue scaffold, Docker dev stack, Discord
-OAuth login, role middleware, admin panel gating, and CI are in place. Only the `Identity`
-module exists under `app/Modules/` so far; the remaining modules above are built out phase
-by phase per the roadmap.
+M0–M2 are complete:
+
+- **M0:** Laravel 13 + Filament v5 + Inertia/Vue scaffold, Docker dev stack, Discord OAuth
+  login, role middleware, admin panel gating, and CI.
+- **M1:** `Events` module — `Event` aggregate with lifecycle transitions, public event page,
+  profile editing.
+- **M2:** `Registration` module — sign-up with QR-code tickets, manual paid status, orga
+  QR check-in. `Seating` module — seat/seat-assignment models, participant SVG seating
+  chart with claim/switch, and a standalone Filament `SeatResource` (grid bulk-creation,
+  per-seat network metadata) rather than an Event tab — see the roadmap's M2 insights for
+  the reasoning. `Notifications` module — `database` channel, bell dropdown, per-category
+  preferences. `Discord` module — `DiscordClient` contract with `HttpDiscordClient`
+  (`Http::fake()`-only in tests) and `FakeDiscordClient`, a per-user DM notification
+  channel, and outbox-deduplicated event announcements/reminders driven by the
+  `lanomat:send-reminders` scheduler command.
+
+`Identity`, `Events`, `Registration`, `Seating`, `Notifications`, and `Discord` now exist
+under `app/Modules/`; the remaining modules above are built out phase by phase per the
+roadmap (M3 onward).

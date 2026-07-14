@@ -57,6 +57,16 @@ for the full design rationale.
       DISCORD_REDIRECT_URI=http://localhost:8000/auth/discord/callback
       ```
 
+   4. **Optional, for Discord announcements/DMs (since M2):** create a bot user under
+      **Bot** in the same application, copy its token into `DISCORD_BOT_TOKEN`, and invite
+      the bot to your server with permission to view/send messages in the channel you want
+      announcements in. Set `DISCORD_ANNOUNCE_CHANNEL_ID` to that channel's ID (right-click
+      the channel in Discord with Developer Mode enabled → "Copy Channel ID"). Without a
+      bot token/announce channel configured, registration-open announcements and event
+      reminders are silently skipped (`AnnounceRegistrationOpen` and
+      `lanomat:send-reminders` both no-op when `services.discord.announce_channel_id` is
+      blank) — everything else still works.
+
 4. **Run migrations and create the first admin** (replace `<id>` with your Discord user ID;
    log in once via Discord first, or let the command create the user record):
 
@@ -79,6 +89,16 @@ for the full design rationale.
    A seeded local test user (`discord_id 100000000000000001`) is available in seeded dev
    databases — see `database/seeders`.
 
+6. **Scheduler (since M2):** event reminders (`lanomat:send-reminders`, registered in
+   `routes/console.php` via `Schedule::command(...)->everyFiveMinutes()`) only fire if
+   something is actually running Laravel's scheduler.
+
+   - **Dev:** run `php artisan schedule:work` in a separate terminal — it re-checks the
+     schedule every minute for as long as it's running, no crontab needed.
+   - **Prod:** add the standard Laravel cron entry (`* * * * * php artisan schedule:run`)
+     to the server/container crontab; Laravel itself decides from there which due commands
+     actually execute.
+
 ## Quality gates
 
 Run these before committing — CI enforces the same checks:
@@ -96,6 +116,7 @@ Auto-fix formatting/lint issues locally with `composer run lint` (pint) and `npm
 
 ## Project state
 
-M0 (Fundament) is complete. See [`CLAUDE.md`](CLAUDE.md) for the current implementation
-status and [`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
-for the phase roadmap (M1–M6).
+M0–M2 are complete (fundament; events & identity; registration, seating, notifications,
+Discord base). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
+[`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
+for the phase roadmap (M3–M6 remaining).
