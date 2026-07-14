@@ -15,6 +15,7 @@ it('shows the current event on the home page', function () {
             ->component('Event/Show')
             ->where('event.name', 'Testlan 2026')
             ->where('event.status', 'registration')
+            ->where('labels.when', 'Wann')
         );
 });
 
