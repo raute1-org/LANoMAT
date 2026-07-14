@@ -3,6 +3,7 @@
 namespace App\Modules\Identity\Actions;
 
 use App\Models\User;
+use Illuminate\Support\Arr;
 
 class UpdateProfile
 {
@@ -16,7 +17,7 @@ class UpdateProfile
      */
     public function handle(User $user, array $data): User
     {
-        $user->fill($data);
+        $user->fill(Arr::only($data, ['name', 'email', 'bio', 'steam_url', 'profile_color']));
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
