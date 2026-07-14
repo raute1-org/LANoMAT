@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Modules\Events\Support\CurrentEvent;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +43,16 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'currentEvent' => fn () => ($event = app(CurrentEvent::class)->get()) === null
+                ? null
+                : [
+                    'name' => $event->name,
+                    'slug' => $event->slug,
+                    'status' => $event->status->value,
+                    'startsAt' => $event->starts_at !== null ? $event->starts_at->toIso8601String() : null,
+                    'endsAt' => $event->ends_at !== null ? $event->ends_at->toIso8601String() : null,
+                    'location' => $event->location,
+                ],
         ];
     }
 }

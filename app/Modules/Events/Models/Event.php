@@ -6,10 +6,13 @@ use App\Modules\Events\Enums\EventStatus;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
  * @property EventStatus $status
+ * @property Carbon|null $starts_at
+ * @property Carbon|null $ends_at
  */
 class Event extends Model
 {
