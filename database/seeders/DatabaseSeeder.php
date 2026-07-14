@@ -18,13 +18,10 @@ class DatabaseSeeder extends Seeder
     {
         // Idempotent local test user; promote to admin with:
         // php artisan lanomat:install --admin-discord-id=100000000000000001
-        User::firstOrCreate(
-            ['discord_id' => '100000000000000001'],
-            [
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-                'role' => Role::Participant,
-            ],
-        );
+        $user = User::firstOrNew(['discord_id' => '100000000000000001']);
+        $user->name = 'Test User';
+        $user->email = 'test@example.com';
+        $user->role = Role::Participant;
+        $user->save();
     }
 }
