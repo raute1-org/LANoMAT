@@ -259,10 +259,7 @@ class TournamentPageController extends Controller
     {
         return TournamentEntry::query()
             ->where('tournament_id', $tournament->id)
-            ->where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                    ->orWhereHas('team', fn ($teamQuery) => $teamQuery->where('owner_id', $user->id));
-            })
+            ->ownedBy($user)
             ->first();
     }
 

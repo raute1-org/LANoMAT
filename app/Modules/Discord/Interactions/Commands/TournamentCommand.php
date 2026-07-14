@@ -10,7 +10,9 @@ use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * `/tournament list|info|checkin|bracket` — thin wrappers around the
@@ -108,10 +110,7 @@ class TournamentCommand
 
         $entry = TournamentEntry::query()
             ->where('tournament_id', $tournament->id)
-            ->where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                    ->orWhereHas('team', fn ($teamQuery) => $teamQuery->where('owner_id', $user->id));
-            })
+            ->ownedBy($user)
             ->first();
 
         if ($entry === null) {
@@ -119,7 +118,11 @@ class TournamentCommand
         }
 
         try {
+            Gate::forUser($user)->authorize('checkIn', $entry);
+
             app(CheckInEntry::class)->handle($entry);
+        } catch (AuthorizationException) {
+            return InteractionResponse::message(__('discord.commands.tournament.checkin.no_entry'));
         } catch (TournamentException $e) {
             return InteractionResponse::message(__($e->translationKey));
         }
