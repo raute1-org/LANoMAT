@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
+use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Policies\RegistrationPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -75,5 +77,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
 
         Gate::policy(EventModel::class, EventPolicy::class);
+        Gate::policy(EventRegistration::class, RegistrationPolicy::class);
     }
 }

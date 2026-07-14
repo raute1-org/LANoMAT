@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
  * @property EventStatus $status
  * @property Carbon|null $starts_at
  * @property Carbon|null $ends_at
+ * @property array<string, mixed> $settings
  */
 class Event extends Model
 {
