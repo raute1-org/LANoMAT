@@ -5,6 +5,7 @@ use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
 use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
+use App\Modules\Seating\Http\SeatingController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
@@ -12,12 +13,19 @@ Route::get('/events', [EventPageController::class, 'archive'])->name('events.ind
 Route::get('/events/{event:slug}', [EventPageController::class, 'show'])->name('events.show');
 Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.show');
 
+// Public "who sits where" seat map — readable without authentication;
+// claiming/releasing a seat requires auth + an active registration (see below).
+Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');
+
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
     Route::get('/events/{event:slug}/register', [RegistrationController::class, 'show'])->name('events.register');
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
     Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
+
+    Route::post('/events/{event:slug}/seating/{seat}', [SeatingController::class, 'claim'])->name('events.seating.claim');
+    Route::delete('/events/{event:slug}/seating', [SeatingController::class, 'release'])->name('events.seating.release');
 });
 
 Route::middleware(['auth', 'role:orga'])->group(function () {
