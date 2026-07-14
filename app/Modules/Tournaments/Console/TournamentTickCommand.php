@@ -2,7 +2,6 @@
 
 namespace App\Modules\Tournaments\Console;
 
-use App\Modules\Tournaments\Actions\CloseCheckin;
 use App\Modules\Tournaments\Actions\OpenCheckin;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\Tournament;
@@ -12,9 +11,17 @@ class TournamentTickCommand extends Command
 {
     protected $signature = 'lanomat:tournament-tick';
 
-    protected $description = 'Open/close tournament check-in windows whose scheduled time has arrived.';
+    protected $description = 'Open tournament check-in windows whose scheduled time has arrived.';
 
-    public function handle(OpenCheckin $openCheckin, CloseCheckin $closeCheckin): int
+    /**
+     * Note: closing the check-in window is time-gated inside `CheckInEntry`
+     * itself (via `checkin_closes_at`), not a status transition — so there
+     * is nothing to "close" here. The CheckIn -> Live transition is owned
+     * exclusively by `StartTournament` (roadmap 3.11, not yet built), which
+     * also generates and persists the bracket. This tick intentionally does
+     * not autostart tournaments.
+     */
+    public function handle(OpenCheckin $openCheckin): int
     {
         $now = now();
 
@@ -27,14 +34,6 @@ class TournamentTickCommand extends Command
             ->where('checkin_opens_at', '<=', $now)
             ->each(function (Tournament $tournament) use ($openCheckin): void {
                 $openCheckin->handle($tournament);
-            });
-
-        Tournament::query()
-            ->where('status', TournamentStatus::CheckIn->value)
-            ->whereNotNull('checkin_closes_at')
-            ->where('checkin_closes_at', '<=', $now)
-            ->each(function (Tournament $tournament) use ($closeCheckin): void {
-                $closeCheckin->handle($tournament);
             });
 
         return self::SUCCESS;

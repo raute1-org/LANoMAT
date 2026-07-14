@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use App\Modules\Tournaments\Actions\CheckInEntry;
-use App\Modules\Tournaments\Actions\CloseCheckin;
 use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\OpenCheckin;
 use App\Modules\Tournaments\Enums\EntryStatus;
@@ -58,14 +57,6 @@ it('opens check-in via the action', function () {
     expect($updated->status)->toBe(TournamentStatus::CheckIn);
 });
 
-it('closes check-in via the action', function () {
-    $tournament = Tournament::factory()->checkIn()->create();
-
-    $updated = app(CloseCheckin::class)->handle($tournament);
-
-    expect($updated->status)->toBe(TournamentStatus::Live);
-});
-
 it('opens the check-in window via the scheduler tick when checkin_opens_at has passed', function () {
     $tournament = Tournament::factory()->enrollment()->create([
         'checkin_opens_at' => now()->subMinute(),
@@ -90,7 +81,7 @@ it('does not open the check-in window early via the scheduler tick', function ()
     expect($tournament->fresh()->status)->toBe(TournamentStatus::Enrollment);
 });
 
-it('closes the check-in window via the scheduler tick when checkin_closes_at has passed', function () {
+it('does not autostart a tournament via the scheduler tick when checkin_closes_at has passed', function () {
     $tournament = Tournament::factory()->checkIn()->create([
         'checkin_opens_at' => now()->subHours(2),
         'checkin_closes_at' => now()->subMinute(),
@@ -98,10 +89,14 @@ it('closes the check-in window via the scheduler tick when checkin_closes_at has
 
     $this->artisan('lanomat:tournament-tick')->assertExitCode(0);
 
-    expect($tournament->fresh()->status)->toBe(TournamentStatus::Live);
+    // Check-in closing is time-gated inside CheckInEntry itself, not a
+    // status transition. The CheckIn -> Live transition is owned
+    // exclusively by StartTournament (not yet built), so the tournament
+    // stays in CheckIn even though its window has closed.
+    expect($tournament->fresh()->status)->toBe(TournamentStatus::CheckIn);
 });
 
-it('is idempotent when the tick runs again after transitioning', function () {
+it('is idempotent when the tick runs again after opening check-in', function () {
     $tournament = Tournament::factory()->enrollment()->create([
         'checkin_opens_at' => now()->subMinute(),
         'checkin_closes_at' => now()->addHour(),
@@ -110,8 +105,8 @@ it('is idempotent when the tick runs again after transitioning', function () {
     $this->artisan('lanomat:tournament-tick')->assertExitCode(0);
     expect($tournament->fresh()->status)->toBe(TournamentStatus::CheckIn);
 
-    // Second run should not re-trigger open (already CheckIn) or close
-    // (closes_at is still in the future).
+    // Second run should not re-trigger open (already CheckIn, no longer
+    // matches the Enrollment source-state guard).
     $this->artisan('lanomat:tournament-tick')->assertExitCode(0);
     expect($tournament->fresh()->status)->toBe(TournamentStatus::CheckIn);
 });
