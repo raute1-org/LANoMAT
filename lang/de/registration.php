@@ -22,4 +22,15 @@ return [
         'cancel_confirm' => 'Anmeldung wirklich stornieren?',
         'closed' => 'Die Anmeldung ist derzeit nicht geöffnet.',
     ],
+
+    'admin' => [
+        'title' => 'Anmeldungen',
+        'participant' => 'Teilnehmer',
+        'ticket' => 'Ticket',
+        'status' => 'Status',
+        'paid' => 'Bezahlt',
+        'checked_in' => 'Eingecheckt',
+        'toggle_paid' => 'Bezahlt umschalten',
+        'export' => 'CSV-Export',
+    ],
 ];

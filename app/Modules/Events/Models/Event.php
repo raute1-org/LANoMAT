@@ -3,10 +3,12 @@
 namespace App\Modules\Events\Models;
 
 use App\Modules\Events\Enums\EventStatus;
+use App\Modules\Registration\Models\EventRegistration;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -88,5 +90,11 @@ class Event extends Model
     protected static function newFactory(): EventFactory
     {
         return EventFactory::new();
+    }
+
+    /** @return HasMany<EventRegistration, $this> */
+    public function registrations(): HasMany
+    {
+        return $this->hasMany(EventRegistration::class);
     }
 }
