@@ -9,7 +9,9 @@ use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
 use App\Modules\Seating\Listeners\ReleaseSeatOnCancellation;
+use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Policies\SeatAssignmentPolicy;
+use App\Modules\Seating\Policies\SeatPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -82,6 +84,7 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(EventModel::class, EventPolicy::class);
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
+        Gate::policy(Seat::class, SeatPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
