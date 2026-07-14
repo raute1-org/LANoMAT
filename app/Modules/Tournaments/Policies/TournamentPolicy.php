@@ -29,6 +29,32 @@ class TournamentPolicy
     }
 
     /**
+     * Reporting a result: the user must own (directly or via team ownership)
+     * one of the match's two participating entries. Unlike confirm/dispute,
+     * there is no "not the reporter" restriction here — either participant
+     * may be the first to submit a report (see {@see SubmitMatchReport},
+     * which is guarded only by match status, not identity).
+     */
+    public function report(User $user, GameMatch $match): bool
+    {
+        if ($user->isOrga()) {
+            return true;
+        }
+
+        foreach ([$match->entry1, $match->entry2] as $entry) {
+            if ($entry === null) {
+                continue;
+            }
+
+            if ($entry->user_id === $user->id || $entry->team?->owner_id === $user->id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Confirming a report: the domain rule is "the opponent confirms" — the
      * user must own (directly or via team ownership) the match's OTHER
      * participant, i.e. not the entry that submitted `$report`. Orgas may

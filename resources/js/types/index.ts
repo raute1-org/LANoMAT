@@ -5,4 +5,5 @@ export * from './notifications';
 export * from './registration';
 export * from './seating';
 export * from './teams';
+export * from './tournaments';
 export * from './ui';

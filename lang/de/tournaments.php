@@ -1,6 +1,20 @@
 <?php
 
 return [
+    'page' => [
+        'title' => 'Turniere',
+        'index_title' => 'Turniere',
+        'show_title' => 'Turnier',
+        'no_tournaments' => 'Für dieses Event sind noch keine Turniere geplant.',
+        'back_to_index' => 'Zurück zu allen Turnieren',
+        'round' => 'Runde :number',
+        'winners_bracket' => 'Gewinner-Bracket',
+        'losers_bracket' => 'Verlierer-Bracket',
+        'finals' => 'Finale',
+        'enroll' => 'Anmelden',
+        'check_in' => 'Einchecken',
+    ],
+
     'format' => [
         'single_elimination' => 'Einfach-K.-o.-System',
         'double_elimination' => 'Doppel-K.-o.-System',
@@ -72,5 +86,10 @@ return [
         'confirmed' => 'Ergebnis bestätigt.',
         'disputed' => 'Ergebnis angefochten. Die Orga wird sich darum kümmern.',
         'overridden' => 'Ergebnis von der Orga überschrieben.',
+        'report_action' => 'Melden',
+        'confirm_action' => 'Bestätigen',
+        'dispute_action' => 'Anfechten',
+        'score1' => 'Ergebnis (du)',
+        'score2' => 'Ergebnis (Gegner)',
     ],
 ];

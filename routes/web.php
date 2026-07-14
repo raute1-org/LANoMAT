@@ -8,6 +8,7 @@ use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
 use App\Modules\Seating\Http\SeatingController;
 use App\Modules\Teams\Http\TeamController;
+use App\Modules\Tournaments\Http\TournamentPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
@@ -22,6 +23,11 @@ Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show')
 // claiming/releasing a seat requires auth + an active registration (see below).
 Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');
 
+// Tournament index/bracket views are public (like the seating map) —
+// enrolling/checking in/reporting requires auth (see below).
+Route::get('/events/{event:slug}/tournaments', [TournamentPageController::class, 'index'])->name('tournaments.index');
+Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'])->name('tournaments.show');
+
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
@@ -33,6 +39,12 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/events/{event:slug}/seating', [SeatingController::class, 'release'])->name('events.seating.release');
 
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+
+    Route::post('/tournaments/{tournament}/enroll', [TournamentPageController::class, 'enroll'])->name('tournaments.enroll');
+    Route::post('/tournaments/{tournament}/checkin', [TournamentPageController::class, 'checkin'])->name('tournaments.checkin');
+    Route::post('/matches/{match}/report', [TournamentPageController::class, 'report'])->name('matches.report');
+    Route::post('/matches/{match}/confirm', [TournamentPageController::class, 'confirm'])->name('matches.confirm');
+    Route::post('/matches/{match}/dispute', [TournamentPageController::class, 'dispute'])->name('matches.dispute');
 
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
