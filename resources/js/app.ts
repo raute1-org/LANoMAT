@@ -17,6 +17,7 @@ createInertiaApp({
             // set an explicit layout via `defineOptions({ layout: ... })`.
             case name.startsWith('Event/'):
             case name.startsWith('Profile/'):
+            case name.startsWith('Orga/'):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

@@ -40,4 +40,17 @@ return [
         'toggle_paid' => 'Bezahlt umschalten',
         'export' => 'CSV-Export',
     ],
+
+    'checkin' => [
+        'title' => 'Check-in',
+        'scan' => 'QR-Code scannen',
+        'manual' => 'Token manuell eingeben',
+        'submit' => 'Einchecken',
+        'done' => ':name eingecheckt.',
+        'errors' => [
+            'unknown_token' => 'Kein Ticket mit diesem QR-Code für dieses Event gefunden.',
+            'already_checked_in' => 'Dieser Teilnehmer ist bereits eingecheckt.',
+            'not_confirmed' => 'Diese Anmeldung ist nicht aktiv.',
+        ],
+    ],
 ];

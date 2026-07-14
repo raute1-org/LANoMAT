@@ -3,6 +3,7 @@
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/events/{event:slug}/register', [RegistrationController::class, 'show'])->name('events.register');
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
     Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
+});
+
+Route::middleware(['auth', 'role:orga'])->group(function () {
+    Route::get('/orga/events/{event:slug}/checkin', [CheckInController::class, 'show'])->name('orga.checkin');
+    Route::post('/orga/events/{event:slug}/checkin', [CheckInController::class, 'store'])->name('orga.checkin.store');
 });
 
 Route::middleware(['guest'])->group(function () {
