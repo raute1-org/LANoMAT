@@ -23,10 +23,11 @@ it('implements ShouldBroadcast on all four tournament domain events', function (
         ->and(new TournamentCompleted(Tournament::factory()->make(['id' => 1])))->toBeInstanceOf(ShouldBroadcast::class);
 });
 
-it('keeps ShouldDispatchAfterCommit on the three events that already had it', function () {
+it('keeps ShouldDispatchAfterCommit on all four tournament events', function () {
     expect(new MatchReady(GameMatch::factory()->make(['id' => 1])))->toBeInstanceOf(ShouldDispatchAfterCommit::class)
         ->and(new MatchCompleted(GameMatch::factory()->make(['id' => 1])))->toBeInstanceOf(ShouldDispatchAfterCommit::class)
-        ->and(new TournamentCompleted(Tournament::factory()->make(['id' => 1])))->toBeInstanceOf(ShouldDispatchAfterCommit::class);
+        ->and(new TournamentCompleted(Tournament::factory()->make(['id' => 1])))->toBeInstanceOf(ShouldDispatchAfterCommit::class)
+        ->and(new TournamentStarted(Tournament::factory()->make(['id' => 1])))->toBeInstanceOf(ShouldDispatchAfterCommit::class);
 });
 
 it('broadcasts MatchReady on the tournament channel with a lean payload', function () {
