@@ -31,16 +31,24 @@ function onDetect(detected: { rawValue: string }[]) {
     <Head :title="labels.title" />
 
     <main class="mx-auto max-w-md px-4 py-8">
-        <h1 class="text-2xl font-bold">{{ labels.title }} — {{ event.name }}</h1>
+        <h1 class="text-2xl font-bold">
+            {{ labels.title }} — {{ event.name }}
+        </h1>
 
-        <div class="mt-6 aspect-square overflow-hidden rounded-lg border border-border">
+        <div
+            class="mt-6 aspect-square overflow-hidden rounded-lg border border-border"
+        >
             <QrcodeStream @detect="onDetect" />
         </div>
 
         <form class="mt-6 space-y-3" @submit.prevent="submit">
-            <label class="text-sm text-muted-foreground" for="token">{{ labels.manual }}</label>
+            <label class="text-sm text-muted-foreground" for="token">{{
+                labels.manual
+            }}</label>
             <Input id="token" v-model="form.qr_token" type="text" />
-            <Button type="submit" :disabled="form.processing">{{ labels.submit }}</Button>
+            <Button type="submit" :disabled="form.processing">{{
+                labels.submit
+            }}</Button>
         </form>
     </main>
 </template>
