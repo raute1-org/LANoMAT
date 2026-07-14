@@ -51,6 +51,17 @@ class ConfirmMatchReport
 
             $score1 = $report->score1;
             $score2 = $report->score2;
+
+            // Backstop: SubmitReportRequest already rejects ties before a
+            // report can be created, but guard here too so a tied report —
+            // however it got created — surfaces as a handled
+            // TournamentException instead of the domain's raw
+            // InvalidArgumentException (a 500) once it reaches
+            // MatchProgression/BracketProgressor below.
+            if ($score1 === $score2) {
+                throw TournamentException::tiedScore();
+            }
+
             $winnerEntryId = $score1 > $score2 ? $match->entry1_id : $match->entry2_id;
 
             $affected = GameMatch::query()

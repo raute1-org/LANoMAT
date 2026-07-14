@@ -264,6 +264,37 @@ it('allows an orga to override a match result, bypassing confirmation', function
     Event::assertDispatched(MatchCompleted::class);
 });
 
+it('surfaces a tied confirm as a handled TournamentException, not an InvalidArgumentException/500', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+    $reporter = TournamentEntry::find($match->entry1_id);
+    $opponent = TournamentEntry::find($match->entry2_id);
+
+    // SubmitReportRequest normally rejects ties before this ever reaches the
+    // action, but the action itself must not blow up with the domain's raw
+    // InvalidArgumentException if a tie ever gets this far (e.g. a future
+    // caller that bypasses the FormRequest).
+    $report = app(SubmitMatchReport::class)->handle($match, $reporter, 1, 1);
+    $lockVersion = $match->fresh()->lock_version;
+
+    expect(fn () => app(ConfirmMatchReport::class)->handle($report, $opponent, $lockVersion))
+        ->toThrow(TournamentException::class);
+
+    expect(fn () => app(ConfirmMatchReport::class)->handle($report, $opponent, $lockVersion))
+        ->not->toThrow(InvalidArgumentException::class);
+});
+
+it('surfaces a tied override as a handled TournamentException, not an InvalidArgumentException/500', function () {
+    [, $round1] = startFourEntrySingleElim();
+    $match = $round1->first();
+
+    $orga = User::factory()->orga()->create();
+    test()->actingAs($orga);
+
+    expect(fn () => app(OverrideMatchResult::class)->handle($match, 2, 2))
+        ->toThrow(TournamentException::class);
+});
+
 it('rejects an override from a non-orga user', function () {
     [, $round1] = startFourEntrySingleElim();
     $match = $round1->first();

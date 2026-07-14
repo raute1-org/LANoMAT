@@ -82,7 +82,15 @@ class ManageDisputes extends Page implements HasTable
                             ->label(__('tournaments.admin.disputes.score2'))
                             ->required()
                             ->numeric()
-                            ->minValue(0),
+                            ->minValue(0)
+                            // A match cannot end in a tie (see
+                            // BracketProgressor::apply()'s "no draws" domain
+                            // rule) — reject it here so the orga override
+                            // form never submits one in the first place.
+                            ->different('score1')
+                            ->validationMessages([
+                                'different' => __('tournaments.errors.tied_score'),
+                            ]),
                     ])
                     ->action(function (GameMatch $record, array $data): void {
                         try {

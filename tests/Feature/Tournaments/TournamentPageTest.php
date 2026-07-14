@@ -249,6 +249,20 @@ it('creates a report on POST by a match participant', function () {
     expect($match->fresh()->status->value)->toBe('reported');
 });
 
+it('rejects a tied score report with a validation error', function () {
+    $tournament = startEightEntrySingleElim();
+    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $reporter = User::find($entry1->user_id);
+
+    $this->actingAs($reporter)
+        ->post("/matches/{$match->id}/report", ['score1' => 2, 'score2' => 2])
+        ->assertInvalid(['score2']);
+
+    expect(MatchReport::query()->where('match_id', $match->id)->exists())->toBeFalse();
+    expect($match->fresh()->status->value)->toBe('ready');
+});
+
 it('forbids a non-participant from reporting a match result', function () {
     $tournament = startEightEntrySingleElim();
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();

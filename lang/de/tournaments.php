@@ -108,6 +108,9 @@ return [
         'not_a_participant' => 'Diese Anmeldung ist keine Teilnehmerin dieses Matches.',
         'cannot_confirm_own_report' => 'Die meldende Anmeldung kann die eigene Meldung nicht bestätigen oder anfechten.',
         'reporter_has_no_owner' => 'Die meldende Anmeldung hat weder eine Person noch einen Team-Owner.',
+        'tied_score' => 'Ein Match kann nicht unentschieden enden.',
+        'report_not_pending' => 'Diese Meldung wurde bereits bearbeitet.',
+        'match_not_disputable' => 'Dieses Match kann nicht mehr angefochten werden.',
     ],
 
     'enrollment' => [

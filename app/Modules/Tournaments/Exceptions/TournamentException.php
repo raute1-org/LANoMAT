@@ -68,4 +68,19 @@ class TournamentException extends DomainException
     {
         return new self('Reporting entry has neither a user nor a team owner.', 'tournaments.errors.reporter_has_no_owner');
     }
+
+    public static function tiedScore(): self
+    {
+        return new self('A match cannot end in a tied score.', 'tournaments.errors.tied_score');
+    }
+
+    public static function reportNotPending(): self
+    {
+        return new self('This report has already been resolved.', 'tournaments.errors.report_not_pending');
+    }
+
+    public static function matchNotDisputable(): self
+    {
+        return new self('This match can no longer be disputed.', 'tournaments.errors.match_not_disputable');
+    }
 }

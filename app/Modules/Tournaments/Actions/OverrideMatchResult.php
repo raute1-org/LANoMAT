@@ -3,6 +3,7 @@
 namespace App\Modules\Tournaments\Actions;
 
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Policies\TournamentPolicy;
@@ -31,6 +32,15 @@ class OverrideMatchResult
         $tournament = Tournament::query()->findOrFail($match->tournament_id);
 
         Gate::authorize('manage', $tournament);
+
+        // Backstop: the orga override form should already reject ties
+        // client-side, but guard here too so a tied override surfaces as a
+        // handled TournamentException instead of the domain's raw
+        // InvalidArgumentException (a 500) once it reaches
+        // MatchProgression/BracketProgressor below.
+        if ($score1 === $score2) {
+            throw TournamentException::tiedScore();
+        }
 
         return DB::transaction(function () use ($match, $tournament, $score1, $score2): GameMatch {
             $winnerEntryId = $score1 > $score2 ? $match->entry1_id : $match->entry2_id;

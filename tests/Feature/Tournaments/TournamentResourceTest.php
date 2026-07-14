@@ -94,3 +94,26 @@ it('overrides a disputed match result from the dispute queue', function () {
         ->and($match->score2)->toBe(1)
         ->and($match->winner_entry_id)->toBe($entry1->id);
 });
+
+it('rejects a tied override from the dispute queue with a validation error', function () {
+    $tournament = Tournament::factory()->live()->singleElim()->create();
+    $entry1 = TournamentEntry::factory()->checkedIn()->create(['tournament_id' => $tournament->id]);
+    $entry2 = TournamentEntry::factory()->checkedIn()->create(['tournament_id' => $tournament->id]);
+    $match = GameMatch::factory()->create([
+        'tournament_id' => $tournament->id,
+        'entry1_id' => $entry1->id,
+        'entry2_id' => $entry2->id,
+        'status' => MatchStatus::Disputed,
+    ]);
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(ManageDisputes::class)
+        ->callAction(TestAction::make('override')->table($match), data: [
+            'score1' => 2,
+            'score2' => 2,
+        ])
+        ->assertHasTableActionErrors(['score2' => 'different']);
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Disputed);
+});
