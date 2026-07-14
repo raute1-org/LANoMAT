@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\HttpDiscordClient;
+use App\Modules\Discord\Listeners\AnnounceAndCleanupOnCompleted;
 use App\Modules\Discord\Listeners\AnnounceRegistrationOpen;
+use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
@@ -18,6 +20,8 @@ use App\Modules\Seating\Policies\SeatAssignmentPolicy;
 use App\Modules\Seating\Policies\SeatPolicy;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Policies\TeamPolicy;
+use App\Modules\Tournaments\Events\MatchCompleted;
+use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
@@ -115,5 +119,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
         Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);
+        Event::listen(MatchReady::class, CreateMatchChannelOnReady::class);
+        Event::listen(MatchCompleted::class, AnnounceAndCleanupOnCompleted::class);
     }
 }

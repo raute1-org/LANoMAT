@@ -42,6 +42,8 @@ return [
         'bot_token' => env('DISCORD_BOT_TOKEN'),
         'guild_id' => env('DISCORD_GUILD_ID'),
         'announce_channel_id' => env('DISCORD_ANNOUNCE_CHANNEL_ID'),
+        'match_category_id' => env('DISCORD_MATCH_CATEGORY_ID'),
+        'match_channel_cleanup_delay_minutes' => env('DISCORD_MATCH_CHANNEL_CLEANUP_DELAY_MINUTES', 30),
         'public_key' => env('DISCORD_PUBLIC_KEY'),
         'application_id' => env('DISCORD_APPLICATION_ID'),
     ],

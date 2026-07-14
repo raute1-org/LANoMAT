@@ -84,4 +84,30 @@ class TournamentEntry extends Model
                 ->orWhereHas('team', fn (Builder $teamQuery) => $teamQuery->where('owner_id', $user->id));
         });
     }
+
+    /**
+     * Discord user ids for every participant of this entry — every
+     * `roster_snapshot` member for a team entry, or the single `user` for a
+     * solo entry. Participants without a linked `discord_id` (never
+     * connected their Discord account) are silently skipped: there is no
+     * Discord identity to grant channel access to.
+     *
+     * @return array<int, string>
+     */
+    public function rosterDiscordIds(): array
+    {
+        $userIds = $this->roster_snapshot !== null
+            ? array_column($this->roster_snapshot, 'user_id')
+            : array_filter([$this->user_id]);
+
+        if ($userIds === []) {
+            return [];
+        }
+
+        return User::query()
+            ->whereIn('id', $userIds)
+            ->whereNotNull('discord_id')
+            ->pluck('discord_id')
+            ->all();
+    }
 }

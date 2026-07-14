@@ -41,4 +41,11 @@ return [
     'help' => [
         'text' => "Verfügbare Befehle:\n/tournament list – Turniere des aktuellen Events anzeigen\n/tournament info <id> – Details zu einem Turnier anzeigen\n/tournament checkin <id> – Für ein Turnier einchecken\n/tournament bracket <id> – Link zur Bracket-Seite anzeigen\n/help – Diese Hilfe anzeigen",
     ],
+
+    'match_channel' => [
+        'unknown_opponent' => 'Unbekannt',
+        'welcome_title' => ':entry1 vs. :entry2',
+        'welcome_description' => "Willkommen in eurem Match-Channel!\n:entry1 vs. :entry2\nDetails zum Match: :url",
+        'result_announcement' => 'Ergebnis: :entry1 vs. :entry2 – Sieger: :winner',
+    ],
 ];

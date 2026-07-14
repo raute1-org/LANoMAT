@@ -19,6 +19,9 @@ class FakeDiscordClient implements DiscordClient
     /** @var array<int, array{channelId: string, overwrites: array<int, mixed>}> */
     public array $overwrites = [];
 
+    /** @var array<int, string> */
+    public array $deletedChannelIds = [];
+
     private int $sequence = 0;
 
     public function sendMessage(string $channelId, string $content, array $embeds = []): void
@@ -36,6 +39,7 @@ class FakeDiscordClient implements DiscordClient
 
     public function deleteChannel(string $channelId): void
     {
+        $this->deletedChannelIds[] = $channelId;
         $this->channels = array_values(array_filter($this->channels, fn ($c) => $c['id'] !== $channelId));
     }
 
@@ -79,5 +83,19 @@ class FakeDiscordClient implements DiscordClient
     {
         Assert::assertSame([], $this->messages, 'Expected no Discord messages.');
         Assert::assertSame([], $this->dms, 'Expected no Discord DMs.');
+    }
+
+    public function assertChannelDeleted(string $channelId): void
+    {
+        Assert::assertContains($channelId, $this->deletedChannelIds, "Channel {$channelId} was not deleted.");
+    }
+
+    public function assertPermissionOverwritten(string $channelId, string $discordUserId): void
+    {
+        $match = collect($this->overwrites)
+            ->where('channelId', $channelId)
+            ->contains(fn ($o) => collect($o['overwrites'])->contains(fn ($ow) => ($ow['id'] ?? null) === $discordUserId));
+
+        Assert::assertTrue($match, "No permission overwrite for user {$discordUserId} on channel {$channelId}.");
     }
 }
