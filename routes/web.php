@@ -3,6 +3,7 @@
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Registration\Http\RegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
@@ -12,6 +13,10 @@ Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.s
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+
+    Route::get('/events/{event:slug}/register', [RegistrationController::class, 'show'])->name('events.register');
+    Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
+    Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
 });
 
 Route::middleware(['guest'])->group(function () {

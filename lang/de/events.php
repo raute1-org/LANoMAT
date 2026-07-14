@@ -45,5 +45,6 @@ return [
             'registration' => 'Jetzt anmelden',
             'live' => 'Event läuft',
         ],
+        'login_to_register' => 'Zum Anmelden einloggen',
     ],
 ];
