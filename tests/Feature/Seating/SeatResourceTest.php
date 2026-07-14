@@ -3,6 +3,9 @@
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Seating\Models\Seat;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('lists seats for orga', function () {
     $event = Event::factory()->create();

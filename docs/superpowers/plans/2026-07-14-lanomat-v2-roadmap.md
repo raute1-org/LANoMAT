@@ -129,6 +129,12 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 
 **Ergebnis:** Ein Turnier läuft komplett digital: Anmeldung → Check-in → Auto-Start → Bracket live → Ergebnisse mit Bestätigung → Sieger. Match-Koordination via Discord-Text-Channel + Mumble-Voice.
 
+**Vorgaben aus dem M2-Branch-Review (für den M3-Detailplan verbindlich):**
+
+- **Discord unter Last:** Bevor M3 Channels in Serie erstellt / DMs aus Web-Requests sendet: `AnnounceRegistrationOpen`-Listener und `DiscordDirectMessage`-Versand queuen (`ShouldQueue`), `HttpDiscordClient` bekommt `Http::retry` + 429-Rate-Limit-Handling. Outbox: Retry-Sweep für `sent_at IS NULL`-Zeilen (> 5 min) im Scheduler erwägen; ein fehlgeschlagener Send darf die Restschleife nicht abbrechen.
+- **Shared-Prop-Kosten:** `unreadNotifications` ist unbounded und lädt auf jeder Seite (auch layout-losen ohne Glocke) — `->take(15)` + `Inertia::optional` beim ersten M3-Task, der die Middleware anfasst.
+- Klein: `GenerateSeatGrid` Formular braucht `maxValue` (rows/cols); `toggle_paid`/`export_csv` bekommen explizites `->authorize()` sobald der RelationManager angefasst wird; TS-`RegistrationStatus`-Union bei Enum-Änderungen mit Codegen ersetzen; Seat-Fehlermeldung könnte Constraint-Namen unterscheiden (registration_id- vs seat_id-Verletzung).
+
 ### Teams
 
 | # | Task |
