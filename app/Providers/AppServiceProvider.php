@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\HttpDiscordClient;
+use App\Modules\Discord\Listeners\AnnounceRegistrationOpen;
+use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Registration\Events\RegistrationCancelled;
@@ -100,5 +102,6 @@ class AppServiceProvider extends ServiceProvider
     protected function configureEventListeners(): void
     {
         Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
+        Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);
     }
 }
