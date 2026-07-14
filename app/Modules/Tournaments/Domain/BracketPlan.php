@@ -9,6 +9,14 @@ use InvalidArgumentException;
 /**
  * Immutable wrapper around the full set of {@see BracketMatch} value objects
  * that make up a tournament bracket.
+ *
+ * Invariant: exactly one match in the plan has `nextMatch === null` — the
+ * final match. For single elimination this is simply the last match of the
+ * winners bracket. For double elimination it is the grand-final match: the
+ * first grand-final match (GF1) always chains into a reset match (GF2) via
+ * `nextMatch`, so GF1 is never the no-next match — GF2 is, whether or not
+ * the reset is actually needed once results are known. This keeps the
+ * invariant true for every plan shape the generator can produce.
  */
 final readonly class BracketPlan
 {
@@ -17,7 +25,21 @@ final readonly class BracketPlan
      */
     public function __construct(
         private array $matches,
-    ) {}
+    ) {
+        $withoutNext = array_filter(
+            $this->matches,
+            static fn (BracketMatch $match): bool => $match->nextMatch === null,
+        );
+
+        if (count($withoutNext) !== 1) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Bracket plan must have exactly one match without a next match, %d found.',
+                    count($withoutNext),
+                ),
+            );
+        }
+    }
 
     /**
      * @return array<int, BracketMatch>
@@ -34,32 +56,20 @@ final readonly class BracketPlan
     }
 
     /**
-     * The last match to be played: the one without a next match, in the
-     * highest-ranked bracket (Finals > Losers > Winners).
+     * The last match to be played: the sole match without a next match. The
+     * constructor guarantees exactly one such match exists.
      */
     public function finalMatch(): BracketMatch
     {
-        $rank = static fn (Bracket $bracket): int => match ($bracket) {
-            Bracket::Winners => 0,
-            Bracket::Losers => 1,
-            Bracket::Finals => 2,
-        };
-
-        $candidates = array_filter(
-            $this->matches,
-            static fn (BracketMatch $match): bool => $match->nextMatch === null,
-        );
-
-        if ($candidates === []) {
-            throw new InvalidArgumentException('Bracket plan has no match without a next match.');
+        foreach ($this->matches as $match) {
+            if ($match->nextMatch === null) {
+                return $match;
+            }
         }
 
-        usort(
-            $candidates,
-            static fn (BracketMatch $a, BracketMatch $b): int => $rank($b->bracket) <=> $rank($a->bracket),
-        );
-
-        return $candidates[array_key_first($candidates)];
+        // Unreachable: the constructor invariant guarantees exactly one match
+        // without a next match.
+        throw new InvalidArgumentException('Bracket plan has no match without a next match.');
     }
 
     /**

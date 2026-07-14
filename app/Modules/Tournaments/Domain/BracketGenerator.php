@@ -88,8 +88,8 @@ final class BracketGenerator
                 );
 
                 // Wire the two feeder matches of the previous round forward.
-                $matches[$feederA] = $matches[$feederA]->withResult(nextMatch: $id, nextSlot: 1);
-                $matches[$feederB] = $matches[$feederB]->withResult(nextMatch: $id, nextSlot: 2);
+                $matches[$feederA] = $matches[$feederA]->withRouting(nextMatch: $id, nextSlot: 1);
+                $matches[$feederB] = $matches[$feederB]->withRouting(nextMatch: $id, nextSlot: 2);
 
                 $currentRoundIds[] = $id;
                 $id++;

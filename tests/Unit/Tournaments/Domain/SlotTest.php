@@ -40,3 +40,36 @@ it('is not empty once it is an entry, bye or pending slot', function () {
         ->and(Slot::bye()->isEmpty())->toBeFalse()
         ->and(Slot::pendingFrom(1)->isEmpty())->toBeFalse();
 });
+
+it('each factory yields exactly one facet, mutually exclusive with the others', function () {
+    $facetsOf = fn (Slot $s): int => ($s->isEntry() ? 1 : 0) + ($s->isBye() ? 1 : 0) + ($s->isPending() ? 1 : 0);
+
+    expect($facetsOf(Slot::entry(1)))->toBe(1)
+        ->and($facetsOf(Slot::bye()))->toBe(1)
+        ->and($facetsOf(Slot::pendingFrom(1)))->toBe(1)
+        ->and($facetsOf(Slot::empty()))->toBe(0);
+});
+
+function constructSlotViaReflection(?int $entryId, bool $bye, ?int $pendingFromMatchId): Slot
+{
+    $class = new ReflectionClass(Slot::class);
+    $constructor = $class->getConstructor();
+    $constructor->setAccessible(true);
+
+    $slot = $class->newInstanceWithoutConstructor();
+    $constructor->invoke($slot, $entryId, $bye, $pendingFromMatchId);
+
+    return $slot;
+}
+
+it('throws when entryId and bye are both set', function () {
+    constructSlotViaReflection(1, true, null);
+})->throws(InvalidArgumentException::class);
+
+it('throws when entryId and pendingFromMatchId are both set', function () {
+    constructSlotViaReflection(1, false, 7);
+})->throws(InvalidArgumentException::class);
+
+it('throws when bye and pendingFromMatchId are both set', function () {
+    constructSlotViaReflection(null, true, 7);
+})->throws(InvalidArgumentException::class);

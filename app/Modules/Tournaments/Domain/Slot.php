@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Tournaments\Domain;
 
+use InvalidArgumentException;
+
 /**
  * A single slot in a {@see BracketMatch}: it holds exactly one of an entry,
  * a bye, or a reference to the match it is still pending from — or none of
@@ -15,7 +17,17 @@ final readonly class Slot
         public ?int $entryId,
         public bool $bye,
         public ?int $pendingFromMatchId,
-    ) {}
+    ) {
+        $facets = ($this->entryId !== null ? 1 : 0)
+            + ($this->bye ? 1 : 0)
+            + ($this->pendingFromMatchId !== null ? 1 : 0);
+
+        if ($facets > 1) {
+            throw new InvalidArgumentException(
+                'Slot may hold at most one of entryId, bye or pendingFromMatchId.',
+            );
+        }
+    }
 
     public static function entry(int $entryId): self
     {
