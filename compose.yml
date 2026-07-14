@@ -43,5 +43,47 @@ services:
     ports: ['8081:8080']
     depends_on: [redis]
 
+  # Mumble voice server (M3, Modul 12). Official image, pinned to the
+  # v1.4.x stable line (matches docker/mumble-admin/Murmur.ice's Ice slice).
+  # Ice is baked into this image (libzeroc-ice3.7t64) but disabled by
+  # default; MUMBLE_CONFIG_ICE enables it, bound to 0.0.0.0 so the
+  # mumble-admin sidecar (a separate container) can reach it over the
+  # compose network. icesecretwrite gates all Ice write calls.
+  mumble:
+    image: mumblevoip/mumble-server:v1.4.230
+    environment:
+      MUMBLE_CONFIG_ICE: 'tcp -h 0.0.0.0 -p 6502'
+      MUMBLE_CONFIG_ICESECRETWRITE: ${MUMBLE_ICE_SECRET}
+      MUMBLE_CONFIG_SERVERPASSWORD: ${MUMBLE_SERVER_PASSWORD}
+      MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_ICE_SECRET}
+    # host ports 64738 (TCP+UDP): Mumble's own default, no local collision
+    # observed; kept as-is. The Ice port (6502) is intentionally NOT
+    # published to the host — only mumble-admin (same compose network)
+    # needs it.
+    ports: ['64738:64738', '64738:64738/udp']
+    volumes:
+      - mumble_data:/data
+
+  # Ice-REST sidecar (M3, Modul 12): translates the Mumble Ice interface
+  # into the small REST surface `MumbleClient` (Task 20) needs. murmur-rest
+  # (github.com/alfg/murmur-rest) was evaluated and rejected — no real
+  # commit since 2024-07, Flask + an unpinned old Ice binding, not
+  # republished for any current Mumble/Ice pairing — so this is a minimal
+  # own FastAPI sidecar (docker/mumble-admin/), deliberately small and
+  # entirely encapsulated behind the `MumbleClient` interface (never called
+  # directly from tests; see docker/mumble-admin/app.py's module docstring).
+  mumble-admin:
+    build: ./docker/mumble-admin
+    environment:
+      MUMBLE_ICE_HOST: mumble
+      MUMBLE_ICE_PORT: '6502'
+      MUMBLE_ICE_SECRET: ${MUMBLE_ICE_SECRET}
+    # host port 8085: non-default, mirrors the postgres/redis/reverb
+    # convention above. Internal REST URL for the Laravel app is
+    # http://mumble-admin:8000 (compose network), not the host port.
+    ports: ['8085:8000']
+    depends_on: [mumble]
+
 volumes:
   pgdata:
+  mumble_data:
