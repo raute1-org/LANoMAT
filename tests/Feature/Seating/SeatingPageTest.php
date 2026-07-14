@@ -6,6 +6,7 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Seating\Actions\ClaimSeat;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Testing\AssertableInertia;
 
 it('renders the seating map with seats and occupants', function () {
@@ -74,25 +75,19 @@ it('forbids claiming without a registration', function () {
 });
 
 it('forbids claiming a seat via someone else\'s registration (policy denial)', function () {
-    // Regression guard for the claim-seat Gate: a user must not be able to
-    // move another user's registration onto a seat just because both are
-    // registered for the same event.
+    // Regression guard for the claim-seat Gate at the policy level: a plain
+    // user must never be authorized to act on a registration that belongs to
+    // someone else, regardless of what the controller happens to pass in.
     $event = Event::factory()->live()->create();
-    $seat = Seat::factory()->for($event)->create();
     $owner = User::factory()->create();
     $attacker = User::factory()->create();
-    EventRegistration::factory()->for($event)->for($owner)->create();
-    $attackerReg = EventRegistration::factory()->for($event)->for($attacker)->create();
+    $ownerReg = EventRegistration::factory()->for($event)->for($owner)->create();
 
-    // The controller always resolves the registration from the authenticated
-    // user, so this exercises the same-event-different-registration path,
-    // proving the policy check is reached rather than bypassed.
-    $this->actingAs($attacker)
-        ->post("/events/{$event->slug}/seating/{$seat->id}")
-        ->assertRedirect();
+    expect(Gate::forUser($attacker)->denies('claim-seat', $ownerReg))->toBeTrue();
+    expect(Gate::forUser($owner)->allows('claim-seat', $ownerReg))->toBeTrue();
 
-    expect(SeatAssignment::where('seat_id', $seat->id)->first()->registration_id)
-        ->toBe($attackerReg->id);
+    $orga = User::factory()->orga()->create();
+    expect(Gate::forUser($orga)->allows('claim-seat', $ownerReg))->toBeTrue();
 });
 
 it('redirects with a german toast when the seat is already taken', function () {

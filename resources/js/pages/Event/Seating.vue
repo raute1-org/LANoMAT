@@ -44,6 +44,35 @@ function fill(seat: SeatDto): string {
 
     return seat.occupant ? 'var(--muted)' : 'var(--card)';
 }
+
+function isClaimable(seat: SeatDto): boolean {
+    return props.canClaim && !seat.occupant;
+}
+
+function stateLabel(seat: SeatDto): string {
+    if (seat.id === props.mySeatId) {
+        return props.labels.my_seat;
+    }
+
+    if (seat.occupant) {
+        return props.labels.occupied_by.replace(':name', seat.occupant);
+    }
+
+    return props.labels.free;
+}
+
+function seatAriaLabel(seat: SeatDto): string {
+    return `${seat.label} — ${stateLabel(seat)}`;
+}
+
+function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+    }
+
+    event.preventDefault();
+    claim(seat);
+}
 </script>
 
 <template>
@@ -71,9 +100,14 @@ function fill(seat: SeatDto): string {
                     v-for="seat in seats"
                     :key="seat.id"
                     :transform="`translate(${seat.x * CELL}, ${seat.y * CELL})`"
-                    :class="canClaim && !seat.occupant ? 'cursor-pointer' : ''"
+                    :class="isClaimable(seat) ? 'cursor-pointer' : ''"
+                    :role="isClaimable(seat) ? 'button' : undefined"
+                    :tabindex="isClaimable(seat) ? 0 : undefined"
+                    :aria-label="seatAriaLabel(seat)"
                     @click="claim(seat)"
+                    @keydown="onSeatKeydown($event, seat)"
                 >
+                    <title>{{ seatAriaLabel(seat) }}</title>
                     <rect
                         :width="CELL - 8"
                         :height="CELL - 8"

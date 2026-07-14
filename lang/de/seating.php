@@ -29,6 +29,7 @@ return [
         'title' => 'Sitzplan',
         'free' => 'Frei',
         'my_seat' => 'Mein Platz',
+        'occupied_by' => 'Belegt von :name',
         'claim' => 'Platz wählen',
         'release' => 'Platz freigeben',
         'need_registration' => 'Melde dich zuerst zum Event an, um einen Platz zu wählen.',
