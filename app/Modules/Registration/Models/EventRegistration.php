@@ -31,6 +31,15 @@ class EventRegistration extends Model
         'ticket_type',
     ];
 
+    // Defensive: qr_token must never leak through accidental array/JSON
+    // serialization (e.g. a future API resource or Filament column that
+    // forgets to select columns explicitly). The Register page renders it
+    // only as a server-side SVG (see QrCode support class), never as raw
+    // token data in props.
+    protected $hidden = [
+        'qr_token',
+    ];
+
     protected function casts(): array
     {
         return [
