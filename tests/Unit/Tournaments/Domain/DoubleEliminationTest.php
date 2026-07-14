@@ -183,6 +183,45 @@ it('has exactly 2n-1 potential matches (n-1 WB + n-2 LB + 2 finals) for a power-
     expect($plan->matches())->toHaveCount(2 * $n - 1);
 })->with([4, 8, 16]);
 
+it('handles n=2 as a degenerate case with zero losers-bracket rounds', function () {
+    $plan = app(BracketGenerator::class)->doubleElimination(entries(2));
+
+    $wbMatches = collect($plan->matches())->filter(fn ($m) => $m->bracket === Bracket::Winners);
+    $lbMatches = collect($plan->matches())->filter(fn ($m) => $m->bracket === Bracket::Losers);
+    $finals = collect($plan->matches())->filter(fn ($m) => $m->bracket === Bracket::Finals);
+
+    // Exactly one WB match (the WB final) and zero LB matches: 2*(log2(2)-1) = 0.
+    expect($wbMatches)->toHaveCount(1);
+    expect($lbMatches)->toHaveCount(0);
+    expect($finals)->toHaveCount(2);
+
+    $wbFinal = $wbMatches->first();
+
+    // The WB final routes its winner to GF1 slot 1 and its loser directly to
+    // GF1 slot 2 (there is no LB final to feed it — the WB final's loser IS
+    // the LB champion).
+    $gf1 = $finals->first(fn ($m) => $m->nextMatch !== null);
+    $gf2 = $finals->first(fn ($m) => $m->nextMatch === null);
+
+    expect($wbFinal->nextMatch)->toBe($gf1->id)
+        ->and($wbFinal->nextSlot)->toBe(1)
+        ->and($wbFinal->loserNextMatch)->toBe($gf1->id)
+        ->and($wbFinal->loserNextSlot)->toBe(2);
+
+    expect($gf1->slot1->isPending())->toBeTrue()
+        ->and($gf1->slot1->pendingFromMatchId())->toBe($wbFinal->id)
+        ->and($gf1->slot2->isEmpty())->toBeTrue();
+
+    expect($gf1->nextMatch)->toBe($gf2->id);
+
+    expect($gf2->slot1->isPending())->toBeTrue()
+        ->and($gf2->slot1->pendingFromMatchId())->toBe($gf1->id)
+        ->and($gf2->slot2->isPending())->toBeTrue()
+        ->and($gf2->slot2->pendingFromMatchId())->toBe($gf1->id);
+
+    expect($plan->finalMatch()->id)->toBe($gf2->id);
+});
+
 it('rejects bracket sizes beyond the exhaustively verified LB intake ordering table', function () {
     // The LB intake ordering table is only verified for size 4, 8 and 16
     // (this engine's exhaustively tested sizes) — a bracket that resolves

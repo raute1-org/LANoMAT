@@ -222,49 +222,61 @@ final class BracketGenerator
         $lbRound = 1;
         $lbRoundIds = [];
 
-        // LB round 1 (major/intake): pair WB round 1's losers among
-        // themselves, naturally ordered (no reordering needed for the very
-        // first intake — there is no prior LB lineage yet to avoid).
-        $wbRound1Ids = $wbRoundIds[0];
-        $intakeCount = count($wbRound1Ids);
-        $currentRoundIds = [];
+        // Degenerate case: a WB of exactly one round (n=2, i.e.
+        // wbRoundCount === 1) has zero LB rounds
+        // (2*(log2(2)-1) = 0) — there is no one for the WB final's loser to
+        // play in the LB at all. The WB final's loser IS the LB champion
+        // directly; $survivorIds stays empty and the WB-final/GF wiring
+        // below routes the WB final's own loser into GF1 slot 2 instead of
+        // an LB final.
+        if ($wbRoundCount === 1) {
+            $survivorIds = [];
+        } else {
+            // LB round 1 (major/intake): pair WB round 1's losers among
+            // themselves, naturally ordered (no reordering needed for the
+            // very first intake — there is no prior LB lineage yet to
+            // avoid).
+            $wbRound1Ids = $wbRoundIds[0];
+            $intakeCount = count($wbRound1Ids);
+            $currentRoundIds = [];
 
-        for ($i = 0; $i < $intakeCount / 2; $i++) {
-            $feederA = $wbRound1Ids[2 * $i];
-            $feederB = $wbRound1Ids[2 * $i + 1];
+            for ($i = 0; $i < intdiv($intakeCount, 2); $i++) {
+                $feederA = $wbRound1Ids[2 * $i];
+                $feederB = $wbRound1Ids[2 * $i + 1];
 
-            $matchId = $id++;
+                $matchId = $id++;
 
-            // Both slots start empty regardless of whether the feeder was a
-            // bye match — a bye "loser" simply never routes a loser here at
-            // all (see the withRouting guards below), leaving the slot
-            // empty until (if ever) a real loser is routed into it.
-            $matches[$matchId] = new BracketMatch(
-                id: $matchId,
-                round: $lbRound,
-                bracket: Bracket::Losers,
-                position: $i + 1,
-                slot1: Slot::empty(),
-                slot2: Slot::empty(),
-                nextMatch: null,
-                nextSlot: null,
-                loserNextMatch: null,
-                loserNextSlot: null,
-            );
+                // Both slots start empty regardless of whether the feeder was
+                // a bye match — a bye "loser" simply never routes a loser
+                // here at all (see the withRouting guards below), leaving the
+                // slot empty until (if ever) a real loser is routed into it.
+                $matches[$matchId] = new BracketMatch(
+                    id: $matchId,
+                    round: $lbRound,
+                    bracket: Bracket::Losers,
+                    position: $i + 1,
+                    slot1: Slot::empty(),
+                    slot2: Slot::empty(),
+                    nextMatch: null,
+                    nextSlot: null,
+                    loserNextMatch: null,
+                    loserNextSlot: null,
+                );
 
-            if (! $isByeMatch($matches[$feederA])) {
-                $matches[$feederA] = $matches[$feederA]->withRouting(loserNextMatch: $matchId, loserNextSlot: 1);
+                if (! $isByeMatch($matches[$feederA])) {
+                    $matches[$feederA] = $matches[$feederA]->withRouting(loserNextMatch: $matchId, loserNextSlot: 1);
+                }
+                if (! $isByeMatch($matches[$feederB])) {
+                    $matches[$feederB] = $matches[$feederB]->withRouting(loserNextMatch: $matchId, loserNextSlot: 2);
+                }
+
+                $currentRoundIds[] = $matchId;
             }
-            if (! $isByeMatch($matches[$feederB])) {
-                $matches[$feederB] = $matches[$feederB]->withRouting(loserNextMatch: $matchId, loserNextSlot: 2);
-            }
 
-            $currentRoundIds[] = $matchId;
+            $lbRoundIds[] = $currentRoundIds;
+            $survivorIds = $currentRoundIds;
+            $lbRound++;
         }
-
-        $lbRoundIds[] = $currentRoundIds;
-        $survivorIds = $currentRoundIds;
-        $lbRound++;
 
         // Remaining WB rounds (2..wbRoundCount) each drop their losers into
         // an intake (major) LB round; every intake round except the very
@@ -282,7 +294,7 @@ final class BracketGenerator
             while (count($survivorIds) > $intakeSize) {
                 $currentRoundIds = [];
 
-                for ($i = 0; $i < count($survivorIds) / 2; $i++) {
+                for ($i = 0; $i < intdiv(count($survivorIds), 2); $i++) {
                     $feederA = $survivorIds[2 * $i];
                     $feederB = $survivorIds[2 * $i + 1];
 
@@ -353,9 +365,11 @@ final class BracketGenerator
             $lbRound++;
         }
 
-        // survivorIds now holds exactly one match: the LB final. Its winner
-        // is the losers-bracket champion.
-        $lbFinalId = $survivorIds[0];
+        // If there was an LB at all, survivorIds now holds exactly one match:
+        // the LB final, whose winner is the losers-bracket champion. In the
+        // degenerate n=2 case (zero LB rounds, see above) there is no LB
+        // final — the WB final's own loser feeds GF1 slot 2 directly.
+        $lbFinalId = $survivorIds[0] ?? null;
 
         // --- Winners-bracket final ---
         $wbFinalId = $wbRoundIds[$wbRoundCount - 1][0];
@@ -370,7 +384,7 @@ final class BracketGenerator
             bracket: Bracket::Finals,
             position: 1,
             slot1: Slot::pendingFrom($wbFinalId),
-            slot2: Slot::pendingFrom($lbFinalId),
+            slot2: $lbFinalId !== null ? Slot::pendingFrom($lbFinalId) : Slot::empty(),
             nextMatch: $gf2Id,
             nextSlot: 1,
             loserNextMatch: null,
@@ -391,7 +405,15 @@ final class BracketGenerator
         );
 
         $matches[$wbFinalId] = $matches[$wbFinalId]->withRouting(nextMatch: $gf1Id, nextSlot: 1);
-        $matches[$lbFinalId] = $matches[$lbFinalId]->withRouting(nextMatch: $gf1Id, nextSlot: 2);
+
+        if ($lbFinalId !== null) {
+            $matches[$lbFinalId] = $matches[$lbFinalId]->withRouting(nextMatch: $gf1Id, nextSlot: 2);
+        } else {
+            // No LB final exists: the WB final's loser drops directly into
+            // GF1 slot 2, exactly like a WB loser dropping into the LB in
+            // the general case — just routed straight to the grand final.
+            $matches[$wbFinalId] = $matches[$wbFinalId]->withRouting(loserNextMatch: $gf1Id, loserNextSlot: 2);
+        }
 
         return new BracketPlan($matches);
     }
