@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Modules\Discord\Contracts\DiscordClient;
+use App\Modules\Discord\HttpDiscordClient;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Registration\Events\RegistrationCancelled;
@@ -29,7 +31,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(DiscordClient::class, fn () => new HttpDiscordClient(
+            (string) config('services.discord.bot_token'),
+        ));
     }
 
     /**

@@ -15,7 +15,7 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
-    ->in('Feature', 'Unit/Identity');
+    ->in('Feature', 'Unit/Identity', 'Unit/Discord');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
