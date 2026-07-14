@@ -18,6 +18,13 @@ class EventsTable
                 TextColumn::make('name')
                     ->label(__('events.fields.name'))
                     ->searchable(),
+                TextColumn::make('slug')
+                    ->label(__('events.fields.public_url'))
+                    ->state(fn ($record) => route('events.show', ['event' => $record->slug]))
+                    ->url(fn ($record) => route('events.show', ['event' => $record->slug]), shouldOpenInNewTab: true)
+                    ->copyable()
+                    ->copyMessage(__('events.fields.url_copied'))
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->label(__('events.fields.status'))
                     ->badge()

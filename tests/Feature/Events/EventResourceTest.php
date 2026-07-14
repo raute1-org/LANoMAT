@@ -84,3 +84,12 @@ it('creates an event with an auto-generated slug and draft status', function () 
         ->and($event->location)->toBe('Hamburg')
         ->and($event->max_participants)->toBe(128);
 });
+
+it('shows the german public-url column label', function () {
+    Event::factory()->registration()->create();
+
+    $this->actingAs(User::factory()->orga()->create())
+        ->get('/admin/events')
+        ->assertOk()
+        ->assertSee('Öffentlicher Link');
+});

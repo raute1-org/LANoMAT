@@ -22,7 +22,7 @@ class EventPageController
 
     public function show(Event $event): Response
     {
-        if ($event->status === EventStatus::Draft) {
+        if (! $event->isPubliclyVisible()) {
             throw new NotFoundHttpException;
         }
 

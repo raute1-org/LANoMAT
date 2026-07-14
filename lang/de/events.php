@@ -12,6 +12,8 @@ return [
         'ends_at' => 'Ende',
         'max_participants' => 'Max. Teilnehmer',
         'status' => 'Status',
+        'public_url' => 'Öffentlicher Link',
+        'url_copied' => 'Link kopiert',
     ],
     'status' => [
         'draft' => 'Entwurf',

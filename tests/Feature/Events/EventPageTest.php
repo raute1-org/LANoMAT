@@ -57,3 +57,9 @@ it('returns 404 for a draft event requested by slug', function () {
 
     $this->get("/events/{$event->slug}")->assertNotFound();
 });
+
+it('renders 404 for a draft event by slug (helper-driven)', function () {
+    $event = Event::factory()->draft()->create();
+
+    $this->get("/events/{$event->slug}")->assertNotFound();
+});

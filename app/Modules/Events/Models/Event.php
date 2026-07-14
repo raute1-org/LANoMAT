@@ -4,6 +4,7 @@ namespace App\Modules\Events\Models;
 
 use App\Modules\Events\Enums\EventStatus;
 use Database\Factories\EventFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -67,6 +68,20 @@ class Event extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return $this->status !== EventStatus::Draft;
+    }
+
+    /**
+     * @param  Builder<Event>  $query
+     * @return Builder<Event>
+     */
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query->where('status', '!=', EventStatus::Draft->value);
     }
 
     protected static function newFactory(): EventFactory
