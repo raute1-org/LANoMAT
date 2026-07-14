@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property EntryStatus $status
  * @property int|null $seed
  * @property Carbon|null $checked_in_at
- * @property array<string, mixed>|null $roster_snapshot
+ * @property array<int, array{user_id: int, name: string}>|null $roster_snapshot
  */
 class TournamentEntry extends Model
 {

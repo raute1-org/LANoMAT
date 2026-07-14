@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('lanomat:send-reminders')->everyFiveMinutes();
+Schedule::command('lanomat:tournament-tick')->everyMinute();

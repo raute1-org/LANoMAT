@@ -18,6 +18,9 @@ use App\Modules\Seating\Policies\SeatAssignmentPolicy;
 use App\Modules\Seating\Policies\SeatPolicy;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Policies\TeamPolicy;
+use App\Modules\Tournaments\Models\Tournament;
+use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Policies\TournamentPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +97,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
         Gate::policy(Seat::class, SeatPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
+        Gate::policy(Tournament::class, TournamentPolicy::class);
+        Gate::policy(TournamentEntry::class, TournamentPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
