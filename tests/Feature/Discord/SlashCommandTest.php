@@ -67,7 +67,8 @@ it('lists the current event tournaments for /tournament list', function () {
 
 it('checks in the mapped user entry for /tournament checkin when the window is open', function () {
     $user = User::factory()->create(['discord_id' => '111222333']);
-    $tournament = Tournament::factory()->checkIn()->create([
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->checkIn()->create([
         'checkin_opens_at' => now()->subMinute(),
         'checkin_closes_at' => now()->addHour(),
     ]);
@@ -97,7 +98,8 @@ it('does not check in an entry the mapped discord user does not own', function (
     // independently (see the next test, which proves it is load-bearing).
     $owner = User::factory()->create(['discord_id' => '777888999']);
     $intruder = User::factory()->create(['discord_id' => '111000111']);
-    $tournament = Tournament::factory()->checkIn()->create([
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->checkIn()->create([
         'checkin_opens_at' => now()->subMinute(),
         'checkin_closes_at' => now()->addHour(),
     ]);
@@ -129,7 +131,8 @@ it('never invokes CheckInEntry when the resolved entry fails the checkIn policy 
     // in TournamentCommand::checkin() is load-bearing, not dead code shadowed
     // by the query filter.
     $user = User::factory()->create(['discord_id' => '222333444']);
-    $tournament = Tournament::factory()->checkIn()->create([
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->checkIn()->create([
         'checkin_opens_at' => now()->subMinute(),
         'checkin_closes_at' => now()->addHour(),
     ]);
@@ -180,7 +183,8 @@ it('returns a friendly not-linked response instead of a crash for an unmapped di
 
 it('returns an error message (not a 500) when checkin happens outside the window', function () {
     $user = User::factory()->create(['discord_id' => '444555666']);
-    $tournament = Tournament::factory()->enrollment()->create();
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->enrollment()->create();
     TournamentEntry::factory()->solo()->for($tournament)->create([
         'user_id' => $user->id,
         'status' => EntryStatus::Registered,
@@ -196,6 +200,47 @@ it('returns an error message (not a 500) when checkin happens outside the window
         ->assertOk()
         ->assertJsonPath('type', 4)
         ->assertJsonPath('data.content', __('tournaments.errors.checkin_closed'));
+});
+
+it('returns not-found instead of leaking details for /tournament info on a draft-event tournament', function () {
+    // Web routes gate on Event::isPubliclyVisible() (see
+    // TournamentPageController::index()/show()); TournamentCommand must
+    // apply the same gate instead of doing a bare find(), otherwise a draft
+    // (not-yet-announced) event's tournament details leak via the slash
+    // command even though they 404 on the web.
+    $event = Event::factory()->draft()->create();
+    $tournament = Tournament::factory()->for($event)->create(['name' => 'Hidden Cup']);
+
+    $body = applicationCommand('tournament', [
+        ['name' => 'info', 'type' => 1, 'options' => [
+            ['name' => 'id', 'type' => 4, 'value' => $tournament->id],
+        ]],
+    ]);
+
+    postInteraction($body)
+        ->assertOk()
+        ->assertJsonPath('type', 4)
+        ->assertJsonPath('data.content', __('discord.commands.tournament.info.not_found'));
+});
+
+it('returns not-found instead of leaking a link for /tournament bracket on a draft-event tournament', function () {
+    Bus::fake();
+
+    $event = Event::factory()->draft()->create();
+    $tournament = Tournament::factory()->for($event)->create(['name' => 'Hidden Bracket Cup']);
+
+    $body = applicationCommand('tournament', [
+        ['name' => 'bracket', 'type' => 1, 'options' => [
+            ['name' => 'id', 'type' => 4, 'value' => $tournament->id],
+        ]],
+    ]);
+
+    postInteraction($body)
+        ->assertOk()
+        ->assertJsonPath('type', 5);
+
+    Bus::assertDispatched(SendFollowupJob::class, fn (SendFollowupJob $job) => $job->content === __('discord.commands.tournament.bracket.not_found')
+    );
 });
 
 it('returns tournament info for /tournament info', function () {

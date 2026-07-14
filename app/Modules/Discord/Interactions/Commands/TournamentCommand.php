@@ -5,12 +5,14 @@ namespace App\Modules\Discord\Interactions\Commands;
 use App\Modules\Discord\Interactions\InteractionPayload;
 use App\Modules\Discord\Interactions\InteractionResponse;
 use App\Modules\Discord\Jobs\SendFollowupJob;
+use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Gate;
 
@@ -157,6 +159,12 @@ class TournamentCommand
     }
 
     /**
+     * Only resolves a tournament belonging to a publicly visible event — the
+     * same gate the web routes apply (see
+     * `TournamentPageController::index()`/`show()`) — so a draft (not yet
+     * announced) event's tournament does not leak its details or a bracket
+     * link via the slash command even though it 404s on the web.
+     *
      * @param  array<string, mixed>  $payload
      */
     private function findTournament(array $payload): ?Tournament
@@ -167,6 +175,11 @@ class TournamentCommand
             return null;
         }
 
-        return Tournament::query()->find($id);
+        return Tournament::query()
+            ->whereHas('event', function (Builder $query): Builder {
+                /** @var Builder<Event> $query */
+                return $query->publiclyVisible();
+            })
+            ->find($id);
     }
 }
