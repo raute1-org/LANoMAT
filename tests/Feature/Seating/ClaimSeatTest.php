@@ -8,6 +8,8 @@ use App\Modules\Seating\Actions\ReleaseSeat;
 use App\Modules\Seating\Exceptions\SeatException;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 it('claims a free seat for a registration', function () {
     $event = Event::factory()->live()->create();
@@ -54,6 +56,31 @@ it('rejects a second registration claiming the same seat (db unique race)', func
         ->toThrow(SeatException::class);
 
     expect(SeatAssignment::where('seat_id', $seat->id)->first()->registration_id)->toBe($regA->id);
+});
+
+it('rethrows a QueryException that is not a unique-key violation', function () {
+    $event = Event::factory()->live()->create();
+    $seat = Seat::factory()->for($event)->create();
+    $reg = EventRegistration::factory()->for($event)->create();
+
+    // Build a real QueryException carrying an arbitrary non-23505 SQLSTATE
+    // (PDOException::$code is not final), so we can assert the action does
+    // not misreport a real failure as "seat taken".
+    $pdoException = new PDOException('simulated connection error');
+    $pdoException->errorInfo = ['55000', 1, 'simulated connection error'];
+    (new ReflectionProperty($pdoException, 'code'))->setValue($pdoException, '55000');
+
+    $queryException = new QueryException(
+        'pgsql',
+        'insert into "seat_assignments" ("seat_id", "registration_id") values (?, ?)',
+        [],
+        $pdoException,
+    );
+
+    DB::shouldReceive('transaction')->once()->andThrow($queryException);
+
+    expect(fn () => app(ClaimSeat::class)->handle($seat, $reg))
+        ->toThrow(QueryException::class);
 });
 
 it('releases a seat', function () {

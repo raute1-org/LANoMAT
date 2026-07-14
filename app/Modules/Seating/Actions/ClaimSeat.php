@@ -30,7 +30,13 @@ class ClaimSeat
                 ]);
             });
         } catch (QueryException $e) {
-            // seat_id UNIQUE violation -> two users raced for one seat.
+            // Only a unique-key violation on seat_id means two users raced
+            // for the same seat. Any other failure is a real error and must
+            // not be misreported as "seat taken".
+            if ($e->getCode() !== '23505') {
+                throw $e;
+            }
+
             throw SeatException::taken();
         }
     }

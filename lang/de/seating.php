@@ -38,4 +38,8 @@ return [
         'wrong_event' => 'Dieser Platz gehört nicht zu diesem Event.',
         'taken' => 'Dieser Platz ist bereits vergeben.',
     ],
+    'delete' => [
+        'occupied_warning' => 'Achtung: Dieser Platz ist belegt von :name. Beim Löschen wird die Sitzplatzzuweisung entfernt.',
+        'occupied_warning_bulk' => 'Achtung: Mindestens ein ausgewählter Platz ist belegt. Beim Löschen werden betroffene Sitzplatzzuweisungen entfernt.',
+    ],
 ];

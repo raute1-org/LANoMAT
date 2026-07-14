@@ -23,3 +23,25 @@ it('is idempotent and skips existing labels', function () {
     expect($created)->toBe(0)
         ->and(Seat::where('event_id', $event->id)->count())->toBe(4);
 });
+
+it('rolls back the whole batch atomically when a seat fails partway through', function () {
+    $event = Event::factory()->create();
+    $failOnThirdSeat = 0;
+
+    Seat::creating(function () use (&$failOnThirdSeat) {
+        $failOnThirdSeat++;
+        if ($failOnThirdSeat === 3) {
+            throw new RuntimeException('simulated failure partway through the batch');
+        }
+    });
+
+    try {
+        expect(fn () => app(GenerateSeatGrid::class)->handle($event, 2, 3, 'A'))
+            ->toThrow(RuntimeException::class);
+    } finally {
+        Seat::flushEventListeners();
+    }
+
+    // Atomic: the two seats created before the failure must not survive.
+    expect(Seat::where('event_id', $event->id)->count())->toBe(0);
+});

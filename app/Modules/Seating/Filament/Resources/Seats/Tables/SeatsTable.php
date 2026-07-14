@@ -39,7 +39,13 @@ class SeatsTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        // Bulk deletion is not blocked when seats are
+                        // occupied, but the orga is warned that occupied
+                        // seats among the selection will unseat their
+                        // participants (the cascade currently happens
+                        // silently otherwise).
+                        ->modalDescription(__('seating.delete.occupied_warning_bulk')),
                 ]),
             ]);
     }
