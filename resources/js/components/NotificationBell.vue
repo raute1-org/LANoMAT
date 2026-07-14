@@ -24,11 +24,7 @@ const page = usePage();
 const notifications = computed(() => page.props.unreadNotifications);
 
 function markAsRead(id: string) {
-    router.post(
-        read.url({ notification: id }),
-        {},
-        { preserveScroll: true },
-    );
+    router.post(read.url({ notification: id }), {}, { preserveScroll: true });
 }
 </script>
 
@@ -71,9 +67,7 @@ function markAsRead(id: string) {
                 <span class="text-xs text-muted-foreground">{{
                     notification.body
                 }}</span>
-                <span class="text-xs text-primary">{{
-                    labels.mark_read
-                }}</span>
+                <span class="text-xs text-primary">{{ labels.mark_read }}</span>
             </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
