@@ -40,4 +40,12 @@ class TournamentException extends DomainException
     {
         return new self('The tournament has already started.', 'tournaments.errors.already_started');
     }
+
+    public static function unsupportedDoubleEliminationSize(int $count): self
+    {
+        return new self(
+            "Double elimination is only supported for 2, 4, 6, 8 or 16 participating entries, got {$count}.",
+            'tournaments.errors.unsupported_double_elimination_size',
+        );
+    }
 }

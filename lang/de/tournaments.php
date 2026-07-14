@@ -42,6 +42,7 @@ return [
         'checkin_closed' => 'Der Check-in ist derzeit nicht geöffnet.',
         'roster_size_mismatch' => 'Die Teamgröße stimmt nicht mit der geforderten Teamgröße überein.',
         'already_started' => 'Das Turnier hat bereits begonnen.',
+        'unsupported_double_elimination_size' => 'Doppel-K.-o.-System wird nur für 2, 4, 6, 8 oder 16 teilnehmende Anmeldungen unterstützt.',
     ],
 
     'enrollment' => [
@@ -55,5 +56,9 @@ return [
         'check_in' => 'Einchecken',
         'checked_in' => 'Erfolgreich eingecheckt.',
         'window_closed' => 'Das Check-in-Fenster ist geschlossen.',
+    ],
+
+    'auto_team' => [
+        'name' => 'Team :number',
     ],
 ];

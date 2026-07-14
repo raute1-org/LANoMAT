@@ -7,6 +7,7 @@ use App\Modules\Tournaments\Actions\OpenCheckin;
 use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
+use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,18 +82,44 @@ it('does not open the check-in window early via the scheduler tick', function ()
     expect($tournament->fresh()->status)->toBe(TournamentStatus::Enrollment);
 });
 
-it('does not autostart a tournament via the scheduler tick when checkin_closes_at has passed', function () {
+it('does not autostart a tournament via the scheduler tick merely because checkin_closes_at has passed', function () {
     $tournament = Tournament::factory()->checkIn()->create([
         'checkin_opens_at' => now()->subHours(2),
         'checkin_closes_at' => now()->subMinute(),
+        // starts_at defaults to now()->addDay() - not yet reached, so the
+        // tick's autostart guard must not fire from checkin_closes_at alone.
     ]);
 
     $this->artisan('lanomat:tournament-tick')->assertExitCode(0);
 
     // Check-in closing is time-gated inside CheckInEntry itself, not a
     // status transition. The CheckIn -> Live transition is owned
-    // exclusively by StartTournament (not yet built), so the tournament
-    // stays in CheckIn even though its window has closed.
+    // exclusively by StartTournament, which is gated on starts_at, not
+    // checkin_closes_at - so the tournament stays in CheckIn even though its
+    // check-in window has closed.
+    expect($tournament->fresh()->status)->toBe(TournamentStatus::CheckIn);
+});
+
+it('autostarts a tournament via the scheduler tick once starts_at has arrived', function () {
+    $tournament = Tournament::factory()->checkIn()->singleElim()->create([
+        'starts_at' => now()->subMinute(),
+    ]);
+    TournamentEntry::factory()->checkedIn()->count(4)->create(['tournament_id' => $tournament->id]);
+
+    $this->artisan('lanomat:tournament-tick')->assertExitCode(0);
+
+    expect($tournament->fresh()->status)->toBe(TournamentStatus::Live)
+        ->and(GameMatch::where('tournament_id', $tournament->id)->count())->toBe(3);
+});
+
+it('does not autostart a tournament via the scheduler tick before starts_at has arrived', function () {
+    $tournament = Tournament::factory()->checkIn()->singleElim()->create([
+        'starts_at' => now()->addMinute(),
+    ]);
+    TournamentEntry::factory()->checkedIn()->count(4)->create(['tournament_id' => $tournament->id]);
+
+    $this->artisan('lanomat:tournament-tick')->assertExitCode(0);
+
     expect($tournament->fresh()->status)->toBe(TournamentStatus::CheckIn);
 });
 
