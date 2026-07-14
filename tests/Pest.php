@@ -19,7 +19,7 @@ pest()->extend(TestCase::class)
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Unit/Events', 'Unit/Registration');
+    ->in('Unit/Events', 'Unit/Registration', 'Unit/Seating');
 
 /*
 |--------------------------------------------------------------------------

@@ -5,8 +5,11 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
+use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\Seating\Listeners\ReleaseSeatOnCancellation;
+use App\Modules\Seating\Policies\SeatAssignmentPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureSocialite();
         $this->configureAuthorization();
+        $this->configureEventListeners();
     }
 
     /**
@@ -78,5 +82,16 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(EventModel::class, EventPolicy::class);
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
+
+        Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
+    }
+
+    /**
+     * Register cross-module event listeners (sanctioned inter-module
+     * communication per the M2 seating/registration plan).
+     */
+    protected function configureEventListeners(): void
+    {
+        Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
     }
 }
