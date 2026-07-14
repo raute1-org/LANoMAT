@@ -67,6 +67,12 @@ class RegisterForEvent
                 $existing->ticket_type = $ticketType;
                 $existing->status = RegistrationStatus::Confirmed;
                 $existing->qr_token = Str::random(40);
+                // Reset check-in/payment state from the previous cycle. Both
+                // are orga decisions (whether a returning participant needs
+                // to re-pay or is waved through, whether a prior check-in
+                // should count again) and must never carry over silently.
+                $existing->checked_in_at = null;
+                $existing->paid_at = null;
                 $existing->save();
 
                 return $existing;
