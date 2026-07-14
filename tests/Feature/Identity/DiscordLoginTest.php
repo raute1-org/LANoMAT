@@ -4,6 +4,7 @@ use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
 uses(RefreshDatabase::class);
@@ -65,4 +66,22 @@ it('processes the callback even when a user is already authenticated', function 
     $newUser = User::where('discord_id', '222222222')->firstOrFail();
     $this->assertAuthenticatedAs($newUser);
     expect(User::count())->toBe(2);
+});
+
+it('redirects to login without creating a user when consent is denied', function () {
+    $response = $this->get('/auth/discord/callback?error=access_denied&error_description=The+resource+owner+denied+the+request.');
+
+    $response->assertRedirect(route('login'));
+    $this->assertGuest();
+    expect(User::count())->toBe(0);
+});
+
+it('redirects to login when the oauth state is invalid or expired', function () {
+    Socialite::shouldReceive('driver->user')->andThrow(new InvalidStateException);
+
+    $response = $this->get('/auth/discord/callback');
+
+    $response->assertRedirect(route('login'));
+    $this->assertGuest();
+    expect(User::count())->toBe(0);
 });
