@@ -5,10 +5,13 @@ namespace App\Modules\Tournaments\Actions;
 use App\Modules\Tournaments\Domain\BracketGenerator;
 use App\Modules\Tournaments\Domain\BracketPlan;
 use App\Modules\Tournaments\Enums\EntryStatus;
+use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentFormat;
 use App\Modules\Tournaments\Enums\TournamentStatus;
+use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Exceptions\TournamentException;
+use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketPersister;
@@ -79,12 +82,22 @@ class StartTournament
                 TournamentFormat::RoundRobin => $this->generator->roundRobin($entryIds),
             };
 
-            $this->persister->persist($tournament, $plan);
+            $persisted = $this->persister->persist($tournament, $plan);
 
             $tournament->status = TournamentStatus::Live;
             $tournament->save();
 
             Event::dispatch(new TournamentStarted($tournament));
+
+            // The persister already writes MatchStatus::Ready directly onto
+            // any round with both slots filled from the start (typically
+            // every round-1 match) — those never pass through
+            // MatchProgression's Pending/Reported -> Ready transition, so
+            // MatchReady must be dispatched for them here or they never get
+            // a Discord text channel / Mumble voice channel at all.
+            $persisted
+                ->filter(fn (GameMatch $match): bool => $match->status === MatchStatus::Ready)
+                ->each(fn (GameMatch $match) => Event::dispatch(new MatchReady($match)));
 
             return $tournament;
         });

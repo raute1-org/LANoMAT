@@ -15,9 +15,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    // The scheduler-tick autostart tests dispatch a real TournamentStarted,
-    // which Task 21's voice-provisioning listener reacts to — fake Mumble
-    // globally so this suite never hits a real server.
+    // The scheduler-tick autostart tests dispatch a real TournamentStarted
+    // and, since Fix #1, a real MatchReady for every round-1 match — which
+    // reach both Task 18's Discord match-channel listener and Task 21's
+    // voice-provisioning listener. Fake both globally so this suite never
+    // hits a real server.
+    fakeDiscord();
     fakeMumble();
 });
 

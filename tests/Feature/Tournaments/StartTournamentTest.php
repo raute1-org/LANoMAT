@@ -6,6 +6,7 @@ use App\Modules\Tournaments\Domain\Bracket;
 use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
+use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -18,10 +19,12 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // StartTournament dispatches a real TournamentStarted in every test here
-    // except the one that explicitly fakes it. TournamentStarted had no
-    // listener before Task 21's voice-provisioning listener, so fake Mumble
-    // globally to keep these bracket-generation tests from ever hitting a
-    // real server.
+    // except the one that explicitly fakes it, and now also dispatches a
+    // real MatchReady for every round-1 match persisted as Ready (see Fix
+    // #1) — which reaches both the Discord match-channel listener and the
+    // voice-provisioning listener. Fake both clients globally so these
+    // bracket-generation tests never hit a real server.
+    fakeDiscord();
     fakeMumble();
 });
 
@@ -49,6 +52,26 @@ it('starts an 8-entry single-elimination tournament, persists 7 matches and disp
             ->and($match->entry1_id)->not->toBeNull()
             ->and($match->entry2_id)->not->toBeNull();
     }
+});
+
+it('dispatches MatchReady for every round-1 match persisted as Ready', function () {
+    $tournament = Tournament::factory()->checkIn()->singleElim()->create();
+    TournamentEntry::factory()->checkedIn()->count(8)->create(['tournament_id' => $tournament->id]);
+
+    Event::fake([MatchReady::class]);
+
+    $started = app(StartTournament::class)->handle($tournament);
+
+    $round1 = GameMatch::where('tournament_id', $started->id)->where('round', 1)->get();
+    expect($round1)->toHaveCount(4);
+
+    foreach ($round1 as $match) {
+        expect($match->status)->toBe(MatchStatus::Ready);
+        Event::assertDispatched(MatchReady::class, fn (MatchReady $event) => $event->match->is($match));
+    }
+
+    // Exactly the initially-Ready set — not more, not fewer.
+    Event::assertDispatchedTimes(MatchReady::class, 4);
 });
 
 it('rejects starting a tournament that has already gone live', function () {

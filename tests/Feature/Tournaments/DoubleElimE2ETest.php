@@ -7,6 +7,7 @@ use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\OpenCheckin;
 use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Actions\StartTournament;
+use App\Modules\Tournaments\Domain\Bracket;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -66,27 +67,47 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
 
     app(StartTournament::class)->handle($tournament->fresh());
 
+    // Fix #1: StartTournament now dispatches MatchReady for every match the
+    // persister already wrote as Ready (every winners-bracket round-1 match
+    // in a double-elim bracket), so their Discord text channels and Mumble
+    // voice channels must already exist right after start — not just
+    // downstream matches reached later via bracket progression.
+    $round1Matches = GameMatch::where('tournament_id', $tournament->id)
+        ->where('round', 1)
+        ->where('bracket', Bracket::Winners->value)
+        ->get();
+    expect($round1Matches)->not->toBeEmpty();
+
+    foreach ($round1Matches as $round1Match) {
+        expect($round1Match->status)->toBe(MatchStatus::Ready);
+
+        $round1Channel = collect($discord->channels)->firstWhere('name', "match-{$round1Match->id}");
+        expect($round1Channel)->not->toBeNull("Expected round-1 match {$round1Match->id} to already have a Discord channel right after StartTournament.");
+
+        $mumble->assertChannelCreated($round1Match->entry1->display_name);
+        $mumble->assertChannelCreated($round1Match->entry2->display_name);
+    }
+
     $this->actingAs($orga);
 
     // Play every playable match with a deterministic result (lower entry id
     // wins) until the tournament finishes.
     //
-    // Only matches that become Ready *through bracket progression* (i.e.
-    // every match except the winners-bracket round-1 matches, which
-    // BracketPersister persists as already-Ready at start time) ever get a
-    // live MatchReady dispatched — see MatchProgression::apply(). So a
-    // match's Discord/Mumble channels are only guaranteed to exist once it
-    // was reached that way; round-1 matches never get one. Each channel is
-    // created on MatchReady and — for Discord — deleted again by
-    // AnnounceAndCleanupOnCompleted's delayed CleanupMatchChannelJob as soon
-    // as that same match is decided (QUEUE_CONNECTION=sync ignores ->delay()
-    // and runs the job inline), so "created" is asserted right before a
-    // match is played, while its channel is still live, rather than read
-    // back from the fakes' end state (which holds nothing once the whole
-    // tournament has finished). Mumble match channels are NOT cleaned up
-    // per-match (only the tournament-wide CleanupTournamentVoiceJob on
-    // TournamentCompleted tears those down), so their creation is still
-    // observable in the fake's final state.
+    // Every match that becomes Ready — whether persisted as Ready by
+    // BracketPersister at start time (round 1, per Fix #1 above) or reached
+    // later via bracket progression (MatchProgression::apply()) — gets a
+    // live MatchReady dispatched, and therefore a Discord channel and Mumble
+    // voice channels. Each channel is created on MatchReady and — for
+    // Discord — deleted again by AnnounceAndCleanupOnCompleted's delayed
+    // CleanupMatchChannelJob as soon as that same match is decided
+    // (QUEUE_CONNECTION=sync ignores ->delay() and runs the job inline), so
+    // "created" is asserted right before a match is played, while its
+    // channel is still live, rather than read back from the fakes' end
+    // state (which holds nothing once the whole tournament has finished).
+    // Mumble match channels are NOT cleaned up per-match (only the
+    // tournament-wide CleanupTournamentVoiceJob on TournamentCompleted tears
+    // those down), so their creation is still observable in the fake's
+    // final state.
     $matchesWithLiveChannels = 0;
     $decidedMatchIds = [];
 
@@ -101,31 +122,28 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
 
         $discordChannel = collect($discord->channels)->firstWhere('name', "match-{$match->id}");
 
-        if ($discordChannel !== null) {
-            // This match became Ready via MatchProgression, so its Discord
-            // channel and Mumble voice channels were provisioned by
-            // CreateMatchChannelJob/ProvisionMatchVoiceJob on that MatchReady.
-            $mumble->assertChannelCreated($match->entry1->display_name);
-            $mumble->assertChannelCreated($match->entry2->display_name);
-            $matchesWithLiveChannels++;
-        }
+        // Every Ready match — round 1 included, since Fix #1 — must already
+        // have a Discord channel and Mumble voice channels by the time it is
+        // picked up here.
+        expect($discordChannel)->not->toBeNull("Expected match {$match->id} to have a Discord channel while Ready.");
+        $mumble->assertChannelCreated($match->entry1->display_name);
+        $mumble->assertChannelCreated($match->entry2->display_name);
+        $matchesWithLiveChannels++;
 
         [$s1, $s2] = $match->entry1_id < $match->entry2_id ? [2, 0] : [0, 2];
         app(OverrideMatchResult::class)->handle($match, $s1, $s2);
         $decidedMatchIds[] = $match->id;
 
-        if ($discordChannel !== null) {
-            // The just-decided match's Discord channel must already be gone
-            // again (delayed cleanup ran inline on MatchCompleted).
-            $discord->assertChannelDeleted($discordChannel['id']);
-        }
+        // The just-decided match's Discord channel must already be gone
+        // again (delayed cleanup ran inline on MatchCompleted).
+        $discord->assertChannelDeleted($discordChannel['id']);
     }
 
     expect($guard)->toBeLessThan(100, 'Guard tripped — the tournament never reached Finished.');
-    // At least the winners-bracket final and the grand final are reached via
-    // progression for any bracket with more than one round, so this must be
-    // > 0 for an 8-player double-elim.
-    expect($matchesWithLiveChannels)->toBeGreaterThan(0);
+    // Every decided match had a live Discord/Mumble channel at the time it
+    // was played — round 1 (persisted Ready at start, Fix #1) just as much
+    // as any downstream match reached via progression.
+    expect($matchesWithLiveChannels)->toBe(count($decidedMatchIds));
 
     $tournament->refresh();
     expect($tournament->status)->toBe(TournamentStatus::Finished)

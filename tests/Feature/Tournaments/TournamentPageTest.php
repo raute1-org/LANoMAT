@@ -70,10 +70,23 @@ it('renders the bracket for an 8-entry single-elimination tournament with 7 matc
 });
 
 it('exposes null myMatchVoiceLink when the viewer has no match voice channel provisioned', function () {
+    // Round-1 matches are now provisioned a voice channel immediately at
+    // start (Fix #1), so "no channel provisioned yet" is only true once the
+    // viewer's round-1 match is done and their next (round-2) match has not
+    // become Ready yet — that round-2 match is what activeMatchFor() must
+    // surface once it exists but before Discord/Mumble provisioning for it
+    // has actually run (voice_channels still null on it).
     $tournament = startEightEntrySingleElim();
-    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $round1 = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->get();
+    $match = $round1->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
     $viewer = User::find($entry1->user_id);
+
+    // Wipe the round-1 match's own voice channels to simulate the viewer's
+    // *active* match (still Ready, e.g. voice provisioning failed/pending)
+    // genuinely having none yet — isolates this test from Fix #1's
+    // round-1-provisioning side effect so it still tests the null-link path.
+    $match->update(['voice_channels' => null]);
 
     $this->actingAs($viewer)
         ->get("/tournaments/{$tournament->id}")
@@ -82,6 +95,65 @@ it('exposes null myMatchVoiceLink when the viewer has no match voice channel pro
             ->component('Tournaments/Show')
             ->where('myEntryId', $entry1->id)
             ->where('myMatchVoiceLink', null)
+        );
+});
+
+it('surfaces the viewer active (Ready/Reported/Disputed) match rather than a stale earlier one', function () {
+    $tournament = startEightEntrySingleElim();
+    $round1 = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->get();
+    $match = $round1->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $entry2 = TournamentEntry::find($match->entry2_id);
+    $reporter = User::find($entry1->user_id);
+    $opponent = User::find($entry2->user_id);
+
+    $this->actingAs($reporter)
+        ->post("/matches/{$match->id}/report", ['score1' => 2, 'score2' => 1])
+        ->assertRedirect();
+
+    $this->actingAs($opponent)
+        ->post("/matches/{$match->id}/confirm", ['lock_version' => $match->fresh()->lock_version])
+        ->assertRedirect();
+
+    // entry1 won and advanced: its round-1 match is now Completed. Give the
+    // completed match's own channel a null id for entry1's slot (so picking
+    // the stale round-1 match, the pre-fix behavior, would yield a null
+    // link) while the downstream round-2 match — now Ready — gets a
+    // non-null channel id for entry1. Only surfacing the active round-2
+    // match produces a non-null link.
+    $completedMatch = $match->fresh();
+    expect($completedMatch->status->value)->toBe('completed');
+    $completedEntry1IsFirst = $completedMatch->entry1_id === $entry1->id;
+    $completedMatch->update(['voice_channels' => $completedEntry1IsFirst
+        ? ['entry1_channel_id' => null, 'entry2_channel_id' => 'stale-2']
+        : ['entry1_channel_id' => 'stale-1', 'entry2_channel_id' => null],
+    ]);
+
+    $nextMatch = GameMatch::find($completedMatch->next_match_id);
+    // Only one of the two round-1 feeders into this round-2 match has been
+    // decided so far, so it is still Pending (not yet Ready) — the point of
+    // this test is that activeMatchFor() must still prefer it over the
+    // stale Completed round-1 match (falling back to "most recent match" once
+    // no Ready/Reported/Disputed match exists), not that it is already Ready.
+    expect($nextMatch->status->value)->toBe('pending');
+    $nextEntry1IsFirst = $nextMatch->entry1_id === $entry1->id;
+    $nextMatch->update(['voice_channels' => $nextEntry1IsFirst
+        ? ['entry1_channel_id' => 'active-1', 'entry2_channel_id' => null]
+        : ['entry1_channel_id' => null, 'entry2_channel_id' => 'active-2'],
+    ]);
+
+    $viewer = User::find($entry1->user_id);
+
+    $this->actingAs($viewer)
+        ->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Tournaments/Show')
+            ->where('myEntryId', $entry1->id)
+            // Non-null proves the active round-2 match was surfaced, not
+            // the stale completed round-1 match (whose link for entry1 is
+            // deliberately null above).
+            ->has('myMatchVoiceLink')
         );
 });
 

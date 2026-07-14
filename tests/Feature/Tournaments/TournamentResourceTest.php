@@ -16,8 +16,11 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Starting a tournament via the header action dispatches a real
-    // TournamentStarted, which Task 21's voice-provisioning listener reacts
-    // to — fake Mumble globally so this suite never hits a real server.
+    // TournamentStarted and, since Fix #1, a real MatchReady for every
+    // round-1 match, reaching both Task 18's Discord match-channel listener
+    // and Task 21's voice-provisioning listener — fake both globally so this
+    // suite never hits a real server.
+    fakeDiscord();
     fakeMumble();
 });
 

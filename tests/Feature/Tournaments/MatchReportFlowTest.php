@@ -134,16 +134,25 @@ it('dispatches MatchReady when a downstream match becomes playable', function ()
     [$tournament, $round1] = startFourEntrySingleElim();
     [$matchA, $matchB] = [$round1->get(0), $round1->get(1)];
 
+    $final = GameMatch::find($matchA->next_match_id);
+
+    // startFourEntrySingleElim() itself already dispatched MatchReady for
+    // matchA and matchB (Fix #1's round-1 dispatch, captured by the
+    // Event::fake() above) — clear those out so the assertions below are
+    // scoped to what happens as a *result of* the report/confirm flow.
+    Event::assertDispatchedTimes(MatchReady::class, 2);
+
     $reportA = app(SubmitMatchReport::class)->handle($matchA, TournamentEntry::find($matchA->entry1_id), 2, 0);
     app(ConfirmMatchReport::class)->handle($reportA, TournamentEntry::find($matchA->entry2_id), $matchA->fresh()->lock_version);
 
-    // After only match A is decided, the final is not yet playable (one slot still pending).
-    Event::assertNotDispatched(MatchReady::class);
+    // After only match A is decided, the final is not yet playable (one slot
+    // still pending) — no *additional* MatchReady beyond the two round-1
+    // dispatches above, and specifically none for the final.
+    Event::assertDispatchedTimes(MatchReady::class, 2);
+    Event::assertNotDispatched(MatchReady::class, fn (MatchReady $event) => $event->match->is($final));
 
     $reportB = app(SubmitMatchReport::class)->handle($matchB->fresh(), TournamentEntry::find($matchB->entry1_id), 1, 3);
     $confirmedB = app(ConfirmMatchReport::class)->handle($reportB, TournamentEntry::find($matchB->entry2_id), $matchB->fresh()->lock_version);
-
-    $final = GameMatch::find($confirmedB->next_match_id);
 
     Event::assertDispatched(MatchReady::class, fn (MatchReady $event) => $event->match->is($final->fresh()));
     expect($final->fresh()->status)->toBe(MatchStatus::Ready);

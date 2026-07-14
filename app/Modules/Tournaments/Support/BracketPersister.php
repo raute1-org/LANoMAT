@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tournaments\Support;
 
+use App\Modules\Tournaments\Actions\StartTournament;
 use App\Modules\Tournaments\Domain\BracketMatch;
 use App\Modules\Tournaments\Domain\BracketPlan;
 use App\Modules\Tournaments\Domain\BracketProgressor;
@@ -9,6 +10,7 @@ use App\Modules\Tournaments\Domain\Slot;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
+use Illuminate\Support\Collection;
 
 /**
  * Persists a pure-domain {@see BracketPlan} as `GameMatch` rows for a
@@ -37,12 +39,22 @@ class BracketPersister
         private readonly BracketProgressor $progressor,
     ) {}
 
-    public function persist(Tournament $tournament, BracketPlan $plan): void
+    /**
+     * @return Collection<int, GameMatch> every persisted `GameMatch` row, in
+     *                                    creation order — callers that need
+     *                                    only the initially-`Ready` set (e.g.
+     *                                    {@see StartTournament})
+     *                                    filter by `status` themselves.
+     */
+    public function persist(Tournament $tournament, BracketPlan $plan): Collection
     {
         $plan = $this->resolveByes($plan);
 
         /** @var array<int, int> $idMap domain match id => persisted GameMatch id */
         $idMap = [];
+
+        /** @var list<GameMatch> $created */
+        $created = [];
 
         // Pass 1: create rows, resolve slot entry ids.
         foreach ($plan->matches() as $domainMatch) {
@@ -67,6 +79,7 @@ class BracketPersister
             $gameMatch->save();
 
             $idMap[$domainMatch->id] = $gameMatch->id;
+            $created[] = $gameMatch;
         }
 
         // Pass 2: link routing fields through the id map.
@@ -87,6 +100,8 @@ class BracketPersister
                 GameMatch::query()->whereKey($idMap[$domainMatch->id])->update($updates);
             }
         }
+
+        return collect($created);
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Modules\Tournaments\Actions\DisputeMatchReport;
 use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\EnrollTeam;
 use App\Modules\Tournaments\Actions\SubmitMatchReport;
+use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Http\Requests\ConfirmReportRequest;
 use App\Modules\Tournaments\Http\Requests\SubmitReportRequest;
@@ -25,6 +26,7 @@ use App\Modules\Voice\Support\MumbleJoinLink;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -85,9 +87,7 @@ class TournamentPageController extends Controller
         $user = $request->user();
         $myEntry = $user === null ? null : $this->entryFor($tournament, $user);
 
-        $myMatch = $myEntry === null ? null : $matches->first(
-            fn (GameMatch $match): bool => $match->entry1_id === $myEntry->id || $match->entry2_id === $myEntry->id,
-        );
+        $myMatch = $myEntry === null ? null : $this->activeMatchFor($matches, $myEntry);
 
         return Inertia::render('Tournaments/Show', [
             'tournament' => [
@@ -256,6 +256,34 @@ class TournamentPageController extends Controller
             'status' => $match->status->value,
             'lockVersion' => $match->lock_version,
         ];
+    }
+
+    /**
+     * The viewer's currently *active* match — the one the "join voice"
+     * surface should point at — rather than simply the earliest one in the
+     * (round-ascending) `$matches` collection: once round 1 completes, the
+     * viewer's round-1 match is stale (often already Completed and cleaned
+     * up), while their real next action is a later, still-live match.
+     *
+     * Prefers a match whose status is Ready/Reported/Disputed (i.e. still
+     * "in play"); if the viewer has no such match right now (e.g. eliminated,
+     * or waiting for an opponent to be decided), falls back to their most
+     * recent match overall so the page still has something sensible to show.
+     */
+    /**
+     * @param  Collection<int, GameMatch>  $matches
+     */
+    private function activeMatchFor(Collection $matches, TournamentEntry $myEntry): ?GameMatch
+    {
+        $mine = $matches->filter(
+            fn (GameMatch $match): bool => $match->entry1_id === $myEntry->id || $match->entry2_id === $myEntry->id,
+        );
+
+        $active = $mine->first(
+            fn (GameMatch $match): bool => in_array($match->status, [MatchStatus::Ready, MatchStatus::Reported, MatchStatus::Disputed], true),
+        );
+
+        return $active ?? $mine->last();
     }
 
     /**
