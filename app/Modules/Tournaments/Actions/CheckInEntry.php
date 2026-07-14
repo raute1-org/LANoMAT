@@ -14,6 +14,19 @@ class CheckInEntry
 {
     public function handle(TournamentEntry $entry): TournamentEntry
     {
+        // A Withdrawn entry must never be checked in again — without this
+        // guard, only the time window gated check-in, so a withdrawn entry
+        // could re-check-in during an open window and silently bypass the
+        // withdrawal (and any capacity limit it freed up). An already
+        // CheckedIn entry re-checking in is a harmless idempotent no-op.
+        if ($entry->status === EntryStatus::Withdrawn) {
+            throw TournamentException::entryWithdrawn();
+        }
+
+        if ($entry->status === EntryStatus::CheckedIn) {
+            return $entry;
+        }
+
         $tournament = Tournament::query()->findOrFail($entry->tournament_id);
 
         if (! $this->windowIsOpen($tournament->status, $tournament->checkin_opens_at, $tournament->checkin_closes_at)) {

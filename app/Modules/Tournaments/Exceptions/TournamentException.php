@@ -83,4 +83,9 @@ class TournamentException extends DomainException
     {
         return new self('This match can no longer be disputed.', 'tournaments.errors.match_not_disputable');
     }
+
+    public static function entryWithdrawn(): self
+    {
+        return new self('This entry has been withdrawn and cannot check in.', 'tournaments.errors.entry_withdrawn');
+    }
 }

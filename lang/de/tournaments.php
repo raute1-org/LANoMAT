@@ -111,6 +111,7 @@ return [
         'tied_score' => 'Ein Match kann nicht unentschieden enden.',
         'report_not_pending' => 'Diese Meldung wurde bereits bearbeitet.',
         'match_not_disputable' => 'Dieses Match kann nicht mehr angefochten werden.',
+        'entry_withdrawn' => 'Diese Anmeldung wurde zurückgezogen und kann nicht mehr eingecheckt werden.',
     ],
 
     'enrollment' => [

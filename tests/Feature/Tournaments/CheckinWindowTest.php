@@ -60,6 +60,38 @@ it('rejects check-in after the window has closed', function () {
         ->toThrow(TournamentException::class);
 });
 
+it('rejects checking in a withdrawn entry, even inside an open window', function () {
+    $tournament = Tournament::factory()->checkIn()->create([
+        'checkin_opens_at' => now()->subMinutes(10),
+        'checkin_closes_at' => now()->addMinutes(10),
+    ]);
+    $entry = TournamentEntry::factory()->create([
+        'tournament_id' => $tournament->id,
+        'status' => EntryStatus::Withdrawn,
+    ]);
+
+    expect(fn () => app(CheckInEntry::class)->handle($entry))
+        ->toThrow(TournamentException::class);
+
+    expect($entry->fresh()->status)->toBe(EntryStatus::Withdrawn);
+});
+
+it('allows an idempotent re-check-in of an already-checked-in entry', function () {
+    $tournament = Tournament::factory()->checkIn()->create([
+        'checkin_opens_at' => now()->subMinutes(10),
+        'checkin_closes_at' => now()->addMinutes(10),
+    ]);
+    $entry = TournamentEntry::factory()->create([
+        'tournament_id' => $tournament->id,
+        'status' => EntryStatus::CheckedIn,
+        'checked_in_at' => now()->subMinute(),
+    ]);
+
+    $checkedIn = app(CheckInEntry::class)->handle($entry);
+
+    expect($checkedIn->status)->toBe(EntryStatus::CheckedIn);
+});
+
 it('opens check-in via the action', function () {
     $tournament = Tournament::factory()->enrollment()->create();
 
