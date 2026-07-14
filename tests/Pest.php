@@ -22,7 +22,16 @@ pest()->extend(TestCase::class)
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Unit/Events', 'Unit/Registration', 'Unit/Seating', 'Unit/Teams');
+    ->in(
+        'Unit/Events',
+        'Unit/Registration',
+        'Unit/Seating',
+        'Unit/Teams',
+        // Persistence-layer tests only; Unit/Tournaments/Domain is pure
+        // domain code (no IO, see CLAUDE.md) and stays on the plain TestCase
+        // group registered above.
+        'Unit/Tournaments/*Test.php',
+    );
 
 // Prevent stray HTTP requests in Discord tests to ensure all external
 // communication is properly faked or declared with Http::fake.
