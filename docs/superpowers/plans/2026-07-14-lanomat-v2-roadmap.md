@@ -18,6 +18,7 @@
 - Externe Systeme (Discord, Mumble, Pelican) nur über Interfaces (`DiscordClient`, `MumbleClient`, `PelicanClient`) in `app/Modules/<X>/Contracts/` — Tests laufen gegen Fakes, nie gegen echte APIs.
 - TDD: Test zuerst, wo es eine testbare Verhaltenseinheit gibt; Scaffolding-Tasks enden mit einem Verifikationsschritt.
 - Icons/Logos/Uploads im Laravel-Storage (`storage/app/public`), nie Base64 in der DB.
+- **i18n-Gate (Erkenntnis M1):** Jede Phase, die `lang/de`-Keys hinzufügt, MUSS mindestens eine Feature-Test-Assertion auf ein übersetztes Label enthalten (`->where('labels.x', 'Übersetzter Text')`), und die Phasen-Abnahme enthält einen Locale-Smoke-Check. Hintergrund: M1 lieferte komplette deutsche Copy, die zur Laufzeit als rohe Keys renderte (`APP_LOCALE` stand auf `en`) — kein Task-Test prüfte Label-Inhalte.
 
 ---
 
@@ -86,6 +87,13 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 ## M2 — Anmeldung, Sitzplan, Notifications, Discord-Basis
 
 **Ergebnis:** Teilnehmer melden sich zum Event an, wählen einen Sitzplatz, werden vor Ort per QR eingecheckt; Discord-Announcements laufen.
+
+**Erkenntnisse aus M1 (für den M2-Detailplan verbindlich):**
+
+- **Erster M2-Task: öffentliche Event-Sichtbarkeit als Domain-Helper** (`Event::isPubliclyVisible(): bool` bzw. Scope `publiclyVisible()`), NICHT in die `EventPolicy` (deren `view()` heißt „darf ins Admin-Panel", orga-only — Überladen würde Filament brechen). Der Inline-Draft-404-Check in `EventPageController::show()` wird dabei auf den Helper umgestellt; Task 2.3 (Anmelde-CTA) ist der zweite Konsument.
+- Filament: `slug`/öffentliche URL als read-only Feld/Spalte an der EventResource ergänzen (Orga kann den Link aktuell nirgends kopieren).
+- CTA-Button auf der Event-Seite ist bis Task 2.3 inert — bei der Anmelde-Verdrahtung disabled/aria-Semantik mitliefern.
+- Backlog (LAN-Scale akzeptiert, bei Gelegenheit): TOCTOU-Fenster bei E-Mail-Kollision und discord_id-Doppel-Login in `UpsertUserFromDiscord` (partial unique index / advisory lock); `labels`-Props sauber typisieren statt `Record<string, string>` mit Casts.
 
 | # | Task | Interfaces (Produces) |
 |---|------|----------------------|
