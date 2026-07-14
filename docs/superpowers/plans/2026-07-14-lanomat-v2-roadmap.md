@@ -36,6 +36,8 @@ M7 Infra & Betrieb (Backlog, aus Issues nach LAN 2025) — unabhängig, jederzei
 
 MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinander nachschiebbar. M7 bündelt die Infra-/Betriebs-Wünsche aus den GitHub-Issues (erstellt nach der LAN 2025-11) und ist ohne Abhängigkeit zu den Feature-Phasen umsetzbar.
 
+**Zieltermin (Stand 2026-07-14):** alle Phasen bis **2026-07-24** (Ende nächster Woche). M0–M2 abgeschlossen; M3 bis 17.07., M4 bis 20.07., M5 bis 22.07., M6/M7 bis 24.07. Termine als Milestone-Fälligkeitsdaten + Projects-Zeitachse (Board #2) gepflegt.
+
 ---
 
 ## M0 — Fundament
