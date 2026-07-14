@@ -25,6 +25,50 @@ it('fires the callback exactly once for a given dedup key', function () {
         ->and(DiscordOutbox::where('dedup_key', 'dedup-1')->whereNotNull('sent_at')->exists())->toBeTrue();
 });
 
+it('does not treat a failed send as done, so a retry with the same dedup key actually resends', function () {
+    $guard = app(DiscordOutboxGuard::class);
+    $calls = 0;
+
+    expect(function () use ($guard, &$calls) {
+        $guard->once('dedup-fails-once', 'kind', function () use (&$calls) {
+            $calls++;
+            throw new RuntimeException('Discord is down');
+        });
+    })->toThrow(RuntimeException::class);
+
+    // The failed attempt's row survives (sweep support), but must not be
+    // marked sent — a row's mere existence must not make every future retry
+    // silently return false, permanently losing the send.
+    expect(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->whereNull('sent_at')->exists())->toBeTrue();
+
+    // A genuine queue retry (a fresh call with the same dedup key) must
+    // actually invoke the callback again, not silently no-op.
+    $second = $guard->once('dedup-fails-once', 'kind', function () use (&$calls) {
+        $calls++;
+    });
+
+    expect($second)->toBeTrue()
+        ->and($calls)->toBe(2)
+        ->and(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->count())->toBe(1)
+        ->and(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->whereNotNull('sent_at')->exists())->toBeTrue();
+});
+
+it('does not resend once a dedup row has genuinely been marked sent', function () {
+    $guard = app(DiscordOutboxGuard::class);
+    $calls = 0;
+
+    $guard->once('dedup-sent', 'kind', function () use (&$calls) {
+        $calls++;
+    });
+
+    $second = $guard->once('dedup-sent', 'kind', function () use (&$calls) {
+        $calls++;
+    });
+
+    expect($second)->toBeFalse()
+        ->and($calls)->toBe(1);
+});
+
 it('rethrows a QueryException that is not a unique-key violation', function () {
     $guard = app(DiscordOutboxGuard::class);
 
