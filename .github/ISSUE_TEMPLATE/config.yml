@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Code beitragen (Contributing Guide)
+    url: https://github.com/raute1-org/LANoMAT/blob/main/CONTRIBUTING.md
+    about: So erstellst du als Mitglied der Organisation raute1-org einen Pull Request.

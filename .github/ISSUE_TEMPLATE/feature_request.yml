@@ -1,0 +1,34 @@
+name: Feature Request
+description: Schlage ein Feature für LANoMAT vor – offen für alle.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deinen Vorschlag! 🎉
+        Bitte prüfe vorher kurz die [Roadmap](https://github.com/orgs/raute1-org/projects/2)
+        und die [Milestones](https://github.com/raute1-org/LANoMAT/milestones),
+        ob das Feature schon erfasst ist.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: Welches Problem löst das Feature? Welcher Anwendungsfall steckt dahinter?
+      placeholder: "Bei der LAN ist mir aufgefallen, dass …"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Vorschlag
+      description: Wie sollte das Feature aus deiner Sicht funktionieren?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativen & Kontext
+      description: Andere Lösungswege, Links, Screenshots, verwandte Tools – alles hilfreich.
+    validations:
+      required: false
