@@ -20,6 +20,9 @@ it('lists teams with german labels', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Teams/Index')
             ->where('labels.title', 'Teams')
+            // i18n gate: "Teams" alone is identical in both locales, so
+            // assert on an unambiguous German label too (create button).
+            ->where('labels.create', 'Team erstellen')
             ->has('teams', 1)
         );
 });
