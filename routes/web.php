@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
@@ -67,5 +68,13 @@ Route::middleware(['guest'])->group(function () {
 // regardless of prior auth state (double tab, back-button replay, stale redirect
 // hitting an already-authenticated session).
 Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
+
+// Discord HTTP Interactions endpoint. No routes/api.php exists in this project
+// (see bootstrap/app.php), so this lives here like the rest of the app's routes;
+// it is exempted from CSRF and from session/cookie middleware concerns via its
+// own signature verification instead (see bootstrap/app.php CSRF exception).
+Route::post('api/discord/interactions', InteractionsController::class)
+    ->middleware('discord.signature')
+    ->name('discord.interactions');
 
 require __DIR__.'/settings.php';
