@@ -39,6 +39,19 @@ class SecurityTest extends TestCase
             );
     }
 
+    public function test_security_page_redirects_passwordless_users_instead_of_the_unreachable_password_confirmation()
+    {
+        $user = User::factory()->create(['password' => null]);
+
+        $response = $this->actingAs($user)->get(route('security.edit'));
+
+        // A user with no local password can never satisfy RequirePassword's
+        // password-confirmation challenge, so redirecting them there would be
+        // a dead end. Send them somewhere useful instead.
+        $response->assertRedirect(route('profile.edit'));
+        $response->assertSessionHas('status');
+    }
+
     public function test_security_page_requires_password_confirmation_when_enabled()
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());

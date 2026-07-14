@@ -7,8 +7,10 @@ use App\Enums\Role;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -35,9 +37,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $profile_color
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read bool $has_password
  */
 #[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'profile_color'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+#[Appends(['has_password'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
@@ -90,9 +94,17 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
      * Whether the user has a local password set. Discord-provisioned users
      * have none, so password-dependent flows (security settings, password
      * confirmation) must not be surfaced to them as unreachable dead ends.
+     *
+     * Appended (see #[Appends]) as `has_password` so the frontend can hide
+     * password-dependent navigation without the (hidden) password hash
+     * itself ever being serialized.
+     *
+     * @return Attribute<bool, never>
      */
-    public function hasPassword(): bool
+    protected function hasPassword(): Attribute
     {
-        return $this->password !== null;
+        return Attribute::make(
+            get: fn (): bool => $this->password !== null,
+        );
     }
 }
