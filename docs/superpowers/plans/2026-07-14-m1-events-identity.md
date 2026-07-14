@@ -1337,6 +1337,12 @@ git add -A && git commit -m "feat(events): public event page, archive list and g
 
 ### Task 6: Profil — Migration, UpdateProfile-Action, Zufalls-profile_color, Edit-Seite (Roadmap 1.6)
 
+> **Pflicht-Zusätze aus dem M0-Whole-Branch-Review (2026-07-14):**
+> 1. **Feld-Ownership klären und umsetzen:** `UpsertUserFromDiscord` überschreibt bei jedem Login `name`/`email`/`avatar_url`. Sobald User ihr Profil editieren können, gilt: Discord-owned = `avatar_url` (+ `discord_id`), user-owned = `name` (nach erstem Set), `email`, `bio`, `steam_url`, `profile_color`. Upsert-Action entsprechend anpassen (nur beim Erstellen befüllen bzw. nur Discord-owned Felder aktualisieren) + Tests, dass ein editierter Name den nächsten Login überlebt.
+> 2. **E-Mail-Kollision abfangen:** `users.email` ist unique+nullable; zwei Discord-Accounts mit derselben E-Mail → aktuell 500 im Callback. Beim Upsert Kollision behandeln (E-Mail dann null lassen + Hinweis) + Test.
+> 3. **Security-Sackgasse schließen:** Settings-Security-Seite (`RequirePassword`) ist für passwortlose Discord-User unerreichbar — Navigation/Route für User ohne Passwort ausblenden (kleiner Step in diesem Task oder Task 8).
+> 4. `role` ist seit dem M0-Fix NICHT mehr fillable — neue fillable-Einträge hier (bio, steam_url, profile_color) sind unkritisch, `role` nie wieder aufnehmen.
+
 **Files:**
 - Create: `database/migrations/<ts>_add_profile_fields_to_users_table.php`, `app/Modules/Identity/Actions/UpdateProfile.php`, `app/Modules/Identity/Http/ProfileController.php`, `app/Modules/Identity/Http/Requests/UpdateProfileRequest.php`, `resources/js/pages/Profile/Edit.vue`
 - Modify: `app/Models/User.php` (fillable + `creating`-Hook für `profile_color`), `database/factories/UserFactory.php`, `routes/web.php`, `lang/de/profile.php`

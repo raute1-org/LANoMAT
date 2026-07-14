@@ -55,6 +55,14 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 
 **Abnahme:** `gh workflow run ci` grün; lokal: Discord-Login legt User an (`role=participant`); `/admin` → 403 für participant, 200 für orga/admin; `php artisan lanomat:install --admin-discord-id=…` erzeugt Admin.
 
+**Erkenntnisse aus M0 (Whole-Branch-Review, 2026-07-14):**
+
+- **Plan-Bug korrigiert:** `role` gehört NICHT in `$fillable` (M0-Plan Task 4 hatte das fälschlich spezifiziert) — `role` ist das einzige Privilegien-Bit; Zuweisung nur explizit (Factory-States, InstallCommand). Regel für alle Folgephasen: privilegientragende Felder nie mass-assignable.
+- **Test-Falle:** `phpunit.xml`-`<env>`-Einträge übersteuern `.env.testing` (das Starter-Kit setzte so sqlite `:memory:` — Tests liefen unbemerkt NICHT auf Postgres). Bei neuen Test-Env-Vars immer prüfen, welche Quelle gewinnt.
+- **Fortify-Restfläche (Entscheidung für M1):** `POST /login` (Passwort), 2FA- und Passkey-Routen bleiben schlafend (Fortify-bedingt, mit `password = null` nicht nutzbar), aber die Settings-Security-Seite ist für Discord-User eine Sackgasse (`RequirePassword` unerfüllbar) → in M1: Security-Navigation/-Seite für passwortlose User ausblenden; Entscheidung über endgültiges Entfernen der Fläche spätestens M2.
+- **Für M1 Task 1.6 (Profil):** `UpsertUserFromDiscord` überschreibt bei jedem Login `name`/`email` → Feld-Ownership definieren (Discord-owned vs. user-owned) bevor Profil-Editing kommt; E-Mail-Unique-Kollision zweier Discord-Accounts abfangen (aktuell 500 im Callback).
+- Klein, bei Gelegenheit: `EnsureRole` wirft bare `ValueError` bei Tippfehler im Middleware-Parameter (beschreibende Exception wrappen); Migration-`down()` stellt NOT NULL auf email/password nicht wieder her; UI-Copy-Konvention (`lang/de/`) ab M1 formalisieren (Login.vue hat den Discord-Button-Text inline).
+
 ---
 
 ## M1 — Events & Identity
