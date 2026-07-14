@@ -6,8 +6,9 @@ use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Support\DiscordOutboxGuard;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Events\EventStatusChanged;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class AnnounceRegistrationOpen
+class AnnounceRegistrationOpen implements ShouldQueue
 {
     public function __construct(
         private readonly DiscordOutboxGuard $guard,
@@ -25,13 +26,14 @@ class AnnounceRegistrationOpen
             return;
         }
 
+        $content = __('discord.registration_open', ['event' => $event->event->name]);
+
         $this->guard->once(
             "event-{$event->event->id}-registration-open",
             'registration_open',
-            fn () => $this->client->sendMessage(
-                (string) $channelId,
-                __('discord.registration_open', ['event' => $event->event->name]),
-            ),
+            fn () => $this->client->sendMessage((string) $channelId, $content),
+            channelId: (string) $channelId,
+            content: $content,
         );
     }
 }

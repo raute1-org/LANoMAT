@@ -4,6 +4,7 @@ namespace App\Modules\Discord\Notifications;
 
 use App\Modules\Discord\Channels\DiscordChannel;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * (or a small subclass) rather than calling DiscordClient::sendDm() directly,
  * so preference-suppression and missing-discord_id handling stay centralized.
  */
-class DiscordDirectMessage extends Notification
+class DiscordDirectMessage extends Notification implements ShouldQueue
 {
     use Queueable;
 

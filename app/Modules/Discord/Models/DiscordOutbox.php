@@ -8,7 +8,7 @@ class DiscordOutbox extends Model
 {
     protected $table = 'discord_outbox';
 
-    protected $fillable = ['kind', 'dedup_key', 'sent_at'];
+    protected $fillable = ['kind', 'dedup_key', 'channel_id', 'content', 'sent_at'];
 
     protected function casts(): array
     {

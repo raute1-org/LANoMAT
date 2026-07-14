@@ -4,7 +4,9 @@ namespace App\Modules\Discord;
 
 use App\Modules\Discord\Contracts\DiscordClient;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 class HttpDiscordClient implements DiscordClient
 {
@@ -58,7 +60,30 @@ class HttpDiscordClient implements DiscordClient
     private function http(): PendingRequest
     {
         return Http::withHeaders(['Authorization' => "Bot {$this->botToken}"])
-            ->acceptJson();
+            ->acceptJson()
+            ->retry(3, function (int $attempt, Throwable $exception) {
+                return $this->retryDelayMilliseconds($exception);
+            }, throw: false);
+    }
+
+    /**
+     * Backoff between retries. Discord's 429 responses carry a Retry-After
+     * header (seconds) telling us exactly how long to wait before the rate
+     * limit clears; honor it when present, otherwise fall back to a fixed
+     * short delay for transient errors (5xx, connection issues).
+     */
+    private function retryDelayMilliseconds(Throwable $exception): int
+    {
+        if ($exception instanceof RequestException
+            && $exception->response->status() === 429) {
+            $retryAfter = $exception->response->header('Retry-After');
+
+            if (is_numeric($retryAfter)) {
+                return (int) round(((float) $retryAfter) * 1000);
+            }
+        }
+
+        return 100;
     }
 
     /**

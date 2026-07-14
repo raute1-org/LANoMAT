@@ -48,13 +48,14 @@ class SendRemindersCommand extends Command
 
             [$suffix, $hours] = $reminder;
 
+            $content = __('discord.reminder', ['event' => $event->name, 'hours' => $hours]);
+
             $guard->once(
                 "event-{$event->id}-reminder-{$suffix}",
                 "reminder_{$suffix}",
-                fn () => $client->sendMessage(
-                    (string) $channelId,
-                    __('discord.reminder', ['event' => $event->name, 'hours' => $hours]),
-                ),
+                fn () => $client->sendMessage((string) $channelId, $content),
+                channelId: (string) $channelId,
+                content: $content,
             );
         }
 
