@@ -23,7 +23,7 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             currentEvent: EventSummary | null;
             notificationLabels: Record<string, string>;
-            unreadNotifications: NotificationItem[];
+            unreadNotifications?: NotificationItem[];
             [key: string]: unknown;
         };
     }

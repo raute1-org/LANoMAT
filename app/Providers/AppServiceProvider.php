@@ -16,6 +16,8 @@ use App\Modules\Seating\Listeners\ReleaseSeatOnCancellation;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Policies\SeatAssignmentPolicy;
 use App\Modules\Seating\Policies\SeatPolicy;
+use App\Modules\Teams\Models\Team;
+use App\Modules\Teams\Policies\TeamPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -91,6 +93,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(EventModel::class, EventPolicy::class);
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
         Gate::policy(Seat::class, SeatPolicy::class);
+        Gate::policy(Team::class, TeamPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

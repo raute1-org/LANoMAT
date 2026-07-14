@@ -39,16 +39,40 @@ it('stores the german labels in the notification payload', function () {
         ->and($data['body'])->toBe('Deine Anmeldung für Testlan 2026 ist bestätigt.');
 });
 
-it('shares unread notifications as an inertia prop', function () {
+it('omits unread notifications from a plain visit (Inertia::optional)', function () {
     $user = User::factory()->create();
     $user->notify(new RegistrationConfirmed('Testlan 2026'));
 
     $this->actingAs($user)
         ->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('unreadNotifications', 1)
-            ->where('unreadNotifications.0.title', 'Anmeldung bestätigt')
-            ->where('unreadNotifications.0.body', 'Deine Anmeldung für Testlan 2026 ist bestätigt.'));
+            ->missing('unreadNotifications'));
+});
+
+it('shares unread notifications as an inertia prop on partial reload', function () {
+    $user = User::factory()->create();
+    $user->notify(new RegistrationConfirmed('Testlan 2026'));
+
+    $version = $this->actingAs($user)
+        ->withHeaders(['X-Inertia' => 'true'])
+        ->get('/dashboard')
+        ->headers->get('X-Inertia-Version');
+
+    $response = $this->actingAs($user)
+        ->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => (string) $version,
+            'X-Inertia-Partial-Component' => 'Dashboard',
+            'X-Inertia-Partial-Data' => 'unreadNotifications',
+        ])
+        ->get('/dashboard')
+        ->assertOk();
+
+    $props = $response->json('props');
+
+    expect($props['unreadNotifications'])->toHaveCount(1)
+        ->and($props['unreadNotifications'][0]['title'])->toBe('Anmeldung bestätigt')
+        ->and($props['unreadNotifications'][0]['body'])->toBe('Deine Anmeldung für Testlan 2026 ist bestätigt.');
 });
 
 it('respects a disabled category preference', function () {

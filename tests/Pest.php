@@ -22,7 +22,7 @@ pest()->extend(TestCase::class)
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Unit/Events', 'Unit/Registration', 'Unit/Seating');
+    ->in('Unit/Events', 'Unit/Registration', 'Unit/Seating', 'Unit/Teams');
 
 // Prevent stray HTTP requests in Discord tests to ensure all external
 // communication is properly faked or declared with Http::fake.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
 import { Bell } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +21,13 @@ type Props = {
 defineProps<Props>();
 
 const page = usePage();
-const notifications = computed(() => page.props.unreadNotifications);
+// unreadNotifications is an Inertia::optional prop: absent until explicitly
+// requested, so default defensively to an empty array.
+const notifications = computed(() => page.props.unreadNotifications ?? []);
+
+onMounted(() => {
+    router.reload({ only: ['unreadNotifications'] });
+});
 
 function markAsRead(id: string) {
     router.post(read.url({ notification: id }), {}, { preserveScroll: true });
