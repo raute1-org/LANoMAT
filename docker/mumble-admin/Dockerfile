@@ -26,6 +26,15 @@ RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 COPY Murmur.ice app.py .
 
+# Run the FastAPI process as a non-root user (defense in depth: this
+# sidecar holds the Mumble Ice admin secret). Created after the apt/pip
+# installs so the installed packages stay root-owned/read-only for it;
+# `/app` is chowned to it so uvicorn (no writes needed beyond that) can
+# still read its own source files.
+RUN useradd --system --create-home --shell /usr/sbin/nologin app \
+    && chown -R app:app /app
+USER app
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

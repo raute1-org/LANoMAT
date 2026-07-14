@@ -81,6 +81,9 @@ services:
     # host port 8085: non-default, mirrors the postgres/redis/reverb
     # convention above. Internal REST URL for the Laravel app is
     # http://mumble-admin:8000 (compose network), not the host port.
+    # DEV-ONLY: this is the dev stack. A production deployment (M5's prod
+    # profile) must NOT publish this bearer-token-protected sidecar on a
+    # public host port — bind it to localhost/an internal network only.
     ports: ['8085:8000']
     depends_on: [mumble]
 

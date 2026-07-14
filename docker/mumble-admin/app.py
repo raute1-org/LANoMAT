@@ -25,8 +25,10 @@ against the Mumble server via `icesecretwrite`.
 
 from __future__ import annotations
 
+import functools
 import os
 import sys
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import Ice  # type: ignore[import-not-found]
@@ -44,7 +46,18 @@ SLICE_FILE = os.environ.get("MUMBLE_ICE_SLICE", "/app/Murmur.ice")
 # `#include <Ice/SliceChecksumDict.ice>` needs this on the include path.
 SLICE_INCLUDE_DIR = os.environ.get("MUMBLE_ICE_SLICE_INCLUDE_DIR", "/usr/share/ice/slice")
 
-app = FastAPI(title="mumble-admin", description="Ice-REST sidecar for the Mumble server")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    # Cleanly release the Ice communicator (its worker threads/sockets) on
+    # shutdown instead of leaking it — it is only ever created lazily, on
+    # first use, by `_get_server()`.
+    if _ice_communicator is not None:
+        _ice_communicator.destroy()
+
+
+app = FastAPI(title="mumble-admin", description="Ice-REST sidecar for the Mumble server", lifespan=lifespan)
 bearer = HTTPBearer(auto_error=False)
 
 _ice_communicator: Optional["Ice.Communicator"] = None
@@ -77,6 +90,40 @@ def require_token(credentials: HTTPAuthorizationCredentials | None = Security(be
         raise HTTPException(status_code=401, detail="invalid or missing bearer token")
 
 
+def _map_ice_errors(func):
+    """Translate Murmur/Ice exceptions into sane HTTP statuses.
+
+    Without this, `Murmur.InvalidChannelException` (e.g. deleting an
+    already-removed channel — routine once Tasks 20/21 land) or
+    `Murmur.InvalidSecretException` (Ice auth misconfigured on our side)
+    would propagate out of FastAPI as an unhandled 500 with a raw stack
+    trace. Applied to every endpoint (and `_get_server`, which all of them
+    call) so the mapping is consistent everywhere Ice is touched.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        murmur = _load_murmur_module()
+        try:
+            return func(*args, **kwargs)
+        except HTTPException:
+            # Already a deliberate HTTP response (e.g. require_token, or a
+            # sane status raised inside `_get_server`) — pass through as-is.
+            raise
+        except murmur.InvalidChannelException as exc:
+            raise HTTPException(status_code=404, detail="unknown channel id") from exc
+        except murmur.InvalidSecretException as exc:
+            # Ice-level auth failure between this sidecar and Murmur (wrong
+            # MUMBLE_ICE_SECRET / icesecretwrite mismatch) — a server-side
+            # misconfiguration, distinct from the client's bearer token
+            # (already rejected earlier by `require_token`).
+            raise HTTPException(status_code=502, detail="Ice authentication with Mumble server failed") from exc
+        except Ice.Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Mumble Ice call failed: {exc}") from exc
+
+    return wrapper
+
+
 def _load_murmur_module():
     global _murmur_module
     if _murmur_module is None:
@@ -105,6 +152,7 @@ def _get_server():
 
 
 @app.get("/channels", response_model=list[ChannelOut])
+@_map_ice_errors
 def list_channels(_: None = Depends(require_token)) -> list[ChannelOut]:
     server, context = _get_server()
     channels = server.getChannels(context)
@@ -115,6 +163,7 @@ def list_channels(_: None = Depends(require_token)) -> list[ChannelOut]:
 
 
 @app.post("/channels", response_model=ChannelOut, status_code=201)
+@_map_ice_errors
 def create_channel(payload: ChannelIn, _: None = Depends(require_token)) -> ChannelOut:
     # NOTE on `temporary`: verified against a live server (docker compose up)
     # that Murmur's Ice API does not support flipping a channel to temporary
@@ -133,6 +182,7 @@ def create_channel(payload: ChannelIn, _: None = Depends(require_token)) -> Chan
 
 
 @app.patch("/channels/{channel_id}", response_model=ChannelOut)
+@_map_ice_errors
 def rename_channel(channel_id: int, payload: ChannelPatch, _: None = Depends(require_token)) -> ChannelOut:
     server, context = _get_server()
     state = server.getChannelState(channel_id, context)
@@ -142,6 +192,7 @@ def rename_channel(channel_id: int, payload: ChannelPatch, _: None = Depends(req
 
 
 @app.delete("/channels/{channel_id}", status_code=204)
+@_map_ice_errors
 def delete_channel(channel_id: int, _: None = Depends(require_token)) -> None:
     server, context = _get_server()
     server.removeChannel(channel_id, context)
