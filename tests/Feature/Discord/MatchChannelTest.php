@@ -67,9 +67,16 @@ it('creates a match text channel with roster overwrites and a welcome embed on M
     $overwriteEntry = collect($this->fake->overwrites)->firstWhere('channelId', $channel['id']);
     expect($overwriteEntry)->not->toBeNull();
 
-    $overwrittenUserIds = collect($overwriteEntry['overwrites'])->pluck('id')->all();
-    expect($overwrittenUserIds)->toContain('111111', '222222');
-    expect($overwrittenUserIds)->toHaveCount(2); // the no-discord roster member is skipped
+    $overwrites = collect($overwriteEntry['overwrites']);
+    $overwrittenUserIds = $overwrites->pluck('id')->all();
+    expect($overwrittenUserIds)->toContain('111111', '222222', 'guild-1');
+    // the two roster-member allows, plus one @everyone deny
+    expect($overwrittenUserIds)->toHaveCount(3); // the no-discord roster member is skipped
+
+    $everyoneOverwrite = $overwrites->firstWhere('id', 'guild-1');
+    expect($everyoneOverwrite['type'])->toBe(0); // role overwrite
+    expect($everyoneOverwrite['allow'])->toBe('0');
+    expect($everyoneOverwrite['deny'])->toBe('1024'); // VIEW_CHANNEL denied for @everyone
 
     $this->fake->assertMessageSent($channel['id']);
 

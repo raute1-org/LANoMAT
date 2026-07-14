@@ -49,7 +49,7 @@ class CreateMatchChannelJob implements ShouldQueue
                     is_string($parentId) && $parentId !== '' ? $parentId : null,
                 );
 
-                $overwrites = collect([$match->entry1, $match->entry2])
+                $rosterOverwrites = collect([$match->entry1, $match->entry2])
                     ->flatMap(fn ($entry) => $entry->rosterDiscordIds())
                     ->unique()
                     ->map(fn (string $discordUserId): array => [
@@ -61,9 +61,20 @@ class CreateMatchChannelJob implements ShouldQueue
                     ->values()
                     ->all();
 
-                if ($overwrites !== []) {
-                    $client->upsertPermissionOverwrites($channelId, $overwrites);
-                }
+                // Discord convention: the guild's @everyone role id equals the
+                // guild id itself. Member-level `allow` overwrites only grant
+                // *additional* access on top of the base role, so without this
+                // deny the channel would still be visible to the whole guild.
+                $everyoneOverwrite = [
+                    'id' => $guildId,
+                    'type' => 0, // role overwrite
+                    'allow' => '0',
+                    'deny' => '1024', // VIEW_CHANNEL
+                ];
+
+                $overwrites = [...$rosterOverwrites, $everyoneOverwrite];
+
+                $client->upsertPermissionOverwrites($channelId, $overwrites);
 
                 $embed = MatchEmbed::welcome($match);
                 $client->sendMessage($channelId, $embed['title'], [$embed]);
