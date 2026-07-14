@@ -27,6 +27,8 @@ use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Policies\TournamentPolicy;
+use App\Modules\Voice\Contracts\MumbleClient;
+use App\Modules\Voice\HttpMumbleClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +48,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(DiscordClient::class, fn () => new HttpDiscordClient(
             (string) config('services.discord.bot_token'),
+        ));
+
+        $this->app->bind(MumbleClient::class, fn () => new HttpMumbleClient(
+            (string) config('services.mumble.rest_url'),
+            (string) config('services.mumble.ice_secret'),
         ));
     }
 

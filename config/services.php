@@ -48,4 +48,12 @@ return [
         'application_id' => env('DISCORD_APPLICATION_ID'),
     ],
 
+    'mumble' => [
+        'host' => env('MUMBLE_HOST', 'localhost'),
+        'port' => env('MUMBLE_PORT', 64738),
+        'rest_url' => env('MUMBLE_ADMIN_REST_URL', 'http://mumble-admin:8000'),
+        'ice_secret' => env('MUMBLE_ICE_SECRET'),
+        'server_password' => env('MUMBLE_SERVER_PASSWORD'),
+    ],
+
 ];

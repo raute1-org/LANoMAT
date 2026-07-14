@@ -2,6 +2,8 @@
 
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
+use App\Modules\Voice\Contracts\MumbleClient;
+use App\Modules\Voice\Testing\FakeMumbleClient;
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -19,7 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
-    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Tournaments/Domain');
+    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/Tournaments/Domain');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
@@ -34,11 +36,11 @@ pest()->extend(TestCase::class)
         'Unit/Tournaments/*Test.php',
     );
 
-// Prevent stray HTTP requests in Discord tests to ensure all external
+// Prevent stray HTTP requests in Discord/Voice tests to ensure all external
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice');
 
 /*
 |--------------------------------------------------------------------------
@@ -65,6 +67,14 @@ function fakeDiscord(): FakeDiscordClient
 {
     $fake = new FakeDiscordClient;
     app()->instance(DiscordClient::class, $fake);
+
+    return $fake;
+}
+
+function fakeMumble(): FakeMumbleClient
+{
+    $fake = new FakeMumbleClient;
+    app()->instance(MumbleClient::class, $fake);
 
     return $fake;
 }
