@@ -185,6 +185,12 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 
 **Abnahme:** End-to-End-Feature-Test „8 Solo-Spieler, Double-Elim, zufällige Ergebnisse → genau ein Sieger, alle Channels erstellt & aufgeräumt (Fakes)"; manuell auf Test-Discord + lokalem Mumble: ein 4-Spieler-Testturnier komplett durchspielen.
 
+### Erkenntnisse M3 (laufend, während der Umsetzung)
+
+- **Double-Elimination nur für Teilnehmerzahl n ∈ {2, 4, 6, 8, 16}.** Der `BracketGenerator::doubleElimination` transkribiert die LB-Verzahnungstabellen nur für Bracketgrößen {4, 8, 16} (aus `Drarig29/brackets-manager.js`, per Brute-Force für n=8 rematch-frei verifiziert) und wirft für andere Größen laut. Zusätzlich konvergiert der `BracketProgressor` bei DE-Brackets mit mehr Byes als n=6 nicht (ein WB-Match kann zwei Bye-Feeder haben → dauerhaft totes LB-Match). `StartTournament` guardet die DE-Teilnehmerzahl daher auf {2,4,6,8,16} und wirft sonst eine `TournamentException`. **Offene Erweiterung:** 32/64/128-Intake-Tabellen + Bye-tolerante Progression für beliebige DE-Feldgrößen (eigener Task mit eigener Testabdeckung; SE ist bereits n=2..64).
+- **Lifecycle: `StartTournament` besitzt allein den `→ Live`-Übergang.** `CloseCheckin` als Status-Transition entfernt — das Check-in-Ende ist zeitgesteuert (`checkin_closes_at`, in `CheckInEntry` geprüft), der 5-Status-Enum bleibt (Draft, Enrollment, CheckIn, Live, Finished). Der Scheduler-Tick macht `OpenCheckin` und dispatcht am `starts_at` den `StartTournamentJob`, der `CheckIn`/`Enrollment → Live` schaltet und das Bracket generiert (Doppelstart via Status-Guard + Row-Lock unmöglich).
+- **Domain-Engine-Konvention:** `BracketMatch::isDecided()` (früher `isComplete()`); Slots, die wegen eines Upstream-Byes nie befüllt werden, lässt der Progressor auto-advancen (analog zur SE-Bye-Auflösung).
+
 ---
 
 ## M4 — Schedule, Catering, Voting, LFG
