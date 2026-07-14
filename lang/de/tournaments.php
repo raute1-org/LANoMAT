@@ -1,6 +1,51 @@
 <?php
 
 return [
+    'resource' => [
+        'label' => 'Turnier',
+        'plural_label' => 'Turniere',
+    ],
+
+    'fields' => [
+        'event' => 'Event',
+        'name' => 'Name',
+        'format' => 'Format',
+        'status' => 'Status',
+        'team_size' => 'Teamgröße',
+        'max_entries' => 'Max. Anmeldungen',
+        'starts_at' => 'Beginn',
+        'checkin_opens_at' => 'Check-in öffnet',
+        'checkin_closes_at' => 'Check-in schließt',
+        'settings' => 'Einstellungen',
+    ],
+
+    'admin' => [
+        'entries' => [
+            'title' => 'Anmeldungen',
+            'display_name' => 'Anzeigename',
+            'team' => 'Team',
+            'user' => 'Person',
+            'status' => 'Status',
+            'checked_in' => 'Eingecheckt',
+            'check_in' => 'Einchecken',
+            'withdraw' => 'Zurückziehen',
+        ],
+        'actions' => [
+            'start' => 'Turnier starten',
+            'started' => 'Turnier gestartet.',
+        ],
+        'disputes' => [
+            'title' => 'Strittige Matches',
+            'tournament' => 'Turnier',
+            'round' => 'Runde',
+            'entry1' => 'Anmeldung 1',
+            'entry2' => 'Anmeldung 2',
+            'score1' => 'Ergebnis 1',
+            'score2' => 'Ergebnis 2',
+            'override' => 'Ergebnis überschreiben',
+        ],
+    ],
+
     'page' => [
         'title' => 'Turniere',
         'index_title' => 'Turniere',

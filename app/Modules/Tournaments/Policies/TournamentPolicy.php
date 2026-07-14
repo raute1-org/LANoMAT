@@ -11,6 +11,38 @@ use App\Modules\Tournaments\Models\TournamentEntry;
 
 class TournamentPolicy
 {
+    /**
+     * Resource-level CRUD for the Filament admin panel. The panel is
+     * already orga-only (`canAccessPanel`), so these simply delegate to
+     * {@see manage()} for defense-in-depth rather than duplicating logic —
+     * mirroring `EventPolicy`/`SeatPolicy`'s explicit CRUD methods instead of
+     * relying on Filament's "no policy method = allow" fallback.
+     */
+    public function viewAny(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
+    public function view(User $user, Tournament $tournament): bool
+    {
+        return $this->manage($user, $tournament);
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
+    public function update(User $user, Tournament $tournament): bool
+    {
+        return $this->manage($user, $tournament);
+    }
+
+    public function delete(User $user, Tournament $tournament): bool
+    {
+        return $this->manage($user, $tournament);
+    }
+
     public function enroll(User $user, Tournament $tournament): bool
     {
         return $tournament->status === TournamentStatus::Enrollment;
