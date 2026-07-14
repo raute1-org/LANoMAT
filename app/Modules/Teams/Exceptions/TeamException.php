@@ -30,4 +30,9 @@ class TeamException extends DomainException
     {
         return new self('The new owner must be a team member.', 'teams.errors.not_a_member');
     }
+
+    public static function staleRequest(): self
+    {
+        return new self('This join request is no longer valid.', 'teams.errors.stale_request');
+    }
 }

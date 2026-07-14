@@ -27,6 +27,15 @@ class RequestToJoin
         }
 
         try {
+            // A prior request may have reached a terminal (declined) state.
+            // We keep no request history, so remove it first: otherwise the
+            // new pending row could later collide with it on
+            // (team_id, user_id, status) once it too is declined.
+            $team->joinRequests()
+                ->where('user_id', $user->id)
+                ->where('status', JoinRequestStatus::Declined->value)
+                ->delete();
+
             return TeamJoinRequest::create([
                 'team_id' => $team->id,
                 'user_id' => $user->id,

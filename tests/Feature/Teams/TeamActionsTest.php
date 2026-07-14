@@ -98,6 +98,24 @@ it('rejects transferring ownership to a non-member', function () {
     expect(fn () => app(TransferOwnership::class)->handle($team, $stranger))->toThrow(TeamException::class);
 });
 
+it('handles decline → reapply → decline again without error', function () {
+    $team = Team::factory()->create();
+    $user = User::factory()->create();
+
+    $first = app(RequestToJoin::class)->handle($user, $team);
+    app(RespondToJoinRequest::class)->handle($first, accept: false);
+
+    $second = app(RequestToJoin::class)->handle($user, $team);
+    app(RespondToJoinRequest::class)->handle($second, accept: false);
+
+    expect($second->fresh()->status)->toBe(JoinRequestStatus::Declined)
+        ->and(TeamJoinRequest::query()
+            ->where('team_id', $team->id)
+            ->where('user_id', $user->id)
+            ->where('status', JoinRequestStatus::Declined->value)
+            ->count())->toBe(1);
+});
+
 it('transfers ownership to a member', function () {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Alpha', 'ALP');
