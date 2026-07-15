@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Policies\FoodOrderItemPolicy;
+use App\Modules\Catering\Policies\FoodOrderPolicy;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\HttpDiscordClient;
 use App\Modules\Discord\Listeners\AnnounceAndCleanupOnCompleted;
@@ -124,6 +128,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(GameMatch::class, TournamentPolicy::class);
         Gate::policy(MatchReport::class, TournamentPolicy::class);
         Gate::policy(ScheduleItem::class, ScheduleItemPolicy::class);
+        Gate::policy(FoodOrder::class, FoodOrderPolicy::class);
+        Gate::policy(FoodOrderItem::class, FoodOrderItemPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

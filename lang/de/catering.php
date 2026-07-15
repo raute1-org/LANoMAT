@@ -6,4 +6,9 @@ return [
         'open' => 'Offen',
         'closed' => 'Geschlossen',
     ],
+
+    'errors' => [
+        'not_open' => 'Die Bestellung ist derzeit nicht geöffnet.',
+        'unknown_option' => 'Die gewählte Option ist nicht Teil dieser Bestellung.',
+    ],
 ];
