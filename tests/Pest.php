@@ -32,6 +32,7 @@ pest()->extend(TestCase::class)
         'Unit/Schedule',
         'Unit/Seating',
         'Unit/Teams',
+        'Unit/Voting',
         // Persistence-layer tests only; Unit/Tournaments/Domain is pure
         // domain code (no IO, see CLAUDE.md) and stays on the plain TestCase
         // group registered above.
