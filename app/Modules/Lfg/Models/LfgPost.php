@@ -4,6 +4,7 @@ namespace App\Modules\Lfg\Models;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Lfg\Actions\CreateLfgPost;
 use Database\Factories\LfgPostFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,14 +24,19 @@ class LfgPost extends Model
     /** @use HasFactory<LfgPostFactory> */
     use HasFactory;
 
+    /**
+     * `user_id` (ownership) and `expires_at` (lifecycle) are deliberately
+     * excluded — they are set only by {@see CreateLfgPost}
+     * via explicit property assignment, never mass-assigned, so a
+     * client-supplied payload can never post as another user or extend a
+     * post's lifetime.
+     */
     protected $fillable = [
         'event_id',
-        'user_id',
         'game',
         'title',
         'body',
         'slots_needed',
-        'expires_at',
     ];
 
     protected function casts(): array

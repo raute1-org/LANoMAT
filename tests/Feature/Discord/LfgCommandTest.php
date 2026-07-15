@@ -102,6 +102,24 @@ it('does not create anything and returns the German link-account message for /lf
     expect(LfgPost::count())->toBe(0);
 });
 
+it('returns the German invalid-title message for /lfg create with a title over 120 characters and creates no row', function () {
+    User::factory()->create(['discord_id' => '777888999']);
+    Event::factory()->live()->create();
+
+    $body = applicationCommand('lfg', [
+        ['name' => 'create', 'type' => 1, 'options' => [
+            ['name' => 'title', 'type' => 3, 'value' => str_repeat('a', 121)],
+        ]],
+    ], discordUserId: '777888999');
+
+    postInteraction($body)
+        ->assertOk()
+        ->assertJsonPath('type', 4)
+        ->assertJsonPath('data.content', __('lfg.errors.invalid_title'));
+
+    expect(LfgPost::count())->toBe(0);
+});
+
 it('returns the German no-event fallback for /lfg create with no publicly visible event', function () {
     User::factory()->create(['discord_id' => '444555666']);
 

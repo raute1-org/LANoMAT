@@ -87,3 +87,23 @@ it('rejects creating a post when the event is not publicly visible', function ()
     expect(fn () => createLfgPost($event, $user, ['title' => 'Need one more']))
         ->toThrow(LfgException::class);
 });
+
+it('rejects an empty or whitespace-only title and creates no row', function (string $title) {
+    $event = EventModel::factory()->registration()->create();
+    $user = User::factory()->create();
+
+    expect(fn () => createLfgPost($event, $user, ['title' => $title]))
+        ->toThrow(fn (LfgException $e) => expect($e->translationKey)->toBe('lfg.errors.invalid_title'));
+
+    expect(LfgPost::count())->toBe(0);
+})->with(['empty string' => [''], 'whitespace only' => ['   ']]);
+
+it('rejects a title longer than 120 characters and creates no row', function () {
+    $event = EventModel::factory()->registration()->create();
+    $user = User::factory()->create();
+
+    expect(fn () => createLfgPost($event, $user, ['title' => str_repeat('a', 121)]))
+        ->toThrow(fn (LfgException $e) => expect($e->translationKey)->toBe('lfg.errors.invalid_title'));
+
+    expect(LfgPost::count())->toBe(0);
+});

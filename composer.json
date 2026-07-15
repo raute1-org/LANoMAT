@@ -68,7 +68,7 @@
         "check": [
             "./vendor/bin/pint --test",
             "./vendor/bin/phpstan analyse --memory-limit=1G",
-            "./vendor/bin/pest"
+            "./vendor/bin/pest -d memory_limit=1G"
         ],
         "ci:check": [
             "Composer\\Config::disableProcessTimeout",

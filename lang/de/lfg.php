@@ -19,6 +19,7 @@ return [
     'errors' => [
         'event_not_visible' => 'LFG-Anzeigen können nur für ein öffentlich sichtbares Event erstellt werden.',
         'invalid_duration' => 'Die Laufzeit muss eine positive Anzahl von Stunden sein.',
+        'invalid_title' => 'Der Titel ist ungültig (max. 120 Zeichen).',
     ],
 
     'page' => [

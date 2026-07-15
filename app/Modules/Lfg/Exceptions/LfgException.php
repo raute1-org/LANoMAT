@@ -20,4 +20,9 @@ class LfgException extends DomainException
     {
         return new self('duration_hours must be a positive number.', 'lfg.errors.invalid_duration');
     }
+
+    public static function invalidTitle(): self
+    {
+        return new self('title must be a non-empty string of at most 120 characters.', 'lfg.errors.invalid_title');
+    }
 }
