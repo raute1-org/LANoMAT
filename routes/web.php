@@ -5,6 +5,7 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Lfg\Http\LfgController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
@@ -47,6 +48,11 @@ Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])
 Route::get('/events/{event:slug}/polls', [PollPageController::class, 'index'])->name('polls.index');
 Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.show');
 
+// Public LFG board — same "public like seating/tournaments/schedule/catering/
+// polls, no auth required" visibility rule; creating/deleting a post requires
+// auth (see below).
+Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
+
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
@@ -69,6 +75,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/matches/{match}/dispute', [TournamentPageController::class, 'dispute'])->name('matches.dispute');
 
     Route::post('/polls/{poll}/vote', [PollPageController::class, 'vote'])->name('polls.vote');
+
+    Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
+    Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
 
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
