@@ -28,6 +28,7 @@ pest()->extend(TestCase::class)
     ->in(
         'Unit/Events',
         'Unit/Registration',
+        'Unit/Schedule',
         'Unit/Seating',
         'Unit/Teams',
         // Persistence-layer tests only; Unit/Tournaments/Domain is pure
