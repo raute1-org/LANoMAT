@@ -8,6 +8,11 @@
 
 **Tech Stack:** PHP 8.4, Laravel 13, Filament v5, Inertia v2, Vue 3, Tailwind v4, shadcn-vue, Reverb, Pest, PostgreSQL 16, Redis, Docker Compose (FrankenPHP), Mumble, Pelican.
 
+## Produktleitlinien (übergeordnet, ziehen sich durch alle Phasen)
+
+- **10-Minuten-Prinzip:** Vom Start bis zum Zocken max. 10 Minuten. Jede Feature-Entscheidung wird daran gemessen — Presets statt Config-Gefummel, Ein-Klick statt Formular-Marathon, sinnvolle Defaults vor Vollständigkeit. Wo ein Feature Aufwand für den Nutzer erzeugt, muss es einen Ein-Klick-Pfad geben.
+- **Contracts konsequent:** Jedes externe System steckt hinter einem austauschbaren Contract (`DiscordClient`, `VoiceClient`, `PelicanClient`, künftig OAuth-Provider-Adapter). Backends (Voice: Mumble/TeamSpeak; Gameserver: Pelican/eigene Engine) müssen pro Installation wählbar sein, ohne dass Aufrufer-Code sich ändert. Das ist die technische Absicherung, dass „austauschbar wie eine Unterhose" auch nach Monaten noch gilt.
+
 ## Global Constraints (gelten für jeden Task jeder Phase)
 
 - Neues Repo `lanomat`; Code, Kommentare, Commits, Doku **Englisch**; UI-Texte Deutsch über `lang/de/*.php` bzw. Vue-i18n-freie einfache Props (keine hartkodierten Strings in Komponenten).
@@ -246,8 +251,12 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 | 6.3 | Migration `server_links` (`match_id/tournament_id nullable, pelican_server_id, join_info jsonb, status`); `ProvisionMatchServerJob`: erstellen → Status-Polling (Queue-Retry) → `join_info` schreiben → Embed-Update im Match-Channel + Match-Seite; `TournamentCompleted` → Server-Cleanup-Job. Manueller Modus: Orga trägt `join_info` händisch am Match ein (Fallback-UI) |
 | 6.4 | UI: Filament-Server-Übersicht (Power-Actions, Deeplink ins Pelican-Panel); Teilnehmer-Serverliste `Pages/Servers/Index.vue` + Infoscreen-Szene `SceneServers` |
 | 6.5 | Stats: Query-Schicht über `tournaments/matches/entries` (Siege, Podien, Teilnahmen je User/Team, event-übergreifend); `Pages/Stats/Leaderboard.vue`; Badges minimal (`first_win`, `hattrick`, `veteran` ab 3 Events) als berechnete Werte, keine eigene Tabelle |
+| 6.6 | **Server-Presets & Settings-Modell** (10-Minuten-Prinzip, Feature-Input 2026-07-15 ⭐; ersetzt/erweitert Backlog [#4](https://github.com/raute1-org/LANoMAT/issues/4)): je Spiel Ein-Klick-Presets (z. B. „Vanilla 1–20", „Hardcore", „Modpack X") in `games.default_server_config` (JSONB) + optionaler Preset-Katalog. Settings-Formular (Slots, Map, Difficulty … als Web-Form, Messlatte Nitrado/ShockByte) **ODER** Config-Upload (`server.properties` etc.) — der User wählt den Modus, am Ende wird **genau eine** Config auf dem Server ausgeführt (eine Wahrheit). Minecraft-Config-Panel aus #4 ist der spielspezifische Ausbau dieses generischen Modells. |
+| 6.7 | **Guardrails gegen Ressourcen-Overrun** (Feature-Input 2026-07-15): RAM-Schätzung je Preset/Config **vor** dem Start anzeigen; harte Caps je Instanz (RAM/CPU/Slots); max. gleichzeitig offene Server pro User. Verhindert, dass eine Fehlkonfiguration die Host-Kiste einfriert. Durchgesetzt in `ProvisionMatchServerJob`/der Server-Anlage-Action, nicht nur in der UI. |
 
-**Abnahme:** Feature-Test Provisioning-Flow gegen Fake (inkl. Poll-Retry + Fehlerpfad → manueller Modus); manuell: Minecraft-Server aus Match-Kontext erstellt, Join-Info erscheint in Discord-Embed und auf der Match-Seite; Leaderboard zeigt Daten aus 2 Test-Events.
+**Abnahme:** Feature-Test Provisioning-Flow gegen Fake (inkl. Poll-Retry + Fehlerpfad → manueller Modus); Preset-Start erzeugt genau eine wirksame Config (Form-Modus wie Upload-Modus getestet); Guardrail lehnt Start über Cap/Server-Limit ab (Test); manuell: Minecraft-Server aus Match-Kontext erstellt, Join-Info erscheint in Discord-Embed und auf der Match-Seite; Leaderboard zeigt Daten aus 2 Test-Events.
+
+**Stats-Kür (Feature-Input 2026-07-15, optionale Stretch-Ziele über 6.5 hinaus):** aktivste Stunden (Heatmap aus Check-in-/Match-Zeiten), APM-Counter wo aus dem Spiel auslesbar (spielspezifisch, nur wo Telemetrie existiert), VOD-Archiv mit Highlights (Storage-getrieben, kein Base64), KI-generierte Auto-News/Patchnotes auf der Startseite. Alles nice-to-have, klar nachrangig gegenüber dem Kern-Leaderboard.
 
 ---
 
@@ -270,10 +279,25 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 
 Diese Wünsche sind keine eigene Phase, sondern erweitern bereits geplante Bausteine. Beim Detailplan der jeweiligen Phase mitziehen:
 
-- **Voice-Provider-Abstraktion** ([#2](https://github.com/raute1-org/LANoMAT/issues/2)): M3 plant Mumble (`MumbleClient`, 3.19–3.21). Gewünscht sind zusätzlich **TeamSpeak** und **Discord-Voice** als wählbare Optionen. Umsetzung: `MumbleClient` zu einem allgemeinen `VoiceClient`-Contract verallgemeinern (Mumble-/TeamSpeak-/Discord-Implementierung), Provider pro Event/Turnier konfigurierbar. Erweiterung von M3.20/3.21.
-- **Minecraft-Konfigurations-Panel** ([#4](https://github.com/raute1-org/LANoMAT/issues/4), Referenz: setupmc.com/java-server): M6 deckt generisches Provisioning (create/power/delete) ab. Gewünscht ist ein dediziertes Config-Panel (server.properties, Mods/Plugins, Whitelist, Version) über den generischen `PelicanClient` hinaus. Erweiterung von M6.
+- **Voice-Provider-Abstraktion** ([#2](https://github.com/raute1-org/LANoMAT/issues/2), verstärkt durch Feature-Input 2026-07-15 ⭐): M3 plant Mumble (`MumbleClient`, 3.19–3.21). Gewünscht: `MumbleClient` zu einem allgemeinen **`VoiceClient`**-Contract verallgemeinern — Mumble als erste, **TeamSpeak** als zweite Implementierung (Discord-Voice optional), Provider **pro Installation** wählbar. Zusätzlich aus dem Input: **Auto-Channel-Lifecycle** — Channel entsteht mit Gameserver/Match und verschwindet, wenn er passiv wird (0 Spieler), nicht nur bei `TournamentCompleted`; **Channel-Liste in der Web-UI** mit One-Click-Join (`mumble://` bzw. `ts3server://`-Link, je nach aktivem Provider). Erweiterung von M3.20/3.21 (dort ist der Join-Link-Helper bereits provider-generisch anzulegen).
+- **Minecraft-Konfigurations-Panel** ([#4](https://github.com/raute1-org/LANoMAT/issues/4), Referenz: setupmc.com/java-server): jetzt als spielspezifischer Ausbau des generischen **Preset-/Settings-Modells M6.6** geführt (server.properties, Mods/Plugins, Whitelist, Version über den `PelicanClient` hinaus). Siehe M6.6/6.7.
 - **Discord-Auth per Guild-Membership** ([#8](https://github.com/raute1-org/LANoMAT/issues/8)): Discord-OAuth-Login existiert (M0). Gewünscht: Login/Registrierung auf Mitglieder einer bestimmten Discord-Guild beschränken (Guild-Membership im OAuth-Callback prüfen, ggf. rollenbasiert). Erweiterung der M0-Auth.
 - **„Build LANoMAT from scratch"** ([#5](https://github.com/raute1-org/LANoMAT/issues/5)): entspricht dieser Roadmap (M0–M7) — der komplette Rebuild ist die Umsetzung dieses Epics; kein separater Task.
+
+## Backlog — Feature-Input 2026-07-15 (nach Modulen sortiert, ⭐ = Absender-Priorität)
+
+Zweite Welle Feature-Wünsche, bewertet und eingeordnet. Betrifft teils bereits abgeschlossene Module (Identity/M1, Voice/M3) → als Post-MVP-Erweiterung nachschiebbar; bei den offenen Phasen (M4–M6) direkt im Detailplan mitziehen. Bewertung je Item: **Wert / Aufwand / Einordnung**.
+
+- **Identity: Plattform-Verknüpfungen & kontextsensitiver Anzeigename** ⭐ — optionale User-Verknüpfungen zu Steam, GOG, Battle.net, Epic, Twitch (das bestehende `steam_url` von echter URL zu echter OAuth-Verknüpfung aufwerten). Nutzen: Anzeigename kontextsensitiv (Steam-Spiel → Steam-Nick, sonst LANoMAT-Nick), Turnier-Besitz-Checks als Hinweis, Freunde-Vorschläge. Token-Pflege: Refresh automatisch, Warnung bei nötiger Re-Auth.
+  *Wert hoch / Aufwand groß (mehrere OAuth-Provider + Token-Lifecycle; Achtung: GOG bietet keinen offiziellen öffentlichen OAuth-Flow — als „manuelle Verknüpfung"/nachrangig behandeln). Einordnung: eigene Post-MVP-Mini-Phase „Identity+", Provider inkrementell hinter einem `LinkedAccountProvider`-Adapter (Contract-Prinzip). Kontextsensitiver Anzeigename ist billig, sobald Links existieren.*
+- **Tournaments: Anmeldung locker halten** — Anmeldung übers Konto; Spielbesitz-Check nur als **Hinweis, kein hartes Gate**. LAN-Games ohne Onlinezwang und Ausnahmen müssen durchgehen; Ziel: Listen voll bekommen.
+  *Wert hoch / Aufwand gering. Einordnung: Design-Leitplanke für die Identity+-Besitz-Checks (oben) — der Check darf nie blockieren, nur warnen. Kein eigener Task, aber verbindliche Regel für das Ownership-Feature.*
+- **Präsenz: Live-Ansicht „wer ist da / spielt was / freie Slots / wer streamt"** — eine Live-Übersicht mit Filtern (nur freie Slots, nur Freunde, nur Streams), auch beamertauglich.
+  *Wert hoch (LAN-Gefühl) / Aufwand mittel — Datengrundlage entsteht sukzessive: Check-in (M2), Sitzplan (M2), Match-/Turnier-Status (M3), Server-Slots (M6), Streams (siehe unten), Freunde (Identity+). Einordnung: neues Feature an der Naht von LFG (M4) + Infoscreen (M5), sinnvoll erst nach M6, wenn die meisten Quellen live sind. Reverb-getrieben.*
+- **Streaming/Casting: einbetten statt hosten + Auto-Overlays** — Streams primär über Discord/Twitch hosten (schont Upload), in LANoMAT nur einbetten/verlinken. **OBS-Overlays (Bracket, Scoreboard) automatisch aus dem Turnier-Modul generieren.** Spectator/Caster je Spiel als kleines Rezept (GOTV/SourceTV, Observer-Slots, Replay) — kein Universal-Bot, aber LANoMAT orchestriert Start/Stop.
+  *Wert mittel-hoch / Aufwand mittel. Einordnung: Overlays sind eine Browser-Source-Route, die die M5-Szenen-Technik + M3-`BracketView` wiederverwendet (naher Nachbar zu Infoscreen). Stream-Einbettung ist billig. Spectator-Rezepte hängen an den spielspezifischen M6-Server-Presets. Neues Feature, M5/M6-benachbart.*
+- **Architektur: Gruppen-/Community-Fusion (User-/Team-/Historien-Merge)** — zwei Communities zusammenführen können (Import/Merge von Usern, Teams, Historie). Das Event-als-Aggregate-Root-Modell passt, aber **User-Merge früh mitdenken**.
+  *Wert langfristig / Aufwand groß, aber die Design-Entscheidung ist billig und JETZT fällig: stabile User-IDs, keine harten Annahmen, die einen späteren Merge verbauen (z. B. `discord_id` als einziger Identitätsanker, Merge-fähige FKs/Historie). Einordnung: Architektur-Leitplanke ab sofort + eigenständiges Tooling-Feature deutlich später. Als Erkenntnis vermerken, bevor Identity+ gebaut wird.*
 
 ---
 
