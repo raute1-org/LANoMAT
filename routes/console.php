@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('lanomat:send-reminders')->everyFiveMinutes();
 Schedule::command('lanomat:sweep-discord-outbox')->everyFiveMinutes();
 Schedule::command('lanomat:tournament-tick')->everyMinute();
+Schedule::command('lanomat:prune-lfg')->everyFiveMinutes();
