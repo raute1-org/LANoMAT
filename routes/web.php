@@ -33,6 +33,7 @@ Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'
 // Public programme/schedule page — same "public like seating/tournaments,
 // no auth required" visibility rule as the rest of the participant UI.
 Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
+Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics'])->name('schedule.ics');
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');

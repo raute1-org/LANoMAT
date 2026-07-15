@@ -17,7 +17,8 @@
         "laravel/socialite": "^5.28",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
-        "socialiteproviders/discord": "^4.2"
+        "socialiteproviders/discord": "^4.2",
+        "spatie/icalendar-generator": "^3.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",

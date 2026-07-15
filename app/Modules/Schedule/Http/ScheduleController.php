@@ -5,6 +5,8 @@ namespace App\Modules\Schedule\Http;
 use App\Http\Controllers\Controller;
 use App\Modules\Events\Models\Event;
 use App\Modules\Schedule\Models\ScheduleItem;
+use App\Modules\Schedule\Support\ScheduleCalendar;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -35,6 +37,21 @@ class ScheduleController extends Controller
             'now' => $this->currentItem($items, $now),
             'next' => $this->nextItem($items, $now),
             'labels' => trans('schedule.page'),
+        ]);
+    }
+
+    /**
+     * ICS export of the public programme, one VEVENT per schedule item.
+     */
+    public function ics(Event $event): HttpResponse
+    {
+        abort_unless($event->isPubliclyVisible(), 404);
+
+        $ics = ScheduleCalendar::for($event);
+
+        return response($ics, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="schedule.ics"',
         ]);
     }
 
