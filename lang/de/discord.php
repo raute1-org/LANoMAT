@@ -56,4 +56,9 @@ return [
         'result_announcement' => 'Ergebnis: :entry1 vs. :entry2 – Sieger: :winner',
         'voice_links_heading' => 'Voice-Channel beitreten:',
     ],
+
+    'lfg' => [
+        'announcement' => 'Neue Mitspieler-Suche von :user: „:title“ (:game)',
+        'announcement_no_game' => 'Neue Mitspieler-Suche von :user: „:title“',
+    ],
 ];

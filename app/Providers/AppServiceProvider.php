@@ -15,6 +15,8 @@ use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
+use App\Modules\Lfg\Events\LfgPostCreated;
+use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\Registration\Events\RegistrationCancelled;
@@ -154,5 +156,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
         Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
         Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
+        Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
     }
 }
