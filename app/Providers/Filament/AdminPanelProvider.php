@@ -45,6 +45,10 @@ class AdminPanelProvider extends PanelProvider
                 for: 'App\Modules\Schedule\Filament\Resources',
             )
             ->discoverResources(
+                in: app_path('Modules/Catering/Filament/Resources'),
+                for: 'App\Modules\Catering\Filament\Resources',
+            )
+            ->discoverResources(
                 in: app_path('Modules/Teams/Filament/Resources'),
                 for: 'App\Modules\Teams\Filament\Resources',
             )
