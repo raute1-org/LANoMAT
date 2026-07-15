@@ -41,4 +41,15 @@ return [
             'closed' => 'Umfrage wurde geschlossen.',
         ],
     ],
+
+    'page' => [
+        'title' => 'Abstimmung',
+        'index_title' => 'Abstimmungen',
+        'no_polls' => 'Für dieses Event gibt es aktuell keine Abstimmungen.',
+        'back_to_index' => 'Zurück zu allen Abstimmungen',
+        'vote' => 'Abstimmen',
+        'you_voted' => 'Du hast abgestimmt.',
+        'closed' => 'Diese Abstimmung ist geschlossen.',
+        'total_votes' => 'Stimmen gesamt',
+    ],
 ];

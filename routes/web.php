@@ -12,6 +12,7 @@ use App\Modules\Schedule\Http\ScheduleController;
 use App\Modules\Seating\Http\SeatingController;
 use App\Modules\Teams\Http\TeamController;
 use App\Modules\Tournaments\Http\TournamentPageController;
+use App\Modules\Voting\Http\PollPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
@@ -41,6 +42,11 @@ Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics
 // (see below).
 Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
 
+// Public polls pages — same "public like seating/tournaments/schedule/catering,
+// no auth required" visibility rule; casting a vote requires auth (see below).
+Route::get('/events/{event:slug}/polls', [PollPageController::class, 'index'])->name('polls.index');
+Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.show');
+
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
@@ -61,6 +67,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/matches/{match}/report', [TournamentPageController::class, 'report'])->name('matches.report');
     Route::post('/matches/{match}/confirm', [TournamentPageController::class, 'confirm'])->name('matches.confirm');
     Route::post('/matches/{match}/dispute', [TournamentPageController::class, 'dispute'])->name('matches.dispute');
+
+    Route::post('/polls/{poll}/vote', [PollPageController::class, 'vote'])->name('polls.vote');
 
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
