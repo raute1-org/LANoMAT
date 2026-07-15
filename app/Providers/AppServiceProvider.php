@@ -14,6 +14,9 @@ use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\Schedule\Listeners\SyncScheduleOnTournamentSaved;
+use App\Modules\Schedule\Models\ScheduleItem;
+use App\Modules\Schedule\Policies\ScheduleItemPolicy;
 use App\Modules\Seating\Listeners\ReleaseSeatOnCancellation;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Policies\SeatAssignmentPolicy;
@@ -23,6 +26,7 @@ use App\Modules\Teams\Policies\TeamPolicy;
 use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentCompleted;
+use App\Modules\Tournaments\Events\TournamentSaved;
 use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -119,6 +123,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TournamentEntry::class, TournamentPolicy::class);
         Gate::policy(GameMatch::class, TournamentPolicy::class);
         Gate::policy(MatchReport::class, TournamentPolicy::class);
+        Gate::policy(ScheduleItem::class, ScheduleItemPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
@@ -136,5 +141,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);
         Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
         Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
+        Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
     }
 }
