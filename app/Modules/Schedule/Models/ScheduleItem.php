@@ -22,6 +22,15 @@ class ScheduleItem extends Model
     /** @use HasFactory<ScheduleItemFactory> */
     use HasFactory;
 
+    /**
+     * `ref_type`/`ref_id` are deliberately excluded: they mark a row as
+     * owned by another aggregate (e.g. a tournament) and subject to
+     * automatic overwrite by that aggregate's sync action. They must only
+     * ever be set via explicit property assignment (see
+     * `SyncTournamentScheduleItem`), never through mass-assignment, so a
+     * user-supplied `fill()` (e.g. via `UpsertScheduleItem`) can never claim
+     * ownership of a schedule item.
+     */
     protected $fillable = [
         'event_id',
         'type',
@@ -30,8 +39,6 @@ class ScheduleItem extends Model
         'starts_at',
         'ends_at',
         'location',
-        'ref_type',
-        'ref_id',
         'sort',
     ];
 

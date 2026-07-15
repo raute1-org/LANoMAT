@@ -2,6 +2,7 @@
 
 use App\Modules\Schedule\Enums\ScheduleItemType;
 use App\Modules\Schedule\Models\ScheduleItem;
+use App\Modules\Schedule\Policies\ScheduleItemPolicy;
 use App\Modules\Tournaments\Models\Tournament;
 
 it('creates exactly one schedule item when a tournament is created', function () {
@@ -58,4 +59,17 @@ it('does not create a duplicate schedule item when unrelated attributes change',
         ->where('ref_type', 'tournament')
         ->where('ref_id', $tournament->id)
         ->count())->toBe(1);
+});
+
+it('allows a guest (unauthenticated user) to view the public schedule', function () {
+    $tournament = Tournament::factory()->create();
+    $item = ScheduleItem::query()
+        ->where('ref_type', 'tournament')
+        ->where('ref_id', $tournament->id)
+        ->firstOrFail();
+
+    $policy = app(ScheduleItemPolicy::class);
+
+    expect($policy->viewAny(null))->toBeTrue()
+        ->and($policy->view(null, $item))->toBeTrue();
 });

@@ -42,3 +42,22 @@ it('deletes a schedule item', function () {
 
     expect(ScheduleItem::query()->count())->toBe(0);
 });
+
+it('never persists ref_type/ref_id for a custom item, even when passed as attributes', function () {
+    $event = Event::factory()->create();
+
+    $item = app(UpsertScheduleItem::class)->handle($event, [
+        'ref_type' => 'tournament',
+        'ref_id' => 999,
+        'title' => 'Custom Item',
+        'starts_at' => now(),
+    ]);
+
+    expect($item->ref_type)->toBeNull()
+        ->and($item->ref_id)->toBeNull();
+
+    $item->refresh();
+
+    expect($item->ref_type)->toBeNull()
+        ->and($item->ref_id)->toBeNull();
+});
