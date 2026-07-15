@@ -74,6 +74,36 @@ class CommandDefinitions
                 'name' => 'schedule',
                 'description' => __('discord.commands.schedule.description'),
             ],
+            [
+                'name' => 'lfg',
+                'description' => __('discord.commands.lfg.description'),
+                'options' => [
+                    [
+                        'type' => 1, // SUB_COMMAND
+                        'name' => 'list',
+                        'description' => __('discord.commands.lfg.list.description'),
+                    ],
+                    [
+                        'type' => 1,
+                        'name' => 'create',
+                        'description' => __('discord.commands.lfg.create.description'),
+                        'options' => [
+                            [
+                                'type' => 3, // STRING
+                                'name' => 'title',
+                                'description' => __('discord.commands.lfg.create.title_option'),
+                                'required' => true,
+                            ],
+                            [
+                                'type' => 3,
+                                'name' => 'game',
+                                'description' => __('discord.commands.lfg.create.game_option'),
+                                'required' => false,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ];
     }
 }

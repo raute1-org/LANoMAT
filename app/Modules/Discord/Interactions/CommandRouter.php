@@ -3,6 +3,7 @@
 namespace App\Modules\Discord\Interactions;
 
 use App\Modules\Discord\Interactions\Commands\HelpCommand;
+use App\Modules\Discord\Interactions\Commands\LfgCommand;
 use App\Modules\Discord\Interactions\Commands\ScheduleCommand;
 use App\Modules\Discord\Interactions\Commands\TournamentCommand;
 
@@ -22,6 +23,7 @@ class CommandRouter
             'tournament' => TournamentCommand::class,
             'help' => HelpCommand::class,
             'schedule' => ScheduleCommand::class,
+            'lfg' => LfgCommand::class,
         ];
     }
 

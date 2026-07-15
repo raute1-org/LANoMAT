@@ -43,10 +43,27 @@ return [
             'heading' => 'Nächste Programmpunkte:',
             'item' => '- :title (:starts_at)',
         ],
+        'lfg' => [
+            'description' => 'Mitspieler-Suche verwalten',
+            'list' => [
+                'description' => 'Aktuelle Mitspieler-Suchen des aktuellen Events anzeigen',
+                'no_current_event' => 'Es gibt gerade kein aktives Event.',
+                'none' => 'Für das aktuelle Event gibt es gerade keine Mitspieler-Suchen.',
+                'item' => '- „:title“ (:game) von :user',
+                'item_no_game' => '- „:title“ von :user',
+            ],
+            'create' => [
+                'description' => 'Eine neue Mitspieler-Suche erstellen',
+                'title_option' => 'Titel der Suche',
+                'game_option' => 'Spiel (optional)',
+                'no_current_event' => 'Es gibt gerade kein aktives Event.',
+                'success' => 'Deine Mitspieler-Suche „:title“ wurde erstellt.',
+            ],
+        ],
     ],
 
     'help' => [
-        'text' => "Verfügbare Befehle:\n/tournament list – Turniere des aktuellen Events anzeigen\n/tournament info <id> – Details zu einem Turnier anzeigen\n/tournament checkin <id> – Für ein Turnier einchecken\n/tournament bracket <id> – Link zur Bracket-Seite anzeigen\n/schedule – Nächste Programmpunkte des aktuellen Events anzeigen\n/help – Diese Hilfe anzeigen",
+        'text' => "Verfügbare Befehle:\n/tournament list – Turniere des aktuellen Events anzeigen\n/tournament info <id> – Details zu einem Turnier anzeigen\n/tournament checkin <id> – Für ein Turnier einchecken\n/tournament bracket <id> – Link zur Bracket-Seite anzeigen\n/schedule – Nächste Programmpunkte des aktuellen Events anzeigen\n/lfg list – Mitspieler-Suchen des aktuellen Events anzeigen\n/lfg create <title> [game] – Eine neue Mitspieler-Suche erstellen\n/help – Diese Hilfe anzeigen",
     ],
 
     'match_channel' => [
