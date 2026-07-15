@@ -24,9 +24,9 @@ it('rejects opening an order that is not a draft', function () {
 
     try {
         (new OpenFoodOrder)->handle($order);
-        $this->fail('Expected DomainException.');
-    } catch (DomainException $e) {
-        expect($e->getMessage())->toContain('closed')->toContain('open');
+        $this->fail('Expected CateringException.');
+    } catch (CateringException $e) {
+        expect($e->translationKey)->toBe('catering.errors.invalid_transition');
     }
 });
 
@@ -87,8 +87,8 @@ it('rejects closing an order that is not open', function () {
 
     try {
         (new CloseFoodOrder)->handle($order);
-        $this->fail('Expected DomainException.');
-    } catch (DomainException $e) {
-        expect($e->getMessage())->toContain('draft')->toContain('closed');
+        $this->fail('Expected CateringException.');
+    } catch (CateringException $e) {
+        expect($e->translationKey)->toBe('catering.errors.invalid_transition');
     }
 });
