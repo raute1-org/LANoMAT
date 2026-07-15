@@ -15,4 +15,30 @@ return [
         'not_open_yet' => 'Diese Umfrage wurde noch nicht geöffnet.',
         'already_closed' => 'Diese Umfrage ist bereits geschlossen.',
     ],
+
+    'resource' => [
+        'label' => 'Umfrage',
+        'plural_label' => 'Umfragen',
+    ],
+
+    'fields' => [
+        'event' => 'Event',
+        'question' => 'Frage',
+        'status' => 'Status',
+        'closes_at' => 'Schließt am',
+        'votes_count' => 'Stimmen',
+        'options' => 'Optionen',
+        'option_label' => 'Bezeichnung',
+        'option_sort' => 'Reihenfolge',
+        'option_add' => 'Option hinzufügen',
+    ],
+
+    'admin' => [
+        'actions' => [
+            'open' => 'Öffnen',
+            'opened' => 'Umfrage wurde geöffnet.',
+            'close' => 'Schließen',
+            'closed' => 'Umfrage wurde geschlossen.',
+        ],
+    ],
 ];

@@ -56,6 +56,10 @@ class AdminPanelProvider extends PanelProvider
                 in: app_path('Modules/Tournaments/Filament/Resources'),
                 for: 'App\Modules\Tournaments\Filament\Resources',
             )
+            ->discoverResources(
+                in: app_path('Modules/Voting/Filament/Resources'),
+                for: 'App\Modules\Voting\Filament\Resources',
+            )
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
