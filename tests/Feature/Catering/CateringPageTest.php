@@ -29,6 +29,21 @@ it('returns 404 for a draft event', function () {
     $this->get("/events/{$event->slug}/catering")->assertNotFound();
 });
 
+it('hides a draft food order from the public catering page', function () {
+    $event = Event::factory()->registration()->create();
+    FoodOrder::factory()->for($event)->create(['title' => 'Geheime Draft-Bestellung']);
+    $openOrder = FoodOrder::factory()->for($event)->open()->create(['title' => 'Pizza-Bestellung']);
+
+    $this->get("/events/{$event->slug}/catering")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Catering/Show')
+            ->has('orders', 1)
+            ->where('orders.0.id', $openOrder->id)
+            ->where('orders.0.title', 'Pizza-Bestellung')
+        );
+});
+
 it('places an item for the authenticated user at the menu price within the window', function () {
     $event = Event::factory()->registration()->create();
     $order = FoodOrder::factory()->for($event)->open()->create([

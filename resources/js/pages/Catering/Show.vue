@@ -61,6 +61,21 @@ function formatEuro(cents: number): string {
 function formatDateTime(iso: string): string {
     return new Date(iso).toLocaleString('de-DE');
 }
+
+function menuOptionName(
+    foodOrder: FoodOrderDto,
+    optionKey: string | null,
+): string {
+    if (optionKey === null) {
+        return '';
+    }
+
+    const option = foodOrder.menu.find(
+        (candidate) => candidate.key === optionKey,
+    );
+
+    return option?.name ?? optionKey;
+}
 </script>
 
 <template>
@@ -170,7 +185,12 @@ function formatDateTime(iso: string): string {
                             >
                                 <div>
                                     <p class="font-medium">
-                                        {{ item.optionKey }}
+                                        {{
+                                            menuOptionName(
+                                                foodOrder,
+                                                item.optionKey,
+                                            )
+                                        }}
                                     </p>
                                     <p
                                         v-if="item.note"

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Catering\Actions\CancelFoodOrderItem;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
 use App\Modules\Catering\Domain\MenuOption;
+use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
@@ -38,6 +39,7 @@ class CateringController extends Controller
 
         $orders = FoodOrder::query()
             ->where('event_id', $event->id)
+            ->whereIn('status', [FoodOrderStatus::Open->value, FoodOrderStatus::Closed->value])
             ->orderByDesc('created_at')
             ->get();
 
