@@ -42,6 +42,8 @@ use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
 use App\Modules\Voice\Listeners\ProvisionMatchVoiceOnReady;
 use App\Modules\Voice\Listeners\ProvisionVoiceOnStart;
+use App\Modules\Voting\Models\Poll;
+use App\Modules\Voting\Policies\PollPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -130,6 +132,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ScheduleItem::class, ScheduleItemPolicy::class);
         Gate::policy(FoodOrder::class, FoodOrderPolicy::class);
         Gate::policy(FoodOrderItem::class, FoodOrderItemPolicy::class);
+        Gate::policy(Poll::class, PollPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

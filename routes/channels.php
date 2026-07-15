@@ -13,3 +13,7 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 // participant-only or orga-only stream is wanted later (e.g. dispute
 // details), switch that channel to a PresenceChannel/PrivateChannel and add
 // a Broadcast::channel(...) callback here.
+
+// Poll results (`PollUpdated`) broadcast on the public `event.{id}` channel
+// — no authorization callback is registered here because poll results are
+// public, mirroring the `tournament.{id}` channel above.
