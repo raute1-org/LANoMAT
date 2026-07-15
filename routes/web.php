@@ -7,6 +7,7 @@ use App\Modules\Identity\Http\ProfileController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
+use App\Modules\Schedule\Http\ScheduleController;
 use App\Modules\Seating\Http\SeatingController;
 use App\Modules\Teams\Http\TeamController;
 use App\Modules\Tournaments\Http\TournamentPageController;
@@ -28,6 +29,10 @@ Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])-
 // enrolling/checking in/reporting requires auth (see below).
 Route::get('/events/{event:slug}/tournaments', [TournamentPageController::class, 'index'])->name('tournaments.index');
 Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'])->name('tournaments.show');
+
+// Public programme/schedule page — same "public like seating/tournaments,
+// no auth required" visibility rule as the rest of the participant UI.
+Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');

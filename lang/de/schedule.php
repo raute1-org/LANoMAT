@@ -24,4 +24,10 @@ return [
         'catering' => 'Essen',
         'break' => 'Pause',
     ],
+    'page' => [
+        'title' => 'Programm',
+        'now' => 'Jetzt',
+        'next' => 'Gleich',
+        'empty' => 'Noch kein Programm',
+    ],
 ];
