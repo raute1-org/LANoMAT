@@ -74,4 +74,9 @@ class UserFactory extends Factory
     {
         return $this->state(['role' => Role::Orga]);
     }
+
+    public function helper(): static
+    {
+        return $this->state(['role' => Role::Helper]);
+    }
 }

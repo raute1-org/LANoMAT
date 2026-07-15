@@ -16,6 +16,7 @@ class EnsureRole
         $allowed = match (Role::from($role)) {
             Role::Admin => $user?->isAdmin() ?? false,
             Role::Orga => $user?->isOrga() ?? false,
+            Role::Helper => $user?->isHelper() ?? false,
             Role::Participant => $user !== null,
         };
 

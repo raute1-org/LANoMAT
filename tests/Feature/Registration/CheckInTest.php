@@ -71,6 +71,31 @@ it('checks in via the orga endpoint', function () {
     expect($reg->fresh()->checked_in_at)->not->toBeNull();
 });
 
+it('allows a helper to check in via the orga endpoint', function () {
+    $event = Event::factory()->live()->create();
+    $reg = EventRegistration::factory()->for($event)->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->post("/orga/events/{$event->slug}/checkin", ['qr_token' => $reg->qr_token])
+        ->assertRedirect();
+
+    expect($reg->fresh()->checked_in_at)->not->toBeNull();
+});
+
+it('allows a helper to view the check-in page', function () {
+    $event = Event::factory()->live()->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->get("/orga/events/{$event->slug}/checkin")
+        ->assertOk();
+});
+
+it('forbids a helper from the admin panel', function () {
+    $this->actingAs(User::factory()->helper()->create())
+        ->get('/admin')
+        ->assertForbidden();
+});
+
 it('flashes a success toast reaching the Inertia response on check-in', function () {
     $event = Event::factory()->live()->create();
     $participant = User::factory()->create(['name' => 'Sitter']);

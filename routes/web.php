@@ -87,7 +87,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/teams/{team}/leave', [TeamController::class, 'leave'])->name('teams.leave');
 });
 
-Route::middleware(['auth', 'role:orga'])->group(function () {
+Route::middleware(['auth', 'role:helper'])->group(function () {
     Route::get('/orga/events/{event:slug}/checkin', [CheckInController::class, 'show'])->name('orga.checkin');
     Route::post('/orga/events/{event:slug}/checkin', [CheckInController::class, 'store'])->name('orga.checkin.store');
 });

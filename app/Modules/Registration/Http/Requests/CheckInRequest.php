@@ -8,7 +8,7 @@ class CheckInRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isOrga() ?? false;
+        return $this->user()?->isHelper() ?? false;
     }
 
     /**

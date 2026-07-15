@@ -87,6 +87,16 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return in_array($this->role, [Role::Admin, Role::Orga], true);
     }
 
+    /**
+     * Helper-or-above: true for helper, orga, and admin. A helper is NOT an
+     * orga (no `/admin` access — see canAccessPanel()), but may operate the
+     * targeted `can` surfaces gated on this check (e.g. QR check-in).
+     */
+    public function isHelper(): bool
+    {
+        return in_array($this->role, [Role::Admin, Role::Orga, Role::Helper], true);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->isOrga();
