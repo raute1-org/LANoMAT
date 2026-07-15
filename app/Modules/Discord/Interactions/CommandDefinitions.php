@@ -70,6 +70,10 @@ class CommandDefinitions
                 'name' => 'help',
                 'description' => __('discord.commands.help.description'),
             ],
+            [
+                'name' => 'schedule',
+                'description' => __('discord.commands.schedule.description'),
+            ],
         ];
     }
 }

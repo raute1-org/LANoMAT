@@ -36,10 +36,17 @@ return [
         'help' => [
             'description' => 'Zeigt die verfügbaren Befehle',
         ],
+        'schedule' => [
+            'description' => 'Nächste Programmpunkte des aktuellen Events anzeigen',
+            'no_current_event' => 'Es gibt gerade kein aktives Event.',
+            'none' => 'Für das aktuelle Event stehen keine weiteren Programmpunkte an.',
+            'heading' => 'Nächste Programmpunkte:',
+            'item' => '- :title (:starts_at)',
+        ],
     ],
 
     'help' => [
-        'text' => "Verfügbare Befehle:\n/tournament list – Turniere des aktuellen Events anzeigen\n/tournament info <id> – Details zu einem Turnier anzeigen\n/tournament checkin <id> – Für ein Turnier einchecken\n/tournament bracket <id> – Link zur Bracket-Seite anzeigen\n/help – Diese Hilfe anzeigen",
+        'text' => "Verfügbare Befehle:\n/tournament list – Turniere des aktuellen Events anzeigen\n/tournament info <id> – Details zu einem Turnier anzeigen\n/tournament checkin <id> – Für ein Turnier einchecken\n/tournament bracket <id> – Link zur Bracket-Seite anzeigen\n/schedule – Nächste Programmpunkte des aktuellen Events anzeigen\n/help – Diese Hilfe anzeigen",
     ],
 
     'match_channel' => [
