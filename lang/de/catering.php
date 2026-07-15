@@ -31,6 +31,22 @@ return [
         'menu_add' => 'Option hinzufügen',
     ],
 
+    'page' => [
+        'title' => 'Essensbestellung',
+        'empty' => 'Für dieses Event gibt es aktuell keine Essensbestellung.',
+        'window_open' => 'Bestellung geöffnet',
+        'window_closed' => 'Bestellung geschlossen',
+        'opens_at' => 'Öffnet am',
+        'closes_at' => 'Schließt am',
+        'menu' => 'Menü',
+        'order' => 'Bestellen',
+        'note_placeholder' => 'Anmerkung (optional)',
+        'my_order' => 'Meine Bestellung',
+        'my_order_empty' => 'Du hast noch nichts bestellt.',
+        'cancel' => 'Stornieren',
+        'my_total' => 'Meine Summe',
+    ],
+
     'admin' => [
         'actions' => [
             'open' => 'Öffnen',

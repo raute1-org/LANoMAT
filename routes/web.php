@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
@@ -35,12 +36,20 @@ Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'
 Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
 Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics'])->name('schedule.ics');
 
+// Public catering page — same "public like seating/tournaments/schedule, no
+// auth required" visibility rule; placing/cancelling an item requires auth
+// (see below).
+Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
+
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
     Route::get('/events/{event:slug}/register', [RegistrationController::class, 'show'])->name('events.register');
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
     Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
+
+    Route::post('/food-orders/{foodOrder}/items', [CateringController::class, 'store'])->name('catering.items.store');
+    Route::delete('/food-order-items/{foodOrderItem}', [CateringController::class, 'destroy'])->name('catering.items.destroy');
 
     Route::post('/events/{event:slug}/seating/{seat}', [SeatingController::class, 'claim'])->name('events.seating.claim');
     Route::delete('/events/{event:slug}/seating', [SeatingController::class, 'release'])->name('events.seating.release');

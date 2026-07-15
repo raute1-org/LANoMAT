@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './catering';
 export * from './events';
 export * from './navigation';
 export * from './notifications';
