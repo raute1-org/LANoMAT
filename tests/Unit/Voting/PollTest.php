@@ -45,13 +45,13 @@ it('enforces one vote per user per poll at the database level', function () {
     $user = User::factory()->create();
     [$optionA, $optionB] = $poll->options;
 
-    PollVote::query()->create([
+    PollVote::factory()->create([
         'poll_id' => $poll->id,
         'poll_option_id' => $optionA->id,
         'user_id' => $user->id,
     ]);
 
-    expect(fn () => PollVote::query()->create([
+    expect(fn () => PollVote::factory()->create([
         'poll_id' => $poll->id,
         'poll_option_id' => $optionB->id,
         'user_id' => $user->id,
