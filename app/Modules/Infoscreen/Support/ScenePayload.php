@@ -4,10 +4,12 @@ namespace App\Modules\Infoscreen\Support;
 
 use App\Modules\Events\Models\Event;
 use App\Modules\Infoscreen\Actions\DrawTombola;
+use App\Modules\Infoscreen\Actions\SetStatusSignal;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Events\SceneOverride;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\StatusSignal;
 use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Registration\Support\QrCode;
@@ -66,6 +68,7 @@ final class ScenePayload
             SceneType::PaymentQr => self::paymentQrData($scene),
             SceneType::Sponsors => self::sponsorsData($scene),
             SceneType::Tombola => self::tombolaData($scene),
+            SceneType::Status => self::statusData($scene),
             default => [],
         };
     }
@@ -229,6 +232,38 @@ final class ScenePayload
                 ],
             ],
         ];
+    }
+
+    /**
+     * The rotation-configured status scene shows every component's current
+     * signal (latest {@see StatusSignal} row per component — see that
+     * model's doc on why "current" means "latest"). The outage-moment push
+     * itself is a separate synthetic `status` {@see SceneOverride} carrying
+     * only the just-changed component, dispatched by
+     * {@see SetStatusSignal}.
+     *
+     * @return array{signals: list<array{component: string, level: string, message: string|null}>}
+     */
+    private static function statusData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return ['signals' => []];
+        }
+
+        $signals = StatusSignal::query()
+            ->where('event_id', $event->id)
+            ->currentPerComponent()
+            ->get()
+            ->map(fn (StatusSignal $signal): array => [
+                'component' => $signal->component,
+                'level' => $signal->level->value,
+                'message' => $signal->message,
+            ])
+            ->all();
+
+        return ['signals' => array_values($signals)];
     }
 
     private static function eventFor(InfoscreenScene $scene): ?Event

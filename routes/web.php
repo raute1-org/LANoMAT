@@ -106,7 +106,6 @@ Route::middleware(['auth', 'role:helper'])->group(function () {
     // Filament resource's show_now row action so the two surfaces never
     // drift on behaviour.
     Route::get('/screen/{event:slug}/control', [ScreenControlController::class, 'index'])->name('screen.control');
-    Route::post('/screen/{event:slug}/control/{scene}', [ScreenControlController::class, 'show'])->name('screen.control.show');
 
     // One-click triggers (Task 10): notify the bell (Discord DM mirrors per
     // preference), then, for the food trigger, also push the beamer.
@@ -116,6 +115,16 @@ Route::middleware(['auth', 'role:helper'])->group(function () {
     // Task 11: the tombola "draw next prize" trigger, one draw per request
     // (the control page lists remaining undrawn prizes, one button each).
     Route::post('/screen/{event:slug}/control/tombola/{tombolaPrize}/draw', [ScreenControlController::class, 'tombolaDraw'])->name('screen.control.tombola.draw');
+
+    // Task 12: the operations status tile's "set status" control — a helper
+    // flags one component's level, popping an outage reassurance onto the
+    // beamer (or clearing it on recovery to Ok). Registered before the
+    // generic `{scene}` show-now route below: both are single extra path
+    // segments under `/control/`, so `status` would otherwise be swallowed
+    // as a (non-existent) scene id.
+    Route::post('/screen/{event:slug}/control/status', [ScreenControlController::class, 'setStatus'])->name('screen.control.set-status');
+
+    Route::post('/screen/{event:slug}/control/{scene}', [ScreenControlController::class, 'show'])->name('screen.control.show');
 });
 
 Route::middleware(['guest'])->group(function () {

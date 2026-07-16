@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import { reactive } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { show as showScene } from '@/routes/screen/control';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { setStatus, show as showScene } from '@/routes/screen/control';
 import { draw as drawTombola } from '@/routes/screen/control/tombola';
 import { checkinOpen, foodReady } from '@/routes/screen/control/trigger';
 
@@ -24,14 +27,36 @@ type TombolaPrize = {
     title: string;
 };
 
+type StatusLevel = 'ok' | 'degraded' | 'down';
+
+type StatusSignal = {
+    component: string;
+    level: StatusLevel;
+    message: string | null;
+};
+
 const props = defineProps<{
     event: { name: string; slug: string };
     scenes: Scene[];
     foodOrders: FoodOrder[];
     tombolaPrizes: TombolaPrize[];
+    statusComponents: string[];
+    statusSignals: Record<string, StatusSignal>;
+    statusLevels: { value: StatusLevel; label: string }[];
     labels: Record<string, string>;
     triggerLabels: Record<string, string>;
+    statusLabels: Record<string, string>;
+    statusComponentLabels: Record<string, string>;
 }>();
+
+const statusMessages = reactive<Record<string, string>>(
+    Object.fromEntries(
+        props.statusComponents.map((component) => [
+            component,
+            props.statusSignals[component]?.message ?? '',
+        ]),
+    ),
+);
 
 function showNow(scene: Scene) {
     useForm({}).post(
@@ -64,6 +89,34 @@ function drawTombolaPrize(prize: TombolaPrize) {
             preserveScroll: true,
         },
     );
+}
+
+function setStatusLevel(component: string, level: StatusLevel) {
+    useForm({
+        component,
+        level,
+        message: statusMessages[component] || '',
+    }).post(setStatus.url({ event: props.event.slug }), {
+        preserveScroll: true,
+    });
+}
+
+function currentLevel(component: string): StatusLevel {
+    return props.statusSignals[component]?.level ?? 'ok';
+}
+
+function levelBadgeVariant(
+    level: StatusLevel,
+): 'default' | 'destructive' | 'outline' {
+    if (level === 'down') {
+        return 'destructive';
+    }
+
+    if (level === 'degraded') {
+        return 'outline';
+    }
+
+    return 'default';
 }
 </script>
 
@@ -143,6 +196,65 @@ function drawTombolaPrize(prize: TombolaPrize) {
                             >
                                 {{ triggerLabels.tombola_draw_button }}:
                                 {{ prize.title }}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </section>
+
+        <section class="mt-8">
+            <h2 class="text-lg font-semibold tracking-tight">
+                {{ statusLabels.title }}
+            </h2>
+
+            <div class="mt-4 space-y-4">
+                <Card v-for="component in statusComponents" :key="component">
+                    <CardHeader>
+                        <div class="flex items-center justify-between gap-4">
+                            <CardTitle>{{
+                                statusComponentLabels[component]
+                            }}</CardTitle>
+                            <Badge
+                                :variant="
+                                    levelBadgeVariant(currentLevel(component))
+                                "
+                            >
+                                {{
+                                    statusLevels.find(
+                                        (l) =>
+                                            l.value === currentLevel(component),
+                                    )?.label
+                                }}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div class="grid gap-2">
+                            <Label :for="`status-message-${component}`">{{
+                                statusLabels.message_label
+                            }}</Label>
+                            <Textarea
+                                :id="`status-message-${component}`"
+                                v-model="statusMessages[component]"
+                                :placeholder="statusLabels.message_placeholder"
+                                maxlength="500"
+                            />
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <Button
+                                v-for="level in statusLevels"
+                                :key="level.value"
+                                size="sm"
+                                :variant="
+                                    level.value === currentLevel(component)
+                                        ? 'default'
+                                        : 'outline'
+                                "
+                                @click="setStatusLevel(component, level.value)"
+                            >
+                                {{ level.label }}
                             </Button>
                         </div>
                     </CardContent>

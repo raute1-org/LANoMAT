@@ -63,4 +63,16 @@ class InfoscreenScenePolicy
     {
         return $user->isHelper();
     }
+
+    /**
+     * The operations status tile's "set status" control, mirroring
+     * `showNow`/`drawTombola`: helpers run the live show, including flagging
+     * an outage so the beamer reassures everyone at once. Authorized against
+     * the class (there is no `InfoscreenScene` instance for a status
+     * signal) — see `SetStatusSignal`.
+     */
+    public function setStatus(User $user): bool
+    {
+        return $user->isHelper();
+    }
 }

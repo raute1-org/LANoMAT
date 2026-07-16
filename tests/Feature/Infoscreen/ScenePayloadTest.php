@@ -3,8 +3,10 @@
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Infoscreen\Actions\DrawTombola;
+use App\Modules\Infoscreen\Actions\SetStatusSignal;
 use App\Modules\Infoscreen\Domain\SceneConfig;
 use App\Modules\Infoscreen\Enums\SceneType;
+use App\Modules\Infoscreen\Enums\StatusLevel;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Infoscreen\Support\ScenePayload;
@@ -199,6 +201,43 @@ it('returns an empty tombola board when no prizes exist yet', function () {
 
     expect($payload['data']['prizes'])->toBe([])
         ->and($payload['data']['lastDraw'])->toBeNull();
+});
+
+it('fills data.signals with the current level per component for a status scene', function () {
+    $event = Event::factory()->live()->create();
+    $helper = User::factory()->helper()->create();
+
+    app(SetStatusSignal::class)->handle($event, 'internet', StatusLevel::Degraded, 'Langsam.', $helper);
+    app(SetStatusSignal::class)->handle($event, 'internet', StatusLevel::Down, 'Jetzt ganz aus.', $helper);
+    app(SetStatusSignal::class)->handle($event, 'servers', StatusLevel::Ok, null, $helper);
+
+    $scene = InfoscreenScene::factory()->for($event)->create([
+        'type' => SceneType::Status,
+        'config' => new SceneConfig,
+    ]);
+
+    $payload = ScenePayload::for($scene);
+
+    expect($payload['data']['signals'])->toHaveCount(2);
+
+    $internet = collect($payload['data']['signals'])->firstWhere('component', 'internet');
+    $servers = collect($payload['data']['signals'])->firstWhere('component', 'servers');
+
+    expect($internet)->toMatchArray(['component' => 'internet', 'level' => 'down', 'message' => 'Jetzt ganz aus.'])
+        ->and($servers)->toMatchArray(['component' => 'servers', 'level' => 'ok', 'message' => null]);
+});
+
+it('returns an empty signals list for a status scene with no reports yet', function () {
+    $event = Event::factory()->live()->create();
+
+    $scene = InfoscreenScene::factory()->for($event)->create([
+        'type' => SceneType::Status,
+        'config' => new SceneConfig,
+    ]);
+
+    $payload = ScenePayload::for($scene);
+
+    expect($payload['data']['signals'])->toBe([]);
 });
 
 it('eager-loads the bracket projection without N+1 queries per match', function () {

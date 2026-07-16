@@ -8,11 +8,15 @@ use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Events\Models\Event;
 use App\Modules\Infoscreen\Actions\DrawTombola;
+use App\Modules\Infoscreen\Actions\SetStatusSignal;
 use App\Modules\Infoscreen\Actions\ShowSceneNow;
 use App\Modules\Infoscreen\Actions\TriggerCheckinOpen;
 use App\Modules\Infoscreen\Actions\TriggerFoodReady;
+use App\Modules\Infoscreen\Enums\StatusLevel;
 use App\Modules\Infoscreen\Exceptions\InfoscreenException;
+use App\Modules\Infoscreen\Http\Requests\SetStatusSignalRequest;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\StatusSignal;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -72,13 +76,33 @@ class ScreenControlController extends Controller
             ])
             ->all();
 
+        $statusSignals = StatusSignal::query()
+            ->where('event_id', $event->id)
+            ->currentPerComponent()
+            ->get()
+            ->map(fn (StatusSignal $signal): array => [
+                'component' => $signal->component,
+                'level' => $signal->level->value,
+                'message' => $signal->message,
+            ])
+            ->keyBy('component')
+            ->all();
+
         return Inertia::render('Screen/Control', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'scenes' => $scenes,
             'foodOrders' => $foodOrders,
             'tombolaPrizes' => $tombolaPrizes,
+            'statusComponents' => StatusSignal::COMPONENTS,
+            'statusSignals' => $statusSignals,
+            'statusLevels' => array_map(
+                fn (StatusLevel $level): array => ['value' => $level->value, 'label' => $level->label()],
+                StatusLevel::cases(),
+            ),
             'labels' => trans('infoscreen.control'),
             'triggerLabels' => trans('infoscreen.triggers'),
+            'statusLabels' => trans('infoscreen.status'),
+            'statusComponentLabels' => trans('infoscreen.status_component'),
         ]);
     }
 
@@ -148,6 +172,31 @@ class ScreenControlController extends Controller
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => trans('infoscreen.triggers.tombola_draw_sent'),
+        ]);
+
+        return back();
+    }
+
+    /**
+     * The operations status tile's "set status" control (Task 12): a helper
+     * flags one component's level, which either pops an outage reassurance
+     * onto the beamer or clears it — see {@see SetStatusSignal}.
+     */
+    public function setStatus(SetStatusSignalRequest $request, Event $event, SetStatusSignal $action): RedirectResponse
+    {
+        $this->authorize('setStatus', InfoscreenScene::class);
+
+        $action->handle(
+            $event,
+            $request->string('component')->value(),
+            StatusLevel::from($request->string('level')->value()),
+            $request->string('message')->value() ?: null,
+            $this->authUser($request),
+        );
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => trans('infoscreen.status.saved'),
         ]);
 
         return back();

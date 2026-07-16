@@ -14,6 +14,18 @@ return [
         'winner' => 'Sieger-Einblendung',
     ],
 
+    'status_level' => [
+        'ok' => 'OK',
+        'degraded' => 'Eingeschränkt',
+        'down' => 'Ausgefallen',
+    ],
+
+    'status_component' => [
+        'internet' => 'Internet',
+        'servers' => 'Server',
+        'voice' => 'Voice',
+    ],
+
     'resource' => [
         'label' => 'Infoscreen-Szene',
         'plural_label' => 'Infoscreen-Szenen',
@@ -56,6 +68,16 @@ return [
         'empty' => 'Es sind noch keine Szenen angelegt.',
         'enabled' => 'Aktiv',
         'disabled' => 'Inaktiv',
+    ],
+
+    'status' => [
+        'saved' => 'Status wurde gespeichert.',
+        'title' => 'Betriebsstatus',
+        'component_label' => 'Komponente',
+        'level_label' => 'Status',
+        'message_label' => 'Hinweis (optional)',
+        'message_placeholder' => 'z. B. „Kein Uplink, Techniker ist dran.“',
+        'save_button' => 'Status setzen',
     ],
 
     'triggers' => [
@@ -121,5 +143,17 @@ return [
         // SceneWinner (Task 7) — the finals winner-moment overlay.
         'winner_title' => 'Sieger!',
         'winner_subtitle' => 'Gewinner von :tournament',
+
+        // SceneStatus (Task 12) — the operations status tile and its
+        // auto-override reassurance banner.
+        'status_title' => 'Betriebsstatus',
+        'status_reassurance_title' => 'Orga weiß Bescheid',
+        'status_reassurance_body' => 'Es gibt gerade eine Störung — die Orga kümmert sich bereits.',
+        'status_component_internet' => 'Internet',
+        'status_component_servers' => 'Server',
+        'status_component_voice' => 'Voice',
+        'status_level_ok' => 'OK',
+        'status_level_degraded' => 'Eingeschränkt',
+        'status_level_down' => 'Ausgefallen',
     ],
 ];

@@ -9,6 +9,7 @@ import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
 import SceneSponsors from '@/components/scenes/SceneSponsors.vue';
+import SceneStatus from '@/components/scenes/SceneStatus.vue';
 import SceneTombola from '@/components/scenes/SceneTombola.vue';
 import SceneUpcomingMatches from '@/components/scenes/SceneUpcomingMatches.vue';
 import SceneWinner from '@/components/scenes/SceneWinner.vue';
@@ -22,9 +23,9 @@ const props = defineProps<{
     labels: Record<string, string>;
 }>();
 
-// Unknown/not-yet-shipped scene types (Status, ...) intentionally have no
-// entry here yet and render nothing via SceneFrame's <component :is>
-// fallback — later tasks add their component here as each scene ships.
+// Unknown/not-yet-shipped scene types intentionally have no entry here yet
+// and render nothing via SceneFrame's <component :is> fallback — later
+// tasks add their component here as each scene ships.
 const sceneComponents: Partial<Record<SceneType, Component>> = {
     announcement: SceneAnnouncement,
     bracket: SceneBracket,
@@ -35,6 +36,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     sponsors: SceneSponsors,
     tombola: SceneTombola,
     winner: SceneWinner,
+    status: SceneStatus,
 };
 
 const idleScene = computed<ScenePayloadDto>(() => ({
