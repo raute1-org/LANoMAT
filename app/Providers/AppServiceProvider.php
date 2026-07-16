@@ -27,6 +27,7 @@ use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\Schedule\Contracts\ScheduleParticipantResolver;
 use App\Modules\Schedule\Events\ScheduleItemTimeChanged;
 use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
 use App\Modules\Schedule\Listeners\SyncScheduleOnTournamentSaved;
@@ -49,6 +50,7 @@ use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Policies\TournamentPolicy;
+use App\Modules\Tournaments\Support\TournamentScheduleParticipantResolver;
 use App\Modules\Voice\Contracts\MumbleClient;
 use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
@@ -81,6 +83,8 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.mumble.rest_url'),
             (string) config('services.mumble.ice_secret'),
         ));
+
+        $this->app->bind(ScheduleParticipantResolver::class, TournamentScheduleParticipantResolver::class);
     }
 
     /**

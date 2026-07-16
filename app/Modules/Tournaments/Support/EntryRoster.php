@@ -53,4 +53,22 @@ class EntryRoster
             ->unique('id')
             ->values();
     }
+
+    /**
+     * The distinct users across every entry enrolled in the given
+     * tournament (union of each entry's roster, deduplicated by user id).
+     * Used to alarm affected tournament participants of a schedule change
+     * (see `TournamentScheduleParticipantResolver`).
+     *
+     * @return Collection<int, User>
+     */
+    public static function usersForTournament(int $tournamentId): Collection
+    {
+        $entries = TournamentEntry::query()->where('tournament_id', $tournamentId)->get();
+
+        return $entries
+            ->flatMap(fn (TournamentEntry $entry): Collection => self::usersFor($entry))
+            ->unique('id')
+            ->values();
+    }
 }
