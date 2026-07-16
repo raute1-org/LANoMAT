@@ -46,6 +46,13 @@ it('ignores unknown keys when decoding', function () {
         ->and($config->headline)->toBe('Hallo');
 });
 
+it('throws for a non-array, non-SceneConfig value on set', function () {
+    $cast = new SceneConfigCast;
+    $model = new InfoscreenScene;
+
+    $cast->set($model, 'config', 'not-an-array', []);
+})->throws(InvalidArgumentException::class, 'SceneConfig cast expects an array or SceneConfig for [config].');
+
 it('serializes sponsorLogoPaths and drops nulls/empties on set', function () {
     $scene = InfoscreenScene::factory()->create([
         'config' => new SceneConfig(

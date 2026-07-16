@@ -49,6 +49,10 @@ class SceneConfigCast implements CastsAttributes
         $config = $value ?? new SceneConfig;
 
         if (! $config instanceof SceneConfig) {
+            if (! is_array($config)) {
+                throw new InvalidArgumentException("SceneConfig cast expects an array or SceneConfig for [{$key}].");
+            }
+
             $config = SceneConfig::fromArray($config);
         }
 
