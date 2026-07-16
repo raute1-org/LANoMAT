@@ -2,6 +2,7 @@
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { Star } from '@lucide/vue';
 import { computed } from 'vue';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -82,13 +83,15 @@ const groupedItems = computed(() => {
         <div v-if="now || next" class="mt-8 grid gap-4 sm:grid-cols-2">
             <Card v-if="now" class="border-primary">
                 <CardHeader>
-                    <Badge>{{ labels.now }}</Badge>
+                    <LiveIndicator variant="live" :label="labels.now" />
                     <CardTitle class="mt-2">{{ now.title }}</CardTitle>
                     <CardDescription>
-                        {{ formatTime(now.startsAt) }}
-                        <template v-if="now.endsAt">
-                            – {{ formatTime(now.endsAt) }}
-                        </template>
+                        <span class="font-mono tabular-nums">
+                            {{ formatTime(now.startsAt) }}
+                            <template v-if="now.endsAt">
+                                – {{ formatTime(now.endsAt) }}
+                            </template>
+                        </span>
                         <template v-if="now.location">
                             · {{ now.location }}
                         </template>
@@ -101,7 +104,9 @@ const groupedItems = computed(() => {
                     <Badge variant="outline">{{ labels.next }}</Badge>
                     <CardTitle class="mt-2">{{ next.title }}</CardTitle>
                     <CardDescription>
-                        {{ formatTime(next.startsAt) }}
+                        <span class="font-mono tabular-nums">{{
+                            formatTime(next.startsAt)
+                        }}</span>
                         <template v-if="next.location">
                             · {{ next.location }}
                         </template>
@@ -110,9 +115,14 @@ const groupedItems = computed(() => {
             </Card>
         </div>
 
-        <p v-if="items.length === 0" class="mt-6 text-sm text-muted-foreground">
-            {{ labels.empty }}
-        </p>
+        <div
+            v-if="items.length === 0"
+            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+        >
+            <p class="text-sm text-muted-foreground">
+                {{ labels.empty }}
+            </p>
+        </div>
 
         <div v-else class="mt-10 space-y-8">
             <section v-for="group in groupedItems" :key="group.day">
@@ -131,10 +141,12 @@ const groupedItems = computed(() => {
                         <div>
                             <p class="font-medium">{{ item.title }}</p>
                             <p class="text-sm text-muted-foreground">
-                                {{ formatTime(item.startsAt) }}
-                                <template v-if="item.endsAt">
-                                    – {{ formatTime(item.endsAt) }}
-                                </template>
+                                <span class="font-mono tabular-nums">
+                                    {{ formatTime(item.startsAt) }}
+                                    <template v-if="item.endsAt">
+                                        – {{ formatTime(item.endsAt) }}
+                                    </template>
+                                </span>
                                 <template v-if="item.location">
                                     · {{ item.location }}
                                 </template>

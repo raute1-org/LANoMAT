@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +45,10 @@ function ctaFor(tournament: TournamentSummary): 'enroll' | 'checkin' | null {
 function formatDate(iso: string | null): string {
     return iso ? new Date(iso).toLocaleString() : '';
 }
+
+function isLive(tournament: TournamentSummary): boolean {
+    return tournament.status === 'live';
+}
 </script>
 
 <template>
@@ -54,12 +59,14 @@ function formatDate(iso: string | null): string {
             {{ labels.title }} — {{ event.name }}
         </h1>
 
-        <p
+        <div
             v-if="tournaments.length === 0"
-            class="mt-6 text-sm text-muted-foreground"
+            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
         >
-            {{ labels.no_tournaments }}
-        </p>
+            <p class="text-sm text-muted-foreground">
+                {{ labels.no_tournaments }}
+            </p>
+        </div>
 
         <ul
             v-else
@@ -81,13 +88,21 @@ function formatDate(iso: string | null): string {
                         {{ formatLabels[tournament.format] }} ·
                         {{ statusLabels[tournament.status] }}
                         <template v-if="tournament.startsAt">
-                            · {{ formatDate(tournament.startsAt) }}
+                            ·
+                            <span class="font-mono tabular-nums">{{
+                                formatDate(tournament.startsAt)
+                            }}</span>
                         </template>
                     </p>
                 </div>
 
                 <div class="flex shrink-0 items-center gap-2">
-                    <Badge variant="outline">{{
+                    <LiveIndicator
+                        v-if="isLive(tournament)"
+                        variant="live"
+                        :label="statusLabels[tournament.status]"
+                    />
+                    <Badge v-else variant="outline">{{
                         statusLabels[tournament.status]
                     }}</Badge>
                     <Button

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Badge } from '@/components/ui/badge';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -86,38 +86,44 @@ function menuOptionName(
             {{ labels.title }} — {{ event.name }}
         </h1>
 
-        <p
+        <div
             v-if="orders.length === 0"
-            class="mt-6 text-sm text-muted-foreground"
+            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
         >
-            {{ labels.empty }}
-        </p>
+            <p class="text-sm text-muted-foreground">
+                {{ labels.empty }}
+            </p>
+        </div>
 
         <div v-else class="mt-8 space-y-8">
             <Card v-for="foodOrder in orders" :key="foodOrder.id">
                 <CardHeader>
                     <div class="flex items-center justify-between gap-4">
                         <CardTitle>{{ foodOrder.title }}</CardTitle>
-                        <Badge
-                            :variant="foodOrder.isOpen ? 'default' : 'outline'"
-                        >
-                            {{
+                        <LiveIndicator
+                            :variant="foodOrder.isOpen ? 'ok' : 'down'"
+                            :pulse="foodOrder.isOpen"
+                            :label="
                                 foodOrder.isOpen
                                     ? labels.window_open
                                     : labels.window_closed
-                            }}
-                        </Badge>
+                            "
+                        />
                     </div>
                     <CardDescription
                         v-if="foodOrder.opensAt || foodOrder.closesAt"
                     >
                         <span v-if="foodOrder.opensAt">
                             {{ labels.opens_at }}:
-                            {{ formatDateTime(foodOrder.opensAt) }}
+                            <span class="font-mono tabular-nums">{{
+                                formatDateTime(foodOrder.opensAt)
+                            }}</span>
                         </span>
                         <span v-if="foodOrder.closesAt">
                             · {{ labels.closes_at }}:
-                            {{ formatDateTime(foodOrder.closesAt) }}
+                            <span class="font-mono tabular-nums">{{
+                                formatDateTime(foodOrder.closesAt)
+                            }}</span>
                         </span>
                     </CardDescription>
                 </CardHeader>
@@ -137,7 +143,9 @@ function menuOptionName(
                             >
                                 <div>
                                     <p class="font-medium">{{ option.name }}</p>
-                                    <p class="text-sm text-muted-foreground">
+                                    <p
+                                        class="font-mono text-sm text-muted-foreground tabular-nums"
+                                    >
                                         {{ formatEuro(option.priceCents) }}
                                     </p>
                                 </div>
@@ -198,7 +206,9 @@ function menuOptionName(
                                     >
                                         {{ item.note }}
                                     </p>
-                                    <p class="text-sm text-muted-foreground">
+                                    <p
+                                        class="font-mono text-sm text-muted-foreground tabular-nums"
+                                    >
                                         {{ formatEuro(item.priceCents) }}
                                     </p>
                                 </div>
@@ -218,7 +228,9 @@ function menuOptionName(
                             class="mt-3 text-sm font-medium"
                         >
                             {{ labels.my_total }}:
-                            {{ formatEuro(foodOrder.myTotalCents) }}
+                            <span class="font-mono tabular-nums">{{
+                                formatEuro(foodOrder.myTotalCents)
+                            }}</span>
                         </p>
                     </section>
                 </CardContent>

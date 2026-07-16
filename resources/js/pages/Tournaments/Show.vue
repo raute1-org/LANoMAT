@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import BracketView from '@/components/bracket/BracketView.vue';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -16,11 +18,21 @@ const props = defineProps<{
     myEntryId: number | null;
     myMatchVoiceLink: MatchVoiceLink;
     labels: Record<string, string>;
+    statusLabels: Record<string, string>;
     matchStatusLabels: Record<string, string>;
     reportLabels: Record<string, string>;
 }>();
 
 useTournamentChannel(props.tournament.id);
+
+const isLive = computed(() => props.tournament.status === 'live');
+const isFinished = computed(() => props.tournament.status === 'finished');
+const isNotStarted = computed(
+    () =>
+        props.tournament.status === 'draft' ||
+        props.tournament.status === 'enrollment' ||
+        props.tournament.status === 'check_in',
+);
 </script>
 
 <template>
@@ -34,9 +46,16 @@ useTournamentChannel(props.tournament.id);
             &larr; {{ labels.back_to_index }}
         </a>
 
-        <h1 class="mt-2 text-3xl font-bold tracking-tight">
-            {{ tournament.name }}
-        </h1>
+        <div class="mt-2 flex items-center gap-3">
+            <h1 class="text-3xl font-bold tracking-tight">
+                {{ tournament.name }}
+            </h1>
+            <LiveIndicator
+                v-if="isLive"
+                variant="live"
+                :label="statusLabels[tournament.status]"
+            />
+        </div>
         <p class="text-sm text-muted-foreground">
             {{ tournament.event.name }}
         </p>
@@ -47,14 +66,32 @@ useTournamentChannel(props.tournament.id);
             </Button>
         </div>
 
-        <div class="mt-8">
-            <BracketView
-                :matches="matches"
-                :my-entry-id="myEntryId"
-                :match-status-labels="matchStatusLabels"
-                :report-labels="reportLabels"
-                :bracket-labels="labels"
-            />
+        <div
+            v-if="isNotStarted"
+            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+        >
+            <p class="text-sm text-muted-foreground">
+                {{ labels.not_started }}
+            </p>
         </div>
+
+        <template v-else>
+            <div
+                v-if="isFinished"
+                class="mt-8 rounded-lg border border-border bg-card p-4"
+            >
+                <LiveIndicator variant="ok" :label="labels.finished" />
+            </div>
+
+            <div class="mt-8">
+                <BracketView
+                    :matches="matches"
+                    :my-entry-id="myEntryId"
+                    :match-status-labels="matchStatusLabels"
+                    :report-labels="reportLabels"
+                    :bracket-labels="labels"
+                />
+            </div>
+        </template>
     </main>
 </template>

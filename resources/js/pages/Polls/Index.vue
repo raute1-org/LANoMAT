@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Badge } from '@/components/ui/badge';
 import { show as showPoll } from '@/routes/polls';
 import type { PollSummaryDto } from '@/types';
@@ -9,6 +10,10 @@ defineProps<{
     polls: PollSummaryDto[];
     labels: Record<string, string>;
 }>();
+
+function isOpen(poll: PollSummaryDto): boolean {
+    return poll.status === 'open';
+}
 </script>
 
 <template>
@@ -19,9 +24,14 @@ defineProps<{
             {{ labels.index_title }} — {{ event.name }}
         </h1>
 
-        <p v-if="polls.length === 0" class="mt-6 text-sm text-muted-foreground">
-            {{ labels.no_polls }}
-        </p>
+        <div
+            v-if="polls.length === 0"
+            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+        >
+            <p class="text-sm text-muted-foreground">
+                {{ labels.no_polls }}
+            </p>
+        </div>
 
         <ul
             v-else
@@ -40,11 +50,19 @@ defineProps<{
                         {{ poll.question }}
                     </Link>
                     <p class="text-sm text-muted-foreground">
-                        {{ labels.total_votes }}: {{ poll.totalVotes }}
+                        {{ labels.total_votes }}:
+                        <span class="font-mono tabular-nums">{{
+                            poll.totalVotes
+                        }}</span>
                     </p>
                 </div>
 
-                <Badge variant="outline">{{ poll.statusLabel }}</Badge>
+                <LiveIndicator
+                    v-if="isOpen(poll)"
+                    variant="live"
+                    :label="poll.statusLabel"
+                />
+                <Badge v-else variant="outline">{{ poll.statusLabel }}</Badge>
             </li>
         </ul>
     </main>

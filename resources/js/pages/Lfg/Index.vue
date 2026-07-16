@@ -156,16 +156,21 @@ function formatDateTime(iso: string): string {
             </CardContent>
         </Card>
 
-        <p v-if="posts.length === 0" class="mt-8 text-sm text-muted-foreground">
-            {{ labels.empty }}
-        </p>
+        <div
+            v-if="posts.length === 0"
+            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+        >
+            <p class="text-sm text-muted-foreground">
+                {{ labels.empty }}
+            </p>
+        </div>
 
         <div v-else class="mt-8 space-y-4">
             <Card v-for="post in posts" :key="post.id">
                 <CardHeader>
                     <div class="flex items-center justify-between gap-4">
                         <CardTitle>{{ post.title }}</CardTitle>
-                        <Badge v-if="post.mine" variant="default">
+                        <Badge v-if="post.mine" variant="outline">
                             {{ labels.mine_badge }}
                         </Badge>
                     </div>
@@ -182,12 +187,17 @@ function formatDateTime(iso: string): string {
                         v-if="post.slotsNeeded"
                         class="text-sm text-muted-foreground"
                     >
-                        {{ labels.slots_needed }}: {{ post.slotsNeeded }}
+                        {{ labels.slots_needed }}:
+                        <span class="font-mono tabular-nums">{{
+                            post.slotsNeeded
+                        }}</span>
                     </p>
 
                     <p class="text-sm text-muted-foreground">
                         {{ labels.expires_at }}:
-                        {{ formatDateTime(post.expiresAt) }}
+                        <span class="font-mono tabular-nums">{{
+                            formatDateTime(post.expiresAt)
+                        }}</span>
                     </p>
 
                     <Button

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,12 +71,18 @@ function hasVoted(): boolean {
             <CardHeader>
                 <div class="flex items-center justify-between gap-4">
                     <CardTitle>{{ poll.question }}</CardTitle>
-                    <Badge :variant="poll.isOpen ? 'default' : 'outline'">
-                        {{ poll.isOpen ? labels.title : labels.closed }}
-                    </Badge>
+                    <LiveIndicator
+                        v-if="poll.isOpen"
+                        variant="live"
+                        :label="labels.title"
+                    />
+                    <Badge v-else variant="outline">{{ labels.closed }}</Badge>
                 </div>
                 <CardDescription>
-                    {{ labels.total_votes }}: {{ poll.totalVotes }}
+                    {{ labels.total_votes }}:
+                    <span class="font-mono tabular-nums">{{
+                        poll.totalVotes
+                    }}</span>
                 </CardDescription>
             </CardHeader>
 
@@ -88,7 +95,9 @@ function hasVoted(): boolean {
                     <li v-for="option in poll.options" :key="option.id">
                         <div class="flex items-center justify-between gap-4">
                             <span class="font-medium">{{ option.label }}</span>
-                            <span class="text-sm text-muted-foreground">
+                            <span
+                                class="font-mono text-sm text-muted-foreground tabular-nums"
+                            >
                                 {{ option.count }} ({{ option.percent }}%)
                             </span>
                         </div>
@@ -97,7 +106,7 @@ function hasVoted(): boolean {
                             class="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"
                         >
                             <div
-                                class="h-full rounded-full bg-primary transition-all"
+                                class="h-full rounded-full bg-primary transition-all motion-reduce:transition-none"
                                 :style="{ width: `${option.percent}%` }"
                             />
                         </div>

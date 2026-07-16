@@ -99,6 +99,7 @@ class TournamentPageController extends Controller
             'myEntryId' => $myEntry?->id,
             'myMatchVoiceLink' => $myMatch === null ? null : $this->voiceLinkFor($myMatch, $myEntry),
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title')],
+            'statusLabels' => trans('tournaments.status'),
             'matchStatusLabels' => trans('tournaments.match_status'),
             'reportLabels' => trans('tournaments.report'),
         ]);

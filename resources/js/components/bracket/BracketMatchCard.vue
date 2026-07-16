@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,10 @@ function statusVariant(
 
     return 'outline';
 }
+
+const isLive = computed(
+    () => props.match.status === 'ready' || props.match.status === 'reported',
+);
 </script>
 
 <template>
@@ -85,10 +90,15 @@ function statusVariant(
         :data-match-id="match.id"
     >
         <div class="mb-2 flex items-center justify-between">
-            <span class="text-xs text-muted-foreground"
+            <span class="font-mono text-xs text-muted-foreground tabular-nums"
                 >#{{ match.position + 1 }}</span
             >
-            <Badge :variant="statusVariant(match.status)">
+            <LiveIndicator
+                v-if="isLive"
+                variant="live"
+                :label="matchStatusLabels[match.status]"
+            />
+            <Badge v-else :variant="statusVariant(match.status)">
                 {{ matchStatusLabels[match.status] }}
             </Badge>
         </div>
@@ -105,7 +115,7 @@ function statusVariant(
                 <span class="truncate text-sm">{{
                     slotLabel(match.slot1)
                 }}</span>
-                <span class="text-sm tabular-nums">{{
+                <span class="font-mono text-sm tabular-nums">{{
                     match.score1 ?? ''
                 }}</span>
             </div>
@@ -120,7 +130,7 @@ function statusVariant(
                 <span class="truncate text-sm">{{
                     slotLabel(match.slot2)
                 }}</span>
-                <span class="text-sm tabular-nums">{{
+                <span class="font-mono text-sm tabular-nums">{{
                     match.score2 ?? ''
                 }}</span>
             </div>
@@ -142,15 +152,15 @@ function statusVariant(
                     v-model.number="reportForm.score1"
                     type="number"
                     min="0"
-                    class="h-8"
+                    class="h-8 font-mono tabular-nums"
                     :aria-label="reportLabels.score1"
                 />
-                <span class="text-xs text-muted-foreground">:</span>
+                <span class="font-mono text-xs text-muted-foreground">:</span>
                 <Input
                     v-model.number="reportForm.score2"
                     type="number"
                     min="0"
-                    class="h-8"
+                    class="h-8 font-mono tabular-nums"
                     :aria-label="reportLabels.score2"
                 />
             </div>

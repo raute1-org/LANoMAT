@@ -59,6 +59,8 @@ return [
         'enroll' => 'Anmelden',
         'check_in' => 'Einchecken',
         'join_voice' => 'Voice beitreten',
+        'not_started' => 'Das Turnier hat noch nicht begonnen.',
+        'finished' => 'Turnier beendet',
     ],
 
     'format' => [
