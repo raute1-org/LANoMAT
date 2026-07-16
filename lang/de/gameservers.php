@@ -14,6 +14,9 @@ return [
         'both_preset_and_upload' => 'Es wurden sowohl ein Server-Preset als auch eine hochgeladene Konfiguration angegeben; es ist genau eine erlaubt.',
         'preset_not_found' => 'Für dieses Spiel existiert kein Server-Preset mit diesem Schlüssel.',
         'invalid_default_config_upload' => 'Die hochgeladene Standard-Konfigurationsdatei fehlt oder ist kein gültiges JSON. Bitte erneut hochladen.',
+        'ram_cap_exceeded' => 'Der geschätzte Arbeitsspeicherbedarf überschreitet das Limit pro Server.',
+        'slots_cap_exceeded' => 'Die konfigurierte Slot-Anzahl überschreitet das Limit pro Server.',
+        'user_server_cap_exceeded' => 'Du hast bereits die maximale Anzahl laufender Spielserver erreicht.',
     ],
     'match_page' => [
         'heading' => 'Spielserver',
@@ -22,6 +25,8 @@ return [
         'copied' => 'Kopiert!',
         'address_label' => 'Adresse',
         'port_label' => 'Port',
+        'estimate_label' => 'Geschätzter Bedarf',
+        'estimate_over_cap' => 'Über dem Limit',
     ],
     'page' => [
         'title' => 'Spielserver',
@@ -39,6 +44,8 @@ return [
         'status_ready' => 'Bereit',
         'status_failed' => 'Fehlgeschlagen',
         'status_stopped' => 'Gestoppt',
+        'estimate_label' => 'Geschätzter Bedarf',
+        'estimate_over_cap' => 'Über dem Limit',
     ],
     'resource' => [
         'label' => 'Spielserver',

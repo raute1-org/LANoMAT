@@ -9,6 +9,7 @@ use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Jobs\ProvisionMatchServerJob;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Support\EffectiveConfig;
+use App\Modules\GameServers\Support\GuardrailPolicy;
 use App\Modules\Infoscreen\Exceptions\InfoscreenException;
 use DomainException;
 
@@ -82,6 +83,43 @@ class GameServerException extends DomainException
         return new self(
             "No server preset with key [{$key}] exists for this game.",
             'gameservers.errors.preset_not_found',
+        );
+    }
+
+    /**
+     * Thrown by {@see GuardrailPolicy::assertWithinLimits()} when the
+     * resolved config's estimated RAM exceeds `services.pelican.max_ram_mb`.
+     */
+    public static function ramCapExceeded(int $estimatedMb, int $capMb): self
+    {
+        return new self(
+            "Estimated RAM ({$estimatedMb} MB) exceeds the per-instance cap ({$capMb} MB).",
+            'gameservers.errors.ram_cap_exceeded',
+        );
+    }
+
+    /**
+     * Thrown by {@see GuardrailPolicy::assertWithinLimits()} when the
+     * resolved config's slot count exceeds `services.pelican.max_slots`.
+     */
+    public static function slotsCapExceeded(int $slots, int $capSlots): self
+    {
+        return new self(
+            "Configured slots ({$slots}) exceed the per-instance cap ({$capSlots}).",
+            'gameservers.errors.slots_cap_exceeded',
+        );
+    }
+
+    /**
+     * Thrown by {@see GuardrailPolicy::assertWithinLimits()} when the
+     * requester already has `services.pelican.max_servers_per_user` or more
+     * running {@see \App\Modules\GameServers\Models\ServerLink}s.
+     */
+    public static function userServerCapExceeded(int $capServers): self
+    {
+        return new self(
+            "The requester already has {$capServers} or more running game servers.",
+            'gameservers.errors.user_server_cap_exceeded',
         );
     }
 }

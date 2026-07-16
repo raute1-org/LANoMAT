@@ -70,12 +70,13 @@ it('resolves the serverLink relation from GameMatch', function () {
         ->and($match->serverLink->id)->toBe($link->id);
 });
 
-it('has match_id, tournament_id, manual fillable but not pelican_server_id, join_info, status', function () {
+it('has match_id, tournament_id, manual, requested_by fillable but not pelican_server_id, join_info, status', function () {
     $link = new ServerLink;
 
     expect($link->getFillable())->toBe([
         'match_id',
         'tournament_id',
         'manual',
+        'requested_by',
     ]);
 });

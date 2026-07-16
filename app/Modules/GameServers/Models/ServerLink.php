@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\GameServers\Models;
 
+use App\Models\User;
 use App\Modules\GameServers\Casts\JoinInfoCast;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property JoinInfo $join_info
  * @property ServerLinkStatus $status
  * @property bool $manual
+ * @property int|null $requested_by
  */
 class ServerLink extends Model
 {
@@ -30,11 +32,14 @@ class ServerLink extends Model
 
     // pelican_server_id/join_info/status are provisioning state set only by
     // the provisioning Job/Action (Task 4), never client-fillable (mirrors
-    // GameMatch's status/score fields).
+    // GameMatch's status/score fields). requested_by is written only by
+    // SetManualJoinInfo (the interactive path) — see GuardrailPolicy's
+    // per-user-cap doc for why the automatic job path leaves it null.
     protected $fillable = [
         'match_id',
         'tournament_id',
         'manual',
+        'requested_by',
     ];
 
     protected function casts(): array
@@ -56,6 +61,12 @@ class ServerLink extends Model
     public function tournament(): BelongsTo
     {
         return $this->belongsTo(Tournament::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
     protected static function newFactory(): ServerLinkFactory

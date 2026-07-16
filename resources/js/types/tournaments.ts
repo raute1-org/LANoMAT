@@ -25,16 +25,31 @@ export type ServerLinkStatusValue =
     'pending' | 'provisioning' | 'ready' | 'failed' | 'stopped';
 
 /**
+ * The pre-start RAM readout for a match's game server (roadmap 6.7),
+ * populated only while the server isn't Ready yet and only when the
+ * tournament's game can be estimated from — mirrors the exact numbers
+ * `GuardrailPolicy`/`ResourceEstimate` enforce server-side, so this display
+ * can never drift from what's actually allowed.
+ */
+export interface ServerResourceEstimate {
+    ramMb: number;
+    maxRamMb: number;
+    overCap: boolean;
+}
+
+/**
  * The match's provisioned game server, or null when no ServerLink exists yet
  * (manual mode with nothing set, or the tournament's game has no Pelican
  * egg). `address`/`port`/`connectString` are only populated once `status` is
- * `'ready'` — while Provisioning/Failed, only `status` is meaningful.
+ * `'ready'` — while Provisioning/Failed, only `status` (and `estimate`) is
+ * meaningful.
  */
 export interface MatchServerDto {
     address: string | null;
     port: number | null;
     connectString: string | null;
     status: ServerLinkStatusValue;
+    estimate: ServerResourceEstimate | null;
 }
 
 export interface BracketMatchDto {

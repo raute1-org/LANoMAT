@@ -158,6 +158,24 @@ async function copy(text: string) {
                                     {{ server.slotsUsed }}/{{ server.slotsMax }}
                                 </dd>
                             </div>
+                            <div v-if="server.estimate">
+                                <dt class="text-muted-foreground">
+                                    {{ labels.estimate_label }}
+                                </dt>
+                                <dd
+                                    class="font-mono tabular-nums"
+                                    :class="
+                                        server.estimate.overCap
+                                            ? 'text-warn'
+                                            : ''
+                                    "
+                                >
+                                    ~{{ server.estimate.ramMb }} MB
+                                    <span v-if="server.estimate.overCap">
+                                        · {{ labels.estimate_over_cap }}</span
+                                    >
+                                </dd>
+                            </div>
                         </dl>
 
                         <div

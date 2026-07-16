@@ -5,7 +5,9 @@ namespace App\Modules\Tournaments\Support;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\EffectiveConfig;
 use App\Modules\GameServers\Support\PelicanJoinLink;
+use App\Modules\GameServers\Support\ResourceEstimate;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -45,7 +47,7 @@ class BracketMatchProjection
             'winnerEntryId' => $match->winner_entry_id,
             'status' => $match->status->value,
             'lockVersion' => $match->lock_version,
-            'server' => self::serverDto($match->serverLink),
+            'server' => self::serverDto($match, $match->serverLink),
         ];
     }
 
@@ -59,9 +61,17 @@ class BracketMatchProjection
      * {@see PollServerStatusJob} has written
      * them (Ready).
      *
-     * @return array{address: ?string, port: ?int, connectString: ?string, status: string}|null
+     * `estimate` (roadmap 6.7) is the pre-start RAM readout: populated only
+     * while the server isn't Ready yet (once Ready, the estimate is stale
+     * history, not something the viewer needs) and only when the tournament
+     * has a game to estimate from — the same {@see ResourceEstimate}/
+     * {@see EffectiveConfig} the enforcing {@see GuardrailPolicy} in
+     * `ProvisionMatchServerJob` uses, so the UI number can never drift from
+     * what's actually enforced.
+     *
+     * @return array{address: ?string, port: ?int, connectString: ?string, status: string, estimate: ?array{ramMb: int, maxRamMb: int, overCap: bool}}|null
      */
-    private static function serverDto(?ServerLink $link): ?array
+    private static function serverDto(GameMatch $match, ?ServerLink $link): ?array
     {
         if ($link === null) {
             return null;
@@ -74,13 +84,37 @@ class BracketMatchProjection
             'port' => $isReady ? $link->join_info->port : null,
             'connectString' => $isReady ? PelicanJoinLink::for($link->join_info) : null,
             'status' => $link->status->value,
+            'estimate' => $isReady ? null : self::estimateFor($match),
+        ];
+    }
+
+    /**
+     * @return array{ramMb: int, maxRamMb: int, overCap: bool}|null
+     */
+    private static function estimateFor(GameMatch $match): ?array
+    {
+        $game = $match->tournament?->game;
+
+        if ($game === null) {
+            return null;
+        }
+
+        $config = EffectiveConfig::resolve($game, presetKey: null, uploadedPath: null);
+        $ramMb = ResourceEstimate::for($game, $config);
+        $maxRamMb = (int) config('services.pelican.max_ram_mb');
+
+        return [
+            'ramMb' => $ramMb,
+            'maxRamMb' => $maxRamMb,
+            'overCap' => $ramMb > $maxRamMb,
         ];
     }
 
     /**
      * Every match belonging to `$tournamentId`, ordered round/position, as
-     * DTOs — eager-loading `entry1`/`entry2`/`serverLink` so
-     * `slot1`/`slot2`/`server` never N+1.
+     * DTOs — eager-loading `entry1`/`entry2`/`serverLink`/`tournament.game`
+     * so `slot1`/`slot2`/`server` (incl. the pre-start RAM estimate) never
+     * N+1.
      *
      * @return list<array<string, mixed>>
      */
@@ -88,7 +122,7 @@ class BracketMatchProjection
     {
         $matches = GameMatch::query()
             ->where('tournament_id', $tournamentId)
-            ->with(['entry1', 'entry2', 'serverLink'])
+            ->with(['entry1', 'entry2', 'serverLink', 'tournament.game'])
             ->orderBy('round')
             ->orderBy('position')
             ->get()
@@ -105,7 +139,7 @@ class BracketMatchProjection
     {
         return GameMatch::query()
             ->where('tournament_id', $tournamentId)
-            ->with(['entry1', 'entry2', 'serverLink'])
+            ->with(['entry1', 'entry2', 'serverLink', 'tournament.game'])
             ->orderBy('round')
             ->orderBy('position')
             ->get();

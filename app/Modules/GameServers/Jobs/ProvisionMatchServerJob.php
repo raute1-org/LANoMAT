@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\GameServers\Jobs;
 
+use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\EffectiveConfig;
+use App\Modules\GameServers\Support\GuardrailPolicy;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
@@ -45,6 +47,17 @@ use Throwable;
  * `PelicanClient::createServer()` call deliberately happens *after* the
  * transaction commits (lock released), so the DB lock is never held across
  * network IO.
+ *
+ * Before that external call, the resolved config is checked against
+ * {@see GuardrailPolicy::assertWithinLimits()} (roadmap 6.7: RAM/slot caps
+ * plus per-user concurrency, enforced here — not only in the UI — so a
+ * breach can never reach `createServer()`). This job has no interactive
+ * requester (it reacts to `MatchReady`, not a human action), so it passes
+ * `null` and only the RAM/slot caps apply; see `GuardrailPolicy`'s docblock
+ * for the full attribution rationale. A breach re-uses the exact same
+ * Failed-and-rethrow handling as a `createServer()` failure below, since the
+ * slot (`ServerLink` row + `matches.server_link_id`) was already committed
+ * and must not be left dangling in Provisioning.
  */
 class ProvisionMatchServerJob implements ShouldQueue
 {
@@ -56,7 +69,7 @@ class ProvisionMatchServerJob implements ShouldQueue
 
     public function handle(PelicanClient $client): void
     {
-        /** @var array{link: ServerLink, eggId: string, config: array<string, mixed>}|null $claim */
+        /** @var array{link: ServerLink, eggId: string, config: array<string, mixed>, game: Game}|null $claim */
         $claim = DB::transaction(function (): ?array {
             $match = GameMatch::query()->with('tournament.game')->whereKey($this->matchId)->lockForUpdate()->first();
 
@@ -96,6 +109,7 @@ class ProvisionMatchServerJob implements ShouldQueue
                 'link' => $link,
                 'eggId' => $game->pelican_egg_id,
                 'config' => EffectiveConfig::resolve($game, presetKey: null, uploadedPath: null),
+                'game' => $game,
             ];
         });
 
@@ -106,6 +120,13 @@ class ProvisionMatchServerJob implements ShouldQueue
         $link = $claim['link'];
 
         try {
+            // Enforced here, before the external call: a guardrail breach
+            // must mean no server is ever created (see this job's docblock
+            // and GuardrailPolicy's). No interactive requester exists for
+            // this automatic path, so the per-user cap is skipped (null) —
+            // only the RAM/slot caps apply.
+            GuardrailPolicy::assertWithinLimits($claim['game'], $claim['config'], requester: null);
+
             $server = $client->createServer($claim['eggId'], $claim['config']);
         } catch (Throwable $e) {
             $link->status = ServerLinkStatus::Failed;

@@ -16,6 +16,14 @@ import type { MatchServerDto } from '@/types';
  * Hidden entirely while `server` is null (no ServerLink provisioned at
  * all — most matches, most of the time) to keep the calm/quiet card from
  * growing a permanent empty slot.
+ *
+ * Pre-start RAM estimate (roadmap 6.7): a quiet mono readout shown only
+ * while `server.estimate` is populated (i.e. not Ready yet) — the same
+ * number `GuardrailPolicy` enforces server-side, not a UI-only guess. Stays
+ * calm (muted-foreground) within limits; flips to `text-warn` with a short
+ * label when the estimate is over the per-instance cap, since the actual
+ * enforcement already happened in the job — this is informational, not a
+ * blocking control.
  */
 const props = defineProps<{
     server: MatchServerDto | null;
@@ -105,5 +113,19 @@ async function copyAddress() {
                 <Copy v-else class="size-3.5" />
             </Button>
         </template>
+
+        <span
+            v-else-if="server.estimate"
+            class="font-mono text-xs tabular-nums"
+            :class="
+                server.estimate.overCap ? 'text-warn' : 'text-muted-foreground'
+            "
+        >
+            {{ labels.estimate_label }}: ~{{ server.estimate.ramMb }}
+            MB
+            <span v-if="server.estimate.overCap">
+                ({{ labels.estimate_over_cap }})</span
+            >
+        </span>
     </div>
 </template>

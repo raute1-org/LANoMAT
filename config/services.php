@@ -61,6 +61,13 @@ return [
         'application_token' => env('PELICAN_APPLICATION_TOKEN'),
         'client_token' => env('PELICAN_CLIENT_TOKEN'),
         'node_id' => env('PELICAN_NODE_ID'),
+        // Resource guardrails (roadmap 6.7): hard caps enforced by
+        // GuardrailPolicy in the provisioning Job/Action, not only the UI —
+        // a misconfigured preset/upload must never be able to freeze the
+        // host box or let one user spawn an unbounded number of servers.
+        'max_ram_mb' => (int) env('PELICAN_MAX_RAM_MB', 4096),
+        'max_slots' => (int) env('PELICAN_MAX_SLOTS', 64),
+        'max_servers_per_user' => (int) env('PELICAN_MAX_SERVERS_PER_USER', 3),
     ],
 
 ];
