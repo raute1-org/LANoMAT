@@ -19,6 +19,8 @@ use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\HttpPelicanClient;
+use App\Modules\GameServers\Listeners\CleanupServersOnCompleted;
+use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\TombolaPrize;
@@ -182,6 +184,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);
         Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
         Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
+        Event::listen(MatchReady::class, ProvisionMatchServerOnReady::class);
+        Event::listen(TournamentCompleted::class, CleanupServersOnCompleted::class);
         Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
         Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
         Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);

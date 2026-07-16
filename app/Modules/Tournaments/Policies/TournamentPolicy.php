@@ -3,6 +3,7 @@
 namespace App\Modules\Tournaments\Policies;
 
 use App\Models\User;
+use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -58,6 +59,18 @@ class TournamentPolicy
     public function manage(User $user, Tournament $tournament): bool
     {
         return $user->isOrga();
+    }
+
+    /**
+     * The manual game-server join-info fallback
+     * ({@see SetManualJoinInfo}) is
+     * helper-or-above, mirroring Infoscreen's `showNow`/`drawTombola`/
+     * `setStatus`: helpers run the live show (including papering over a
+     * failed auto-provision), orga configures tournaments separately.
+     */
+    public function setManualJoinInfo(User $user, GameMatch $match): bool
+    {
+        return $user->isHelper();
     }
 
     /**
