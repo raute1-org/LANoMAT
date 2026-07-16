@@ -3,7 +3,11 @@ import { Head, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import type { Component } from 'vue';
 import SceneAnnouncement from '@/components/scenes/SceneAnnouncement.vue';
+import SceneBracket from '@/components/scenes/SceneBracket.vue';
 import SceneFrame from '@/components/scenes/SceneFrame.vue';
+import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
+import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
+import SceneUpcomingMatches from '@/components/scenes/SceneUpcomingMatches.vue';
 import { useEventChannel } from '@/composables/useEventChannel';
 import { useSceneRotation } from '@/composables/useSceneRotation';
 import type { ScenePayloadDto, SceneType } from '@/types';
@@ -14,11 +18,15 @@ const props = defineProps<{
     labels: Record<string, string>;
 }>();
 
-// Unknown/not-yet-shipped scene types (Bracket, Schedule, ...) intentionally
+// Unknown/not-yet-shipped scene types (PaymentQr, Sponsors, ...) intentionally
 // have no entry here yet and render nothing via SceneFrame's <component :is>
 // fallback — later tasks add their component here as each scene ships.
 const sceneComponents: Partial<Record<SceneType, Component>> = {
     announcement: SceneAnnouncement,
+    bracket: SceneBracket,
+    upcoming_matches: SceneUpcomingMatches,
+    schedule: SceneSchedule,
+    seatmap: SceneSeatmap,
 };
 
 const idleScene = computed<ScenePayloadDto>(() => ({

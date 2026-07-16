@@ -22,6 +22,7 @@ use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
 use App\Modules\Voice\Support\MumbleJoinLink;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -78,12 +79,7 @@ class TournamentPageController extends Controller
         abort_if($event === null, 500, 'Tournament has no associated event.');
         abort_unless($event->isPubliclyVisible(), 404);
 
-        $matches = GameMatch::query()
-            ->where('tournament_id', $tournament->id)
-            ->with(['entry1', 'entry2'])
-            ->orderBy('round')
-            ->orderBy('position')
-            ->get();
+        $matches = BracketMatchProjection::matchesForTournament($tournament->id);
 
         $user = $request->user();
         $myEntry = $user === null ? null : $this->entryFor($tournament, $user);
@@ -99,7 +95,7 @@ class TournamentPageController extends Controller
                 'event' => ['name' => $event->name, 'slug' => $event->slug],
                 'winnerEntryId' => $tournament->winner_entry_id,
             ],
-            'matches' => $matches->map(fn (GameMatch $match): array => $this->matchDto($match))->all(),
+            'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
             'myEntryId' => $myEntry?->id,
             'myMatchVoiceLink' => $myMatch === null ? null : $this->voiceLinkFor($myMatch, $myEntry),
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title')],
@@ -230,33 +226,6 @@ class TournamentPageController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.report.disputed')]);
 
         return back();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function matchDto(GameMatch $match): array
-    {
-        return [
-            'id' => $match->id,
-            'round' => $match->round,
-            'bracket' => $match->bracket,
-            'position' => $match->position,
-            'nextMatchId' => $match->next_match_id,
-            'nextSlot' => $match->next_slot,
-            'slot1' => $match->entry1?->display_name,
-            'slot2' => $match->entry2?->display_name,
-            // Entry ids (not full models) so the frontend can tell whether
-            // the logged-in viewer participates in this match, without
-            // leaking full TournamentEntry/User data into the bracket prop.
-            'entry1Id' => $match->entry1_id,
-            'entry2Id' => $match->entry2_id,
-            'score1' => $match->score1,
-            'score2' => $match->score2,
-            'winnerEntryId' => $match->winner_entry_id,
-            'status' => $match->status->value,
-            'lockVersion' => $match->lock_version,
-        ];
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Modules\Seating\Actions\ClaimSeat;
 use App\Modules\Seating\Actions\ReleaseSeat;
 use App\Modules\Seating\Exceptions\SeatException;
 use App\Modules\Seating\Models\Seat;
+use App\Modules\Seating\Support\SeatProjection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,20 +30,7 @@ class SeatingController extends Controller
     {
         abort_unless($event->isPubliclyVisible(), 404);
 
-        $seats = Seat::query()
-            ->where('event_id', $event->id)
-            ->with('assignment.registration.user')
-            ->orderBy('pos_y')
-            ->orderBy('pos_x')
-            ->get()
-            ->map(fn (Seat $seat) => [
-                'id' => $seat->id,
-                'label' => $seat->label,
-                'x' => $seat->pos_x,
-                'y' => $seat->pos_y,
-                'occupant' => $seat->assignment?->registration?->user?->name,
-            ])
-            ->all();
+        $seats = SeatProjection::forEvent($event);
 
         $user = $request->user();
         $myRegistration = $user === null ? null : $this->activeRegistration($event, $user->id);

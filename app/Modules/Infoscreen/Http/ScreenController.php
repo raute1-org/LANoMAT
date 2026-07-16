@@ -23,6 +23,7 @@ class ScreenController extends Controller
 
         $scenes = InfoscreenScene::query()
             ->where('event_id', $event->id)
+            ->with('event')
             ->enabledOrdered()
             ->get()
             ->map(fn (InfoscreenScene $scene): array => ScenePayload::for($scene))

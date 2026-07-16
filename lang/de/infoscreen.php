@@ -42,5 +42,33 @@ return [
         'title' => 'Infoscreen',
         'idle' => 'Bereit',
         'idle_body' => 'Es sind noch keine Szenen aktiv.',
+
+        'bracket_title' => 'Turnierbaum',
+        'upcoming_matches_title' => 'Nächste Matches',
+        'upcoming_matches_empty' => 'Aktuell sind keine Matches bereit.',
+        'slot_tbd' => 'TBD',
+        'versus' => 'vs.',
+        'schedule_title' => 'Programm',
+        'schedule_now' => 'Jetzt',
+        'schedule_next' => 'Gleich',
+        'schedule_empty' => 'Noch kein Programm.',
+        'seatmap_title' => 'Sitzplan',
+        'seatmap_empty' => 'Es sind noch keine Plätze angelegt.',
+
+        // BracketView's own labels (shared with the tournament show page's
+        // "labels"/"matchStatusLabels"/"reportLabels" — mirrored here flat
+        // since the screen only has one "labels" bag).
+        'round' => 'Runde :number',
+        'winners_bracket' => 'Gewinner-Bracket',
+        'losers_bracket' => 'Verlierer-Bracket',
+        'finals' => 'Finale',
+        'match_status_pending' => 'Ausstehend',
+        'match_status_ready' => 'Bereit',
+        'match_status_reported' => 'Gemeldet',
+        'match_status_disputed' => 'Strittig',
+        'match_status_completed' => 'Abgeschlossen',
+        'report_action' => 'Melden',
+        'confirm_action' => 'Bestätigen',
+        'dispute_action' => 'Anfechten',
     ],
 ];
