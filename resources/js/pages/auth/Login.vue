@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 
 defineOptions({
     layout: {
-        title: 'Log in to your account',
-        description: 'Log in with your Discord account to continue',
+        title: 'Anmelden',
+        description:
+            'Melde dich mit deinem Discord-Account an, um fortzufahren',
     },
 });
 
@@ -15,7 +16,7 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Log in" />
+    <Head title="Anmelden" />
 
     <div
         v-if="status"
