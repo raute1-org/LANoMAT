@@ -9,6 +9,7 @@ export * from './notifications';
 export * from './registration';
 export * from './schedule';
 export * from './seating';
+export * from './stats';
 export * from './teams';
 export * from './tournaments';
 export * from './ui';

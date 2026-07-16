@@ -15,6 +15,7 @@ use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
 use App\Modules\Schedule\Http\ScheduleController;
 use App\Modules\Seating\Http\SeatingController;
+use App\Modules\Stats\Http\StatsPageController;
 use App\Modules\Teams\Http\TeamController;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Voting\Http\PollPageController;
@@ -27,6 +28,11 @@ Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.s
 
 Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
 Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+
+// Public cross-event leaderboard — aggregates completed matches/tournament
+// wins across every event (see LeaderboardQuery), so unlike the rest of the
+// participant UI it is not scoped under /events/{event:slug}.
+Route::get('/stats/leaderboard', [StatsPageController::class, 'leaderboard'])->name('stats.leaderboard');
 
 // Public "who sits where" seat map — readable without authentication;
 // claiming/releasing a seat requires auth + an active registration (see below).
