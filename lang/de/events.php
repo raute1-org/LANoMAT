@@ -32,6 +32,13 @@ return [
         'done' => 'Status geändert auf: :status',
     ],
 
+    'notifications' => [
+        'registration_opened' => [
+            'title' => 'Anmeldung geöffnet',
+            'body' => 'Die Anmeldung für :event ist jetzt geöffnet!',
+        ],
+    ],
+
     'page' => [
         'title' => 'LAN-Party',
         'no_current_event' => 'Aktuell ist keine LAN angekündigt.',

@@ -41,6 +41,7 @@ use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentCompleted;
 use App\Modules\Tournaments\Events\TournamentSaved;
 use App\Modules\Tournaments\Events\TournamentStarted;
+use App\Modules\Tournaments\Listeners\NotifyRosterOnMatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
@@ -157,6 +158,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
         Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);
         Event::listen(MatchReady::class, CreateMatchChannelOnReady::class);
+        Event::listen(MatchReady::class, NotifyRosterOnMatchReady::class);
         Event::listen(MatchCompleted::class, AnnounceAndCleanupOnCompleted::class);
         Event::listen(MatchCompleted::class, BroadcastWinnerMoment::class);
         Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);

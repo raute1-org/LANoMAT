@@ -47,6 +47,13 @@ return [
         'my_total' => 'Meine Summe',
     ],
 
+    'notifications' => [
+        'food_ready' => [
+            'title' => 'Essen ist da',
+            'body' => 'Das Essen für „:order“ ist da – komm vorbei!',
+        ],
+    ],
+
     'admin' => [
         'actions' => [
             'open' => 'Öffnen',

@@ -48,6 +48,17 @@ return [
         'disabled' => 'Inaktiv',
     ],
 
+    'triggers' => [
+        'title' => 'Trigger',
+        'food_ready_title' => 'Essen ist da',
+        'food_ready_button' => 'Essen ist da',
+        'food_ready_sent' => 'Alle Bestellenden wurden benachrichtigt.',
+        'food_ready_empty' => 'Es gibt aktuell keine offene Essensbestellung.',
+        'checkin_open_title' => 'Check-in öffnet',
+        'checkin_open_button' => 'Check-in öffnet',
+        'checkin_open_sent' => 'Alle bestätigten Teilnehmenden wurden benachrichtigt.',
+    ],
+
     'screen' => [
         'title' => 'Infoscreen',
         'idle' => 'Bereit',

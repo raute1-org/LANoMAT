@@ -41,4 +41,14 @@ class FoodOrderPolicy
     {
         return $user->isOrga();
     }
+
+    /**
+     * The one-click "Essen ist da" trigger (see TriggerFoodReady) is
+     * helper-or-above, unlike the rest of this policy — helpers run the live
+     * event but don't configure the order itself.
+     */
+    public function trigger(User $user, FoodOrder $order): bool
+    {
+        return $user->isHelper();
+    }
 }

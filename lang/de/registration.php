@@ -41,6 +41,13 @@ return [
         'export' => 'CSV-Export',
     ],
 
+    'notifications' => [
+        'checkin_opened' => [
+            'title' => 'Check-in geöffnet',
+            'body' => 'Der Check-in für :event ist jetzt geöffnet.',
+        ],
+    ],
+
     'checkin' => [
         'title' => 'Check-in',
         'scan' => 'QR-Code scannen',

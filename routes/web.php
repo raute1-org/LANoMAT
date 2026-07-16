@@ -107,6 +107,11 @@ Route::middleware(['auth', 'role:helper'])->group(function () {
     // drift on behaviour.
     Route::get('/screen/{event:slug}/control', [ScreenControlController::class, 'index'])->name('screen.control');
     Route::post('/screen/{event:slug}/control/{scene}', [ScreenControlController::class, 'show'])->name('screen.control.show');
+
+    // One-click triggers (Task 10): notify the bell (Discord DM mirrors per
+    // preference), then, for the food trigger, also push the beamer.
+    Route::post('/screen/{event:slug}/control/triggers/food-ready/{foodOrder}', [ScreenControlController::class, 'foodReady'])->name('screen.control.trigger.food-ready');
+    Route::post('/screen/{event:slug}/control/triggers/checkin-open', [ScreenControlController::class, 'checkinOpen'])->name('screen.control.trigger.checkin-open');
 });
 
 Route::middleware(['guest'])->group(function () {

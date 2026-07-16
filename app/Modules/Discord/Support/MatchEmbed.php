@@ -46,7 +46,12 @@ class MatchEmbed
         ];
     }
 
-    private static function voiceLink(GameMatch $match, string $entry1Name, string $entry2Name): ?string
+    /**
+     * Public so other bell/notification surfaces (e.g. MatchReadyBell) can
+     * reuse the exact same voice-link text without re-deriving it from the
+     * rendered embed description.
+     */
+    public static function voiceLink(GameMatch $match, string $entry1Name, string $entry2Name): ?string
     {
         $entry1ChannelId = $match->voice_channels['entry1_channel_id'] ?? null;
         $entry2ChannelId = $match->voice_channels['entry2_channel_id'] ?? null;

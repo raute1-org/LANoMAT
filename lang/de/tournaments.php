@@ -142,4 +142,11 @@ return [
         'score1' => 'Ergebnis (du)',
         'score2' => 'Ergebnis (Gegner)',
     ],
+
+    'notifications' => [
+        'match_ready' => [
+            'title' => 'Match bereit',
+            'body' => ':entry1 vs. :entry2 – euer Match kann jetzt gespielt werden: :url',
+        ],
+    ],
 ];
