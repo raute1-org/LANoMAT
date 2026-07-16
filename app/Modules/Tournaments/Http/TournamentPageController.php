@@ -102,6 +102,8 @@ class TournamentPageController extends Controller
             'statusLabels' => trans('tournaments.status'),
             'matchStatusLabels' => trans('tournaments.match_status'),
             'reportLabels' => trans('tournaments.report'),
+            'serverLabels' => trans('gameservers.match_page'),
+            'serverLinkStatusLabels' => trans('gameservers.server_link_status'),
         ]);
     }
 

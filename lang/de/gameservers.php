@@ -12,4 +12,12 @@ return [
         'no_pelican_egg' => 'Für dieses Spiel ist kein Pelican-Egg hinterlegt.',
         'provisioning_exhausted' => 'Der Spielserver wurde nicht rechtzeitig bereit.',
     ],
+    'match_page' => [
+        'heading' => 'Spielserver',
+        'connect' => 'Verbinden',
+        'copy' => 'Kopieren',
+        'copied' => 'Kopiert!',
+        'address_label' => 'Adresse',
+        'port_label' => 'Port',
+    ],
 ];

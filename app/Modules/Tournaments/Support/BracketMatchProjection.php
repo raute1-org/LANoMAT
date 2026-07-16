@@ -2,6 +2,10 @@
 
 namespace App\Modules\Tournaments\Support;
 
+use App\Modules\GameServers\Enums\ServerLinkStatus;
+use App\Modules\GameServers\Jobs\PollServerStatusJob;
+use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\PelicanJoinLink;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -41,12 +45,42 @@ class BracketMatchProjection
             'winnerEntryId' => $match->winner_entry_id,
             'status' => $match->status->value,
             'lockVersion' => $match->lock_version,
+            'server' => self::serverDto($match->serverLink),
+        ];
+    }
+
+    /**
+     * The match's game-server join info as a lean DTO, or null if no
+     * ServerLink has been provisioned for it (manual mode with nothing set
+     * yet, or the tournament's game has no `pelican_egg_id`). Surfaced
+     * regardless of ServerLink status — Provisioning/Failed render as a
+     * `LiveIndicator` state on the page rather than being hidden outright —
+     * so `address`/`port`/`connectString` are only populated once
+     * {@see PollServerStatusJob} has written
+     * them (Ready).
+     *
+     * @return array{address: ?string, port: ?int, connectString: ?string, status: string}|null
+     */
+    private static function serverDto(?ServerLink $link): ?array
+    {
+        if ($link === null) {
+            return null;
+        }
+
+        $isReady = $link->status === ServerLinkStatus::Ready;
+
+        return [
+            'address' => $isReady ? $link->join_info->address : null,
+            'port' => $isReady ? $link->join_info->port : null,
+            'connectString' => $isReady ? PelicanJoinLink::for($link->join_info) : null,
+            'status' => $link->status->value,
         ];
     }
 
     /**
      * Every match belonging to `$tournamentId`, ordered round/position, as
-     * DTOs — eager-loading `entry1`/`entry2` so `slot1`/`slot2` never N+1.
+     * DTOs — eager-loading `entry1`/`entry2`/`serverLink` so
+     * `slot1`/`slot2`/`server` never N+1.
      *
      * @return list<array<string, mixed>>
      */
@@ -54,7 +88,7 @@ class BracketMatchProjection
     {
         $matches = GameMatch::query()
             ->where('tournament_id', $tournamentId)
-            ->with(['entry1', 'entry2'])
+            ->with(['entry1', 'entry2', 'serverLink'])
             ->orderBy('round')
             ->orderBy('position')
             ->get()
@@ -71,7 +105,7 @@ class BracketMatchProjection
     {
         return GameMatch::query()
             ->where('tournament_id', $tournamentId)
-            ->with(['entry1', 'entry2'])
+            ->with(['entry1', 'entry2', 'serverLink'])
             ->orderBy('round')
             ->orderBy('position')
             ->get();

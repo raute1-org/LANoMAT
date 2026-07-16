@@ -4,13 +4,22 @@ import BracketConnector from '@/components/bracket/BracketConnector.vue';
 import BracketRound from '@/components/bracket/BracketRound.vue';
 import type { BracketMatchDto } from '@/types';
 
-const props = defineProps<{
-    matches: BracketMatchDto[];
-    myEntryId: number | null;
-    matchStatusLabels: Record<string, string>;
-    reportLabels: Record<string, string>;
-    bracketLabels: Record<string, string>;
-}>();
+const props = withDefaults(
+    defineProps<{
+        matches: BracketMatchDto[];
+        myEntryId: number | null;
+        matchStatusLabels: Record<string, string>;
+        reportLabels: Record<string, string>;
+        bracketLabels: Record<string, string>;
+        /** Omitted by read-only surfaces (e.g. the infoscreen bracket scene), which never render the server-join action. */
+        serverLabels?: Record<string, string>;
+        serverLinkStatusLabels?: Record<string, string>;
+    }>(),
+    {
+        serverLabels: () => ({}),
+        serverLinkStatusLabels: () => ({}),
+    },
+);
 
 interface RoundGroup {
     key: string;
@@ -201,6 +210,8 @@ onUnmounted(() => {
                 :my-entry-id="myEntryId"
                 :match-status-labels="matchStatusLabels"
                 :report-labels="reportLabels"
+                :server-labels="serverLabels"
+                :server-link-status-labels="serverLinkStatusLabels"
                 :register-card="registerCard"
             />
         </div>

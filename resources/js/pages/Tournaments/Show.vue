@@ -21,6 +21,8 @@ const props = defineProps<{
     statusLabels: Record<string, string>;
     matchStatusLabels: Record<string, string>;
     reportLabels: Record<string, string>;
+    serverLabels: Record<string, string>;
+    serverLinkStatusLabels: Record<string, string>;
 }>();
 
 useTournamentChannel(props.tournament.id);
@@ -90,6 +92,8 @@ const isNotStarted = computed(
                     :match-status-labels="matchStatusLabels"
                     :report-labels="reportLabels"
                     :bracket-labels="labels"
+                    :server-labels="serverLabels"
+                    :server-link-status-labels="serverLinkStatusLabels"
                 />
             </div>
         </template>

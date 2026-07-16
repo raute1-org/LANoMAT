@@ -2,15 +2,23 @@
 import BracketMatchCard from '@/components/bracket/BracketMatchCard.vue';
 import type { BracketMatchDto } from '@/types';
 
-defineProps<{
-    title: string;
-    matches: BracketMatchDto[];
-    myEntryId: number | null;
-    matchStatusLabels: Record<string, string>;
-    reportLabels: Record<string, string>;
-    /** Registers (or unregisters, when `el` is null) a card's DOM element with the parent BracketView for connector measurement. */
-    registerCard: (matchId: number, el: Element | null) => void;
-}>();
+withDefaults(
+    defineProps<{
+        title: string;
+        matches: BracketMatchDto[];
+        myEntryId: number | null;
+        matchStatusLabels: Record<string, string>;
+        reportLabels: Record<string, string>;
+        serverLabels?: Record<string, string>;
+        serverLinkStatusLabels?: Record<string, string>;
+        /** Registers (or unregisters, when `el` is null) a card's DOM element with the parent BracketView for connector measurement. */
+        registerCard: (matchId: number, el: Element | null) => void;
+    }>(),
+    {
+        serverLabels: () => ({}),
+        serverLinkStatusLabels: () => ({}),
+    },
+);
 
 function isParticipant(
     match: BracketMatchDto,
@@ -38,6 +46,8 @@ function isParticipant(
                     :is-participant="isParticipant(match, myEntryId)"
                     :match-status-labels="matchStatusLabels"
                     :report-labels="reportLabels"
+                    :server-labels="serverLabels"
+                    :server-link-status-labels="serverLinkStatusLabels"
                 />
             </div>
         </div>

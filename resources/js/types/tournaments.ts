@@ -21,6 +21,22 @@ export type MatchVoiceLink = string | null;
 export type MatchStatusValue =
     'pending' | 'ready' | 'reported' | 'disputed' | 'completed';
 
+export type ServerLinkStatusValue =
+    'pending' | 'provisioning' | 'ready' | 'failed' | 'stopped';
+
+/**
+ * The match's provisioned game server, or null when no ServerLink exists yet
+ * (manual mode with nothing set, or the tournament's game has no Pelican
+ * egg). `address`/`port`/`connectString` are only populated once `status` is
+ * `'ready'` — while Provisioning/Failed, only `status` is meaningful.
+ */
+export interface MatchServerDto {
+    address: string | null;
+    port: number | null;
+    connectString: string | null;
+    status: ServerLinkStatusValue;
+}
+
 export interface BracketMatchDto {
     id: number;
     round: number;
@@ -37,4 +53,5 @@ export interface BracketMatchDto {
     winnerEntryId: number | null;
     status: MatchStatusValue;
     lockVersion: number;
+    server: MatchServerDto | null;
 }

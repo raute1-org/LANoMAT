@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import MatchServerJoin from '@/components/bracket/MatchServerJoin.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,13 +13,21 @@ import {
 } from '@/routes/matches';
 import type { BracketMatchDto } from '@/types';
 
-const props = defineProps<{
-    match: BracketMatchDto;
-    /** True when the logged-in user participates in this match (either slot). */
-    isParticipant: boolean;
-    matchStatusLabels: Record<string, string>;
-    reportLabels: Record<string, string>;
-}>();
+const props = withDefaults(
+    defineProps<{
+        match: BracketMatchDto;
+        /** True when the logged-in user participates in this match (either slot). */
+        isParticipant: boolean;
+        matchStatusLabels: Record<string, string>;
+        reportLabels: Record<string, string>;
+        serverLabels?: Record<string, string>;
+        serverLinkStatusLabels?: Record<string, string>;
+    }>(),
+    {
+        serverLabels: () => ({}),
+        serverLinkStatusLabels: () => ({}),
+    },
+);
 
 const reportForm = useForm({ score1: 0, score2: 0 });
 const isReporting = ref(false);
@@ -182,5 +191,11 @@ const isLive = computed(
                 {{ reportLabels.dispute_action }}
             </Button>
         </div>
+
+        <MatchServerJoin
+            :server="match.server"
+            :labels="serverLabels"
+            :status-labels="serverLinkStatusLabels"
+        />
     </div>
 </template>
