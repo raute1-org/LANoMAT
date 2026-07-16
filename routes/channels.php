@@ -17,3 +17,9 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 // Poll results (`PollUpdated`) broadcast on the public `event.{id}` channel
 // — no authorization callback is registered here because poll results are
 // public, mirroring the `tournament.{id}` channel above.
+
+// Infoscreen (`SceneOverride` -> 'scene.override', a future scene-list
+// change -> 'scenes.updated') also broadcast on the public `event.{id}`
+// channel — no authorization callback is registered here because the
+// beamer screen page is public and its payloads carry no private data,
+// mirroring `PollUpdated` above.

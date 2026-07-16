@@ -37,4 +37,10 @@ return [
     'admin' => [
         'nav_group' => 'Event-Planung',
     ],
+
+    'screen' => [
+        'title' => 'Infoscreen',
+        'idle' => 'Bereit',
+        'idle_body' => 'Es sind noch keine Szenen aktiv.',
+    ],
 ];

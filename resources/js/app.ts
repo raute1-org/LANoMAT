@@ -30,6 +30,11 @@ createInertiaApp({
             // layout via `defineOptions({ layout: ... })`.
             case name.startsWith('Profile/'):
                 return null;
+            // The public beamer screen renders a bare full-viewport shell —
+            // no app navigation/header, no toaster (it is unattended and
+            // never triggers flashes).
+            case name.startsWith('Screen/'):
+                return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

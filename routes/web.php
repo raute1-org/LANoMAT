@@ -5,6 +5,7 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Lfg\Http\LfgController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Registration\Http\CheckInController;
@@ -52,6 +53,11 @@ Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.sh
 // polls, no auth required" visibility rule; creating/deleting a post requires
 // auth (see below).
 Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
+
+// Public beamer screen — same "public like seating/tournaments/schedule/
+// catering/polls/lfg, no auth required" visibility rule; renders with no
+// app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
+Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
