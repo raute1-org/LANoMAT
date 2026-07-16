@@ -378,6 +378,37 @@ Gründe, auch zwischen den LANs auf die Seite zu kommen — zusammen mit dem Eve
 
 ---
 
+## M13 — Design-Polish (Rams' 10 Prinzipien, cross-cutting)
+
+**Ergebnis:** Die gesamte sichtbare Oberfläche (Teilnehmer-UI, Infoscreen/Beamer, Filament-Panel) folgt einer ruhigen, konsistenten, zeitlosen visuellen Sprache — umgesetzt mit dem **`frontend-design`-Plugin/Skill** und geprüft gegen Dieter Rams' **[10 Prinzipien für gutes Design](https://www.braun-audio.com/de-DE/10principles)**, soweit auf Software übertragbar. Kein neues Feature, sondern ein Qualitäts-Sweep über Bestehendes.
+
+**Einordnung:** Cross-cutting, Post-MVP. **Sinnvoll frühestens nach M5** (dann existiert die erste beamer-taugliche, „zeigenswerte" Fläche) und danach bei größeren UI-Zuwächsen (M6/M10/M11/M12) erneut leicht angefasst. Reine `Tailwind v4 + shadcn-vue`-Politur, keine App-Kern-Abhängigkeit. Jede Phase, die neue UI liefert, hinterlässt hier ggf. einen Nacharbeits-Vermerk.
+
+**Die 10 Prinzipien, auf LANoMAT übertragen (Abnahme-Leitplanke):**
+
+1. **Innovativ** — nutzt aktuelle Web-Plattform-/Framework-Fähigkeiten sinnvoll (Reverb-Live, Inertia, Tailwind v4-Tokens), nicht Neuerung um ihrer selbst willen.
+2. **Macht das Produkt brauchbar** — UI dient der Aufgabe (10-Minuten-Prinzip); jeder Ein-Klick-Pfad bleibt der kürzeste; keine Deko, die den Weg verstellt.
+3. **Ästhetisch** — konsolidierte, ruhige visuelle Sprache: eine Typo-Skala, ein Spacing-System, definierte Farbrollen (light **und** dark) über Design-Tokens statt Ad-hoc-Klassen.
+4. **Verständlich** — selbsterklärende Screens, klare Informationshierarchie, sichtbare Zustände (leer / lädt / Fehler / Erfolg).
+5. **Unaufdringlich** — zurückhaltendes Chrome; der Inhalt (Turnierbaum, Programm, Sitzplan) steht im Vordergrund, besonders am Beamer.
+6. **Ehrlich** — keine Dark-Patterns, keine Fake-Fortschritte; die UI zeigt den echten Zustand (deckt sich mit „Discord verstärkt, ersetzt nie" — die Glocke ist die Wahrheit).
+7. **Langlebig** — tokenbasiertes, wartbares System statt kurzlebiger Trend-Effekte; leicht fortführbar durch künftige Beitragende.
+8. **Konsequent bis ins letzte Detail** — Fokus-/Hover-/Aktiv-Zustände, vollständige Tastaturbedienung, konsistente Icons/Abstände/Ränder, dark mode, Beamer-Lesbarkeit auf Distanz.
+9. **Umweltfreundlich** (auf Software übertragen) — ressourcenschonend & performant: schlanke Bundles/Assets, Lazy-Loading, effiziente Reverb-Nutzung, gute Ladezeiten; **Barrierefreiheit (a11y)** als Teil davon (Kontrast, ARIA, reduzierter Daten-/Energiebedarf).
+10. **So wenig Design wie möglich** — „Weniger, aber besser": jedes Element rechtfertigt seine Existenz; Reduktion vor Ergänzung.
+
+| # | Task |
+|---|------|
+| 13.1 | **Design-System-Audit & Tokens:** Typo-Skala, Spacing, Farbrollen (light/dark), Radius/Elevation als Tailwind-v4-Tokens + shadcn-vue-Theming konsolidieren; ein kurzer Referenz-Styleguide (`docs/design.md`). Prinzipien 3/7/10. |
+| 13.2 | **Teilnehmer-UI-Sweep:** Event-Seite, Anmeldung/QR, Sitzplan, Turniere/Bracket, Schedule, Catering, Voting, LFG — gegen die 10 Prinzipien; leere/lädt/Fehler-Zustände, Fokus/Tastatur/a11y, konsistente Komponenten. Prinzipien 2/4/5/8/9. |
+| 13.3 | **Infoscreen/Beamer-Politur:** Distanz-Lesbarkeit, Kontrast, ruhige Rotation/Übergänge, „Weniger"-Prinzip auf jeder Szene (Bracket/Schedule/Sponsors/Winner/Tombola/Status). Prinzipien 3/5/10. |
+| 13.4 | **Filament-Panel-Politur:** konsistente Labels/Gruppen/Icons/Navigationsstruktur, sinnvolle Defaults, verständliche Aktionen. Prinzipien 4/8. |
+| 13.5 | **„Umweltfreundlich"/Performance & a11y:** Bundle-/Asset-Budget, Lazy-Loading, Bild-/Icon-Optimierung, Lighthouse-/a11y-Checks als wiederholbare Gate-Prüfung. Prinzip 9. |
+
+**Abnahme:** `frontend-design`-Skill für die Umsetzung genutzt; ein `docs/design.md`-Styleguide existiert; alle Teilnehmer-Screens und Infoscreen-Szenen haben konsistente Tokens + vollständige Zustände (leer/lädt/Fehler) + Tastatur-/Fokus-Bedienung; a11y-/Performance-Check dokumentiert; visuell gegen die 10 Prinzipien abgenommen (jedes Prinzip mit mindestens einer konkreten Umsetzung belegbar).
+
+---
+
 ## Arbeitsweise
 
 1. **Detailpläne just-in-time:** Vor jedem Phasenstart wird aus dieser Roadmap der Detailplan der Phase erzeugt (Format wie [M0-Plan](2026-07-14-m0-fundament.md): bite-sized Steps, kompletter Code, TDD). Roadmap-Task-Nummern bleiben als Referenz erhalten.
