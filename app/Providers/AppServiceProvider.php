@@ -23,6 +23,8 @@ use App\Modules\GameServers\HttpPelicanClient;
 use App\Modules\GameServers\Listeners\CleanupServersOnCompleted;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
+use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Policies\ServerLinkPolicy;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\TombolaPrize;
@@ -95,6 +97,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PelicanClient::class, fn () => new HttpPelicanClient(
             (string) config('services.pelican.panel_url'),
             (string) config('services.pelican.application_token'),
+            (string) config('services.pelican.client_token'),
             config('services.pelican.node_id'),
         ));
 
@@ -167,6 +170,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LfgPost::class, LfgPostPolicy::class);
         Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
         Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
+        Gate::policy(ServerLink::class, ServerLinkPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

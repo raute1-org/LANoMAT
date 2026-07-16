@@ -36,12 +36,24 @@ use Throwable;
  * `reinstall_failed`/`suspended` to `ServerState::Failed` and null to
  * `ServerState::Running` as the closest fit, documented here since it is not
  * a literal 1:1 field mapping.
+ *
+ * Task 2 left `powerAction()` using the application token as an open item;
+ * this is resolved here (Task 6, where power actions are first surfaced end
+ * to end via the Filament ServerLinkResource): `createServer`/`getServer`/
+ * `deleteServer` use the Application API and its application token
+ * (`ptla_...`), while `powerAction` uses the Client API
+ * (`/api/client/servers/{uuid}/power`) and the separate client token
+ * (`ptlc_...`, `config('services.pelican.client_token')`) that Pelican's
+ * docs require for that endpoint. The exact Client-API auth shape still
+ * wants confirmation against a real Pelican instance (deferred to T13); this
+ * change makes the token wiring itself correct per the documented API split.
  */
 class HttpPelicanClient implements PelicanClient
 {
     public function __construct(
         private readonly string $panelUrl,
         private readonly string $applicationToken,
+        private readonly string $clientToken,
         private readonly ?string $nodeId,
     ) {}
 
@@ -68,7 +80,7 @@ class HttpPelicanClient implements PelicanClient
 
     public function powerAction(string $serverId, PowerAction $action): void
     {
-        $this->http()->post("{$this->panelUrl}/api/client/servers/{$serverId}/power", [
+        $this->http($this->clientToken)->post("{$this->panelUrl}/api/client/servers/{$serverId}/power", [
             'signal' => $action->value,
         ])->throw();
     }
@@ -78,9 +90,9 @@ class HttpPelicanClient implements PelicanClient
         $this->http()->delete("{$this->panelUrl}/api/application/servers/{$serverId}")->throw();
     }
 
-    private function http(): PendingRequest
+    private function http(?string $token = null): PendingRequest
     {
-        return Http::withToken($this->applicationToken)
+        return Http::withToken($token ?? $this->applicationToken)
             ->acceptJson()
             ->retry(3, function (int $attempt, Throwable $exception) {
                 return $this->retryDelayMilliseconds($exception);

@@ -22,7 +22,7 @@ it('creates a server and maps the panel response', function () {
         ], 201),
     ]);
 
-    $server = (new HttpPelicanClient('http://panel.test', 'app-token', null))
+    $server = (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))
         ->createServer('5', ['name' => 'CS2 Server', 'allocation' => ['default' => 1]]);
 
     expect($server->id)->toBe('42')
@@ -50,7 +50,7 @@ it('includes the configured nodeId in the create payload when set', function () 
         ], 201),
     ]);
 
-    (new HttpPelicanClient('http://panel.test', 'app-token', '9'))
+    (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', '9'))
         ->createServer('5', ['name' => 'CS2 Server']);
 
     Http::assertSent(fn ($request) => $request['node_id'] === '9');
@@ -64,7 +64,7 @@ it('lets an explicit nodeId argument override the configured default', function 
         ], 201),
     ]);
 
-    (new HttpPelicanClient('http://panel.test', 'app-token', '9'))
+    (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', '9'))
         ->createServer('5', ['name' => 'CS2 Server'], '3');
 
     Http::assertSent(fn ($request) => $request['node_id'] === '3');
@@ -78,7 +78,7 @@ it('maps installing status to the Installing state', function () {
         ], 200),
     ]);
 
-    $server = (new HttpPelicanClient('http://panel.test', 'app-token', null))->getServer('42');
+    $server = (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))->getServer('42');
 
     expect($server->state)->toBe(ServerState::Installing);
 });
@@ -91,7 +91,7 @@ it('maps a null status to the Running state', function () {
         ], 200),
     ]);
 
-    $server = (new HttpPelicanClient('http://panel.test', 'app-token', null))->getServer('42');
+    $server = (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))->getServer('42');
 
     expect($server->state)->toBe(ServerState::Running);
 });
@@ -104,22 +104,23 @@ it('maps a suspended status to the Failed state', function () {
         ], 200),
     ]);
 
-    $server = (new HttpPelicanClient('http://panel.test', 'app-token', null))->getServer('42');
+    $server = (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))->getServer('42');
 
     expect($server->state)->toBe(ServerState::Failed);
 });
 
-it('sends a power action to the client API power endpoint', function () {
+it('sends a power action to the client API power endpoint using the client token', function () {
     Http::fake([
         'panel.test/api/client/servers/abc-123/power' => Http::response(null, 204),
     ]);
 
-    (new HttpPelicanClient('http://panel.test', 'app-token', null))
+    (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))
         ->powerAction('abc-123', PowerAction::Restart);
 
     Http::assertSent(fn ($request) => $request->url() === 'http://panel.test/api/client/servers/abc-123/power'
         && $request->method() === 'POST'
-        && $request->hasHeader('Authorization', 'Bearer app-token')
+        && $request->hasHeader('Authorization', 'Bearer client-token')
+        && ! $request->hasHeader('Authorization', 'Bearer app-token')
         && $request['signal'] === 'restart');
 });
 
@@ -128,7 +129,7 @@ it('deletes a server via the application API', function () {
         'panel.test/api/application/servers/42' => Http::response(null, 204),
     ]);
 
-    (new HttpPelicanClient('http://panel.test', 'app-token', null))->deleteServer('42');
+    (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))->deleteServer('42');
 
     Http::assertSent(fn ($request) => $request->url() === 'http://panel.test/api/application/servers/42'
         && $request->method() === 'DELETE'
@@ -140,7 +141,7 @@ it('throws when creating a server fails', function () {
         'panel.test/api/application/servers' => Http::response(['errors' => [['detail' => 'unauthorized']]], 401),
     ]);
 
-    (new HttpPelicanClient('http://panel.test', 'bad-token', null))->createServer('5', []);
+    (new HttpPelicanClient('http://panel.test', 'bad-token', 'client-token', null))->createServer('5', []);
 })->throws(RequestException::class);
 
 it('retries once after a transient 500 and then succeeds', function () {
@@ -153,7 +154,7 @@ it('retries once after a transient 500 and then succeeds', function () {
             ], 201),
     ]);
 
-    (new HttpPelicanClient('http://panel.test', 'app-token', null))->createServer('5', []);
+    (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))->createServer('5', []);
 
     Http::assertSentCount(2);
 });
@@ -163,7 +164,7 @@ it('does not retry a 404 client error and throws immediately', function () {
         'panel.test/api/application/servers/999' => Http::response(['errors' => [['detail' => 'Not Found']]], 404),
     ]);
 
-    expect(fn () => (new HttpPelicanClient('http://panel.test', 'app-token', null))->getServer('999'))
+    expect(fn () => (new HttpPelicanClient('http://panel.test', 'app-token', 'client-token', null))->getServer('999'))
         ->toThrow(RequestException::class);
 
     Http::assertSentCount(1);
