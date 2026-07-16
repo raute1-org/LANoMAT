@@ -178,7 +178,7 @@ final class ScenePayload
      * The reveal moment itself is pushed separately by {@see DrawTombola}
      * as a `SceneOverride` carrying only the just-drawn prize + winner.
      *
-     * @return array{prizes: list<array{id: int, title: string, winner: string|null}>, lastDraw: array{prize: array{id: int, title: string}, winner: array{registrationId: int, name: string|null}}|null}
+     * @return array{prizes: list<array{id: int, title: string, winner: string|null}>, lastDraw: array{prize: array{id: int|null, title: string|null}, winner: array{registrationId: int, name: string|null}}|null}
      */
     private static function tombolaData(InfoscreenScene $scene): array
     {
@@ -220,8 +220,8 @@ final class ScenePayload
             'prizes' => $prizes,
             'lastDraw' => $lastDraw === null ? null : [
                 'prize' => [
-                    'id' => $lastDraw->prize()->firstOrFail()->id,
-                    'title' => $lastDraw->prize()->firstOrFail()->title,
+                    'id' => $lastDraw->prize?->id,
+                    'title' => $lastDraw->prize?->title,
                 ],
                 'winner' => [
                     'registrationId' => $lastDraw->registration_id,

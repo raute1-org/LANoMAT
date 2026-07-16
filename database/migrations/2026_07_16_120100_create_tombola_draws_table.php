@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('registration_id')->constrained('event_registrations')->cascadeOnDelete();
             $table->timestamp('drawn_at');
             $table->timestamps();
-            $table->index(['event_id', 'registration_id']);
+            $table->unique(['event_id', 'registration_id']);
         });
     }
 

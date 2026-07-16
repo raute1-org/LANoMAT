@@ -7,6 +7,7 @@ use App\Modules\Infoscreen\Exceptions\InfoscreenException;
 use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event as EventFacade;
 
@@ -79,6 +80,27 @@ it('does not draw from another event\'s checked-in registrations', function () {
     $draw = app(DrawTombola::class)->handle($event, $prize);
 
     expect($draw->registration_id)->toBe($ownRegistration->id);
+});
+
+it('enforces one draw per registration per event at the database level', function () {
+    $event = Event::factory()->live()->create();
+    $prizeA = TombolaPrize::factory()->for($event)->create();
+    $prizeB = TombolaPrize::factory()->for($event)->create();
+    $registration = EventRegistration::factory()->for($event)->checkedIn()->create();
+
+    TombolaDraw::factory()->create([
+        'event_id' => $event->id,
+        'tombola_prize_id' => $prizeA->id,
+        'registration_id' => $registration->id,
+    ]);
+
+    expect(fn () => TombolaDraw::factory()->create([
+        'event_id' => $event->id,
+        'tombola_prize_id' => $prizeB->id,
+        'registration_id' => $registration->id,
+    ]))->toThrow(function (QueryException $e) {
+        expect($e->getCode())->toBe('23505');
+    });
 });
 
 it('has registration_id and drawn_at non-fillable, set only by the Action', function () {
