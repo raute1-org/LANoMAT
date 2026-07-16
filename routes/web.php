@@ -5,6 +5,7 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Infoscreen\Http\OrgaPingController;
 use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Lfg\Http\LfgController;
@@ -95,6 +96,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/teams/{team}/join', [TeamController::class, 'join'])->name('teams.join');
     Route::post('/teams/{team}/requests/{teamRequest}', [TeamController::class, 'respond'])->name('teams.respond');
     Route::delete('/teams/{team}/leave', [TeamController::class, 'leave'])->name('teams.leave');
+
+    // Task 13: the "Orga rufen" participant button — no ticket system, just a
+    // ping to everyone with an orga-or-above role, carrying the caller's seat
+    // + up to three optional words. Throttled since there is no other rate
+    // limit on this action and it fans out to every orga/helper.
+    Route::post('/events/{event:slug}/ping-orga', [OrgaPingController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('events.ping-orga');
 });
 
 Route::middleware(['auth', 'role:helper'])->group(function () {

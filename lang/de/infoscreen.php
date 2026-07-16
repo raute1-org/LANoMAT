@@ -59,6 +59,20 @@ return [
 
     'errors' => [
         'no_eligible_entrants' => 'Es gibt aktuell keine ziehbaren Teilnehmenden mehr (niemand eingecheckt oder bereits alle gezogen).',
+        'orga_ping_too_many_words' => 'Bitte maximal drei Wörter angeben.',
+        'orga_ping_words_too_long' => 'Bitte maximal 40 Zeichen angeben.',
+    ],
+
+    'orga_ping' => [
+        'title' => 'Orga wird gerufen',
+        'body' => ':name (Platz: :seat) ruft die Orga: :words',
+        'no_seat' => 'kein Platz',
+        'no_words' => '–',
+        'button' => 'Orga rufen',
+        'words_label' => 'Kurze Nachricht (optional, max. 3 Wörter)',
+        'words_placeholder' => 'z. B. „Netzwerk kaputt“',
+        'send' => 'Orga rufen',
+        'sent' => 'Die Orga wurde benachrichtigt.',
     ],
 
     'control' => [

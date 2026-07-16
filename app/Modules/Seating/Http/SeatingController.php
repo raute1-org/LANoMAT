@@ -44,7 +44,9 @@ class SeatingController extends Controller
             'seats' => $seats,
             'mySeatId' => $mySeatId,
             'canClaim' => $myRegistration !== null,
+            'canPing' => $user !== null,
             'labels' => trans('seating.page'),
+            'orgaPingLabels' => trans('infoscreen.orga_ping'),
         ]);
     }
 

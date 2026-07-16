@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { pingOrga } from '@/routes/events';
 import {
     claim as claimSeat,
     release as releaseSeat,
@@ -12,8 +16,21 @@ const props = defineProps<{
     seats: SeatDto[];
     mySeatId: number | null;
     canClaim: boolean;
+    canPing: boolean;
     labels: Record<string, string>;
+    orgaPingLabels: Record<string, string>;
 }>();
+
+const pingForm = useForm({
+    words: '',
+});
+
+function submitPing() {
+    pingForm.post(pingOrga.url({ event: props.event.slug }), {
+        preserveScroll: true,
+        onSuccess: () => pingForm.reset(),
+    });
+}
 
 const CELL = 64;
 const maxX = computed(() => Math.max(1, ...props.seats.map((s) => s.x)) + 1);
@@ -93,6 +110,33 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
         >
             {{ labels.release }}
         </button>
+
+        <form
+            v-if="canPing"
+            class="mt-8 flex flex-col gap-2 rounded-lg border border-border p-4 sm:flex-row sm:items-end"
+            @submit.prevent="submitPing"
+        >
+            <div class="grid flex-1 gap-2">
+                <Label for="orga-ping-words">{{
+                    orgaPingLabels.words_label
+                }}</Label>
+                <Input
+                    id="orga-ping-words"
+                    v-model="pingForm.words"
+                    :placeholder="orgaPingLabels.words_placeholder"
+                    maxlength="40"
+                />
+                <p
+                    v-if="pingForm.errors.words"
+                    class="text-sm text-destructive"
+                >
+                    {{ pingForm.errors.words }}
+                </p>
+            </div>
+            <Button type="submit" :disabled="pingForm.processing">
+                {{ orgaPingLabels.send }}
+            </Button>
+        </form>
 
         <div class="mt-8 overflow-auto rounded-lg border border-border p-4">
             <svg :viewBox="`0 0 ${maxX * CELL} ${maxY * CELL}`" class="w-full">
