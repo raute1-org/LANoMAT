@@ -15,6 +15,8 @@ use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
+use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Policies\InfoscreenScenePolicy;
 use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
@@ -138,6 +140,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(FoodOrderItem::class, FoodOrderItemPolicy::class);
         Gate::policy(Poll::class, PollPolicy::class);
         Gate::policy(LfgPost::class, LfgPostPolicy::class);
+        Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
