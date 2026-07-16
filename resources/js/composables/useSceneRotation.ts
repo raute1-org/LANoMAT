@@ -88,12 +88,21 @@ export function useSceneRotation(
     });
 
     function override(scene: ScenePayloadDto, ms: number): void {
+        // Pause the rotation clock for the duration of the override: clear
+        // the pending rotation timer so `index` does not advance and the
+        // next rotating scene is not displayed underneath the override.
+        // `index` itself is left untouched, so once the override elapses we
+        // resume on the same scene it was showing before — re-arming its
+        // full `durationSec` is the simplest correct behaviour (no need to
+        // track/persist a "time remaining" across the interruption).
         clearOverrideTimer();
+        clearRotationTimer();
         overrideScene.value = scene;
 
         overrideTimer = setTimeout(() => {
             overrideScene.value = null;
             clearOverrideTimer();
+            scheduleNext();
         }, ms);
     }
 

@@ -63,6 +63,9 @@ const activeComponent = computed<Component | undefined>(
             :data="current.data"
             :labels="labels"
         />
+        <!-- Unreachable today because `idleScene` always uses the registered
+             'announcement' type; kept as defense-in-depth for a future
+             registry gap (an unregistered scene type reaching `current`). -->
         <div v-else class="mx-auto max-w-5xl px-12 text-center">
             <h1 class="text-6xl font-bold tracking-tight">
                 {{ labels.idle }}
