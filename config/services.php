@@ -56,4 +56,11 @@ return [
         'server_password' => env('MUMBLE_SERVER_PASSWORD'),
     ],
 
+    'pelican' => [
+        'panel_url' => env('PELICAN_PANEL_URL'),
+        'application_token' => env('PELICAN_APPLICATION_TOKEN'),
+        'client_token' => env('PELICAN_CLIENT_TOKEN'),
+        'node_id' => env('PELICAN_NODE_ID'),
+    ],
+
 ];

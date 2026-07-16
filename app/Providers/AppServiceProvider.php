@@ -17,6 +17,8 @@ use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
+use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\HttpPelicanClient;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\TombolaPrize;
@@ -84,6 +86,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MumbleClient::class, fn () => new HttpMumbleClient(
             (string) config('services.mumble.rest_url'),
             (string) config('services.mumble.ice_secret'),
+        ));
+
+        $this->app->bind(PelicanClient::class, fn () => new HttpPelicanClient(
+            (string) config('services.pelican.panel_url'),
+            (string) config('services.pelican.application_token'),
+            config('services.pelican.node_id'),
         ));
 
         $this->app->bind(ScheduleParticipantResolver::class, TournamentScheduleParticipantResolver::class);

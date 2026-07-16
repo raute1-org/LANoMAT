@@ -2,6 +2,8 @@
 
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
+use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Voice\Contracts\MumbleClient;
 use App\Modules\Voice\Testing\FakeMumbleClient;
 /*
@@ -21,7 +23,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
-    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/Tournaments/Domain');
+    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/GameServers', 'Unit/Tournaments/Domain');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
@@ -46,7 +48,7 @@ pest()->extend(TestCase::class)
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments');
 
 /*
 |--------------------------------------------------------------------------
@@ -81,6 +83,14 @@ function fakeMumble(): FakeMumbleClient
 {
     $fake = new FakeMumbleClient;
     app()->instance(MumbleClient::class, $fake);
+
+    return $fake;
+}
+
+function fakePelican(): FakePelicanClient
+{
+    $fake = new FakePelicanClient;
+    app()->instance(PelicanClient::class, $fake);
 
     return $fake;
 }
