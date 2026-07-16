@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { show as showScene } from '@/routes/screen/control';
+import { draw as drawTombola } from '@/routes/screen/control/tombola';
 import { checkinOpen, foodReady } from '@/routes/screen/control/trigger';
 
 type Scene = {
@@ -18,10 +19,16 @@ type FoodOrder = {
     title: string;
 };
 
+type TombolaPrize = {
+    id: number;
+    title: string;
+};
+
 const props = defineProps<{
     event: { name: string; slug: string };
     scenes: Scene[];
     foodOrders: FoodOrder[];
+    tombolaPrizes: TombolaPrize[];
     labels: Record<string, string>;
     triggerLabels: Record<string, string>;
 }>();
@@ -48,6 +55,15 @@ function triggerCheckinOpen() {
     useForm({}).post(checkinOpen.url({ event: props.event.slug }), {
         preserveScroll: true,
     });
+}
+
+function drawTombolaPrize(prize: TombolaPrize) {
+    useForm({}).post(
+        drawTombola.url({ event: props.event.slug, tombolaPrize: prize.id }),
+        {
+            preserveScroll: true,
+        },
+    );
 }
 </script>
 
@@ -100,6 +116,33 @@ function triggerCheckinOpen() {
                             >
                                 {{ triggerLabels.food_ready_button }}:
                                 {{ order.title }}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{{
+                            triggerLabels.tombola_draw_title
+                        }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p
+                            v-if="tombolaPrizes.length === 0"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ triggerLabels.tombola_draw_empty }}
+                        </p>
+                        <div v-else class="flex flex-wrap gap-2">
+                            <Button
+                                v-for="prize in tombolaPrizes"
+                                :key="prize.id"
+                                size="sm"
+                                @click="drawTombolaPrize(prize)"
+                            >
+                                {{ triggerLabels.tombola_draw_button }}:
+                                {{ prize.title }}
                             </Button>
                         </div>
                     </CardContent>

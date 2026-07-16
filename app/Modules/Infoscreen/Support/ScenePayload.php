@@ -3,10 +3,13 @@
 namespace App\Modules\Infoscreen\Support;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Infoscreen\Actions\DrawTombola;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Events\SceneOverride;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\TombolaDraw;
+use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Registration\Support\QrCode;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\SeatProjection;
@@ -62,6 +65,7 @@ final class ScenePayload
             SceneType::Seatmap => self::seatmapData($scene),
             SceneType::PaymentQr => self::paymentQrData($scene),
             SceneType::Sponsors => self::sponsorsData($scene),
+            SceneType::Tombola => self::tombolaData($scene),
             default => [],
         };
     }
@@ -165,6 +169,66 @@ final class ScenePayload
         );
 
         return ['logos' => $logos];
+    }
+
+    /**
+     * The rotation-configured tombola scene shows the prize board: all
+     * prizes with their drawn/undrawn state plus the most recent draw's
+     * winner (so a viewer tuning in mid-rotation still sees who just won).
+     * The reveal moment itself is pushed separately by {@see DrawTombola}
+     * as a `SceneOverride` carrying only the just-drawn prize + winner.
+     *
+     * @return array{prizes: list<array{id: int, title: string, winner: string|null}>, lastDraw: array{prize: array{id: int, title: string}, winner: array{registrationId: int, name: string|null}}|null}
+     */
+    private static function tombolaData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return ['prizes' => [], 'lastDraw' => null];
+        }
+
+        $draws = TombolaDraw::query()
+            ->where('event_id', $event->id)
+            ->with(['registration.user', 'prize'])
+            ->get()
+            ->keyBy('tombola_prize_id');
+
+        $prizes = TombolaPrize::query()
+            ->where('event_id', $event->id)
+            ->orderBy('sort')
+            ->orderBy('id')
+            ->get()
+            ->map(function (TombolaPrize $prize) use ($draws): array {
+                /** @var TombolaDraw|null $draw */
+                $draw = $draws->get($prize->id);
+
+                return [
+                    'id' => $prize->id,
+                    'title' => $prize->title,
+                    'winner' => $draw?->registration?->user?->name,
+                ];
+            })
+            ->all();
+
+        $prizes = array_values($prizes);
+
+        /** @var TombolaDraw|null $lastDraw */
+        $lastDraw = $draws->sortByDesc('drawn_at')->first();
+
+        return [
+            'prizes' => $prizes,
+            'lastDraw' => $lastDraw === null ? null : [
+                'prize' => [
+                    'id' => $lastDraw->prize()->firstOrFail()->id,
+                    'title' => $lastDraw->prize()->firstOrFail()->title,
+                ],
+                'winner' => [
+                    'registrationId' => $lastDraw->registration_id,
+                    'name' => $lastDraw->registration?->user?->name,
+                ],
+            ],
+        ];
     }
 
     private static function eventFor(InfoscreenScene $scene): ?Event

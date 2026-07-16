@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Events\Models\Event;
+use App\Modules\Infoscreen\Actions\DrawTombola;
 use App\Modules\Infoscreen\Actions\ShowSceneNow;
 use App\Modules\Infoscreen\Actions\TriggerCheckinOpen;
 use App\Modules\Infoscreen\Actions\TriggerFoodReady;
+use App\Modules\Infoscreen\Exceptions\InfoscreenException;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\TombolaPrize;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,10 +60,23 @@ class ScreenControlController extends Controller
             ])
             ->all();
 
+        $tombolaPrizes = TombolaPrize::query()
+            ->where('event_id', $event->id)
+            ->whereDoesntHave('draw')
+            ->orderBy('sort')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (TombolaPrize $prize): array => [
+                'id' => $prize->id,
+                'title' => $prize->title,
+            ])
+            ->all();
+
         return Inertia::render('Screen/Control', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'scenes' => $scenes,
             'foodOrders' => $foodOrders,
+            'tombolaPrizes' => $tombolaPrizes,
             'labels' => trans('infoscreen.control'),
             'triggerLabels' => trans('infoscreen.triggers'),
         ]);
@@ -103,6 +119,35 @@ class ScreenControlController extends Controller
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => trans('infoscreen.triggers.checkin_open_sent'),
+        ]);
+
+        return back();
+    }
+
+    /**
+     * The tombola "draw next prize" trigger: authorized like `show()` above
+     * (class-based, mirroring InfoscreenScenePolicy::showNow — there is no
+     * InfoscreenScene instance for a draw), then funnels through
+     * {@see DrawTombola} which does the actual eligible-pool pick and beamer
+     * push.
+     */
+    public function tombolaDraw(Event $event, TombolaPrize $tombolaPrize, DrawTombola $action): RedirectResponse
+    {
+        abort_unless($tombolaPrize->event_id === $event->id, 404);
+
+        $this->authorize('drawTombola', InfoscreenScene::class);
+
+        try {
+            $action->handle($event, $tombolaPrize);
+        } catch (InfoscreenException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => trans('infoscreen.triggers.tombola_draw_sent'),
         ]);
 
         return back();

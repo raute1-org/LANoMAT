@@ -2,9 +2,11 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Infoscreen\Actions\DrawTombola;
 use App\Modules\Infoscreen\Domain\SceneConfig;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Schedule\Models\ScheduleItem;
@@ -150,6 +152,53 @@ it('fills data.seats with id/label/x/y/occupant for a seatmap scene', function (
 
     expect($occupied)->toMatchArray(['id' => $occupiedSeat->id, 'label' => 'A1', 'x' => 0, 'y' => 0, 'occupant' => 'Ada']);
     expect($free)->toMatchArray(['id' => $freeSeat->id, 'label' => 'A2', 'x' => 1, 'y' => 0, 'occupant' => null]);
+});
+
+it('fills data.prizes and data.lastDraw for a tombola scene', function () {
+    $event = Event::factory()->live()->create();
+
+    $prizeA = TombolaPrize::factory()->for($event)->sort(0)->create(['title' => 'Maus']);
+    $prizeB = TombolaPrize::factory()->for($event)->sort(1)->create(['title' => 'Tastatur']);
+
+    // Only one eligible registration so the DB-random draw is deterministic
+    // (DrawTombola's randomness itself is covered by DrawTombolaTest).
+    $winnerA = EventRegistration::factory()->for($event)->checkedIn()->create([
+        'user_id' => User::factory()->create(['name' => 'Ada']),
+    ]);
+
+    app(DrawTombola::class)->handle($event, $prizeA);
+
+    $scene = InfoscreenScene::factory()->for($event)->create([
+        'type' => SceneType::Tombola,
+        'config' => new SceneConfig,
+    ]);
+
+    $payload = ScenePayload::for($scene);
+
+    expect($payload['data']['prizes'])->toHaveCount(2);
+
+    $prizeAData = collect($payload['data']['prizes'])->firstWhere('id', $prizeA->id);
+    $prizeBData = collect($payload['data']['prizes'])->firstWhere('id', $prizeB->id);
+
+    expect($prizeAData['winner'])->toBe('Ada')
+        ->and($prizeBData['winner'])->toBeNull()
+        ->and($payload['data']['lastDraw']['prize']['title'])->toBe('Maus')
+        ->and($payload['data']['lastDraw']['winner']['name'])->toBe('Ada')
+        ->and($payload['data']['lastDraw']['winner']['registrationId'])->toBe($winnerA->id);
+});
+
+it('returns an empty tombola board when no prizes exist yet', function () {
+    $event = Event::factory()->live()->create();
+
+    $scene = InfoscreenScene::factory()->for($event)->create([
+        'type' => SceneType::Tombola,
+        'config' => new SceneConfig,
+    ]);
+
+    $payload = ScenePayload::for($scene);
+
+    expect($payload['data']['prizes'])->toBe([])
+        ->and($payload['data']['lastDraw'])->toBeNull();
 });
 
 it('eager-loads the bracket projection without N+1 queries per match', function () {

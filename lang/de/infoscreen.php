@@ -33,10 +33,20 @@ return [
         'sponsor_logos' => 'Sponsoren-Logos',
         'sponsor_logo' => 'Logo',
         'sponsor_logo_add' => 'Logo hinzufügen',
+        'prize_title' => 'Preis',
     ],
 
     'admin' => [
         'nav_group' => 'Event-Planung',
+    ],
+
+    'tombola_resource' => [
+        'label' => 'Tombola-Preis',
+        'plural_label' => 'Tombola-Preise',
+    ],
+
+    'errors' => [
+        'no_eligible_entrants' => 'Es gibt aktuell keine ziehbaren Teilnehmenden mehr (niemand eingecheckt oder bereits alle gezogen).',
     ],
 
     'control' => [
@@ -57,6 +67,10 @@ return [
         'checkin_open_title' => 'Check-in öffnet',
         'checkin_open_button' => 'Check-in öffnet',
         'checkin_open_sent' => 'Alle bestätigten Teilnehmenden wurden benachrichtigt.',
+        'tombola_draw_title' => 'Tombola ziehen',
+        'tombola_draw_button' => 'Nächsten Preis ziehen',
+        'tombola_draw_sent' => 'Der Gewinner wird jetzt auf dem Beamer gezogen.',
+        'tombola_draw_empty' => 'Es sind aktuell keine Preise mehr zu ziehen.',
     ],
 
     'screen' => [
@@ -80,6 +94,13 @@ return [
         'sponsors_title' => 'Sponsoren',
         'sponsors_empty' => 'Es sind noch keine Sponsoren-Logos hinterlegt.',
         'sponsors_logo_alt' => 'Sponsor-Logo',
+
+        // SceneTombola (Task 11) — the tombola prize board and reveal.
+        'tombola_title' => 'Tombola',
+        'tombola_empty' => 'Es sind noch keine Preise angelegt.',
+        'tombola_drawn_label' => 'Gewonnen',
+        'tombola_winner_title' => 'Gewinner!',
+        'tombola_winner_prize' => 'Preis: :prize',
 
         // BracketView's own labels (shared with the tournament show page's
         // "labels"/"matchStatusLabels"/"reportLabels" — mirrored here flat

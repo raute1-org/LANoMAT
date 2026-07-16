@@ -112,6 +112,10 @@ Route::middleware(['auth', 'role:helper'])->group(function () {
     // preference), then, for the food trigger, also push the beamer.
     Route::post('/screen/{event:slug}/control/triggers/food-ready/{foodOrder}', [ScreenControlController::class, 'foodReady'])->name('screen.control.trigger.food-ready');
     Route::post('/screen/{event:slug}/control/triggers/checkin-open', [ScreenControlController::class, 'checkinOpen'])->name('screen.control.trigger.checkin-open');
+
+    // Task 11: the tombola "draw next prize" trigger, one draw per request
+    // (the control page lists remaining undrawn prizes, one button each).
+    Route::post('/screen/{event:slug}/control/tombola/{tombolaPrize}/draw', [ScreenControlController::class, 'tombolaDraw'])->name('screen.control.tombola.draw');
 });
 
 Route::middleware(['guest'])->group(function () {

@@ -17,7 +17,9 @@ use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Infoscreen\Policies\InfoscreenScenePolicy;
+use App\Modules\Infoscreen\Policies\TombolaPrizePolicy;
 use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
@@ -145,6 +147,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Poll::class, PollPolicy::class);
         Gate::policy(LfgPost::class, LfgPostPolicy::class);
         Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
+        Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

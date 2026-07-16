@@ -52,4 +52,15 @@ class InfoscreenScenePolicy
     {
         return $user->isHelper();
     }
+
+    /**
+     * The tombola "draw next prize" remote, mirroring `showNow`: helpers run
+     * the live beamer show, orga maintains prizes separately via
+     * `TombolaPrizeResource`. Authorized against the class (there is no
+     * `InfoscreenScene` instance for a draw) — see `DrawTombola`.
+     */
+    public function drawTombola(User $user): bool
+    {
+        return $user->isHelper();
+    }
 }
