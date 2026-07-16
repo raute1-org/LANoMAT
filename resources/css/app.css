@@ -96,87 +96,132 @@
     }
 }
 
-/* Light mode — cool daytime paper, deep-amber primary for AA-safe filled controls. */
+/*
+  Two-tier tokens. Tier 1 = palette primitives (raw values, each defined ONCE).
+  Tier 2 = semantic roles (:root = light, .dark = dark) that only reference
+  primitives via var() — never raw hex. Retint the brand by editing one
+  primitive (e.g. --amber-bright) and it propagates everywhere.
+*/
 :root {
-    --background: #f7f8fa;
-    --foreground: #14181c;
-    --card: #ffffff;
-    --card-foreground: #14181c;
-    --popover: #ffffff;
-    --popover-foreground: #14181c;
-    --primary: #a85a00;
-    --primary-foreground: #ffffff;
-    --secondary: #eaeef2;
-    --secondary-foreground: #14181c;
-    --muted: #eef1f4;
-    --muted-foreground: #5b646e;
-    --accent: #eef1f4;
-    --accent-foreground: #14181c;
-    --destructive: #dc2626;
-    --destructive-foreground: #ffffff;
-    --border: #e1e5ea;
-    --input: #dce1e7;
-    --ring: #a85a00;
-    --live: #e8930a;
-    --ok: #12a150;
-    --warn: #c77d0a;
-    --down: #dc2626;
-    --chart-1: #e8930a;
-    --chart-2: #12a150;
-    --chart-3: #2f6fb0;
-    --chart-4: #8b5c9e;
-    --chart-5: #d1495b;
+    /* --- Tier 1: palette primitives (mode-agnostic; defined once) --- */
+    /* graphite — dark surfaces */
+    --graphite-975: #0c0f12;
+    --graphite-950: #0f1215;
+    --graphite-850: #171b20;
+    --graphite-800: #1e242b;
+    --graphite-700: #262c33;
+    --graphite-650: #2b323a;
+    /* text on dark */
+    --mist-100: #e7ecef;
+    --slate-400: #8a949e;
+    /* ink + paper — light surfaces & text */
+    --ink-950: #14181c;
+    --slate-500: #5b646e;
+    --paper-0: #ffffff;
+    --paper-50: #f7f8fa;
+    --paper-100: #eef1f4;
+    --paper-150: #eaeef2;
+    --paper-200: #e1e5ea;
+    --paper-250: #dce1e7;
+    /* signal amber — the single accent */
+    --amber-bright: #ffb020; /* dark accent + live */
+    --amber: #e8930a; /* light live/signal */
+    --amber-deep: #a85a00; /* light primary (AA on white) */
+    --amber-ink: #17130a; /* text on bright amber */
+    /* operational status + chart hues */
+    --green-bright: #35c08a;
+    --green-deep: #12a150;
+    --gold-bright: #e4b34a;
+    --gold-deep: #c77d0a;
+    --red-bright: #e5484d;
+    --red-deep: #dc2626;
+    --blue-bright: #5ea0e0;
+    --blue-deep: #2f6fb0;
+    --violet-bright: #c98bdb;
+    --violet-deep: #8b5c9e;
+    --rose-bright: #e5717a;
+    --rose-deep: #d1495b;
+
+    /* --- Tier 2: semantic roles (light) — reference primitives only --- */
+    --background: var(--paper-50);
+    --foreground: var(--ink-950);
+    --card: var(--paper-0);
+    --card-foreground: var(--ink-950);
+    --popover: var(--paper-0);
+    --popover-foreground: var(--ink-950);
+    --primary: var(--amber-deep);
+    --primary-foreground: var(--paper-0);
+    --secondary: var(--paper-150);
+    --secondary-foreground: var(--ink-950);
+    --muted: var(--paper-100);
+    --muted-foreground: var(--slate-500);
+    --accent: var(--paper-100);
+    --accent-foreground: var(--ink-950);
+    --destructive: var(--red-deep);
+    --destructive-foreground: var(--paper-0);
+    --border: var(--paper-200);
+    --input: var(--paper-250);
+    --ring: var(--amber-deep);
+    --live: var(--amber);
+    --ok: var(--green-deep);
+    --warn: var(--gold-deep);
+    --down: var(--red-deep);
+    --chart-1: var(--amber);
+    --chart-2: var(--green-deep);
+    --chart-3: var(--blue-deep);
+    --chart-4: var(--violet-deep);
+    --chart-5: var(--rose-deep);
     --radius: 0.375rem;
-    --sidebar-background: #ffffff;
-    --sidebar-foreground: #14181c;
-    --sidebar-primary: #a85a00;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #eef1f4;
-    --sidebar-accent-foreground: #14181c;
-    --sidebar-border: #e1e5ea;
-    --sidebar-ring: #a85a00;
-    --sidebar: #ffffff;
+    --sidebar-background: var(--paper-0);
+    --sidebar-foreground: var(--ink-950);
+    --sidebar-primary: var(--amber-deep);
+    --sidebar-primary-foreground: var(--paper-0);
+    --sidebar-accent: var(--paper-100);
+    --sidebar-accent-foreground: var(--ink-950);
+    --sidebar-border: var(--paper-200);
+    --sidebar-ring: var(--amber-deep);
+    --sidebar: var(--paper-0);
 }
 
-/* Dark mode — the signature control-desk look: graphite ink + bright signal amber. */
+/* Dark mode — semantic roles remapped to the graphite/bright-amber primitives. */
 .dark {
-    --background: #0f1215;
-    --foreground: #e7ecef;
-    --card: #171b20;
-    --card-foreground: #e7ecef;
-    --popover: #171b20;
-    --popover-foreground: #e7ecef;
-    --primary: #ffb020;
-    --primary-foreground: #17130a;
-    --secondary: #1e242b;
-    --secondary-foreground: #e7ecef;
-    --muted: #1e242b;
-    --muted-foreground: #8a949e;
-    --accent: #262c33;
-    --accent-foreground: #e7ecef;
-    --destructive: #e5484d;
-    --destructive-foreground: #ffffff;
-    --border: #262c33;
-    --input: #2b323a;
-    --ring: #ffb020;
-    --live: #ffb020;
-    --ok: #35c08a;
-    --warn: #e4b34a;
-    --down: #e5484d;
-    --chart-1: #ffb020;
-    --chart-2: #35c08a;
-    --chart-3: #5ea0e0;
-    --chart-4: #c98bdb;
-    --chart-5: #e5717a;
-    --sidebar-background: #0c0f12;
-    --sidebar-foreground: #e7ecef;
-    --sidebar-primary: #ffb020;
-    --sidebar-primary-foreground: #17130a;
-    --sidebar-accent: #171b20;
-    --sidebar-accent-foreground: #e7ecef;
-    --sidebar-border: #1e242b;
-    --sidebar-ring: #ffb020;
-    --sidebar: #0c0f12;
+    --background: var(--graphite-950);
+    --foreground: var(--mist-100);
+    --card: var(--graphite-850);
+    --card-foreground: var(--mist-100);
+    --popover: var(--graphite-850);
+    --popover-foreground: var(--mist-100);
+    --primary: var(--amber-bright);
+    --primary-foreground: var(--amber-ink);
+    --secondary: var(--graphite-800);
+    --secondary-foreground: var(--mist-100);
+    --muted: var(--graphite-800);
+    --muted-foreground: var(--slate-400);
+    --accent: var(--graphite-700);
+    --accent-foreground: var(--mist-100);
+    --destructive: var(--red-bright);
+    --destructive-foreground: var(--paper-0);
+    --border: var(--graphite-700);
+    --input: var(--graphite-650);
+    --ring: var(--amber-bright);
+    --live: var(--amber-bright);
+    --ok: var(--green-bright);
+    --warn: var(--gold-bright);
+    --down: var(--red-bright);
+    --chart-1: var(--amber-bright);
+    --chart-2: var(--green-bright);
+    --chart-3: var(--blue-bright);
+    --chart-4: var(--violet-bright);
+    --chart-5: var(--rose-bright);
+    --sidebar-background: var(--graphite-975);
+    --sidebar-foreground: var(--mist-100);
+    --sidebar-primary: var(--amber-bright);
+    --sidebar-primary-foreground: var(--amber-ink);
+    --sidebar-accent: var(--graphite-850);
+    --sidebar-accent-foreground: var(--mist-100);
+    --sidebar-border: var(--graphite-800);
+    --sidebar-ring: var(--amber-bright);
+    --sidebar: var(--graphite-975);
 }
 
 @layer base {
