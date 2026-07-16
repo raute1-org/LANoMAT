@@ -86,11 +86,11 @@ it('aggregates wins for a team entrant without merging it with any user', functi
         ->and($ownerRow['participations'])->toBe(1);
 });
 
-it('counts podiums for runner-up entries (final match losers) as well as champions', function () {
-    // A simple "podium" definition for this pure aggregate: reaching the
-    // tournament's final match (win or lose it) counts as a podium finish.
-    // Here we only exercise the champion path explicitly since the query
-    // groups tournamentWins as a subset of podiums.
+it('podiums currently aliases tournamentWins (champion-only; no runner-up rule yet)', function () {
+    // There is no persisted runner-up/placement data yet, so `podiums`
+    // cannot distinguish 2nd/3rd place from champions — it is currently
+    // just an alias of `tournamentWins`. A distinct podium rule is
+    // deferred to the roadmap's "Stats-Kür".
     $user = User::factory()->create(['name' => 'Bob']);
     $event = Event::factory()->live()->create();
     $tournament = Tournament::factory()->for($event)->create();

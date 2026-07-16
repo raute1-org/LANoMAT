@@ -12,6 +12,7 @@ return [
         'tournament_wins_label' => 'Turniersiege',
         'participations_label' => 'Teilnahmen',
         'podiums_label' => 'Podestplätze',
+        'podiums_hint' => 'Turniersiege zählen als Podestplätze',
         'type_user' => 'Solo',
         'type_team' => 'Team',
     ],

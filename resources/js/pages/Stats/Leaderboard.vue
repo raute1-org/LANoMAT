@@ -151,6 +151,13 @@ function badgeLabel(badge: string): string {
                                     >
                                         {{ labels.participations_label }}
                                     </th>
+                                    <th
+                                        scope="col"
+                                        class="px-4 py-2 text-right font-medium"
+                                        :title="labels.podiums_hint"
+                                    >
+                                        {{ labels.podiums_label }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -197,6 +204,11 @@ function badgeLabel(badge: string): string {
                                         class="px-4 py-3 text-right font-mono tabular-nums"
                                     >
                                         {{ row.participations }}
+                                    </td>
+                                    <td
+                                        class="px-4 py-3 text-right font-mono tabular-nums"
+                                    >
+                                        {{ row.podiums }}
                                     </td>
                                 </tr>
                             </tbody>
