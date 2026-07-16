@@ -14,6 +14,16 @@ export interface UseSceneRotationOptions {
 export interface UseSceneRotation {
     /** The scene currently on screen — either from the rotation or a pushed override. */
     current: ComputedRef<ScenePayloadDto>;
+    /**
+     * The value the caller should key its `<component :is>` on. Equals the
+     * rotation scene's real `id` while rotating (so distinct rotation scenes
+     * — which already differ by `id` — do not remount unnecessarily), but a
+     * fresh unique token for every `override()` call, even repeated
+     * same-type overrides whose synthetic payloads share `id=undefined`.
+     * This guarantees a remount per override push, so mount-triggered
+     * effects (e.g. `ConfettiOverlay`'s animation) replay every time.
+     */
+    renderKey: ComputedRef<string | number>;
     /** Interrupts the rotation with `scene` for `ms` milliseconds, then resumes. */
     override: (scene: ScenePayloadDto, ms: number) => void;
 }
@@ -35,6 +45,10 @@ export function useSceneRotation(
 
     const index = ref(0);
     const overrideScene = ref<ScenePayloadDto | null>(null);
+    // Bumped on every `override()` call so `renderKey` mints a fresh token
+    // per push, even for two consecutive same-type overrides whose synthetic
+    // payloads both omit a top-level `id` (see `renderKey` doc above).
+    const overrideSeq = ref(0);
 
     let rotationTimer: ReturnType<typeof setTimeout> | null = null;
     let overrideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,6 +101,20 @@ export function useSceneRotation(
         return list[index.value % list.length];
     });
 
+    const renderKey = computed<string | number>(() => {
+        if (overrideScene.value !== null) {
+            return `override-${overrideSeq.value}`;
+        }
+
+        const list = scenesRef.value;
+
+        if (list.length === 0) {
+            return options.idle.id;
+        }
+
+        return list[index.value % list.length].id;
+    });
+
     function override(scene: ScenePayloadDto, ms: number): void {
         // Pause the rotation clock for the duration of the override: clear
         // the pending rotation timer so `index` does not advance and the
@@ -97,6 +125,7 @@ export function useSceneRotation(
         // track/persist a "time remaining" across the interruption).
         clearOverrideTimer();
         clearRotationTimer();
+        overrideSeq.value += 1;
         overrideScene.value = scene;
 
         overrideTimer = setTimeout(() => {
@@ -111,5 +140,5 @@ export function useSceneRotation(
         clearOverrideTimer();
     });
 
-    return { current, override };
+    return { current, renderKey, override };
 }

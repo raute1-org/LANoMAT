@@ -47,7 +47,7 @@ const idleScene = computed<ScenePayloadDto>(() => ({
     data: {},
 }));
 
-const { current, override } = useSceneRotation(
+const { current, renderKey, override } = useSceneRotation(
     computed(() => props.scenes),
     { idle: idleScene.value },
 );
@@ -76,7 +76,7 @@ const activeComponent = computed<Component | undefined>(
         <component
             :is="activeComponent"
             v-if="activeComponent"
-            :key="current.id"
+            :key="renderKey"
             :config="current.config"
             :data="current.data"
             :labels="labels"
