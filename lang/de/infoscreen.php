@@ -54,6 +54,11 @@ return [
         'schedule_empty' => 'Noch kein Programm.',
         'seatmap_title' => 'Sitzplan',
         'seatmap_empty' => 'Es sind noch keine Plätze angelegt.',
+        'payment_qr_title' => 'Kostenbeitrag',
+        'payment_qr_empty' => 'Es ist noch kein QR-Code hinterlegt.',
+        'sponsors_title' => 'Sponsoren',
+        'sponsors_empty' => 'Es sind noch keine Sponsoren-Logos hinterlegt.',
+        'sponsors_logo_alt' => 'Sponsor-Logo',
 
         // BracketView's own labels (shared with the tournament show page's
         // "labels"/"matchStatusLabels"/"reportLabels" — mirrored here flat

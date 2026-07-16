@@ -7,12 +7,14 @@ use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Events\SceneOverride;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Registration\Support\QrCode;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\SeatProjection;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * The single scene -> wire projection used by the public screen page
@@ -26,9 +28,11 @@ use Illuminate\Support\Carbon;
  * `config.tournamentId` and project via {@see BracketMatchProjection}
  * (shared with the tournament show page); schedule and seatmap read the
  * scene's own event via {@see ScheduleProjection}/{@see SeatProjection}
- * (shared with the schedule/seating pages). Every other scene type still
- * gets `[]`, which is also the correct final value for Announcement (it
- * needs none).
+ * (shared with the schedule/seating pages); payment-qr renders
+ * `config.qrPayload` via the content-agnostic {@see QrCode} (no `qrSvg` key
+ * when the payload is empty/unset); sponsors resolves `config.sponsorLogoPaths`
+ * to public storage URLs. Every other scene type still gets `[]`, which is
+ * also the correct final value for Announcement (it needs none).
  */
 final class ScenePayload
 {
@@ -56,6 +60,8 @@ final class ScenePayload
             SceneType::UpcomingMatches => self::upcomingMatchesData($scene),
             SceneType::Schedule => self::scheduleData($scene),
             SceneType::Seatmap => self::seatmapData($scene),
+            SceneType::PaymentQr => self::paymentQrData($scene),
+            SceneType::Sponsors => self::sponsorsData($scene),
             default => [],
         };
     }
@@ -131,6 +137,34 @@ final class ScenePayload
         }
 
         return ['seats' => SeatProjection::forEvent($event)];
+    }
+
+    /**
+     * @return array{qrSvg?: string, caption: string|null}
+     */
+    private static function paymentQrData(InfoscreenScene $scene): array
+    {
+        $payload = $scene->config->qrPayload;
+        $data = ['caption' => $scene->config->qrCaption];
+
+        if ($payload !== null && $payload !== '') {
+            $data['qrSvg'] = app(QrCode::class)->svg($payload);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array{logos: list<string>}
+     */
+    private static function sponsorsData(InfoscreenScene $scene): array
+    {
+        $logos = array_map(
+            static fn (string $path): string => Storage::disk('public')->url($path),
+            $scene->config->sponsorLogoPaths,
+        );
+
+        return ['logos' => $logos];
     }
 
     private static function eventFor(InfoscreenScene $scene): ?Event

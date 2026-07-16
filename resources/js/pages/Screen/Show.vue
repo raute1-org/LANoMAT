@@ -5,8 +5,10 @@ import type { Component } from 'vue';
 import SceneAnnouncement from '@/components/scenes/SceneAnnouncement.vue';
 import SceneBracket from '@/components/scenes/SceneBracket.vue';
 import SceneFrame from '@/components/scenes/SceneFrame.vue';
+import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
+import SceneSponsors from '@/components/scenes/SceneSponsors.vue';
 import SceneUpcomingMatches from '@/components/scenes/SceneUpcomingMatches.vue';
 import { useEventChannel } from '@/composables/useEventChannel';
 import { useSceneRotation } from '@/composables/useSceneRotation';
@@ -18,7 +20,7 @@ const props = defineProps<{
     labels: Record<string, string>;
 }>();
 
-// Unknown/not-yet-shipped scene types (PaymentQr, Sponsors, ...) intentionally
+// Unknown/not-yet-shipped scene types (Tombola, Status, ...) intentionally
 // have no entry here yet and render nothing via SceneFrame's <component :is>
 // fallback — later tasks add their component here as each scene ships.
 const sceneComponents: Partial<Record<SceneType, Component>> = {
@@ -27,6 +29,8 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     upcoming_matches: SceneUpcomingMatches,
     schedule: SceneSchedule,
     seatmap: SceneSeatmap,
+    payment_qr: ScenePaymentQr,
+    sponsors: SceneSponsors,
 };
 
 const idleScene = computed<ScenePayloadDto>(() => ({
