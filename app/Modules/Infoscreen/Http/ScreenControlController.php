@@ -46,6 +46,8 @@ class ScreenControlController extends Controller
 
     public function show(Event $event, InfoscreenScene $scene): RedirectResponse
     {
+        abort_unless($scene->event_id === $event->id, 404);
+
         $this->authorize('showNow', $scene);
 
         app(ShowSceneNow::class)->handle($scene);

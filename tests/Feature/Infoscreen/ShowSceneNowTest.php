@@ -6,6 +6,7 @@ use App\Modules\Infoscreen\Actions\ShowSceneNow;
 use App\Modules\Infoscreen\Events\SceneOverride;
 use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\ListInfoscreenScenes;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Policies\InfoscreenScenePolicy;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event as EventFacade;
@@ -104,4 +105,42 @@ it('shows a translated control label on the helper control page', function () {
         ->component('Screen/Control')
         ->where('labels.title', trans('infoscreen.control.title'))
     );
+});
+
+it('404s when the scene in the URL belongs to a different event than the URL event', function () {
+    EventFacade::fake([SceneOverride::class]);
+
+    $event = Event::factory()->live()->create();
+    $otherEvent = Event::factory()->live()->create();
+    $sceneFromOtherEvent = InfoscreenScene::factory()->for($otherEvent)->announcement()->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->post("/screen/{$event->slug}/control/{$sceneFromOtherEvent->id}")
+        ->assertNotFound();
+
+    EventFacade::assertNotDispatched(SceneOverride::class);
+});
+
+it('denies a plain participant via InfoscreenScenePolicy::showNow', function () {
+    $scene = InfoscreenScene::factory()->for(Event::factory()->live()->create())->announcement()->create();
+
+    $allowed = (new InfoscreenScenePolicy)->showNow(User::factory()->create(), $scene);
+
+    expect($allowed)->toBeFalse();
+});
+
+it('allows a helper via InfoscreenScenePolicy::showNow', function () {
+    $scene = InfoscreenScene::factory()->for(Event::factory()->live()->create())->announcement()->create();
+
+    $allowed = (new InfoscreenScenePolicy)->showNow(User::factory()->helper()->create(), $scene);
+
+    expect($allowed)->toBeTrue();
+});
+
+it('allows an orga via InfoscreenScenePolicy::showNow', function () {
+    $scene = InfoscreenScene::factory()->for(Event::factory()->live()->create())->announcement()->create();
+
+    $allowed = (new InfoscreenScenePolicy)->showNow(User::factory()->orga()->create(), $scene);
+
+    expect($allowed)->toBeTrue();
 });
