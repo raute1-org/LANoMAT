@@ -41,8 +41,13 @@ class GameServerException extends DomainException
     }
 
     /**
-     * Thrown by {@see PollServerStatusJob} when
-     * polling exhausts its retry budget without the server reaching Running.
+     * Not thrown: {@see PollServerStatusJob}
+     * sets the {@see ServerLink}'s status to
+     * `Failed` directly (no exception) once polling exhausts its retry
+     * budget without the server reaching Running — that outcome is an
+     * expected, non-exceptional part of the job's control flow. This factory
+     * exists to carry the matching translation key so the UI/operator can
+     * render a message for that `Failed` state without string-matching.
      */
     public static function provisioningExhausted(): self
     {

@@ -8,6 +8,7 @@ use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Domain\PelicanServer;
 use App\Modules\GameServers\Domain\PowerAction;
 use App\Modules\GameServers\Enums\ServerState;
+use App\Modules\GameServers\Models\ServerLink;
 use PHPUnit\Framework\Assert;
 
 class FakePelicanClient implements PelicanClient
@@ -32,8 +33,28 @@ class FakePelicanClient implements PelicanClient
 
     private int $sequence = 0;
 
+    private ?\Throwable $failNextCreateWith = null;
+
+    /**
+     * Test helper (not part of the contract) to simulate a transient Pelican
+     * API failure on the next {@see createServer()} call — e.g. to assert a
+     * caller's failure handling (marking a {@see ServerLink}
+     * `Failed`) without a real HTTP client.
+     */
+    public function failNextCreateWith(\Throwable $e): void
+    {
+        $this->failNextCreateWith = $e;
+    }
+
     public function createServer(string $eggId, array $config, ?string $nodeId = null): PelicanServer
     {
+        if ($this->failNextCreateWith !== null) {
+            $e = $this->failNextCreateWith;
+            $this->failNextCreateWith = null;
+
+            throw $e;
+        }
+
         $id = (string) ++$this->sequence;
 
         $server = new PelicanServer($id, ServerState::Provisioning, null, null, $config);

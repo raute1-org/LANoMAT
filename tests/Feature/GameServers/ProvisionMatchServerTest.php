@@ -8,6 +8,7 @@ use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Jobs\ProvisionMatchServerJob;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
+use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
@@ -97,6 +98,60 @@ it('is idempotent: re-running ProvisionMatchServerJob after a link exists is a n
     (new ProvisionMatchServerJob($match->id))->handle($fake);
 
     expect($fake->created)->toHaveCount($createdCount);
+});
+
+it('claims the slot transactionally: exactly one ServerLink row and one createServer call survive a re-dispatch for the same match', function () {
+    // Guards against the double-provision race: the guard-then-write used to
+    // be check-then-act (null-check, then later writes), which two
+    // concurrent dispatches for the same match (duplicate MatchReady from a
+    // retry, or a manual re-dispatch) could both pass before either wrote
+    // server_link_id. The fix claims the ServerLink row + match.server_link_id
+    // inside a single DB::transaction with match.lockForUpdate(), committed
+    // *before* the external Pelican call — so this asserts the committed
+    // single-row invariant plus the no-op re-run on top of it.
+    Bus::fake([PollServerStatusJob::class]);
+    $fake = fakePelican();
+
+    $match = readyMatchWithEggGame();
+
+    (new ProvisionMatchServerJob($match->id))->handle($fake);
+
+    expect(ServerLink::query()->where('match_id', $match->id)->count())->toBe(1)
+        ->and($fake->created)->toHaveCount(1);
+
+    $match->refresh();
+    expect($match->server_link_id)->not->toBeNull();
+
+    // A second job instance for the same match (simulating a duplicate
+    // MatchReady dispatch or a manual re-dispatch) must see the slot already
+    // claimed and no-op entirely: no additional ServerLink row, no
+    // additional createServer call.
+    (new ProvisionMatchServerJob($match->id))->handle($fake);
+
+    expect(ServerLink::query()->where('match_id', $match->id)->count())->toBe(1)
+        ->and($fake->created)->toHaveCount(1);
+});
+
+it('marks the ServerLink Failed when createServer throws after the slot has already been claimed', function () {
+    Bus::fake([PollServerStatusJob::class]);
+    $fake = fakePelican();
+    $fake->failNextCreateWith(new RuntimeException('Pelican API unreachable'));
+
+    $match = readyMatchWithEggGame();
+
+    expect(fn () => (new ProvisionMatchServerJob($match->id))->handle($fake))
+        ->toThrow(RuntimeException::class, 'Pelican API unreachable');
+
+    // The slot claim (ServerLink row + match.server_link_id) was already
+    // committed before the external call, so it must still exist — just
+    // flipped to Failed rather than left dangling in Provisioning.
+    $match->refresh();
+    expect($match->server_link_id)->not->toBeNull();
+
+    $link = $match->serverLink;
+    expect($link->status)->toBe(ServerLinkStatus::Failed);
+
+    expect(ServerLink::query()->where('match_id', $match->id)->count())->toBe(1);
 });
 
 it('transitions Provisioning to Ready and writes JoinInfo when the poll job sees the server running', function () {
