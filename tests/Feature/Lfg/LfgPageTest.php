@@ -37,13 +37,18 @@ it('marks a post as mine when the viewer is its author', function () {
     $mine = LfgPost::factory()->for($event)->for($user)->create();
     $other = LfgPost::factory()->for($event)->create();
 
+    // Board is newest-first (created_at desc, id desc as a deterministic
+    // tiebreaker for posts created within the same second): $other was
+    // created last, so it sits at index 0; $mine at index 1.
     $this->actingAs($user)
         ->get("/events/{$event->slug}/lfg")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Lfg/Index')
-            ->where('posts.0.mine', $mine->user_id === $user->id)
-            ->where('posts.1.mine', $other->user_id === $user->id)
+            ->where('posts.0.id', $other->id)
+            ->where('posts.0.mine', false)
+            ->where('posts.1.id', $mine->id)
+            ->where('posts.1.mine', true)
         );
 });
 

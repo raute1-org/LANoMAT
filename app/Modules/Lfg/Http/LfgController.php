@@ -37,6 +37,7 @@ class LfgController extends Controller
             ->active()
             ->with('user')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
         return Inertia::render('Lfg/Index', [
