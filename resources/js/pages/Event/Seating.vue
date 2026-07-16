@@ -96,24 +96,28 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
     <Head :title="labels.title" />
 
     <main class="mx-auto max-w-5xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
+        <h1 class="text-3xl font-bold tracking-tight text-foreground">
             {{ labels.title }} — {{ event.name }}
         </h1>
 
         <p v-if="!canClaim" class="mt-4 text-sm text-muted-foreground">
             {{ labels.need_registration }}
         </p>
-        <button
-            v-else-if="mySeatId"
-            class="mt-4 text-sm underline"
-            @click="release"
-        >
-            {{ labels.release }}
-        </button>
+        <div v-else-if="mySeatId" class="mt-4 flex items-center gap-3">
+            <span class="font-mono text-sm text-primary uppercase tabular-nums">
+                {{ labels.my_seat }}
+            </span>
+            <button
+                class="rounded-sm text-sm text-muted-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                @click="release"
+            >
+                {{ labels.release }}
+            </button>
+        </div>
 
         <form
             v-if="canPing"
-            class="mt-8 flex flex-col gap-2 rounded-lg border border-border p-4 sm:flex-row sm:items-end"
+            class="mt-8 flex flex-col gap-2 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-end"
             @submit.prevent="submitPing"
         >
             <div class="grid flex-1 gap-2">
@@ -138,7 +142,42 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
             </Button>
         </form>
 
-        <div class="mt-8 overflow-auto rounded-lg border border-border p-4">
+        <!-- legend -->
+        <div
+            class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground"
+        >
+            <span class="flex items-center gap-2">
+                <span
+                    class="inline-block size-3 rounded-[3px] border border-border bg-primary"
+                />
+                {{ labels.my_seat }}
+            </span>
+            <span class="flex items-center gap-2">
+                <span
+                    class="inline-block size-3 rounded-[3px] border border-border bg-muted"
+                />
+                {{ labels.occupied }}
+            </span>
+            <span class="flex items-center gap-2">
+                <span
+                    class="inline-block size-3 rounded-[3px] border border-border bg-card"
+                />
+                {{ labels.free }}
+            </span>
+        </div>
+
+        <div
+            v-if="seats.length === 0"
+            class="mt-4 rounded-lg border border-dashed border-border p-8 text-center"
+        >
+            <p class="text-sm text-muted-foreground">
+                {{ labels.empty }}
+            </p>
+        </div>
+        <div
+            v-else
+            class="mt-4 overflow-auto rounded-lg border border-border p-4"
+        >
             <svg :viewBox="`0 0 ${maxX * CELL} ${maxY * CELL}`" class="w-full">
                 <g
                     v-for="seat in seats"
@@ -158,12 +197,17 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                         rx="6"
                         :fill="fill(seat)"
                         stroke="var(--border)"
+                        class="outline-none focus-visible:stroke-ring"
                     />
                     <text
                         x="8"
                         y="20"
-                        class="text-[10px]"
-                        fill="var(--foreground)"
+                        class="font-mono text-[10px] tabular-nums"
+                        :fill="
+                            seat.id === mySeatId
+                                ? 'var(--primary-foreground)'
+                                : 'var(--foreground)'
+                        "
                     >
                         {{ seat.label }}
                     </text>
@@ -172,7 +216,11 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                         x="8"
                         y="40"
                         class="text-[9px]"
-                        fill="var(--muted-foreground)"
+                        :fill="
+                            seat.id === mySeatId
+                                ? 'var(--primary-foreground)'
+                                : 'var(--muted-foreground)'
+                        "
                     >
                         {{ seat.occupant }}
                     </text>

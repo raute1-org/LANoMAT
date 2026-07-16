@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import {
     index as eventsIndex,
@@ -17,6 +18,7 @@ const props = defineProps<{
 
 const page = usePage();
 const isAuthenticated = computed(() => page.props.auth.user !== null);
+const isLive = computed(() => props.event.status === 'live');
 
 const dateRange = computed(() => {
     if (!props.event.startsAt) {
@@ -46,24 +48,38 @@ const cta = computed<string | null>(() => {
 <template>
     <Head :title="event.name" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
+    <main class="mx-auto max-w-3xl px-4 py-12 sm:py-16">
+        <LiveIndicator
+            v-if="isLive"
+            variant="live"
+            :label="statusLabels[event.status]"
+        />
         <p
+            v-else
             class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
         >
             {{ statusLabels[event.status] }}
         </p>
-        <h1 class="mt-2 text-4xl font-bold tracking-tight">{{ event.name }}</h1>
+        <h1
+            class="mt-3 font-sans text-4xl font-bold tracking-tight text-foreground sm:text-5xl"
+        >
+            {{ event.name }}
+        </h1>
 
-        <dl class="mt-8 grid gap-4 sm:grid-cols-2">
+        <dl class="mt-8 grid gap-6 sm:grid-cols-2">
             <div>
                 <dt class="text-sm text-muted-foreground">{{ labels.when }}</dt>
-                <dd class="text-lg">{{ dateRange }}</dd>
+                <dd class="mt-1 font-mono text-lg text-foreground tabular-nums">
+                    {{ dateRange }}
+                </dd>
             </div>
             <div v-if="event.location">
                 <dt class="text-sm text-muted-foreground">
                     {{ labels.where }}
                 </dt>
-                <dd class="text-lg">{{ event.location }}</dd>
+                <dd class="mt-1 text-lg text-foreground">
+                    {{ event.location }}
+                </dd>
             </div>
         </dl>
 
