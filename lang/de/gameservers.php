@@ -13,6 +13,7 @@ return [
         'provisioning_exhausted' => 'Der Spielserver wurde nicht rechtzeitig bereit.',
         'both_preset_and_upload' => 'Es wurden sowohl ein Server-Preset als auch eine hochgeladene Konfiguration angegeben; es ist genau eine erlaubt.',
         'preset_not_found' => 'Für dieses Spiel existiert kein Server-Preset mit diesem Schlüssel.',
+        'invalid_default_config_upload' => 'Die hochgeladene Standard-Konfigurationsdatei fehlt oder ist kein gültiges JSON. Bitte erneut hochladen.',
     ],
     'match_page' => [
         'heading' => 'Spielserver',

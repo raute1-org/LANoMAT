@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Games\Casts;
 
 use App\Modules\Games\Domain\ServerPreset;

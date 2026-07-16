@@ -1,14 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Games\Filament\Resources\Games\Pages;
 
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
 use App\Modules\Games\Models\Game;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
+use JsonException;
 
 class CreateGame extends CreateRecord
 {
@@ -46,16 +51,19 @@ class CreateGame extends CreateRecord
      * whichever one is active. `default_config_mode` itself is
      * `dehydrated(false)` (UI-only), so it never reaches `$data` here.
      *
-     * Parses the uploaded file itself (rather than delegating to
-     * GameServers\Support\EffectiveConfig::parseUploadedConfig) to keep this
-     * Games-module Filament page from depending on the GameServers module —
-     * GameServers already depends on Games (e.g. GameServerException,
-     * ProvisionMatchServerJob reading Game::default_server_config), and the
-     * modular-monolith rule (CLAUDE.md) never reaches back the other way.
-     * The two are intentionally near-identical: both parse the same
-     * ServerConfig-shaped JSON off the `public` disk.
+     * Delegates the upload parse to {@see ServerConfig::fromStoragePath()} —
+     * the single source of truth shared with
+     * GameServers\Support\EffectiveConfig, so a corrupt/missing upload
+     * throws consistently everywhere instead of silently resolving to an
+     * empty config here and a hard error there. Filament's
+     * CreateRecord/EditRecord lifecycle only swallows {@see Halt}
+     * exceptions (not arbitrary ones), so the throw is caught here and
+     * turned into a translated form error + Halt instead of an unhandled
+     * 500.
      *
      * @param  array<string, mixed>  $data
+     *
+     * @throws Halt if the uploaded default config is missing or invalid.
      */
     public static function extractConfig(array &$data): ServerConfig
     {
@@ -77,6 +85,23 @@ class CreateGame extends CreateRecord
         );
 
         return $config;
+    }
+
+    /**
+     * @throws Halt if the uploaded default config is missing or invalid.
+     */
+    private static function parseUploadedConfig(string $path): ServerConfig
+    {
+        try {
+            return ServerConfig::fromStoragePath($path);
+        } catch (InvalidArgumentException|JsonException) {
+            Notification::make()
+                ->title(__('gameservers.errors.invalid_default_config_upload'))
+                ->danger()
+                ->send();
+
+            throw (new Halt)->rollBackDatabaseTransaction();
+        }
     }
 
     /**
@@ -104,18 +129,5 @@ class CreateGame extends CreateRecord
             ),
             $rows,
         ));
-    }
-
-    private static function parseUploadedConfig(string $path): ServerConfig
-    {
-        $contents = Storage::disk('public')->get($path);
-
-        if ($contents === null) {
-            return new ServerConfig;
-        }
-
-        $decoded = json_decode($contents, true);
-
-        return is_array($decoded) ? ServerConfig::fromArray($decoded) : new ServerConfig;
     }
 }

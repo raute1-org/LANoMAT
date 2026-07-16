@@ -10,8 +10,6 @@ use App\Modules\GameServers\Actions\UploadServerConfig;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Jobs\ProvisionMatchServerJob;
-use Illuminate\Support\Facades\Storage;
-use InvalidArgumentException;
 
 /**
  * Resolves the *one* effective game-server config fed to
@@ -55,36 +53,9 @@ final class EffectiveConfig
         }
 
         if ($uploadedPath !== null) {
-            return self::parseUploadedConfig($uploadedPath)->toArray();
+            return ServerConfig::fromStoragePath($uploadedPath)->toArray();
         }
 
         return $game->default_server_config->toArray();
-    }
-
-    /**
-     * Parses an uploaded config file (stored by
-     * {@see UploadServerConfig} on the `public` disk) into a
-     * {@see ServerConfig}. Public for other GameServers callers; the Games
-     * module's Filament Create/Edit pages parse their own default-config
-     * upload independently rather than depending on this module (see
-     * CreateGame::parseUploadedConfig — GameServers depends on Games, never
-     * the reverse, per CLAUDE.md's modular-monolith rule).
-     */
-    public static function parseUploadedConfig(string $path): ServerConfig
-    {
-        $disk = Storage::disk('public');
-        $contents = $disk->get($path);
-
-        if ($contents === null) {
-            throw new InvalidArgumentException("Uploaded server config not found at [{$path}].");
-        }
-
-        $decoded = json_decode($contents, true);
-
-        if (! is_array($decoded)) {
-            throw new InvalidArgumentException("Uploaded server config at [{$path}] is not valid JSON.");
-        }
-
-        return ServerConfig::fromArray($decoded);
     }
 }
