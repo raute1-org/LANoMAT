@@ -9,11 +9,13 @@ use App\Modules\Catering\Filament\Resources\FoodOrders\RelationManagers\ItemsRel
 use App\Modules\Catering\Filament\Resources\FoodOrders\Schemas\FoodOrderForm;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Tables\FoodOrdersTable;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class FoodOrderResource extends Resource
 {
@@ -21,10 +23,9 @@ class FoodOrderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCake;
 
-    public static function getNavigationGroup(): ?string
-    {
-        return __('schedule.admin.nav_group');
-    }
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Programm;
+
+    protected static ?int $navigationSort = 42;
 
     public static function getModelLabel(): string
     {

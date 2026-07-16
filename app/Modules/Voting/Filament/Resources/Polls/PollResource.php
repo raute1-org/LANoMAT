@@ -8,11 +8,13 @@ use App\Modules\Voting\Filament\Resources\Polls\Pages\ListPolls;
 use App\Modules\Voting\Filament\Resources\Polls\Schemas\PollForm;
 use App\Modules\Voting\Filament\Resources\Polls\Tables\PollsTable;
 use App\Modules\Voting\Models\Poll;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class PollResource extends Resource
 {
@@ -20,10 +22,9 @@ class PollResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
-    public static function getNavigationGroup(): ?string
-    {
-        return __('schedule.admin.nav_group');
-    }
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Programm;
+
+    protected static ?int $navigationSort = 44;
 
     public static function getModelLabel(): string
     {

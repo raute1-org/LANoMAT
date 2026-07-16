@@ -8,17 +8,23 @@ use App\Modules\Teams\Filament\Resources\Teams\Pages\ListTeams;
 use App\Modules\Teams\Filament\Resources\Teams\Schemas\TeamForm;
 use App\Modules\Teams\Filament\Resources\Teams\Tables\TeamsTable;
 use App\Modules\Teams\Models\Team;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class TeamResource extends Resource
 {
     protected static ?string $model = Team::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
+
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::TurniereUndTeams;
+
+    protected static ?int $navigationSort = 32;
 
     public static function getModelLabel(): string
     {

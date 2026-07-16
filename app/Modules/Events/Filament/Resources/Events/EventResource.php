@@ -9,17 +9,23 @@ use App\Modules\Events\Filament\Resources\Events\Schemas\EventForm;
 use App\Modules\Events\Filament\Resources\Events\Tables\EventsTable;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Filament\RelationManagers\RegistrationsRelationManager;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class EventResource extends Resource
 {
     protected static ?string $model = Event::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Event;
+
+    protected static ?int $navigationSort = 10;
 
     public static function getModelLabel(): string
     {

@@ -8,11 +8,13 @@ use App\Modules\Schedule\Filament\Resources\ScheduleItems\Pages\ListScheduleItem
 use App\Modules\Schedule\Filament\Resources\ScheduleItems\Schemas\ScheduleItemForm;
 use App\Modules\Schedule\Filament\Resources\ScheduleItems\Tables\ScheduleItemsTable;
 use App\Modules\Schedule\Models\ScheduleItem;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class ScheduleItemResource extends Resource
 {
@@ -20,10 +22,9 @@ class ScheduleItemResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    public static function getNavigationGroup(): ?string
-    {
-        return __('schedule.admin.nav_group');
-    }
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Programm;
+
+    protected static ?int $navigationSort = 40;
 
     public static function getModelLabel(): string
     {

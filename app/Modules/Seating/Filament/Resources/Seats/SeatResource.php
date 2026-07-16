@@ -8,17 +8,23 @@ use App\Modules\Seating\Filament\Resources\Seats\Pages\ListSeats;
 use App\Modules\Seating\Filament\Resources\Seats\Schemas\SeatForm;
 use App\Modules\Seating\Filament\Resources\Seats\Tables\SeatsTable;
 use App\Modules\Seating\Models\Seat;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class SeatResource extends Resource
 {
     protected static ?string $model = Seat::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
+
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::AnmeldungUndSitzplan;
+
+    protected static ?int $navigationSort = 20;
 
     public static function getModelLabel(): string
     {

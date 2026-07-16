@@ -48,10 +48,6 @@ return [
         'prize_title' => 'Preis',
     ],
 
-    'admin' => [
-        'nav_group' => 'Event-Planung',
-    ],
-
     'tombola_resource' => [
         'label' => 'Tombola-Preis',
         'plural_label' => 'Tombola-Preise',

@@ -6,6 +6,7 @@ use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
@@ -19,6 +20,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 /**
  * A cross-tournament queue of `Disputed` matches, with an orga-only override
@@ -31,6 +33,10 @@ class ManageDisputes extends Page implements HasTable
     use InteractsWithTable;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedExclamationTriangle;
+
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::TurniereUndTeams;
+
+    protected static ?int $navigationSort = 34;
 
     protected static ?string $slug = 'tournaments/disputes';
 

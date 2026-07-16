@@ -10,7 +10,6 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -28,8 +27,16 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->brandName('LANoMAT')
+            // Signal-amber brand accent (docs/design.md "Signalpult"): the
+            // light-mode primary `#a85a00` is passed as a single hex so
+            // Filament generates the full shade palette from it (Filament
+            // v5 docs, "Styling > Overview > Generating a color palette" —
+            // verified via laravel-boost search-docs against filament/filament@5.x).
+            // `Color::hex()` would return the same array; the plain-string
+            // form is the documented shorthand and needs no extra import.
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => '#a85a00',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverResources(

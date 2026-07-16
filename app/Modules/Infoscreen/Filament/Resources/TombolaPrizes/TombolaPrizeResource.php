@@ -9,11 +9,13 @@ use App\Modules\Infoscreen\Filament\Resources\TombolaPrizes\Pages\ListTombolaPri
 use App\Modules\Infoscreen\Filament\Resources\TombolaPrizes\Schemas\TombolaPrizeForm;
 use App\Modules\Infoscreen\Filament\Resources\TombolaPrizes\Tables\TombolaPrizesTable;
 use App\Modules\Infoscreen\Models\TombolaPrize;
+use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 /**
  * Orga CRUD of tombola prizes (draw eligibility itself is entirely governed
@@ -28,10 +30,9 @@ class TombolaPrizeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGift;
 
-    public static function getNavigationGroup(): ?string
-    {
-        return __('infoscreen.admin.nav_group');
-    }
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Infoscreen;
+
+    protected static ?int $navigationSort = 52;
 
     public static function getModelLabel(): string
     {

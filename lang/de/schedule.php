@@ -15,9 +15,6 @@ return [
         'location' => 'Ort',
         'sort' => 'Reihenfolge',
     ],
-    'admin' => [
-        'nav_group' => 'Event-Planung',
-    ],
     'type' => [
         'custom' => 'Programmpunkt',
         'tournament' => 'Turnier',
