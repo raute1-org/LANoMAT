@@ -7,7 +7,8 @@ export type SceneType =
     | 'payment_qr'
     | 'sponsors'
     | 'tombola'
-    | 'status';
+    | 'status'
+    | 'winner';
 
 /**
  * The wire shape produced by `ScenePayload::for()` — the single scene ->

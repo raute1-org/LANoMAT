@@ -10,6 +10,7 @@ import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
 import SceneSponsors from '@/components/scenes/SceneSponsors.vue';
 import SceneUpcomingMatches from '@/components/scenes/SceneUpcomingMatches.vue';
+import SceneWinner from '@/components/scenes/SceneWinner.vue';
 import { useEventChannel } from '@/composables/useEventChannel';
 import { useSceneRotation } from '@/composables/useSceneRotation';
 import type { ScenePayloadDto, SceneType } from '@/types';
@@ -31,6 +32,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     seatmap: SceneSeatmap,
     payment_qr: ScenePaymentQr,
     sponsors: SceneSponsors,
+    winner: SceneWinner,
 };
 
 const idleScene = computed<ScenePayloadDto>(() => ({

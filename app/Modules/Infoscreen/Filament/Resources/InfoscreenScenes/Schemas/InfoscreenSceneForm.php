@@ -26,6 +26,10 @@ class InfoscreenSceneForm
                 Select::make('type')
                     ->label(__('infoscreen.fields.type'))
                     ->options(collect(SceneType::cases())
+                        // Winner is synthetic and override-only (dispatched
+                        // by BroadcastWinnerMoment, never a configured
+                        // rotation entry) — excluded from this form.
+                        ->reject(fn (SceneType $type) => $type === SceneType::Winner)
                         ->mapWithKeys(fn (SceneType $type) => [$type->value => $type->label()])
                         ->all())
                     ->required()

@@ -11,6 +11,7 @@ return [
         'sponsors' => 'Sponsoren',
         'tombola' => 'Tombola',
         'status' => 'Statusanzeige',
+        'winner' => 'Sieger-Einblendung',
     ],
 
     'resource' => [
@@ -75,5 +76,9 @@ return [
         'report_action' => 'Melden',
         'confirm_action' => 'Bestätigen',
         'dispute_action' => 'Anfechten',
+
+        // SceneWinner (Task 7) — the finals winner-moment overlay.
+        'winner_title' => 'Sieger!',
+        'winner_subtitle' => 'Gewinner von :tournament',
     ],
 ];
