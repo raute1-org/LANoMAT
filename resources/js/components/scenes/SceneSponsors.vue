@@ -30,7 +30,12 @@ defineProps<{
             >
                 <img
                     :src="logo"
-                    :alt="labels.sponsors_logo_alt"
+                    :alt="
+                        labels.sponsors_logo_alt.replace(
+                            ':index',
+                            String(index + 1),
+                        )
+                    "
                     width="240"
                     height="112"
                     loading="lazy"

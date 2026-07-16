@@ -111,6 +111,9 @@ function submit() {
                     v-if="team.logoUrl"
                     :src="team.logoUrl"
                     :alt="team.name"
+                    width="48"
+                    height="48"
+                    loading="lazy"
                     class="h-12 w-12 rounded-md object-cover"
                 />
                 <div

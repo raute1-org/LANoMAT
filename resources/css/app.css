@@ -232,3 +232,23 @@
         @apply bg-background text-foreground;
     }
 }
+
+/*
+  Quality floor: `prefers-reduced-motion` respected by every animation
+  (docs/design.md "Quality floor"). App-authored motion already gates itself
+  per-component (motion-safe:/motion-reduce: on LiveIndicator, ConfettiOverlay,
+  SceneFrame's scene transition, ...). This global rule covers the shadcn-vue/
+  reka-ui primitives (dialog, sheet, dropdown, tooltip, select, navigation-menu)
+  that ship with unconditional tw-animate-css `animate-in`/`animate-out`
+  enter/exit animations — neutralize those too, so no interactive element
+  fades/slides/zooms when the user has asked for reduced motion.
+*/
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

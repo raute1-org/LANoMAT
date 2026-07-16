@@ -82,6 +82,8 @@ function leave() {
                     v-if="team.logoUrl"
                     :src="team.logoUrl"
                     :alt="team.name"
+                    width="64"
+                    height="64"
                     class="h-16 w-16 rounded-md object-cover"
                 />
                 <input

@@ -125,7 +125,7 @@ return [
         'payment_qr_empty' => 'Es ist noch kein QR-Code hinterlegt.',
         'sponsors_title' => 'Sponsoren',
         'sponsors_empty' => 'Es sind noch keine Sponsoren-Logos hinterlegt.',
-        'sponsors_logo_alt' => 'Sponsor-Logo',
+        'sponsors_logo_alt' => 'Sponsor-Logo :index',
 
         // SceneTombola (Task 11) — the tombola prize board and reveal.
         'tombola_title' => 'Tombola',
