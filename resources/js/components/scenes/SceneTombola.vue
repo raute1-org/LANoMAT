@@ -49,14 +49,14 @@ const prizes = computed<Prize[]>(() => props.data.prizes ?? []);
 
         <div class="relative z-10 mx-auto max-w-5xl px-12 text-center">
             <h1
-                class="text-8xl font-extrabold tracking-tight text-yellow-400 uppercase"
+                class="text-8xl font-extrabold tracking-tight text-live uppercase"
             >
                 {{ labels.tombola_winner_title }}
             </h1>
-            <p class="mt-8 text-6xl font-bold">
+            <p class="mt-8 text-6xl font-bold text-foreground">
                 {{ reveal.winner.name }}
             </p>
-            <p class="mt-6 text-3xl text-white/80">
+            <p class="mt-6 text-3xl text-muted-foreground">
                 {{
                     labels.tombola_winner_prize.replace(
                         ':prize',
@@ -68,11 +68,11 @@ const prizes = computed<Prize[]>(() => props.data.prizes ?? []);
     </div>
 
     <div v-else class="flex h-full w-full flex-col gap-8 px-16 py-12">
-        <h1 class="text-5xl font-bold tracking-tight">
+        <h1 class="text-5xl font-bold tracking-tight text-foreground">
             {{ labels.tombola_title }}
         </h1>
 
-        <p v-if="prizes.length === 0" class="text-3xl text-white/80">
+        <p v-if="prizes.length === 0" class="text-3xl text-muted-foreground">
             {{ labels.tombola_empty }}
         </p>
 
@@ -80,10 +80,13 @@ const prizes = computed<Prize[]>(() => props.data.prizes ?? []);
             <li
                 v-for="prize in prizes"
                 :key="prize.id"
-                class="flex items-center justify-between rounded-xl bg-white/10 px-8 py-6 text-3xl"
+                class="flex items-center justify-between rounded-xl bg-card px-8 py-6 text-3xl text-foreground"
             >
                 <span class="font-semibold">{{ prize.title }}</span>
-                <span v-if="prize.winner" class="text-yellow-400">
+                <span
+                    v-if="prize.winner"
+                    class="font-mono text-live tabular-nums"
+                >
                     {{ labels.tombola_drawn_label }}: {{ prize.winner }}
                 </span>
             </li>

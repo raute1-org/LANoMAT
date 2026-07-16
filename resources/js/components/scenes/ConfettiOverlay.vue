@@ -24,14 +24,29 @@ interface Particle {
     rotationSpeed: number;
 }
 
-const colors = [
-    '#facc15',
-    '#22d3ee',
-    '#f472b6',
-    '#a78bfa',
-    '#4ade80',
-    '#fb923c',
-];
+// The confetti palette is the design system's chart hues (--chart-1..5:
+// amber/green/blue/violet/rose — see docs/design.md's dark-mode token
+// table), read live off this canvas element so it always resolves the
+// beamer's forced-dark scope (SceneFrame's `.dark` wrapper) rather than
+// whatever the viewer's own OS light/dark preference set on <html>. Falls
+// back to the dark-mode hardcoded values if custom properties are
+// unavailable (e.g. a non-browser test environment).
+const fallbackColors = ['#ffb020', '#35c08a', '#5ea0e0', '#c98bdb', '#e5717a'];
+
+function readChartColors(el: HTMLElement): string[] {
+    if (typeof getComputedStyle !== 'function') {
+        return fallbackColors;
+    }
+
+    const styles = getComputedStyle(el);
+    const values = [1, 2, 3, 4, 5]
+        .map((n) => styles.getPropertyValue(`--chart-${n}`).trim())
+        .filter((value) => value.length > 0);
+
+    return values.length > 0 ? values : fallbackColors;
+}
+
+let colors: string[] = fallbackColors;
 
 let particles: Particle[] = [];
 let animationFrame: number | null = null;
@@ -109,6 +124,7 @@ onMounted(() => {
         return;
     }
 
+    colors = readChartColors(canvas);
     resizeCanvas(canvas);
     particles = Array.from({ length: 150 }, () => createParticle(canvas));
 

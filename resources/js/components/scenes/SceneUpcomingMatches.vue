@@ -10,13 +10,13 @@ defineProps<{
 
 <template>
     <div class="flex h-full w-full flex-col gap-8 px-16 py-12">
-        <h1 class="text-5xl font-bold tracking-tight">
+        <h1 class="text-5xl font-bold tracking-tight text-foreground">
             {{ config.headline ?? labels.upcoming_matches_title }}
         </h1>
 
         <p
             v-if="!data.matches || data.matches.length === 0"
-            class="text-3xl text-white/80"
+            class="text-3xl text-muted-foreground"
         >
             {{ labels.upcoming_matches_empty }}
         </p>
@@ -25,14 +25,16 @@ defineProps<{
             <li
                 v-for="match in data.matches"
                 :key="match.id"
-                class="rounded-xl border border-white/20 bg-white/10 px-8 py-6"
+                class="rounded-xl border border-border bg-card px-8 py-6"
             >
-                <p class="text-xl text-white/70">
+                <p class="font-mono text-xl text-muted-foreground uppercase">
                     {{ labels.round.replace(':number', String(match.round)) }}
                 </p>
-                <p class="mt-2 text-3xl font-semibold">
+                <p class="mt-2 text-3xl font-semibold text-foreground">
                     {{ match.slot1 ?? labels.slot_tbd }}
-                    <span class="text-white/50">{{ labels.versus }}</span>
+                    <span class="text-muted-foreground">{{
+                        labels.versus
+                    }}</span>
                     {{ match.slot2 ?? labels.slot_tbd }}
                 </p>
             </li>

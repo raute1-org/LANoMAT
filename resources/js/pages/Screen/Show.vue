@@ -85,10 +85,10 @@ const activeComponent = computed<Component | undefined>(
              'announcement' type; kept as defense-in-depth for a future
              registry gap (an unregistered scene type reaching `current`). -->
         <div v-else class="mx-auto max-w-5xl px-12 text-center">
-            <h1 class="text-6xl font-bold tracking-tight">
+            <h1 class="text-6xl font-bold tracking-tight text-foreground">
                 {{ labels.idle }}
             </h1>
-            <p class="mt-8 text-3xl text-white/80">
+            <p class="mt-8 text-3xl text-muted-foreground">
                 {{ labels.idle_body }}
             </p>
         </div>

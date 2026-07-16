@@ -23,11 +23,11 @@ function fill(seat: SeatDto): string {
 
 <template>
     <div class="flex h-full w-full flex-col gap-6 px-8 py-6">
-        <h1 class="text-4xl font-bold tracking-tight">
+        <h1 class="text-4xl font-bold tracking-tight text-foreground">
             {{ config.headline ?? labels.seatmap_title }}
         </h1>
 
-        <p v-if="seats.length === 0" class="text-3xl text-white/80">
+        <p v-if="seats.length === 0" class="text-3xl text-muted-foreground">
             {{ labels.seatmap_empty }}
         </p>
 
@@ -52,8 +52,8 @@ function fill(seat: SeatDto): string {
                     />
                     <text
                         x="10"
-                        y="28"
-                        class="text-[14px]"
+                        y="30"
+                        class="font-mono text-[16px] font-semibold tabular-nums"
                         fill="var(--foreground)"
                     >
                         {{ seat.label }}
@@ -61,7 +61,7 @@ function fill(seat: SeatDto): string {
                     <text
                         v-if="seat.occupant"
                         x="10"
-                        y="56"
+                        y="58"
                         class="text-[13px]"
                         fill="var(--muted-foreground)"
                     >

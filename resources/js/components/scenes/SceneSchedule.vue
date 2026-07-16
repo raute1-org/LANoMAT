@@ -27,20 +27,26 @@ const upcoming = () =>
 
 <template>
     <div class="flex h-full w-full flex-col gap-8 px-16 py-12">
-        <h1 class="text-5xl font-bold tracking-tight">
+        <h1 class="text-5xl font-bold tracking-tight text-foreground">
             {{ config.headline ?? labels.schedule_title }}
         </h1>
 
         <div class="grid grid-cols-2 gap-8">
             <div
                 v-if="data.now"
-                class="rounded-xl border border-white bg-white/10 px-8 py-6"
+                class="rounded-xl border-2 border-live bg-card px-8 py-6"
             >
-                <p class="text-2xl tracking-widest text-white/70 uppercase">
+                <p
+                    class="font-mono text-2xl tracking-widest text-live uppercase"
+                >
                     {{ labels.schedule_now }}
                 </p>
-                <p class="mt-2 text-4xl font-semibold">{{ data.now.title }}</p>
-                <p class="mt-2 text-2xl text-white/70">
+                <p class="mt-2 text-4xl font-semibold text-foreground">
+                    {{ data.now.title }}
+                </p>
+                <p
+                    class="mt-2 font-mono text-2xl text-muted-foreground tabular-nums"
+                >
                     {{ formatTime(data.now.startsAt) }}
                     <template v-if="data.now.endsAt">
                         – {{ formatTime(data.now.endsAt) }}
@@ -50,19 +56,28 @@ const upcoming = () =>
 
             <div
                 v-if="data.next"
-                class="rounded-xl border border-white/30 bg-white/5 px-8 py-6"
+                class="rounded-xl border border-border bg-card/50 px-8 py-6"
             >
-                <p class="text-2xl tracking-widest text-white/70 uppercase">
+                <p
+                    class="font-mono text-2xl tracking-widest text-muted-foreground uppercase"
+                >
                     {{ labels.schedule_next }}
                 </p>
-                <p class="mt-2 text-4xl font-semibold">{{ data.next.title }}</p>
-                <p class="mt-2 text-2xl text-white/70">
+                <p class="mt-2 text-4xl font-semibold text-foreground">
+                    {{ data.next.title }}
+                </p>
+                <p
+                    class="mt-2 font-mono text-2xl text-muted-foreground tabular-nums"
+                >
                     {{ formatTime(data.next.startsAt) }}
                 </p>
             </div>
         </div>
 
-        <p v-if="!data.now && !data.next" class="text-3xl text-white/80">
+        <p
+            v-if="!data.now && !data.next"
+            class="text-3xl text-muted-foreground"
+        >
             {{ labels.schedule_empty }}
         </p>
 
@@ -70,9 +85,9 @@ const upcoming = () =>
             <li
                 v-for="item in upcoming()"
                 :key="item.id"
-                class="flex items-baseline gap-4 text-2xl text-white/70"
+                class="flex items-baseline gap-4 text-2xl text-muted-foreground"
             >
-                <span class="w-24 shrink-0 font-mono">{{
+                <span class="w-24 shrink-0 font-mono tabular-nums">{{
                     formatTime(item.startsAt)
                 }}</span>
                 <span>{{ item.title }}</span>

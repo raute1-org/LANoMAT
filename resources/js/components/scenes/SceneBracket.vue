@@ -11,7 +11,7 @@ defineProps<{
 
 <template>
     <div class="flex h-full w-full flex-col gap-6 px-8 py-6">
-        <h1 class="text-4xl font-bold tracking-tight">
+        <h1 class="text-4xl font-bold tracking-tight text-foreground">
             {{ config.headline ?? labels.bracket_title }}
         </h1>
 

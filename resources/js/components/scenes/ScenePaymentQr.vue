@@ -10,7 +10,7 @@ defineProps<{
     <div
         class="mx-auto flex h-full max-w-4xl flex-col items-center justify-center gap-8 px-12 text-center"
     >
-        <h1 class="text-5xl font-bold tracking-tight">
+        <h1 class="text-5xl font-bold tracking-tight text-foreground">
             {{ config.headline ?? labels.payment_qr_title }}
         </h1>
 
@@ -20,11 +20,11 @@ defineProps<{
             class="w-96 rounded-xl bg-white p-8"
             v-html="data.qrSvg"
         />
-        <p v-else class="text-3xl text-white/80">
+        <p v-else class="text-3xl text-muted-foreground">
             {{ labels.payment_qr_empty }}
         </p>
 
-        <p v-if="data.caption" class="text-3xl text-white/80">
+        <p v-if="data.caption" class="font-mono text-3xl text-muted-foreground">
             {{ data.caption }}
         </p>
     </div>
