@@ -11,6 +11,8 @@ return [
     'errors' => [
         'no_pelican_egg' => 'Für dieses Spiel ist kein Pelican-Egg hinterlegt.',
         'provisioning_exhausted' => 'Der Spielserver wurde nicht rechtzeitig bereit.',
+        'both_preset_and_upload' => 'Es wurden sowohl ein Server-Preset als auch eine hochgeladene Konfiguration angegeben; es ist genau eine erlaubt.',
+        'preset_not_found' => 'Für dieses Spiel existiert kein Server-Preset mit diesem Schlüssel.',
     ],
     'match_page' => [
         'heading' => 'Spielserver',

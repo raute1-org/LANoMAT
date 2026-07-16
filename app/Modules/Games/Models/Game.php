@@ -3,7 +3,9 @@
 namespace App\Modules\Games\Models;
 
 use App\Modules\Games\Casts\ServerConfigCast;
+use App\Modules\Games\Casts\ServerPresetsCast;
 use App\Modules\Games\Domain\ServerConfig;
+use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Tournaments\Models\Tournament;
 use Database\Factories\GameFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,15 +20,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $max_team_size
  * @property string|null $pelican_egg_id
  * @property ServerConfig $default_server_config
+ * @property list<ServerPreset> $server_presets
  */
 class Game extends Model
 {
     /** @use HasFactory<GameFactory> */
     use HasFactory;
 
-    // default_server_config deliberately NOT fillable: it is structured data
-    // that must go through the typed ServerConfigCast rather than a
-    // mass-assigned raw array (mirrors InfoscreenScene::$config and
+    // default_server_config and server_presets deliberately NOT fillable:
+    // both are structured data that must go through their typed casts rather
+    // than a mass-assigned raw array (mirrors InfoscreenScene::$config and
     // FoodOrder::$menu — see roadmap insight #9 on Filament's KeyValue
     // mangling jsonb types).
     protected $fillable = [
@@ -44,6 +47,7 @@ class Game extends Model
             'min_team_size' => 'integer',
             'max_team_size' => 'integer',
             'default_server_config' => ServerConfigCast::class,
+            'server_presets' => ServerPresetsCast::class,
         ];
     }
 
@@ -51,6 +55,24 @@ class Game extends Model
     public function tournaments(): HasMany
     {
         return $this->hasMany(Tournament::class);
+    }
+
+    /**
+     * Looks up a preset by key, used by
+     * `App\Modules\GameServers\Support\EffectiveConfig::resolve()`
+     * (referenced by name only, not imported, to avoid a Games ->
+     * GameServers module dependency; see CLAUDE.md's modular-monolith
+     * rule).
+     */
+    public function findPreset(string $key): ?ServerPreset
+    {
+        foreach ($this->server_presets as $preset) {
+            if ($preset->key === $key) {
+                return $preset;
+            }
+        }
+
+        return null;
     }
 
     protected static function newFactory(): GameFactory

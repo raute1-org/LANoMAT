@@ -28,9 +28,11 @@ class GameFactory extends Factory
             'min_team_size' => 1,
             'max_team_size' => 1,
             'pelican_egg_id' => null,
-            // Factories bypass $fillable, so default_server_config can be
-            // set directly here (mirrors InfoscreenSceneFactory).
+            // Factories bypass $fillable, so default_server_config and
+            // server_presets can be set directly here (mirrors
+            // InfoscreenSceneFactory).
             'default_server_config' => new ServerConfig,
+            'server_presets' => [],
         ];
     }
 }

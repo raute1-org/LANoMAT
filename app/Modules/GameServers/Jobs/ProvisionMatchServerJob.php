@@ -9,6 +9,7 @@ use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\EffectiveConfig;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
@@ -85,10 +86,16 @@ class ProvisionMatchServerJob implements ShouldQueue
             // fully serializes concurrent dispatches against this race.
             $match->forceFill(['server_link_id' => $link->id])->save();
 
+            // No match/tournament-level preset-or-upload selection mechanism
+            // exists yet, so both are passed as null here — EffectiveConfig
+            // then falls back to the game's default_server_config, exactly
+            // as before this task, but now through the single resolver that
+            // also backs the preset/upload modes (see EffectiveConfig's
+            // docblock and roadmap 6.6).
             return [
                 'link' => $link,
                 'eggId' => $game->pelican_egg_id,
-                'config' => $game->default_server_config->toArray(),
+                'config' => EffectiveConfig::resolve($game, presetKey: null, uploadedPath: null),
             ];
         });
 

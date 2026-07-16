@@ -8,6 +8,7 @@ use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Jobs\ProvisionMatchServerJob;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
+use App\Modules\GameServers\Support\EffectiveConfig;
 use App\Modules\Infoscreen\Exceptions\InfoscreenException;
 use DomainException;
 
@@ -54,6 +55,33 @@ class GameServerException extends DomainException
         return new self(
             'The game server did not become ready in time.',
             'gameservers.errors.provisioning_exhausted',
+        );
+    }
+
+    /**
+     * Thrown by {@see EffectiveConfig::resolve()} when both a preset key and
+     * an uploaded config path are supplied — exactly one effective config
+     * must reach the server (roadmap 6.6: "genau eine Config auf dem Server
+     * ausgeführt — eine Wahrheit"), so supplying both is a caller error
+     * rather than an ambiguity to silently resolve.
+     */
+    public static function bothPresetAndUpload(): self
+    {
+        return new self(
+            'A server preset and an uploaded config were both supplied; exactly one is allowed.',
+            'gameservers.errors.both_preset_and_upload',
+        );
+    }
+
+    /**
+     * Thrown by {@see EffectiveConfig::resolve()} when the given preset key
+     * does not exist on the game's server_presets.
+     */
+    public static function presetNotFound(string $key): self
+    {
+        return new self(
+            "No server preset with key [{$key}] exists for this game.",
+            'gameservers.errors.preset_not_found',
         );
     }
 }

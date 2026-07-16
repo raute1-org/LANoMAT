@@ -16,5 +16,13 @@ return [
         'max_players' => 'Max. Spieler',
         'map' => 'Karte',
         'password' => 'Passwort',
+        'server_presets' => 'Server-Presets',
+        'preset_key' => 'Schlüssel',
+        'preset_name' => 'Name',
+        'preset_add' => 'Preset hinzufügen',
+        'default_config_mode' => 'Standard-Konfiguration',
+        'default_config_mode_form' => 'Einstellungsformular',
+        'default_config_mode_upload' => 'Datei-Upload',
+        'default_config_upload' => 'Konfigurationsdatei',
     ],
 ];
