@@ -422,6 +422,18 @@ Gründe, auch zwischen den LANs auf die Seite zu kommen — zusammen mit dem Eve
 
 **Abnahme:** `frontend-design`-Skill für die Umsetzung genutzt; ein `docs/design.md`-Styleguide existiert; alle Teilnehmer-Screens und Infoscreen-Szenen haben konsistente Tokens + vollständige Zustände (leer/lädt/Fehler) + Tastatur-/Fokus-Bedienung; a11y-/Performance-Check dokumentiert; visuell gegen die 10 Prinzipien abgenommen (jedes Prinzip mit mindestens einer konkreten Umsetzung belegbar).
 
+### Erkenntnisse M13 (Umsetzung, 2026-07-16)
+
+**Getaggt `m13`.** Richtung **„Signalpult"** (vom User gewählt): ruhige Graphit-App + ein rationierter Signal-Amber-Akzent, Space Grotesk + JetBrains Mono (nur für Maschinendaten), laute nur am Beamer, Live-Signal-Punkt als Signature. Umgesetzt mit dem `frontend-design`-Skill in 6 Chunks via Subagenten (Foundations → Event/Anmeldung/Sitzplan → Turniere/Schedule/Catering/Voting/LFG → Beamer → Filament → Performance/a11y), jeder Chunk gate-grün + öffentliche Seiten per Preview verifiziert; 887 Tests durchgehend grün. Auf `main` gebaut (Projekt-Konvention).
+
+- **Zweistufiges Token-System** (`resources/css/app.css`): Tier-1-Paletten-Primitive (jeder Rohwert einmal) → Tier-2-semantische shadcn-Rollen (light/dark) referenzieren nur per `var()`. Umfärben = eine Primitive-Zeile. (User-Rückfrage „läuft die Palette über Variablen?" → genau darauf refaktoriert.)
+- **`LiveIndicator`-Komponente** als Signature (Amber/OK/Warn/Down-Punkt + Mono-Label, `motion-reduce`-sicher), überall für live/jetzt/offen genutzt. **Mono-für-Daten** durchgezogen (Sitzplatz-Labels, Ports/IPs, Scores, Zeiten, Preise). Alle vier Zustände (leer/lädt/Fehler/normal).
+- **Fonts** Space Grotesk + JetBrains Mono (Bunny), **Brand** „LANoMAT" (Sidebar-Titel war noch „Laravel Starter Kit") + Amber-Favicon. **Deutsche Auth-Copy** (Login war englisch).
+- **Filament** auf Amber gebrandet (`#a85a00`) + `brandName('LANoMAT')` + 5 kohärente Nav-Gruppen (`AdminNavigationGroup`-Enum). **Beamer:** Winner/Tombola auf `--live`-Amber (statt Ad-hoc-Gelb); Fade-Transition war wirkungslos → echt gemacht.
+- **a11y/Performance:** Skip-Link im App-Shell, Lazy-Images + intrinsische Größen (CLS), globaler `prefers-reduced-motion`-Backstop in `app.css` (deckt ungated shadcn/reka-Primitives), Bundle-Check ohne neue Deps.
+- **Notabene (Vue-Core-Bug):** SVG-Geometrie warf `Failed setting prop width/height/transform … has only a getter`-Warnungen — ein **Vue-3.5.39-Hydration-Bug** (seit M2 latent, durch den Restyle sichtbar), heute upstream in **3.5.40** gefixt (vuejs/core#15082); Lösung = `vue`-Bump, Konsole verifiziert sauber.
+- **Offene Follow-ups (nicht blockierend):** verwaiste `NavFooter.vue`/`AppHeader.vue` (tot, entfernbar); Light-Mode + `/admin` + auth-pflichtige Seiten gate-/diff- statt screenshot-verifiziert (Dark + öffentliche Seiten live verifiziert); `NavMain`-Label „Platform"; „Mine"-Badge/Show-not-started rein per Code geprüft.
+
 ---
 
 ## Arbeitsweise

@@ -100,6 +100,8 @@ for the full design rationale.
 
 ## Production deployment
 
+> **Testing it once (with Discord):** [`docs/prod-test.md`](docs/prod-test.md) is a full step-by-step walkthrough for a one-time end-to-end test of the prod stack — including complete Discord setup (OAuth login, bot, guild/channel IDs, interactions endpoint + public key, slash-command registration) and smoke tests for realtime/queue/scheduler.
+
 A production image is built from `docker/Dockerfile` — [FrankenPHP](https://frankenphp.dev/)
 (`dunglas/frankenphp`, PHP 8.4) serving the app natively (no Octane/worker mode; see the
 Dockerfile's header comment for why). `compose.yml`'s `prod` profile adds four services on
