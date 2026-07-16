@@ -42,4 +42,14 @@ class InfoscreenScenePolicy
     {
         return $user->isOrga();
     }
+
+    /**
+     * The "show now" remote (Filament row action for orga, and the
+     * helper-reachable control page) is helper-or-above, unlike the rest of
+     * this policy — helpers manage the live show but don't configure scenes.
+     */
+    public function showNow(User $user): bool
+    {
+        return $user->isHelper();
+    }
 }

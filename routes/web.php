@@ -5,6 +5,7 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Lfg\Http\LfgController;
 use App\Modules\Notifications\Http\NotificationController;
@@ -96,6 +97,13 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'role:helper'])->group(function () {
     Route::get('/orga/events/{event:slug}/checkin', [CheckInController::class, 'show'])->name('orga.checkin');
     Route::post('/orga/events/{event:slug}/checkin', [CheckInController::class, 'store'])->name('orga.checkin.store');
+
+    // Helper "remote": a one-click "show now" push of a configured scene to
+    // the beamer (see ShowSceneNow), reusing the same Action as the
+    // Filament resource's show_now row action so the two surfaces never
+    // drift on behaviour.
+    Route::get('/screen/{event:slug}/control', [ScreenControlController::class, 'index'])->name('screen.control');
+    Route::post('/screen/{event:slug}/control/{scene}', [ScreenControlController::class, 'show'])->name('screen.control.show');
 });
 
 Route::middleware(['guest'])->group(function () {

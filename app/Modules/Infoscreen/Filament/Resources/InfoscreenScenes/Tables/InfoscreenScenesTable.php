@@ -2,12 +2,15 @@
 
 namespace App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Tables;
 
+use App\Modules\Infoscreen\Actions\ShowSceneNow;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
@@ -41,6 +44,19 @@ class InfoscreenScenesTable
                 //
             ])
             ->recordActions([
+                Action::make('show_now')
+                    ->label(__('infoscreen.control.show_now'))
+                    ->icon('heroicon-o-tv')
+                    ->authorize('showNow')
+                    ->requiresConfirmation()
+                    ->action(function (InfoscreenScene $record): void {
+                        app(ShowSceneNow::class)->handle($record);
+
+                        Notification::make()
+                            ->title(__('infoscreen.control.shown'))
+                            ->success()
+                            ->send();
+                    }),
                 EditAction::make()
                     ->authorize('update'),
                 DeleteAction::make()

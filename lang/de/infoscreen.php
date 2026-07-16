@@ -39,6 +39,15 @@ return [
         'nav_group' => 'Event-Planung',
     ],
 
+    'control' => [
+        'title' => 'Infoscreen-Fernbedienung',
+        'show_now' => 'Sofort einblenden',
+        'shown' => 'Szene wird jetzt eingeblendet.',
+        'empty' => 'Es sind noch keine Szenen angelegt.',
+        'enabled' => 'Aktiv',
+        'disabled' => 'Inaktiv',
+    ],
+
     'screen' => [
         'title' => 'Infoscreen',
         'idle' => 'Bereit',
