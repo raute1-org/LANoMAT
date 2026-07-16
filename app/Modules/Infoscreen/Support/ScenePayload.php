@@ -3,6 +3,7 @@
 namespace App\Modules\Infoscreen\Support;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\GameServers\Support\ServerListProjection;
 use App\Modules\Infoscreen\Actions\DrawTombola;
 use App\Modules\Infoscreen\Actions\SetStatusSignal;
 use App\Modules\Infoscreen\Enums\SceneType;
@@ -31,9 +32,9 @@ use Illuminate\Support\Facades\Storage;
  *
  * `data` carries type-specific derived data: bracket/upcoming-matches read
  * `config.tournamentId` and project via {@see BracketMatchProjection}
- * (shared with the tournament show page); schedule and seatmap read the
- * scene's own event via {@see ScheduleProjection}/{@see SeatProjection}
- * (shared with the schedule/seating pages); payment-qr renders
+ * (shared with the tournament show page); schedule, seatmap and servers
+ * read the scene's own event via {@see ScheduleProjection}/{@see SeatProjection}/{@see ServerListProjection}
+ * (shared with the schedule/seating/server-list pages); payment-qr renders
  * `config.qrPayload` via the content-agnostic {@see QrCode} (no `qrSvg` key
  * when the payload is empty/unset); sponsors resolves `config.sponsorLogoPaths`
  * to public storage URLs. Every other scene type still gets `[]`, which is
@@ -69,6 +70,7 @@ final class ScenePayload
             SceneType::Sponsors => self::sponsorsData($scene),
             SceneType::Tombola => self::tombolaData($scene),
             SceneType::Status => self::statusData($scene),
+            SceneType::Servers => self::serversData($scene),
             default => [],
         };
     }
@@ -144,6 +146,20 @@ final class ScenePayload
         }
 
         return ['seats' => SeatProjection::forEvent($event)];
+    }
+
+    /**
+     * @return array{servers: list<array<string, mixed>>}
+     */
+    private static function serversData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return ['servers' => []];
+        }
+
+        return ['servers' => ServerListProjection::forEvent($event)];
     }
 
     /**

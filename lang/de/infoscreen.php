@@ -11,6 +11,7 @@ return [
         'sponsors' => 'Sponsoren',
         'tombola' => 'Tombola',
         'status' => 'Statusanzeige',
+        'servers' => 'Spielserver',
         'winner' => 'Sieger-Einblendung',
     ],
 
@@ -165,5 +166,11 @@ return [
         'status_level_ok' => 'OK',
         'status_level_degraded' => 'Eingeschränkt',
         'status_level_down' => 'Ausgefallen',
+
+        // SceneServers (Task 7) — the joinable game server board.
+        'servers_title' => 'Spielserver',
+        'servers_empty' => 'Aktuell sind keine Spielserver bereit.',
+        'servers_address_label' => 'Adresse',
+        'servers_port_label' => 'Port',
     ],
 ];

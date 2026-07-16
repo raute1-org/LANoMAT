@@ -1,6 +1,7 @@
 export * from './auth';
 export * from './catering';
 export * from './events';
+export * from './gameservers';
 export * from './infoscreen';
 export * from './lfg';
 export * from './navigation';

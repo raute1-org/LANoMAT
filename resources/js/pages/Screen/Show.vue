@@ -8,6 +8,7 @@ import SceneFrame from '@/components/scenes/SceneFrame.vue';
 import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
+import SceneServers from '@/components/scenes/SceneServers.vue';
 import SceneSponsors from '@/components/scenes/SceneSponsors.vue';
 import SceneStatus from '@/components/scenes/SceneStatus.vue';
 import SceneTombola from '@/components/scenes/SceneTombola.vue';
@@ -37,6 +38,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     tombola: SceneTombola,
     winner: SceneWinner,
     status: SceneStatus,
+    servers: SceneServers,
 };
 
 const idleScene = computed<ScenePayloadDto>(() => ({

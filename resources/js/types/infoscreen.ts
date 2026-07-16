@@ -8,6 +8,7 @@ export type SceneType =
     | 'sponsors'
     | 'tombola'
     | 'status'
+    | 'servers'
     | 'winner';
 
 /**

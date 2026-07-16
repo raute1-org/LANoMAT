@@ -3,6 +3,7 @@
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
+use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
 use App\Modules\Infoscreen\Http\OrgaPingController;
@@ -55,6 +56,11 @@ Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.sh
 // polls, no auth required" visibility rule; creating/deleting a post requires
 // auth (see below).
 Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
+
+// Public server list — same "public like seating/tournaments/schedule/
+// catering/polls/lfg, no auth required" visibility rule; lists the event's
+// Ready game servers only (see ServerListProjection).
+Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
 
 // Public beamer screen — same "public like seating/tournaments/schedule/
 // catering/polls/lfg, no auth required" visibility rule; renders with no
