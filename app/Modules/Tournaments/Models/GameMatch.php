@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tournaments\Models;
 
+use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use Database\Factories\GameMatchFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,6 +33,8 @@ class GameMatch extends Model
 
     // status/score1/score2/winner_entry_id/lock_version are result/state
     // fields, set only via Actions (later tasks), never client-fillable.
+    // server_link_id is likewise provisioning state, set only by the
+    // provisioning Job (Task 4), never client-fillable.
     protected $fillable = [
         'tournament_id',
         'round',
@@ -98,6 +101,12 @@ class GameMatch extends Model
     public function reports(): HasMany
     {
         return $this->hasMany(MatchReport::class, 'match_id');
+    }
+
+    /** @return BelongsTo<ServerLink, $this> */
+    public function serverLink(): BelongsTo
+    {
+        return $this->belongsTo(ServerLink::class);
     }
 
     protected static function newFactory(): GameMatchFactory

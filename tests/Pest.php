@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
-    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/GameServers', 'Unit/Tournaments/Domain');
+    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/Tournaments/Domain');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
@@ -42,6 +42,11 @@ pest()->extend(TestCase::class)
         // domain code (no IO, see CLAUDE.md) and stays on the plain TestCase
         // group registered above.
         'Unit/Tournaments/*Test.php',
+        // ServerLinkTest hits the DB (factories create rows); the Fake/Http
+        // Pelican client tests are pure IO-contract tests but sharing the
+        // RefreshDatabase group with ServerLinkTest is harmless (it just
+        // wraps them in a transaction) and keeps the directory as one group.
+        'Unit/GameServers',
     );
 
 // Prevent stray HTTP requests in Discord/Voice tests to ensure all external
