@@ -86,3 +86,67 @@ it('403s a participant triggering "Check-in öffnet"', function () {
     expect(fn () => app(TriggerCheckinOpen::class)->handle($event, $participant))
         ->toThrow(AuthorizationException::class);
 });
+
+it('404s the food-ready trigger route when the order in the URL belongs to a different event than the URL event', function () {
+    Notification::fake();
+    EventFacade::fake([SceneOverride::class]);
+
+    $event = Event::factory()->live()->create();
+    $otherEvent = Event::factory()->live()->create();
+    $orderFromOtherEvent = FoodOrder::factory()->for($otherEvent)->open()->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->post("/screen/{$event->slug}/control/triggers/food-ready/{$orderFromOtherEvent->id}")
+        ->assertNotFound();
+
+    Notification::assertNothingSent();
+    EventFacade::assertNotDispatched(SceneOverride::class);
+});
+
+it('sends the food-ready trigger and pushes the beamer via the real route as a helper', function () {
+    Notification::fake();
+    EventFacade::fake([SceneOverride::class]);
+
+    $event = Event::factory()->live()->create();
+    $order = FoodOrder::factory()->for($event)->open()->create();
+    $buyer = User::factory()->create();
+    FoodOrderItem::factory()->for($order)->for($buyer)->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->post("/screen/{$event->slug}/control/triggers/food-ready/{$order->id}")
+        ->assertRedirect();
+
+    Notification::assertSentTo($buyer, FoodOrderReady::class);
+    EventFacade::assertDispatched(SceneOverride::class, fn (SceneOverride $dispatched): bool => $dispatched->eventId === $event->id);
+});
+
+it('403s the food-ready trigger route for a plain participant via the real route', function () {
+    $event = Event::factory()->live()->create();
+    $order = FoodOrder::factory()->for($event)->open()->create();
+
+    $this->actingAs(User::factory()->create())
+        ->post("/screen/{$event->slug}/control/triggers/food-ready/{$order->id}")
+        ->assertForbidden();
+});
+
+it('sends the checkin-open trigger via the real route as a helper', function () {
+    Notification::fake();
+
+    $event = Event::factory()->live()->create();
+    $confirmed = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($confirmed)->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->post("/screen/{$event->slug}/control/triggers/checkin-open")
+        ->assertRedirect();
+
+    Notification::assertSentTo($confirmed, CheckinOpened::class);
+});
+
+it('403s the checkin-open trigger route for a plain participant via the real route', function () {
+    $event = Event::factory()->live()->create();
+
+    $this->actingAs(User::factory()->create())
+        ->post("/screen/{$event->slug}/control/triggers/checkin-open")
+        ->assertForbidden();
+});
