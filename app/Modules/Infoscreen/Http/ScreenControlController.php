@@ -180,12 +180,11 @@ class ScreenControlController extends Controller
     /**
      * The operations status tile's "set status" control (Task 12): a helper
      * flags one component's level, which either pops an outage reassurance
-     * onto the beamer or clears it — see {@see SetStatusSignal}.
+     * onto the beamer or clears it — see {@see SetStatusSignal}, which is also
+     * where authorization happens (mirroring `foodReady`/`checkinOpen` above).
      */
     public function setStatus(SetStatusSignalRequest $request, Event $event, SetStatusSignal $action): RedirectResponse
     {
-        $this->authorize('setStatus', InfoscreenScene::class);
-
         $action->handle(
             $event,
             $request->string('component')->value(),
