@@ -23,7 +23,7 @@ it('renders the public schedule page with german labels and the item list', func
             ->has('items', 1)
             ->where('items.0.title', 'Opening Ceremony')
             ->has('items.0', fn (AssertableInertia $item) => $item
-                ->hasAll(['id', 'type', 'typeLabel', 'title', 'description', 'startsAt', 'endsAt', 'location']))
+                ->hasAll(['id', 'type', 'typeLabel', 'title', 'description', 'startsAt', 'endsAt', 'location', 'mine']))
         );
 });
 

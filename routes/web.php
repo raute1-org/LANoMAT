@@ -75,6 +75,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 
+    Route::post('/schedule/{item}/favorite', [ScheduleController::class, 'favorite'])->name('schedule.favorite');
+    Route::delete('/schedule/{item}/favorite', [ScheduleController::class, 'unfavorite'])->name('schedule.unfavorite');
+
     Route::post('/tournaments/{tournament}/enroll', [TournamentPageController::class, 'enroll'])->name('tournaments.enroll');
     Route::post('/tournaments/{tournament}/checkin', [TournamentPageController::class, 'checkin'])->name('tournaments.checkin');
     Route::post('/matches/{match}/report', [TournamentPageController::class, 'report'])->name('matches.report');

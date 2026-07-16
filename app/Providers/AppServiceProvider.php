@@ -25,6 +25,8 @@ use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\Schedule\Events\ScheduleItemTimeChanged;
+use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
 use App\Modules\Schedule\Listeners\SyncScheduleOnTournamentSaved;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Policies\ScheduleItemPolicy;
@@ -162,5 +164,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
         Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
         Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
+        Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);
     }
 }

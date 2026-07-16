@@ -29,5 +29,19 @@ return [
         'now' => 'Jetzt',
         'next' => 'Gleich',
         'empty' => 'Noch kein Programm',
+        'favorite' => 'Merken',
+        'unfavorite' => 'Nicht mehr merken',
+    ],
+    'notify' => [
+        'starting_soon' => [
+            'title' => 'Gleich geht es los',
+            'body' => ':title beginnt um :time Uhr.',
+            'discord' => ':title beginnt um :time Uhr.',
+        ],
+        'changed' => [
+            'title' => 'Programmpunkt verschoben',
+            'body' => ':title wurde auf :time Uhr verschoben.',
+            'discord' => ':title wurde auf :time Uhr verschoben.',
+        ],
     ],
 ];

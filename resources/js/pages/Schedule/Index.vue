@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { Star } from '@lucide/vue';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { favorite, unfavorite } from '@/routes/schedule';
 import type { ScheduleItemDto } from '@/types';
 
 const props = defineProps<{
@@ -17,6 +20,24 @@ const props = defineProps<{
     next: ScheduleItemDto | null;
     labels: Record<string, string>;
 }>();
+
+const page = usePage();
+const isAuthenticated = computed(() => page.props.auth.user !== null);
+
+function toggleFavorite(item: ScheduleItemDto) {
+    if (item.mine) {
+        router.delete(unfavorite.url({ item: item.id }), {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    } else {
+        router.post(
+            favorite.url({ item: item.id }),
+            {},
+            { preserveScroll: true, preserveState: true },
+        );
+    }
+}
 
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleTimeString([], {
@@ -126,9 +147,38 @@ const groupedItems = computed(() => {
                             </p>
                         </div>
 
-                        <Badge variant="outline" class="shrink-0">{{
-                            item.typeLabel
-                        }}</Badge>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <Badge variant="outline">{{
+                                item.typeLabel
+                            }}</Badge>
+
+                            <Button
+                                v-if="isAuthenticated"
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                :aria-label="
+                                    item.mine
+                                        ? labels.unfavorite
+                                        : labels.favorite
+                                "
+                                :title="
+                                    item.mine
+                                        ? labels.unfavorite
+                                        : labels.favorite
+                                "
+                                @click="toggleFavorite(item)"
+                            >
+                                <Star
+                                    :class="[
+                                        'size-4',
+                                        item.mine
+                                            ? 'fill-primary text-primary'
+                                            : 'text-muted-foreground',
+                                    ]"
+                                />
+                            </Button>
+                        </div>
                     </li>
                 </ul>
             </section>

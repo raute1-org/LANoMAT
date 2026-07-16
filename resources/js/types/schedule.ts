@@ -7,4 +7,5 @@ export interface ScheduleItemDto {
     startsAt: string;
     endsAt: string | null;
     location: string | null;
+    mine: boolean;
 }

@@ -45,7 +45,7 @@ pest()->extend(TestCase::class)
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/Lfg');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/Lfg', 'Feature/Schedule');
 
 /*
 |--------------------------------------------------------------------------

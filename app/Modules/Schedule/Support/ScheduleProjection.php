@@ -19,9 +19,15 @@ use Illuminate\Support\Collection;
 class ScheduleProjection
 {
     /**
+     * @param  Collection<int, int>  $favoriteItemIds  Schedule item IDs the
+     *                                                 current user has
+     *                                                 favorited — empty for
+     *                                                 guests/unauthenticated
+     *                                                 contexts (e.g. the
+     *                                                 infoscreen scene).
      * @return array<string, mixed>
      */
-    public static function itemDto(ScheduleItem $item): array
+    public static function itemDto(ScheduleItem $item, Collection $favoriteItemIds = new Collection): array
     {
         return [
             'id' => $item->id,
@@ -32,6 +38,7 @@ class ScheduleProjection
             'startsAt' => $item->starts_at->toIso8601String(),
             'endsAt' => $item->ends_at?->toIso8601String(),
             'location' => $item->location,
+            'mine' => $favoriteItemIds->contains($item->id),
         ];
     }
 
@@ -49,11 +56,12 @@ class ScheduleProjection
 
     /**
      * @param  Collection<int, ScheduleItem>  $items
+     * @param  Collection<int, int>  $favoriteItemIds
      * @return list<array<string, mixed>>
      */
-    public static function itemDtos(Collection $items): array
+    public static function itemDtos(Collection $items, Collection $favoriteItemIds = new Collection): array
     {
-        return array_values($items->map(fn (ScheduleItem $item): array => self::itemDto($item))->all());
+        return array_values($items->map(fn (ScheduleItem $item): array => self::itemDto($item, $favoriteItemIds))->all());
     }
 
     /**
@@ -61,9 +69,10 @@ class ScheduleProjection
      * `$now` — the earliest-starting one if several overlap, or null if none.
      *
      * @param  Collection<int, ScheduleItem>  $items
+     * @param  Collection<int, int>  $favoriteItemIds
      * @return array<string, mixed>|null
      */
-    public static function currentItem(Collection $items, Carbon $now): ?array
+    public static function currentItem(Collection $items, Carbon $now, Collection $favoriteItemIds = new Collection): ?array
     {
         $current = $items
             ->filter(function (ScheduleItem $item) use ($now): bool {
@@ -74,22 +83,23 @@ class ScheduleProjection
             ->sortBy(fn (ScheduleItem $item): string => $item->starts_at->toIso8601String())
             ->first();
 
-        return $current === null ? null : self::itemDto($current);
+        return $current === null ? null : self::itemDto($current, $favoriteItemIds);
     }
 
     /**
      * The earliest item starting strictly after `$now`, or null if none.
      *
      * @param  Collection<int, ScheduleItem>  $items
+     * @param  Collection<int, int>  $favoriteItemIds
      * @return array<string, mixed>|null
      */
-    public static function nextItem(Collection $items, Carbon $now): ?array
+    public static function nextItem(Collection $items, Carbon $now, Collection $favoriteItemIds = new Collection): ?array
     {
         $next = $items
             ->filter(fn (ScheduleItem $item): bool => $item->starts_at->greaterThan($now))
             ->sortBy(fn (ScheduleItem $item): string => $item->starts_at->toIso8601String())
             ->first();
 
-        return $next === null ? null : self::itemDto($next);
+        return $next === null ? null : self::itemDto($next, $favoriteItemIds);
     }
 }

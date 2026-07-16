@@ -35,4 +35,25 @@ class ScheduleItemPolicy
     {
         return $user->isOrga();
     }
+
+    /**
+     * Any authenticated user may favorite any schedule item — favorites are
+     * a purely personal "remember this for me" marker, not a
+     * privilege-gated action.
+     */
+    public function favorite(User $user, ScheduleItem $item): bool
+    {
+        return true;
+    }
+
+    /**
+     * Unfavoriting only ever acts on the caller's own favorite (the
+     * controller resolves the acting user server-side, never from a
+     * client-supplied ID), so this is likewise open to any authenticated
+     * user.
+     */
+    public function unfavorite(User $user, ScheduleItem $item): bool
+    {
+        return true;
+    }
 }
