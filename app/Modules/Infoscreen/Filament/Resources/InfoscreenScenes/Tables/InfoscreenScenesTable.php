@@ -3,6 +3,7 @@
 namespace App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Tables;
 
 use App\Modules\Infoscreen\Enums\SceneType;
+use App\Modules\Infoscreen\Models\InfoscreenScene;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -27,7 +28,12 @@ class InfoscreenScenesTable
                 TextColumn::make('duration_sec')
                     ->label(__('infoscreen.fields.duration_sec')),
                 ToggleColumn::make('enabled')
-                    ->label(__('infoscreen.fields.enabled')),
+                    ->label(__('infoscreen.fields.enabled'))
+                    // Inline editable columns bypass Model Policies and only
+                    // respect `disabled()` (see Filament docs: Advanced > Security >
+                    // Inline editable columns). Gate it behind the `update` policy
+                    // explicitly so this doesn't silently rely on panel access alone.
+                    ->disabled(fn (InfoscreenScene $record): bool => ! auth()->user()?->can('update', $record)),
             ])
             ->defaultSort('sort')
             ->reorderable('sort')

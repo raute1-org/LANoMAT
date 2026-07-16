@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\EditInfoscreenScene;
+use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\ListInfoscreenScenes;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -29,6 +30,18 @@ it('allows orga into the infoscreen scenes resource and renders the list', funct
         ->get('/admin/infoscreen-scenes')
         ->assertOk()
         ->assertSee('Ansage');
+});
+
+it('lets an orga toggle the enabled column inline, since InfoscreenScenePolicy::update allows it', function () {
+    $event = Event::factory()->create();
+    $scene = InfoscreenScene::factory()->for($event)->announcement()->create(['enabled' => false]);
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(ListInfoscreenScenes::class)
+        ->assertTableColumnStateSet('enabled', false, record: $scene)
+        ->call('updateTableColumnState', 'enabled', $scene->getKey(), true)
+        ->assertTableColumnStateSet('enabled', true, record: $scene->fresh());
 });
 
 it('round-trips the announcement config through SceneConfigCast', function () {
