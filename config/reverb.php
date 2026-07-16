@@ -82,7 +82,11 @@ return [
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                'allowed_origins' => ['*'],
+                // Wildcard by default (dev convenience); production sets
+                // REVERB_ALLOWED_ORIGINS to a comma-separated list of the
+                // real host(s) the browser client connects from, locking
+                // the websocket handshake down to known origins.
+                'allowed_origins' => explode(',', (string) env('REVERB_ALLOWED_ORIGINS', '*')),
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),

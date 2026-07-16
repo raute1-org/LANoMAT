@@ -40,6 +40,14 @@ class EditPoll extends EditRecord
                         return;
                     }
 
+                    // The action locks and saves a *fresh* instance
+                    // internally (see OpenPoll), so `$record` here is still
+                    // the pre-transition object in memory. Refresh it before
+                    // refreshFormData(['status']) re-fills the form,
+                    // otherwise the header still shows the old status until
+                    // a manual page reload.
+                    $record->refresh();
+
                     Notification::make()
                         ->title(__('polls.admin.actions.opened'))
                         ->success()
@@ -64,6 +72,11 @@ class EditPoll extends EditRecord
 
                         return;
                     }
+
+                    // See the `open` action above: the action mutates a
+                    // fresh instance internally, so `$record` must be
+                    // refreshed before refreshFormData(['status']).
+                    $record->refresh();
 
                     Notification::make()
                         ->title(__('polls.admin.actions.closed'))

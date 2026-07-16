@@ -22,17 +22,31 @@ services:
     # host port 6380: default 6379 is taken by another local container
     ports: ['6380:6379']
 
-  # Dev-only Reverb (websocket) server. There is no dedicated `app` image yet
-  # (that's the FrankenPHP image planned for M5.6's prod compose profile), so
-  # this reuses the official PHP CLI image against the working tree — same
-  # approach `composer run dev` uses to run the app natively today. The base
-  # image lacks the pgsql/redis/sodium extensions the app normally runs with
-  # (see .github/workflows/ci.yml); `reverb:start` itself only needs the app
+  # Dev-only Reverb (websocket) server. This reuses the official PHP CLI
+  # image against the working tree — same approach `composer run dev` uses
+  # to run the app natively today. The base image lacks the
+  # pgsql/redis/sodium extensions the app normally runs with (see
+  # .github/workflows/ci.yml); `reverb:start` itself only needs the app
   # booted plus Redis (for `REVERB_SCALING_ENABLED`, off by default), but if
   # you hit missing-extension errors, run `composer run dev`'s reverb process
-  # on the host instead, or extend this image once M5.6 ships a real Dockerfile.
+  # on the host instead. Production uses the `reverb-prod` service below
+  # (the real FrankenPHP `app` image, `docker/Dockerfile`) instead of this
+  # throwaway one.
+  #
+  # `profiles: ["", "dev"]` — Compose has no built-in "only when no
+  # --profile flag given" marker (a service with no `profiles` key at all is
+  # *always* active, under every profile too), but the empty string `""` is
+  # the documented profile that is implicitly active whenever no `--profile`
+  # flag is passed. Listing `""` alongside `dev` keeps
+  # `docker compose up -d` (no flags) exactly as before, while excluding
+  # this throwaway service from `docker compose --profile prod up` (which
+  # brings up `reverb-prod` instead). Unlike postgres/redis/mumble/
+  # mumble-admin above (genuinely shared, always-on infra for both dev and
+  # prod), this service must NOT run at the same time as `reverb-prod` —
+  # both would fight over host port 8081.
   reverb:
     image: php:8.4-cli
+    profiles: ['', 'dev']
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
@@ -42,6 +56,82 @@ services:
     # servers, mirroring the postgres/redis non-default-port convention above
     ports: ['8081:8080']
     depends_on: [redis]
+
+  # --- Production (M5 Task 14): `docker compose --profile prod up -d` ---
+  # These four services share the FrankenPHP `app` image (docker/Dockerfile)
+  # built once and reused across roles, exactly like `composer run dev` runs
+  # app/queue/vite as separate processes against the same codebase in dev.
+  # `postgres`/`redis`/`mumble`/`mumble-admin` above have no `profiles` key,
+  # so they are shared infrastructure: already running for both `up -d`
+  # (dev) and `--profile prod up` (prod) without being duplicated here.
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    profiles: [prod]
+    env_file: .env
+    ports: ['8000:80']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/up']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    profiles: [prod]
+    command: php artisan queue:work --tries=3 --max-time=3600
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Laravel's own cron-replacement process: re-checks routes/console.php's
+  # Schedule::command(...) entries every minute for as long as it runs (the
+  # four M2/M3 commands plus M5's `lanomat:send-schedule-reminders`) — the
+  # containerized equivalent of the README's dev instruction to run
+  # `php artisan schedule:work` in a separate terminal.
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    profiles: [prod]
+    command: php artisan schedule:work
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Production Reverb: the real `app` image (not the throwaway `php:8.4-cli`
+  # the dev `reverb` service above uses), so it has the pgsql/redis/sodium/
+  # intl/zip extensions and the optimized autoloader/caches. Bound to the
+  # same non-default host port 8081 the dev service uses, for parity with
+  # REVERB_PORT in .env.example (only one of `reverb`/`reverb-prod` is ever
+  # running at a time — dev xor prod).
+  reverb-prod:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    profiles: [prod]
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    env_file: .env
+    ports: ['8081:8080']
+    depends_on:
+      redis:
+        condition: service_started
 
   # Mumble voice server (M3, Modul 12). Official image, pinned to the
   # v1.4.x stable line (matches docker/mumble-admin/Murmur.ice's Ice slice).
@@ -78,13 +168,16 @@ services:
       MUMBLE_ICE_HOST: mumble
       MUMBLE_ICE_PORT: '6502'
       MUMBLE_ICE_SECRET: ${MUMBLE_ICE_SECRET}
-    # host port 8085: non-default, mirrors the postgres/redis/reverb
-    # convention above. Internal REST URL for the Laravel app is
-    # http://mumble-admin:8000 (compose network), not the host port.
-    # DEV-ONLY: this is the dev stack. A production deployment (M5's prod
-    # profile) must NOT publish this bearer-token-protected sidecar on a
-    # public host port — bind it to localhost/an internal network only.
-    ports: ['8085:8000']
+    # Host port 8085, bound to loopback only (127.0.0.1): non-default,
+    # mirrors the postgres/redis/reverb convention above, but this
+    # bearer-token-protected sidecar must never be reachable from outside
+    # the host at all (dev or prod) — the Laravel app always talks to it
+    # over the compose network at http://mumble-admin:8000, never via this
+    # port. Binding to 127.0.0.1 keeps host-side debugging (`curl
+    # localhost:8085/...`) working in dev while satisfying the M5 prod
+    # requirement that this port is never publicly exposed, without having
+    # to duplicate the service definition per compose profile.
+    ports: ['127.0.0.1:8085:8000']
     depends_on: [mumble]
 
 volumes:

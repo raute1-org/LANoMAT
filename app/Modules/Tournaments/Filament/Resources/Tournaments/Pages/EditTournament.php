@@ -44,6 +44,14 @@ class EditTournament extends EditRecord
                         return;
                     }
 
+                    // The action locks and saves a *fresh* instance
+                    // internally (see StartTournament), so `$record` here is
+                    // still the pre-transition object in memory. Refresh it
+                    // before refreshFormData(['status']) re-fills the form,
+                    // otherwise the header still shows the old status until
+                    // a manual page reload.
+                    $record->refresh();
+
                     Notification::make()
                         ->title(__('tournaments.admin.actions.started'))
                         ->success()

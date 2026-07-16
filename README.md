@@ -95,9 +95,51 @@ for the full design rationale.
 
    - **Dev:** run `php artisan schedule:work` in a separate terminal — it re-checks the
      schedule every minute for as long as it's running, no crontab needed.
-   - **Prod:** add the standard Laravel cron entry (`* * * * * php artisan schedule:run`)
-     to the server/container crontab; Laravel itself decides from there which due commands
-     actually execute.
+   - **Prod:** the `scheduler` service in `compose.yml`'s `prod` profile runs
+     `php artisan schedule:work` continuously — see "Production deployment" below.
+
+## Production deployment
+
+A production image is built from `docker/Dockerfile` — [FrankenPHP](https://frankenphp.dev/)
+(`dunglas/frankenphp`, PHP 8.4) serving the app natively (no Octane/worker mode; see the
+Dockerfile's header comment for why). `compose.yml`'s `prod` profile adds four services on
+top of the same shared Postgres/Redis/Mumble infrastructure the dev stack uses: `app` (HTTP,
+healthchecked on `/up`), `queue` (`php artisan queue:work`), `scheduler`
+(`php artisan schedule:work`, replacing the dev-only `schedule:work` terminal), and
+`reverb-prod` (websockets, replacing the dev-only throwaway `reverb` service — the two never
+run at the same time). `docker compose up -d` (no flags) is unaffected by any of this.
+
+1. **Configure `.env` for production:**
+
+   ```
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_URL=https://lan.example
+   REVERB_SCHEME=https
+   REVERB_ALLOWED_ORIGINS=https://lan.example
+   ```
+
+   `REVERB_ALLOWED_ORIGINS` locks Reverb's websocket handshake down to the real origin(s)
+   the browser client connects from (comma-separated for more than one) — see
+   `config/reverb.php`. Leaving it unset defaults to `*` (fine for dev, not for prod).
+
+2. **Bring up the stack:**
+
+   ```bash
+   docker compose --profile prod up -d
+   ```
+
+3. **Run migrations and create the first admin**, same command as dev, just inside the
+   `app` container:
+
+   ```bash
+   docker compose --profile prod exec app php artisan lanomat:install --admin-discord-id=<id>
+   ```
+
+**TLS / reverse proxy:** the `app`/`reverb-prod` services are plain HTTP, deliberately not
+TLS-terminated by this compose file — a Traefik reverse proxy in front of both is planned for
+M7 (see the roadmap). Until then, terminate TLS yourself (e.g. a host-level nginx/Caddy) in
+front of the published `8000`/`8081` ports, or only run this on a trusted LAN.
 
 ## Quality gates
 

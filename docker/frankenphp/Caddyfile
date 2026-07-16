@@ -1,0 +1,21 @@
+# Production Caddyfile for LANoMAT v2's FrankenPHP app image.
+#
+# This mirrors FrankenPHP's own documented Laravel serving snippet
+# (https://frankenphp.dev/docs/laravel/): serve `public/`, let `php_server`
+# route everything through Laravel's front controller, and compress
+# responses. No `worker` directive is configured — see docker/Dockerfile's
+# header comment for why LANoMAT v2 runs FrankenPHP's classic per-request
+# mode rather than Octane/worker mode for now.
+{
+	skip_install_trust
+	frankenphp
+}
+
+{$SERVER_NAME:localhost} {
+	root * public/
+	encode zstd br gzip
+
+	php_server {
+		try_files {path} index.php
+	}
+}
