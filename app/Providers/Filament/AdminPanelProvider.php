@@ -60,6 +60,10 @@ class AdminPanelProvider extends PanelProvider
                 for: 'App\Modules\Teams\Filament\Resources',
             )
             ->discoverResources(
+                in: app_path('Modules/Games/Filament/Resources'),
+                for: 'App\Modules\Games\Filament\Resources',
+            )
+            ->discoverResources(
                 in: app_path('Modules/Tournaments/Filament/Resources'),
                 for: 'App\Modules\Tournaments\Filament\Resources',
             )

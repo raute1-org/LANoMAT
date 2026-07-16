@@ -20,6 +20,11 @@ class TournamentForm
                     ->relationship('event', 'name')
                     ->required()
                     ->searchable(),
+                Select::make('game_id')
+                    ->label(__('tournaments.fields.game'))
+                    ->relationship('game', 'name')
+                    ->searchable()
+                    ->preload(),
                 TextInput::make('name')
                     ->label(__('tournaments.fields.name'))
                     ->required()

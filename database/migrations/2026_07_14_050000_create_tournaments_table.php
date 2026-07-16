@@ -11,8 +11,9 @@ return new class extends Migration
         Schema::create('tournaments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_id')->constrained()->cascadeOnDelete();
-            // No games table until M6; kept as a plain nullable FK column
-            // (not constrained()) so it doesn't reference a nonexistent table.
+            // Constrained in a later migration (2026_07_16_200100), once the
+            // games table exists (M6 Task 1) — kept as a plain nullable FK
+            // column here so this migration doesn't reference it too early.
             $table->foreignId('game_id')->nullable();
             $table->string('name');
             $table->string('format');

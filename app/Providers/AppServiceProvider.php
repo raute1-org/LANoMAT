@@ -15,6 +15,8 @@ use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
+use App\Modules\Games\Models\Game;
+use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\TombolaPrize;
@@ -141,6 +143,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
         Gate::policy(Seat::class, SeatPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
+        Gate::policy(Game::class, GamePolicy::class);
         Gate::policy(Tournament::class, TournamentPolicy::class);
         Gate::policy(TournamentEntry::class, TournamentPolicy::class);
         Gate::policy(GameMatch::class, TournamentPolicy::class);

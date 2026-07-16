@@ -23,5 +23,7 @@ class DatabaseSeeder extends Seeder
         $user->email = 'test@example.com';
         $user->role = Role::Participant;
         $user->save();
+
+        $this->call(GamesSeeder::class);
     }
 }

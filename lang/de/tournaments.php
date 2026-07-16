@@ -8,6 +8,7 @@ return [
 
     'fields' => [
         'event' => 'Event',
+        'game' => 'Spiel',
         'name' => 'Name',
         'format' => 'Format',
         'status' => 'Status',

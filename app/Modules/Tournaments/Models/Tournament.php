@@ -3,6 +3,7 @@
 namespace App\Modules\Tournaments\Models;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Games\Models\Game;
 use App\Modules\Tournaments\Enums\TournamentFormat;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Events\TournamentSaved;
@@ -59,6 +60,12 @@ class Tournament extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    /** @return BelongsTo<Game, $this> */
+    public function game(): BelongsTo
+    {
+        return $this->belongsTo(Game::class);
     }
 
     /** @return HasMany<TournamentEntry, $this> */
