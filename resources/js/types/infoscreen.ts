@@ -10,7 +10,8 @@ export type SceneType =
     | 'status'
     | 'servers'
     | 'winner'
-    | 'gong';
+    | 'gong'
+    | 'scoreboard';
 
 /**
  * The wire shape produced by `ScenePayload::for()` — the single scene ->

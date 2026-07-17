@@ -27,12 +27,15 @@ const props = withDefaults(
         warmupLabels?: Record<string, string>;
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
+        /** `gameservers.live_score` labels (Task 12: CS2 telemetry live score, roadmap 6.9). */
+        liveScoreLabels?: Record<string, string>;
     }>(),
     {
         canGoLive: false,
         warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
+        liveScoreLabels: () => ({}),
     },
 );
 
@@ -113,6 +116,17 @@ const isLive = computed(
     () => props.match.status === 'ready' || props.match.status === 'reported',
 );
 const isWarmup = computed(() => props.match.status === 'warmup');
+
+// A CS2 telemetry live score (Task 12, roadmap 6.9) writes score1/score2
+// while the match is still `ready` (in progress) — before any report is
+// submitted. This is the calm-register cue that the numbers already shown
+// below are live and updating, not the final reported result (which only
+// ever appears once `status` moves past `ready`).
+const hasLiveScore = computed(
+    () =>
+        props.match.status === 'ready' &&
+        (props.match.score1 !== null || props.match.score2 !== null),
+);
 </script>
 
 <template>
@@ -137,6 +151,21 @@ const isWarmup = computed(() => props.match.status === 'warmup');
             <Badge v-else :variant="statusVariant(match.status)">
                 {{ matchStatusLabels[match.status] }}
             </Badge>
+        </div>
+
+        <div
+            v-if="hasLiveScore"
+            class="mb-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground uppercase tabular-nums"
+        >
+            <span class="relative inline-flex size-1.5">
+                <span
+                    class="absolute inline-flex h-full w-full animate-ping rounded-full bg-live opacity-75 motion-reduce:animate-none"
+                />
+                <span
+                    class="relative inline-flex size-1.5 rounded-full bg-live"
+                />
+            </span>
+            {{ liveScoreLabels.label }}
         </div>
 
         <div class="space-y-1">

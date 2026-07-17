@@ -38,6 +38,19 @@ enum SceneType: string
      */
     case Gong = 'gong';
 
+    /**
+     * Synthetic, override-only type (roadmap 6.9): a CS2 match's live
+     * round/score update is built and dispatched entirely by
+     * `App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated`
+     * in reaction to `App\Modules\GameServers\Events\MatchScoreUpdated` —
+     * like {@see Winner}/{@see Gong}, it is never configured as a rotation
+     * entry in Filament (excluded from {@see InfoscreenSceneForm}'s `type`
+     * options) and has no `InfoscreenScene` row. A live scoreboard only
+     * makes sense while telemetry is actively pushing updates for a match in
+     * progress, not as a timed rotation slot with stale data.
+     */
+    case Scoreboard = 'scoreboard';
+
     public function label(): string
     {
         return __('infoscreen.type.'.$this->value);

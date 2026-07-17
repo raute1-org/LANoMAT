@@ -14,6 +14,7 @@ return [
         'servers' => 'Spielserver',
         'winner' => 'Sieger-Einblendung',
         'gong' => 'Go-Gong',
+        'scoreboard' => 'Live-Scoreboard',
     ],
 
     'status_level' => [
@@ -179,5 +180,10 @@ return [
         'servers_empty' => 'Aktuell sind keine Spielserver bereit.',
         'servers_address_label' => 'Adresse',
         'servers_port_label' => 'Port',
+
+        // SceneScoreboard (Task 12) — the CS2 live-stats scoreboard moment.
+        'scoreboard_title' => 'Live-Scoreboard',
+        'scoreboard_round' => 'Runde :number',
+        'scoreboard_tournament' => ':tournament',
     ],
 ];

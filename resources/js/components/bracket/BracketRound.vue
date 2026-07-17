@@ -13,6 +13,7 @@ withDefaults(
         warmupLabels?: Record<string, string>;
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
+        liveScoreLabels?: Record<string, string>;
         /** Registers (or unregisters, when `el` is null) a card's DOM element with the parent BracketView for connector measurement. */
         registerCard: (matchId: number, el: Element | null) => void;
     }>(),
@@ -21,6 +22,7 @@ withDefaults(
         warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
+        liveScoreLabels: () => ({}),
     },
 );
 
@@ -54,6 +56,7 @@ function isParticipant(
                     :warmup-labels="warmupLabels"
                     :server-labels="serverLabels"
                     :server-link-status-labels="serverLinkStatusLabels"
+                    :live-score-labels="liveScoreLabels"
                 />
             </div>
         </div>

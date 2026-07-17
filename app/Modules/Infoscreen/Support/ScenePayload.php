@@ -30,6 +30,12 @@ use Illuminate\Support\Facades\Storage;
  * still TODO for a later task). Keeping this in one place means the
  * controller and the override event can never drift on shape.
  *
+ * `Scoreboard` (roadmap 6.9) is, like `Winner`/`Gong`, synthetic and
+ * override-only: it never has an `InfoscreenScene` row, so `dataFor()`
+ * never needs a match arm for it — its payload is built directly by
+ * `App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated` and
+ * pushed via `SceneOverride`.
+ *
  * `data` carries type-specific derived data: bracket/upcoming-matches read
  * `config.tournamentId` and project via {@see BracketMatchProjection}
  * (shared with the tournament show page); schedule, seatmap and servers

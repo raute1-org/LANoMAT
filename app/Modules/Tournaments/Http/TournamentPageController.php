@@ -113,6 +113,7 @@ class TournamentPageController extends Controller
             'warmupLabels' => trans('tournaments.warmup'),
             'serverLabels' => trans('gameservers.match_page'),
             'serverLinkStatusLabels' => trans('gameservers.server_link_status'),
+            'liveScoreLabels' => trans('gameservers.live_score'),
         ]);
     }
 

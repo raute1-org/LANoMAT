@@ -18,12 +18,14 @@ const props = withDefaults(
         /** Omitted by read-only surfaces (e.g. the infoscreen bracket scene), which never render the server-join action. */
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
+        liveScoreLabels?: Record<string, string>;
     }>(),
     {
         canGoLive: false,
         warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
+        liveScoreLabels: () => ({}),
     },
 );
 
@@ -220,6 +222,7 @@ onUnmounted(() => {
                 :warmup-labels="warmupLabels"
                 :server-labels="serverLabels"
                 :server-link-status-labels="serverLinkStatusLabels"
+                :live-score-labels="liveScoreLabels"
                 :register-card="registerCard"
             />
         </div>

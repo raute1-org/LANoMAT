@@ -4,6 +4,7 @@ use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\GameServers\Http\GameServerPageController;
+use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
 use App\Modules\Infoscreen\Http\OrgaPingController;
@@ -165,5 +166,13 @@ Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
 Route::post('api/discord/interactions', InteractionsController::class)
     ->middleware('discord.signature')
     ->name('discord.interactions');
+
+// CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs
+// round/score events here, authenticated by its own per-ServerLink bearer
+// token (see MatchTelemetryController) rather than a Laravel session — like
+// the Discord interactions endpoint above, it is exempted from CSRF in
+// bootstrap/app.php instead of relying on session/cookie state.
+Route::post('api/telemetry/cs2/{serverLink}', MatchTelemetryController::class)
+    ->name('telemetry.cs2');
 
 require __DIR__.'/settings.php';

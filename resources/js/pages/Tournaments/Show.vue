@@ -26,6 +26,8 @@ const props = defineProps<{
     warmupLabels: Record<string, string>;
     serverLabels: Record<string, string>;
     serverLinkStatusLabels: Record<string, string>;
+    /** `gameservers.live_score` labels (Task 12: CS2 telemetry live score, roadmap 6.9). */
+    liveScoreLabels: Record<string, string>;
 }>();
 
 useTournamentChannel(props.tournament.id);
@@ -99,6 +101,7 @@ const isNotStarted = computed(
                     :bracket-labels="labels"
                     :server-labels="serverLabels"
                     :server-link-status-labels="serverLinkStatusLabels"
+                    :live-score-labels="liveScoreLabels"
                 />
             </div>
         </template>

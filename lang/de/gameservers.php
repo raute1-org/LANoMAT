@@ -29,6 +29,13 @@ return [
         'estimate_label' => 'Geschätzter Bedarf',
         'estimate_over_cap' => 'Über dem Limit',
     ],
+    // The CS2 live-stats score on the match page (roadmap 6.9,
+    // Cs2TelemetryTest/MatchScoreUpdated) — a calm, small readout next to
+    // the match card, not the loud beamer scoreboard scene.
+    'live_score' => [
+        'label' => 'Live-Stand',
+        'round' => 'Runde :number',
+    ],
     'page' => [
         'title' => 'Spielserver',
         'empty' => 'Noch keine Spielserver bereit — sie erscheinen hier, sobald ein Match startet.',

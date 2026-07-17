@@ -14,6 +14,7 @@ use Database\Factories\ServerLinkFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 /**
  * Links a match (or, for non-match provisioning, a tournament) to its
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ServerLinkStatus $status
  * @property bool $manual
  * @property int|null $requested_by
+ * @property string|null $telemetry_token
  */
 class ServerLink extends Model
 {
@@ -35,12 +37,22 @@ class ServerLink extends Model
     // GameMatch's status/score fields). requested_by is written only by
     // SetManualJoinInfo (the interactive path) — see GuardrailPolicy's
     // per-user-cap doc for why the automatic job path leaves it null.
+    // telemetry_token is likewise never client-fillable — it is lazily
+    // generated in booted() below, the bearer credential a CS2 game server
+    // presents to MatchTelemetryController (Task 12).
     protected $fillable = [
         'match_id',
         'tournament_id',
         'manual',
         'requested_by',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (ServerLink $link): void {
+            $link->telemetry_token ??= Str::random(40);
+        });
+    }
 
     protected function casts(): array
     {

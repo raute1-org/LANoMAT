@@ -39,7 +39,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Discord signs the raw body itself (see VerifyDiscordSignature); it
         // never carries a Laravel CSRF token, so the route is exempted here.
-        $middleware->validateCsrfTokens(except: ['api/discord/interactions']);
+        // The CS2 telemetry webhook is likewise called by a game server (no
+        // session, no CSRF token) and authenticates via its own per-server
+        // bearer token instead (see MatchTelemetryController).
+        $middleware->validateCsrfTokens(except: ['api/discord/interactions', 'api/telemetry/cs2/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
