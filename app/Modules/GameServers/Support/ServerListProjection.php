@@ -78,6 +78,28 @@ class ServerListProjection
             'connectString' => PelicanJoinLink::for($link->join_info),
             'status' => $link->status->value,
             'estimate' => self::estimateFor($game),
+            'installHint' => self::installHintFor($game),
+        ];
+    }
+
+    /**
+     * Surfaces the game's "So kommst du ran" install hint (roadmap 7.5) on
+     * the participant server list — null (rendered as nothing, no empty
+     * placeholder) when the game has no hint configured, mirroring
+     * {@see self::estimateFor()}'s null-when-no-game rule.
+     *
+     * @return array{steamUrl: ?string, shareUrl: ?string, versionNote: ?string}|null
+     */
+    private static function installHintFor(?Game $game): ?array
+    {
+        if ($game === null || $game->install_hint->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'steamUrl' => $game->install_hint->steamUrl,
+            'shareUrl' => $game->install_hint->shareUrl,
+            'versionNote' => $game->install_hint->versionNote,
         ];
     }
 

@@ -11,6 +11,19 @@ export interface GameServerResourceEstimate {
 }
 
 /**
+ * The game's "So kommst du ran" install hint (roadmap 7.5): how to get the
+ * game installed ahead of/at the LAN — a `steam://` deeplink, a share link
+ * into the Files service, and/or a free-text version/modpack note. Null
+ * fields are simply not shown; a wholly-empty hint is projected as `null` on
+ * `GameServerDto.installHint`.
+ */
+export interface GameInstallHintDto {
+    steamUrl: string | null;
+    shareUrl: string | null;
+    versionNote: string | null;
+}
+
+/**
  * The wire shape produced by `ServerListProjection::forEvent()` — shared by
  * the public server list page (`Servers/Index`) and the infoscreen's
  * Servers scene (`SceneServers.vue`). Only Ready servers are ever produced
@@ -28,4 +41,5 @@ export interface GameServerDto {
     slotsUsed?: number;
     slotsMax?: number;
     estimate: GameServerResourceEstimate | null;
+    installHint: GameInstallHintDto | null;
 }

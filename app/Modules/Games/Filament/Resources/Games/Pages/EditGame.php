@@ -2,6 +2,7 @@
 
 namespace App\Modules\Games\Filament\Resources\Games\Pages;
 
+use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
@@ -51,6 +52,16 @@ class EditGame extends EditRecord
 
         unset($data['default_server_config']);
 
+        $installHint = $data['install_hint'] ?? null;
+
+        if ($installHint instanceof InstallHint) {
+            $data['install_hint_steam_url'] = $installHint->steamUrl;
+            $data['install_hint_share_url'] = $installHint->shareUrl;
+            $data['install_hint_version_note'] = $installHint->versionNote;
+        }
+
+        unset($data['install_hint']);
+
         return $data;
     }
 
@@ -68,12 +79,14 @@ class EditGame extends EditRecord
     {
         $config = CreateGame::extractConfig($data);
         $presets = CreateGame::extractPresets($data);
+        $installHint = CreateGame::extractInstallHint($data);
 
         $record->update($data);
 
         if ($record instanceof Game) {
             $record->default_server_config = $config;
             $record->server_presets = $presets;
+            $record->install_hint = $installHint;
             $record->save();
         }
 

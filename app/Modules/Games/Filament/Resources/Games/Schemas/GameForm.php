@@ -131,6 +131,23 @@ class GameForm
                     ->addActionLabel(__('games.fields.preset_add'))
                     ->reorderable(false)
                     ->defaultItems(0),
+
+                // Typed install_hint fields ("So kommst du ran", roadmap
+                // 7.5): install_hint itself is not fillable (see Game
+                // model), so these flat keys are marshalled into an
+                // InstallHint by the Create/Edit pages, mirroring the
+                // default_server_config fields above.
+                TextInput::make('install_hint_steam_url')
+                    ->label(__('games.fields.install_hint_steam_url'))
+                    ->maxLength(255)
+                    ->url(),
+                TextInput::make('install_hint_share_url')
+                    ->label(__('games.fields.install_hint_share_url'))
+                    ->maxLength(255)
+                    ->url(),
+                TextInput::make('install_hint_version_note')
+                    ->label(__('games.fields.install_hint_version_note'))
+                    ->maxLength(255),
             ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Models\Game;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -28,11 +29,12 @@ class GameFactory extends Factory
             'min_team_size' => 1,
             'max_team_size' => 1,
             'pelican_egg_id' => null,
-            // Factories bypass $fillable, so default_server_config and
-            // server_presets can be set directly here (mirrors
-            // InfoscreenSceneFactory).
+            // Factories bypass $fillable, so default_server_config,
+            // server_presets, and install_hint can be set directly here
+            // (mirrors InfoscreenSceneFactory).
             'default_server_config' => new ServerConfig,
             'server_presets' => [],
+            'install_hint' => new InstallHint,
         ];
     }
 }

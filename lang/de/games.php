@@ -24,5 +24,9 @@ return [
         'default_config_mode_form' => 'Einstellungsformular',
         'default_config_mode_upload' => 'Datei-Upload',
         'default_config_upload' => 'Konfigurationsdatei',
+        'install_hint' => 'So kommst du ran',
+        'install_hint_steam_url' => 'Steam-Deeplink',
+        'install_hint_share_url' => 'Download-Link',
+        'install_hint_version_note' => 'Versions-/Modpack-Hinweis',
     ],
 ];

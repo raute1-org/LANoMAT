@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Games\Filament\Resources\Games\Pages;
 
+use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
@@ -33,11 +34,13 @@ class CreateGame extends CreateRecord
     {
         $config = self::extractConfig($data);
         $presets = self::extractPresets($data);
+        $installHint = self::extractInstallHint($data);
 
         /** @var Game $record */
         $record = new Game($data);
         $record->default_server_config = $config;
         $record->server_presets = $presets;
+        $record->install_hint = $installHint;
         $record->save();
 
         return $record;
@@ -129,5 +132,30 @@ class CreateGame extends CreateRecord
             ),
             $rows,
         ));
+    }
+
+    /**
+     * Extracts the game's install hint ("So kommst du ran", roadmap 7.5)
+     * from the form's flat `install_hint_*` fields — install_hint itself is
+     * not in Game::$fillable, so it must be assigned separately through its
+     * typed cast, mirroring extractConfig()/extractPresets() above.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function extractInstallHint(array &$data): InstallHint
+    {
+        $hint = new InstallHint(
+            steamUrl: $data['install_hint_steam_url'] ?? null,
+            shareUrl: $data['install_hint_share_url'] ?? null,
+            versionNote: $data['install_hint_version_note'] ?? null,
+        );
+
+        unset(
+            $data['install_hint_steam_url'],
+            $data['install_hint_share_url'],
+            $data['install_hint_version_note'],
+        );
+
+        return $hint;
     }
 }

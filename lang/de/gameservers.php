@@ -54,6 +54,11 @@ return [
         'status_stopped' => 'Gestoppt',
         'estimate_label' => 'Geschätzter Bedarf',
         'estimate_over_cap' => 'Über dem Limit',
+        'install_hint_label' => 'So kommst du ran',
+        'install_hint_steam' => 'Steam öffnen',
+        'install_hint_download' => 'Download',
+        'install_hint_copy' => 'Kopieren',
+        'install_hint_copied' => 'Kopiert!',
     ],
     'resource' => [
         'label' => 'Spielserver',

@@ -69,6 +69,22 @@ function statusLabel(status: GameServerDto['status']): string {
 async function copy(text: string) {
     await navigator.clipboard.writeText(text);
 }
+
+// Tracks which server's install-hint link was just copied, so the "Kopiert!"
+// confirmation only flashes next to the button that was actually clicked
+// (mirrors the connect-string copy affordance above, keyed per-card instead
+// of globally since a page can list several servers at once).
+const copiedHintFor = ref<number | null>(null);
+
+async function copyHint(serverId: number, text: string) {
+    await copy(text);
+    copiedHintFor.value = serverId;
+    setTimeout(() => {
+        if (copiedHintFor.value === serverId) {
+            copiedHintFor.value = null;
+        }
+    }, 1500);
+}
 </script>
 
 <template>
@@ -195,6 +211,66 @@ async function copy(text: string) {
                             >
                                 {{ labels.copy }}
                             </Button>
+                        </div>
+
+                        <!-- install hint ("So kommst du ran"): rendered only
+                             when the game has one configured — nothing shown
+                             otherwise, a calm, unobtrusive readout rather than
+                             an empty placeholder. -->
+                        <div
+                            v-if="server.installHint"
+                            class="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm"
+                        >
+                            <p class="font-medium text-foreground">
+                                {{ labels.install_hint_label }}
+                            </p>
+
+                            <div
+                                v-if="server.installHint.steamUrl"
+                                class="flex flex-wrap items-center gap-2"
+                            >
+                                <Button as-child size="sm" variant="outline">
+                                    <a :href="server.installHint.steamUrl">{{
+                                        labels.install_hint_steam
+                                    }}</a>
+                                </Button>
+                                <code
+                                    class="truncate font-mono text-xs text-muted-foreground"
+                                    >{{ server.installHint.steamUrl }}</code
+                                >
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    @click="
+                                        copyHint(
+                                            server.id,
+                                            server.installHint.steamUrl,
+                                        )
+                                    "
+                                >
+                                    {{
+                                        copiedHintFor === server.id
+                                            ? labels.install_hint_copied
+                                            : labels.install_hint_copy
+                                    }}
+                                </Button>
+                            </div>
+
+                            <div v-if="server.installHint.shareUrl">
+                                <a
+                                    :href="server.installHint.shareUrl"
+                                    class="font-mono text-xs text-primary underline-offset-4 hover:underline"
+                                    >{{ labels.install_hint_download }}</a
+                                >
+                            </div>
+
+                            <p
+                                v-if="server.installHint.versionNote"
+                                class="text-muted-foreground"
+                            >
+                                {{ server.installHint.versionNote }}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
