@@ -240,7 +240,52 @@ services:
     ports: ['127.0.0.1:8085:8000']
     depends_on: [mumble]
 
+  # TeamSpeak voice server (M8, Modul Voice-Multiprovider). Official image;
+  # unlike `mumble`/`mumble-admin` above (always-on shared infra since M3),
+  # this pair is `profiles: [prod]`-only for now — mode A this phase (see
+  # docs/teamspeak-setup.md): config + docs, not yet real-verified against a
+  # running server, so it stays out of the default dev `docker compose up
+  # -d` until that verification happens.
+  teamspeak:
+    image: teamspeak:latest
+    profiles: [prod]
+    environment:
+      TS3SERVER_LICENSE: accept
+      TS3SERVER_QUERY_PROTOCOLS: raw
+    # Voice port 9989 (UDP) and file-transfer 30033 (TCP) use TeamSpeak's own
+    # defaults, no local collision observed. ServerQuery (10011) is
+    # intentionally NOT published to the host — only teamspeak-admin (same
+    # compose network) needs it, mirroring mumble's Ice-port convention above.
+    ports: ['9989:9987/udp', '30033:30033']
+    volumes:
+      - teamspeak_data:/var/ts3server
+
+  # ServerQuery-REST sidecar (M8 Task 8.3): translates the TeamSpeak
+  # ServerQuery interface into the small REST surface `HttpTeamSpeakClient`
+  # needs — identical contract to mumble-admin. Deliberately dependency-free
+  # on the PHP side (`planetteamspeak/ts3-php-framework` caps at PHP 8.3, this
+  # project is on 8.4) and its own minimal FastAPI sidecar rather than an
+  # uncertain third-party ServerQuery wrapper on the Python side either; see
+  # docker/teamspeak-admin/README.md.
+  teamspeak-admin:
+    build: ./docker/teamspeak-admin
+    profiles: [prod]
+    environment:
+      TEAMSPEAK_HOST: teamspeak
+      TEAMSPEAK_QUERY_PORT: '10011'
+      TEAMSPEAK_QUERY_USER: serveradmin
+      TEAMSPEAK_QUERY_PASSWORD: ${TEAMSPEAK_QUERY_PASSWORD}
+      TEAMSPEAK_ADMIN_TOKEN: ${TEAMSPEAK_ADMIN_TOKEN}
+    # Host port 8086, bound to loopback only (127.0.0.1): non-default
+    # (mirrors mumble-admin's 8085 convention above), and this
+    # bearer-token-protected sidecar must never be reachable from outside the
+    # host — the Laravel app always talks to it over the compose network at
+    # http://teamspeak-admin:8000, never via this port.
+    ports: ['127.0.0.1:8086:8000']
+    depends_on: [teamspeak]
+
 volumes:
   pgdata:
   mumble_data:
+  teamspeak_data:
   traefik_acme:

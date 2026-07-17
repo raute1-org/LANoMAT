@@ -7,12 +7,20 @@ namespace App\Modules\Voice;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Domain\VoiceProvider;
-use RuntimeException;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Http;
+use Throwable;
 
 /**
- * Minimal stub so the provider registry (Task 8.2) can resolve a
- * TeamSpeak client instance. Task 8.3 fills in the real bodies against
- * the teamspeak-admin sidecar plus tests.
+ * Talks to the teamspeak-admin ServerQuery-REST sidecar (docker/teamspeak-admin/app.py,
+ * Task 8.3) over the same small REST surface as HttpMumbleClient: GET/POST
+ * /channels and PATCH|DELETE /channels/{id}. The sidecar's `ChannelOut` uses
+ * `parent` (0 = root) rather than a nullable `parentId`; this client
+ * normalizes that to the domain's `?int $parentId` (0 => null) at the
+ * boundary, and maps the sidecar's `occupants` field (client count on that
+ * channel) straight into `VoiceChannel::$occupants`.
  */
 class HttpTeamSpeakClient implements VoiceClient
 {
@@ -28,29 +36,97 @@ class HttpTeamSpeakClient implements VoiceClient
 
     public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): VoiceChannel
     {
-        throw $this->notImplemented();
+        $response = $this->http()->post("{$this->baseUrl}/channels", [
+            'name' => $name,
+            'parent' => $parentId ?? 0,
+            'temporary' => $temporary,
+        ])->throw();
+
+        return $this->toChannel($response->json());
     }
 
     public function renameChannel(int $channelId, string $name): void
     {
-        throw $this->notImplemented();
+        $this->http()->patch("{$this->baseUrl}/channels/{$channelId}", [
+            'name' => $name,
+        ])->throw();
     }
 
     public function deleteChannel(int $channelId): void
     {
-        throw $this->notImplemented();
+        $this->http()->delete("{$this->baseUrl}/channels/{$channelId}")->throw();
     }
 
     public function listChannels(): array
     {
-        throw $this->notImplemented();
+        $response = $this->http()->get("{$this->baseUrl}/channels")->throw();
+
+        /** @var array<int, array<string, mixed>> $payload */
+        $payload = $response->json();
+
+        return array_map(fn (array $channel) => $this->toChannel($channel), $payload);
     }
 
-    private function notImplemented(): RuntimeException
+    private function http(): PendingRequest
     {
-        return new RuntimeException(
-            "HttpTeamSpeakClient not implemented until Task 8.3 (baseUrl: {$this->baseUrl}, token configured: "
-            .($this->token !== '' ? 'yes' : 'no').')',
+        return Http::withToken($this->token)
+            ->acceptJson()
+            ->retry(3, function (int $attempt, Throwable $exception) {
+                return $this->retryDelayMilliseconds($exception);
+            }, when: function (Throwable $exception): bool {
+                return $this->isTransient($exception);
+            }, throw: false);
+    }
+
+    /**
+     * Only retry transient failures: connection errors and HTTP 429/5xx
+     * responses. Non-transient client errors (401, 404, ...) can never
+     * succeed on retry, so they are surfaced immediately instead of being
+     * hammered against a permanently-broken endpoint. Mirrors
+     * HttpMumbleClient's transient predicate (Task 8.3).
+     */
+    private function isTransient(Throwable $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        if ($exception instanceof RequestException) {
+            $status = $exception->response->status();
+
+            return $status === 429 || $status >= 500;
+        }
+
+        return false;
+    }
+
+    private function retryDelayMilliseconds(Throwable $exception): int
+    {
+        if ($exception instanceof RequestException
+            && $exception->response->status() === 429) {
+            $retryAfter = $exception->response->header('Retry-After');
+
+            if (is_numeric($retryAfter)) {
+                return (int) round(((float) $retryAfter) * 1000);
+            }
+        }
+
+        return 100;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function toChannel(array $payload): VoiceChannel
+    {
+        $parent = (int) $payload['parent'];
+
+        return new VoiceChannel(
+            (int) $payload['id'],
+            (string) $payload['name'],
+            $parent === 0 ? null : $parent,
+            (bool) $payload['temporary'],
+            (int) ($payload['occupants'] ?? 0),
         );
     }
 }

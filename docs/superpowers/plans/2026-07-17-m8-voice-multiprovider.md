@@ -471,19 +471,21 @@ it('does not retry a 404', function () {
 })->throws(Illuminate\Http\Client\RequestException::class);
 ```
 
-- [ ] **Step 2: Run it, verify it fails** — `./vendor/bin/pest --filter=HttpTeamSpeakClient` → FAIL (stub throws).
+- [x] **Step 2: Run it, verify it fails** — `./vendor/bin/pest --filter=HttpTeamSpeakClient` → FAIL (stub throws).
 
-- [ ] **Step 3: Implement `HttpTeamSpeakClient`** — copy `HttpMumbleClient`'s structure verbatim (same retry helper, same `parent:0`↔`null` normalization, same error mapping), changing only the class name, `provider()` return, and mapping `occupants` from the response into `VoiceChannel`. Read `app/Modules/Voice/HttpMumbleClient.php` first and mirror it exactly so behavior (retry counts, which statuses retry) is identical.
+- [x] **Step 3: Implement `HttpTeamSpeakClient`** — copy `HttpMumbleClient`'s structure verbatim (same retry helper, same `parent:0`↔`null` normalization, same error mapping), changing only the class name, `provider()` return, and mapping `occupants` from the response into `VoiceChannel`. Read `app/Modules/Voice/HttpMumbleClient.php` first and mirror it exactly so behavior (retry counts, which statuses retry) is identical.
 
-- [ ] **Step 4: Run it, verify it passes** — `./vendor/bin/pest --filter=HttpTeamSpeakClient` → PASS.
+- [x] **Step 4: Run it, verify it passes** — `./vendor/bin/pest --filter=HttpTeamSpeakClient` → PASS.
 
-- [ ] **Step 5: Write the sidecar (config/docs, mode A)** — `docker/teamspeak-admin/app.py`: a FastAPI app exposing the identical REST contract as `docker/mumble-admin/app.py` (same routes, same Bearer auth via `TEAMSPEAK_ADMIN_TOKEN`, `/healthz`), backed by a TeamSpeak ServerQuery connection (`telnetlib`/`py-ts3`) to `TEAMSPEAK_HOST:10011` with `TEAMSPEAK_QUERY_USER`/`TEAMSPEAK_QUERY_PASSWORD`. Map ServerQuery `channelcreate`/`channeledit`/`channeldelete`/`channellist -client` to the routes; return `{id,name,parent,temporary,occupants}` (occupants = channel client count from `channellist -client` / `clientlist`). `Dockerfile` + `requirements.txt` mirror `docker/mumble-admin`. `README.md` documents ServerQuery whitelist/query-account setup. Add a `// M8-infra-later` note that the image is unbuilt/unverified this phase.
+- [x] **Step 5: Write the sidecar (config/docs, mode A)** — `docker/teamspeak-admin/app.py`: a FastAPI app exposing the identical REST contract as `docker/mumble-admin/app.py` (same routes, same Bearer auth via `TEAMSPEAK_ADMIN_TOKEN`, `/healthz`), backed by a TeamSpeak ServerQuery connection (`telnetlib`/`py-ts3`) to `TEAMSPEAK_HOST:10011` with `TEAMSPEAK_QUERY_USER`/`TEAMSPEAK_QUERY_PASSWORD`. Map ServerQuery `channelcreate`/`channeledit`/`channeldelete`/`channellist -client` to the routes; return `{id,name,parent,temporary,occupants}` (occupants = channel client count from `channellist -client` / `clientlist`). `Dockerfile` + `requirements.txt` mirror `docker/mumble-admin`. `README.md` documents ServerQuery whitelist/query-account setup. Add a `// M8-infra-later` note that the image is unbuilt/unverified this phase.
 
-- [ ] **Step 6: Compose services (prod profile)** — in `docker-compose.yml`, add `teamspeak` (image `teamspeak:latest`, ports off-default on the host to match the project's non-default-port convention, `TS3SERVER_LICENSE=accept`) and `teamspeak-admin` (build `docker/teamspeak-admin`, env `TEAMSPEAK_HOST=teamspeak`, `TEAMSPEAK_ADMIN_TOKEN`), both under `profiles: [prod]` so the dev stack is byte-identical. Verify `docker compose --profile prod config` parses (no real `up`).
+  > Deviation: no ServerQuery library dependency (neither `telnetlib`, deprecated/removed in Python 3.13, nor an unverified `py-ts3` package) — a small hand-rolled `_ServerQueryConnection` (raw TCP socket, ServerQuery line protocol) in `app.py`, same "own minimal sidecar over an uncertain third-party dependency" call the M3 mumble-admin sidecar made against `murmur-rest`.
 
-- [ ] **Step 7: Docs** — `docs/teamspeak-setup.md`: ServerQuery query-account creation, the admin token, the port mapping, and the mode-A "unverified until real hardware" note. Link it from the roadmap.
+- [x] **Step 6: Compose services (prod profile)** — in `compose.yml` (this repo's actual compose filename — Compose auto-detects it same as `docker-compose.yml`), added `teamspeak` (image `teamspeak:latest`, ports off-default on the host to match the project's non-default-port convention, `TS3SERVER_LICENSE=accept`) and `teamspeak-admin` (build `docker/teamspeak-admin`, env `TEAMSPEAK_HOST=teamspeak`, `TEAMSPEAK_ADMIN_TOKEN`), both under `profiles: [prod]` so the dev stack is byte-identical. Verified `docker compose --profile prod config` parses (no real `up`).
 
-- [ ] **Step 8: Run static analysis + commit**
+- [x] **Step 7: Docs** — `docs/teamspeak-setup.md`: ServerQuery query-account creation, the admin token, the port mapping, and the mode-A "unverified until real hardware" note. Linked here (this plan doc is M8's living "roadmap" reference, same role the master roadmap's per-phase Erkenntnisse sections play for earlier phases).
+
+- [x] **Step 8: Run static analysis + commit**
 
 Run: `composer check` and `docker compose --profile prod config >/dev/null && echo OK`.
 
