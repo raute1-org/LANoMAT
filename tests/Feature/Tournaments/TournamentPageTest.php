@@ -69,7 +69,7 @@ it('renders the bracket for an 8-entry single-elimination tournament with 7 matc
         );
 });
 
-it('exposes null myMatchVoiceLink when the viewer has no match voice channel provisioned', function () {
+it('exposes an empty myMatchVoiceLinks when the viewer has no match voice channel provisioned', function () {
     // Round-1 matches are now provisioned a voice channel immediately at
     // start (Fix #1), so "no channel provisioned yet" is only true once the
     // viewer's round-1 match is done and their next (round-2) match has not
@@ -94,7 +94,7 @@ it('exposes null myMatchVoiceLink when the viewer has no match voice channel pro
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
             ->where('myEntryId', $entry1->id)
-            ->where('myMatchVoiceLink', null)
+            ->where('myMatchVoiceLinks', [])
         );
 });
 
@@ -150,10 +150,10 @@ it('surfaces the viewer active (Ready/Reported/Disputed) match rather than a sta
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
             ->where('myEntryId', $entry1->id)
-            // Non-null proves the active round-2 match was surfaced, not
-            // the stale completed round-1 match (whose link for entry1 is
-            // deliberately null above).
-            ->has('myMatchVoiceLink')
+            // A non-empty list proves the active round-2 match was
+            // surfaced, not the stale completed round-1 match (whose link
+            // for entry1 is deliberately null above).
+            ->has('myMatchVoiceLinks', 1)
         );
 });
 
@@ -172,7 +172,10 @@ it('exposes the viewer own mumble join link once their match has voice channels 
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
-            ->where('myMatchVoiceLink', 'mumble://voice.example.test:64738/'.$entry1->display_name)
+            ->has('myMatchVoiceLinks', 1)
+            ->where('myMatchVoiceLinks.0.provider', 'mumble')
+            ->where('myMatchVoiceLinks.0.url', 'mumble://voice.example.test:64738/'.$entry1->display_name)
+            ->where('myMatchVoiceLinks.0.isDefault', true)
         );
 });
 

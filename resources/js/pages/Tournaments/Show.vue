@@ -8,7 +8,7 @@ import { useTournamentChannel } from '@/composables/useTournamentChannel';
 import { index as tournamentsIndex } from '@/routes/tournaments';
 import type {
     BracketMatchDto,
-    MatchVoiceLink,
+    MatchVoiceLinks,
     TournamentDetail,
 } from '@/types';
 
@@ -16,7 +16,7 @@ const props = defineProps<{
     tournament: TournamentDetail;
     matches: BracketMatchDto[];
     myEntryId: number | null;
-    myMatchVoiceLink: MatchVoiceLink;
+    myMatchVoiceLinks: MatchVoiceLinks;
     /** True for a helper/orga viewer — gates the match card's manual "Go" control. */
     canGoLive: boolean;
     labels: Record<string, string>;
@@ -28,9 +28,18 @@ const props = defineProps<{
     serverLinkStatusLabels: Record<string, string>;
     /** `gameservers.live_score` labels (Task 12: CS2 telemetry live score, roadmap 6.9). */
     liveScoreLabels: Record<string, string>;
+    /** `voice.join` labels for the multi-provider voice-link cluster. */
+    voiceLabels: Record<string, string>;
 }>();
 
 useTournamentChannel(props.tournament.id);
+
+/** Default provider first so the rationed amber action always leads the cluster. */
+const voiceLinks = computed(() =>
+    [...props.myMatchVoiceLinks].sort(
+        (a, b) => Number(b.isDefault) - Number(a.isDefault),
+    ),
+);
 
 const isLive = computed(() => props.tournament.status === 'live');
 const isFinished = computed(() => props.tournament.status === 'finished');
@@ -67,10 +76,35 @@ const isNotStarted = computed(
             {{ tournament.event.name }}
         </p>
 
-        <div v-if="myMatchVoiceLink" class="mt-4">
-            <Button as="a" :href="myMatchVoiceLink" variant="outline">
-                {{ labels.join_voice }}
-            </Button>
+        <div v-if="voiceLinks.length" class="mt-4">
+            <h2 class="text-sm font-medium text-muted-foreground">
+                {{ voiceLabels.heading }}
+            </h2>
+            <div class="mt-2 flex flex-wrap items-center gap-3">
+                <template v-for="link in voiceLinks" :key="link.provider">
+                    <Button
+                        v-if="link.isDefault"
+                        as="a"
+                        :href="link.url"
+                        variant="default"
+                    >
+                        {{ labels.join_voice }} — {{ link.label }}
+                    </Button>
+                    <a
+                        v-else
+                        :href="link.url"
+                        class="rounded-sm text-sm text-muted-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                        {{ link.label }}
+                    </a>
+                </template>
+            </div>
+            <p
+                v-if="voiceLinks.some((link) => link.isDefault)"
+                class="mt-1 text-xs text-muted-foreground"
+            >
+                {{ voiceLabels.default_hint }}
+            </p>
         </div>
 
         <div

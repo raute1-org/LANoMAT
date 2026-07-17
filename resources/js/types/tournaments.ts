@@ -15,8 +15,22 @@ export interface TournamentDetail {
     winnerEntryId: number | null;
 }
 
-/** A `mumble://` deep link to the viewer's own match voice channel, or null if none has been provisioned (yet, or any more). */
-export type MatchVoiceLink = string | null;
+/**
+ * The viewer's own join link for one active voice provider on their current
+ * match — `provider` is the provider's config value (e.g. `"mumble"`),
+ * `label` its display name, `url` a `mumble://`/`ts3server://` deep link,
+ * and `isDefault` marks the installation/team's preferred provider (exactly
+ * one entry, if any, has `isDefault: true`).
+ */
+export interface MatchVoiceLinkItem {
+    provider: string;
+    label: string;
+    url: string;
+    isDefault: boolean;
+}
+
+/** Every active provider's join link for the viewer's current match, empty when no channel has been provisioned (yet, or any more). */
+export type MatchVoiceLinks = MatchVoiceLinkItem[];
 
 export type MatchStatusValue =
     'pending' | 'ready' | 'warmup' | 'reported' | 'disputed' | 'completed';

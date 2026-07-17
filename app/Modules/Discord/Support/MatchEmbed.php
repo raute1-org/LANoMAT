@@ -1,20 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Discord\Support;
 
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\PelicanJoinLink;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
-use App\Modules\Voice\Support\MumbleJoinLink;
+use App\Modules\Voice\Support\VoiceJoinLink;
 
 /**
  * Builds the Discord embed payload sent into a freshly created match
  * channel. Carries the match deep-link, both opponent names, and — once
  * {@see ProvisionMatchVoiceJob} has provisioned the
- * match's per-team Mumble channels (`matches.voice_channels`) — a Mumble
- * join link for each roster's own channel, plus — once the match's
+ * match's per-team voice channels (`matches.voice_channels`, keyed per
+ * provider) — a join link per active provider for each roster's own channel,
+ * marking the installation/team default, plus — once the match's
  * {@see ServerLink} is Ready — a game
  * server join section ({@see UpdateMatchSurfacesOnServerReady}).
  */
@@ -61,30 +65,53 @@ class MatchEmbed
      * Public so other bell/notification surfaces (e.g. MatchReadyBell) can
      * reuse the exact same voice-link text without re-deriving it from the
      * rendered embed description.
+     *
+     * Lists one line per active provider present in `matches.voice_channels`
+     * with a channel id for either entry, prefixing the installation's
+     * default provider's lines with a text marker (there is no single
+     * "viewer" in a shared channel embed, so the config default — not a
+     * per-team choice — is what gets highlighted here).
      */
     public static function voiceLink(GameMatch $match, string $entry1Name, string $entry2Name): ?string
     {
-        // `matches.voice_channels` is keyed per provider (Task 8.4); the
-        // embed surfaces the installation's default provider's subtree only
-        // (full multi-provider link UI is Task 8.6).
-        $defaultProvider = (string) config('services.voice.default_provider');
-        $providerChannels = $match->voice_channels[$defaultProvider] ?? [];
-
-        $entry1ChannelId = $providerChannels['entry1_channel_id'] ?? null;
-        $entry2ChannelId = $providerChannels['entry2_channel_id'] ?? null;
-
-        if ($entry1ChannelId === null && $entry2ChannelId === null) {
-            return null;
-        }
+        $voiceChannels = $match->voice_channels ?? [];
+        $defaultProvider = VoiceJoinLink::defaultProviderFor(null);
 
         $lines = [];
 
-        if ($entry1ChannelId !== null) {
-            $lines[] = "{$entry1Name}: ".MumbleJoinLink::for($entry1Name);
+        foreach ($voiceChannels as $providerValue => $providerChannels) {
+            $provider = VoiceProvider::tryFrom((string) $providerValue);
+
+            if ($provider === null) {
+                continue;
+            }
+
+            $entry1ChannelId = $providerChannels['entry1_channel_id'] ?? null;
+            $entry2ChannelId = $providerChannels['entry2_channel_id'] ?? null;
+
+            if ($entry1ChannelId === null && $entry2ChannelId === null) {
+                continue;
+            }
+
+            $label = $provider === $defaultProvider
+                ? __('discord.match_channel.voice_default_marker', ['provider' => $provider->label()])
+                : $provider->label();
+
+            $providerLines = ["**{$label}**"];
+
+            if ($entry1ChannelId !== null) {
+                $providerLines[] = "{$entry1Name}: ".VoiceJoinLink::for($provider, $entry1Name);
+            }
+
+            if ($entry2ChannelId !== null) {
+                $providerLines[] = "{$entry2Name}: ".VoiceJoinLink::for($provider, $entry2Name);
+            }
+
+            $lines[] = implode("\n", $providerLines);
         }
 
-        if ($entry2ChannelId !== null) {
-            $lines[] = "{$entry2Name}: ".MumbleJoinLink::for($entry2Name);
+        if ($lines === []) {
+            return null;
         }
 
         return __('discord.match_channel.voice_links_heading')."\n".implode("\n", $lines);

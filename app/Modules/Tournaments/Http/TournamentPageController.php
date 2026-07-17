@@ -25,8 +25,9 @@ use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
+use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
-use App\Modules\Voice\Support\MumbleJoinLink;
+use App\Modules\Voice\Support\VoiceJoinLink;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -99,7 +100,7 @@ class TournamentPageController extends Controller
             ],
             'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
             'myEntryId' => $myEntry?->id,
-            'myMatchVoiceLink' => $myMatch === null ? null : $this->voiceLinkFor($myMatch, $myEntry),
+            'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry),
             // Gates the match card's manual "Go" control (Task 11) —
             // mirrors TournamentPolicy::goLive (helper-or-above) so the
             // button is only rendered for someone who could actually submit
@@ -114,6 +115,7 @@ class TournamentPageController extends Controller
             'serverLabels' => trans('gameservers.match_page'),
             'serverLinkStatusLabels' => trans('gameservers.server_link_status'),
             'liveScoreLabels' => trans('gameservers.live_score'),
+            'voiceLabels' => trans('voice.join'),
         ]);
     }
 
@@ -339,36 +341,47 @@ class TournamentPageController extends Controller
     }
 
     /**
-     * The Mumble join link for `$myEntry`'s own voice channel on `$match`,
-     * once {@see ProvisionMatchVoiceJob} has
-     * provisioned it — or null if voice channels have not been (or are no
-     * longer) provisioned for this match.
+     * The viewer's own join link for `$match`'s voice channel, on every
+     * active provider that {@see ProvisionMatchVoiceJob} has provisioned a
+     * channel for — empty when voice channels have not been (or are no
+     * longer) provisioned for this match on any provider.
+     *
+     * @return array<int, array{provider: string, label: string, url: string, isDefault: bool}>
      */
-    private function voiceLinkFor(GameMatch $match, TournamentEntry $myEntry): ?string
+    private function voiceLinksFor(GameMatch $match, TournamentEntry $myEntry): array
     {
         $voiceChannels = $match->voice_channels;
 
         if ($voiceChannels === null) {
-            return null;
-        }
-
-        // `matches.voice_channels` is keyed per provider (Task 8.4); this
-        // single-link surface reads the installation's default provider's
-        // subtree only (full multi-provider link UI is Task 8.6).
-        $defaultProvider = (string) config('services.voice.default_provider');
-        $providerChannels = $voiceChannels[$defaultProvider] ?? null;
-
-        if ($providerChannels === null) {
-            return null;
+            return [];
         }
 
         $isEntry1 = $match->entry1_id === $myEntry->id;
-        $channelId = $isEntry1 ? ($providerChannels['entry1_channel_id'] ?? null) : ($providerChannels['entry2_channel_id'] ?? null);
+        $defaultProvider = VoiceJoinLink::defaultProviderFor($myEntry->team?->voice_provider);
 
-        if ($channelId === null) {
-            return null;
+        $links = [];
+
+        foreach ($voiceChannels as $providerValue => $providerChannels) {
+            $provider = VoiceProvider::tryFrom((string) $providerValue);
+
+            if ($provider === null) {
+                continue;
+            }
+
+            $channelId = $isEntry1 ? ($providerChannels['entry1_channel_id'] ?? null) : ($providerChannels['entry2_channel_id'] ?? null);
+
+            if ($channelId === null) {
+                continue;
+            }
+
+            $links[] = [
+                'provider' => $provider->value,
+                'label' => $provider->label(),
+                'url' => VoiceJoinLink::for($provider, $myEntry->display_name),
+                'isDefault' => $provider === $defaultProvider,
+            ];
         }
 
-        return MumbleJoinLink::for($myEntry->display_name);
+        return $links;
     }
 }
