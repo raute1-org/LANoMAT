@@ -79,6 +79,8 @@ use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
 use App\Modules\Voice\Listeners\ProvisionMatchVoiceOnReady;
 use App\Modules\Voice\Listeners\ProvisionVoiceOnStart;
+use App\Modules\Voice\Models\VoiceClientInstaller;
+use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
@@ -195,6 +197,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ServerLink::class, ServerLinkPolicy::class);
         Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
         Gate::policy(CustomServer::class, CustomServerPolicy::class);
+        Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

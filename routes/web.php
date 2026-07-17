@@ -20,6 +20,7 @@ use App\Modules\Seating\Http\SeatingController;
 use App\Modules\Stats\Http\StatsPageController;
 use App\Modules\Teams\Http\TeamController;
 use App\Modules\Tournaments\Http\TournamentPageController;
+use App\Modules\Voice\Http\VoiceSetupController;
 use App\Modules\Voting\Http\PollPageController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,6 +115,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
     Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
     Route::delete('/files/{sharedFile}', [FilePageController::class, 'destroy'])->name('files.destroy');
+
+    // Participant "Voice einrichten" page (roadmap 8.7): per-active-provider
+    // connect data + downloadable client installers. Not event-scoped —
+    // voice providers are an installation-wide concern, not per-event.
+    Route::get('/voice/setup', [VoiceSetupController::class, 'index'])->name('voice.setup');
+    Route::get('/voice/installers/{installer}/download', [VoiceSetupController::class, 'download'])->name('voice.installers.download');
 
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');

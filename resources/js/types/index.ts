@@ -14,4 +14,5 @@ export * from './stats';
 export * from './teams';
 export * from './tournaments';
 export * from './ui';
+export * from './voice';
 export * from './voting';

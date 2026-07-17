@@ -91,6 +91,10 @@ class AdminPanelProvider extends PanelProvider
                 in: app_path('Modules/Files/Filament/Resources'),
                 for: 'App\Modules\Files\Filament\Resources',
             )
+            ->discoverResources(
+                in: app_path('Modules/Voice/Filament/Resources'),
+                for: 'App\Modules\Voice\Filament\Resources',
+            )
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
