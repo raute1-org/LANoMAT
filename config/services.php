@@ -83,4 +83,17 @@ return [
         'strict_host_key' => (bool) env('HOSTS_STRICT_HOST_KEY', true),
     ],
 
+    // LanCache (M7, roadmap 7.5): parametrizes the `docker run` bootstrap
+    // ApplyLancacheSetup builds and runs over SSH on a role=lancache
+    // RemoteHost — see docs/lancache-setup.md for the exact command shape.
+    // Defaults here mirror ApplyLancacheSetup's own inline fallbacks
+    // (config('services.lancache.X', <default>)), duplicated as the actual
+    // config values so they are env-overridable rather than only ever
+    // falling back silently.
+    'lancache' => [
+        'image' => env('LANCACHE_IMAGE', 'lancachenet/monolithic:latest'),
+        'upstream_dns' => env('LANCACHE_UPSTREAM_DNS', '8.8.8.8'),
+        'cache_volume' => env('LANCACHE_CACHE_VOLUME', 'lancache_data'),
+    ],
+
 ];

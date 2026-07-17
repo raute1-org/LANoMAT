@@ -173,6 +173,48 @@ cloudflared tunnel --url http://localhost:8080     # oder: ngrok http 8080
 3. **Queue:** Logs des Queue-Workers `docker compose --profile prod logs -f queue` → verarbeitet Jobs (z. B. Discord-Sends).
 4. **Scheduler:** `docker compose --profile prod logs -f scheduler` → `schedule:work` tickt (Reminder, Outbox-Sweep, Tournament-Tick, LFG-Prune, Schedule-Reminders).
 
+### D5. Eigene Docker-Registry (M7 Task 9, roadmap 7.2)
+
+Details/Hintergrund: [`docs/registry-setup.md`](registry-setup.md).
+
+1. `.env` um die Registry-Werte ergänzen (falls noch nicht gesetzt):
+   ```dotenv
+   REGISTRY_HOST=registry.lan.example
+   REGISTRY_USERNAME=...
+   REGISTRY_PASSWORD=...
+   ```
+2. Lokal einmal gegen die Registry einloggen und das `app`-Image manuell pushen (bestätigt Auth, bevor CI es automatisch macht):
+   ```bash
+   docker login "$REGISTRY_HOST" -u "$REGISTRY_USERNAME" -p "$REGISTRY_PASSWORD"
+   docker build -f docker/Dockerfile -t "$REGISTRY_HOST/lanomat/app:test" .
+   docker push "$REGISTRY_HOST/lanomat/app:test"
+   ```
+3. **CI-Push testen:** in GitHub unter *Settings → Secrets and variables → Actions* die Variable `REGISTRY_HOST` und die Secrets `REGISTRY_USERNAME`/`REGISTRY_PASSWORD` setzen, dann einen `v*`-Tag pushen (z. B. `git tag v0.1.0-test && git push origin v0.1.0-test`) → der Workflow `.github/workflows/publish-images.yml` baut und pusht automatisch. Ohne gesetzte `REGISTRY_HOST`-Variable überspringt der Job sich selbst (grün, kein Fehler) — das ist die gewollte Guard-Logik, nicht ein Fehlschlag.
+4. **Prod zieht aus der Registry statt lokal zu bauen:** auf dem Deploy-Host `docker login` wie in Schritt 2, dann in `compose.yml` für `app`/`queue`/`scheduler`/`reverb-prod` statt `build:` ein `image: ${REGISTRY_HOST}/lanomat/app:<tag>` verwenden und `docker compose --profile prod pull && docker compose --profile prod up -d` — kein lokaler Node/Composer-Build-Toolchain-Bedarf auf dem eigentlichen LAN-Tag-Host mehr nötig.
+
+### D6. LanCache — separater Host (M7 Task 9, roadmap 7.5)
+
+Details/Hintergrund: [`docs/lancache-setup.md`](lancache-setup.md). **Wichtig:** LanCache läuft NICHT im `compose.yml`-`prod`-Profil — es ist ein separater Host, den LANoMAT nur über SSH fernsteuert.
+
+1. Einen (separaten) Host mit Docker vorbereiten, SSH-Zugriff sicherstellen.
+2. Im Panel (`/admin` → **Remote Hosts**) diesen Host registrieren: Name, Hostname/IP, SSH-Port/-User, den privaten SSH-Key einfügen, **Rolle = `lancache`**.
+3. **Probe** ausführen → prüft SSH-Erreichbarkeit, pinnt den Host-Key-Fingerprint.
+4. **Setup anwenden** (`ApplyLancacheSetup`) → startet auf dem Host per SSH einen `docker run`-Aufruf für `lancachenet/monolithic` (siehe `docs/lancache-setup.md` für den exakten Befehl und die `LANCACHE_*`-`.env`-Werte, die ihn parametrisieren).
+5. DNS für Steam/Epic/Battle.net auf den LanCache-Host zeigen lassen (siehe `docs/lancache-setup.md`, Abschnitt 4) und mit einem zweiten Download desselben Spiels bestätigen, dass er aus dem Cache (`HIT` im `docker logs lancache` auf dem LanCache-Host) statt aus dem Internet kommt.
+
+### D7. Filesharing (M7 Task 5/6, roadmap 7.3)
+
+1. Als Teilnehmer `/events/{slug}/files` öffnen → Datei hochladen (Formular postet auf `files.store`). Solange sie nicht freigegeben ist, siehst nur du selbst sie in der Liste (Status „ausstehend").
+2. Als Helfer/Orga im Panel die ausstehende Datei freigeben (Moderations-Gate) → sie erscheint jetzt für alle Teilnehmer der Veranstaltung in `/events/{slug}/files` und ist über `files.download` herunterladbar.
+3. **Quota/Größe testen:** eine Datei über `FILES_MAX_UPLOAD_MB` (Default 200 MB, siehe `config/files.php`) hochladen → wird abgelehnt; wiederholt hochladen bis `FILES_PER_USER_QUOTA_MB` (Default 500 MB) je Event überschritten ist → weitere Uploads werden abgelehnt, bestehende bleiben bestehen.
+
+### D8. Custom-Docker-Server (M7 Task 3/4, roadmap 7.4)
+
+1. Einen Host registrieren wie in D6 Schritt 1–3, diesmal **Rolle = `gameserver`** (oder `generic`).
+2. Im Panel einen `CustomServer`-Eintrag anlegen (Image, Ports, Env, optionaler Befehl) und dem Host zuordnen.
+3. **Start** auslösen → `StartCustomServer` baut einen `escapeshellarg`-abgesicherten `docker run`-Befehl und führt ihn per SSH auf dem Host aus; Status wechselt auf „läuft" (oder „fehlgeschlagen" mit `stderr` in `last_output`, falls der Start scheitert).
+4. **Stop** auslösen → `docker rm -f` auf demselben Host, Status zurück auf „gestoppt".
+
 ---
 
 ## Teil E — Teardown
@@ -197,4 +239,4 @@ Tunnel beenden (Ctrl-C). Im Developer Portal ggf. die Interactions-Endpoint-URL 
 
 ## Was für den echten Betrieb noch fehlt (bewusst nach M7)
 
-Dieser Test nutzt einen Tunnel für HTTPS. Für den echten Prod-Betrieb kommt in **M7.1** ein **Traefik-Reverse-Proxy mit TLS** vor `app`/`reverb`/`admin` (dann keine Tunnel-URL mehr, sondern eine echte Domain), plus eigene Registry (M7.2). Bis dahin ist der Tunnel der pragmatische Weg für einen einmaligen End-to-End-Test.
+Dieser Test nutzt (Teil 0 oben) einen Tunnel für HTTPS. **Dieser Tunnel-Workaround kann jetzt durch das M7-Task-8-Traefik-Setup ersetzt werden:** statt `cloudflared`/`ngrok` gegen `localhost:8000` einen echten Traefik-Reverse-Proxy mit TLS (ACME oder selbstsigniert für reines LAN, siehe [`docs/traefik-setup.md`](traefik-setup.md)) vor `app`/`reverb-prod` schalten — `APP_URL`/`APP_DOMAIN` zeigen dann auf eine echte Domain statt eine zufällige Tunnel-URL, und Discords HTTPS-Anforderung ist ohne externes Tunnel-Tool erfüllt. Die eigene Docker-Registry (M7.2, Abschnitt D5 oben) und der separate LanCache-Host (M7.5, Abschnitt D6) sind seit M7 Task 9 ebenfalls Teil dieses Walkthroughs und nicht mehr offen.

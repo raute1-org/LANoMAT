@@ -146,6 +146,20 @@ fallback for a pure LAN with no public DNS. See
 [`docs/traefik-setup.md`](docs/traefik-setup.md) for `APP_DOMAIN`/`ACME_EMAIL` setup, the
 routing scheme, and the LAN-without-DNS path.
 
+**Own image registry:** production images are published to a private registry instead of
+relying on public Docker Hub/GHCR pulls at deploy time — see
+[`docs/registry-setup.md`](docs/registry-setup.md) for the registry itself (an optional
+`registry:2` Compose profile, or any existing external registry), the
+`.github/workflows/publish-images.yml` CI workflow that builds and pushes the `app` image on
+a version tag/release, and how a prod host pulls from it.
+
+**LanCache (separate host):** a [LanCache](https://lancache.net) instance on its own LAN
+host transparently caches Steam/Epic/Battle.net downloads at LAN speed after the first pull
+— it is *not* a service in this repo's `compose.yml`, but a host registered in LANoMAT's
+managed remote-hosts registry (`role=lancache`) and bootstrapped over SSH via
+`ApplyLancacheSetup`. See [`docs/lancache-setup.md`](docs/lancache-setup.md) for registering
+the host, DNS pointing for the game CDNs, and the pre-caching-before-the-LAN checklist.
+
 ## Quality gates
 
 Run these before committing — CI enforces the same checks:
@@ -195,7 +209,12 @@ see the honest-scope note in `scripts/screenshots/README.md`):
 
 ## Project state
 
-M0–M2 are complete (fundament; events & identity; registration, seating, notifications,
-Discord base). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
+M0–M6 are complete and tagged (fundament; events & identity; registration/seating/
+notifications/Discord base; teams & tournaments with Reverb realtime and Discord
+interactions; production deployment infra; game servers via Pelican + stats). M7
+(infra & operations — Traefik ingress, own image registry, moderated LAN file-sharing,
+custom Docker game servers, a separate-host LanCache setup, and a repeatable
+screenshot pipeline) is in progress. See [`CLAUDE.md`](CLAUDE.md) for the current
+implementation status and
 [`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
-for the phase roadmap (M3–M6 remaining).
+for the full phase roadmap.

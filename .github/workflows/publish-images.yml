@@ -1,0 +1,70 @@
+# Builds the FrankenPHP `app` image (docker/Dockerfile, M5.6) and pushes it
+# to LANoMAT's own private registry (roadmap 7.2, issue #3) — see
+# docs/registry-setup.md for the registry itself and how a prod deploy pulls
+# from it.
+#
+# Runs on version tags (`vX.Y.Z`, matching this repo's own `m0`/`m1`/…
+# milestone tags are NOT release tags — this deliberately only reacts to a
+# separate `v*` tag scheme so a milestone tag doesn't accidentally trigger a
+# registry push) and on GitHub Releases, mirroring the common
+# tag/release-triggered publish convention docker/build-push-action's own
+# docs use (verified via context7 `/docker/build-push-action`, 2026-07-17).
+#
+# Secret-guarded: every job step that needs registry credentials is gated by
+# an `if:` checking `secrets.REGISTRY_HOST != ''`, so this workflow is a
+# harmless no-op (green, zero real steps) on forks or any CI environment
+# that hasn't configured `REGISTRY_HOST`/`REGISTRY_USERNAME`/
+# `REGISTRY_PASSWORD` — it never fails a fork's CI for a secret it doesn't
+# have. This mirrors ci.yml's existing job structure/runner choice
+# (ubuntu-latest) but needs none of its PHP/Node toolchain: the image build
+# itself happens entirely inside `docker/Dockerfile`'s own builder stage.
+name: Publish images
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+
+jobs:
+  publish-app-image:
+    runs-on: ubuntu-latest
+    # Guard the whole job on the registry host secret being configured, not
+    # just individual steps — this is what keeps a fork (or this repo
+    # before the registry secrets are ever added) from failing: the job
+    # simply reports as skipped rather than erroring on a missing secret.
+    if: ${{ github.repository_owner == 'raute1-org' && vars.REGISTRY_HOST != '' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ vars.REGISTRY_HOST }}/lanomat/app
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ vars.REGISTRY_HOST }}/lanomat/app:buildcache
+          cache-to: type=registry,ref=${{ vars.REGISTRY_HOST }}/lanomat/app:buildcache,mode=max
