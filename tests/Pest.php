@@ -31,6 +31,7 @@ pest()->extend(TestCase::class)
         'Unit/Catering',
         'Unit/Events',
         'Unit/Games',
+        'Unit/Hosts',
         'Unit/Infoscreen',
         'Unit/Lfg',
         'Unit/Registration',

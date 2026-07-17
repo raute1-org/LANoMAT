@@ -27,6 +27,8 @@ use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
+use App\Modules\Hosts\Models\RemoteHost;
+use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Listeners\GongOnMatchLive;
@@ -176,6 +178,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
         Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
         Gate::policy(ServerLink::class, ServerLinkPolicy::class);
+        Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
