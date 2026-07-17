@@ -3,6 +3,7 @@
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
+use App\Modules\Files\Http\FilePageController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\Identity\Http\DiscordAuthController;
@@ -69,6 +70,12 @@ Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('l
 // Ready game servers only (see ServerListProjection).
 Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
 
+// Public LAN file-sharing list — same "public like seating/tournaments/
+// schedule/catering/polls/lfg, no auth required" visibility rule; shows only
+// approved files (+ the viewer's own pending ones); uploading/deleting
+// requires auth (see below). Files are approved by a helper/orga (Task 6).
+Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->name('files.index');
+
 // Public beamer screen — same "public like seating/tournaments/schedule/
 // catering/polls/lfg, no auth required" visibility rule; renders with no
 // app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
@@ -103,6 +110,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
     Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
+
+    Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
+    Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
+    Route::delete('/files/{sharedFile}', [FilePageController::class, 'destroy'])->name('files.destroy');
 
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
