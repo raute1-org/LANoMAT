@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Filament\Resources\SharedFiles\Pages\ListSharedFiles;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\Files\Policies\SharedFilePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -18,6 +19,14 @@ it('forbids participants from the shared-files resource', function () {
     $this->actingAs(User::factory()->create())
         ->get('/admin/shared-files')
         ->assertForbidden();
+});
+
+it('enforces viewAny=isOrga on SharedFilePolicy directly, independent of the panel gate', function () {
+    $policy = new SharedFilePolicy;
+
+    expect($policy->viewAny(User::factory()->orga()->create()))->toBeTrue()
+        ->and($policy->viewAny(User::factory()->create()))->toBeFalse()
+        ->and($policy->viewAny(User::factory()->helper()->create()))->toBeFalse();
 });
 
 it('allows orga into the shared-files resource and shows a pending file', function () {

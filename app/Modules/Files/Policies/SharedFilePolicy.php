@@ -8,6 +8,11 @@ use App\Modules\Files\Models\SharedFile;
 
 class SharedFilePolicy
 {
+    public function viewAny(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
     public function create(User $user): bool
     {
         return true;
