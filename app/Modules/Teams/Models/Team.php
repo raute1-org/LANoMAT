@@ -3,6 +3,7 @@
 namespace App\Modules\Teams\Models;
 
 use App\Models\User;
+use App\Modules\Voice\Domain\VoiceProvider;
 use Database\Factories\TeamFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $owner_id
+ * @property VoiceProvider|null $voice_provider
  */
 class Team extends Model
 {
@@ -19,7 +21,14 @@ class Team extends Model
     use HasFactory;
 
     // owner_id set by CreateTeam action, never client-fillable.
-    protected $fillable = ['name', 'tag', 'logo_path'];
+    protected $fillable = ['name', 'tag', 'logo_path', 'voice_provider'];
+
+    protected function casts(): array
+    {
+        return [
+            'voice_provider' => VoiceProvider::class,
+        ];
+    }
 
     /** @return BelongsTo<User, $this> */
     public function owner(): BelongsTo
