@@ -1,0 +1,86 @@
+# Traefik v3 static configuration (M7 Task 8 / roadmap 7.1, GitHub #7).
+#
+# Verified against the current Traefik v3 docs (context7 /traefik/traefik,
+# 2026-07-17): entryPoints/providers.docker/certificatesResolvers are the
+# v3 shape used here; v3 label/config syntax differs from v2 (v2's
+# `traefik.frontend.*` labels and TOML-only static config are gone) — this
+# file uses only v3 syntax.
+#
+# This is ingress for the `prod` compose profile only (see compose.yml's
+# `traefik` service). The dev stack (`docker compose up -d`, no profile)
+# does not run Traefik at all and is unaffected.
+#
+# Note on env vars: Traefik's static-config *file* does NOT support
+# `${VAR}` interpolation on its own (that only works for its separate
+# env-var-prefixed CLI/boot-config mechanism, and mixing file + env-var
+# install config is explicitly unsupported per the docs). So the one
+# per-deployment value this file needs — the ACME account email — is
+# passed as a `command:` CLI flag in compose.yml instead (where
+# `${ACME_EMAIL}` is Compose's own interpolation, resolved before Traefik
+# ever sees it), consistent with "pick one method and stick to it" for
+# each single value while keeping this file itself static and reusable.
+
+entryPoints:
+  web:
+    address: ':80'
+    # Redirect all plain HTTP to HTTPS. On a pure-LAN deployment with no
+    # ACME resolver in use, this still works with the self-signed default
+    # certificate described in docs/traefik-setup.md.
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+
+  websecure:
+    address: ':443'
+    http:
+      tls: {}
+      # No certResolver set at the entrypoint level: routers opt into ACME
+      # per-router via the `tls.certresolver` label (see compose.yml). A
+      # router with `tls: {}` but no certresolver label falls back to
+      # Traefik's self-signed default certificate — exactly the
+      # LAN-without-public-DNS fallback documented in docs/traefik-setup.md.
+
+  # Traefik's own dashboard/API, LAN-only (see the `traefik` service's
+  # ports in compose.yml — bound to 127.0.0.1, never published publicly).
+  # Optional convenience for operators, not required for routing
+  # app/reverb-prod/admin.
+  traefik:
+    address: ':8080'
+
+api:
+  dashboard: true
+  # Safe to leave insecure (no auth) because the `traefik` entrypoint above
+  # is bound to 127.0.0.1 on the host, never reachable off-box.
+  insecure: true
+
+providers:
+  docker:
+    # Compose service discovery: routers/services are declared as labels
+    # on `app`/`reverb-prod` (see compose.yml), not in this file.
+    endpoint: 'unix:///var/run/docker.sock'
+    exposedByDefault: false
+    network: lanomat_default
+
+  file:
+    filename: /etc/traefik/dynamic.yml
+
+# ACME (Let's Encrypt) certificate resolver for a public-domain deployment.
+# `email` is intentionally NOT set here (see the note above) — it is
+# supplied via the `--certificatesresolvers.letsencrypt.acme.email=...`
+# CLI flag in compose.yml's `traefik` service `command:`, sourced from
+# `.env`'s ACME_EMAIL. Routers opt in via
+# `traefik.http.routers.<name>.tls.certresolver=letsencrypt` labels.
+# HTTP-01 challenge needs port 80 reachable from the public internet (the
+# `web` entrypoint above) — see docs/traefik-setup.md for the pure-LAN
+# alternative (skip this resolver, rely on the self-signed default cert).
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+log:
+  level: INFO

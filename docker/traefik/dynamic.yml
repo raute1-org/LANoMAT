@@ -1,0 +1,29 @@
+# Traefik v3 dynamic configuration (M7 Task 8 / roadmap 7.1, GitHub #7).
+#
+# Loaded via traefik.yml's `providers.file` (hot-reloaded on change, no
+# restart needed). Router/service labels themselves live on the `app` and
+# `reverb-prod` compose services (see compose.yml) — this file only holds
+# cross-cutting TLS options and a reusable security-headers middleware, so
+# every router can opt in with a single `middlewares=` label instead of
+# repeating header lists.
+
+tls:
+  options:
+    default:
+      # TLS 1.2 floor — current Traefik/Mozilla "intermediate" baseline.
+      # Raise to mintls13-only if every client (browser + Discord's
+      # server-to-server calls) is confirmed TLS 1.3-capable; not assumed
+      # here since this also fronts a LAN party's mixed-device Wi-Fi.
+      minVersion: VersionTLS12
+
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        frameDeny: true
+        sslRedirect: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000

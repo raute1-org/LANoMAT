@@ -104,12 +104,13 @@ for the full design rationale.
 
 A production image is built from `docker/Dockerfile` — [FrankenPHP](https://frankenphp.dev/)
 (`dunglas/frankenphp`, PHP 8.4) serving the app natively (no Octane/worker mode; see the
-Dockerfile's header comment for why). `compose.yml`'s `prod` profile adds four services on
+Dockerfile's header comment for why). `compose.yml`'s `prod` profile adds five services on
 top of the same shared Postgres/Redis/Mumble infrastructure the dev stack uses: `app` (HTTP,
 healthchecked on `/up`), `queue` (`php artisan queue:work`), `scheduler`
-(`php artisan schedule:work`, replacing the dev-only `schedule:work` terminal), and
+(`php artisan schedule:work`, replacing the dev-only `schedule:work` terminal),
 `reverb-prod` (websockets, replacing the dev-only throwaway `reverb` service — the two never
-run at the same time). `docker compose up -d` (no flags) is unaffected by any of this.
+run at the same time), and `traefik` (TLS-terminating reverse proxy in front of `app`/
+`reverb-prod`, see below). `docker compose up -d` (no flags) is unaffected by any of this.
 
 1. **Configure `.env` for production:**
 
@@ -138,10 +139,12 @@ run at the same time). `docker compose up -d` (no flags) is unaffected by any of
    docker compose --profile prod exec app php artisan lanomat:install --admin-discord-id=<id>
    ```
 
-**TLS / reverse proxy:** the `app`/`reverb-prod` services are plain HTTP, deliberately not
-TLS-terminated by this compose file — a Traefik reverse proxy in front of both is planned for
-M7 (see the roadmap). Until then, terminate TLS yourself (e.g. a host-level nginx/Caddy) in
-front of the published `8000`/`8081` ports, or only run this on a trusted LAN.
+**TLS / reverse proxy:** `compose.yml`'s `prod` profile includes a Traefik v3 `traefik`
+service that TLS-terminates in front of `app` (participant UI + Filament `/admin`) and
+`reverb-prod` (websockets), with Let's Encrypt (ACME) for a public domain or a self-signed
+fallback for a pure LAN with no public DNS. See
+[`docs/traefik-setup.md`](docs/traefik-setup.md) for `APP_DOMAIN`/`ACME_EMAIL` setup, the
+routing scheme, and the LAN-without-DNS path.
 
 ## Quality gates
 

@@ -65,6 +65,34 @@ services:
   # so they are shared infrastructure: already running for both `up -d`
   # (dev) and `--profile prod up` (prod) without being duplicated here.
 
+  # Traefik v3 ingress (M7 Task 8 / roadmap 7.1, GitHub #7): TLS-terminating
+  # reverse proxy in front of `app` (participant UI + Filament `/admin`,
+  # same service, path-routed — no split) and `reverb-prod` (WebSockets).
+  # Only active under `--profile prod`; the dev stack (`docker compose up
+  # -d`, no profile) never runs this and is unaffected. See
+  # docker/traefik/traefik.yml + dynamic.yml and docs/traefik-setup.md.
+  traefik:
+    image: traefik:v3.5
+    profiles: [prod]
+    command:
+      # ACME account email is the one static-config value that can't live
+      # in traefik.yml itself (Traefik's config *file* has no ${VAR}
+      # interpolation) — passed as a CLI flag here instead, where
+      # `${ACME_EMAIL}` is Compose's own substitution from `.env`.
+      - '--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}'
+    env_file: .env
+    ports:
+      - '80:80'
+      - '443:443'
+      # Dashboard/API: LAN-only, never publicly published (see
+      # traefik.yml's `api.insecure` comment).
+      - '127.0.0.1:8090:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik_acme:/letsencrypt
+
   app:
     build:
       context: .
@@ -83,6 +111,23 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 3
+    # Traefik routes both the participant app and Filament `/admin` here —
+    # `/admin` is just a path on this same FrankenPHP service, so one
+    # router covers both (no separate admin router). TLS: `tls.certresolver`
+    # requests a Let's Encrypt cert for `APP_DOMAIN`; on a pure-LAN
+    # deployment with no public DNS, drop that one label (or leave
+    # APP_DOMAIN unset — the rule then never matches a real request, see
+    # docs/traefik-setup.md's self-signed-fallback section) and Traefik's
+    # `websecure` entrypoint falls back to its self-signed default
+    # certificate.
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.app.rule: 'Host(`${APP_DOMAIN}`)'
+      traefik.http.routers.app.entrypoints: 'websecure'
+      traefik.http.routers.app.tls: 'true'
+      traefik.http.routers.app.tls.certresolver: 'letsencrypt'
+      traefik.http.routers.app.middlewares: 'secure-headers@file'
+      traefik.http.services.app.loadbalancer.server.port: '80'
 
   queue:
     build:
@@ -132,6 +177,21 @@ services:
     depends_on:
       redis:
         condition: service_started
+    # Own router on a `ws.` subdomain (see docs/traefik-setup.md for why a
+    # subdomain was chosen over a shared path: Reverb's own HTTP surface
+    # only understands its websocket/broadcast routes, so it can't sit
+    # behind a path prefix on the same Host rule as `app` without extra
+    # stripprefix rewriting). WebSocket upgrade needs no special Traefik
+    # middleware — v3 detects and forwards the Upgrade/Connection headers
+    # automatically for any plain HTTP router (verified via context7); this
+    # is just a normal router + service pointing at Reverb's HTTP port.
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.reverb.rule: 'Host(`ws.${APP_DOMAIN}`)'
+      traefik.http.routers.reverb.entrypoints: 'websecure'
+      traefik.http.routers.reverb.tls: 'true'
+      traefik.http.routers.reverb.tls.certresolver: 'letsencrypt'
+      traefik.http.services.reverb.loadbalancer.server.port: '8080'
 
   # Mumble voice server (M3, Modul 12). Official image, pinned to the
   # v1.4.x stable line (matches docker/mumble-admin/Murmur.ice's Ice slice).
@@ -183,3 +243,4 @@ services:
 volumes:
   pgdata:
   mumble_data:
+  traefik_acme:
