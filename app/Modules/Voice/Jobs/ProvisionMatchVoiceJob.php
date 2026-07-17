@@ -6,7 +6,7 @@ namespace App\Modules\Voice\Jobs;
 
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
-use App\Modules\Voice\Contracts\MumbleClient;
+use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\HttpMumbleClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,7 +32,7 @@ class ProvisionMatchVoiceJob implements ShouldQueue
         public readonly int $matchId,
     ) {}
 
-    public function handle(MumbleClient $client): void
+    public function handle(VoiceClient $client): void
     {
         $match = GameMatch::query()->with(['entry1', 'entry2'])->find($this->matchId);
 

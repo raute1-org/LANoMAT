@@ -8,7 +8,7 @@ use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
-use App\Modules\Voice\Domain\MumbleChannel;
+use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Jobs\CleanupTournamentVoiceJob;
 use App\Modules\Voice\Support\MumbleJoinLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -182,7 +182,7 @@ it('explicitly deletes the tournament channel tree and match channels on Tournam
 it('builds a mumble:// join link from a channel id/path and config', function () {
     expect(MumbleJoinLink::for('Team Alpha'))->toBe('mumble://voice.example.test:64738/Team Alpha');
 
-    $channel = new MumbleChannel(42, 'Team Bravo', null, false);
+    $channel = new VoiceChannel(42, 'Team Bravo', null, false);
     expect(MumbleJoinLink::for($channel))->toBe('mumble://voice.example.test:64738/Team Bravo');
 });
 

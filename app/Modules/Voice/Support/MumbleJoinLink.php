@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Voice\Support;
 
 use App\Modules\Discord\Support\MatchEmbed;
-use App\Modules\Voice\Domain\MumbleChannel;
+use App\Modules\Voice\Domain\VoiceChannel;
 
 /**
  * Builds a `mumble://` deep link that, when opened by a Mumble client,
@@ -16,9 +16,9 @@ use App\Modules\Voice\Domain\MumbleChannel;
  */
 class MumbleJoinLink
 {
-    public static function for(MumbleChannel|string $path): string
+    public static function for(VoiceChannel|string $path): string
     {
-        $channelPath = $path instanceof MumbleChannel ? $path->name : $path;
+        $channelPath = $path instanceof VoiceChannel ? $path->name : $path;
 
         $host = (string) config('services.mumble.host');
         $port = (string) config('services.mumble.port');

@@ -7,7 +7,7 @@ namespace App\Modules\Voice\Jobs;
 use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Models\Tournament;
-use App\Modules\Voice\Contracts\MumbleClient;
+use App\Modules\Voice\Contracts\VoiceClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -31,7 +31,7 @@ class ProvisionTournamentVoiceJob implements ShouldQueue
         public readonly int $tournamentId,
     ) {}
 
-    public function handle(MumbleClient $client): void
+    public function handle(VoiceClient $client): void
     {
         $tournament = Tournament::query()->with('entries')->find($this->tournamentId);
 

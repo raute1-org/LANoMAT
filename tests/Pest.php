@@ -6,7 +6,7 @@ use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Testing\FakeRemoteExecutor;
-use App\Modules\Voice\Contracts\MumbleClient;
+use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Testing\FakeMumbleClient;
 /*
 |--------------------------------------------------------------------------
@@ -92,7 +92,7 @@ function fakeDiscord(): FakeDiscordClient
 function fakeMumble(): FakeMumbleClient
 {
     $fake = new FakeMumbleClient;
-    app()->instance(MumbleClient::class, $fake);
+    app()->instance(VoiceClient::class, $fake);
 
     return $fake;
 }

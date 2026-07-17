@@ -103,7 +103,7 @@ it('throws when deleting a channel fails', function () {
     (new HttpMumbleClient('http://mumble-admin.test', 'secret-token'))->deleteChannel(12);
 })->throws(RequestException::class);
 
-it('lists channels and maps each to a MumbleChannel', function () {
+it('lists channels and maps each to a VoiceChannel', function () {
     Http::fake([
         'mumble-admin.test/channels' => Http::response([
             ['id' => 0, 'name' => 'Root', 'parent' => 0, 'temporary' => false],

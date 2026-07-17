@@ -1,7 +1,7 @@
 <?php
 
-use App\Modules\Voice\Contracts\MumbleClient;
-use App\Modules\Voice\Domain\MumbleChannel;
+use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Testing\FakeMumbleClient;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -10,7 +10,7 @@ it('creates, lists and deletes channels', function () {
 
     $channel = $fake->createChannel('match-1');
 
-    expect($channel)->toBeInstanceOf(MumbleChannel::class)
+    expect($channel)->toBeInstanceOf(VoiceChannel::class)
         ->and($channel->name)->toBe('match-1')
         ->and($channel->parentId)->toBeNull()
         ->and($channel->temporary)->toBeFalse();
@@ -79,10 +79,10 @@ it('fails assertChannelDeleted when the channel was never deleted', function () 
     $fake->assertChannelDeleted($channel->id);
 })->throws(ExpectationFailedException::class);
 
-it('fakeMumble helper swaps the MumbleClient binding', function () {
+it('fakeMumble helper swaps the VoiceClient binding', function () {
     $fake = fakeMumble();
 
-    $client = app(MumbleClient::class);
+    $client = app(VoiceClient::class);
 
     expect($client)->toBe($fake)
         ->and($client)->toBeInstanceOf(FakeMumbleClient::class);

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Voice;
 
-use App\Modules\Voice\Contracts\MumbleClient;
-use App\Modules\Voice\Domain\MumbleChannel;
+use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceChannel;
+use App\Modules\Voice\Domain\VoiceProvider;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -19,14 +20,19 @@ use Throwable;
  * (0 = root) rather than a nullable `parentId`; this client normalizes that
  * to the domain's `?int $parentId` (0 => null) at the boundary.
  */
-class HttpMumbleClient implements MumbleClient
+class HttpMumbleClient implements VoiceClient
 {
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,
     ) {}
 
-    public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): MumbleChannel
+    public function provider(): VoiceProvider
+    {
+        return VoiceProvider::Mumble;
+    }
+
+    public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): VoiceChannel
     {
         // NOTE: per app.py's create_channel docstring, Murmur's Ice API
         // cannot flip a channel to temporary after creation, and there is no
@@ -115,11 +121,11 @@ class HttpMumbleClient implements MumbleClient
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function toChannel(array $payload): MumbleChannel
+    private function toChannel(array $payload): VoiceChannel
     {
         $parent = (int) $payload['parent'];
 
-        return new MumbleChannel(
+        return new VoiceChannel(
             (int) $payload['id'],
             (string) $payload['name'],
             $parent === 0 ? null : $parent,

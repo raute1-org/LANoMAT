@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Voice\Testing;
 
-use App\Modules\Voice\Contracts\MumbleClient;
-use App\Modules\Voice\Domain\MumbleChannel;
+use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceChannel;
+use App\Modules\Voice\Domain\VoiceProvider;
 use PHPUnit\Framework\Assert;
 
-class FakeMumbleClient implements MumbleClient
+class FakeMumbleClient implements VoiceClient
 {
-    /** @var array<int, MumbleChannel> */
+    /** @var array<int, VoiceChannel> */
     public array $channels = [];
 
     /** @var array<int, int> */
@@ -18,9 +19,14 @@ class FakeMumbleClient implements MumbleClient
 
     private int $sequence = 0;
 
-    public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): MumbleChannel
+    public function provider(): VoiceProvider
     {
-        $channel = new MumbleChannel(++$this->sequence, $name, $parentId, $temporary);
+        return VoiceProvider::Mumble;
+    }
+
+    public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): VoiceChannel
+    {
+        $channel = new VoiceChannel(++$this->sequence, $name, $parentId, $temporary);
         $this->channels[$channel->id] = $channel;
 
         return $channel;
@@ -34,7 +40,7 @@ class FakeMumbleClient implements MumbleClient
             return;
         }
 
-        $this->channels[$channelId] = new MumbleChannel(
+        $this->channels[$channelId] = new VoiceChannel(
             $existing->id,
             $name,
             $existing->parentId,
@@ -56,7 +62,7 @@ class FakeMumbleClient implements MumbleClient
     public function assertChannelCreated(string $name, ?int $parentId = null): void
     {
         $match = collect($this->channels)->contains(
-            fn (MumbleChannel $c) => $c->name === $name && ($parentId === null || $c->parentId === $parentId)
+            fn (VoiceChannel $c) => $c->name === $name && ($parentId === null || $c->parentId === $parentId)
         );
         Assert::assertTrue($match, "No matching channel created with name {$name}.");
     }
