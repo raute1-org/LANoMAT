@@ -54,6 +54,11 @@ class TournamentException extends DomainException
         return new self('This match is not ready to be reported.', 'tournaments.errors.match_not_ready');
     }
 
+    public static function matchNotInWarmup(): self
+    {
+        return new self('This match is not in warmup.', 'tournaments.errors.match_not_in_warmup');
+    }
+
     public static function notAParticipant(): self
     {
         return new self('This entry is not a participant of the match.', 'tournaments.errors.not_a_participant');

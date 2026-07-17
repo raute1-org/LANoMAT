@@ -96,6 +96,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/matches/{match}/report', [TournamentPageController::class, 'report'])->name('matches.report');
     Route::post('/matches/{match}/confirm', [TournamentPageController::class, 'confirm'])->name('matches.confirm');
     Route::post('/matches/{match}/dispute', [TournamentPageController::class, 'dispute'])->name('matches.dispute');
+    Route::post('/matches/{match}/go', [TournamentPageController::class, 'go'])->name('matches.go');
 
     Route::post('/polls/{poll}/vote', [PollPageController::class, 'vote'])->name('polls.vote');
 

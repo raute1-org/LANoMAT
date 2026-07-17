@@ -17,10 +17,13 @@ const props = defineProps<{
     matches: BracketMatchDto[];
     myEntryId: number | null;
     myMatchVoiceLink: MatchVoiceLink;
+    /** True for a helper/orga viewer — gates the match card's manual "Go" control. */
+    canGoLive: boolean;
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
     matchStatusLabels: Record<string, string>;
     reportLabels: Record<string, string>;
+    warmupLabels: Record<string, string>;
     serverLabels: Record<string, string>;
     serverLinkStatusLabels: Record<string, string>;
 }>();
@@ -89,8 +92,10 @@ const isNotStarted = computed(
                 <BracketView
                     :matches="matches"
                     :my-entry-id="myEntryId"
+                    :can-go-live="canGoLive"
                     :match-status-labels="matchStatusLabels"
                     :report-labels="reportLabels"
+                    :warmup-labels="warmupLabels"
                     :bracket-labels="labels"
                     :server-labels="serverLabels"
                     :server-link-status-labels="serverLinkStatusLabels"

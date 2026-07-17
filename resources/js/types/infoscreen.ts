@@ -9,7 +9,8 @@ export type SceneType =
     | 'tombola'
     | 'status'
     | 'servers'
-    | 'winner';
+    | 'winner'
+    | 'gong';
 
 /**
  * The wire shape produced by `ScenePayload::for()` — the single scene ->

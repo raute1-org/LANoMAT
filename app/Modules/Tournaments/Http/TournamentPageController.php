@@ -6,12 +6,14 @@ use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Actions\ConfirmMatchReport;
 use App\Modules\Tournaments\Actions\DisputeMatchReport;
 use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\EnrollTeam;
+use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Actions\SubmitMatchReport;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
@@ -98,10 +100,17 @@ class TournamentPageController extends Controller
             'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
             'myEntryId' => $myEntry?->id,
             'myMatchVoiceLink' => $myMatch === null ? null : $this->voiceLinkFor($myMatch, $myEntry),
+            // Gates the match card's manual "Go" control (Task 11) —
+            // mirrors TournamentPolicy::goLive (helper-or-above) so the
+            // button is only rendered for someone who could actually submit
+            // the action; the server-side Gate check in GoLive remains the
+            // real authorization boundary regardless of this flag.
+            'canGoLive' => $user !== null && $user->isHelper(),
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title')],
             'statusLabels' => trans('tournaments.status'),
             'matchStatusLabels' => trans('tournaments.match_status'),
             'reportLabels' => trans('tournaments.report'),
+            'warmupLabels' => trans('tournaments.warmup'),
             'serverLabels' => trans('gameservers.match_page'),
             'serverLinkStatusLabels' => trans('gameservers.server_link_status'),
         ]);
@@ -227,6 +236,30 @@ class TournamentPageController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.report.disputed')]);
+
+        return back();
+    }
+
+    /**
+     * The manual "Go" trigger (Task 11): a helper/orga ends a match's
+     * warmup and fires the beamer gong. Authorization lives inside
+     * {@see GoLive} itself (via `Gate::forUser()`, mirroring
+     * {@see SetManualJoinInfo}) since the
+     * Action has more than one future caller (this control today, an
+     * automatic "all rosters ready" trigger later) — so no
+     * `$this->authorize()` call is needed here.
+     */
+    public function go(Request $request, GameMatch $match, GoLive $action): RedirectResponse
+    {
+        $user = $this->authUser($request);
+
+        try {
+            $action->handle($match, $user);
+        } catch (TournamentException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
+        }
 
         return back();
     }

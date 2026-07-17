@@ -48,6 +48,7 @@ class BracketMatchProjection
             'status' => $match->status->value,
             'lockVersion' => $match->lock_version,
             'server' => self::serverDto($match, $match->serverLink),
+            'warmupStartedAt' => $match->warmup_started_at?->toIso8601String(),
         ];
     }
 

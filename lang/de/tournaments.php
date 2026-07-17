@@ -87,6 +87,7 @@ return [
     'match_status' => [
         'pending' => 'Ausstehend',
         'ready' => 'Bereit',
+        'warmup' => 'Aufwärmen',
         'reported' => 'Gemeldet',
         'disputed' => 'Strittig',
         'completed' => 'Abgeschlossen',
@@ -107,6 +108,7 @@ return [
         'already_started' => 'Das Turnier hat bereits begonnen.',
         'unsupported_double_elimination_size' => 'Doppel-K.-o.-System wird nur für 2, 4, 6, 8 oder 16 teilnehmende Anmeldungen unterstützt.',
         'match_not_ready' => 'Dieses Match ist noch nicht bereit, um gemeldet zu werden.',
+        'match_not_in_warmup' => 'Dieses Match ist nicht in der Aufwärmphase.',
         'stale_match' => 'Dieses Match wurde inzwischen von jemand anderem aktualisiert. Bitte lade die Seite neu und versuche es erneut.',
         'not_a_participant' => 'Diese Anmeldung ist keine Teilnehmerin dieses Matches.',
         'cannot_confirm_own_report' => 'Die meldende Anmeldung kann die eigene Meldung nicht bestätigen oder anfechten.',
@@ -144,6 +146,11 @@ return [
         'dispute_action' => 'Anfechten',
         'score1' => 'Ergebnis (du)',
         'score2' => 'Ergebnis (Gegner)',
+    ],
+
+    'warmup' => [
+        'go_action' => 'Go!',
+        'waiting' => 'Aufwärmen läuft …',
     ],
 
     'notifications' => [

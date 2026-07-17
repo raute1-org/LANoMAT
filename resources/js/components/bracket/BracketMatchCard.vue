@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import {
     confirm as confirmMatch,
     dispute as disputeMatch,
+    go as goLiveMatch,
     report as reportMatch,
 } from '@/routes/matches';
 import type { BracketMatchDto } from '@/types';
@@ -18,12 +19,18 @@ const props = withDefaults(
         match: BracketMatchDto;
         /** True when the logged-in user participates in this match (either slot). */
         isParticipant: boolean;
+        /** True for a helper/orga viewer — shows the manual "Go" control while the match is in warmup. */
+        canGoLive?: boolean;
         matchStatusLabels: Record<string, string>;
         reportLabels: Record<string, string>;
+        /** `tournaments.warmup` labels: go_action/waiting. Only needed when `canGoLive` (or the match can reach warmup). */
+        warmupLabels?: Record<string, string>;
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
     }>(),
     {
+        canGoLive: false,
+        warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
     },
@@ -38,6 +45,10 @@ const canReport = computed(
 const canRespond = computed(
     () => props.isParticipant && props.match.status === 'reported',
 );
+const canTriggerGo = computed(
+    () => props.canGoLive && props.match.status === 'warmup',
+);
+const isGoingLive = ref(false);
 
 function startReport() {
     isReporting.value = true;
@@ -66,6 +77,16 @@ function dispute() {
     });
 }
 
+function goLive() {
+    isGoingLive.value = true;
+    useForm({}).post(goLiveMatch.url(props.match.id), {
+        preserveScroll: true,
+        onFinish: () => {
+            isGoingLive.value = false;
+        },
+    });
+}
+
 function slotLabel(name: string | null): string {
     return name ?? '—';
 }
@@ -91,6 +112,7 @@ function statusVariant(
 const isLive = computed(
     () => props.match.status === 'ready' || props.match.status === 'reported',
 );
+const isWarmup = computed(() => props.match.status === 'warmup');
 </script>
 
 <template>
@@ -105,6 +127,11 @@ const isLive = computed(
             <LiveIndicator
                 v-if="isLive"
                 variant="live"
+                :label="matchStatusLabels[match.status]"
+            />
+            <LiveIndicator
+                v-else-if="isWarmup"
+                variant="warn"
                 :label="matchStatusLabels[match.status]"
             />
             <Badge v-else :variant="statusVariant(match.status)">
@@ -191,6 +218,23 @@ const isLive = computed(
                 {{ reportLabels.dispute_action }}
             </Button>
         </div>
+
+        <div v-else-if="canTriggerGo" class="mt-3">
+            <Button
+                size="sm"
+                class="w-full"
+                :disabled="isGoingLive"
+                @click="goLive"
+            >
+                {{ warmupLabels.go_action }}
+            </Button>
+        </div>
+        <p
+            v-else-if="isWarmup"
+            class="mt-3 text-center text-xs text-muted-foreground"
+        >
+            {{ warmupLabels.waiting }}
+        </p>
 
         <MatchServerJoin
             :server="match.server"

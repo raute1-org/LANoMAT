@@ -10,14 +10,20 @@ import { onUnmounted } from 'vue';
  *
  * Event names must match each event class's `broadcastAs()` exactly
  * (Task 12): `MatchReady` -> `match.ready`, `MatchCompleted` ->
- * `match.completed`, `TournamentCompleted` -> `tournament.completed`. Custom
- * broadcast names are listened to with a leading dot so Echo does not
+ * `match.completed`, `TournamentCompleted` -> `tournament.completed`,
+ * `MatchWentLive` -> `match.went_live` (Task 11 — the warmup->go gate).
+ * Custom broadcast names are listened to with a leading dot so Echo does not
  * namespace them under the event's fully-qualified class name.
  */
 export function useTournamentChannel(tournamentId: number): void {
     const { stopListening, leaveChannel } = useEchoPublic(
         `tournament.${tournamentId}`,
-        ['.match.ready', '.match.completed', '.tournament.completed'],
+        [
+            '.match.ready',
+            '.match.went_live',
+            '.match.completed',
+            '.tournament.completed',
+        ],
         () => {
             router.reload({ only: ['matches', 'tournament'] });
         },

@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property int $lock_version
  * @property array<string, mixed>|null $discord_channels
  * @property array<string, mixed>|null $voice_channels
+ * @property Carbon|null $warmup_started_at
  */
 class GameMatch extends Model
 {
@@ -34,7 +35,8 @@ class GameMatch extends Model
     // status/score1/score2/winner_entry_id/lock_version are result/state
     // fields, set only via Actions (later tasks), never client-fillable.
     // server_link_id is likewise provisioning state, set only by the
-    // provisioning Job (Task 4), never client-fillable.
+    // provisioning Job (Task 4), never client-fillable. warmup_started_at is
+    // likewise state, set only by EnterWarmup (Task 11).
     protected $fillable = [
         'tournament_id',
         'round',
@@ -58,6 +60,7 @@ class GameMatch extends Model
             'scheduled_at' => 'datetime',
             'discord_channels' => 'array',
             'voice_channels' => 'array',
+            'warmup_started_at' => 'datetime',
         ];
     }
 

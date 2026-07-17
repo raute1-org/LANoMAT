@@ -19,7 +19,7 @@ export interface TournamentDetail {
 export type MatchVoiceLink = string | null;
 
 export type MatchStatusValue =
-    'pending' | 'ready' | 'reported' | 'disputed' | 'completed';
+    'pending' | 'ready' | 'warmup' | 'reported' | 'disputed' | 'completed';
 
 export type ServerLinkStatusValue =
     'pending' | 'provisioning' | 'ready' | 'failed' | 'stopped';
@@ -69,4 +69,6 @@ export interface BracketMatchDto {
     status: MatchStatusValue;
     lockVersion: number;
     server: MatchServerDto | null;
+    /** Set once the match enters warmup (Task 11); null before/after. */
+    warmupStartedAt: string | null;
 }

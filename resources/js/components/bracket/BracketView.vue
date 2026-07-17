@@ -8,14 +8,20 @@ const props = withDefaults(
     defineProps<{
         matches: BracketMatchDto[];
         myEntryId: number | null;
+        /** True for a helper/orga viewer — gates the match card's manual "Go" control. Omitted by read-only surfaces. */
+        canGoLive?: boolean;
         matchStatusLabels: Record<string, string>;
         reportLabels: Record<string, string>;
+        /** Omitted by read-only surfaces (e.g. the infoscreen bracket scene), which never render the "Go" control. */
+        warmupLabels?: Record<string, string>;
         bracketLabels: Record<string, string>;
         /** Omitted by read-only surfaces (e.g. the infoscreen bracket scene), which never render the server-join action. */
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
     }>(),
     {
+        canGoLive: false,
+        warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
     },
@@ -208,8 +214,10 @@ onUnmounted(() => {
                 :title="group.title"
                 :matches="group.matches"
                 :my-entry-id="myEntryId"
+                :can-go-live="canGoLive"
                 :match-status-labels="matchStatusLabels"
                 :report-labels="reportLabels"
+                :warmup-labels="warmupLabels"
                 :server-labels="serverLabels"
                 :server-link-status-labels="serverLinkStatusLabels"
                 :register-card="registerCard"

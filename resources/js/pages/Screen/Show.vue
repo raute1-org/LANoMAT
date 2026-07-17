@@ -5,6 +5,7 @@ import type { Component } from 'vue';
 import SceneAnnouncement from '@/components/scenes/SceneAnnouncement.vue';
 import SceneBracket from '@/components/scenes/SceneBracket.vue';
 import SceneFrame from '@/components/scenes/SceneFrame.vue';
+import SceneGong from '@/components/scenes/SceneGong.vue';
 import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
@@ -39,6 +40,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     winner: SceneWinner,
     status: SceneStatus,
     servers: SceneServers,
+    gong: SceneGong,
 };
 
 const idleScene = computed<ScenePayloadDto>(() => ({

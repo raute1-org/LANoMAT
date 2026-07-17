@@ -13,6 +13,7 @@ return [
         'status' => 'Statusanzeige',
         'servers' => 'Spielserver',
         'winner' => 'Sieger-Einblendung',
+        'gong' => 'Go-Gong',
     ],
 
     'status_level' => [
@@ -144,6 +145,7 @@ return [
         'finals' => 'Finale',
         'match_status_pending' => 'Ausstehend',
         'match_status_ready' => 'Bereit',
+        'match_status_warmup' => 'Aufwärmen',
         'match_status_reported' => 'Gemeldet',
         'match_status_disputed' => 'Strittig',
         'match_status_completed' => 'Abgeschlossen',
@@ -154,6 +156,11 @@ return [
         // SceneWinner (Task 7) — the finals winner-moment overlay.
         'winner_title' => 'Sieger!',
         'winner_subtitle' => 'Gewinner von :tournament',
+
+        // SceneGong (Task 11) — the warmup->live "Go" gong moment.
+        'gong_title' => 'GO!',
+        'gong_subtitle' => ':slot1 vs. :slot2',
+        'gong_tournament' => ':tournament',
 
         // SceneStatus (Task 12) — the operations status tile and its
         // auto-override reassurance banner.

@@ -7,14 +7,18 @@ withDefaults(
         title: string;
         matches: BracketMatchDto[];
         myEntryId: number | null;
+        canGoLive?: boolean;
         matchStatusLabels: Record<string, string>;
         reportLabels: Record<string, string>;
+        warmupLabels?: Record<string, string>;
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
         /** Registers (or unregisters, when `el` is null) a card's DOM element with the parent BracketView for connector measurement. */
         registerCard: (matchId: number, el: Element | null) => void;
     }>(),
     {
+        canGoLive: false,
+        warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
     },
@@ -44,8 +48,10 @@ function isParticipant(
                 <BracketMatchCard
                     :match="match"
                     :is-participant="isParticipant(match, myEntryId)"
+                    :can-go-live="canGoLive"
                     :match-status-labels="matchStatusLabels"
                     :report-labels="reportLabels"
+                    :warmup-labels="warmupLabels"
                     :server-labels="serverLabels"
                     :server-link-status-labels="serverLinkStatusLabels"
                 />

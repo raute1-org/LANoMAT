@@ -6,6 +6,7 @@ enum MatchStatus: string
 {
     case Pending = 'pending';
     case Ready = 'ready';
+    case Warmup = 'warmup';
     case Reported = 'reported';
     case Disputed = 'disputed';
     case Completed = 'completed';

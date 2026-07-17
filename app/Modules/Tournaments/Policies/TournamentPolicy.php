@@ -4,6 +4,7 @@ namespace App\Modules\Tournaments\Policies;
 
 use App\Models\User;
 use App\Modules\GameServers\Actions\SetManualJoinInfo;
+use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -69,6 +70,20 @@ class TournamentPolicy
      * failed auto-provision), orga configures tournaments separately.
      */
     public function setManualJoinInfo(User $user, GameMatch $match): bool
+    {
+        return $user->isHelper();
+    }
+
+    /**
+     * Triggering "Go" — the warmup->live gong moment — is helper-or-above,
+     * mirroring {@see SetManualJoinInfo}: it is the same "runs the live
+     * show" responsibility, not the orga-only tournament configuration in
+     * {@see manage()}. (A future "all rosters ready" auto-trigger bypasses
+     * this Policy entirely — see {@see GoLive}'s
+     * docblock — so this method only governs the *manual* human-triggered
+     * path.)
+     */
+    public function goLive(User $user, GameMatch $match): bool
     {
         return $user->isHelper();
     }

@@ -64,7 +64,7 @@ it('renders the bracket for an 8-entry single-elimination tournament with 7 matc
             ->where('reportLabels.confirm_action', 'Bestätigen')
             ->has('matches', 7)
             ->has('matches.0', fn (AssertableInertia $match) => $match
-                ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'lockVersion', 'server'])
+                ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'lockVersion', 'server', 'warmupStartedAt'])
             )
         );
 });
