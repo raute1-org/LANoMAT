@@ -79,6 +79,7 @@ use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
 use App\Modules\Voice\Listeners\ProvisionMatchVoiceOnReady;
 use App\Modules\Voice\Listeners\ProvisionVoiceOnStart;
+use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
 use Carbon\CarbonImmutable;
@@ -106,6 +107,8 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.mumble.rest_url'),
             (string) config('services.mumble.ice_secret'),
         ));
+
+        $this->app->singleton(VoiceProviders::class);
 
         $this->app->bind(PelicanClient::class, fn () => new HttpPelicanClient(
             (string) config('services.pelican.panel_url'),

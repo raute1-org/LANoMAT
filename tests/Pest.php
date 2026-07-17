@@ -7,7 +7,9 @@ use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Testing\FakeRemoteExecutor;
 use App\Modules\Voice\Contracts\VoiceClient;
-use App\Modules\Voice\Testing\FakeMumbleClient;
+use App\Modules\Voice\Domain\VoiceProvider;
+use App\Modules\Voice\Testing\FakeVoiceClient;
+use App\Modules\Voice\VoiceProviders;
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -89,12 +91,50 @@ function fakeDiscord(): FakeDiscordClient
     return $fake;
 }
 
-function fakeMumble(): FakeMumbleClient
+function fakeMumble(): FakeVoiceClient
 {
-    $fake = new FakeMumbleClient;
-    app()->instance(VoiceClient::class, $fake);
+    return fakeVoice(['mumble'])['mumble'];
+}
 
-    return $fake;
+/**
+ * Bind an in-memory fake for every active voice provider and return them keyed by value.
+ *
+ * @param  array<int, string>  $providers
+ * @return array<string, FakeVoiceClient>
+ */
+function fakeVoice(array $providers = ['mumble', 'teamspeak']): array
+{
+    config(['services.voice.providers' => $providers]);
+
+    $fakes = [];
+    foreach ($providers as $value) {
+        $fakes[$value] = new FakeVoiceClient(VoiceProvider::from($value));
+    }
+
+    if (isset($fakes['mumble'])) {
+        app()->instance(VoiceClient::class, $fakes['mumble']);
+    }
+
+    app()->bind(VoiceProviders::class, fn () => new class($fakes) extends VoiceProviders
+    {
+        /** @param array<string, FakeVoiceClient> $fakes */
+        public function __construct(private array $fakes)
+        {
+            parent::__construct(app());
+        }
+
+        public function active(): array
+        {
+            return $this->fakes;
+        }
+
+        public function for(VoiceProvider $provider): VoiceClient
+        {
+            return $this->fakes[$provider->value];
+        }
+    });
+
+    return $fakes;
 }
 
 function fakePelican(): FakePelicanClient

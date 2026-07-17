@@ -2,11 +2,11 @@
 
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceChannel;
-use App\Modules\Voice\Testing\FakeMumbleClient;
+use App\Modules\Voice\Testing\FakeVoiceClient;
 use PHPUnit\Framework\ExpectationFailedException;
 
 it('creates, lists and deletes channels', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
 
     $channel = $fake->createChannel('match-1');
 
@@ -24,7 +24,7 @@ it('creates, lists and deletes channels', function () {
 });
 
 it('creates a channel with a parent and temporary flag', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
 
     $channel = $fake->createChannel('sub-room', 42, true);
 
@@ -33,7 +33,7 @@ it('creates a channel with a parent and temporary flag', function () {
 });
 
 it('renames a channel', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
     $channel = $fake->createChannel('old-name');
 
     $fake->renameChannel($channel->id, 'new-name');
@@ -42,7 +42,7 @@ it('renames a channel', function () {
 });
 
 it('assigns increasing unique ids across channels', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
 
     $first = $fake->createChannel('a');
     $second = $fake->createChannel('b');
@@ -51,21 +51,21 @@ it('assigns increasing unique ids across channels', function () {
 });
 
 it('asserts a channel was created', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
     $fake->createChannel('match-1');
 
     $fake->assertChannelCreated('match-1');
 });
 
 it('fails assertChannelCreated when no matching channel exists', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
     $fake->createChannel('match-1');
 
     $fake->assertChannelCreated('match-2');
 })->throws(ExpectationFailedException::class);
 
 it('asserts a channel was deleted', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
     $channel = $fake->createChannel('match-1');
     $fake->deleteChannel($channel->id);
 
@@ -73,7 +73,7 @@ it('asserts a channel was deleted', function () {
 });
 
 it('fails assertChannelDeleted when the channel was never deleted', function () {
-    $fake = new FakeMumbleClient;
+    $fake = new FakeVoiceClient;
     $channel = $fake->createChannel('match-1');
 
     $fake->assertChannelDeleted($channel->id);
@@ -85,5 +85,5 @@ it('fakeMumble helper swaps the VoiceClient binding', function () {
     $client = app(VoiceClient::class);
 
     expect($client)->toBe($fake)
-        ->and($client)->toBeInstanceOf(FakeMumbleClient::class);
+        ->and($client)->toBeInstanceOf(FakeVoiceClient::class);
 });

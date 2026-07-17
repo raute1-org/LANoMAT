@@ -9,7 +9,7 @@ use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Domain\VoiceProvider;
 use PHPUnit\Framework\Assert;
 
-class FakeMumbleClient implements VoiceClient
+class FakeVoiceClient implements VoiceClient
 {
     /** @var array<int, VoiceChannel> */
     public array $channels = [];
@@ -19,9 +19,11 @@ class FakeMumbleClient implements VoiceClient
 
     private int $sequence = 0;
 
+    public function __construct(private readonly VoiceProvider $provider = VoiceProvider::Mumble) {}
+
     public function provider(): VoiceProvider
     {
-        return VoiceProvider::Mumble;
+        return $this->provider;
     }
 
     public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): VoiceChannel
