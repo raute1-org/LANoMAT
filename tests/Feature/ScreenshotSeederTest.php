@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
@@ -81,5 +82,36 @@ class ScreenshotSeederTest extends TestCase
 
         $this->assertSame(1, Tournament::query()->where('event_id', $event->id)->count());
         $this->assertSame(1, Poll::query()->where('event_id', $event->id)->count());
+    }
+
+    public function test_seeder_produces_a_food_order_with_a_deterministic_pinned_menu(): void
+    {
+        (new ScreenshotSeeder)->run();
+
+        $event = Event::query()->where('slug', 'screenshot-demo')->firstOrFail();
+
+        $foodOrder = FoodOrder::query()->where('event_id', $event->id)->firstOrFail();
+
+        // The factory default (`FoodOrderFactory::defaultMenu()`) flips an
+        // unseeded coin between 2 and 3 options — a regression to that
+        // default would make this count flaky (2 or 3) instead of fixed.
+        $this->assertCount(3, $foodOrder->menu);
+        $this->assertSame(
+            ['pizza_margherita', 'pizza_salami', 'salad'],
+            array_map(fn ($option) => $option->key, $foodOrder->menu),
+        );
+    }
+
+    public function test_seeder_is_a_no_op_in_the_production_environment(): void
+    {
+        $this->app['env'] = 'production';
+
+        try {
+            (new ScreenshotSeeder)->run();
+        } finally {
+            $this->app['env'] = 'testing';
+        }
+
+        $this->assertSame(0, Event::query()->where('slug', 'screenshot-demo')->count());
     }
 }

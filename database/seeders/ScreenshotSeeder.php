@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
@@ -63,6 +64,18 @@ class ScreenshotSeeder extends Seeder
 
     public function run(): void
     {
+        // Hard refusal: this seeder creates an orga login with a hardcoded,
+        // publicly-documented password. Never let it touch a production
+        // database, even by accident (e.g. a copy-pasted db:seed command).
+        if (app()->environment('production')) {
+            // optional(): $command is null (not set) when this seeder is
+            // instantiated directly rather than run via `db:seed` — as it
+            // deliberately is in its own tests and may be elsewhere.
+            optional($this->command)->warn('ScreenshotSeeder: skipped — refusing to run in the production environment.');
+
+            return;
+        }
+
         DB::transaction(function (): void {
             $orga = User::query()->updateOrCreate(
                 ['discord_id' => '900000000000000001'],
@@ -205,10 +218,18 @@ class ScreenshotSeeder extends Seeder
                 ]);
             }
 
-            // Catering: an open food order with the default pizza menu.
+            // Catering: an open food order with a fixed, pinned menu. NOT the
+            // factory default (`FoodOrderFactory::defaultMenu()` flips an
+            // unseeded coin to decide between 2 or 3 options) — screenshots
+            // must be identical across runs, so the menu is spelled out here.
             FoodOrder::factory()->open()->create([
                 'event_id' => $event->id,
                 'title' => 'Mitternachts-Pizza',
+                'menu' => [
+                    new MenuOption(key: 'pizza_margherita', name: 'Pizza Margherita', priceCents: 850),
+                    new MenuOption(key: 'pizza_salami', name: 'Pizza Salami', priceCents: 950),
+                    new MenuOption(key: 'salad', name: 'Salat', priceCents: 450),
+                ],
             ]);
 
             // Schedule: a couple of literal, screenshot-friendly items.
