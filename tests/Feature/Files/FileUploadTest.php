@@ -104,6 +104,20 @@ it('rejects an oversized upload with a validation error', function () {
     expect(SharedFile::query()->count())->toBe(0);
 });
 
+it('returns 404 for an upload posted to a draft events files endpoint and creates no SharedFile row', function () {
+    $event = Event::factory()->draft()->create();
+    $uploader = User::factory()->create();
+
+    $file = UploadedFile::fake()->create('mod-pack.zip', 500, 'application/zip');
+
+    $response = $this->actingAs($uploader)->post("/events/{$event->slug}/files", [
+        'file' => $file,
+    ]);
+
+    $response->assertNotFound();
+    expect(SharedFile::query()->count())->toBe(0);
+});
+
 it('rejects a disallowed mime type with a validation error', function () {
     $event = Event::factory()->registration()->create();
     $uploader = User::factory()->create();

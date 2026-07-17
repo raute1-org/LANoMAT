@@ -52,6 +52,15 @@ action against this host) verifies the fingerprint **before** authenticating
 instead of silently trusting a new key (see `SshRemoteExecutor`'s
 pre-login pinning order).
 
+**Operational note:** `SshRemoteExecutor` allows a connection when
+`host_fingerprint` is still `null` (trust-on-first-use) — that first
+connection is what pins the fingerprint. Always **probe a newly registered
+host once, before running any other command or setup on it**; running
+`ApplyLancacheSetup` (or any action) against a never-probed host connects
+without a pinned key and accepts whatever host key is presented on that
+first connection, a one-shot MITM window that probing first, on a trusted
+network path, avoids.
+
 ## 2. What `ApplyLancacheSetup` actually runs
 
 `app/Modules/Lancache/Actions/ApplyLancacheSetup.php`:

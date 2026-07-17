@@ -6,7 +6,7 @@ namespace App\Modules\Hosts\Actions;
 
 use App\Models\User;
 use App\Modules\Hosts\Models\RemoteHost;
-use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use phpseclib3\Crypt\PublicKeyLoader;
 use Throwable;
@@ -31,9 +31,7 @@ class RegisterHost
      */
     public function handle(array $data, string $privateKeyPem, User $actor): RemoteHost
     {
-        if (! $actor->isOrga()) {
-            throw new AuthorizationException;
-        }
+        Gate::forUser($actor)->authorize('create', RemoteHost::class);
 
         if (! self::isParseablePrivateKey($privateKeyPem)) {
             throw ValidationException::withMessages([

@@ -63,8 +63,11 @@ from more than one host on the LAN.
 
 ## Configuration: `.env` keys
 
-`config('services.registry.*')` (see `config/services.php`) is the single
-source of truth the app-side tooling and docs below read from:
+These are `.env` keys / CI variables only — there is no
+`config('services.registry.*')` accessor; nothing in the app reads this
+config at runtime. `REGISTRY_HOST`/`REGISTRY_USERNAME`/`REGISTRY_PASSWORD`
+are consumed directly by CI (`.github/workflows/publish-images.yml`) and by
+the manual `docker login`/deploy commands below:
 
 ```dotenv
 # Own Docker registry (M7, roadmap 7.2). REGISTRY_HOST is the registry's
@@ -137,6 +140,12 @@ reference (`app/Modules/CustomServers/Actions/StartCustomServer.php` runs
 `$REGISTRY_HOST/lanomat/gameservers/<name>:<tag>` instead of a public
 registry reference, so a LAN day's server (re)starts pull from the local/
 low-latency registry instead of the public internet.
+
+**Operational note:** before running `StartCustomServer` (or any command)
+against a newly registered `RemoteHost`, probe it once (`ProbeHost`) — this
+pins its SSH host-key fingerprint. `SshRemoteExecutor` trusts whatever key
+is presented on a never-probed host's first connection (trust-on-first-use),
+so probing first, on a trusted network path, is what closes that window.
 
 ## How a prod deploy pulls from the registry
 

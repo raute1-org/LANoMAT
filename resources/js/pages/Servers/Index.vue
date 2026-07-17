@@ -260,7 +260,7 @@ async function copyHint(serverId: number, text: string) {
                             <div v-if="server.installHint.shareUrl">
                                 <a
                                     :href="server.installHint.shareUrl"
-                                    class="font-mono text-xs text-primary underline-offset-4 hover:underline"
+                                    class="text-xs text-primary underline-offset-4 hover:underline"
                                     >{{ labels.install_hint_download }}</a
                                 >
                             </div>

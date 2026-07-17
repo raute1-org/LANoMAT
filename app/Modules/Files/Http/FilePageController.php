@@ -66,6 +66,8 @@ class FilePageController extends Controller
 
     public function store(Request $request, Event $event, UploadSharedFile $action): RedirectResponse
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $this->authorize('create', SharedFile::class);
 
         $request->validate([

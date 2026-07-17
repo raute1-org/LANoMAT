@@ -11,7 +11,7 @@ use App\Modules\Hosts\Domain\CommandResult;
 use App\Modules\Hosts\Enums\HostRole;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Lancache\Exceptions\LancacheException;
-use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Probes a role=lancache {@see RemoteHost} for reachability by running a
@@ -28,9 +28,7 @@ class ProbeLancache
 
     public function handle(RemoteHost $host, User $actor): CommandResult
     {
-        if (! $actor->isOrga()) {
-            throw new AuthorizationException;
-        }
+        Gate::forUser($actor)->authorize('update', $host);
 
         if ($host->role !== HostRole::Lancache) {
             throw LancacheException::notALancacheHost($host);

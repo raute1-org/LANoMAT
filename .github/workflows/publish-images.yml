@@ -10,9 +10,9 @@
 # tag/release-triggered publish convention docker/build-push-action's own
 # docs use (verified via context7 `/docker/build-push-action`, 2026-07-17).
 #
-# Secret-guarded: every job step that needs registry credentials is gated by
-# an `if:` checking `secrets.REGISTRY_HOST != ''`, so this workflow is a
-# harmless no-op (green, zero real steps) on forks or any CI environment
+# Secret-guarded: the whole job is gated by an `if:` checking
+# `vars.REGISTRY_HOST != ''`, so this workflow is a harmless no-op (green,
+# zero real steps) on forks or any CI environment
 # that hasn't configured `REGISTRY_HOST`/`REGISTRY_USERNAME`/
 # `REGISTRY_PASSWORD` — it never fails a fork's CI for a secret it doesn't
 # have. This mirrors ci.yml's existing job structure/runner choice
