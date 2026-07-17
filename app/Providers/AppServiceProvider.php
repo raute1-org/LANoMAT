@@ -78,6 +78,7 @@ use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
 use App\Modules\Voice\Listeners\ProvisionMatchVoiceOnReady;
+use App\Modules\Voice\Listeners\ProvisionServerVoiceOnReady;
 use App\Modules\Voice\Listeners\ProvisionVoiceOnStart;
 use App\Modules\Voice\Models\VoiceClientInstaller;
 use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
@@ -223,6 +224,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TournamentCompleted::class, CleanupServersOnCompleted::class);
         Event::listen(ServerLinkUpdated::class, UpdateMatchSurfacesOnServerReady::class);
         Event::listen(ServerLinkUpdated::class, EnterWarmupOnServerReady::class);
+        Event::listen(ServerLinkUpdated::class, ProvisionServerVoiceOnReady::class);
         Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
         Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
         Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);

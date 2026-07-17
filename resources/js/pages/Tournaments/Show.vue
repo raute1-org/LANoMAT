@@ -82,21 +82,39 @@ const isNotStarted = computed(
             </h2>
             <div class="mt-2 flex flex-wrap items-center gap-3">
                 <template v-for="link in voiceLinks" :key="link.provider">
-                    <Button
-                        v-if="link.isDefault"
-                        as="a"
-                        :href="link.url"
-                        variant="default"
-                    >
-                        {{ labels.join_voice }} — {{ link.label }}
-                    </Button>
-                    <a
-                        v-else
-                        :href="link.url"
-                        class="rounded-sm text-sm text-muted-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                        {{ link.label }}
-                    </a>
+                    <div class="flex items-center gap-2">
+                        <Button
+                            v-if="link.isDefault"
+                            as="a"
+                            :href="link.url"
+                            variant="default"
+                        >
+                            {{ labels.join_voice }} — {{ link.label }}
+                        </Button>
+                        <a
+                            v-else
+                            :href="link.url"
+                            class="rounded-sm text-sm text-muted-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            {{ link.label }}
+                        </a>
+                        <!-- M8-infra-later: occupants is 0 until the provider sidecars are wired up (mode A); LiveIndicator only lights once someone is actually in the channel. -->
+                        <span
+                            :title="voiceLabels.occupants_label"
+                            class="inline-flex items-center gap-1"
+                        >
+                            <LiveIndicator
+                                v-if="link.occupants > 0"
+                                variant="live"
+                                :pulse="false"
+                            />
+                            <span
+                                class="font-mono text-xs text-muted-foreground tabular-nums"
+                            >
+                                {{ link.occupants }}
+                            </span>
+                        </span>
+                    </div>
                 </template>
             </div>
             <p

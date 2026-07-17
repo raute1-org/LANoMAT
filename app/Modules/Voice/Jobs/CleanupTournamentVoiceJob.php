@@ -18,9 +18,11 @@ use Illuminate\Foundation\Queue\Queueable;
  * ({@see TournamentCompleted}) on **every provider** that has stored
  * channel ids ({@see VoiceProviders}) — not just the currently active set:
  * the root channel, every team channel provisioned by
- * {@see ProvisionTournamentVoiceJob}, and any leftover per-match channels
- * from {@see ProvisionMatchVoiceJob} that a match's cleanup never reached
- * (e.g. matches that never completed on their own). A provider key that was
+ * {@see ProvisionTournamentVoiceJob}, any leftover per-match channels from
+ * {@see ProvisionMatchVoiceJob}, and the per-server shared channel from
+ * {@see ProvisionServerVoiceJob} (issue #13), for matches whose cleanup
+ * never reached them (e.g. matches that never completed on their own). A
+ * provider key that was
  * deactivated after provisioning is still resolved via
  * {@see VoiceProviders::for()} so its leftover channels get cleaned up; a
  * stored key that is no longer a valid {@see VoiceProvider} case is skipped
@@ -90,6 +92,7 @@ class CleanupTournamentVoiceJob implements ShouldQueue
 
                 $entry1ChannelId = $subtree['entry1_channel_id'] ?? null;
                 $entry2ChannelId = $subtree['entry2_channel_id'] ?? null;
+                $serverChannelId = $subtree['server_channel_id'] ?? null;
 
                 if ($entry1ChannelId !== null) {
                     $client->deleteChannel($entry1ChannelId);
@@ -97,6 +100,10 @@ class CleanupTournamentVoiceJob implements ShouldQueue
 
                 if ($entry2ChannelId !== null) {
                     $client->deleteChannel($entry2ChannelId);
+                }
+
+                if ($serverChannelId !== null) {
+                    $client->deleteChannel($serverChannelId);
                 }
             }
 

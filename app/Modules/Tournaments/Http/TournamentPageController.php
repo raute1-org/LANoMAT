@@ -28,6 +28,7 @@ use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
 use App\Modules\Voice\Support\VoiceJoinLink;
+use App\Modules\Voice\Support\VoiceOccupancy;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -346,7 +347,13 @@ class TournamentPageController extends Controller
      * channel for — empty when voice channels have not been (or are no
      * longer) provisioned for this match on any provider.
      *
-     * @return array<int, array{provider: string, label: string, url: string, isDefault: bool}>
+     * `occupants` is the live headcount for that channel (issue #13), via
+     * {@see VoiceOccupancy::forMatch()} — real numbers require the provider
+     * sidecars to be reachable (mode A, deferred); until then this is
+     * consistently 0, which the UI already renders sensibly (no
+     * LiveIndicator, plain "0").
+     *
+     * @return array<int, array{provider: string, label: string, url: string, isDefault: bool, occupants: int}>
      */
     private function voiceLinksFor(GameMatch $match, TournamentEntry $myEntry): array
     {
@@ -358,6 +365,7 @@ class TournamentPageController extends Controller
 
         $isEntry1 = $match->entry1_id === $myEntry->id;
         $defaultProvider = VoiceJoinLink::defaultProviderFor($myEntry->team?->voice_provider);
+        $occupancy = VoiceOccupancy::forMatch($match);
 
         $links = [];
 
@@ -379,6 +387,7 @@ class TournamentPageController extends Controller
                 'label' => $provider->label(),
                 'url' => VoiceJoinLink::for($provider, $myEntry->display_name),
                 'isDefault' => $provider === $defaultProvider,
+                'occupants' => $occupancy[$provider->value][$channelId] ?? 0,
             ];
         }
 

@@ -58,10 +58,16 @@ it('lists every provider present in voice_channels, marking the config default a
             ->where('myMatchVoiceLinks.0.label', 'Mumble')
             ->where('myMatchVoiceLinks.0.url', 'mumble://voice.example.test:64738/'.$entry1->display_name)
             ->where('myMatchVoiceLinks.0.isDefault', true)
+            // Occupancy (issue #13): the fake's channel 101 was never
+            // seeded via setOccupants(), so it reports 0 — proving the
+            // absence of real sidecars (mode A) degrades to a plain,
+            // non-crashing zero rather than an error.
+            ->where('myMatchVoiceLinks.0.occupants', 0)
             ->where('myMatchVoiceLinks.1.provider', 'teamspeak')
             ->where('myMatchVoiceLinks.1.label', 'TeamSpeak')
             ->where('myMatchVoiceLinks.1.url', 'ts3server://ts.example.test?port=9987&channel='.rawurlencode($entry1->display_name))
             ->where('myMatchVoiceLinks.1.isDefault', false)
+            ->where('myMatchVoiceLinks.1.occupants', 0)
         );
 });
 
@@ -98,6 +104,31 @@ it('marks the viewer team voice_provider choice as default instead of the config
             ->where('myMatchVoiceLinks.0.isDefault', false)
             ->where('myMatchVoiceLinks.1.provider', 'teamspeak')
             ->where('myMatchVoiceLinks.1.isDefault', true)
+        );
+});
+
+it('surfaces the live occupant count reported by the provider fake for the viewer channel', function () {
+    $fakes = fakeVoice(['mumble', 'teamspeak']);
+
+    $tournament = startEightEntrySingleElimForVoiceLinks();
+    $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
+    $entry1 = TournamentEntry::find($match->entry1_id);
+    $viewer = User::find($entry1->user_id);
+
+    $mumbleChannel = $fakes['mumble']->createChannel($entry1->display_name, null, true);
+    $fakes['mumble']->setOccupants($mumbleChannel->id, 4);
+
+    $match->update(['voice_channels' => [
+        'mumble' => ['entry1_channel_id' => $mumbleChannel->id, 'entry2_channel_id' => 999],
+    ]]);
+
+    $this->actingAs($viewer)
+        ->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Tournaments/Show')
+            ->where('myMatchVoiceLinks.0.provider', 'mumble')
+            ->where('myMatchVoiceLinks.0.occupants', 4)
         );
 });
 

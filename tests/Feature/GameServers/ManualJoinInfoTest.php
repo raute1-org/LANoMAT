@@ -34,6 +34,11 @@ it('lets a helper write manual join info, creating a manual ServerLink with stat
 });
 
 it('upserts the existing ServerLink on a second call rather than creating a duplicate', function () {
+    // SetManualJoinInfo dispatches ServerLinkUpdated(Ready), which now also
+    // fans out to ProvisionServerVoiceOnReady (issue #13) — fake voice so
+    // that reaches an in-memory client rather than a real sidecar.
+    fakeMumble();
+
     $helper = User::factory()->create(['role' => Role::Helper]);
     $match = GameMatch::factory()->create();
 

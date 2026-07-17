@@ -161,6 +161,11 @@ it('refuses SetManualJoinInfo when the helper already has max_servers_per_user r
 });
 
 it('lets SetManualJoinInfo through and attributes the ServerLink to the acting helper when within limits', function () {
+    // SetManualJoinInfo dispatches ServerLinkUpdated(Ready), which now also
+    // fans out to ProvisionServerVoiceOnReady (issue #13) — fake voice so
+    // that reaches an in-memory client rather than a real sidecar.
+    fakeMumble();
+
     Config::set('services.pelican.max_servers_per_user', 2);
 
     $helper = User::factory()->create(['role' => Role::Helper]);

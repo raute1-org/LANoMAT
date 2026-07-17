@@ -7,6 +7,7 @@ namespace App\Modules\Voice\Testing;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Domain\VoiceProvider;
+use App\Modules\Voice\Support\VoiceOccupancy;
 use PHPUnit\Framework\Assert;
 
 class FakeVoiceClient implements VoiceClient
@@ -47,6 +48,32 @@ class FakeVoiceClient implements VoiceClient
             $name,
             $existing->parentId,
             $existing->temporary,
+            $existing->occupants,
+        );
+    }
+
+    /**
+     * Test hook (occupancy is read-only in the real contract — no provider
+     * exposes a way to *set* occupants, only to report them): seeds a
+     * channel's live occupant count, e.g. to assert
+     * {@see VoiceOccupancy} aggregates it
+     * correctly. VoiceChannel is immutable, so the stored instance is
+     * rebuilt with the new count, mirroring renameChannel above.
+     */
+    public function setOccupants(int $channelId, int $n): void
+    {
+        $existing = $this->channels[$channelId] ?? null;
+
+        if ($existing === null) {
+            return;
+        }
+
+        $this->channels[$channelId] = new VoiceChannel(
+            $existing->id,
+            $existing->name,
+            $existing->parentId,
+            $existing->temporary,
+            $n,
         );
     }
 

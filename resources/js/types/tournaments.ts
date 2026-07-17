@@ -20,13 +20,16 @@ export interface TournamentDetail {
  * match — `provider` is the provider's config value (e.g. `"mumble"`),
  * `label` its display name, `url` a `mumble://`/`ts3server://` deep link,
  * and `isDefault` marks the installation/team's preferred provider (exactly
- * one entry, if any, has `isDefault: true`).
+ * one entry, if any, has `isDefault: true`). `occupants` is the channel's
+ * live headcount (issue #13); real numbers depend on the provider sidecars
+ * running (mode A, deferred) — 0 until then.
  */
 export interface MatchVoiceLinkItem {
     provider: string;
     label: string;
     url: string;
     isDefault: boolean;
+    occupants: number;
 }
 
 /** Every active provider's join link for the viewer's current match, empty when no channel has been provisioned (yet, or any more). */

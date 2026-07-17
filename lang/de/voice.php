@@ -6,6 +6,7 @@ return [
     'join' => [
         'heading' => 'Voice beitreten',
         'default_hint' => 'Empfohlen für dieses Team',
+        'occupants_label' => 'Personen im Kanal',
     ],
 
     'setup' => [
