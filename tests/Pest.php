@@ -31,6 +31,7 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in(
         'Unit/Catering',
+        'Unit/CustomServers',
         'Unit/Events',
         'Unit/Games',
         'Unit/Hosts',

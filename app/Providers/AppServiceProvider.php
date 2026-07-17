@@ -7,6 +7,8 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Policies\FoodOrderItemPolicy;
 use App\Modules\Catering\Policies\FoodOrderPolicy;
+use App\Modules\CustomServers\Models\CustomServer;
+use App\Modules\CustomServers\Policies\CustomServerPolicy;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\HttpDiscordClient;
 use App\Modules\Discord\Listeners\AnnounceAndCleanupOnCompleted;
@@ -186,6 +188,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
         Gate::policy(ServerLink::class, ServerLinkPolicy::class);
         Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
+        Gate::policy(CustomServer::class, CustomServerPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
