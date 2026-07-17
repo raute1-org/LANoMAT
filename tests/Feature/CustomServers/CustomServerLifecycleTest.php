@@ -62,6 +62,22 @@ it('stops a custom server by running docker rm -f and setting status to Stopped'
     expect($stopped->status)->toBe(CustomServerStatus::Stopped);
 });
 
+it('marks a custom server Failed and records stderr when docker rm -f exits non-zero', function () {
+    $fake = fakeRemote();
+    $fake->queueResult('docker rm -f', new CommandResult(1, '', 'boom'));
+    $host = RemoteHost::factory()->create();
+    $server = CustomServer::factory()->for($host, 'host')->create([
+        'container_name' => 'mc-lan-1',
+        'status' => CustomServerStatus::Running,
+    ]);
+    $actor = User::factory()->orga()->create();
+
+    $stopped = app(StopCustomServer::class)->handle($server, $actor);
+
+    expect($stopped->status)->toBe(CustomServerStatus::Failed)
+        ->and($stopped->last_output)->toBe('boom');
+});
+
 it('probes a custom server via docker inspect and reflects the running state', function () {
     $fake = fakeRemote();
     $fake->queueResult('docker inspect', new CommandResult(0, 'true', ''));

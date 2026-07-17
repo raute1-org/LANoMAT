@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\CustomServers\Models;
 
 use App\Modules\CustomServers\Enums\CustomServerStatus;
+use App\Modules\Events\Models\Event;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use Database\Factories\CustomServerFactory;
@@ -61,6 +62,12 @@ class CustomServer extends Model
     public function host(): BelongsTo
     {
         return $this->belongsTo(RemoteHost::class, 'remote_host_id');
+    }
+
+    /** @return BelongsTo<Event, $this> */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(Event::class);
     }
 
     protected static function newFactory(): CustomServerFactory
