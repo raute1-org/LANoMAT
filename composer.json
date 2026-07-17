@@ -17,6 +17,7 @@
         "laravel/socialite": "^5.28",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
+        "phpseclib/phpseclib": "^3",
         "socialiteproviders/discord": "^4.2",
         "spatie/icalendar-generator": "^3.3"
     },

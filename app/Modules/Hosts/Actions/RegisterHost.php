@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Hosts\Models\RemoteHost;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
+use phpseclib3\Crypt\PublicKeyLoader;
+use Throwable;
 
 /**
  * Registers a new managed remote host (M7's registry, the persistence layer
@@ -17,9 +19,10 @@ use Illuminate\Validation\ValidationException;
  * end up logged alongside the descriptive fields (e.g. a `Log::info($data)`
  * call elsewhere would still never see it).
  *
- * A full key-parse (phpseclib) is Task 2's concern; here we only guard
- * against an empty value or something that plainly isn't PEM-shaped, so the
- * registry never persists a private key that is obviously not one.
+ * Now that phpseclib is available (Task 2), the key is validated by actually
+ * attempting to parse it via {@see PublicKeyLoader::loadPrivateKey()} rather
+ * than a shallow "-----BEGIN ... PRIVATE KEY-----" marker check — a garbage
+ * PEM-shaped string is rejected, not persisted.
  */
 class RegisterHost
 {
@@ -32,7 +35,7 @@ class RegisterHost
             throw new AuthorizationException;
         }
 
-        if (! self::looksLikePem($privateKeyPem)) {
+        if (! self::isParseablePrivateKey($privateKeyPem)) {
             throw ValidationException::withMessages([
                 'ssh_private_key' => __('hosts.errors.invalid_private_key'),
             ]);
@@ -45,10 +48,18 @@ class RegisterHost
         return $host;
     }
 
-    private static function looksLikePem(string $pem): bool
+    private static function isParseablePrivateKey(string $pem): bool
     {
-        $trimmed = trim($pem);
+        if (trim($pem) === '') {
+            return false;
+        }
 
-        return $trimmed !== '' && str_contains($trimmed, '-----BEGIN') && str_contains($trimmed, 'PRIVATE KEY-----');
+        try {
+            PublicKeyLoader::loadPrivateKey($pem);
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

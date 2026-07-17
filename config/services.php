@@ -78,4 +78,9 @@ return [
             : null,
     ],
 
+    'hosts' => [
+        'connect_timeout' => (int) env('HOSTS_SSH_TIMEOUT', 10),
+        'strict_host_key' => (bool) env('HOSTS_STRICT_HOST_KEY', true),
+    ],
+
 ];

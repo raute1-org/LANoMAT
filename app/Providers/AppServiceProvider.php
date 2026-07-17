@@ -27,8 +27,10 @@ use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
+use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
+use App\Modules\Hosts\SshRemoteExecutor;
 use App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Listeners\GongOnMatchLive;
@@ -106,6 +108,11 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.pelican.application_token'),
             (string) config('services.pelican.client_token'),
             config('services.pelican.node_id'),
+        ));
+
+        $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(
+            (int) config('services.hosts.connect_timeout'),
+            (bool) config('services.hosts.strict_host_key'),
         ));
 
         $this->app->bind(ScheduleParticipantResolver::class, TournamentScheduleParticipantResolver::class);

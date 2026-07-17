@@ -4,6 +4,8 @@ use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Testing\FakePelicanClient;
+use App\Modules\Hosts\Contracts\RemoteExecutor;
+use App\Modules\Hosts\Testing\FakeRemoteExecutor;
 use App\Modules\Voice\Contracts\MumbleClient;
 use App\Modules\Voice\Testing\FakeMumbleClient;
 /*
@@ -98,6 +100,14 @@ function fakePelican(): FakePelicanClient
 {
     $fake = new FakePelicanClient;
     app()->instance(PelicanClient::class, $fake);
+
+    return $fake;
+}
+
+function fakeRemote(): FakeRemoteExecutor
+{
+    $fake = new FakeRemoteExecutor;
+    app()->instance(RemoteExecutor::class, $fake);
 
     return $fake;
 }
