@@ -22,20 +22,29 @@ class UploadSharedFile
      * upload appear as belonging to another user.
      *
      * The per-event per-user quota is enforced inside a `DB::transaction`
-     * with a row lock on the actor's existing files for the event, so two
-     * concurrent uploads from the same user cannot both slip in under the
-     * limit (a "lock, sum, check, insert" sequence rather than "check then
-     * insert").
+     * that first takes a Postgres transaction-scoped advisory lock keyed on
+     * `(event_id, user_id)`. Unlike `lockForUpdate()`, the advisory lock
+     * does not depend on existing rows, so it also serializes a user's
+     * *first* concurrent uploads to an event — the case where there is
+     * nothing yet to row-lock and two transactions could otherwise both
+     * read an empty sum and both pass the quota check. The lock is
+     * released automatically on commit or rollback.
      */
     public function handle(Event $event, User $actor, UploadedFile $file): SharedFile
     {
         $this->validateFile($file);
 
         return DB::transaction(function () use ($event, $actor, $file): SharedFile {
+            // Serializes concurrent uploads from the same user against the
+            // same event, even when the user has zero prior files (and thus
+            // no rows for `lockForUpdate()` to lock below).
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ["files:{$event->id}:{$actor->id}"]);
+
             // Postgres rejects `FOR UPDATE` combined with an aggregate
             // (sum) in the same query, so the existing rows are locked and
-            // fetched here, then summed in PHP — still serializes
-            // concurrent uploads from the same user against the same event.
+            // fetched here, then summed in PHP. This row lock is now
+            // redundant with the advisory lock above for correctness, but
+            // is kept as defense in depth against reads outside this action.
             $existingBytes = SharedFile::query()
                 ->where('event_id', $event->id)
                 ->where('user_id', $actor->id)
@@ -47,7 +56,7 @@ class UploadSharedFile
             $sizeBytes = $file->getSize();
 
             if ($sizeBytes === false) {
-                $sizeBytes = 0;
+                throw FileException::unreadable();
             }
 
             if ($existingBytes + $sizeBytes > $quotaBytes) {

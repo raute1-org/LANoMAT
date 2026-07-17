@@ -25,6 +25,7 @@ return [
         'quota_exceeded' => 'Dein Upload-Kontingent für dieses Event ist ausgeschöpft.',
         'too_large' => 'Die Datei überschreitet die maximal erlaubte Größe.',
         'invalid_mime' => 'Dieser Dateityp ist nicht erlaubt.',
+        'unreadable' => 'Die Datei konnte nicht gelesen werden.',
     ],
 
     'page' => [

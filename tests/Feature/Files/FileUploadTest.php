@@ -65,6 +65,29 @@ it('rejects an upload once the per-user quota for the event is exceeded', functi
     expect(SharedFile::query()->count())->toBe(1);
 });
 
+it('rejects a first-ever upload that alone exceeds the per-user quota for the event', function () {
+    // No prior SharedFile rows exist for this user/event, so there is
+    // nothing for `lockForUpdate()` to lock — the advisory lock taken at
+    // the top of the quota transaction is what closes this boundary.
+    config(['files.per_user_quota_mb' => 1]);
+
+    $event = Event::factory()->registration()->create();
+    $uploader = User::factory()->create();
+
+    expect(SharedFile::query()->where('event_id', $event->id)->where('user_id', $uploader->id)->count())->toBe(0);
+
+    $file = UploadedFile::fake()->create('too-big.zip', 2000, 'application/zip');
+
+    $response = $this->actingAs($uploader)->post("/events/{$event->slug}/files", [
+        'file' => $file,
+    ]);
+
+    $response->assertSessionHas('inertia.flash_data.toast.type', 'error');
+    $response->assertSessionHas('inertia.flash_data.toast.message', trans('files.errors.quota_exceeded'));
+
+    expect(SharedFile::query()->count())->toBe(0);
+});
+
 it('rejects an oversized upload with a validation error', function () {
     config(['files.max_upload_mb' => 1]);
 
