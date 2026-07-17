@@ -122,4 +122,20 @@ class GameServerException extends DomainException
             'gameservers.errors.user_server_cap_exceeded',
         );
     }
+
+    /**
+     * Thrown by {@see GuardrailPolicy::assertWithinLimits()} when the
+     * node-wide count of running {@see \App\Modules\GameServers\Models\ServerLink}s
+     * is at or over `services.pelican.max_running_servers`. Unlike
+     * {@see self::userServerCapExceeded()}, this check runs unconditionally
+     * (regardless of `$requester`), so it is the guardrail that bounds the
+     * automatic match-provisioning path.
+     */
+    public static function tooManyRunningServers(int $capServers): self
+    {
+        return new self(
+            "The node already has {$capServers} or more running game servers.",
+            'gameservers.errors.too_many_running_servers',
+        );
+    }
 }

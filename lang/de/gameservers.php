@@ -17,6 +17,7 @@ return [
         'ram_cap_exceeded' => 'Der geschätzte Arbeitsspeicherbedarf überschreitet das Limit pro Server.',
         'slots_cap_exceeded' => 'Die konfigurierte Slot-Anzahl überschreitet das Limit pro Server.',
         'user_server_cap_exceeded' => 'Du hast bereits die maximale Anzahl laufender Spielserver erreicht.',
+        'too_many_running_servers' => 'Es laufen bereits die maximal zulässige Anzahl an Spielservern auf diesem Knoten.',
     ],
     'match_page' => [
         'heading' => 'Spielserver',

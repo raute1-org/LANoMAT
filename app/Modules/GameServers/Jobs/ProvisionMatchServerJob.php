@@ -50,14 +50,17 @@ use Throwable;
  *
  * Before that external call, the resolved config is checked against
  * {@see GuardrailPolicy::assertWithinLimits()} (roadmap 6.7: RAM/slot caps
- * plus per-user concurrency, enforced here — not only in the UI — so a
- * breach can never reach `createServer()`). This job has no interactive
- * requester (it reacts to `MatchReady`, not a human action), so it passes
- * `null` and only the RAM/slot caps apply; see `GuardrailPolicy`'s docblock
- * for the full attribution rationale. A breach re-uses the exact same
- * Failed-and-rethrow handling as a `createServer()` failure below, since the
- * slot (`ServerLink` row + `matches.server_link_id`) was already committed
- * and must not be left dangling in Provisioning.
+ * plus per-user and node-wide concurrency, enforced here — not only in the
+ * UI — so a breach can never reach `createServer()`). This job has no
+ * interactive requester (it reacts to `MatchReady`, not a human action), so
+ * it passes `null` and the per-user cap is skipped — but the RAM/slot caps
+ * and the global `max_running_servers` cap still apply unconditionally, so
+ * this automatic path is not unbounded; see `GuardrailPolicy`'s docblock for
+ * the full attribution rationale and the exact counting semantics (the
+ * just-claimed `ServerLink` is excluded from its own count). A breach
+ * re-uses the exact same Failed-and-rethrow handling as a `createServer()`
+ * failure below, since the slot (`ServerLink` row + `matches.server_link_id`)
+ * was already committed and must not be left dangling in Provisioning.
  */
 class ProvisionMatchServerJob implements ShouldQueue
 {
@@ -124,8 +127,12 @@ class ProvisionMatchServerJob implements ShouldQueue
             // must mean no server is ever created (see this job's docblock
             // and GuardrailPolicy's). No interactive requester exists for
             // this automatic path, so the per-user cap is skipped (null) —
-            // only the RAM/slot caps apply.
-            GuardrailPolicy::assertWithinLimits($claim['game'], $claim['config'], requester: null);
+            // but the RAM/slot caps AND the global running-server cap still
+            // apply unconditionally, which is what gives this path teeth.
+            // The just-claimed $link (already saved as Provisioning above)
+            // is excluded from the global count — see GuardrailPolicy's
+            // docblock for the exact "at most N besides this one" semantics.
+            GuardrailPolicy::assertWithinLimits($claim['game'], $claim['config'], requester: null, excludingLinkId: $link->id);
 
             $server = $client->createServer($claim['eggId'], $claim['config']);
         } catch (Throwable $e) {

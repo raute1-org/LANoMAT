@@ -58,6 +58,67 @@ it('refuses to provision and marks the ServerLink Failed when the RAM guardrail 
     expect($link->status)->toBe(ServerLinkStatus::Failed);
 });
 
+it('refuses to provision on the automatic path (requester=null) when the global running-server cap is reached', function () {
+    Config::set('services.pelican.max_ram_mb', 1_000_000);
+    Config::set('services.pelican.max_slots', 1_000);
+    Config::set('services.pelican.max_running_servers', 2);
+    Bus::fake([PollServerStatusJob::class]);
+    $fake = fakePelican();
+
+    // Two already-running links saturate the node-wide cap of 2 — no human
+    // requester is involved anywhere in this test, proving the global cap
+    // (not the per-user cap) is what stops the automatic path.
+    ServerLink::factory()->count(2)->create(['status' => ServerLinkStatus::Ready]);
+
+    $game = Game::factory()->create([
+        'pelican_egg_id' => 'egg-42',
+        'default_server_config' => new ServerConfig(maxPlayers: 10, map: 'de_dust2'),
+    ]);
+    $tournament = Tournament::factory()->create(['game_id' => $game->id]);
+    $match = GameMatch::factory()->for($tournament)->create();
+
+    try {
+        (new ProvisionMatchServerJob($match->id))->handle($fake);
+        test()->fail('Expected GameServerException to be thrown.');
+    } catch (GameServerException $e) {
+        expect(__($e->translationKey))->toBe('Es laufen bereits die maximal zulässige Anzahl an Spielservern auf diesem Knoten.');
+    }
+
+    // The auto path now has teeth: no server was created, and the ServerLink
+    // this job claimed for itself is left Failed, not dangling in
+    // Provisioning.
+    $fake->assertNothingCreated();
+
+    $match->refresh();
+    expect($match->server_link_id)->not->toBeNull();
+    expect($match->serverLink->status)->toBe(ServerLinkStatus::Failed);
+});
+
+it('lets the automatic path through when it is the only server and the global cap allows exactly one', function () {
+    Config::set('services.pelican.max_ram_mb', 1_000_000);
+    Config::set('services.pelican.max_slots', 1_000);
+    Config::set('services.pelican.max_running_servers', 1);
+    Bus::fake([PollServerStatusJob::class]);
+    $fake = fakePelican();
+
+    // No other running links exist — the job's own just-claimed link is
+    // excluded from the count (see GuardrailPolicy's docblock), so this must
+    // succeed even though the cap is as tight as 1.
+    $game = Game::factory()->create([
+        'pelican_egg_id' => 'egg-42',
+        'default_server_config' => new ServerConfig(maxPlayers: 10, map: 'de_dust2'),
+    ]);
+    $tournament = Tournament::factory()->create(['game_id' => $game->id]);
+    $match = GameMatch::factory()->for($tournament)->create();
+
+    (new ProvisionMatchServerJob($match->id))->handle($fake);
+
+    $fake->assertServerCreated('egg-42');
+
+    $match->refresh();
+    expect($match->serverLink->status)->toBe(ServerLinkStatus::Provisioning);
+});
+
 it('provisions normally when the config is within the guardrail limits', function () {
     Config::set('services.pelican.max_ram_mb', 1_000_000);
     Config::set('services.pelican.max_slots', 1_000);

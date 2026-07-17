@@ -68,6 +68,14 @@ return [
         'max_ram_mb' => (int) env('PELICAN_MAX_RAM_MB', 4096),
         'max_slots' => (int) env('PELICAN_MAX_SLOTS', 64),
         'max_servers_per_user' => (int) env('PELICAN_MAX_SERVERS_PER_USER', 3),
+        // Node-wide cap on total running servers, across every requester —
+        // bounds the AUTOMATIC provisioning path (ProvisionMatchServerJob,
+        // requester=null), which max_servers_per_user cannot reach. Left
+        // unset (null) by default: unlike the other caps, there is no safe
+        // one-size-fits-all node capacity, so this is opt-in per deployment.
+        'max_running_servers' => env('PELICAN_MAX_RUNNING_SERVERS') !== null
+            ? (int) env('PELICAN_MAX_RUNNING_SERVERS')
+            : null,
     ],
 
 ];
