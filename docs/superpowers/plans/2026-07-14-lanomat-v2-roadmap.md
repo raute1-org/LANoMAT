@@ -346,6 +346,34 @@ MVP für die erste LAN: **M0–M3**. M4, M5, M6 sind danach unabhängig voneinan
 
 ---
 
+## M8 — Voice-Multiprovider ✅ (getaggt `m8`, 2026-07-17)
+
+Verallgemeinerung der Single-Backend-Mumble-Anbindung zu einem provider-agnostischen **`VoiceClient`**, der **Mumble und TeamSpeak gleichzeitig** betreibt (Discord-Voice bewusst YAGNI, aber die N-Provider-Registry lässt Platz). Detailplan: `docs/superpowers/plans/2026-07-17-m8-voice-multiprovider.md`. Verbindliches Feature-Detail steht im [`#2`](https://github.com/raute1-org/LANoMAT/issues/2)-Bullet + [`#13`](https://github.com/raute1-org/LANoMAT/issues/13)-Nachschärfung. Ausführung **Modus A** (Code + Config + Docs jetzt gegen Fakes; reale Sidecar-/Server-Infra später mit dem User).
+
+| # | Task | Ergebnis |
+|---|------|----------|
+| 8.1 | `MumbleClient`→`VoiceClient`, `MumbleChannel`→`VoiceChannel`, `VoiceProvider`-Enum + `provider()` | ✅ |
+| 8.2 | `VoiceProviders`-Registry (aktiver Provider-Satz aus Config) + `voice`/`teamspeak`-Config + `fakeVoice()` | ✅ |
+| 8.3 | `HttpTeamSpeakClient` (spiegelt Mumble-Retry) + `docker/teamspeak-admin/` ServerQuery-REST-Sidecar | ✅ |
+| 8.4 | Spiegel-Provisionierung: 3 Jobs fächern über alle aktiven Provider, Persistenz **pro Provider** | ✅ |
+| 8.5 | `voice_provider` am Team + `VoiceJoinLink` (`mumble://` + `ts3server://`) | ✅ |
+| 8.6 | Match-Seite + Discord-Embed listen alle Provider, Default hervorgehoben | ✅ |
+| 8.7 | Voice-Setup-Teilnehmerseite + orga-verwaltete Client-Installer (privater Disk) | ✅ |
+| 8.8 | Live-Insassen (Modus A) + Channel je Gameserver via `ServerLinkUpdated`-Listener (#13) | ✅ |
+
+### Erkenntnisse M8 (Umsetzung + Whole-Branch-Review, 2026-07-17)
+
+- **Spiegel-Provisionierung entkoppelt Team-Wahl von Provisionierung:** der Channel-Baum (Turnier/Team/Match + je Gameserver) wird auf **allen aktiven Backends parallel** angelegt und persistiert **pro Provider** (`settings['voice'][<provider>]`, `voice_channels[<provider>]`). Idempotenz ist **pro Provider** (Skip-Guard auf dem Per-Provider-Sub-Array, nicht Top-Level — sonst würde ein zweiter Provider bei Re-Fire nie angelegt); Cleanup iteriert die **gespeicherten** Keys (nicht den aktiven Satz) via `VoiceProvider::tryFrom`, damit ein nachträglich deaktivierter Provider seine Leichen trotzdem abräumt. `voice_provider` am Team bestimmt nur noch den **hervorgehobenen** Join-Link (Amber), nicht mehr, wo Channels entstehen — ein Team wechselt spontan Mumble↔TeamSpeak, der Ziel-Channel existiert schon.
+- **TeamSpeak über einen ServerQuery-REST-Sidecar statt einer PHP-Lib (Verify-first):** `planetteamspeak/ts3-php-framework` (aktuell 1.3.0) deckelt bei **PHP 8.1–8.3** — wir laufen auf **8.4**, `composer install` würde brechen. Analog zur M3-Entscheidung (purpose-built Sidecar statt unmaintained `murmur-rest`) läuft TeamSpeak über `docker/teamspeak-admin/` (FastAPI, hand-gerollter ServerQuery-Socket-Client, da `telnetlib` in Py 3.13 entfernt + `py-ts3` offline nicht verifizierbar) mit **byte-identischem REST-Contract** zu `mumble-admin`. So bleibt die PHP-Seite dependency-frei und `Http::fake`-testbar; der `HttpTeamSpeakClient` spiegelt die Mumble-Retry-Semantik byte-genau.
+- **Der globale `ServerLinkUpdated`-Listener macht das Voice-Faken in Tests zur tragenden Fläche:** seit 8.8 löst **jeder** Server-Ready (`ProvisionServerVoiceOnReady`, Guard `status===Ready && match_id!==null`) eine Voice-Provisionierung aus. `Http::preventStrayRequests()` ist **verzeichnis-scoped** (`->in(Feature/Voice, GameServers, Tournaments, …)`), nicht global — das hat zwei vorbestehende GameServers-Tests einen echten `mumble-admin`-cURL treffen lassen (via `fakeMumble()`/`fakeVoice(['mumble'])` gefixt, was den aktiven Provider-Satz **verengt** und so den Fan-out voll abdeckt). **Regel:** jeder neue Testpfad, der einen Server auf `Ready` bringt, muss Voice faken.
+- **Occupancy nie ungebremst auf einer heißen Seite:** `VoiceOccupancy` liest Insassenzahlen auf der Live-Bracket-Seite — der Whole-Branch-Review fand einen **synchronen, uncached HTTP-Fan-out an alle gespeicherten Provider inkl. deaktivierter** (Retry an einen ggf. abgebauten Sidecar pro Render). Fix: Gate auf `VoiceProvider::active()` (deaktivierte Provider werden nicht mehr aufgelöst) + `Cache::remember(…, 5s)` pro Provider. Reale Zahlen bleiben Modus-A-vertagt (0 in Dev).
+- **Installer folgen der M7.3-Privatdisk-Konvention:** Voice-Client-Installer liegen auf dem privaten `local`-Disk, `path`/`is_current` non-fillable, Download nur autorisiert, Verwaltung orga-only über eine Policy; „aktuell"-Markierung pro `(provider, platform)` in einer Transaktion (nie zwei current).
+- **Modulgrenze gewahrt:** Voice schreibt ausschließlich in seine eigenen Flächen (`tournaments.settings`, `matches.voice_channels`, `teams.voice_provider`, `voice_client_installers`) — der per-Gameserver-Channel landet unter `matches.voice_channels[<provider>]['server_channel_id']`, der `ServerLink` wird nur aus dem Event-Payload gelesen (nie in GameServers-Tabellen geschrieben).
+- **Vertagt auf reale Infra (mit dem User):** echter TeamSpeak-Server + `teamspeak-admin`-Sidecar-Bau/-Lauf (ServerQuery-Mapping unverifiziert), echter Mumble-Lauf, **reale** Insassenzahlen, Live-UI-Screenshots (Discord-only-OAuth ohne Dev-Bypass verhindert authentifizierte Headless-Captures). Alle App-Seiten + Fakes/Configs/Docs sind unabhängig davon fertig.
+- **Follow-ups (nicht blockierend):** kein dedizierter Test für den „gespeicherter-aber-inaktiver-Provider wird übersprungen"-Pfad (Code zweifach inspiziert-korrekt); `VoiceProviders` von `final readonly` zu `class` aufgeweicht, damit die `fakeVoice()`-Anon-Klasse erben kann (ein Resolver-Interface wäre sauberer); `MumbleJoinLink`-Docblock veraltet; `MatchReadyBell` fädelt den Empfänger-`$notifiable` nicht durch (nutzt Config-Default statt Team-Wahl, vorbestehend).
+
+---
+
 ## Backlog — Erweiterungen an geplanten Modulen (aus Issues nach LAN 2025-11)
 
 Diese Wünsche sind keine eigene Phase, sondern erweitern bereits geplante Bausteine. Beim Detailplan der jeweiligen Phase mitziehen:
@@ -365,7 +393,7 @@ Diese Wünsche sind keine eigene Phase, sondern erweitern bereits geplante Baust
 
 Zweite Welle Feature-Wünsche, bewertet und eingeordnet. Die drei substanziellen Blöcke sind als **eigene Post-MVP-Milestones M8–M10** angelegt (GitHub-Milestones #9/#10/#11 + Board #2, Status Todo, ohne Fälligkeitsdatum — kommen nach M4–M7). Kleinere Erweiterungen bereits abgeschlossener Module ziehen im jeweiligen Detailplan mit. Bewertung je Item: **Wert / Aufwand / Einordnung**.
 
-- **M8 — Voice-Multiprovider (Mumble + TeamSpeak gleichzeitig)** ⭐ — siehe oben im Issue-Backlog (`#2`, verstärkt): **beide Backends gleichzeitig aktiv, Wahl pro Team**. Getrackt als Milestone M8. (Kein Duplikat hier — das verbindliche Detail steht im #2-Bullet.)
+- **M8 — Voice-Multiprovider (Mumble + TeamSpeak gleichzeitig)** ⭐ ✅ **erledigt/getaggt `m8`** — siehe oben im Issue-Backlog (`#2`, verstärkt): **beide Backends gleichzeitig aktiv, Wahl pro Team**. Getrackt als Milestone #9 (geschlossen). Umsetzung + Erkenntnisse: eigener M8-Abschnitt oben.
 - **M9 — Identity+: Plattform-Verknüpfungen & kontextsensitiver Anzeigename** ⭐ — optionale User-Verknüpfungen zu Steam, GOG, Battle.net, Epic, Twitch (das bestehende `steam_url` von echter URL zu echter OAuth-Verknüpfung aufwerten). Nutzen: Anzeigename kontextsensitiv (Steam-Spiel → Steam-Nick, sonst LANoMAT-Nick), Turnier-Besitz-Checks als Hinweis, Freunde-Vorschläge. Token-Pflege: Refresh automatisch, Warnung bei nötiger Re-Auth.
   *Wert hoch / Aufwand groß (mehrere OAuth-Provider + Token-Lifecycle; Achtung: GOG bietet keinen offiziellen öffentlichen OAuth-Flow — als „manuelle Verknüpfung"/nachrangig behandeln). Umsetzung: Provider inkrementell hinter einem `LinkedAccountProvider`-Adapter (Contract-Prinzip). Kontextsensitiver Anzeigename ist billig, sobald Links existieren. **Vorbedingung: die Gruppen-Fusions-Entscheidung (unten) muss vorher stehen.***
   - **Enthält als Design-Leitplanke — Tournaments: Anmeldung locker halten:** Anmeldung übers Konto; Spielbesitz-Check nur als **Hinweis, kein hartes Gate**. LAN-Games ohne Onlinezwang und Ausnahmen müssen durchgehen; Ziel: Listen voll bekommen. *Der Besitz-Check aus M9 darf nie blockieren, nur warnen — verbindliche Regel.*
