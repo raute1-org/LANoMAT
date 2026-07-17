@@ -64,8 +64,14 @@ class MatchEmbed
      */
     public static function voiceLink(GameMatch $match, string $entry1Name, string $entry2Name): ?string
     {
-        $entry1ChannelId = $match->voice_channels['entry1_channel_id'] ?? null;
-        $entry2ChannelId = $match->voice_channels['entry2_channel_id'] ?? null;
+        // `matches.voice_channels` is keyed per provider (Task 8.4); the
+        // embed surfaces the installation's default provider's subtree only
+        // (full multi-provider link UI is Task 8.6).
+        $defaultProvider = (string) config('services.voice.default_provider');
+        $providerChannels = $match->voice_channels[$defaultProvider] ?? [];
+
+        $entry1ChannelId = $providerChannels['entry1_channel_id'] ?? null;
+        $entry2ChannelId = $providerChannels['entry2_channel_id'] ?? null;
 
         if ($entry1ChannelId === null && $entry2ChannelId === null) {
             return null;

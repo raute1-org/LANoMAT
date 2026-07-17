@@ -352,8 +352,18 @@ class TournamentPageController extends Controller
             return null;
         }
 
+        // `matches.voice_channels` is keyed per provider (Task 8.4); this
+        // single-link surface reads the installation's default provider's
+        // subtree only (full multi-provider link UI is Task 8.6).
+        $defaultProvider = (string) config('services.voice.default_provider');
+        $providerChannels = $voiceChannels[$defaultProvider] ?? null;
+
+        if ($providerChannels === null) {
+            return null;
+        }
+
         $isEntry1 = $match->entry1_id === $myEntry->id;
-        $channelId = $isEntry1 ? ($voiceChannels['entry1_channel_id'] ?? null) : ($voiceChannels['entry2_channel_id'] ?? null);
+        $channelId = $isEntry1 ? ($providerChannels['entry1_channel_id'] ?? null) : ($providerChannels['entry2_channel_id'] ?? null);
 
         if ($channelId === null) {
             return null;

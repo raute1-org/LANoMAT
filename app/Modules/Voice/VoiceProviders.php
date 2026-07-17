@@ -8,7 +8,7 @@ use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceProvider;
 use Illuminate\Contracts\Container\Container;
 
-final readonly class VoiceProviders
+class VoiceProviders
 {
     public function __construct(private Container $app) {}
 

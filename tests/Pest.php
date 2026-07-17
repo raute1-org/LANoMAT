@@ -125,7 +125,15 @@ function fakeVoice(array $providers = ['mumble', 'teamspeak']): array
 
         public function active(): array
         {
-            return $this->fakes;
+            $active = [];
+
+            foreach (VoiceProvider::active() as $provider) {
+                if (isset($this->fakes[$provider->value])) {
+                    $active[$provider->value] = $this->fakes[$provider->value];
+                }
+            }
+
+            return $active;
         }
 
         public function for(VoiceProvider $provider): VoiceClient

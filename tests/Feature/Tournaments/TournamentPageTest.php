@@ -124,10 +124,10 @@ it('surfaces the viewer active (Ready/Reported/Disputed) match rather than a sta
     $completedMatch = $match->fresh();
     expect($completedMatch->status->value)->toBe('completed');
     $completedEntry1IsFirst = $completedMatch->entry1_id === $entry1->id;
-    $completedMatch->update(['voice_channels' => $completedEntry1IsFirst
+    $completedMatch->update(['voice_channels' => ['mumble' => $completedEntry1IsFirst
         ? ['entry1_channel_id' => null, 'entry2_channel_id' => 'stale-2']
         : ['entry1_channel_id' => 'stale-1', 'entry2_channel_id' => null],
-    ]);
+    ]]);
 
     $nextMatch = GameMatch::find($completedMatch->next_match_id);
     // Only one of the two round-1 feeders into this round-2 match has been
@@ -137,10 +137,10 @@ it('surfaces the viewer active (Ready/Reported/Disputed) match rather than a sta
     // no Ready/Reported/Disputed match exists), not that it is already Ready.
     expect($nextMatch->status->value)->toBe('pending');
     $nextEntry1IsFirst = $nextMatch->entry1_id === $entry1->id;
-    $nextMatch->update(['voice_channels' => $nextEntry1IsFirst
+    $nextMatch->update(['voice_channels' => ['mumble' => $nextEntry1IsFirst
         ? ['entry1_channel_id' => 'active-1', 'entry2_channel_id' => null]
         : ['entry1_channel_id' => null, 'entry2_channel_id' => 'active-2'],
-    ]);
+    ]]);
 
     $viewer = User::find($entry1->user_id);
 
@@ -165,7 +165,7 @@ it('exposes the viewer own mumble join link once their match has voice channels 
     $entry1 = TournamentEntry::find($match->entry1_id);
     $viewer = User::find($entry1->user_id);
 
-    $match->update(['voice_channels' => ['entry1_channel_id' => 101, 'entry2_channel_id' => 102]]);
+    $match->update(['voice_channels' => ['mumble' => ['entry1_channel_id' => 101, 'entry2_channel_id' => 102]]]);
 
     $this->actingAs($viewer)
         ->get("/tournaments/{$tournament->id}")
