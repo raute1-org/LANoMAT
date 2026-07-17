@@ -49,6 +49,32 @@ it('shows approved files to everyone and the viewers own pending file flagged, b
         );
 });
 
+it('reports the viewers used and cap quota bytes', function () {
+    config(['files.per_user_quota_mb' => 1]);
+
+    $event = Event::factory()->registration()->create();
+    $viewer = User::factory()->create();
+
+    SharedFile::factory()->for($event)->create([
+        'user_id' => $viewer->id,
+        'size_bytes' => 200 * 1024,
+    ]);
+
+    $this->actingAs($viewer)
+        ->get("/events/{$event->slug}/files")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('quota.usedBytes', 200 * 1024)
+            ->where('quota.capBytes', 1024 * 1024)
+        );
+});
+
+it('reports a null quota for a guest', function () {
+    $event = Event::factory()->registration()->create();
+
+    $this->get("/events/{$event->slug}/files")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('quota', null));
+});
+
 it('returns 404 for a draft events file page', function () {
     $event = Event::factory()->draft()->create();
 

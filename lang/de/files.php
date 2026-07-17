@@ -21,6 +21,11 @@ return [
         'rejected' => 'Abgelehnt',
     ],
 
+    'actions' => [
+        'approve' => 'Freigeben',
+        'reject' => 'Ablehnen',
+    ],
+
     'errors' => [
         'quota_exceeded' => 'Dein Upload-Kontingent für dieses Event ist ausgeschöpft.',
         'too_large' => 'Die Datei überschreitet die maximal erlaubte Größe.',
@@ -41,5 +46,6 @@ return [
         'delete' => 'Löschen',
         'download' => 'Herunterladen',
         'load_error' => 'Die Dateiliste konnte nicht geladen werden.',
+        'quota_label' => 'Kontingent',
     ],
 ];

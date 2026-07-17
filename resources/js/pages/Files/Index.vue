@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,13 +13,29 @@ import {
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { destroy as destroyFile, store as storeFile } from '@/routes/files';
-import type { SharedFileDto } from '@/types';
+import type { FileQuotaDto, SharedFileDto } from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string };
     files: SharedFileDto[];
     labels: Record<string, string>;
+    quota: FileQuotaDto | null;
 }>();
+
+/**
+ * The quota bar reads as a quiet fuel gauge rather than a marketing metric —
+ * amber only once the viewer is close to (or at) the cap, per the design
+ * system's "amber is rationed" rule (docs/design.md).
+ */
+const quotaRatio = computed(() => {
+    if (props.quota === null || props.quota.capBytes <= 0) {
+        return 0;
+    }
+
+    return Math.min(1, props.quota.usedBytes / props.quota.capBytes);
+});
+
+const quotaIsNearCap = computed(() => quotaRatio.value >= 0.9);
 
 // Inertia renders this page synchronously on first load, so "loading"/"error"
 // only apply to a subsequent client-driven navigation/refresh — same
@@ -115,6 +131,33 @@ function formatDateTime(iso: string): string {
         <Card class="mt-8">
             <CardHeader>
                 <CardTitle>{{ labels.upload_title }}</CardTitle>
+                <div v-if="quota" class="space-y-1.5 pt-1">
+                    <div
+                        class="flex items-baseline justify-between gap-2 text-sm text-muted-foreground"
+                    >
+                        <span>{{ labels.quota_label }}</span>
+                        <span
+                            class="font-mono tabular-nums"
+                            :class="quotaIsNearCap && 'text-warn'"
+                        >
+                            {{ formatSize(quota.usedBytes) }} /
+                            {{ formatSize(quota.capBytes) }}
+                        </span>
+                    </div>
+                    <div
+                        class="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        :aria-valuenow="Math.round(quotaRatio * 100)"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                    >
+                        <div
+                            class="h-full rounded-full transition-[width] motion-reduce:transition-none"
+                            :class="quotaIsNearCap ? 'bg-warn' : 'bg-primary'"
+                            :style="{ width: `${quotaRatio * 100}%` }"
+                        />
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <form class="space-y-4" @submit.prevent="submit">

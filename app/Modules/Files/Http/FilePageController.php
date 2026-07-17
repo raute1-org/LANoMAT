@@ -60,6 +60,7 @@ class FilePageController extends Controller
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'files' => $files->map(fn (SharedFile $file): array => $this->fileDto($file, $userId))->all(),
             'labels' => trans('files.page'),
+            'quota' => $this->quotaDto($event, $userId),
         ]);
     }
 
@@ -99,6 +100,32 @@ class FilePageController extends Controller
         $action->handle($sharedFile);
 
         return back();
+    }
+
+    /**
+     * The viewer's own used bytes (across every visibility, so a pending
+     * upload already counts against the same quota UploadSharedFile
+     * enforces) plus the configured per-event cap, so the participant page
+     * can render a "used / cap" readout. Null for guests — there is nothing
+     * to upload against without an account.
+     *
+     * @return array{usedBytes: int, capBytes: int}|null
+     */
+    private function quotaDto(Event $event, ?int $userId): ?array
+    {
+        if ($userId === null) {
+            return null;
+        }
+
+        $usedBytes = SharedFile::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $userId)
+            ->sum('size_bytes');
+
+        return [
+            'usedBytes' => (int) $usedBytes,
+            'capBytes' => (int) config('files.per_user_quota_mb') * 1024 * 1024,
+        ];
     }
 
     /**
