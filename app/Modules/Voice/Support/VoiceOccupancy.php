@@ -7,8 +7,10 @@ namespace App\Modules\Voice\Support;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\VoiceProviders;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Read-only aggregation of live occupant counts (roadmap issue #13) for the
@@ -26,9 +28,13 @@ use App\Modules\Voice\VoiceProviders;
  * (mode A — deferred, see the M8 roadmap insights); in dev without the
  * sidecars every count is 0.
  *
- * Pure/IO-bearing only through the injected {@see VoiceProviders}: no writes,
- * no caching — callers needing this on every request should keep the
- * fan-out to the providers they actually have ids for.
+ * Only providers currently in {@see VoiceProvider::active()} are resolved —
+ * a provider deactivated after provisioning (its stored channel ids are
+ * still on the tournament/match row) must not trigger a request against a
+ * possibly-decommissioned sidecar on every render. Each active provider's
+ * {@see VoiceClient::listChannels()} result is cached for a few seconds so
+ * concurrent renders of the same page (e.g. the live bracket) share one
+ * fan-out instead of one HTTP call per request.
  */
 final class VoiceOccupancy
 {
@@ -109,19 +115,28 @@ final class VoiceOccupancy
         }
 
         $providers = app(VoiceProviders::class);
+        $activeProviders = VoiceProvider::active();
         $result = [];
 
         foreach ($channelIdsByProvider as $value => $channelIds) {
             $provider = VoiceProvider::tryFrom($value);
 
-            if ($provider === null || $channelIds === []) {
+            if ($provider === null || $channelIds === [] || ! in_array($provider, $activeProviders, true)) {
                 continue;
             }
 
             $client = $providers->for($provider);
+
+            /** @var array<int, VoiceChannel> $channels */
+            $channels = Cache::remember(
+                "voice.occupancy.{$provider->value}",
+                now()->addSeconds(5),
+                fn () => $client->listChannels(),
+            );
+
             $occupantsByChannelId = [];
 
-            foreach ($client->listChannels() as $channel) {
+            foreach ($channels as $channel) {
                 $occupantsByChannelId[$channel->id] = $channel->occupants;
             }
 

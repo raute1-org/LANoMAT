@@ -130,6 +130,7 @@ class HttpMumbleClient implements VoiceClient
             (string) $payload['name'],
             $parent === 0 ? null : $parent,
             (bool) $payload['temporary'],
+            (int) ($payload['occupants'] ?? 0),
         );
     }
 }
