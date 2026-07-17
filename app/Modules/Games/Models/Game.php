@@ -11,6 +11,7 @@ use Database\Factories\GameFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property string $name
@@ -55,6 +56,15 @@ class Game extends Model
     public function tournaments(): HasMany
     {
         return $this->hasMany(Tournament::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (self $game) {
+            if ($game->icon_path !== null) {
+                Storage::disk('public')->delete($game->icon_path);
+            }
+        });
     }
 
     /**

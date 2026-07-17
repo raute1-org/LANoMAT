@@ -110,6 +110,43 @@ it('auto-enters warmup when a match-scoped ServerLink turns Ready', function () 
     expect($match->fresh()->status)->toBe(MatchStatus::Warmup);
 });
 
+it('does not yank a live match back into Warmup when a post-go-live ServerLinkUpdated(Ready) fires', function () {
+    Event::fake([MatchWentLive::class]);
+
+    $helper = User::factory()->create(['role' => Role::Helper]);
+    $tournament = Tournament::factory()->create();
+    $match = GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Ready]);
+
+    // First server-ready: match has never warmed up, so it enters Warmup.
+    $link = ServerLink::factory()->create([
+        'match_id' => $match->id,
+        'status' => ServerLinkStatus::Ready,
+        'join_info' => new JoinInfo(address: '203.0.113.22', port: 27015),
+    ]);
+
+    (new EnterWarmupOnServerReady)->handle(new ServerLinkUpdated($link));
+
+    expect($match->fresh()->status)->toBe(MatchStatus::Warmup)
+        ->and($match->fresh()->warmup_started_at)->not->toBeNull();
+
+    // Helper triggers GoLive: match is now live (status flips back to Ready).
+    $live = (new GoLive)->handle($match->fresh(), $helper);
+
+    expect($live->status)->toBe(MatchStatus::Ready);
+
+    $warmupStartedAt = $live->warmup_started_at;
+
+    // A helper edits join info post-go-live: SetManualJoinInfo dispatches
+    // another ServerLinkUpdated(Ready) for the same link/match.
+    (new EnterWarmupOnServerReady)->handle(new ServerLinkUpdated($link->fresh()));
+
+    $afterward = $match->fresh();
+
+    expect($afterward->status)->toBe(MatchStatus::Ready)
+        ->and($afterward->status)->not->toBe(MatchStatus::Warmup)
+        ->and($afterward->warmup_started_at)->toEqual($warmupStartedAt);
+});
+
 it('does nothing on server-ready when the match is not currently Ready', function () {
     $match = GameMatch::factory()->create(['status' => MatchStatus::Reported]);
 

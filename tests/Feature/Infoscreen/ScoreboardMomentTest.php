@@ -1,13 +1,15 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
-use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Events\SceneOverride;
+use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\CreateInfoscreenScene;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event as EventFacade;
+use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
@@ -33,17 +35,17 @@ it('broadcasts a scoreboard SceneOverride on the event channel for a live score 
     EventFacade::assertDispatchedTimes(SceneOverride::class, 1);
 });
 
-it('excludes the synthetic scoreboard scene type from the Filament rotation options', function () {
-    $options = collect(SceneType::cases())
-        ->reject(fn ($type) => in_array($type, [
-            SceneType::Winner,
-            SceneType::Gong,
-            SceneType::Scoreboard,
-        ], true))
-        ->map(fn ($type) => $type->value)
-        ->all();
+it('excludes the synthetic scoreboard/gong/winner scene types from the actual Filament rotation form', function () {
+    $this->actingAs(User::factory()->orga()->create());
 
-    expect($options)->not->toContain('scoreboard')
-        ->and($options)->not->toContain('winner')
-        ->and($options)->not->toContain('gong');
+    $options = Livewire::test(CreateInfoscreenScene::class)
+        ->instance()
+        ->getSchema('form')
+        ->getComponent('type')
+        ->getOptions();
+
+    expect($options)->not->toHaveKey('scoreboard')
+        ->and($options)->not->toHaveKey('winner')
+        ->and($options)->not->toHaveKey('gong')
+        ->and($options)->toHaveKey('servers');
 });

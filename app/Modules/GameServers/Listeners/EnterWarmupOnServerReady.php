@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\GameServers\Listeners;
 
+use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\Tournaments\Actions\EnterWarmup;
+use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,6 +27,19 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * progressed past warmup must not throw — {@see EnterWarmup} would raise
  * for any other status, so that case is filtered out here instead of
  * catching the exception.
+ *
+ * Also requires `warmup_started_at` to still be null. `MatchStatus::Ready`
+ * is overloaded: {@see GoLive} flips a live
+ * match's status back to `Ready` too (the "gong" moment — the match is now
+ * actually being played, not waiting to be played), and
+ * {@see SetManualJoinInfo} dispatches
+ * `ServerLinkUpdated(Ready)` on every call, including a helper merely
+ * editing join info after the match already went live. Without this guard
+ * that later event would match the `MatchStatus::Ready` check above and yank
+ * a live match back into `Warmup`, re-arming the gong. `warmup_started_at`
+ * is stamped once by {@see EnterWarmup} and never cleared afterwards, so a
+ * non-null value reliably means "already warmed up (and possibly live)" —
+ * a later `ServerLinkUpdated(Ready)` is then a no-op here.
  */
 class EnterWarmupOnServerReady implements ShouldQueue
 {
@@ -38,7 +53,7 @@ class EnterWarmupOnServerReady implements ShouldQueue
 
         $match = GameMatch::query()->find($link->match_id);
 
-        if ($match === null || $match->status !== MatchStatus::Ready) {
+        if ($match === null || $match->status !== MatchStatus::Ready || $match->warmup_started_at !== null) {
             return;
         }
 

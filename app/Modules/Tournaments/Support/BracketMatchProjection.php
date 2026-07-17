@@ -3,7 +3,6 @@
 namespace App\Modules\Tournaments\Support;
 
 use App\Modules\GameServers\Enums\ServerLinkStatus;
-use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\EffectiveConfig;
 use App\Modules\GameServers\Support\PelicanJoinLink;
@@ -58,9 +57,8 @@ class BracketMatchProjection
      * yet, or the tournament's game has no `pelican_egg_id`). Surfaced
      * regardless of ServerLink status — Provisioning/Failed render as a
      * `LiveIndicator` state on the page rather than being hidden outright —
-     * so `address`/`port`/`connectString` are only populated once
-     * {@see PollServerStatusJob} has written
-     * them (Ready).
+     * so `address`/`port`/`connectString` are only populated once the
+     * GameServers module's poll-server-status job has written them (Ready).
      *
      * `estimate` (roadmap 6.7) is the pre-start RAM readout: populated only
      * while the server isn't Ready yet (once Ready, the estimate is stale

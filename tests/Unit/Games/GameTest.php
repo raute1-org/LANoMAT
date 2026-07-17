@@ -4,6 +4,7 @@ use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Models\Game;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Storage;
 
 it('creates a game via the factory with default_server_config cast to ServerConfig', function () {
     $game = Game::factory()->create([
@@ -49,6 +50,29 @@ it('has name, slug, icon_path, min_team_size, max_team_size, pelican_egg_id fill
         'max_team_size',
         'pelican_egg_id',
     ]);
+});
+
+it('deletes the icon file from the public disk when the game is deleted', function () {
+    Storage::fake('public');
+
+    $iconPath = 'games/icons/counter-strike-2.png';
+    Storage::disk('public')->put($iconPath, 'fake-icon-contents');
+
+    $game = Game::factory()->create(['icon_path' => $iconPath]);
+
+    Storage::disk('public')->assertExists($iconPath);
+
+    $game->delete();
+
+    Storage::disk('public')->assertMissing($iconPath);
+});
+
+it('does not error deleting a game with no icon_path set', function () {
+    $game = Game::factory()->create(['icon_path' => null]);
+
+    $game->delete();
+
+    expect(Game::query()->find($game->id))->toBeNull();
 });
 
 it('has a german resource label', function () {
