@@ -158,6 +158,38 @@ npm run build           # vite build
 Auto-fix formatting/lint issues locally with `composer run lint` (pint) and `npm run lint`
 (eslint --fix) / `npm run format` (prettier --write).
 
+## Screenshots
+
+A repeatable, deterministic pipeline (`database/seeders/ScreenshotSeeder.php` +
+`scripts/screenshots/capture.mjs`, see [`scripts/screenshots/README.md`](scripts/screenshots/README.md))
+seeds a demo event and captures the core screens in both light and dark mode with
+Playwright:
+
+```bash
+php artisan db:seed --class=ScreenshotSeeder
+npm run screenshots
+```
+
+Expected output files (once the capture has been run against a live instance —
+see the honest-scope note in `scripts/screenshots/README.md`):
+
+| Screen | Light | Dark |
+| --- | --- | --- |
+| Event page | `docs/screenshots/event-page-light.png` | `docs/screenshots/event-page-dark.png` |
+| Seating | `docs/screenshots/seating-light.png` | `docs/screenshots/seating-dark.png` |
+| Live bracket | `docs/screenshots/tournaments-light.png` | `docs/screenshots/tournaments-dark.png` |
+| Schedule | `docs/screenshots/schedule-light.png` | `docs/screenshots/schedule-dark.png` |
+| Catering | `docs/screenshots/catering-light.png` | `docs/screenshots/catering-dark.png` |
+| Voting | `docs/screenshots/voting-light.png` | `docs/screenshots/voting-dark.png` |
+| LFG | `docs/screenshots/lfg-light.png` | `docs/screenshots/lfg-dark.png` |
+| Files | `docs/screenshots/files-light.png` | `docs/screenshots/files-dark.png` |
+| Infoscreen | `docs/screenshots/infoscreen-light.png` | `docs/screenshots/infoscreen-dark.png` |
+| Admin panel | `docs/screenshots/admin-light.png` | `docs/screenshots/admin-dark.png` |
+
+> These PNGs are not committed yet — running the capture against a real/staging
+> instance and committing the resulting images is a manual follow-up (see
+> `scripts/screenshots/README.md`).
+
 ## Project state
 
 M0–M2 are complete (fundament; events & identity; registration, seating, notifications,
