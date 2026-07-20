@@ -25,6 +25,7 @@ interface PresenceLabels {
         empty: string;
         idle: string;
         seat_label: string;
+        stream_link: string;
     };
     free_slots: {
         heading: string;
@@ -41,6 +42,7 @@ interface PresenceLabels {
     filters: {
         free_slots_only: string;
         playing_only: string;
+        streams_only: string;
     };
 }
 
@@ -113,12 +115,21 @@ onUnmounted(() => {
 // already fully loaded.
 const freeSlotsOnly = ref(false);
 const playingOnly = ref(false);
+const streamsOnly = ref(false);
 
-const visibleParticipants = computed(() =>
-    playingOnly.value
-        ? props.presence.participants.filter((p) => p.isPlaying)
-        : props.presence.participants,
-);
+const visibleParticipants = computed(() => {
+    let participants = props.presence.participants;
+
+    if (playingOnly.value) {
+        participants = participants.filter((p) => p.isPlaying);
+    }
+
+    if (streamsOnly.value) {
+        participants = participants.filter((p) => p.streamUrl !== null);
+    }
+
+    return participants;
+});
 
 function initials(name: string): string {
     return name
@@ -187,6 +198,15 @@ function openSpotsLabel(openSpots: number | null): string {
                 >
                     {{ labels.filters.playing_only }}
                 </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    :variant="streamsOnly ? 'default' : 'outline'"
+                    :aria-pressed="streamsOnly"
+                    @click="streamsOnly = !streamsOnly"
+                >
+                    {{ labels.filters.streams_only }}
+                </Button>
             </div>
 
             <!-- participants -->
@@ -241,6 +261,16 @@ function openSpotsLabel(openSpots: number | null): string {
                                 }}
                             </p>
                         </div>
+
+                        <a
+                            v-if="participant.streamUrl"
+                            :href="participant.streamUrl"
+                            target="_blank"
+                            rel="noopener"
+                            class="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            {{ t('participants', 'stream_link') }}
+                        </a>
 
                         <div
                             v-if="participant.seatLabel"

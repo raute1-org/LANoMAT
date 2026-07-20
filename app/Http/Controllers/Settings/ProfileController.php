@@ -31,6 +31,7 @@ class ProfileController extends Controller
             'profile' => [
                 'bio' => $user->bio,
                 'steamUrl' => $user->steam_url,
+                'streamUrl' => $user->stream_url,
                 'profileColor' => $user->profile_color,
             ],
             'labels' => trans('profile.form'),

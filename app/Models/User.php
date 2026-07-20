@@ -34,13 +34,14 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $avatar_url
  * @property string|null $bio
  * @property string|null $steam_url
+ * @property string|null $stream_url
  * @property string|null $profile_color
  * @property array<string, bool>|null $notification_prefs
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read bool $has_password
  */
-#[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'profile_color', 'notification_prefs'])]
+#[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'stream_url', 'profile_color', 'notification_prefs'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 #[Appends(['has_password'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser

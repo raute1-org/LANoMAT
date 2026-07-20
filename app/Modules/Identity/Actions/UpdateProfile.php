@@ -17,7 +17,7 @@ class UpdateProfile
      */
     public function handle(User $user, array $data): User
     {
-        $user->fill(Arr::only($data, ['name', 'email', 'bio', 'steam_url', 'profile_color']));
+        $user->fill(Arr::only($data, ['name', 'email', 'bio', 'steam_url', 'stream_url', 'profile_color']));
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;

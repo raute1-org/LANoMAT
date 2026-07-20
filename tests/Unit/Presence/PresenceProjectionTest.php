@@ -183,7 +183,25 @@ it('produces toArray() with camelCase keys for every DTO', function () {
     $array = $board->toArray();
 
     expect($array)->toHaveKeys(['participants', 'freeSlots', 'liveMatches', 'checkedInCount'])
-        ->and($array['participants'][0])->toHaveKeys(['registrationId', 'name', 'avatarUrl', 'seatLabel', 'activity', 'isPlaying'])
+        ->and($array['participants'][0])->toHaveKeys(['registrationId', 'name', 'avatarUrl', 'streamUrl', 'seatLabel', 'activity', 'isPlaying'])
         ->and($array['participants'][0]['registrationId'])->toBe($registration->id)
         ->and($array['freeSlots'][0])->toHaveKeys(['tournamentId', 'name', 'game', 'openSpots']);
+});
+
+it('resolves streamUrl from the user without an extra query, and null when absent', function () {
+    $event = Event::factory()->create();
+
+    $streamer = User::factory()->create(['name' => 'Ada', 'stream_url' => 'https://twitch.tv/ada']);
+    EventRegistration::factory()->for($event)->for($streamer, 'user')->checkedIn()->create();
+
+    $nonStreamer = User::factory()->create(['name' => 'Bob', 'stream_url' => null]);
+    EventRegistration::factory()->for($event)->for($nonStreamer, 'user')->checkedIn()->create();
+
+    $board = PresenceProjection::forEvent($event);
+    $byName = collect($board->participants)->keyBy('name');
+
+    expect($byName['Ada']->streamUrl)->toBe('https://twitch.tv/ada')
+        ->and($byName['Ada']->toArray()['streamUrl'])->toBe('https://twitch.tv/ada')
+        ->and($byName['Bob']->streamUrl)->toBeNull()
+        ->and($byName['Bob']->toArray()['streamUrl'])->toBeNull();
 });

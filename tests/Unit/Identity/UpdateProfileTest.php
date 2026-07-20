@@ -14,12 +14,14 @@ it('updates whitelisted profile fields', function () {
         'bio' => 'Hello LAN',
         'steam_url' => 'https://steamcommunity.com/id/example',
         'profile_color' => '#112233',
+        'stream_url' => 'https://twitch.tv/newname',
     ]);
 
     expect($updated->name)->toBe('New Name')
         ->and($updated->bio)->toBe('Hello LAN')
         ->and($updated->steam_url)->toBe('https://steamcommunity.com/id/example')
-        ->and($updated->profile_color)->toBe('#112233');
+        ->and($updated->profile_color)->toBe('#112233')
+        ->and($updated->stream_url)->toBe('https://twitch.tv/newname');
 });
 
 it('resets email verification when the email changes', function () {

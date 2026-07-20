@@ -20,6 +20,7 @@ trait ProfileValidationRules
             'email' => $this->emailRules($userId),
             'bio' => $this->bioRules(),
             'steam_url' => $this->steamUrlRules(),
+            'stream_url' => $this->streamUrlRules(),
             'profile_color' => $this->profileColorRules(),
         ];
     }
@@ -70,6 +71,18 @@ trait ProfileValidationRules
     protected function steamUrlRules(): array
     {
         return ['nullable', 'url', 'starts_with:https://steamcommunity.com/'];
+    }
+
+    /**
+     * Get the validation rules used to validate the user's stream URL. Any
+     * https URL is permitted — unlike the Steam URL, we don't restrict this
+     * to a single platform (Twitch, YouTube, Kick, …).
+     *
+     * @return array<int, ValidationRule|array<mixed>|string>
+     */
+    protected function streamUrlRules(): array
+    {
+        return ['nullable', 'url', 'max:255'];
     }
 
     /**

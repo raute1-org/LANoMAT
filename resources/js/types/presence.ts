@@ -9,6 +9,7 @@ export interface ParticipantPresenceDto {
     registrationId: number;
     name: string;
     avatarUrl: string | null;
+    streamUrl: string | null;
     seatLabel: string | null;
     activity: string | null;
     isPlaying: boolean;

@@ -68,6 +68,41 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame('#112233', $user->profile_color);
     }
 
+    public function test_stream_url_can_be_updated()
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch(route('profile.update'), [
+                'name' => 'Test User',
+                'email' => $user->email,
+                'stream_url' => 'https://twitch.tv/testuser',
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+
+        $this->assertSame('https://twitch.tv/testuser', $user->fresh()->stream_url);
+    }
+
+    public function test_it_rejects_a_non_url_stream_url()
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch(route('profile.update'), [
+                'name' => 'Test User',
+                'email' => $user->email,
+                'stream_url' => 'not-a-url',
+            ]);
+
+        $response->assertSessionHasErrors('stream_url');
+        $this->assertNull($user->fresh()->stream_url);
+    }
+
     public function test_it_rejects_an_invalid_profile_color()
     {
         $user = User::factory()->create(['profile_color' => '#000000']);

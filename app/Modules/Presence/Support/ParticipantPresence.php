@@ -24,13 +24,14 @@ final readonly class ParticipantPresence
         public int $registrationId,
         public string $name,
         public ?string $avatarUrl,
+        public ?string $streamUrl,
         public ?string $seatLabel,
         public ?string $activity,
         public bool $isPlaying,
     ) {}
 
     /**
-     * @return array{registrationId: int, name: string, avatarUrl: ?string, seatLabel: ?string, activity: ?string, isPlaying: bool}
+     * @return array{registrationId: int, name: string, avatarUrl: ?string, streamUrl: ?string, seatLabel: ?string, activity: ?string, isPlaying: bool}
      */
     public function toArray(): array
     {
@@ -38,6 +39,7 @@ final readonly class ParticipantPresence
             'registrationId' => $this->registrationId,
             'name' => $this->name,
             'avatarUrl' => $this->avatarUrl,
+            'streamUrl' => $this->streamUrl,
             'seatLabel' => $this->seatLabel,
             'activity' => $this->activity,
             'isPlaying' => $this->isPlaying,

@@ -14,6 +14,7 @@ const props = defineProps<{
     profile: {
         bio: string | null;
         steamUrl: string | null;
+        streamUrl: string | null;
         profileColor: string | null;
     };
     labels: Record<string, string>;
@@ -105,6 +106,19 @@ const bio = ref(props.profile.bio ?? '');
                     placeholder="https://steamcommunity.com/id/…"
                 />
                 <InputError class="mt-2" :message="errors.steam_url" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="stream_url">{{ props.labels.stream_url }}</Label>
+                <Input
+                    id="stream_url"
+                    type="url"
+                    class="mt-1 block w-full"
+                    name="stream_url"
+                    :default-value="props.profile.streamUrl ?? ''"
+                    :placeholder="props.labels.stream_url_placeholder"
+                />
+                <InputError class="mt-2" :message="errors.stream_url" />
             </div>
 
             <div class="grid gap-2">

@@ -12,6 +12,7 @@ return [
         'empty' => 'Noch niemand eingecheckt.',
         'idle' => 'Frei',
         'seat_label' => 'Platz',
+        'stream_link' => 'Stream',
     ],
 
     'free_slots' => [
@@ -31,5 +32,6 @@ return [
     'filters' => [
         'free_slots_only' => 'Nur freie Slots',
         'playing_only' => 'Spielt gerade',
+        'streams_only' => 'Nur Streams',
     ],
 ];
