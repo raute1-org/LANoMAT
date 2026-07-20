@@ -50,6 +50,7 @@ bound in tests. Tests never call real third-party APIs.
 | Notifications | M2 (cross-cutting) | `database` + `discord` notification channels |
 | Stats | M6 | Cross-event leaderboards and badges |
 | Friends | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
+| Jukebox | M11 | Communal per-event LAN-Radio: vote-ordered queue mirrored into Music Assistant |
 
 The `Tournaments` module additionally has `app/Modules/Tournaments/Domain/` — the bracket
 engine (`BracketGenerator`, `BracketProgressor`). It is pure domain code with no IO, and is
@@ -223,6 +224,86 @@ user_blocks   (id, blocker_id, blocked_id, UNIQUE(blocker_id,blocked_id))
   (which stays `[]`, exactly as before Friends existed) or in the beamer infoscreen scene
   (which never receives the participant roster at all) — both remain public-channel-safe with
   zero per-viewer data leakage.
+
+## Jukebox / LAN-Radio
+
+`Jukebox` (`app/Modules/Jukebox/`) is a per-`Event` communal "LAN-Radio": checked-in
+participants search tracks, enqueue them, and up-vote queued items; vote order (most
+up-votes first, earliest-created as tiebreak) drives what plays next in the venue. The
+module is a voting/remote-control layer in front of a real music backend — it never handles
+audio bytes itself.
+
+```
+jukebox_items      (id, event_id, added_by, uri, title, artist, duration_seconds,
+                    image_url, status[queued|playing|played], played_at)
+jukebox_votes      (id, jukebox_item_id, user_id, UNIQUE(jukebox_item_id, user_id))
+jukebox_skip_votes (id, jukebox_item_id, user_id, UNIQUE(jukebox_item_id, user_id))
+```
+
+- **`MusicClient` contract + capability segregation.** The core verbs every backend must
+  support are `search`/`syncQueue`/`nowPlaying`/`skip`
+  (`App\Modules\Jukebox\Contracts\MusicClient`). `syncQueue(array $orderedUris)` is the
+  single operation LANoMAT uses to reflect its vote order — "make the player's upcoming
+  queue equal this ordered list of URIs"; enqueuing/reordering internals are the backend's
+  concern. Pause/resume live on a separate, **optional** `PlaybackControl` capability
+  interface, implemented only by backends that support it — deliberately not a fat interface
+  with no-op methods or `NotSupportedException` throws (same ISP pattern as Laravel
+  notification channels). `FakeMusicClient` (`fakeMusic()` test helper) backs every test;
+  `HttpMusicClient` is unit-tested only via `Http::fake()` — no test ever calls a real MA
+  server.
+- **Music Assistant is the first `MusicClient` implementation.** `HttpMusicClient`
+  (`app/Modules/Jukebox/MusicAssistant/HttpMusicClient.php`) talks to a Music Assistant (MA)
+  server over its HTTP/JSON-RPC surface (`{base_url}/api`, bearer token via
+  `Http::withToken()`) — the same shape of integration as `DiscordClient`/`HttpMumbleClient`,
+  no sidecar needed for commanding it. MA abstracts 50+ music sources and many LAN-capable
+  players (Snapcast, Chromecast, AirPlay, DLNA, …) behind one queue-owning backend, so
+  LANoMAT never needs its own "shove the next song" trick.
+- **Mode A — deferred wire-verification.** As with M7/M8's sidecar patterns, this phase
+  ships the contract, `HttpMusicClient`, and Docker-compose config against MA's *documented*
+  API shape, but the exact JSON-RPC envelope and command paths are not run against a live MA
+  server yet. `HttpMusicClient`'s class docblock flags this as a single deferred
+  verification point (every command funnels through one `command()` helper so a real-infra
+  wire-format correction only touches one place); see `docs/music-assistant-setup.md` for the
+  checklist, including the **sync-implies-play coupling** noted below.
+- **Vote-order queue mirroring.** `JukeboxQueue` (`app/Modules/Jukebox/Support/JukeboxQueue.php`)
+  is the single read-model defining "upcoming order" — `Queued` items ordered by up-vote
+  count desc, then `created_at`/`id` asc — used identically by the participant queue view and
+  `SyncQueueToPlayer`, which mirrors that order into MA via `syncQueue()` after every
+  queue/vote mutation.
+- **Now-playing is polled, not pushed, over the existing `event.{id}` channel.** No MA
+  WebSocket client or sidecar exists for this — `lanomat:jukebox-tick`
+  (`App\Modules\Jukebox\Console\JukeboxTickCommand`, scheduled `everyMinute` in
+  `routes/console.php`) polls `nowPlaying()` per `Live` event, and when MA reports the
+  tracked `Playing` item has finished, promotes the next queued item, re-syncs it to MA, and
+  dispatches `JukeboxUpdated` (`broadcastAs` `jukebox.updated`) on the public `event.{id}`
+  channel with an **empty** payload (`broadcastWith(): []`) — the authorized queue controller
+  re-fetches state on reload, the same public-channel-safe pattern `PresenceUpdated` and
+  `ScenesUpdated` already use. This relies on `syncQueue()` → MA's `play_media` command
+  **starting playback** as a side effect (a "sync-implies-play" coupling); this assumption is
+  unverified until real-MA time — see `docs/music-assistant-setup.md`.
+- **Participation gate + anti-flood cap.** `JukeboxPolicy::participate` allows only
+  participants with a non-cancelled, checked-in `EventRegistration` for the event to queue
+  tracks or vote; `AddToQueue` additionally caps each user to at most one still-unplayed
+  (`Queued` or `Playing`) item per event at a time. `JukeboxPolicy::moderate` (any
+  `isHelper()` user — orga or the M7-backlog helper role) can always skip/remove regardless
+  of votes.
+- **Community skip threshold.** `SkipThreshold::for($event)` computes
+  `max(3, ceil(checkedInCount * skip_ratio))` (`config('jukebox.skip_ratio')`, default `0.5`)
+  — a floor of 3 keeps small crowds from skipping on a single vote — as the number of
+  distinct `jukebox_skip_votes` needed to skip the currently playing track, in addition to
+  the orga/helper override above.
+- **Graceful MA-down degradation.** Every `HttpMusicClient` transport failure surfaces as the
+  single `MusicUnavailable` exception. `SyncQueueToPlayer` and `JukeboxTickCommand` both catch
+  and log it rather than rethrow — a down Music Assistant server only pauses the jukebox
+  (queue mutations still succeed locally, sync/polling silently no-ops until MA is reachable
+  again); participant-facing endpoints show a calm flash message, never a 500. No core LAN
+  feature depends on the jukebox.
+- **Beamer now-playing scene.** The Infoscreen `now-playing` scene type
+  (`App\Modules\Infoscreen\Support\ScenePayload`) reads the current/up-next tracks via
+  `JukeboxQueue` (never a raw `jukebox_items` query) and exposes only public track metadata
+  (title/artist/image) — no vote counts, no adder name, no user ids — matching the
+  public/unauthenticated beamer surface's existing no-leak invariant for presence/bracket
+  scenes.
 
 ## Real-time
 

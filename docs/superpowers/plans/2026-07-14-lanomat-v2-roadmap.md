@@ -43,7 +43,7 @@ M8  Voice-Multiprovider ─┐
 M9  Identity+ ───────────┤ Post-MVP (Feature-Input R1, 2026-07-15), ohne festes Datum, nach M4–M7
 M10 Präsenz & Casting ───┘   (M9 braucht vorab die Gruppen-Fusions-Entscheidung; M10 sinnvoll nach M6; Präsenz gewünscht ZUERST post-MVP)
 
-M11 LAN-Radio/Jukebox ───┐ Post-MVP (Feature-Input R2, 2026-07-15), neue Module, null Eile
+M11 LAN-Radio/Jukebox ✅ ─┐ Post-MVP (Feature-Input R2, 2026-07-15), neue Module, null Eile
 M12 Post-/Pre-LAN-Content ┘   (Galerie/Recap/News + Countdown-Seite; braucht Infoscreen M5 + Voting M4)
 ```
 
@@ -518,7 +518,7 @@ Dritte Welle Wünsche (JB), sortiert entlang der Milestone-Reihenfolge. Leitlini
 - **#4 Turnier-Typ „Spiel ohne Server"** (M3-Delta, klein) — Dart/Schere-Stein-Papier/Jenga: die Brackets sind schon spielagnostisch, Ergebnisse werden ohnehin manuell gemeldet/bestätigt. Fehlt nur ein Turniertyp **ohne Gameserver und ohne Auto-Voice**, direkt zur Ergebniseingabe. *Wert mittel / Aufwand klein. Einordnung: ein Flag/Format am `Tournament` (z. B. `offline`), das die M6-Server-Provisionierung und die M3/M8-Voice-Orchestrierung überspringt — macht Offline-Turniere zu Bürgern erster Klasse. Kleiner Hebel.*
 - **#5 Flatrate-Bezahlkomfort** (M2-Nachtrag) — die Ticket-Typen SIND die Flatrate (inkl. Essen/Getränke). Fehlt nur Komfort: **PayPal-Link mit Betrag** direkt am Ticket („Meine Anmeldung" + Bestätigung), **automatische Zahl-Erinnerung** nach ein paar Tagen ohne `paid_at` (Scheduler, Outbox-dedupt), Zahl-Häkchen auf der Teilnehmerliste (Orga-Schalter, existiert als Paid-Toggle in M2.4), **„bezahlt von"-Notiz** wenn einer für andere mitüberweist. *Wert mittel-hoch / Aufwand gering-mittel. Einordnung: Erweiterung `Registration` (M2) — Feld `paid_by` + PayPal-Link-Config + ein Reminder-Command analog `lanomat:send-reminders`. **Bewusst KEIN Guthaben-System** (Eventula) — Betriebsaufwand lohnt bei unserer Größe nicht.*
 
-### M11 — LAN-Radio/Jukebox (Feature-Input R2 ⭐, neues Modul, Post-MVP)
+### M11 — LAN-Radio/Jukebox ✅ (getaggt `m11`, 2026-07-21, Feature-Input R2 ⭐, neues Modul, Post-MVP)
 
 Gemeinsame Saal-Playlist, die Community steuert die Reihenfolge. *Wert hoch (LAN-Gefühl) / Aufwand mittel-groß (mit Music Assistant kleiner als zuvor — es entfallen go-librespot-Plumbing, eigenes Queue-„nur-nächsten-schieben" und das separate Lokal-Backend) / Post-MVP, null Eile.*
 
@@ -536,6 +536,69 @@ Gemeinsame Saal-Playlist, die Community steuert die Reihenfolge. *Wert hoch (LAN
 - **`MusicClient`-Contract schmal + Capability-Segregation** (unverändert; Muster: Mopidy-Optional-Provider, Laravel-Notification-Channels, ISP/„discover interfaces, don't design them"): Kern-Verben `search`/`enqueue`/`vote`/`skip`/`nowPlaying` teilen ALLE Backends; **Auth/Device/Setup pro Backend AUSSERHALB des Contracts**; Playback-/Device-Steuerung als **optionales Capability-Interface** (nur Backends, die es können), NICHT als fette Schnittstelle mit no-op/`NotSupportedException`. **Music Assistant ist die erste `MusicClient`-Implementierung.**
 - **Fallback / Alternative (dokumentiert, NICHT Default):** direktes **go-librespot + Spotify-Web-API** ohne MA — nur der **Orga-Premium-Account** macht OAuth (5-User-Dev-Mode-Cap greift nicht, da nur-Host zählt), LANoMAT besitzt die Queue und schiebt den **nächsten** Song via `PUT /me/player/play?device_id=…&uris=[…]` (Spotify-Queue nicht umsortierbar). Sinnvoll nur, wenn kein MA-Server gewünscht ist. Risiko: librespot-Auth-Zicken (Spotify zieht reverse-engineerte Login-Flows periodisch an).
 - **Referenz-Code (nicht als Abhängigkeit einbinden):** [`music-assistant/server`](https://github.com/music-assistant/server) + [`music-assistant-client`](https://pypi.org/project/music-assistant-client/) (MA-API-/Queue-Muster), [`mintopia/musicparty`](https://github.com/mintopia/musicparty) (Laravel + Spotify, gleicher Stack), [`th0rn0/lanops-spotify-jukebox`](https://github.com/th0rn0/lanops-spotify-jukebox) (LAN-spezifisch), [`raveberry`](https://github.com/raveberry/raveberry) (Queue-/Voting-UX-Modell, Multi-Source).
+
+#### Erkenntnisse M11 — LAN-Radio/Jukebox (Umsetzung + Whole-Branch-Review, 2026-07-21, getaggt `m11`, Milestone #12 geschlossen)
+
+- **Modus A wie M7/M8:** `MusicClient`-Contract + `HttpMusicClient` (Music Assistant) +
+  `FakeMusicClient` + Docker-Compose-Config + Setup-Doku sind fertig und gegen die
+  *dokumentierte* MA-API gebaut, aber **nicht** gegen einen laufenden MA-Server verifiziert.
+  Jeder MA-Aufruf läuft durch die eine `HttpMusicClient::command()`-Methode, damit eine
+  spätere Korrektur des Wire-Formats nur eine Stelle trifft — siehe
+  `docs/music-assistant-setup.md`'s Real-Verify-Checkliste.
+- **`PlaybackControl` als optionales Capability-Interface, nicht als fette Schnittstelle:**
+  `MusicClient`s Kern-Verben (`search`/`syncQueue`/`nowPlaying`/`skip`) teilen alle Backends;
+  Pause/Resume leben auf einem separaten `PlaybackControl`-Interface, das nur `HttpMusicClient`
+  implementiert — kein No-Op/`NotSupportedException`-Ballast für Backends, die es nicht
+  können (ISP, gleiches Muster wie Laravel-Notification-Channels).
+- **Now-Playing ist gepollt, nicht gepusht:** kein MA-WebSocket-Client/Sidecar — stattdessen
+  `lanomat:jukebox-tick` (scheduled `everyMinute`), das `nowPlaying()` pro `Live`-Event abfragt
+  und Änderungen über den **bereits bestehenden** `event.{id}`-Reverb-Kanal meldet
+  (`JukeboxUpdated`, `broadcastAs` `jukebox.updated`, leerer Payload — die autorisierte
+  Queue-Ansicht liest nach Reload frisch, wie `PresenceUpdated`/`ScenesUpdated`). Kein neuer
+  Kanal, keine neue Infrastruktur nötig.
+- **Checked-in-Gate + Anti-Flood-Cap:** nur Teilnehmer mit nicht-storniertem, eingecheckten
+  `EventRegistration` dürfen queuen/voten (`JukeboxPolicy::participate`); zusätzlich maximal
+  **ein** noch-nicht-gespieltes Item pro Person und Event (`AddToQueue`). Reihenfolge ist
+  reines Up-Voting (kein Down-Vote) — meiste Stimmen zuerst, bei Gleichstand älteste zuerst
+  (`JukeboxQueue`, das einzige Read-Model für „upcoming order", von Teilnehmer-Queue-Ansicht
+  UND MA-Sync gleichermaßen genutzt).
+- **Skip-Schwelle als Formel, nicht als feste Zahl:** `max(3, ceil(eingecheckte * skip_ratio))`
+  (`config('jukebox.skip_ratio')`, Default 0,5) — die Untergrenze 3 verhindert Skips durch eine
+  einzelne Stimme bei kleinen Runden; Orga/Helfer (`isHelper()`) können unabhängig davon immer
+  skippen/entfernen (`JukeboxPolicy::moderate`).
+- **MA-Ausfall pausiert nur die Jukebox, nie den Kern:** jeder Transport-Fehler von
+  `HttpMusicClient` wird zur einen `MusicUnavailable`-Exception; `SyncQueueToPlayer` und
+  `JukeboxTickCommand` fangen sie, loggen und schlucken sie (kein Rethrow) — Queue-Mutationen
+  bleiben lokal erfolgreich, Sync/Poll pausiert bis MA wieder erreichbar ist, Endpunkte zeigen
+  eine ruhige deutsche Flash-Meldung statt eines 500ers. Kein Kern-LAN-Feature hängt an der
+  Jukebox.
+- **Beamer-Now-Playing-Szene wie Präsenz/Bracket:** die Infoscreen-`now-playing`-Szene liest
+  über `JukeboxQueue` (nie eine rohe `jukebox_items`-Query) und zeigt nur öffentliche
+  Track-Metadaten (Titel/Artist/Bild) — keine Stimmenzahlen, kein Hinzufüger-Name, keine
+  User-IDs. Gleiche No-Leak-Invariante wie die Präsenz-/Bracket-Szenen.
+- **Deferred: „Sync-impliziert-Play"-Kopplung.** Der Tick-Reconcile verlässt sich darauf, dass
+  `syncQueue()` → MAs `player_queues/play_media` das Abspielen **startet** (nicht nur
+  enqueued). Diese Annahme ist bis zur echten MA-Verifikation unbestätigt — explizit in
+  `docs/music-assistant-setup.md` als Real-Verify-Punkt dokumentiert, inklusive Fallback-Idee
+  (expliziter `queue_command`-`play`-Aufruf nach dem Enqueue, falls MA nicht automatisch
+  startet).
+- **`network_mode: host` für den `music-assistant`-Compose-Service (Erkenntnis dieser Doku-Phase,
+  nicht vorab geplant):** MAs eigene Doku verlangt Host-Networking für Player-Discovery
+  (mDNS/uPnP — Snapcast/Chromecast/AirPlay/Sonos); Bridge-Networking wird für echte
+  Netzwerk-Player als nicht unterstützt dokumentiert. Damit weicht dieser Service vom sonstigen
+  Compose-Muster ab (kein Service-Name-DNS auf dem Compose-Netz) — `MUSIC_ASSISTANT_URL` muss in
+  Produktion auf die Host-LAN-IP zeigen, nicht auf `http://music-assistant:8095` (der
+  `.env.example`/`config/services.php`-Default aus Task 1 ist dadurch nur für einen
+  Compose-Netz-Aufbau korrekt und wird als Real-Infra-Folgeposten geführt, siehe
+  `docs/music-assistant-setup.md`).
+- **Fallback dokumentiert, nicht gebaut:** der direkte go-librespot + roh-Spotify-Web-API-Pfad
+  bleibt eine dokumentierte, nicht implementierte Alternative (`docs/music-assistant-setup.md`)
+  — nur relevant, falls ein Deployment explizit keinen MA-Server möchte.
+- **Vertagt auf reale Infra (mit dem User):** ein echter MA-Server + Player-Setup (Snapcast o.
+  ä.), die komplette Real-Verify-Checkliste (Wire-Envelope, Response-Formen,
+  Sync-impliziert-Play, Move-Item-Semantik), reale Now-Playing-Screenshots vom Beamer. Alle
+  App-Seiten + Contract/Fake/Actions/Policy/UI/Doku/Compose-Config sind unabhängig davon
+  fertig.
 
 ### M12 — Post-/Pre-LAN-Content (Feature-Input R2, Post-MVP)
 

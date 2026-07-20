@@ -284,8 +284,35 @@ services:
     ports: ['127.0.0.1:8086:8000']
     depends_on: [teamspeak]
 
+  # Music Assistant (M11, Jukebox/LAN-Radio). Official image; like
+  # `teamspeak`/`teamspeak-admin` above, this is `profiles: [prod]`-only for
+  # now — mode A this phase (see docs/music-assistant-setup.md): contract +
+  # HttpMusicClient + config/docs, not yet real-verified against a running
+  # server, so it stays out of the default dev `docker compose up -d` until
+  # that verification happens. `HttpMusicClient` talks to MA's HTTP/JSON-RPC
+  # API directly (`http://<host-ip>:8095`, config('services.music_assistant.
+  # base_url')) with a bearer token — no sidecar needed for commanding it,
+  # unlike Mumble/TeamSpeak's Ice/ServerQuery sidecars.
+  #
+  # `network_mode: host` (not the shared compose network like every other
+  # service here) per Music Assistant's own docs: it needs this for local
+  # player discovery (mDNS/uPnP, e.g. Snapcast/Chromecast/AirPlay) and for
+  # streaming to those devices on the LAN — bridge networking is documented
+  # as unsupported for networked players. This means port 8095 is reachable
+  # on the host's own network interface, not published via `ports:` (which
+  # compose ignores under host networking anyway) — restrict host-firewall
+  # access to 8095/8097 to the LAN, since host networking bypasses the
+  # loopback-only pattern mumble-admin/teamspeak-admin use above.
+  music-assistant:
+    image: ghcr.io/music-assistant/server:latest
+    profiles: [prod]
+    network_mode: host
+    volumes:
+      - music_assistant_data:/data
+
 volumes:
   pgdata:
   mumble_data:
   teamspeak_data:
+  music_assistant_data:
   traefik_acme:
