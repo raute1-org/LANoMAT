@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\Role;
-use App\Filament\RelationManagers\LinkedAccountsRelationManager;
+use App\Filament\Resources\Users\RelationManagers\LinkedAccountsRelationManager;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 

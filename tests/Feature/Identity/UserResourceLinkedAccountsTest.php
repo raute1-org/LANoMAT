@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Filament\RelationManagers\LinkedAccountsRelationManager;
 use App\Filament\Resources\Users\Pages\ViewUser;
+use App\Filament\Resources\Users\RelationManagers\LinkedAccountsRelationManager;
 use App\Models\User;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;

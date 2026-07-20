@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\RelationManagers;
+namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use Filament\Resources\RelationManagers\RelationManager;
