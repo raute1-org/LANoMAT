@@ -209,7 +209,7 @@ function openSpotsLabel(openSpots: number | null): string {
                 <ul v-else class="mt-4 space-y-2">
                     <li
                         v-for="participant in visibleParticipants"
-                        :key="participant.name"
+                        :key="participant.registrationId"
                         class="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
                     >
                         <Avatar class="size-9">

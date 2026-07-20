@@ -68,6 +68,7 @@ final class PresenceProjection
                 $playing = $playingIndex[$user->id] ?? null;
 
                 return new ParticipantPresence(
+                    registrationId: $registration->id,
                     name: $user->name,
                     avatarUrl: $user->avatar_url,
                     seatLabel: $registration->seatAssignment?->seat?->label,

@@ -6,6 +6,7 @@
  * no `max_entries` cap ("offen, keine feste Grenze") but is still joinable.
  */
 export interface ParticipantPresenceDto {
+    registrationId: number;
     name: string;
     avatarUrl: string | null;
     seatLabel: string | null;
