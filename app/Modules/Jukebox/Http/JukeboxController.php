@@ -182,11 +182,17 @@ class JukeboxController extends Controller
     }
 
     /**
-     * @return array{title: string, artist: string|null, imageUrl: string|null, durationSeconds: int|null}
+     * `id` is required by the participant page so the community skip-vote
+     * control can POST to `jukebox.skip-vote`, which is keyed by
+     * `{jukeboxItem}` (the currently-playing item has no other public route
+     * param to address it by).
+     *
+     * @return array{id: int, title: string, artist: string|null, imageUrl: string|null, durationSeconds: int|null}
      */
     private function nowPlayingDto(JukeboxItem $item): array
     {
         return [
+            'id' => $item->id,
             'title' => $item->title,
             'artist' => $item->artist,
             'imageUrl' => $item->image_url,

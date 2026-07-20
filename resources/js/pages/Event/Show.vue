@@ -7,6 +7,7 @@ import {
     index as eventsIndex,
     register as eventsRegister,
 } from '@/routes/events';
+import { index as jukeboxIndex } from '@/routes/jukebox';
 import { discord as loginDiscord } from '@/routes/login';
 import { show as presenceShow } from '@/routes/presence';
 import type { EventSummary } from '@/types';
@@ -107,6 +108,11 @@ const cta = computed<string | null>(() => {
             <Button as-child variant="outline">
                 <Link :href="presenceShow.url(event.slug)">{{
                     labels.to_presence
+                }}</Link>
+            </Button>
+            <Button as-child variant="outline">
+                <Link :href="jukeboxIndex.url(event.slug)">{{
+                    labels.to_jukebox
                 }}</Link>
             </Button>
             <Button as-child variant="outline">

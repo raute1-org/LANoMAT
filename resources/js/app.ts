@@ -17,12 +17,17 @@ createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
-            // Event/* and Orga/* pages flash toasts (registration, seating,
-            // check-in) but have no sidebar/header chrome, so they get the
-            // minimal PublicShell instead of no layout — it exists solely to
-            // mount <Toaster/> so those flashes have somewhere to render.
+            // Event/*, Orga/* and Jukebox/* pages flash toasts (registration,
+            // seating, check-in, queue/vote/skip mutations) but have no
+            // sidebar/header chrome, so they get the minimal PublicShell
+            // instead of no layout — it exists solely to mount <Toaster/> so
+            // those flashes have somewhere to render. Jukebox is also
+            // reachable by unauthenticated guests (read-only board), and the
+            // default AppLayout's sidebar unconditionally renders NavUser
+            // assuming a non-null auth.user, so guests must not get it.
             case name.startsWith('Event/'):
             case name.startsWith('Orga/'):
+            case name.startsWith('Jukebox/'):
                 return PublicShell;
             // Prefix match strips the app layout from EVERY page under this
             // directory. Future authenticated pages must not be placed here
