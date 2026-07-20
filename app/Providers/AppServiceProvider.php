@@ -35,6 +35,10 @@ use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Hosts\SshRemoteExecutor;
+use App\Modules\Identity\Connectors\SteamConnector;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Models\LinkedAccount;
+use App\Modules\Identity\Policies\LinkedAccountPolicy;
 use App\Modules\Identity\Support\LinkedAccountConnectors;
 use App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
@@ -96,6 +100,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\Steam\Provider as SteamProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -131,11 +136,17 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(LinkedAccountConnectors::class);
 
-        // Real Steam/Twitch connectors are bound per-provider under
-        // LinkedAccountConnectors::abstractFor($provider) in Tasks 9.3/9.4.
-        // No connector is bound here in production; LinkedAccountConnectors::for()
-        // throws IdentityException::unknownLinkedAccountProvider() until then.
-        // Tests bind fakes via the fakeLinkedAccounts() helper (tests/Pest.php).
+        // Real per-provider connectors are bound under
+        // LinkedAccountConnectors::abstractFor($provider). Steam is wired
+        // here (9.3); Twitch follows in 9.4. Until a provider is bound,
+        // LinkedAccountConnectors::for() throws
+        // IdentityException::unknownLinkedAccountProvider(). Tests bind
+        // fakes via the fakeLinkedAccounts() helper (tests/Pest.php), which
+        // takes precedence over these bindings.
+        $this->app->bind(
+            LinkedAccountConnectors::abstractFor(LinkedAccountProvider::Steam),
+            SteamConnector::class,
+        );
     }
 
     /**
@@ -178,6 +189,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(function (SocialiteWasCalled $event) {
             $event->extendSocialite('discord', DiscordProvider::class);
+            $event->extendSocialite('steam', SteamProvider::class);
         });
     }
 
@@ -209,6 +221,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
         Gate::policy(CustomServer::class, CustomServerPolicy::class);
         Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
+        Gate::policy(LinkedAccount::class, LinkedAccountPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }

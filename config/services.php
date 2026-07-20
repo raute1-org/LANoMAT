@@ -53,8 +53,13 @@ return [
     // driver needs a Web API key passed as client_secret) and Twitch (OAuth2
     // with a token refresh lifecycle). See LinkedAccountProvider::linkable().
     'steam' => [
+        'client_id' => null,
         'client_secret' => env('STEAM_API_KEY'),
-        'redirect' => env('STEAM_REDIRECT_URI', env('APP_URL').'/auth/steam/callback'),
+        'redirect' => env('STEAM_REDIRECT_URI', env('APP_URL').'/settings/connections/steam/callback'),
+        'allowed_hosts' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('STEAM_ALLOWED_HOSTS', '')),
+        ))),
     ],
 
     'twitch' => [

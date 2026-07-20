@@ -37,4 +37,12 @@ class IdentityException extends DomainException
             'identity.errors.token_refresh_failed',
         );
     }
+
+    public static function accountAlreadyLinked(LinkedAccountProvider $provider): self
+    {
+        return new self(
+            "This [{$provider->value}] account is already linked to a different user.",
+            'identity.errors.account_already_linked',
+        );
+    }
 }

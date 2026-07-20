@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b3c2c81b34c0b89ea5c620d6bf9eb56b",
+    "content-hash": "49f67a35184c73224d45e349d1048b5c",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -7195,6 +7195,57 @@
                 "source": "https://github.com/socialiteproviders/manager"
             },
             "time": "2026-03-18T22:13:24+00:00"
+        },
+        {
+            "name": "socialiteproviders/steam",
+            "version": "4.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/SocialiteProviders/Steam.git",
+                "reference": "b92e57db0dc498a2328d98db1ede379528ace211"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/SocialiteProviders/Steam/zipball/b92e57db0dc498a2328d98db1ede379528ace211",
+                "reference": "b92e57db0dc498a2328d98db1ede379528ace211",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": "^8.0",
+                "socialiteproviders/manager": "^4.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SocialiteProviders\\Steam\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Christopher Eklund",
+                    "email": "eklundchristopher@gmail.com"
+                }
+            ],
+            "description": "Steam OpenID Provider for Laravel Socialite",
+            "keywords": [
+                "OpenId",
+                "laravel",
+                "oauth",
+                "provider",
+                "socialite",
+                "steam"
+            ],
+            "support": {
+                "docs": "https://socialiteproviders.com/steam",
+                "issues": "https://github.com/socialiteproviders/providers/issues",
+                "source": "https://github.com/socialiteproviders/providers"
+            },
+            "time": "2025-02-12T21:49:52+00:00"
         },
         {
             "name": "spatie/icalendar-generator",
