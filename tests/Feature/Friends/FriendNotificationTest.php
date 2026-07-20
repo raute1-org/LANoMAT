@@ -33,7 +33,8 @@ it('does not notify the addressee when a request auto-accepts, and notifies the 
     app(SendFriendRequest::class)->handle($b, $a); // auto-accepts a's request
 
     Notification::assertSentTo($a, FriendRequestAccepted::class);
-    Notification::assertNotSentTo($b, FriendRequestReceived::class, fn () => false);
+    // b got exactly one FriendRequestReceived (from the first request), and the
+    // auto-accept did NOT send a second one.
     Notification::assertSentToTimes($b, FriendRequestReceived::class, 1);
     Notification::assertNotSentTo($a, FriendRequestReceived::class);
 });
