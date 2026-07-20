@@ -13,6 +13,7 @@ use App\Providers\AppServiceProvider;
 use Carbon\CarbonImmutable;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\AbstractProvider;
+use Throwable;
 
 /**
  * Twitch OAuth2 connector — the only linkable provider with a real token
@@ -41,6 +42,15 @@ class TwitchConnector implements LinkedAccountConnector
      * Exchanges the account's stored refresh token for a fresh access token.
      * The `provider_user_id` and `nickname` are carried over unchanged since
      * Twitch's refresh response only contains token data, not profile data.
+     *
+     * The actual HTTP exchange (`refreshToken()`) is wrapped: a revoked or
+     * expired refresh token makes Twitch respond with 400/401, which
+     * Socialite surfaces as a raw `GuzzleHttp\Exception\RequestException`.
+     * That must not leak past this connector — {@see
+     * \App\Modules\Identity\Actions\RefreshLinkedAccountToken} only catches
+     * {@see IdentityException} to decide whether to flag `needs_reauth` and
+     * notify the user, so any unwrapped exception here would crash the
+     * refresh sweep instead of triggering that path.
      */
     public function refresh(LinkedAccount $account): LinkedAccountData
     {
@@ -50,7 +60,11 @@ class TwitchConnector implements LinkedAccountConnector
             throw IdentityException::tokenRefreshFailed($this->provider());
         }
 
-        $token = $driver->refreshToken((string) $account->refresh_token);
+        try {
+            $token = $driver->refreshToken((string) $account->refresh_token);
+        } catch (Throwable) {
+            throw IdentityException::tokenRefreshFailed($this->provider());
+        }
 
         return new LinkedAccountData(
             provider_user_id: $account->provider_user_id,
