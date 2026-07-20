@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Enums\Role;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
+use App\Modules\Identity\Support\DisplayNameResolver;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -133,5 +134,15 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     public function linkedAccount(LinkedAccountProvider $provider): ?LinkedAccount
     {
         return $this->linkedAccounts->firstWhere('provider', $provider);
+    }
+
+    /**
+     * The name to display for this user in the given provider context
+     * (e.g. that provider's linked nickname), falling back to the LANoMAT
+     * `name` when there is no context or no usable linked nickname.
+     */
+    public function displayNameFor(?LinkedAccountProvider $context = null): string
+    {
+        return (new DisplayNameResolver)->resolve($this, $context);
     }
 }
