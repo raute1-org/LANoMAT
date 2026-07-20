@@ -13,6 +13,7 @@ use App\Modules\Identity\Http\ProfileController;
 use App\Modules\Infoscreen\Http\OrgaPingController;
 use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
+use App\Modules\Jukebox\Http\JukeboxController;
 use App\Modules\Lfg\Http\LfgController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Presence\Http\PresencePageController;
@@ -90,6 +91,12 @@ Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'sho
 // app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
 Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
 
+// Public jukebox board — same "public like seating/tournaments/schedule/
+// catering/polls/lfg/servers/files/presence, no auth required" visibility
+// rule; queueing/voting/skipping/removing all require auth (see below) and
+// are further gated by JukeboxPolicy inside each action.
+Route::get('/events/{event:slug}/jukebox', [JukeboxController::class, 'index'])->name('jukebox.index');
+
 // Public, no-auth, transparent-background OBS overlay — reuses the already-
 // public bracket data (BracketMatchProjection, same as the tournament show
 // page) rendered render-only; gated by the owning event's public visibility,
@@ -131,6 +138,13 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
     Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
+
+    Route::get('/events/{event:slug}/jukebox/search', [JukeboxController::class, 'search'])->name('jukebox.search');
+    Route::post('/events/{event:slug}/jukebox', [JukeboxController::class, 'add'])->name('jukebox.add');
+    Route::post('/events/{event:slug}/jukebox/skip', [JukeboxController::class, 'skip'])->name('jukebox.skip');
+    Route::post('/jukebox/{jukeboxItem}/vote', [JukeboxController::class, 'vote'])->name('jukebox.vote');
+    Route::post('/jukebox/{jukeboxItem}/skip-vote', [JukeboxController::class, 'skipVote'])->name('jukebox.skip-vote');
+    Route::delete('/jukebox/{jukeboxItem}', [JukeboxController::class, 'remove'])->name('jukebox.remove');
 
     Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
     Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
