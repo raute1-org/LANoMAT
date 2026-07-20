@@ -14,4 +14,8 @@ Schedule::command('lanomat:sweep-discord-outbox')->everyFiveMinutes();
 Schedule::command('lanomat:tournament-tick')->everyMinute();
 Schedule::command('lanomat:prune-lfg')->everyFiveMinutes();
 Schedule::command('lanomat:send-schedule-reminders')->everyMinute();
+// Polling (not a push from Music Assistant) is a deliberate v1 choice —
+// everyMinute trades a bit of now-playing staleness for not hammering MA;
+// see JukeboxTickCommand for the reconciliation logic.
+Schedule::command('lanomat:jukebox-tick')->everyMinute();
 Schedule::job(new RefreshExpiringTokensJob)->hourly();

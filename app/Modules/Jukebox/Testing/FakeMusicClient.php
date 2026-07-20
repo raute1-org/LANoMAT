@@ -6,6 +6,7 @@ namespace App\Modules\Jukebox\Testing;
 
 use App\Modules\Jukebox\Contracts\MusicClient;
 use App\Modules\Jukebox\Contracts\PlaybackControl;
+use App\Modules\Jukebox\Exceptions\MusicUnavailable;
 use App\Modules\Jukebox\Support\NowPlayingDto;
 use App\Modules\Jukebox\Support\TrackDto;
 
@@ -20,6 +21,8 @@ class FakeMusicClient implements MusicClient, PlaybackControl
     private array $syncedQueue = [];
 
     private int $skipCount = 0;
+
+    private bool $unavailable = false;
 
     public bool $paused = false;
 
@@ -38,24 +41,47 @@ class FakeMusicClient implements MusicClient, PlaybackControl
         $this->nowPlaying = $nowPlaying;
     }
 
+    /**
+     * Makes every subsequent call raise {@see MusicUnavailable}, simulating
+     * Music Assistant being unreachable — for tests asserting graceful
+     * degradation (sync/tick must not throw).
+     */
+    public function willBeUnavailable(): void
+    {
+        $this->unavailable = true;
+    }
+
     public function search(string $query, int $limit = 20): array
     {
+        $this->assertAvailable();
+
         return $this->searchResults;
     }
 
     public function syncQueue(array $orderedUris): void
     {
+        $this->assertAvailable();
         $this->syncedQueue = $orderedUris;
     }
 
     public function nowPlaying(): ?NowPlayingDto
     {
+        $this->assertAvailable();
+
         return $this->nowPlaying;
     }
 
     public function skip(): void
     {
+        $this->assertAvailable();
         $this->skipCount++;
+    }
+
+    private function assertAvailable(): void
+    {
+        if ($this->unavailable) {
+            throw MusicUnavailable::unreachable();
+        }
     }
 
     public function pause(): void
