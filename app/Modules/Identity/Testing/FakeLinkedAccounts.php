@@ -58,6 +58,11 @@ class FakeLinkedAccounts
         $this->fakeFor($provider)->willReportOwnership($owns);
     }
 
+    public function willReportOwnershipUnknown(LinkedAccountProvider $provider): void
+    {
+        $this->fakeFor($provider)->willReportOwnershipUnknown();
+    }
+
     /**
      * Access the underlying per-provider fake directly for assertions the
      * dispatcher doesn't wrap (e.g. inspecting call history, if added later).

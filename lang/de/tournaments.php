@@ -126,6 +126,14 @@ return [
         'withdrawn' => 'Anmeldung zurückgezogen.',
     ],
 
+    // Advisory-only game-ownership hint (M9 task 9.7): NEVER blocks
+    // enrollment, only shown as a calm warning. The Unknown case (no
+    // provider mapping, no linked account, private profile, ...) is
+    // intentionally not shown at all — see Tournaments/Index.vue.
+    'ownership_hint' => [
+        'not_owned_warning' => 'Wir konnten deinen Besitz von :game nicht bestätigen — anmelden kannst du dich trotzdem.',
+    ],
+
     'checkin' => [
         'check_in' => 'Einchecken',
         'checked_in' => 'Erfolgreich eingecheckt.',

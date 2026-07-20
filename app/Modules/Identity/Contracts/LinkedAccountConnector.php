@@ -8,6 +8,7 @@ use App\Modules\Identity\Connectors\FakeLinkedAccountConnector;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Exceptions\IdentityException;
 use App\Modules\Identity\Models\LinkedAccount;
+use App\Modules\Identity\Support\GameOwnershipHint;
 use App\Modules\Identity\Support\LinkedAccountData;
 
 /**
@@ -38,4 +39,19 @@ interface LinkedAccountConnector
      *                           (e.g. Steam, see {@see LinkedAccountProvider::hasTokenLifecycle()}).
      */
     public function refresh(LinkedAccount $account): LinkedAccountData;
+
+    /**
+     * Whether `$account` owns the given provider-specific app/game id — an
+     * ADVISORY signal only (see {@see GameOwnershipHint}),
+     * never authoritative and never allowed to block anything.
+     *
+     * Returns `true` (owns), `false` (confirmed not owned), or `null` when
+     * the question cannot be answered: the provider has no ownership
+     * concept (e.g. Twitch), the account's profile is private, or the
+     * underlying API call failed. Implementations MUST NOT throw — any
+     * failure is mapped to `null` instead, since a caller three layers up
+     * (tournament enrollment) must never be able to fail because of this
+     * check.
+     */
+    public function ownsApp(LinkedAccount $account, string $appId): ?bool;
 }

@@ -16,6 +16,7 @@ defineProps<{
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
     formatLabels: Record<string, string>;
+    ownershipHintLabels: Record<string, string>;
 }>();
 
 function enroll(tournament: TournamentSummary) {
@@ -48,6 +49,20 @@ function formatDate(iso: string | null): string {
 
 function isLive(tournament: TournamentSummary): boolean {
     return tournament.status === 'live';
+}
+
+/**
+ * Advisory-only warning (M9 task 9.7): shown ONLY for a confirmed
+ * `not_owned` result, right where the enroll CTA lives, so it's visible
+ * without being alarming. `unknown` (by far the common case — most games
+ * have no provider mapping) renders nothing, to avoid warning noise; this
+ * never disables `enroll()` above regardless of the hint.
+ */
+function showsOwnershipWarning(tournament: TournamentSummary): boolean {
+    return (
+        ctaFor(tournament) === 'enroll' &&
+        tournament.ownershipHint === 'not_owned'
+    );
 }
 </script>
 
@@ -96,30 +111,44 @@ function isLive(tournament: TournamentSummary): boolean {
                     </p>
                 </div>
 
-                <div class="flex shrink-0 items-center gap-2">
-                    <LiveIndicator
-                        v-if="isLive(tournament)"
-                        variant="live"
-                        :label="statusLabels[tournament.status]"
-                    />
-                    <Badge v-else variant="outline">{{
-                        statusLabels[tournament.status]
-                    }}</Badge>
-                    <Button
-                        v-if="ctaFor(tournament) === 'enroll'"
-                        size="sm"
-                        @click="enroll(tournament)"
+                <div class="flex shrink-0 flex-col items-end gap-1.5">
+                    <div class="flex items-center gap-2">
+                        <LiveIndicator
+                            v-if="isLive(tournament)"
+                            variant="live"
+                            :label="statusLabels[tournament.status]"
+                        />
+                        <Badge v-else variant="outline">{{
+                            statusLabels[tournament.status]
+                        }}</Badge>
+                        <Button
+                            v-if="ctaFor(tournament) === 'enroll'"
+                            size="sm"
+                            @click="enroll(tournament)"
+                        >
+                            {{ labels.enroll }}
+                        </Button>
+                        <Button
+                            v-else-if="ctaFor(tournament) === 'checkin'"
+                            size="sm"
+                            variant="outline"
+                            @click="checkin(tournament)"
+                        >
+                            {{ labels.check_in }}
+                        </Button>
+                    </div>
+                    <!-- Advisory only — never blocks enroll() above. See GameOwnershipHint. -->
+                    <p
+                        v-if="showsOwnershipWarning(tournament)"
+                        class="max-w-56 text-right text-xs text-muted-foreground"
                     >
-                        {{ labels.enroll }}
-                    </Button>
-                    <Button
-                        v-else-if="ctaFor(tournament) === 'checkin'"
-                        size="sm"
-                        variant="outline"
-                        @click="checkin(tournament)"
-                    >
-                        {{ labels.check_in }}
-                    </Button>
+                        {{
+                            ownershipHintLabels.not_owned_warning.replace(
+                                ':game',
+                                tournament.gameName ?? tournament.name,
+                            )
+                        }}
+                    </p>
                 </div>
             </li>
         </ul>

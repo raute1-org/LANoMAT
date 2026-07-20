@@ -1,9 +1,21 @@
+/**
+ * Advisory-only game-ownership signal for the enrollment CTA (M9 task 9.7):
+ * `not_owned` renders a calm warning, `unknown` (no provider mapping, no
+ * linked account, private profile, ...) and `owned` render nothing extra.
+ * NEVER disables the enroll button — see GameOwnershipHint's docblock.
+ */
+export type OwnershipHintStatus = 'owned' | 'not_owned' | 'unknown';
+
 export interface TournamentSummary {
     id: number;
     name: string;
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
     status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
     startsAt: string | null;
+    /** Null when the tournament has no game attached. */
+    gameName: string | null;
+    /** Null when not signed in or the tournament has no game attached. */
+    ownershipHint: OwnershipHintStatus | null;
 }
 
 export interface TournamentDetail {

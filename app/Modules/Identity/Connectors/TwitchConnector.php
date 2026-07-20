@@ -75,4 +75,13 @@ class TwitchConnector implements LinkedAccountConnector
             scopes: $token->approvedScopes,
         );
     }
+
+    /**
+     * Twitch has no game-ownership concept (it's a streaming platform, not a
+     * storefront) — always unknown.
+     */
+    public function ownsApp(LinkedAccount $account, string $appId): ?bool
+    {
+        return null;
+    }
 }

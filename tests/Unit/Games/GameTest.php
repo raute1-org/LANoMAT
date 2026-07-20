@@ -2,6 +2,7 @@
 
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Models\Game;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +40,7 @@ it('resolves the tournaments relation', function () {
         ->and($game->tournaments->first())->toBeInstanceOf(Tournament::class);
 });
 
-it('has name, slug, icon_path, min_team_size, max_team_size, pelican_egg_id fillable but not default_server_config', function () {
+it('has name, slug, icon_path, min_team_size, max_team_size, pelican_egg_id, provider, provider_app_id fillable but not default_server_config', function () {
     $game = new Game;
 
     expect($game->getFillable())->toBe([
@@ -49,6 +50,8 @@ it('has name, slug, icon_path, min_team_size, max_team_size, pelican_egg_id fill
         'min_team_size',
         'max_team_size',
         'pelican_egg_id',
+        'provider',
+        'provider_app_id',
     ]);
 });
 
@@ -78,4 +81,19 @@ it('does not error deleting a game with no icon_path set', function () {
 it('has a german resource label', function () {
     expect(__('games.resource.label'))->toBe('Spiel')
         ->and(__('games.resource.plural_label'))->toBe('Spiele');
+});
+
+it('casts provider to LinkedAccountProvider and defaults it and provider_app_id to null', function () {
+    $game = Game::factory()->create();
+
+    expect($game->fresh()->provider)->toBeNull()
+        ->and($game->fresh()->provider_app_id)->toBeNull();
+
+    $mapped = Game::factory()->create([
+        'provider' => LinkedAccountProvider::Steam,
+        'provider_app_id' => '730',
+    ]);
+
+    expect($mapped->fresh()->provider)->toBe(LinkedAccountProvider::Steam)
+        ->and($mapped->fresh()->provider_app_id)->toBe('730');
 });

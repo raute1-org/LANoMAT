@@ -41,6 +41,12 @@ it('wraps a Socialite/Guzzle refresh-token failure into an IdentityException', f
         ->toThrow(IdentityException::class);
 });
 
+it('reports ownership as always unknown, since Twitch has no ownership concept', function () {
+    $account = LinkedAccount::factory()->create(['provider' => LinkedAccountProvider::Twitch]);
+
+    expect(app(TwitchConnector::class)->ownsApp($account, 'irrelevant-app-id'))->toBeNull();
+});
+
 it('wraps any other refresh-token throwable the same way', function () {
     $account = LinkedAccount::factory()->create([
         'provider' => LinkedAccountProvider::Twitch,

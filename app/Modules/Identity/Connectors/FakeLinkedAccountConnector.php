@@ -27,6 +27,14 @@ class FakeLinkedAccountConnector implements LinkedAccountConnector
 
     private bool $reportsOwnership = true;
 
+    /**
+     * The queued answer for {@see ownsApp()}: true/false, or null for
+     * "unknown" (private profile / API failure / provider can't answer).
+     * Defaults to `true` so tests that never call `willReportOwnership()`
+     * keep the pre-9.7 "owns everything" behaviour.
+     */
+    private ?bool $ownsApp = true;
+
     public function __construct(private readonly LinkedAccountProvider $provider) {}
 
     public function provider(): LinkedAccountProvider
@@ -57,19 +65,33 @@ class FakeLinkedAccountConnector implements LinkedAccountConnector
     }
 
     /**
-     * Test hook for provider-ownership checks (e.g. "does this Steam
-     * account own game X") that later tasks (9.7) will add to the contract
-     * surface — kept here now so callers can already depend on the method
-     * name.
+     * Queues the answer {@see ownsApp()} returns for every subsequent call
+     * on this fake — true (owns) or false (confirmed not owned). Use
+     * {@see willReportOwnershipUnknown()} to queue the third state (null).
      */
     public function willReportOwnership(bool $owns): void
     {
         $this->reportsOwnership = $owns;
+        $this->ownsApp = $owns;
+    }
+
+    /**
+     * Queues an "unknown" ownership answer (null) — mirrors a private
+     * profile or a failed API call in the real SteamConnector.
+     */
+    public function willReportOwnershipUnknown(): void
+    {
+        $this->ownsApp = null;
     }
 
     public function reportsOwnership(): bool
     {
         return $this->reportsOwnership;
+    }
+
+    public function ownsApp(LinkedAccount $account, string $appId): ?bool
+    {
+        return $this->ownsApp;
     }
 
     public function resolveCallback(): LinkedAccountData

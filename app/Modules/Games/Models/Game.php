@@ -10,6 +10,7 @@ use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Domain\SpectateHint;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Tournaments\Models\Tournament;
 use Database\Factories\GameFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +25,8 @@ use Illuminate\Support\Facades\Storage;
  * @property int $min_team_size
  * @property int $max_team_size
  * @property string|null $pelican_egg_id
+ * @property LinkedAccountProvider|null $provider
+ * @property string|null $provider_app_id
  * @property ServerConfig $default_server_config
  * @property list<ServerPreset> $server_presets
  * @property InstallHint $install_hint
@@ -46,6 +49,8 @@ class Game extends Model
         'min_team_size',
         'max_team_size',
         'pelican_egg_id',
+        'provider',
+        'provider_app_id',
     ];
 
     protected function casts(): array
@@ -57,6 +62,7 @@ class Game extends Model
             'server_presets' => ServerPresetsCast::class,
             'install_hint' => InstallHintCast::class,
             'spectate_hint' => SpectateHintCast::class,
+            'provider' => LinkedAccountProvider::class,
         ];
     }
 

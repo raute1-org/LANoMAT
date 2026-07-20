@@ -29,6 +29,8 @@ class GameFactory extends Factory
             'min_team_size' => 1,
             'max_team_size' => 1,
             'pelican_egg_id' => null,
+            'provider' => null,
+            'provider_app_id' => null,
             // Factories bypass $fillable, so default_server_config,
             // server_presets, and install_hint can be set directly here
             // (mirrors InfoscreenSceneFactory).

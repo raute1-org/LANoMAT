@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Actions\SetManualJoinInfo;
+use App\Modules\Identity\Support\GameOwnershipHint;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Actions\ConfirmMatchReport;
@@ -49,9 +50,12 @@ class TournamentPageController extends Controller
     {
         abort_unless($event->isPubliclyVisible(), 404);
 
+        $user = $request->user();
+
         $tournaments = Tournament::query()
             ->where('event_id', $event->id)
             ->orderBy('starts_at')
+            ->with('game')
             ->get()
             ->map(fn (Tournament $tournament): array => [
                 'id' => $tournament->id,
@@ -59,6 +63,14 @@ class TournamentPageController extends Controller
                 'format' => $tournament->format->value,
                 'status' => $tournament->status->value,
                 'startsAt' => $tournament->starts_at->toIso8601String(),
+                'gameName' => $tournament->game?->name,
+                // ADVISORY only — see GameOwnershipHint's docblock and
+                // OwnershipHintNeverBlocksTest: this never gates enrollment,
+                // it only lets the UI render a calm warning. Only computed
+                // for a signed-in viewer with a game actually attached.
+                'ownershipHint' => ($user !== null && $tournament->game !== null)
+                    ? GameOwnershipHint::for($user, $tournament->game)->value
+                    : null,
             ])
             ->all();
 
@@ -68,6 +80,7 @@ class TournamentPageController extends Controller
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.index_title')],
             'statusLabels' => trans('tournaments.status'),
             'formatLabels' => trans('tournaments.format'),
+            'ownershipHintLabels' => trans('tournaments.ownership_hint'),
         ]);
     }
 
