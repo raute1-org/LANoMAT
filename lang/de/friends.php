@@ -8,4 +8,37 @@ return [
         'blocked' => 'Einer der beiden Nutzer hat den anderen blockiert.',
         'cannot_block_self' => 'Du kannst dich nicht selbst blockieren.',
     ],
+
+    'page' => [
+        'title' => 'Freunde',
+        'description' => 'Anfragen, Freunde und Vorschläge auf einen Blick.',
+
+        'incoming_title' => 'Anfragen',
+        'incoming_empty' => 'Keine offenen Anfragen — melden wir uns, sobald jemand dich adden will.',
+        'accept' => 'Annehmen',
+        'decline' => 'Ablehnen',
+
+        'friends_title' => 'Freunde',
+        'friends_empty' => 'Noch keine Freunde — schau bei den Vorschlägen vorbei.',
+        'remove' => 'Entfernen',
+        'remove_confirm' => 'Freundschaft wirklich beenden?',
+        'block' => 'Blockieren',
+
+        'suggestions_title' => 'Vorschläge',
+        'suggestions_empty' => 'Gerade keine Vorschläge — nimm an einem Event oder Turnier teil, dann sehen wir Überschneidungen.',
+        'add' => 'Anfragen',
+        'shared_count' => 'Überschneidungen: :count',
+        'reason_shared_event' => 'Gemeinsames Event',
+        'reason_shared_team' => 'Gemeinsames Team',
+        'reason_shared_tournament' => 'Gemeinsames Turnier',
+
+        'outgoing_title' => 'Gesendete Anfragen',
+        'outgoing_empty' => 'Keine ausstehenden Anfragen.',
+        'cancel' => 'Zurückziehen',
+
+        'blocked_title' => 'Blockiert',
+        'blocked_empty' => 'Niemand blockiert.',
+        'unblock' => 'Entsperren',
+        'unblock_confirm' => 'Blockierung wirklich aufheben?',
+    ],
 ];

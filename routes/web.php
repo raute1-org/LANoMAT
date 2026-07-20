@@ -5,6 +5,7 @@ use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Files\Http\FilePageController;
+use App\Modules\Friends\Http\FriendsController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\Identity\Http\DiscordAuthController;
@@ -140,6 +141,14 @@ Route::middleware(['auth'])->group(function () {
     // voice providers are an installation-wide concern, not per-event.
     Route::get('/voice/setup', [VoiceSetupController::class, 'index'])->name('voice.setup');
     Route::get('/voice/installers/{installer}/download', [VoiceSetupController::class, 'download'])->name('voice.installers.download');
+
+    Route::get('/friends', [FriendsController::class, 'index'])->name('friends.index');
+    Route::post('/friends/request', [FriendsController::class, 'request'])->name('friends.request');
+    Route::patch('/friends/{friendship}/respond', [FriendsController::class, 'respond'])->name('friends.respond');
+    Route::delete('/friends/{friendship}/cancel', [FriendsController::class, 'cancel'])->name('friends.cancel');
+    Route::delete('/friends/{user}', [FriendsController::class, 'remove'])->name('friends.remove');
+    Route::post('/friends/{user}/block', [FriendsController::class, 'block'])->name('friends.block');
+    Route::delete('/friends/{user}/block', [FriendsController::class, 'unblock'])->name('friends.unblock');
 
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');

@@ -2,6 +2,7 @@ export * from './auth';
 export * from './catering';
 export * from './events';
 export * from './files';
+export * from './friends';
 export * from './gameservers';
 export * from './infoscreen';
 export * from './lfg';
