@@ -35,6 +35,12 @@ createInertiaApp({
             // never triggers flashes).
             case name.startsWith('Screen/'):
                 return null;
+            // Public, no-auth OBS browser-source overlays (bracket,
+            // scoreboard, ...) — bare full-viewport shell like Screen/, but
+            // with a transparent background (see OverlayFrame.vue) so OBS
+            // composites the page over gameplay footage.
+            case name.startsWith('Overlay/'):
+                return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

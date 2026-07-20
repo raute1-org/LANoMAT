@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
@@ -87,6 +88,12 @@ Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'sho
 // catering/polls/lfg, no auth required" visibility rule; renders with no
 // app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
 Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
+
+// Public, no-auth, transparent-background OBS overlay — reuses the already-
+// public bracket data (BracketMatchProjection, same as the tournament show
+// page) rendered render-only; gated by the owning event's public visibility,
+// same rule as every other public participant surface above.
+Route::get('/overlay/tournament/{tournament}/bracket', [OverlayController::class, 'bracket'])->name('overlay.bracket');
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
