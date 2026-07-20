@@ -183,14 +183,32 @@ user_blocks   (id, blocker_id, blocked_id, UNIQUE(blocker_id,blocked_id))
   called *inside* the action (not just the controller) so the check cannot be bypassed by a
   caller that skips the HTTP layer; the acting user is always `auth()->user()`, never a
   client-supplied id.
-- **LAN-native suggestions (`FriendSuggestions`).** A pure, IO-light read-model — no external
-  friend-list import this phase (a Steam friend-list intersection was considered and
-  deferred) — that ranks candidates by shared LAN context, reading each fact through its
-  owning module's own Eloquent model (`EventRegistration`, `TeamMember`, `TournamentEntry` via
-  `EntryRoster`) rather than a raw cross-module query, mirroring the `PresenceProjection`
-  precedent. Candidates are excluded if they are the user themself, an existing friend, have
-  a pending request in either direction, or are blocked either way; the remainder is ranked by
-  the count of distinct shared events/teams/tournaments.
+- **LAN-native suggestions (`FriendSuggestions`).** A pure, IO-light read-model that ranks
+  candidates by shared LAN context, reading each fact through its owning module's own Eloquent
+  model (`EventRegistration`, `TeamMember`, `TournamentEntry` via `EntryRoster`) rather than a
+  raw cross-module query, mirroring the `PresenceProjection` precedent. Candidates are excluded
+  if they are the user themself, an existing friend, have a pending request in either
+  direction, or are blocked either way; the remainder is ranked by the count of distinct shared
+  events/teams/tournaments.
+- **Steam-friend suggestion source (`shared_steam_friend`).** A fourth, cross-event source
+  layered onto the three LAN-native ones above: `LinkedAccountConnector::friendProviderIds()`
+  is a best-effort call to Steam's `GetFriendList` Web API endpoint — a private friend list
+  (HTTP 401) or any other failure (missing key, network error, malformed response) resolves to
+  `[]` rather than throwing, since this sits behind an advisory-only suggestion and must never
+  be able to propagate an exception into a caller that expects it to be safe to call
+  unconditionally. The returned SteamID64s are cached for ~15 minutes per (user, SteamID) pair
+  — `FriendSuggestions` is the only caller, never Steam's API directly — and intersected live
+  (never cached) against LANoMAT users who also linked a Steam account, then merged into the
+  suggestion index under the `shared_steam_friend` reason, with the same self/friend/pending/
+  blocked exclusions as the LAN-native sources. External provider friend-lists other than Steam
+  remain out of scope.
+- **`EntryRoster` N+1 fixed.** The previously-deferred per-entry `User` query fan-out is gone:
+  `EntryRoster::userIdsFor()` extracts a `TournamentEntry`'s roster user ids without issuing any
+  query at all (used by `FriendSuggestions`, which only needs ids), and
+  `EntryRoster::usersForEntries()` resolves a whole `Collection` of entries' rosters in a single
+  batched `User` query (used by `usersForMatch()`/`usersForTournament()`, and in turn by
+  `PresenceProjection`). Behavior is unchanged in both the Friends suggestions read-model and
+  the M10 presence projection — only the query count dropped.
 - **Notifications are bell-only.** `FriendRequestReceived` and `FriendRequestAccepted` are
   `database`-channel only (no Discord mirror) — a friend request is a low-urgency, in-app
   signal, deliberately not given the dual-channel treatment reserved for time-sensitive

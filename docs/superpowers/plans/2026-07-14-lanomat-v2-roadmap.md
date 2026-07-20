@@ -484,6 +484,19 @@ Vorbedingung — die stand mit M9 fest, siehe dort). Detailplan:
   (`DisplayNameResolver`), der Freunde-Filter jetzt mit dieser Phase — M10 hat keine offenen
   Vertagungen mehr.
 - **Phase abgeschlossen** und bereit für den Tag `friends`.
+- **Nachtrag (Branch `steam-friend-suggestions`, ab Tag `friends`):** die oben vertagte
+  Provider-Vorschlagsquelle ist jetzt geliefert — `LinkedAccountConnector::friendProviderIds()`
+  (Steam `GetFriendList`, best-effort, jeder Fehler inkl. privater Liste → `[]`, nie
+  Exception) liefert SteamID64s, die 15 Minuten pro (User, SteamID) gecacht und live gegen
+  LANoMAT-User mit verknüpftem Steam-Account geschnitten werden; fließt als vierte Quelle
+  (`shared_steam_friend`) mit denselben Exclusions wie die LAN-nativen Quellen in
+  `FriendSuggestions` ein. Andere externe Provider-Freundeslisten bleiben out of scope. **Und:**
+  der oben genannte, akzeptierte `EntryRoster`-N+1 (auch als M10-Deferred-Chore geführt) ist
+  jetzt für beide Stellen behoben — `EntryRoster::userIdsFor()` (query-freie Id-Extraktion, von
+  `FriendSuggestions` genutzt) und `EntryRoster::usersForEntries()` (eine gebatchte
+  `User`-Query für eine ganze Entry-Collection, von `usersForMatch`/`usersForTournament` und
+  damit `PresenceProjection` genutzt) ersetzen den Pro-Entry-Query-Fan-out; Verhalten
+  unverändert, nur die Query-Zahl sinkt. Kein eigenes Milestone (kleiner Folge-Task).
 
 - **Architektur: Gruppen-/Community-Fusion (User-/Team-/Historien-Merge)** (Board-Item, ohne Milestone) — zwei Communities zusammenführen können (Import/Merge von Usern, Teams, Historie). Das Event-als-Aggregate-Root-Modell passt, aber **User-Merge früh mitdenken**.
   *Wert langfristig / Aufwand groß, aber die Design-Entscheidung ist billig und JETZT fällig: stabile User-IDs, keine harten Annahmen, die einen späteren Merge verbauen (z. B. `discord_id` als einziger Identitätsanker, Merge-fähige FKs/Historie). Muss vor M9 (Identity+) feststehen — dort werden dauerhafte Verknüpfungen/Tokens an User gehängt.*
