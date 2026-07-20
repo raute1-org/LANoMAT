@@ -28,6 +28,7 @@ enum AdminNavigationGroup implements HasLabel
     case TurniereUndTeams;
     case Programm;
     case Infoscreen;
+    case Nutzer;
 
     public function getLabel(): string
     {
@@ -37,6 +38,7 @@ enum AdminNavigationGroup implements HasLabel
             self::TurniereUndTeams => 'Turniere & Teams',
             self::Programm => 'Programm, Catering & Voting',
             self::Infoscreen => 'Infoscreen',
+            self::Nutzer => 'Nutzer',
         };
     }
 }

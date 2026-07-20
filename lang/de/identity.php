@@ -7,4 +7,11 @@ return [
         'token_refresh_failed' => 'Die Token-Erneuerung ist fehlgeschlagen. Bitte verknüpfe den Account erneut.',
         'account_already_linked' => 'Dieser Account ist bereits mit einem anderen LANoMAT-Konto verknüpft.',
     ],
+
+    'admin' => [
+        'linked_accounts_title' => 'Verknüpfte Konten',
+        'provider' => 'Anbieter',
+        'nickname' => 'Nickname',
+        'linked_at' => 'Verknüpft am',
+    ],
 ];

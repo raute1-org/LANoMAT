@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Modules\Identity\Actions\UpdateProfile;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,13 @@ class ProfileController extends Controller
     {
         $user = $this->authUser($request);
 
+        // The free-text steam_url predates the OAuth-verified Steam link
+        // (Identity module, M9). Once a verified link exists it is
+        // authoritative; steam_url stays editable as a fallback for players
+        // who haven't linked yet. See UpdateProfile — steam_url itself is
+        // untouched by linking, this is display-only reconciliation.
+        $steamAccount = $user->linkedAccount(LinkedAccountProvider::Steam);
+
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
@@ -33,6 +41,8 @@ class ProfileController extends Controller
                 'steamUrl' => $user->steam_url,
                 'streamUrl' => $user->stream_url,
                 'profileColor' => $user->profile_color,
+                'hasVerifiedSteamLink' => $steamAccount !== null,
+                'verifiedSteamNickname' => $steamAccount?->nickname,
             ],
             'labels' => trans('profile.form'),
         ]);
