@@ -36,7 +36,7 @@ const sidebarNavItems = computed<NavItem[]>(() => [
         href: editAppearance(),
     },
     {
-        title: 'Verknüpfungen',
+        title: 'Connections',
         href: editConnections(),
     },
 ]);

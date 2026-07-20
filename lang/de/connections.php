@@ -10,7 +10,6 @@ return [
     'page' => [
         'title' => 'Verknüpfungen',
         'description' => 'Verknüpfe deine Spiele-Konten, damit die Orga dich auf anderen Plattformen wiederfindet.',
-        'nav_label' => 'Verknüpfungen',
         'linked_label' => 'Verknüpft',
         'not_linked_label' => 'Nicht verknüpft',
         'link_button' => 'Verknüpfen',
@@ -19,5 +18,6 @@ return [
         'reauth_button' => 'Erneut anmelden',
         'empty' => 'Aktuell ist kein Anbieter für Verknüpfungen verfügbar.',
         'provider_id_label' => 'Konto-ID',
+        'load_error' => 'Die Verknüpfungen konnten nicht geladen werden. Bitte lade die Seite neu.',
     ],
 ];
