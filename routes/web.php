@@ -95,6 +95,12 @@ Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('scr
 // same rule as every other public participant surface above.
 Route::get('/overlay/tournament/{tournament}/bracket', [OverlayController::class, 'bracket'])->name('overlay.bracket');
 
+// Public, no-auth, transparent-background per-match scoreboard OBS overlay —
+// same public-visibility gate as the bracket overlay above, seeded from the
+// match's persisted score and then updated live over `tournament.{id}`'s
+// `.match.score_updated` broadcast (see OverlayController::scoreboard()).
+Route::get('/overlay/match/{match}/scoreboard', [OverlayController::class, 'scoreboard'])->name('overlay.scoreboard');
+
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Casting\Http;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use Inertia\Inertia;
@@ -44,6 +45,45 @@ class OverlayController extends Controller
                 'bracketLabels' => trans('tournaments.page'),
                 'liveScoreLabels' => trans('gameservers.live_score'),
             ],
+        ]);
+    }
+
+    /**
+     * A public, no-auth, transparent-background per-match scoreboard overlay
+     * for OBS browser sources: seeds an initial `data` snapshot from the
+     * match's persisted state (`entry1`/`entry2` display names, `score1`/
+     * `score2`) and then updates live over the public `tournament.{id}`
+     * channel's `.match.score_updated` broadcast — see
+     * `useMatchScore.ts`/`Overlay/Scoreboard.vue`. `round` is deliberately
+     * omitted here: it is not persisted on {@see GameMatch}, only carried in
+     * the live event payload (mirrors
+     * `BroadcastScoreboardOnScoreUpdated`, which feeds the beamer's
+     * `SceneScoreboard` the same way).
+     *
+     * Gated by the owning event's public visibility, same rule as
+     * {@see self::bracket()} — an overlay is not a new visibility boundary,
+     * only a new rendering of already-public live-score data.
+     */
+    public function scoreboard(GameMatch $match): Response
+    {
+        $match->load(['tournament.event', 'entry1', 'entry2']);
+        $tournament = $match->tournament;
+        abort_if($tournament === null, 500, 'Match has no associated tournament.');
+        $event = $tournament->event;
+        abort_if($event === null, 500, 'Tournament has no associated event.');
+        abort_unless($event->isPubliclyVisible(), 404);
+
+        return Inertia::render('Overlay/Scoreboard', [
+            'tournamentId' => $tournament->id,
+            'matchId' => $match->id,
+            'data' => [
+                'tournament' => $tournament->name,
+                'team1' => $match->entry1?->display_name,
+                'team2' => $match->entry2?->display_name,
+                'score1' => $match->score1,
+                'score2' => $match->score2,
+            ],
+            'labels' => trans('overlay.scoreboard'),
         ]);
     }
 }
