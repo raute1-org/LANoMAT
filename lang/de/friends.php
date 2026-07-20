@@ -9,6 +9,17 @@ return [
         'cannot_block_self' => 'Du kannst dich nicht selbst blockieren.',
     ],
 
+    'notifications' => [
+        'request_received' => [
+            'title' => 'Neue Freundschaftsanfrage',
+            'body' => ':name möchte dein Freund sein.',
+        ],
+        'request_accepted' => [
+            'title' => 'Freundschaftsanfrage angenommen',
+            'body' => ':name hat deine Freundschaftsanfrage angenommen.',
+        ],
+    ],
+
     'page' => [
         'title' => 'Freunde',
         'description' => 'Anfragen, Freunde und Vorschläge auf einen Blick.',

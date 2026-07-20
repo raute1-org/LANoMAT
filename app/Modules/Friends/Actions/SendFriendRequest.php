@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Friends\Enums\FriendshipStatus;
 use App\Modules\Friends\Exceptions\FriendshipException;
 use App\Modules\Friends\Models\Friendship;
+use App\Modules\Friends\Notifications\FriendRequestAccepted;
+use App\Modules\Friends\Notifications\FriendRequestReceived;
 use App\Modules\Friends\Support\FriendService;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +31,7 @@ class SendFriendRequest
             throw FriendshipException::blocked();
         }
 
-        return DB::transaction(function () use ($requester, $addressee): Friendship {
+        $friendship = DB::transaction(function () use ($requester, $addressee): Friendship {
             $pending = $this->friends->pendingBetween($requester, $addressee);
 
             if ($pending !== null) {
@@ -54,5 +56,16 @@ class SendFriendRequest
                 'status' => FriendshipStatus::Pending,
             ]);
         });
+
+        if ($friendship->status === FriendshipStatus::Accepted) {
+            // Auto-accept path: the reverse request (addressee -> requester,
+            // i.e. $addressee is the original requester here) just got
+            // accepted — notify $addressee, not the current caller.
+            $addressee->notify(new FriendRequestAccepted($requester));
+        } else {
+            $addressee->notify(new FriendRequestReceived($requester));
+        }
+
+        return $friendship;
     }
 }
