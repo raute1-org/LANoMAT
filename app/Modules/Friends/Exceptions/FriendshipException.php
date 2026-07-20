@@ -32,4 +32,9 @@ class FriendshipException extends DomainException
     {
         return new self('One of these users has blocked the other.', 'friends.errors.blocked');
     }
+
+    public static function cannotBlockSelf(): self
+    {
+        return new self('A user cannot block themselves.', 'friends.errors.cannot_block_self');
+    }
 }
