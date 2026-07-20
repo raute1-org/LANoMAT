@@ -128,6 +128,11 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 # /app/Caddyfile even though WORKDIR is /app).
 ENV SERVER_NAME=":80"
 COPY docker/frankenphp/Caddyfile /etc/caddy/Caddyfile
+
+# Raise PHP upload limits (see the file's header): large voice-client installer
+# and M7 file-sharing uploads exceed PHP's stock 2 MB/8 MB defaults. Dropped
+# into conf.d so it layers over the base image's php.ini without replacing it.
+COPY docker/frankenphp/php.ini /usr/local/etc/php/conf.d/lanomat.ini
 CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
 
 EXPOSE 80
