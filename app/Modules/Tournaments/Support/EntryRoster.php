@@ -3,7 +3,6 @@
 namespace App\Modules\Tournaments\Support;
 
 use App\Models\User;
-use App\Modules\Friends\Support\FriendSuggestions;
 use App\Modules\Tournaments\Listeners\NotifyRosterOnMatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\TournamentEntry;
@@ -27,8 +26,8 @@ class EntryRoster
      * The user ids behind a single entry's roster — every `roster_snapshot`
      * member's `user_id` for a team entry, or the single `user_id` for a
      * solo entry — without issuing any query. Pulled out of {@see usersFor}
-     * so callers that only need ids (e.g. {@see FriendSuggestions})
-     * can skip the `User` query entirely.
+     * so callers that only need ids (e.g. friend-suggestion aggregation in
+     * the Friends module) can skip the `User` query entirely.
      *
      * @return array<int, int>
      */
