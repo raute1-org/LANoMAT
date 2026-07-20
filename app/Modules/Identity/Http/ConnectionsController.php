@@ -15,6 +15,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * Link/unlink flow for third-party identity providers (Steam, Twitch, ...).
@@ -28,6 +30,39 @@ class ConnectionsController
 {
     use AuthorizesRequests;
     use ResolvesAuthenticatedUser;
+
+    /**
+     * Show the connections settings page: every linkable provider whose
+     * credentials are configured ({@see LinkedAccountConnectors::enabled()}),
+     * with its linked state. Never exposes the account's access/refresh
+     * tokens — only the display-safe fields the UI needs.
+     */
+    public function index(Request $request, LinkedAccountConnectors $connectors): Response
+    {
+        $user = $this->authUser($request);
+
+        $providers = array_map(
+            function (LinkedAccountProvider $provider) use ($user): array {
+                $account = $user->linkedAccount($provider);
+
+                return [
+                    'provider' => $provider->value,
+                    'label' => $provider->label(),
+                    'linked' => $account !== null,
+                    'nickname' => $account?->nickname,
+                    'needsReauth' => $account?->needsReauth() ?? false,
+                    'redirectUrl' => route('connections.redirect', $provider->value),
+                    'unlinkUrl' => route('connections.destroy', $provider->value),
+                ];
+            },
+            $connectors->enabled(),
+        );
+
+        return Inertia::render('settings/Connections', [
+            'providers' => $providers,
+            'labels' => trans('connections.page'),
+        ]);
+    }
 
     public function redirect(Request $request, string $provider, LinkedAccountConnectors $connectors): RedirectResponse
     {

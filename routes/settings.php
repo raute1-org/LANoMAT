@@ -13,10 +13,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
-    // Minimal stub so `route('connections.edit')` resolves and the Steam
-    // callback redirect (below) doesn't dead-end — Task 9.5 replaces this
-    // with the real Inertia connections page.
-    Route::redirect('settings/connections', '/settings/profile')->name('connections.edit');
+    Route::get('settings/connections', [ConnectionsController::class, 'index'])->name('connections.edit');
 
     Route::get('settings/connections/{provider}/redirect', [ConnectionsController::class, 'redirect'])->name('connections.redirect');
     Route::get('settings/connections/{provider}/callback', [ConnectionsController::class, 'callback'])->name('connections.callback');
