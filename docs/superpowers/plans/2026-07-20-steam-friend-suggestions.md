@@ -129,14 +129,58 @@ it('adds shared_steam_friend to the reasons of a suggested Steam friend', functi
 
 ---
 
-### Task 3: Docs + roadmap + memory note
+### Task 3: Eliminate the `EntryRoster` N+1 in `FriendSuggestions` + `PresenceProjection`
+
+**Context:** `EntryRoster::usersFor(TournamentEntry)` issues its own `User::whereIn(...)->get()` per call. Two hot-ish read-models call it per entry/match:
+- `FriendSuggestions::sharedTournamentUserIds` (this phase's Task 2 leaves it as-is) calls `usersFor` per entry across every shared tournament — but it only needs **user ids**, which already live on the entry (`roster_snapshot[].user_id` / `entry.user_id`), so the `User` query is entirely unnecessary.
+- `PresenceProjection::forEvent` calls `EntryRoster::usersForMatch($match)` per live match — it needs **User models** (name/avatar), so batch the resolution across matches.
 
 **Files:**
-- Modify: `docs/architecture.md` (extend the "Friends & social" suggestions paragraph: Steam-friend source via `friendProviderIds`, best-effort, cached, intersected with LANoMAT-linked Steam accounts)
-- Modify: `docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md` (a short note under the Friends Erkenntnisse that the deferred provider-based suggestion source is now delivered)
+- Modify: `app/Modules/Tournaments/Support/EntryRoster.php` (add `userIdsFor` + `usersForEntries`; refactor `usersFor`/`usersForMatch`/`usersForTournament` to use them)
+- Modify: `app/Modules/Friends/Support/FriendSuggestions.php` (`sharedTournamentUserIds` → `userIdsFor`, no `User` query)
+- Modify: `app/Modules/Presence/Support/PresenceProjection.php` (batch live-match roster resolution)
+- Test: `tests/Unit/Tournaments/EntryRosterTest.php` (new/extended — batch correctness + query-count), and confirm existing `FriendSuggestionsTest`/`PresenceProjectionTest` stay green
+
+**Interfaces:**
+- Produces: `EntryRoster::userIdsFor(TournamentEntry $entry): array<int>` — pure id extraction (the current inline logic in `usersFor`: `roster_snapshot` column `user_id`s, else `array_filter([$entry->user_id])`), NO query. `usersFor` becomes `User::whereIn('id', self::userIdsFor($entry))->get()` (unchanged behavior).
+- Produces: `EntryRoster::usersForEntries(Collection<int,TournamentEntry> $entries): Collection<int, User>` — the union of all entries' users in ONE query (`User::whereIn('id', $allUserIds)->get()`), deduped, keyed by user id. Refactor `usersForMatch`/`usersForTournament` to gather their entries then delegate to `usersForEntries` (each becomes exactly one `User` query instead of one-per-entry).
+- Changes: `FriendSuggestions::sharedTournamentUserIds` uses `EntryRoster::userIdsFor($entry)` (array of ids) instead of `usersFor(...)->pluck('id')` — same result, zero `User` queries. `PresenceProjection::forEvent` collects all live matches' entries, calls `usersForEntries` ONCE, and assembles each match's `users` from the in-memory result (deduped per match) instead of `usersForMatch` per match.
+
+- [ ] **Step 1: Failing test** — batch correctness + no per-entry query fan-out:
+
+```php
+// tests/Unit/Tournaments/EntryRosterTest.php
+it('resolves users for many entries in a single query', function () {
+    $entries = TournamentEntry::factory()->count(4)->create();   // solo entries
+    DB::enableQueryLog();
+    $users = EntryRoster::usersForEntries($entries);
+    $userQueries = collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], '"users"'));
+    expect($userQueries)->toHaveCount(1)                          // ONE query, not 4
+        ->and($users)->toHaveCount(4);
+});
+
+it('userIdsFor extracts ids without a query (solo + team roster)', function () {
+    $solo = TournamentEntry::factory()->create(['user_id' => 7, 'roster_snapshot' => null]);
+    DB::enableQueryLog();
+    expect(EntryRoster::userIdsFor($solo))->toBe([7]);
+    expect(DB::getQueryLog())->toBeEmpty();
+});
+```
+(Adapt factory usage to the real `TournamentEntry` factory — recall solo/team factory states overwrite `.for()`; set `user_id`/`roster_snapshot` explicitly.)
+
+- [ ] **Step 2: Run → FAIL.** **Step 3:** implement `userIdsFor` + `usersForEntries`, refactor the three existing methods, then update `FriendSuggestions` + `PresenceProjection`. Keep every existing behavior identical (dedup semantics, ordering where it matters). **Step 4:** `composer check` + (Presence touches no Vue, so no frontend gates unless a payload shape changed — it should not).
+- [ ] **Step 5: Commit** — `perf(tournaments): batch EntryRoster user resolution; drop FriendSuggestions/Presence N+1`.
+
+---
+
+### Task 4: Docs + roadmap + memory note
+
+**Files:**
+- Modify: `docs/architecture.md` (extend the "Friends & social" suggestions paragraph: Steam-friend source via `friendProviderIds`, best-effort, cached, intersected with LANoMAT-linked Steam accounts; and note the `EntryRoster` batch that removed the FriendSuggestions/Presence N+1)
+- Modify: `docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md` (a short note under the Friends Erkenntnisse that the deferred provider-based suggestion source is now delivered AND the deferred `EntryRoster` N+1 is now fixed for both M10 and Friends)
 - Test: none (docs only).
 
-- [ ] **Step 1:** write both. **Step 2:** `composer check` (untouched-green). **Step 3: Commit** — `docs(friends): document the Steam-friend suggestion source`.
+- [ ] **Step 1:** write both. **Step 2:** `composer check` (untouched-green). **Step 3: Commit** — `docs(friends): document the Steam-friend source + EntryRoster batch`.
 
 ---
 
