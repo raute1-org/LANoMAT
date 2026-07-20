@@ -35,6 +35,9 @@ use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Hosts\SshRemoteExecutor;
+use App\Modules\Identity\Connectors\FakeLinkedAccountConnector;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Support\LinkedAccountConnectors;
 use App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
 use App\Modules\Infoscreen\Listeners\GongOnMatchLive;
@@ -127,6 +130,18 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->app->bind(ScheduleParticipantResolver::class, TournamentScheduleParticipantResolver::class);
+
+        $this->app->singleton(LinkedAccountConnectors::class);
+
+        // Placeholder connector bindings (Task 9.2): real Steam/Twitch
+        // connectors land in 9.3/9.4 and will replace these per-provider
+        // container bindings without touching LinkedAccountConnectors.
+        foreach (LinkedAccountProvider::linkable() as $provider) {
+            $this->app->bind(
+                LinkedAccountConnectors::abstractFor($provider),
+                fn () => new FakeLinkedAccountConnector($provider),
+            );
+        }
     }
 
     /**

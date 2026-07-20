@@ -48,6 +48,21 @@ return [
         'application_id' => env('DISCORD_APPLICATION_ID'),
     ],
 
+    // Linked-account providers (M9, Identity+): Steam (OpenID, no client
+    // secret required by the protocol itself, but SocialiteProviders' Steam
+    // driver needs a Web API key passed as client_secret) and Twitch (OAuth2
+    // with a token refresh lifecycle). See LinkedAccountProvider::linkable().
+    'steam' => [
+        'client_secret' => env('STEAM_API_KEY'),
+        'redirect' => env('STEAM_REDIRECT_URI', env('APP_URL').'/auth/steam/callback'),
+    ],
+
+    'twitch' => [
+        'client_id' => env('TWITCH_CLIENT_ID'),
+        'client_secret' => env('TWITCH_CLIENT_SECRET'),
+        'redirect' => env('TWITCH_REDIRECT_URI', env('APP_URL').'/auth/twitch/callback'),
+    ],
+
     'voice' => [
         'default_provider' => env('VOICE_DEFAULT_PROVIDER', 'mumble'),
         'providers' => array_values(array_filter(array_map(

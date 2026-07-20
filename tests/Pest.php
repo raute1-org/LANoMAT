@@ -6,6 +6,9 @@ use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Testing\FakeRemoteExecutor;
+use App\Modules\Identity\Connectors\FakeLinkedAccountConnector;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Support\LinkedAccountConnectors;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Testing\FakeVoiceClient;
@@ -142,6 +145,24 @@ function fakeVoice(array $providers = ['mumble', 'teamspeak']): array
             return $this->fakes[$provider->value];
         }
     });
+
+    return $fakes;
+}
+
+/**
+ * Bind an in-memory FakeLinkedAccountConnector for every linkable provider
+ * and return them keyed by provider value (mirrors fakeVoice()).
+ *
+ * @param  array<int, LinkedAccountProvider>  $providers
+ * @return array<string, FakeLinkedAccountConnector>
+ */
+function fakeLinkedAccounts(array $providers = [LinkedAccountProvider::Steam, LinkedAccountProvider::Twitch]): array
+{
+    $fakes = [];
+    foreach ($providers as $provider) {
+        $fakes[$provider->value] = new FakeLinkedAccountConnector($provider);
+        app()->instance(LinkedAccountConnectors::abstractFor($provider), $fakes[$provider->value]);
+    }
 
     return $fakes;
 }
