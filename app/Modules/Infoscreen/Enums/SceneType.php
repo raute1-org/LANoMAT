@@ -18,6 +18,7 @@ enum SceneType: string
     case Tombola = 'tombola';
     case Status = 'status';
     case Servers = 'servers';
+    case Presence = 'presence';
 
     /**
      * Synthetic, override-only type: a tournament's winner-moment scene is

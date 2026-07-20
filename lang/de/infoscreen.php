@@ -12,6 +12,7 @@ return [
         'tombola' => 'Tombola',
         'status' => 'Statusanzeige',
         'servers' => 'Spielserver',
+        'presence' => 'Präsenz',
         'winner' => 'Sieger-Einblendung',
         'gong' => 'Go-Gong',
         'scoreboard' => 'Live-Scoreboard',
@@ -185,5 +186,17 @@ return [
         'scoreboard_title' => 'Live-Scoreboard',
         'scoreboard_round' => 'Runde :number',
         'scoreboard_tournament' => ':tournament',
+
+        // ScenePresence (M10 Task 10.4) — the beamer "wer ist da / spielt
+        // gerade / freie Slots" board, reusing the M10 PresenceProjection.
+        'presence_title' => 'Präsenz',
+        'presence_checked_in_label' => 'Eingecheckt',
+        'presence_live_matches_heading' => 'Läuft gerade',
+        'presence_live_matches_empty' => 'Gerade läuft kein Match.',
+        'presence_live_label' => 'LIVE',
+        'presence_free_slots_heading' => 'Freie Slots',
+        'presence_free_slots_empty' => 'Aktuell keine offenen Anmeldungen.',
+        'presence_open_unlimited' => 'offen',
+        'presence_open_spots' => ':count frei',
     ],
 ];

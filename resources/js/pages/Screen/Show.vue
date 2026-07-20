@@ -7,6 +7,7 @@ import SceneBracket from '@/components/scenes/SceneBracket.vue';
 import SceneFrame from '@/components/scenes/SceneFrame.vue';
 import SceneGong from '@/components/scenes/SceneGong.vue';
 import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
+import ScenePresence from '@/components/scenes/ScenePresence.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneScoreboard from '@/components/scenes/SceneScoreboard.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
@@ -41,6 +42,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     winner: SceneWinner,
     status: SceneStatus,
     servers: SceneServers,
+    presence: ScenePresence,
     gong: SceneGong,
     scoreboard: SceneScoreboard,
 };

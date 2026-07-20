@@ -13,6 +13,7 @@ use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\StatusSignal;
 use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
+use App\Modules\Presence\Support\PresenceProjection;
 use App\Modules\Registration\Support\QrCode;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\SeatProjection;
@@ -40,7 +41,10 @@ use Illuminate\Support\Facades\Storage;
  * `config.tournamentId` and project via {@see BracketMatchProjection}
  * (shared with the tournament show page); schedule, seatmap and servers
  * read the scene's own event via {@see ScheduleProjection}/{@see SeatProjection}/{@see ServerListProjection}
- * (shared with the schedule/seating/server-list pages); payment-qr renders
+ * (shared with the schedule/seating/server-list pages); presence reads the
+ * scene's event via {@see PresenceProjection} and returns only the
+ * headcount/live-matches/free-slots subset (the beamer glanceable set, not
+ * the full participant roster); payment-qr renders
  * `config.qrPayload` via the content-agnostic {@see QrCode} (no `qrSvg` key
  * when the payload is empty/unset); sponsors resolves `config.sponsorLogoPaths`
  * to public storage URLs. Every other scene type still gets `[]`, which is
@@ -77,6 +81,7 @@ final class ScenePayload
             SceneType::Tombola => self::tombolaData($scene),
             SceneType::Status => self::statusData($scene),
             SceneType::Servers => self::serversData($scene),
+            SceneType::Presence => self::presenceData($scene),
             default => [],
         };
     }
@@ -166,6 +171,34 @@ final class ScenePayload
         }
 
         return ['servers' => ServerListProjection::forEvent($event)];
+    }
+
+    /**
+     * The rotation-configured presence scene shows the smallest glanceable
+     * subset of the full {@see PresenceProjection} board: the checked-in
+     * headcount, who's currently playing, and which tournaments still have
+     * open slots. The full per-participant roster (name/seat/avatar) is
+     * deliberately left out — a beamer glanced at across a room needs the
+     * headline numbers, not a scrollable participant list (that stays the
+     * job of the `Presence/Index.vue` participant page).
+     *
+     * @return array{checkedInCount: int, liveMatches: list<array<string, mixed>>, freeSlots: list<array<string, mixed>>}
+     */
+    private static function presenceData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return ['checkedInCount' => 0, 'liveMatches' => [], 'freeSlots' => []];
+        }
+
+        $board = PresenceProjection::forEvent($event)->toArray();
+
+        return [
+            'checkedInCount' => $board['checkedInCount'],
+            'liveMatches' => $board['liveMatches'],
+            'freeSlots' => $board['freeSlots'],
+        ];
     }
 
     /**

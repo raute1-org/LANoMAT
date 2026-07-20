@@ -9,6 +9,7 @@ export type SceneType =
     | 'tombola'
     | 'status'
     | 'servers'
+    | 'presence'
     | 'winner'
     | 'gong'
     | 'scoreboard';
