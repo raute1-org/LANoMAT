@@ -52,6 +52,7 @@ use App\Modules\Infoscreen\Policies\InfoscreenScenePolicy;
 use App\Modules\Infoscreen\Policies\TombolaPrizePolicy;
 use App\Modules\Jukebox\Contracts\MusicClient;
 use App\Modules\Jukebox\MusicAssistant\HttpMusicClient;
+use App\Modules\Jukebox\Policies\JukeboxPolicy;
 use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
@@ -243,6 +244,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Friendship::class, FriendshipPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
+        Gate::define('jukebox.participate', [JukeboxPolicy::class, 'participate']);
+        Gate::define('jukebox.moderate', [JukeboxPolicy::class, 'moderate']);
     }
 
     /**
