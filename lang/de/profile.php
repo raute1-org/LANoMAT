@@ -18,4 +18,20 @@ return [
         'steam' => 'Steam-Profil',
         'no_bio' => 'Keine Beschreibung hinterlegt.',
     ],
+
+    'relationship' => [
+        'add' => 'Anfragen',
+        'request_sent' => 'Anfrage gesendet',
+        'cancel' => 'Zurückziehen',
+        'accept' => 'Annehmen',
+        'decline' => 'Ablehnen',
+        'friends' => 'Ihr seid befreundet',
+        'remove' => 'Entfernen',
+        'remove_confirm' => 'Freundschaft wirklich beenden?',
+        'block' => 'Blockieren',
+        'block_confirm' => 'Diese Person wirklich blockieren?',
+        'blocked' => 'Blockiert',
+        'unblock' => 'Entsperren',
+        'unblock_confirm' => 'Blockierung wirklich aufheben?',
+    ],
 ];
