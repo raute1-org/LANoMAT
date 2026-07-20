@@ -1,6 +1,8 @@
 <?php
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Games\Domain\SpectateHint;
+use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
@@ -46,6 +48,41 @@ it('surfaces a Ready match ServerLink in the tournament-page match DTO', functio
             ->where('matches.0.server.status', 'ready')
             // i18n gate: the German server-status label is exposed to the page.
             ->where('serverLinkStatusLabels.ready', 'Bereit')
+        );
+});
+
+it('surfaces the game spectate hint on the tournament-page match DTO', function () {
+    $game = Game::factory()->create([
+        'spectate_hint' => new SpectateHint(
+            gotvConnect: 'connect gotv.example:27020',
+            observerNote: 'Observer-Slot anfragen',
+            replayNote: 'Replay ab Runde 3',
+        ),
+    ]);
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->for($game, 'game')->create();
+    GameMatch::factory()->for($tournament)->create();
+
+    $this->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Tournaments/Show')
+            ->where('matches.0.spectateHint.gotvConnect', 'connect gotv.example:27020')
+            ->where('matches.0.spectateHint.observerNote', 'Observer-Slot anfragen')
+            ->where('matches.0.spectateHint.replayNote', 'Replay ab Runde 3')
+        );
+});
+
+it('exposes null spectateHint on the match DTO when the game has no spectate hint configured', function () {
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->create();
+    GameMatch::factory()->for($tournament)->create();
+
+    $this->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Tournaments/Show')
+            ->where('matches.0.spectateHint', null)
         );
 });
 

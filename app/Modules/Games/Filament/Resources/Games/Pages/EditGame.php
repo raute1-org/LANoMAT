@@ -5,6 +5,7 @@ namespace App\Modules\Games\Filament\Resources\Games\Pages;
 use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
+use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
 use App\Modules\Games\Models\Game;
 use Filament\Actions\DeleteAction;
@@ -62,6 +63,16 @@ class EditGame extends EditRecord
 
         unset($data['install_hint']);
 
+        $spectateHint = $data['spectate_hint'] ?? null;
+
+        if ($spectateHint instanceof SpectateHint) {
+            $data['spectate_hint_gotv_connect'] = $spectateHint->gotvConnect;
+            $data['spectate_hint_observer_note'] = $spectateHint->observerNote;
+            $data['spectate_hint_replay_note'] = $spectateHint->replayNote;
+        }
+
+        unset($data['spectate_hint']);
+
         return $data;
     }
 
@@ -80,6 +91,7 @@ class EditGame extends EditRecord
         $config = CreateGame::extractConfig($data);
         $presets = CreateGame::extractPresets($data);
         $installHint = CreateGame::extractInstallHint($data);
+        $spectateHint = CreateGame::extractSpectateHint($data);
 
         $record->update($data);
 
@@ -87,6 +99,7 @@ class EditGame extends EditRecord
             $record->default_server_config = $config;
             $record->server_presets = $presets;
             $record->install_hint = $installHint;
+            $record->spectate_hint = $spectateHint;
             $record->save();
         }
 

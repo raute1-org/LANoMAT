@@ -7,6 +7,7 @@ namespace App\Modules\Games\Filament\Resources\Games\Pages;
 use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
+use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
 use App\Modules\Games\Models\Game;
 use Filament\Notifications\Notification;
@@ -35,12 +36,14 @@ class CreateGame extends CreateRecord
         $config = self::extractConfig($data);
         $presets = self::extractPresets($data);
         $installHint = self::extractInstallHint($data);
+        $spectateHint = self::extractSpectateHint($data);
 
         /** @var Game $record */
         $record = new Game($data);
         $record->default_server_config = $config;
         $record->server_presets = $presets;
         $record->install_hint = $installHint;
+        $record->spectate_hint = $spectateHint;
         $record->save();
 
         return $record;
@@ -154,6 +157,31 @@ class CreateGame extends CreateRecord
             $data['install_hint_steam_url'],
             $data['install_hint_share_url'],
             $data['install_hint_version_note'],
+        );
+
+        return $hint;
+    }
+
+    /**
+     * Extracts the game's spectate hint ("So schaust du zu", M10 T8) from the
+     * form's flat `spectate_hint_*` fields — spectate_hint itself is not in
+     * Game::$fillable, so it must be assigned separately through its typed
+     * cast, mirroring extractInstallHint() above.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function extractSpectateHint(array &$data): SpectateHint
+    {
+        $hint = new SpectateHint(
+            gotvConnect: $data['spectate_hint_gotv_connect'] ?? null,
+            observerNote: $data['spectate_hint_observer_note'] ?? null,
+            replayNote: $data['spectate_hint_replay_note'] ?? null,
+        );
+
+        unset(
+            $data['spectate_hint_gotv_connect'],
+            $data['spectate_hint_observer_note'],
+            $data['spectate_hint_replay_note'],
         );
 
         return $hint;

@@ -5,9 +5,11 @@ namespace App\Modules\Games\Models;
 use App\Modules\Games\Casts\InstallHintCast;
 use App\Modules\Games\Casts\ServerConfigCast;
 use App\Modules\Games\Casts\ServerPresetsCast;
+use App\Modules\Games\Casts\SpectateHintCast;
 use App\Modules\Games\Domain\InstallHint;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
+use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Tournaments\Models\Tournament;
 use Database\Factories\GameFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,17 +27,18 @@ use Illuminate\Support\Facades\Storage;
  * @property ServerConfig $default_server_config
  * @property list<ServerPreset> $server_presets
  * @property InstallHint $install_hint
+ * @property SpectateHint $spectate_hint
  */
 class Game extends Model
 {
     /** @use HasFactory<GameFactory> */
     use HasFactory;
 
-    // default_server_config, server_presets, and install_hint deliberately
-    // NOT fillable: all three are structured data that must go through their
-    // typed casts rather than a mass-assigned raw array (mirrors
-    // InfoscreenScene::$config and FoodOrder::$menu — see roadmap insight #9
-    // on Filament's KeyValue mangling jsonb types).
+    // default_server_config, server_presets, install_hint, and spectate_hint
+    // deliberately NOT fillable: all four are structured data that must go
+    // through their typed casts rather than a mass-assigned raw array
+    // (mirrors InfoscreenScene::$config and FoodOrder::$menu — see roadmap
+    // insight #9 on Filament's KeyValue mangling jsonb types).
     protected $fillable = [
         'name',
         'slug',
@@ -53,6 +56,7 @@ class Game extends Model
             'default_server_config' => ServerConfigCast::class,
             'server_presets' => ServerPresetsCast::class,
             'install_hint' => InstallHintCast::class,
+            'spectate_hint' => SpectateHintCast::class,
         ];
     }
 

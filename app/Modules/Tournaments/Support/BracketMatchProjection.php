@@ -48,6 +48,32 @@ class BracketMatchProjection
             'lockVersion' => $match->lock_version,
             'server' => self::serverDto($match, $match->serverLink),
             'warmupStartedAt' => $match->warmup_started_at?->toIso8601String(),
+            'spectateHint' => self::spectateHintFor($match),
+        ];
+    }
+
+    /**
+     * Surfaces the game's "So schaust du zu" spectate hint (M10 T8) on the
+     * match page — null (rendered as nothing, no empty placeholder) when the
+     * tournament has no game or the game has no hint configured, mirroring
+     * {@see ServerListProjection::installHintFor()}'s null-when-empty rule.
+     * Shown regardless of ServerLink status: it's about the game, not the
+     * server's lifecycle.
+     *
+     * @return array{gotvConnect: ?string, observerNote: ?string, replayNote: ?string}|null
+     */
+    private static function spectateHintFor(GameMatch $match): ?array
+    {
+        $game = $match->tournament?->game;
+
+        if ($game === null || $game->spectate_hint->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'gotvConnect' => $game->spectate_hint->gotvConnect,
+            'observerNote' => $game->spectate_hint->observerNote,
+            'replayNote' => $game->spectate_hint->replayNote,
         ];
     }
 

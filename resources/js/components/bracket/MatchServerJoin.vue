@@ -3,7 +3,7 @@ import { Check, Copy } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
-import type { MatchServerDto } from '@/types';
+import type { MatchServerDto, SpectateHintDto } from '@/types';
 
 /**
  * The match card's game-server join block (Task 5): a `LiveIndicator`
@@ -24,9 +24,17 @@ import type { MatchServerDto } from '@/types';
  * label when the estimate is over the per-instance cap, since the actual
  * enforcement already happened in the job — this is informational, not a
  * blocking control.
+ *
+ * Spectate hint ("So schaust du zu", M10 T8): a quiet secondary block shown
+ * whenever the tournament's game has one configured, independent of the
+ * ServerLink's own lifecycle (it describes the game, not this particular
+ * server) — mirrors the participant Servers page's install-hint block, with
+ * the GOTV/observer connect string in `font-mono` (Signalpult rule: mono for
+ * machine-readable data) and the two notes as plain text.
  */
 const props = defineProps<{
     server: MatchServerDto | null;
+    spectateHint?: SpectateHintDto | null;
     /** `gameservers.match_page` labels: connect/copy/copied/heading/... */
     labels: Record<string, string>;
     /** `gameservers.server_link_status` labels, keyed by status value. */
@@ -34,6 +42,15 @@ const props = defineProps<{
 }>();
 
 const copied = ref(false);
+const hintCopied = ref(false);
+
+async function copyHint(text: string) {
+    await navigator.clipboard.writeText(text);
+    hintCopied.value = true;
+    setTimeout(() => {
+        hintCopied.value = false;
+    }, 2000);
+}
 
 const variant = computed<'ok' | 'warn' | 'down' | null>(() => {
     switch (props.server?.status) {
@@ -127,5 +144,49 @@ async function copyAddress() {
                 ({{ labels.estimate_over_cap }})</span
             >
         </span>
+    </div>
+
+    <!-- spectate hint ("So schaust du zu"): rendered only when the
+         tournament's game has one configured — nothing shown otherwise, a
+         calm, unobtrusive readout rather than an empty placeholder.
+         Independent of the ServerLink block above: it describes the game,
+         not this particular server. -->
+    <div
+        v-if="spectateHint"
+        class="mt-2 space-y-1 rounded-md border border-border bg-muted/30 p-2 text-xs"
+    >
+        <p class="font-medium text-foreground">
+            {{ labels.spectate_hint_label }}
+        </p>
+
+        <div
+            v-if="spectateHint.gotvConnect"
+            class="flex flex-wrap items-center gap-2"
+        >
+            <span class="font-mono text-muted-foreground">
+                {{ spectateHint.gotvConnect }}
+            </span>
+            <Button
+                size="icon-sm"
+                variant="ghost"
+                :aria-label="
+                    hintCopied
+                        ? labels.spectate_hint_copied
+                        : labels.spectate_hint_copy
+                "
+                @click="copyHint(spectateHint.gotvConnect)"
+            >
+                <Check v-if="hintCopied" class="size-3.5 text-ok" />
+                <Copy v-else class="size-3.5" />
+            </Button>
+        </div>
+
+        <p v-if="spectateHint.observerNote" class="text-muted-foreground">
+            {{ spectateHint.observerNote }}
+        </p>
+
+        <p v-if="spectateHint.replayNote" class="text-muted-foreground">
+            {{ spectateHint.replayNote }}
+        </p>
     </div>
 </template>

@@ -148,6 +148,20 @@ class GameForm
                 TextInput::make('install_hint_version_note')
                     ->label(__('games.fields.install_hint_version_note'))
                     ->maxLength(255),
+
+                // Typed spectate_hint fields ("So schaust du zu", M10 T8):
+                // spectate_hint itself is not fillable (see Game model), so
+                // these flat keys are marshalled into a SpectateHint by the
+                // Create/Edit pages, mirroring the install_hint fields above.
+                TextInput::make('spectate_hint_gotv_connect')
+                    ->label(__('games.fields.spectate_hint_gotv_connect'))
+                    ->maxLength(255),
+                TextInput::make('spectate_hint_observer_note')
+                    ->label(__('games.fields.spectate_hint_observer_note'))
+                    ->maxLength(255),
+                TextInput::make('spectate_hint_replay_note')
+                    ->label(__('games.fields.spectate_hint_replay_note'))
+                    ->maxLength(255),
             ]);
     }
 }

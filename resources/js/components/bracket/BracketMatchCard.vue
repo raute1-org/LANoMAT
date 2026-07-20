@@ -267,6 +267,7 @@ const hasLiveScore = computed(
 
         <MatchServerJoin
             :server="match.server"
+            :spectate-hint="match.spectateHint"
             :labels="serverLabels"
             :status-labels="serverLinkStatusLabels"
         />

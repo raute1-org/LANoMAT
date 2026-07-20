@@ -43,7 +43,7 @@ it('renders the bracket overlay for a tournament whose event is publicly visible
             ->where('tournament.name', $tournament->name)
             ->has('matches', 7)
             ->has('matches.0', fn (AssertableInertia $match) => $match
-                ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'lockVersion', 'server', 'warmupStartedAt'])
+                ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'lockVersion', 'server', 'warmupStartedAt', 'spectateHint'])
             )
             ->has('labels.matchStatusLabels')
             ->has('labels.bracketLabels')

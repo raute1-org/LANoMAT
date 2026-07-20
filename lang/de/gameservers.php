@@ -28,6 +28,10 @@ return [
         'port_label' => 'Port',
         'estimate_label' => 'Geschätzter Bedarf',
         'estimate_over_cap' => 'Über dem Limit',
+        'spectate_hint_label' => 'So schaust du zu',
+        'spectate_hint_connect' => 'GOTV/Observer verbinden',
+        'spectate_hint_copy' => 'Kopieren',
+        'spectate_hint_copied' => 'Kopiert!',
     ],
     // The CS2 live-stats score on the match page (roadmap 6.9,
     // Cs2TelemetryTest/MatchScoreUpdated) — a calm, small readout next to

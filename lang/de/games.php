@@ -28,5 +28,9 @@ return [
         'install_hint_steam_url' => 'Steam-Deeplink',
         'install_hint_share_url' => 'Download-Link',
         'install_hint_version_note' => 'Versions-/Modpack-Hinweis',
+        'spectate_hint' => 'So schaust du zu',
+        'spectate_hint_gotv_connect' => 'GOTV-/Observer-Connect',
+        'spectate_hint_observer_note' => 'Hinweis zum Observer-Slot',
+        'spectate_hint_replay_note' => 'Hinweis zu Demo/Replay',
     ],
 ];

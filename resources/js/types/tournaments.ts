@@ -69,6 +69,19 @@ export interface MatchServerDto {
     estimate: ServerResourceEstimate | null;
 }
 
+/**
+ * The game's "So schaust du zu" spectate hint (M10 T8): how a spectator
+ * watches a match — a GOTV/observer connect string, and/or free-text notes on
+ * requesting an observer slot or on demo/replay availability. Null fields are
+ * simply not shown; a wholly-empty hint is projected as `null` on
+ * `BracketMatchDto.spectateHint`.
+ */
+export interface SpectateHintDto {
+    gotvConnect: string | null;
+    observerNote: string | null;
+    replayNote: string | null;
+}
+
 export interface BracketMatchDto {
     id: number;
     round: number;
@@ -88,4 +101,5 @@ export interface BracketMatchDto {
     server: MatchServerDto | null;
     /** Set once the match enters warmup (Task 11); null before/after. */
     warmupStartedAt: string | null;
+    spectateHint: SpectateHintDto | null;
 }
