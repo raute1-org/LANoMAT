@@ -19,6 +19,8 @@ use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Policies\SharedFilePolicy;
+use App\Modules\Friends\Models\Friendship;
+use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\GameServers\Contracts\PelicanClient;
@@ -230,6 +232,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CustomServer::class, CustomServerPolicy::class);
         Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
         Gate::policy(LinkedAccount::class, LinkedAccountPolicy::class);
+        Gate::policy(Friendship::class, FriendshipPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
     }
