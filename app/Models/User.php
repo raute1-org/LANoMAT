@@ -4,6 +4,9 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\Role;
+use App\Modules\Friends\Enums\FriendshipStatus;
+use App\Modules\Friends\Models\Friendship;
+use App\Modules\Friends\Models\UserBlock;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Identity\Support\DisplayNameResolver;
@@ -19,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -144,5 +148,75 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     public function displayNameFor(?LinkedAccountProvider $context = null): string
     {
         return (new DisplayNameResolver)->resolve($this, $context);
+    }
+
+    /**
+     * The users this user has an accepted friendship with, in either
+     * direction. Eloquent's HasMany can't OR two foreign keys onto one
+     * relation, so this is a plain query helper rather than a relation.
+     *
+     * @return Collection<int, User>
+     */
+    public function acceptedFriends(): Collection
+    {
+        $friendships = Friendship::query()
+            ->where('status', FriendshipStatus::Accepted)
+            ->where(function ($query): void {
+                $query->where('requester_id', $this->id)->orWhere('addressee_id', $this->id);
+            })
+            ->get();
+
+        return $friendships->map(fn (Friendship $friendship): User => $friendship->otherUser($this));
+    }
+
+    /**
+     * Pending friend requests sent TO this user (this user is the addressee).
+     *
+     * @return Collection<int, Friendship>
+     */
+    public function incomingRequests(): Collection
+    {
+        return Friendship::query()
+            ->where('addressee_id', $this->id)
+            ->where('status', FriendshipStatus::Pending)
+            ->get();
+    }
+
+    /**
+     * Pending friend requests sent BY this user (this user is the requester).
+     *
+     * @return Collection<int, Friendship>
+     */
+    public function outgoingRequests(): Collection
+    {
+        return Friendship::query()
+            ->where('requester_id', $this->id)
+            ->where('status', FriendshipStatus::Pending)
+            ->get();
+    }
+
+    /**
+     * The users this user has blocked.
+     *
+     * @return Collection<int, User>
+     */
+    public function blockedUsers(): Collection
+    {
+        return User::query()
+            ->whereIn('id', UserBlock::query()->where('blocker_id', $this->id)->pluck('blocked_id'))
+            ->get();
+    }
+
+    public function hasBlocked(User $user): bool
+    {
+        return UserBlock::query()
+            ->where('blocker_id', $this->id)
+            ->where('blocked_id', $user->id)
+            ->exists();
+    }
+
+    public function isBlockedBy(User $user): bool
+    {
+        return $user->hasBlocked($this);
     }
 }
