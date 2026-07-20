@@ -8,6 +8,7 @@ import {
     register as eventsRegister,
 } from '@/routes/events';
 import { discord as loginDiscord } from '@/routes/login';
+import { show as presenceShow } from '@/routes/presence';
 import type { EventSummary } from '@/types';
 
 const props = defineProps<{
@@ -102,6 +103,11 @@ const cta = computed<string | null>(() => {
             </Button>
             <Button v-else-if="cta" size="lg" disabled aria-disabled="true">
                 {{ cta }}
+            </Button>
+            <Button as-child variant="outline">
+                <Link :href="presenceShow.url(event.slug)">{{
+                    labels.to_presence
+                }}</Link>
             </Button>
             <Button as-child variant="outline">
                 <Link :href="eventsIndex()">{{ labels.to_archive }}</Link>

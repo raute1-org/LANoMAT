@@ -7,6 +7,7 @@ export * from './infoscreen';
 export * from './lfg';
 export * from './navigation';
 export * from './notifications';
+export * from './presence';
 export * from './registration';
 export * from './schedule';
 export * from './seating';

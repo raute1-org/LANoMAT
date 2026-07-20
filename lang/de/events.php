@@ -47,6 +47,7 @@ return [
         'archive_title' => 'Vergangene LANs',
         'archive_empty' => 'Noch keine vergangenen Events.',
         'to_archive' => 'Zum Archiv',
+        'to_presence' => 'Wer ist da?',
         'cta' => [
             'announced' => 'Bald geht die Anmeldung los',
             'registration' => 'Jetzt anmelden',

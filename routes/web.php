@@ -13,6 +13,7 @@ use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Lfg\Http\LfgController;
 use App\Modules\Notifications\Http\NotificationController;
+use App\Modules\Presence\Http\PresencePageController;
 use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
 use App\Modules\Schedule\Http\ScheduleController;
@@ -76,6 +77,11 @@ Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'in
 // approved files (+ the viewer's own pending ones); uploading/deleting
 // requires auth (see below). Files are approved by a helper/orga (Task 6).
 Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->name('files.index');
+
+// Public presence board — same "public like seating/tournaments/schedule/
+// catering/polls/lfg/servers/files, no auth required" visibility rule; who is
+// checked in, where, and what's currently live (see PresenceProjection).
+Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'show'])->name('presence.show');
 
 // Public beamer screen — same "public like seating/tournaments/schedule/
 // catering/polls/lfg, no auth required" visibility rule; renders with no
