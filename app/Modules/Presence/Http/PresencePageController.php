@@ -23,7 +23,7 @@ class PresencePageController extends Controller
         abort_unless($event->isPubliclyVisible(), 404);
 
         return Inertia::render('Presence/Index', [
-            'event' => ['name' => $event->name, 'slug' => $event->slug],
+            'event' => ['id' => $event->id, 'name' => $event->name, 'slug' => $event->slug],
             'presence' => PresenceProjection::forEvent($event)->toArray(),
             'labels' => trans('presence'),
         ]);

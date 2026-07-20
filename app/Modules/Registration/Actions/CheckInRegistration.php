@@ -3,6 +3,7 @@
 namespace App\Modules\Registration\Actions;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Presence\Events\PresenceUpdated;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\CheckInException;
 use App\Modules\Registration\Models\EventRegistration;
@@ -31,6 +32,8 @@ class CheckInRegistration
 
         $registration->checked_in_at = Carbon::now();
         $registration->save();
+
+        PresenceUpdated::dispatch($registration->event_id);
 
         return $registration;
     }

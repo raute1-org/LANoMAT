@@ -12,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useEventChannel } from '@/composables/useEventChannel';
 import { show as tournamentsShow } from '@/routes/tournaments';
 import type { PresenceBoardDto } from '@/types';
 
@@ -44,10 +45,18 @@ interface PresenceLabels {
 }
 
 const props = defineProps<{
-    event: { name: string; slug: string };
+    event: { id: number; name: string; slug: string };
     presence: PresenceBoardDto;
     labels: PresenceLabels;
 }>();
+
+// Live board: check-ins and match/tournament transitions push a bare
+// `presence.updated` signal on the public `event.{id}` channel; reload just
+// the `presence` prop rather than poll — mirrors Screen/Show.vue's
+// `.scenes.updated` handling.
+useEventChannel(props.event.id, ['.presence.updated'], () => {
+    router.reload({ only: ['presence'] });
+});
 
 function t<S extends keyof PresenceLabels>(
     section: S,

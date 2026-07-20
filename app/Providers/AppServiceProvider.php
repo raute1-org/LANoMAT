@@ -46,6 +46,7 @@ use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
+use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
@@ -228,5 +229,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
         Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
         Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);
+        Event::listen(MatchReady::class, BroadcastPresenceOnTournamentActivity::class);
+        Event::listen(MatchWentLive::class, BroadcastPresenceOnTournamentActivity::class);
+        Event::listen(MatchCompleted::class, BroadcastPresenceOnTournamentActivity::class);
+        Event::listen(TournamentStarted::class, BroadcastPresenceOnTournamentActivity::class);
     }
 }
