@@ -4,11 +4,14 @@ namespace App\Modules\Registration\Models;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Presence\Support\PresenceProjection;
 use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Seating\Models\SeatAssignment;
 use Database\Factories\EventRegistrationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -68,6 +71,20 @@ class EventRegistration extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Read-only side of the seat assignment (the Seating module owns
+     * creation/deletion via its own `Seat`/`SeatAssignment` models) — lets
+     * other modules resolve "which seat is this registration's occupant in"
+     * without reaching into Seating's tables directly (see
+     * {@see PresenceProjection}).
+     *
+     * @return HasOne<SeatAssignment, $this>
+     */
+    public function seatAssignment(): HasOne
+    {
+        return $this->hasOne(SeatAssignment::class, 'registration_id');
     }
 
     protected static function newFactory(): EventRegistrationFactory
