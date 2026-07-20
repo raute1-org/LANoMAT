@@ -39,3 +39,29 @@ it('refuses a request to self, to an existing friend, or across a block', functi
     UserBlock::factory()->create(['blocker_id' => $b->id, 'blocked_id' => $a->id]);
     expect(fn () => app(SendFriendRequest::class)->handle($a, $b))->toThrow(FriendshipException::class);
 });
+
+it('refuses a request when a block exists in the other direction', function () {
+    $a = User::factory()->create();
+    $b = User::factory()->create();
+    UserBlock::factory()->create(['blocker_id' => $a->id, 'blocked_id' => $b->id]);
+    expect(fn () => app(SendFriendRequest::class)->handle($a, $b))->toThrow(FriendshipException::class);
+});
+
+it('refuses a request when the users are already friends', function () {
+    $a = User::factory()->create();
+    $b = User::factory()->create();
+    $req = app(SendFriendRequest::class)->handle($a, $b);
+    app(RespondToFriendRequest::class)->handle($b, $req, accept: true);
+
+    expect(fn () => app(SendFriendRequest::class)->handle($a, $b))->toThrow(FriendshipException::class)
+        ->and(fn () => app(SendFriendRequest::class)->handle($b, $a))->toThrow(FriendshipException::class);
+});
+
+it('refuses a duplicate forward-direction pending request', function () {
+    $a = User::factory()->create();
+    $b = User::factory()->create();
+    app(SendFriendRequest::class)->handle($a, $b); // a → b pending
+
+    expect(fn () => app(SendFriendRequest::class)->handle($a, $b))->toThrow(FriendshipException::class)
+        ->and(Friendship::count())->toBe(1);
+});
