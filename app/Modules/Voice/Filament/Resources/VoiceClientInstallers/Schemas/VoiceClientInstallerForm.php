@@ -50,6 +50,11 @@ class VoiceClientInstallerForm
                     ->directory('voice-installers')
                     ->storeFileNamesIn('installer_upload_name')
                     ->preserveFilenames()
+                    // Client installers are large binaries; lift Filament's
+                    // implicit cap to 1 GB (KB units). Mirrors the Livewire
+                    // temporary-upload rule (config/livewire.php) and must stay
+                    // within the PHP upload_max_filesize/post_max_size.
+                    ->maxSize(1048576)
                     ->required(fn (string $operation): bool => $operation === 'create')
                     ->dehydrated(fn (?string $state): bool => filled($state))
                     ->helperText(__('voice.resource.fields.installer_upload_help')),
