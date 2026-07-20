@@ -25,10 +25,10 @@ final readonly class LinkedAccountData
      */
     public function __construct(
         public string $provider_user_id,
-        public ?string $nickname,
-        public ?string $access_token,
-        public ?string $refresh_token,
-        public ?CarbonImmutable $token_expires_at,
+        public ?string $nickname = null,
+        public ?string $access_token = null,
+        public ?string $refresh_token = null,
+        public ?CarbonImmutable $token_expires_at = null,
         public array $scopes = [],
         public array $meta = [],
     ) {}
