@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\Role;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Models\LinkedAccount;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -119,5 +122,16 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return Attribute::make(
             get: fn (): bool => $this->password !== null,
         );
+    }
+
+    /** @return HasMany<LinkedAccount, $this> */
+    public function linkedAccounts(): HasMany
+    {
+        return $this->hasMany(LinkedAccount::class);
+    }
+
+    public function linkedAccount(LinkedAccountProvider $provider): ?LinkedAccount
+    {
+        return $this->linkedAccounts->firstWhere('provider', $provider);
     }
 }
