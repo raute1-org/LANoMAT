@@ -36,6 +36,7 @@ use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Hosts\SshRemoteExecutor;
 use App\Modules\Identity\Connectors\SteamConnector;
+use App\Modules\Identity\Connectors\TwitchConnector;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Identity\Policies\LinkedAccountPolicy;
@@ -101,6 +102,7 @@ use Illuminate\Validation\Rules\Password;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Steam\Provider as SteamProvider;
+use SocialiteProviders\Twitch\Provider as TwitchProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -137,8 +139,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(LinkedAccountConnectors::class);
 
         // Real per-provider connectors are bound under
-        // LinkedAccountConnectors::abstractFor($provider). Steam is wired
-        // here (9.3); Twitch follows in 9.4. Until a provider is bound,
+        // LinkedAccountConnectors::abstractFor($provider). Steam (9.3) and
+        // Twitch (9.4) are wired here. Until a provider is bound,
         // LinkedAccountConnectors::for() throws
         // IdentityException::unknownLinkedAccountProvider(). Tests bind
         // fakes via the fakeLinkedAccounts() helper (tests/Pest.php), which
@@ -146,6 +148,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             LinkedAccountConnectors::abstractFor(LinkedAccountProvider::Steam),
             SteamConnector::class,
+        );
+
+        $this->app->bind(
+            LinkedAccountConnectors::abstractFor(LinkedAccountProvider::Twitch),
+            TwitchConnector::class,
         );
     }
 
@@ -190,6 +197,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(function (SocialiteWasCalled $event) {
             $event->extendSocialite('discord', DiscordProvider::class);
             $event->extendSocialite('steam', SteamProvider::class);
+            $event->extendSocialite('twitch', TwitchProvider::class);
         });
     }
 

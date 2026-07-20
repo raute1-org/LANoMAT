@@ -26,10 +26,11 @@ it('resolves a connector per provider once a fake is bound', function () {
 });
 
 it('throws when no connector is bound for a provider', function () {
-    // Steam has a real connector bound in production since Task 9.3; Twitch
-    // remains unbound until Task 9.4, so it still exercises this path.
+    // Steam (9.3) and Twitch (9.4) both have real connectors bound in
+    // production now; BattleNet has no connector yet, so it still
+    // exercises this path.
     $registry = app(LinkedAccountConnectors::class);
 
-    expect(fn () => $registry->for(LinkedAccountProvider::Twitch))
+    expect(fn () => $registry->for(LinkedAccountProvider::BattleNet))
         ->toThrow(IdentityException::class);
 });
