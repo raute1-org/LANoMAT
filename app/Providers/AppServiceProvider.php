@@ -50,6 +50,8 @@ use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Infoscreen\Policies\InfoscreenScenePolicy;
 use App\Modules\Infoscreen\Policies\TombolaPrizePolicy;
+use App\Modules\Jukebox\Contracts\MusicClient;
+use App\Modules\Jukebox\MusicAssistant\HttpMusicClient;
 use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
@@ -134,6 +136,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(
             (int) config('services.hosts.connect_timeout'),
             (bool) config('services.hosts.strict_host_key'),
+        ));
+
+        $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
+            (string) config('services.music_assistant.base_url'),
+            (string) config('services.music_assistant.token'),
+            (string) config('services.music_assistant.player_id'),
         ));
 
         $this->app->bind(ScheduleParticipantResolver::class, TournamentScheduleParticipantResolver::class);

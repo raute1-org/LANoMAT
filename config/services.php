@@ -118,6 +118,16 @@ return [
         'strict_host_key' => (bool) env('HOSTS_STRICT_HOST_KEY', true),
     ],
 
+    // Music Assistant (M11, Jukebox). MUSIC_ASSISTANT_TOKEN is a long-lived
+    // bearer token for MA's HTTP/JSON-RPC surface at MUSIC_ASSISTANT_URL
+    // (default port 8095); MUSIC_ASSISTANT_PLAYER_ID is the MA player/queue
+    // id LANoMAT's single configured jukebox player controls.
+    'music_assistant' => [
+        'base_url' => env('MUSIC_ASSISTANT_URL', 'http://music-assistant:8095'),
+        'token' => env('MUSIC_ASSISTANT_TOKEN'),
+        'player_id' => env('MUSIC_ASSISTANT_PLAYER_ID'),
+    ],
+
     // LanCache (M7, roadmap 7.5): parametrizes the `docker run` bootstrap
     // ApplyLancacheSetup builds and runs over SSH on a role=lancache
     // RemoteHost — see docs/lancache-setup.md for the exact command shape.
