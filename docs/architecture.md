@@ -95,6 +95,65 @@ Key decisions (see design doc §7 for full rationale):
 - `discord_outbox.dedup_key` gives idempotent announcement delivery (replaces in-memory dedup from v1).
 - File uploads (icons, logos) go to Laravel Storage (`*_path` columns), never Base64 in the database.
 
+## Identity & account linking
+
+Login stays **Discord-only**. `users.discord_id` is a unique-nullable column and remains
+the sole authentication anchor and the routing key for Discord DMs and Interactions — it is
+never touched by anything in this section.
+
+A separate `linked_accounts` table holds *secondary* platform accounts a user optionally
+connects on top of their Discord login — currently Steam and Twitch, with `battlenet`,
+`epic`, and `gog` reserved as `LinkedAccountProvider` enum members for later (`GOG` has no
+public OAuth flow, so it would need a manual-link path rather than the connector flow below).
+Discord is deliberately **not** a row in this table.
+
+```
+linked_accounts  (id, user_id FK, provider, provider_user_id, nickname,
+                  access_token NULLABLE encrypted, refresh_token NULLABLE encrypted,
+                  token_expires_at, scopes JSONB, meta JSONB,
+                  UNIQUE(provider, provider_user_id), UNIQUE(user_id, provider))
+```
+
+`access_token`/`refresh_token` use Eloquent's `encrypted` cast, are never `$fillable` (set
+only via `forceFill()` inside the actions that own the OAuth exchange), and are never
+serialized to the frontend. `UNIQUE(provider, provider_user_id)` guarantees one external
+account maps to at most one LANoMAT user; `UNIQUE(user_id, provider)` caps a user to one
+linked account per provider.
+
+Each provider is accessed only through the `LinkedAccountConnector` contract
+(`redirectUrl()`, `resolveCallback()`, `refresh()`, `ownsApp()`), resolved per-provider via
+the `LinkedAccountConnectors` registry rather than a `match` over a fixed set — this lets
+providers be added incrementally without touching the registry. Steam links via OpenID
+(identity only — `hasTokenLifecycle()` is `false`, so it never issues or refreshes a token).
+Twitch links via OAuth2 with an encrypted refresh token; an hourly `RefreshExpiringTokensJob`
+sweeps accounts whose `token_expires_at` is approaching and refreshes them, and a refresh
+failure flags the account `needs_reauth` in `meta` and sends the owner a
+`LinkedAccountReauthRequired` notification rather than failing silently. Tests exercise this
+entirely through `FakeLinkedAccountConnector` / the `fakeLinkedAccounts()` helper — never a
+real Steam/Twitch API call.
+
+Two consumers build on top of the linked accounts:
+
+- **`DisplayNameResolver`** — in a given provider's context (e.g. a Steam-specific view),
+  shows that provider's linked nickname; otherwise falls back to the LANoMAT name. Pure and
+  IO-free, reading only the already-loaded relation.
+- **`GameOwnershipHint`** (paired with `games.provider`/`games.provider_app_id`) — an
+  **advisory-only** signal computed from a linked account's provider-reported ownership. This
+  is a **binding invariant, not an implementation detail**: it must never gate tournament
+  enrollment, regardless of whether it resolves to owned, not-owned, or unknown (no provider
+  mapping on the game, no linked account, private profile, or a failed provider call all
+  collapse to `Unknown`). Enrollment must always succeed; the hint may only render as a
+  calm, non-blocking warning. This is pinned by
+  `tests/Feature/Identity/OwnershipHintNeverBlocksTest.php`.
+
+`users.id` — never `discord_id` — is the sole foreign-key and merge anchor across the
+schema. This matters beyond M9: a future community/user-fusion feature is expected to
+repoint foreign keys from a "loser" user onto a surviving user, turning the loser into a
+tombstone that reads follow. That merge is **not built** — there is no
+`merged_into_user_id` column and no merge logic (YAGNI until a real fusion lands) — but the
+guardrail is fixed now: keep `users.id` the sole anchor, keep FKs and history merge-capable,
+and never let `discord_id` become the sole identity anchor anywhere in the schema.
+
 ## Real-time
 
 Reverb channels are scoped per context: `event.{id}` (infoscreen control, announcements),
