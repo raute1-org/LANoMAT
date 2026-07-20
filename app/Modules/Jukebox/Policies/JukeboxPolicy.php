@@ -6,6 +6,7 @@ namespace App\Modules\Jukebox\Policies;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
 
 /**
@@ -24,6 +25,7 @@ class JukeboxPolicy
         return EventRegistration::query()
             ->where('event_id', $event->id)
             ->where('user_id', $user->id)
+            ->where('status', '!=', RegistrationStatus::Cancelled)
             ->whereNotNull('checked_in_at')
             ->exists();
     }

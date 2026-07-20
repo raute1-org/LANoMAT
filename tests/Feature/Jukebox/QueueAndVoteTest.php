@@ -12,6 +12,7 @@ use App\Modules\Jukebox\Models\JukeboxItem;
 use App\Modules\Jukebox\Models\JukeboxVote;
 use App\Modules\Jukebox\Support\JukeboxQueue;
 use App\Modules\Jukebox\Support\TrackDto;
+use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -49,6 +50,24 @@ it('lets a checked-in user queue one track but blocks a second unplayed one', fu
 it('refuses queue/vote from a non-checked-in user', function () {
     $event = Event::factory()->create();
     $user = User::factory()->create();
+
+    expect(fn () => app(AddToQueue::class)->handle($user, $event, track('a')))
+        ->toThrow(JukeboxException::class);
+
+    $item = JukeboxItem::factory()->create(['event_id' => $event->id]);
+
+    expect(fn () => app(ToggleVote::class)->handle($user, $item))
+        ->toThrow(JukeboxException::class);
+});
+
+it('refuses queue/vote from a user who checked in but then had their registration cancelled', function () {
+    $event = Event::factory()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->checkedIn()->create([
+        'event_id' => $event->id,
+        'user_id' => $user->id,
+        'status' => RegistrationStatus::Cancelled,
+    ]);
 
     expect(fn () => app(AddToQueue::class)->handle($user, $event, track('a')))
         ->toThrow(JukeboxException::class);

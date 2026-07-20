@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Jukebox\Support;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
 
 /**
@@ -19,6 +20,7 @@ class SkipThreshold
     {
         $checkedInCount = EventRegistration::query()
             ->where('event_id', $event->id)
+            ->where('status', '!=', RegistrationStatus::Cancelled)
             ->whereNotNull('checked_in_at')
             ->count();
 

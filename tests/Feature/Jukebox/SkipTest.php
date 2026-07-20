@@ -13,6 +13,7 @@ use App\Modules\Jukebox\Exceptions\JukeboxException;
 use App\Modules\Jukebox\Models\JukeboxItem;
 use App\Modules\Jukebox\Models\JukeboxSkipVote;
 use App\Modules\Jukebox\Support\SkipThreshold;
+use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -50,6 +51,20 @@ it('ignores non-checked-in registrations when computing the skip threshold', fun
     EventRegistration::factory()->count(20)->create(['event_id' => $event->id]); // not checked in
 
     expect(SkipThreshold::for($event))->toBe(3);
+});
+
+it('ignores a cancelled-but-checked-in registration when computing the skip threshold', function () {
+    $event = Event::factory()->create();
+    // 8 still-active checked-in registrations + 4 checked-in-then-cancelled ones.
+    // Denominator must be 8 (active only), not 12 (including cancelled).
+    EventRegistration::factory()->count(8)->checkedIn()->create(['event_id' => $event->id]);
+    EventRegistration::factory()->count(4)->checkedIn()->create([
+        'event_id' => $event->id,
+        'status' => RegistrationStatus::Cancelled,
+    ]);
+
+    // max(3, ceil(8 * 0.5)) = max(3, 4) = 4 -- would be 6 if the 4 cancelled rows were counted.
+    expect(SkipThreshold::for($event))->toBe(4);
 });
 
 it('skips the playing track once the skip threshold is reached', function () {
