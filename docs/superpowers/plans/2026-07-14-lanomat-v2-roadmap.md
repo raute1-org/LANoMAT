@@ -411,6 +411,7 @@ Zweite Welle Feature-Wünsche, bewertet und eingeordnet. Die drei substanziellen
 - **M10 — Präsenz & Casting** — zwei benachbarte neue Features in einer Phase:
   - **Präsenz-Live-Ansicht „wer ist da / spielt was / freie Slots / wer streamt"** ✅ **Basis geliefert & getaggt `m10-presence`** (Detailplan `docs/superpowers/plans/2026-07-20-m10-presence-base.md`; Erkenntnisse unten). Mit Filtern (nur freie Slots, nur Freunde, nur Streams), auch beamertauglich. *Wert hoch (LAN-Gefühl) / Aufwand mittel — Datengrundlage entsteht sukzessive: Check-in (M2), Sitzplan (M2), Match-/Turnier-Status (M3), Server-Slots (M6), Streams (unten), Freunde (M9). Sinnvoll erst nach M6, wenn die meisten Quellen live sind. Reverb-getrieben.* **R2-Priorisierung:** der Absender nennt Präsenz das „Kern-Erlebnis der Seite, nicht Kür" und wünscht sie **zuerst**, sobald Post-MVP priorisiert wird → innerhalb M10 die Präsenz-Ansicht vor Streaming/Casting ziehen; die Basis-Ansicht ist auch ohne M9-Freunde/Streams schon wertvoll (freie Slots + wer spielt was aus M2/M3/M6).
   - **Streaming/Casting: einbetten statt hosten + Auto-Overlays** ✅ **geliefert (M10 komplett, Voll-Tag `m10`; Detailplan `docs/superpowers/plans/2026-07-20-m10-casting.md`)** — Streams primär über Discord/Twitch hosten (schont Upload), in LANoMAT nur einbetten/verlinken. **OBS-Overlays (Bracket, Scoreboard) automatisch aus dem Turnier-Modul generieren.** Spectator/Caster je Spiel als kleines Rezept (GOTV/SourceTV, Observer-Slots, Replay) — kein Universal-Bot, aber LANoMAT orchestriert Start/Stop. *Wert mittel-hoch / Aufwand mittel. Overlays sind eine Browser-Source-Route, die M5-Szenen-Technik + M3-`BracketView` wiederverwendet. Stream-Einbettung ist billig. Spectator-Rezepte hängen an den M6-Server-Presets.*
+- **Freunde-System** (aus M9 herausgeschnitten) ⭐ ✅ **erledigt & getaggt `friends`** — Freundschaftsanfragen/-annahme, Blocken, LAN-native Freundes-Vorschläge, und der davon abhängige M10-Präsenz-Freunde-Filter. Getrackt als Milestone #14 (geschlossen). Umsetzung + Erkenntnisse: eigener Abschnitt unten.
 #### Erkenntnisse M10 — Präsenz-Basis (Umsetzung + Whole-Branch-Review, 2026-07-20, getaggt `m10-presence`)
 
 - **Scope-Split bewusst:** nur die **Basis-Präsenzansicht** ist gebaut (wer ist da / spielt was / freie Slots), wie in R2 „zuerst" gewünscht. **Vertagt** (2. M10-Hälfte / hängt an M9): Freunde-Filter (braucht M9-Freunde), Streams-/Casting-Facette + Auto-OBS-Overlays, kontextsensitiver Anzeigename. Milestone #11 bleibt **offen**, Tag ist bewusst partiell (`m10-presence`, nicht `m10`).
@@ -428,7 +429,61 @@ Zweite Welle Feature-Wünsche, bewertet und eingeordnet. Die drei substanziellen
 - **Zwei Liveness-Modelle, je nach Datenlage:** Bracket-Overlay macht `router.reload({only:['matches','tournament']})` (Bracket ist persistiert); Scoreboard-Overlay konsumiert das `.match.score_updated`-Payload **direkt in reaktiven State** (der CS2-`round` ist NICHT persistiert, ein Reload würde ihn verlieren) und filtert nach `match_id` (kein Cross-Match-Score-Bleed auf dem geteilten Kanal).
 - **Streams = Link, nicht Embed:** `users.stream_url` (URL-validiert, benigne Preference), auf der Präsenzseite als **leiser Link** (neuer Tab, `rel=noopener`, NICHT Amber) + „nur Streams"-Filter — schaltet die aus der M10-Basis vertagte Streams-Facette scharf. In-App-Live-Player-Embed bewusst vertagt (Parent-Domain-Handshake).
 - **Spectator-Rezepte = mechanischer `install_hint`-Spiegel:** `SpectateHint`/`SpectateHintCast` byte-genau nach `InstallHint` (all-null speichert `'[]'`, Parität kein Bug), Filament Create + **Edit-Hydration** (`mutateFormDataBeforeFill`), Anzeige nur wenn nicht-leer. Fix-Wave: der Block darf nur rendern, wo seine Labels da sind (`v-if += labels.spectate_hint_label`) — auf dem Caster-Bracket-Overlay (ohne `serverLabels`) bleibt er verborgen; das Rezept ist ohnehin für Teilnehmer, nicht Caster.
-- **Was von M10 offen bleibt (hängt an M9):** der **Freunde-Filter** der Präsenzansicht + **kontextsensitive Anzeigenamen**. Sonst ist M10 vollständig.
+- **Was von M10 offen bleibt (hängt an M9):** der **Freunde-Filter** der Präsenzansicht + **kontextsensitive Anzeigenamen**. Sonst ist M10 vollständig. *(Update: kontextsensitive Anzeigenamen kamen bereits mit M9 (`DisplayNameResolver`); der Freunde-Filter ist jetzt ebenfalls geliefert — siehe Erkenntnisse Freunde-System unten. Damit sind beide M10-Vertagungen geschlossen.)*
+
+### Erkenntnisse — Freunde-System (Umsetzung + Whole-Branch-Review, 2026-07-20, getaggt `friends`)
+
+Eigene Phase, aus M9 herausgeschnitten (Freundschaftsanfragen/-vorschläge und der davon
+abhängige M10-Präsenz-Freunde-Filter brauchten die Gruppen-Fusions-Entscheidung als
+Vorbedingung — die stand mit M9 fest, siehe dort). Detailplan:
+`docs/superpowers/plans/2026-07-20-friends-system.md`. Getrackt als GitHub-Milestone #14.
+
+- **Mutuelle Freundschaft über Request → Accept, eine Zeile pro gerichtetem Paar:**
+  `friendships(requester_id, addressee_id, status[pending|accepted])`,
+  `UNIQUE(requester_id, addressee_id)`; `accepted` bedeutet symmetrische Freundschaft, abgefragt
+  in beide Richtungen über `Friendship::scopeBetweenUsers()`. **Auto-Accept bei zeitgleicher
+  Gegenanfrage:** fordert `A` `B` an, während bereits eine umgekehrte Pending-Zeile (`B` → `A`)
+  existiert, akzeptiert `SendFriendRequest` diese bestehende Zeile statt eine zweite anzulegen —
+  verhindert doppelte Pending-Paare und macht den „gleichzeitig anfragen"-Fall unsichtbar für
+  beide Seiten (beide landen direkt bei „befreundet").
+- **Blocken räumt transaktional auf, statt nur zukünftige Anfragen zu verhindern:**
+  `user_blocks(blocker_id, blocked_id)` ist eine separate gerichtete Tabelle.
+  `FriendService::blockedEitherWay()` gated jede neue `SendFriendRequest` in beide Richtungen;
+  zusätzlich reißt `BlockUser` beim Anlegen des Blocks in derselben DB-Transaktion jede
+  bestehende `friendships`-Zeile zwischen den beiden Usern ab (accepted oder pending, beide
+  Richtungen) — ein Block gewinnt immer gegen eine vorher bestehende Freundschaft, es bleibt
+  nie ein Freundschafts-Zombie neben einem aktiven Block liegen.
+- **Bypass-sicheres Policy-in-Action-Muster:** jeder Zustandsübergang läuft durch
+  `FriendshipPolicy` via `Gate::forUser($actor)->authorize(...)`, aufgerufen **in der Action
+  selbst**, nicht nur im Controller — ein Aufrufer, der die HTTP-Schicht umgeht (z. B. ein
+  künftiger Job oder Discord-Interaction-Handler), kann die Prüfung nicht versehentlich
+  überspringen. `$actor` ist immer `auth()->user()`, nie eine client-gelieferte User-ID.
+- **LAN-native Vorschläge statt externer Freundeslisten:** `FriendSuggestions` ist ein reines
+  Read-Model, das gemeinsamen LAN-Kontext zählt — gemeinsame Events (`EventRegistration`),
+  Teams (`TeamMember`) und Turniere (`TournamentEntry` über `EntryRoster::usersFor()`, das
+  Team-Einträge auf den `roster_snapshot` auflöst) — und dabei jede fremde Tatsache über das
+  eigene Eloquent-Model des besitzenden Moduls liest, nie eine rohe Query auf eine fremde
+  Tabelle (spiegelt den `PresenceProjection`-Präzedenzfall). Kandidaten werden nach der Zahl
+  gemeinsamer Events/Teams/Turniere sortiert; Self, bestehende Freunde, beidseitig Pending und
+  beidseitig Geblockte sind ausgeschlossen. Eine Steam-Freundesliste-Schnittmenge wurde erwogen
+  und für diese Phase bewusst vertagt (kein externer Provider-Abgleich). **Bekannter,
+  akzeptierter N+1:** `sharedTournamentUserIds()` ruft `EntryRoster::usersFor()` pro Entry auf,
+  was pro Entry eine eigene `User`-Query absetzt — für die üblichen LAN-Turniergrößen
+  unproblematisch, aber ein Kandidat für eine spätere Batch-Auflösung, sollte die Vorschlagsseite
+  performance-kritisch werden (bewusst nicht vorab optimiert, wie die M10-Deferred-Chores).
+- **Benachrichtigungen sind Glocke-only:** `FriendRequestReceived`/`FriendRequestAccepted`
+  laufen nur über den `database`-Kanal, kein Discord-Mirror — eine Freundschaftsanfrage ist ein
+  niedrig-dringliches, rein In-App-Signal, anders als die zeitkritischen Dual-Channel-Fälle
+  (z. B. Check-in-Öffnung).
+- **Schließt die vertagte M10-Präsenz-Lücke, ohne die Broadcast-Invariante anzufassen:**
+  `ParticipantPresence` bekam ein `userId`-Feld, aber `isFriend` wird ausschließlich im
+  autorisierten `PresencePageController` pro Viewer in den Inertia-Payload gemischt — die
+  Projektion selbst bleibt viewer-agnostisch, `PresenceUpdated::broadcastWith()` bleibt leer
+  wie zuvor, und die Beamer-Szene bekommt weiterhin nie die Teilnehmerliste. **Damit sind beide
+  aus M10 vertagten Punkte geschlossen:** kontextsensitive Anzeigenamen kamen bereits mit M9
+  (`DisplayNameResolver`), der Freunde-Filter jetzt mit dieser Phase — M10 hat keine offenen
+  Vertagungen mehr.
+- **Phase abgeschlossen** und bereit für den Tag `friends`.
 
 - **Architektur: Gruppen-/Community-Fusion (User-/Team-/Historien-Merge)** (Board-Item, ohne Milestone) — zwei Communities zusammenführen können (Import/Merge von Usern, Teams, Historie). Das Event-als-Aggregate-Root-Modell passt, aber **User-Merge früh mitdenken**.
   *Wert langfristig / Aufwand groß, aber die Design-Entscheidung ist billig und JETZT fällig: stabile User-IDs, keine harten Annahmen, die einen späteren Merge verbauen (z. B. `discord_id` als einziger Identitätsanker, Merge-fähige FKs/Historie). Muss vor M9 (Identity+) feststehen — dort werden dauerhafte Verknüpfungen/Tokens an User gehängt.*

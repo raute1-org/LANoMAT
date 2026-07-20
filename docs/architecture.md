@@ -49,6 +49,7 @@ bound in tests. Tests never call real third-party APIs.
 | GameServers | M6 | Pelican Panel integration, match server provisioning |
 | Notifications | M2 (cross-cutting) | `database` + `discord` notification channels |
 | Stats | M6 | Cross-event leaderboards and badges |
+| Friends | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
 
 The `Tournaments` module additionally has `app/Modules/Tournaments/Domain/` — the bracket
 engine (`BracketGenerator`, `BracketProgressor`). It is pure domain code with no IO, and is
@@ -153,6 +154,57 @@ tombstone that reads follow. That merge is **not built** — there is no
 `merged_into_user_id` column and no merge logic (YAGNI until a real fusion lands) — but the
 guardrail is fixed now: keep `users.id` the sole anchor, keep FKs and history merge-capable,
 and never let `discord_id` become the sole identity anchor anywhere in the schema.
+
+## Friends & social
+
+`Friends` is a cross-user module (`app/Modules/Friends/`), cross-event like `Teams` — it
+lives outside the `Event` aggregate entirely. `users.id` is its sole anchor, matching the
+identity guardrail above.
+
+```
+friendships   (id, requester_id, addressee_id, status[pending|accepted], UNIQUE(requester_id,addressee_id))
+user_blocks   (id, blocker_id, blocked_id, UNIQUE(blocker_id,blocked_id))
+```
+
+- **Mutual friendship via request → accept.** `friendships` stores one directed row per
+  ordered pair (`requester_id` sent the request to `addressee_id`); `accepted` means the two
+  users are symmetric friends, queried in either direction via `Friendship::scopeBetweenUsers()`.
+  If `A` requests `B` while a reverse pending row (`B` → `A`) already exists,
+  `SendFriendRequest` auto-accepts that existing row instead of creating a duplicate, so two
+  simultaneous requests collapse into one accepted friendship rather than a dangling pair.
+- **Blocking supersedes friendship.** `user_blocks` is a separate directed table. A block
+  prevents new friend requests in either direction (`FriendService::blockedEitherWay()`,
+  checked before every `SendFriendRequest`) and, on creation, `BlockUser` transactionally
+  deletes any existing `friendships` row between the two users (accepted or pending, either
+  direction) — a block always wins over a prior friendship.
+- **Actions + policy.** `SendFriendRequest`, `RespondToFriendRequest`, `CancelFriendRequest`,
+  `RemoveFriend`, `BlockUser`, `UnblockUser` are the module's use cases. Every state
+  transition is authorized through `FriendshipPolicy` via `Gate::forUser($actor)->authorize(...)`
+  called *inside* the action (not just the controller) so the check cannot be bypassed by a
+  caller that skips the HTTP layer; the acting user is always `auth()->user()`, never a
+  client-supplied id.
+- **LAN-native suggestions (`FriendSuggestions`).** A pure, IO-light read-model — no external
+  friend-list import this phase (a Steam friend-list intersection was considered and
+  deferred) — that ranks candidates by shared LAN context, reading each fact through its
+  owning module's own Eloquent model (`EventRegistration`, `TeamMember`, `TournamentEntry` via
+  `EntryRoster`) rather than a raw cross-module query, mirroring the `PresenceProjection`
+  precedent. Candidates are excluded if they are the user themself, an existing friend, have
+  a pending request in either direction, or are blocked either way; the remainder is ranked by
+  the count of distinct shared events/teams/tournaments.
+- **Notifications are bell-only.** `FriendRequestReceived` and `FriendRequestAccepted` are
+  `database`-channel only (no Discord mirror) — a friend request is a low-urgency, in-app
+  signal, deliberately not given the dual-channel treatment reserved for time-sensitive
+  events like check-in opening.
+- **Presence "friends only" filter — a per-viewer decoration, never a public fact.**
+  `ParticipantPresence` (the `PresenceProjection` DTO) gained a `userId` field purely so an
+  authorized layer can match participants against a viewer's friend list; the projection
+  itself stays viewer-agnostic and never computes `isFriend`. `PresencePageController` is the
+  **only** place `isFriend` is added, decorating each participant in the Inertia payload for
+  the current request's viewer only (a guest sees `isFriend` false for everyone). This is a
+  **binding invariant**: `isFriend` must never appear in `PresenceUpdated::broadcastWith()`
+  (which stays `[]`, exactly as before Friends existed) or in the beamer infoscreen scene
+  (which never receives the participant roster at all) — both remain public-channel-safe with
+  zero per-viewer data leakage.
 
 ## Real-time
 
