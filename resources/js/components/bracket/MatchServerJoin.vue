@@ -150,9 +150,13 @@ async function copyAddress() {
          tournament's game has one configured — nothing shown otherwise, a
          calm, unobtrusive readout rather than an empty placeholder.
          Independent of the ServerLink block above: it describes the game,
-         not this particular server. -->
+         not this particular server. Also requires `labels.spectate_hint_label`
+         to be present: the bracket OBS overlay (`BracketView.vue`) omits
+         `serverLabels` entirely (defaults to `{}`), since the recipe is
+         aimed at participants, not casters — so the block stays hidden
+         there instead of rendering with `undefined` copy. -->
     <div
-        v-if="spectateHint"
+        v-if="spectateHint && labels.spectate_hint_label"
         class="mt-2 space-y-1 rounded-md border border-border bg-muted/30 p-2 text-xs"
     >
         <p class="font-medium text-foreground">

@@ -29,7 +29,6 @@ return [
         'estimate_label' => 'Geschätzter Bedarf',
         'estimate_over_cap' => 'Über dem Limit',
         'spectate_hint_label' => 'So schaust du zu',
-        'spectate_hint_connect' => 'GOTV/Observer verbinden',
         'spectate_hint_copy' => 'Kopieren',
         'spectate_hint_copied' => 'Kopiert!',
     ],
