@@ -6,6 +6,7 @@ import SceneAnnouncement from '@/components/scenes/SceneAnnouncement.vue';
 import SceneBracket from '@/components/scenes/SceneBracket.vue';
 import SceneFrame from '@/components/scenes/SceneFrame.vue';
 import SceneGong from '@/components/scenes/SceneGong.vue';
+import SceneNowPlaying from '@/components/scenes/SceneNowPlaying.vue';
 import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
 import ScenePresence from '@/components/scenes/ScenePresence.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
@@ -43,6 +44,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     status: SceneStatus,
     servers: SceneServers,
     presence: ScenePresence,
+    now_playing: SceneNowPlaying,
     gong: SceneGong,
     scoreboard: SceneScoreboard,
 };
@@ -69,6 +71,14 @@ useEventChannel<{ scene: ScenePayloadDto }>(
 );
 
 useEventChannel(props.event.id, ['.scenes.updated'], () => {
+    router.reload({ only: ['scenes'] });
+});
+
+// The jukebox tick advances the current track / reconciles the queue on its
+// own schedule (no per-scene push) — reload the scene payloads (including
+// the now-playing scene's data) whenever that happens, same pattern as the
+// scenes.updated reload above. Acceptable at LAN scale.
+useEventChannel(props.event.id, ['.jukebox.updated'], () => {
     router.reload({ only: ['scenes'] });
 });
 

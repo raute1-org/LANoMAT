@@ -10,6 +10,7 @@ export type SceneType =
     | 'status'
     | 'servers'
     | 'presence'
+    | 'now_playing'
     | 'winner'
     | 'gong'
     | 'scoreboard';
@@ -28,4 +29,16 @@ export interface ScenePayloadDto {
     durationSec: number;
     config: Record<string, unknown>;
     data: Record<string, unknown>;
+}
+
+/**
+ * The public track metadata subset produced by `ScenePayload::nowPlayingData()`
+ * — deliberately narrower than the Jukebox module's own `NowPlayingDto`/
+ * `QueueItemDto` (see `@/types/jukebox`): no vote counts, no `addedByName`, no
+ * ids. This is a public, unauthenticated beamer surface.
+ */
+export interface NowPlayingTrackDto {
+    title: string;
+    artist: string | null;
+    imageUrl: string | null;
 }

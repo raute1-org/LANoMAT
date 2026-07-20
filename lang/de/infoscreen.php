@@ -13,6 +13,7 @@ return [
         'status' => 'Statusanzeige',
         'servers' => 'Spielserver',
         'presence' => 'Präsenz',
+        'now_playing' => 'Läuft gerade',
         'winner' => 'Sieger-Einblendung',
         'gong' => 'Go-Gong',
         'scoreboard' => 'Live-Scoreboard',
@@ -198,5 +199,14 @@ return [
         'presence_free_slots_empty' => 'Aktuell keine offenen Anmeldungen.',
         'presence_open_unlimited' => 'offen',
         'presence_open_spots' => ':count frei',
+
+        // SceneNowPlaying (M11 Jukebox) — the beamer "läuft gerade" now-playing
+        // board, reusing JukeboxQueue's current()/upcoming() read-model.
+        'now_playing_title' => 'Läuft gerade',
+        'now_playing_empty' => 'Gerade läuft nichts. Fügt Musik in der Jukebox hinzu!',
+        'now_playing_live_label' => 'LIVE',
+        'now_playing_artist_unknown' => 'Unbekannt',
+        'now_playing_up_next_heading' => 'Als Nächstes',
+        'now_playing_up_next_empty' => 'Die Warteschlange ist leer.',
     ],
 ];

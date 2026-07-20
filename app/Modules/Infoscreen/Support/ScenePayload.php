@@ -13,6 +13,8 @@ use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\StatusSignal;
 use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
+use App\Modules\Jukebox\Models\JukeboxItem;
+use App\Modules\Jukebox\Support\JukeboxQueue;
 use App\Modules\Presence\Support\PresenceProjection;
 use App\Modules\Registration\Support\QrCode;
 use App\Modules\Schedule\Support\ScheduleProjection;
@@ -44,7 +46,11 @@ use Illuminate\Support\Facades\Storage;
  * (shared with the schedule/seating/server-list pages); presence reads the
  * scene's event via {@see PresenceProjection} and returns only the
  * headcount/live-matches/free-slots subset (the beamer glanceable set, not
- * the full participant roster); payment-qr renders
+ * the full participant roster); now-playing reads the scene's event via
+ * {@see JukeboxQueue} (the Jukebox module's read-model, never a raw
+ * `jukebox_items` query from here) and returns only public track metadata
+ * (title/artist/imageUrl) — never the vote counts or adder's name the
+ * participant queue view shows; payment-qr renders
  * `config.qrPayload` via the content-agnostic {@see QrCode} (no `qrSvg` key
  * when the payload is empty/unset); sponsors resolves `config.sponsorLogoPaths`
  * to public storage URLs. Every other scene type still gets `[]`, which is
@@ -82,6 +88,7 @@ final class ScenePayload
             SceneType::Status => self::statusData($scene),
             SceneType::Servers => self::serversData($scene),
             SceneType::Presence => self::presenceData($scene),
+            SceneType::NowPlaying => self::nowPlayingData($scene),
             default => [],
         };
     }
@@ -198,6 +205,47 @@ final class ScenePayload
             'checkedInCount' => $board['checkedInCount'],
             'liveMatches' => $board['liveMatches'],
             'freeSlots' => $board['freeSlots'],
+        ];
+    }
+
+    /**
+     * The rotation-configured now-playing scene shows the Jukebox's current
+     * track plus a short "up next" preview, both via {@see JukeboxQueue} (the
+     * Jukebox module's own read-model — this never queries `jukebox_items`
+     * directly, keeping the module boundary the same way `presenceData`
+     * stays behind {@see PresenceProjection}). Only public track metadata is
+     * exposed: no vote counts, no adder name, no user ids — this is a public,
+     * unauthenticated beamer surface.
+     *
+     * @return array{track: array{title: string, artist: string|null, imageUrl: string|null}|null, upNext: list<array{title: string, artist: string|null, imageUrl: string|null}>}
+     */
+    private static function nowPlayingData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return ['track' => null, 'upNext' => []];
+        }
+
+        $queue = app(JukeboxQueue::class);
+        $current = $queue->current($event);
+        $upNext = $queue->upcoming($event)->take(5);
+
+        return [
+            'track' => $current === null ? null : self::trackMetadata($current),
+            'upNext' => array_values($upNext->map(fn (JukeboxItem $item): array => self::trackMetadata($item))->all()),
+        ];
+    }
+
+    /**
+     * @return array{title: string, artist: string|null, imageUrl: string|null}
+     */
+    private static function trackMetadata(JukeboxItem $item): array
+    {
+        return [
+            'title' => $item->title,
+            'artist' => $item->artist,
+            'imageUrl' => $item->image_url,
         ];
     }
 
