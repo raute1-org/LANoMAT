@@ -47,7 +47,8 @@ RUN install-php-extensions \
     sodium \
     intl \
     zip \
-    opcache
+    opcache \
+    pcntl
 
 # Node 22, matching package.json's engines / README requirement, for the
 # frontend asset build below (removed from the final image — see the last
@@ -83,7 +84,8 @@ RUN install-php-extensions \
     sodium \
     intl \
     zip \
-    opcache
+    opcache \
+    pcntl
 
 WORKDIR /app
 
