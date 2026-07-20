@@ -42,6 +42,7 @@ return [
         'reason_shared_event' => 'Gemeinsames Event',
         'reason_shared_team' => 'Gemeinsames Team',
         'reason_shared_tournament' => 'Gemeinsames Turnier',
+        'reason_shared_steam_friend' => 'Steam-Freund',
 
         'outgoing_title' => 'Gesendete Anfragen',
         'outgoing_empty' => 'Keine ausstehenden Anfragen.',

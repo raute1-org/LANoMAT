@@ -8,12 +8,17 @@ use App\Models\User;
 use App\Modules\Friends\Enums\FriendshipStatus;
 use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Models\UserBlock;
+use App\Modules\Identity\Contracts\LinkedAccountConnector;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Models\LinkedAccount;
+use App\Modules\Identity\Support\LinkedAccountConnectors;
 use App\Modules\Presence\Support\PresenceProjection;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\EntryRoster;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Pure, IO-free read-model of LAN-native friend suggestions: candidate
@@ -31,8 +36,14 @@ use Illuminate\Support\Collection;
  * table — mirroring the {@see PresenceProjection}
  * precedent for cross-module read-models.
  *
- * `shared` counts the number of distinct shared *entities* across all three
- * context types (e.g. 2 shared events + 1 shared team = 3), not the number
+ * A fourth, cross-event source layers in Steam's own friend graph: if
+ * `$user` has a linked Steam account, its Steam friends who are also
+ * LANoMAT users (linked via their own {@see LinkedAccount}) count as a
+ * shared context too — read through {@see LinkedAccountConnector::friendProviderIds()}
+ * (never a direct Steam API call from this class).
+ *
+ * `shared` counts the number of distinct shared *entities* across all four
+ * sources (e.g. 2 shared events + 1 shared team = 3), not the number
  * of distinct context *types* — this rewards users who cross paths with
  * `$user` more often with a higher rank. `reasons` is the distinct set of
  * context *types* that contributed at least one shared entity, using these
@@ -40,6 +51,7 @@ use Illuminate\Support\Collection;
  * - `shared_event`: co-registered at the same event.
  * - `shared_team`: co-member of the same team.
  * - `shared_tournament`: co-entrant of the same tournament.
+ * - `shared_steam_friend`: a mutual Steam friend who also uses LANoMAT.
  */
 final class FriendSuggestions
 {
@@ -58,6 +70,7 @@ final class FriendSuggestions
         $this->accumulate($index, $this->sharedEventUserIds($user, $excludedUserIds), 'shared_event');
         $this->accumulate($index, $this->sharedTeamUserIds($user, $excludedUserIds), 'shared_team');
         $this->accumulate($index, $this->sharedTournamentUserIds($user, $excludedUserIds), 'shared_tournament');
+        $this->accumulate($index, $this->sharedSteamFriendUserIds($user, $excludedUserIds), 'shared_steam_friend');
 
         if ($index === []) {
             return collect();
@@ -89,7 +102,7 @@ final class FriendSuggestions
 
     /**
      * Self + accepted friends + pending-either-direction + blocked-either-way,
-     * built once and reused across all three context sources.
+     * built once and reused across all four context sources.
      *
      * @return array<int, int>
      */
@@ -227,6 +240,47 @@ final class FriendSuggestions
         }
 
         return collect($counts);
+    }
+
+    /**
+     * Mutual Steam friends of `$user` who are themselves LANoMAT users: the
+     * external SteamID64 friend list is read once per (user, Steam account)
+     * and cached for 15 minutes — see {@see LinkedAccountConnector::friendProviderIds()}
+     * — since it is a best-effort, potentially slow third-party call. The
+     * intersection against LANoMAT's own {@see LinkedAccount} table and the
+     * `$excludedUserIds` exclusion are always applied live, never cached,
+     * since friendships/blocks can change between cache windows.
+     *
+     * @param  array<int, int>  $excludedUserIds
+     * @return Collection<int, int<0, max>> user id => count (always 0 or 1; a
+     *                                      user has at most one Steam account)
+     */
+    private function sharedSteamFriendUserIds(User $user, array $excludedUserIds): Collection
+    {
+        $steam = $user->linkedAccount(LinkedAccountProvider::Steam);
+
+        if ($steam === null) {
+            return collect();
+        }
+
+        /** @var array<int, string> $friendSteamIds */
+        $friendSteamIds = Cache::remember(
+            "steam-friends:{$user->id}:{$steam->provider_user_id}",
+            now()->addMinutes(15),
+            fn (): array => app(LinkedAccountConnectors::class)->for(LinkedAccountProvider::Steam)->friendProviderIds($steam),
+        );
+
+        if ($friendSteamIds === []) {
+            return collect();
+        }
+
+        return LinkedAccount::query()
+            ->where('provider', LinkedAccountProvider::Steam)
+            ->whereIn('provider_user_id', $friendSteamIds)
+            ->whereNotIn('user_id', $excludedUserIds)
+            ->get(['user_id'])
+            ->groupBy('user_id')
+            ->map(fn (Collection $accounts): int => $accounts->count());
     }
 
     /**
