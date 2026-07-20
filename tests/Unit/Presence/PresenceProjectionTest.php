@@ -14,6 +14,7 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use Illuminate\Support\Facades\DB;
 
 it('lists only checked-in non-cancelled participants and counts them', function () {
     $event = Event::factory()->create();
@@ -188,6 +189,43 @@ it('produces toArray() with camelCase keys for every DTO', function () {
         ->and($array['participants'][0]['registrationId'])->toBe($registration->id)
         ->and($array['participants'][0]['userId'])->toBe($user->id)
         ->and($array['freeSlots'][0])->toHaveKeys(['tournamentId', 'name', 'game', 'openSpots']);
+});
+
+it('resolves users for multiple live matches in a single batched query', function () {
+    $event = Event::factory()->create();
+    $game = Game::factory()->create(['name' => 'Quake']);
+    $tournament = Tournament::factory()->for($event)->for($game)->live()->create();
+
+    foreach ([['Ada', 'Bob'], ['Carl', 'Dana']] as [$name1, $name2]) {
+        $player1 = User::factory()->create(['name' => $name1]);
+        EventRegistration::factory()->for($event)->for($player1, 'user')->checkedIn()->create();
+        $entry1 = TournamentEntry::factory()->create(['user_id' => $player1->id, 'team_id' => null, 'display_name' => $name1, 'tournament_id' => $tournament->id]);
+
+        $player2 = User::factory()->create(['name' => $name2]);
+        EventRegistration::factory()->for($event)->for($player2, 'user')->checkedIn()->create();
+        $entry2 = TournamentEntry::factory()->create(['user_id' => $player2->id, 'team_id' => null, 'display_name' => $name2, 'tournament_id' => $tournament->id]);
+
+        GameMatch::factory()->for($tournament)->create([
+            'status' => MatchStatus::Warmup,
+            'entry1_id' => $entry1->id,
+            'entry2_id' => $entry2->id,
+        ]);
+    }
+
+    DB::enableQueryLog();
+    $board = PresenceProjection::forEvent($event);
+    $userQueries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], '"users"'));
+
+    // One query eager-loads every checked-in registration's user
+    // (`checkedInRegistrations`'s `with('user')`), and one batched query
+    // resolves every live match's roster users — regardless of how many
+    // live matches there are, it never grows past these two.
+    expect($userQueries)->toHaveCount(2)
+        ->and($board->liveMatches)->toHaveCount(2);
+
+    $byLabel = collect($board->liveMatches)->keyBy('label');
+    expect($byLabel['Ada vs Bob']->players)->toEqualCanonicalizing(['Ada', 'Bob'])
+        ->and($byLabel['Carl vs Dana']->players)->toEqualCanonicalizing(['Carl', 'Dana']);
 });
 
 it('resolves streamUrl from the user without an extra query, and null when absent', function () {

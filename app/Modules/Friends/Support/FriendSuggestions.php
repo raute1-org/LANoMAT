@@ -190,9 +190,10 @@ final class FriendSuggestions
     /**
      * Distinct co-entrant user ids per shared tournament id. Solo entries
      * contribute their `user_id` directly; team entries contribute their
-     * enrolled roster via {@see EntryRoster::usersFor()} (the
+     * enrolled roster via {@see EntryRoster::userIdsFor()} (the
      * `roster_snapshot` captured at enrollment, falling back to the current
-     * team membership only via that same helper).
+     * team membership only via that same helper) — ids only, no `User`
+     * query, since this method only needs the id set.
      *
      * @param  array<int, int>  $excludedUserIds
      * @return Collection<int, int<0, max>> user id => count of distinct shared tournaments
@@ -221,8 +222,7 @@ final class FriendSuggestions
         $usersByTournament = $entries
             ->groupBy('tournament_id')
             ->map(fn (Collection $entries): Collection => $entries
-                ->flatMap(fn (TournamentEntry $entry): Collection => EntryRoster::usersFor($entry))
-                ->pluck('id')
+                ->flatMap(fn (TournamentEntry $entry): array => EntryRoster::userIdsFor($entry))
                 ->unique());
 
         // user_id => count of distinct shared tournaments

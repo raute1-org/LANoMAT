@@ -14,6 +14,7 @@ use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
+use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\EntryRoster;
 use App\Modules\Voice\Jobs\ProvisionServerVoiceJob;
 use Illuminate\Support\Collection;
@@ -43,11 +44,29 @@ final class PresenceProjection
         $registrations = self::checkedInRegistrations($event);
         $liveMatches = self::liveMatches($event);
 
+        // Every live match's entries, batch-resolved to their users in a
+        // single `User` query up front (instead of one query per match via
+        // `usersForMatch`) — see `EntryRoster::usersForEntries()`.
+        $liveMatchEntries = $liveMatches
+            ->flatMap(fn (GameMatch $match): array => [$match->entry1, $match->entry2])
+            ->filter();
+        $usersById = EntryRoster::usersForEntries($liveMatchEntries);
+
         /** @var Collection<int, array{match: GameMatch, users: Collection<int, User>}> $liveMatchData */
-        $liveMatchData = $liveMatches->map(fn (GameMatch $match): array => [
-            'match' => $match,
-            'users' => EntryRoster::usersForMatch($match),
-        ]);
+        $liveMatchData = $liveMatches->map(function (GameMatch $match) use ($usersById): array {
+            $entryUserIds = collect([$match->entry1, $match->entry2])
+                ->filter()
+                ->flatMap(fn (TournamentEntry $entry): array => EntryRoster::userIdsFor($entry))
+                ->unique();
+
+            return [
+                'match' => $match,
+                'users' => $entryUserIds
+                    ->map(fn (int $userId): ?User => $usersById->get($userId))
+                    ->filter()
+                    ->values(),
+            ];
+        });
 
         // user_id -> ['match' => GameMatch, 'users' => Collection<User>]
         $playingIndex = [];
