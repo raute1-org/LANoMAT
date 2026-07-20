@@ -8,6 +8,8 @@ use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Testing\FakeRemoteExecutor;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Testing\FakeLinkedAccounts;
+use App\Modules\Jukebox\Contracts\MusicClient;
+use App\Modules\Jukebox\Testing\FakeMusicClient;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Testing\FakeVoiceClient;
@@ -41,6 +43,7 @@ pest()->extend(TestCase::class)
         'Unit/Games',
         'Unit/Hosts',
         'Unit/Infoscreen',
+        'Unit/Jukebox',
         'Unit/Lfg',
         'Unit/Presence',
         'Unit/Registration',
@@ -147,6 +150,14 @@ function fakeVoice(array $providers = ['mumble', 'teamspeak']): array
     });
 
     return $fakes;
+}
+
+function fakeMusic(): FakeMusicClient
+{
+    $fake = new FakeMusicClient;
+    app()->instance(MusicClient::class, $fake);
+
+    return $fake;
 }
 
 /**
