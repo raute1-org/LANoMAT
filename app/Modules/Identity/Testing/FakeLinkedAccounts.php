@@ -64,6 +64,14 @@ class FakeLinkedAccounts
     }
 
     /**
+     * @param  array<int, string>  $ids
+     */
+    public function willReportFriends(LinkedAccountProvider $provider, array $ids): void
+    {
+        $this->fakeFor($provider)->willReportFriends($ids);
+    }
+
+    /**
      * Access the underlying per-provider fake directly for assertions the
      * dispatcher doesn't wrap (e.g. inspecting call history, if added later).
      */

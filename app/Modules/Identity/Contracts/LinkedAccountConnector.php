@@ -54,4 +54,18 @@ interface LinkedAccountConnector
      * check.
      */
     public function ownsApp(LinkedAccount $account, string $appId): ?bool;
+
+    /**
+     * Provider-native ids of `$account`'s friends (Steam → SteamID64
+     * strings) — a best-effort, ADVISORY-only signal, never authoritative.
+     *
+     * Returns `[]` when the provider has no friend-graph concept (e.g.
+     * Twitch), the account's friend list is private, the underlying API key
+     * is missing, or the API call failed. Implementations MUST NOT throw —
+     * any failure is mapped to `[]` instead, mirroring the same
+     * never-block-the-caller discipline as {@see ownsApp()}.
+     *
+     * @return array<int, string>
+     */
+    public function friendProviderIds(LinkedAccount $account): array;
 }

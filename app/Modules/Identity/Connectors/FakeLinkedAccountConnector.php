@@ -35,6 +35,14 @@ class FakeLinkedAccountConnector implements LinkedAccountConnector
      */
     private ?bool $ownsApp = true;
 
+    /**
+     * The queued answer for {@see friendProviderIds()}. Defaults to `[]`
+     * (no friends reported) until a test calls {@see willReportFriends()}.
+     *
+     * @var array<int, string>
+     */
+    private array $friendProviderIds = [];
+
     public function __construct(private readonly LinkedAccountProvider $provider) {}
 
     public function provider(): LinkedAccountProvider
@@ -92,6 +100,25 @@ class FakeLinkedAccountConnector implements LinkedAccountConnector
     public function ownsApp(LinkedAccount $account, string $appId): ?bool
     {
         return $this->ownsApp;
+    }
+
+    /**
+     * Queues the array {@see friendProviderIds()} returns for every
+     * subsequent call on this fake.
+     *
+     * @param  array<int, string>  $ids
+     */
+    public function willReportFriends(array $ids): void
+    {
+        $this->friendProviderIds = $ids;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function friendProviderIds(LinkedAccount $account): array
+    {
+        return $this->friendProviderIds;
     }
 
     public function resolveCallback(): LinkedAccountData

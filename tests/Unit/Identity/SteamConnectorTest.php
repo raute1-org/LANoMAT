@@ -99,3 +99,45 @@ it('reports Unknown when the HTTP call throws (connection error)', function () {
 
     expect(app(SteamConnector::class)->ownsApp($account, '730'))->toBeNull();
 });
+
+it('returns friend SteamIDs from GetFriendList', function () {
+    config(['services.steam.client_secret' => 'fake-api-key']);
+    Http::fake([
+        'api.steampowered.com/*' => Http::response([
+            'friendslist' => ['friends' => [
+                ['steamid' => '111', 'relationship' => 'friend', 'friend_since' => 1],
+                ['steamid' => '222', 'relationship' => 'friend', 'friend_since' => 2],
+            ]],
+        ]),
+    ]);
+    $account = LinkedAccount::factory()->create(['provider' => LinkedAccountProvider::Steam, 'provider_user_id' => '999']);
+
+    expect(app(SteamConnector::class)->friendProviderIds($account))->toBe(['111', '222']);
+});
+
+it('returns [] on a private profile (401), missing key, or malformed response', function () {
+    $account = LinkedAccount::factory()->create(['provider' => LinkedAccountProvider::Steam, 'provider_user_id' => '999']);
+
+    config(['services.steam.client_secret' => '']);           // missing key
+    expect(app(SteamConnector::class)->friendProviderIds($account))->toBe([]);
+
+    config(['services.steam.client_secret' => 'fake-api-key']);
+    Http::fake(['api.steampowered.com/*' => Http::response([], 401)]); // private
+    expect(app(SteamConnector::class)->friendProviderIds($account))->toBe([]);
+
+    Http::fake(['api.steampowered.com/*' => Http::response(['friendslist' => []])]); // malformed
+    expect(app(SteamConnector::class)->friendProviderIds($account))->toBe([]);
+});
+
+it('returns [] when the HTTP call throws (connection error)', function () {
+    config(['services.steam.client_secret' => 'fake-api-key']);
+    Http::fake(function (): never {
+        throw new ConnectionException('connection refused');
+    });
+    $account = LinkedAccount::factory()->create([
+        'provider' => LinkedAccountProvider::Steam,
+        'provider_user_id' => '76561198000000000',
+    ]);
+
+    expect(app(SteamConnector::class)->friendProviderIds($account))->toBe([]);
+});

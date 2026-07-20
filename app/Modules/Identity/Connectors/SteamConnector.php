@@ -97,4 +97,61 @@ class SteamConnector implements LinkedAccountConnector
             return null;
         }
     }
+
+    /**
+     * Best-effort friend list via Steam's Web API `GetFriendList` endpoint.
+     * Like {@see ownsApp()}, this only works when the account's friend list
+     * is public and needs the same Web API key
+     * (`services.steam.client_secret`). ANY failure — missing key, private
+     * friend list, network error, malformed response — resolves to `[]`
+     * rather than throwing: this method sits behind an advisory-only friend
+     * suggestion and must never be able to propagate an exception into a
+     * caller that expects it to be safe to call unconditionally.
+     *
+     * @return array<int, string>
+     */
+    public function friendProviderIds(LinkedAccount $account): array
+    {
+        $apiKey = config('services.steam.client_secret');
+
+        if (! is_string($apiKey) || $apiKey === '') {
+            return [];
+        }
+
+        try {
+            $response = Http::get('https://api.steampowered.com/ISteamUser/GetFriendList/v1/', [
+                'key' => $apiKey,
+                'steamid' => $account->provider_user_id,
+                'relationship' => 'friend',
+                'format' => 'json',
+            ]);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            /** @var mixed $friends */
+            $friends = $response->json('friendslist.friends');
+
+            // A private friend list makes Steam return a bare
+            // `{"friendslist": {}}` with no `friends` key at all —
+            // indistinguishable from "the API call itself failed" from the
+            // caller's perspective, so both collapse to [].
+            if (! is_array($friends)) {
+                return [];
+            }
+
+            $friendIds = [];
+
+            foreach ($friends as $friend) {
+                if (is_array($friend) && isset($friend['steamid'])) {
+                    $friendIds[] = (string) $friend['steamid'];
+                }
+            }
+
+            return $friendIds;
+        } catch (Throwable) {
+            return [];
+        }
+    }
 }

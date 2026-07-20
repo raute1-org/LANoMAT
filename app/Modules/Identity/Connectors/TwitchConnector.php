@@ -84,4 +84,15 @@ class TwitchConnector implements LinkedAccountConnector
     {
         return null;
     }
+
+    /**
+     * Twitch has no friend-graph concept here (it's a streaming platform,
+     * not a friends list) — always empty.
+     *
+     * @return array<int, string>
+     */
+    public function friendProviderIds(LinkedAccount $account): array
+    {
+        return [];
+    }
 }
