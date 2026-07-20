@@ -69,6 +69,7 @@ final class PresenceProjection
 
                 return new ParticipantPresence(
                     registrationId: $registration->id,
+                    userId: $user->id,
                     name: $user->name,
                     avatarUrl: $user->avatar_url,
                     streamUrl: $user->stream_url,

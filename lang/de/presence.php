@@ -33,5 +33,6 @@ return [
         'free_slots_only' => 'Nur freie Slots',
         'playing_only' => 'Spielt gerade',
         'streams_only' => 'Nur Streams',
+        'friends_only' => 'Nur Freunde',
     ],
 ];

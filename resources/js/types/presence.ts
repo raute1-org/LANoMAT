@@ -7,12 +7,20 @@
  */
 export interface ParticipantPresenceDto {
     registrationId: number;
+    userId: number;
     name: string;
     avatarUrl: string | null;
     streamUrl: string | null;
     seatLabel: string | null;
     activity: string | null;
     isPlaying: boolean;
+    /**
+     * Per-viewer private fact added by `PresencePageController` (never by
+     * the pure projection) — whether this participant is a friend of the
+     * current viewer. `false` for every participant when the viewer is a
+     * guest. Never present on any public/broadcast payload.
+     */
+    isFriend: boolean;
 }
 
 export interface FreeSlotDto {

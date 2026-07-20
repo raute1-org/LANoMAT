@@ -43,6 +43,7 @@ interface PresenceLabels {
         free_slots_only: string;
         playing_only: string;
         streams_only: string;
+        friends_only: string;
     };
 }
 
@@ -116,6 +117,7 @@ onUnmounted(() => {
 const freeSlotsOnly = ref(false);
 const playingOnly = ref(false);
 const streamsOnly = ref(false);
+const friendsOnly = ref(false);
 
 const visibleParticipants = computed(() => {
     let participants = props.presence.participants;
@@ -126,6 +128,10 @@ const visibleParticipants = computed(() => {
 
     if (streamsOnly.value) {
         participants = participants.filter((p) => p.streamUrl !== null);
+    }
+
+    if (friendsOnly.value) {
+        participants = participants.filter((p) => p.isFriend);
     }
 
     return participants;
@@ -206,6 +212,15 @@ function openSpotsLabel(openSpots: number | null): string {
                     @click="streamsOnly = !streamsOnly"
                 >
                     {{ labels.filters.streams_only }}
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    :variant="friendsOnly ? 'default' : 'outline'"
+                    :aria-pressed="friendsOnly"
+                    @click="friendsOnly = !friendsOnly"
+                >
+                    {{ labels.filters.friends_only }}
                 </Button>
             </div>
 

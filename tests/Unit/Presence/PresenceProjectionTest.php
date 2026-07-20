@@ -54,6 +54,7 @@ it('resolves seatLabel for a seated participant and null for an unseated one', f
 
     expect($byName['Ada']->seatLabel)->toBe('A1')
         ->and($byName['Ada']->registrationId)->toBe($seatedRegistration->id)
+        ->and($byName['Ada']->userId)->toBe($seated->id)
         ->and($byName['Bob']->seatLabel)->toBeNull();
 });
 
@@ -183,8 +184,9 @@ it('produces toArray() with camelCase keys for every DTO', function () {
     $array = $board->toArray();
 
     expect($array)->toHaveKeys(['participants', 'freeSlots', 'liveMatches', 'checkedInCount'])
-        ->and($array['participants'][0])->toHaveKeys(['registrationId', 'name', 'avatarUrl', 'streamUrl', 'seatLabel', 'activity', 'isPlaying'])
+        ->and($array['participants'][0])->toHaveKeys(['registrationId', 'userId', 'name', 'avatarUrl', 'streamUrl', 'seatLabel', 'activity', 'isPlaying'])
         ->and($array['participants'][0]['registrationId'])->toBe($registration->id)
+        ->and($array['participants'][0]['userId'])->toBe($user->id)
         ->and($array['freeSlots'][0])->toHaveKeys(['tournamentId', 'name', 'game', 'openSpots']);
 });
 
