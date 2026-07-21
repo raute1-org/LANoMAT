@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import ConfettiOverlay from '@/components/scenes/ConfettiOverlay.vue';
 
-defineProps<{
-    data: { winner?: string; tournament?: string };
+const props = defineProps<{
+    data: { winner?: string; tournament?: string; title?: string };
     labels: Record<string, string>;
 }>();
 </script>
@@ -15,7 +15,7 @@ defineProps<{
             <h1
                 class="text-8xl font-extrabold tracking-tight text-live uppercase"
             >
-                {{ labels.winner_title }}
+                {{ props.data.title ?? labels.winner_title }}
             </h1>
             <p class="mt-8 text-6xl font-bold text-foreground">
                 {{ data.winner }}

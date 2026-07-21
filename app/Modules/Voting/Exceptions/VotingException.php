@@ -50,4 +50,9 @@ class VotingException extends DomainException
     {
         return new self('This poll is not the event\'s closed MVP poll.', 'polls.errors.not_closed_mvp_poll');
     }
+
+    public static function noVotesCast(): self
+    {
+        return new self('This poll has no votes, so there is no winner to reveal.', 'polls.errors.no_votes_cast');
+    }
 }

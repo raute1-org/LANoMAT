@@ -54,3 +54,12 @@ it('returns an empty array when the closed MVP poll has no options', function ()
 
     expect(EventBadgeCalculator::forEvent($event))->toBe([]);
 });
+
+it('returns an empty array when the closed MVP poll has options but zero votes', function () {
+    $event = Event::factory()->create();
+    $poll = Poll::factory()->for($event)->closed()->create(['kind' => PollKind::Mvp]);
+    $option = PollOption::factory()->for($poll)->create(['sort' => 0]);
+    $option->forceFill(['subject_user_id' => User::factory()->create()->id])->save();
+
+    expect(EventBadgeCalculator::forEvent($event))->toBe([]);
+});

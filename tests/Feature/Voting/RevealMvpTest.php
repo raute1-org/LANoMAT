@@ -41,8 +41,21 @@ it('dispatches a SceneOverride carrying only the public winner name', function (
         return $dispatched->eventId === $event->id
             && $dispatched->scene['type'] === SceneType::Winner->value
             && $dispatched->scene['durationSec'] === 20
+            && $dispatched->scene['data']['title'] === trans('polls.mvp.reveal_title')
             && $dispatched->scene['data']['winner'] === 'Ada Lovelace';
     });
+});
+
+it('rejects a closed MVP poll with zero votes cast', function () {
+    $event = Event::factory()->create();
+    $orga = User::factory()->orga()->create();
+
+    $poll = Poll::factory()->for($event)->closed()->create(['kind' => PollKind::Mvp]);
+    PollOption::factory()->for($poll)->create(['sort' => 0]);
+    PollOption::factory()->for($poll)->create(['sort' => 1]);
+
+    expect(fn () => app(RevealMvp::class)->handle($poll, $orga))
+        ->toThrow(VotingException::class);
 });
 
 it('rejects a non-orga actor with AuthorizationException', function () {

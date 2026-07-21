@@ -66,3 +66,11 @@ it('returns null when the poll has no options', function () {
 
     expect(MvpPollQuery::winner($poll))->toBeNull();
 });
+
+it('returns null when the poll has options but zero votes were cast', function () {
+    $poll = Poll::factory()->closed()->create(['kind' => PollKind::Mvp]);
+    PollOption::factory()->for($poll)->create(['sort' => 0]);
+    PollOption::factory()->for($poll)->create(['sort' => 1]);
+
+    expect(MvpPollQuery::winner($poll))->toBeNull();
+});

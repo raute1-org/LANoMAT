@@ -26,15 +26,23 @@ class MvpPollQuery
 
     /**
      * The option with the most votes; ties are broken deterministically by
-     * the earliest `sort`, then the earliest `id`.
+     * the earliest `sort`, then the earliest `id`. Returns `null` when the
+     * poll has no options, or when it has options but zero votes were cast
+     * — a poll nobody voted in has no winner, not a default "option 0".
      */
     public static function winner(Poll $poll): ?PollOption
     {
-        return $poll->options()
+        $top = $poll->options()
             ->withCount('votes')
             ->orderByDesc('votes_count')
             ->orderBy('sort')
             ->orderBy('id')
             ->first();
+
+        if ($top === null || $top->votes_count === 0) {
+            return null;
+        }
+
+        return $top;
     }
 }

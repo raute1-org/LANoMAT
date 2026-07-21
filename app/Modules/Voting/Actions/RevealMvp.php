@@ -24,7 +24,10 @@ use Illuminate\Support\Facades\Gate;
  * {@see DrawTombola}'s and
  * {@see BroadcastWinnerMoment}'s synthetic-
  * scene pattern, and reusing `SceneWinner.vue`'s existing `data.winner`
- * shape exactly (no `tournament` subtitle for an MVP reveal).
+ * shape exactly (no `tournament` subtitle for an MVP reveal), plus an
+ * MVP-specific `data.title` override (`polls.mvp.reveal_title`) so the
+ * beamer reads "Spieler:in des Abends" instead of `SceneWinner.vue`'s
+ * default tournament-winner heading.
  *
  * The scene payload carries only the already-public winning option's label
  * — never `subject_user_id`/the winner's user id — so the beamer (an
@@ -49,7 +52,7 @@ class RevealMvp
         $winner = MvpPollQuery::winner($poll);
 
         if ($winner === null) {
-            throw VotingException::notClosedMvpPoll();
+            throw VotingException::noVotesCast();
         }
 
         SceneOverride::dispatch($poll->event_id, [
@@ -57,6 +60,7 @@ class RevealMvp
             'durationSec' => self::DURATION_SEC,
             'config' => [],
             'data' => [
+                'title' => trans('polls.mvp.reveal_title'),
                 'winner' => $winner->label,
             ],
         ]);

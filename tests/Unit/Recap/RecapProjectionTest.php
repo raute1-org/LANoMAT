@@ -117,6 +117,16 @@ it('returns null mvp when the event has no closed MVP poll', function () {
     expect($board['mvp'])->toBeNull();
 });
 
+it('resolves mvp to null when the closed MVP poll has options but zero votes', function () {
+    $event = Event::factory()->create();
+    $poll = Poll::factory()->for($event)->closed()->create(['kind' => PollKind::Mvp]);
+    PollOption::factory()->for($poll)->create(['sort' => 0]);
+
+    $board = RecapProjection::forEvent($event)->toArray();
+
+    expect($board['mvp'])->toBeNull();
+});
+
 it('resolves mvp to the closed MVP poll winner name', function () {
     $event = Event::factory()->create();
     $winnerUser = User::factory()->create();
