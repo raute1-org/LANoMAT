@@ -36,17 +36,21 @@ FROM dunglas/frankenphp:${FRANKENPHP_VERSION} AS builder
 # broadcasting driver), sodium (Discord Ed25519 interaction verification —
 # already compiled into the base image, listed here for clarity/idempotency
 # of the RUN), intl/zip (Laravel-ecosystem optional-but-recommended, per
-# composer.lock suggests). `gd`/`imagick` are deliberately NOT installed:
-# the QR-code path (app/Modules/Registration/Support/QrCode.php) renders
-# via BaconQrCode's SvgImageBackEnd, which needs no image extension at all
-# — a verified deviation from the task brief's "gd if the QR/image path
-# needs it", not an oversight.
+# composer.lock suggests). `gd` IS installed (added for M12 Gallery): the
+# EXIF-strip + thumbnail pipeline (app/Modules/Gallery/Actions/UploadPhoto.php)
+# runs uploads through intervention/image-laravel v4's GD driver, which
+# re-encodes JPEGs and thereby drops all EXIF metadata (including GPS) —
+# that re-encode is the whole point, not a side effect. `imagick` stays
+# deliberately NOT installed: nothing in the app needs it (the QR-code path,
+# app/Modules/Registration/Support/QrCode.php, renders via BaconQrCode's
+# SvgImageBackEnd and needs no image extension at all; Gallery only needs GD).
 RUN install-php-extensions \
     pdo_pgsql \
     redis \
     sodium \
     intl \
     zip \
+    gd \
     opcache \
     pcntl
 
@@ -78,12 +82,15 @@ RUN npm ci && npm run build
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION} AS app
 
+# Kept in sync with the builder stage's install-php-extensions above,
+# including `gd` for the Gallery module — see that block's comment.
 RUN install-php-extensions \
     pdo_pgsql \
     redis \
     sodium \
     intl \
     zip \
+    gd \
     opcache \
     pcntl
 
