@@ -189,29 +189,107 @@ php artisan db:seed --class=ScreenshotSeeder
 npm run screenshots
 ```
 
-Committed output files (captured against the local production stack —
+Committed output (captured against the local production stack —
 `docker compose --profile prod up`, see the run book in
-`scripts/screenshots/README.md`):
+`scripts/screenshots/README.md`). Click a thumbnail to open it full size.
 
-| Screen | Light | Dark |
-| --- | --- | --- |
-| Homepage (news block) | `docs/screenshots/home-light.png` | `docs/screenshots/home-dark.png` |
-| Event page | `docs/screenshots/event-page-light.png` | `docs/screenshots/event-page-dark.png` |
-| Pre-LAN countdown | `docs/screenshots/countdown-light.png` | `docs/screenshots/countdown-dark.png` |
-| Seating | `docs/screenshots/seating-light.png` | `docs/screenshots/seating-dark.png` |
-| Live bracket | `docs/screenshots/tournaments-light.png` | `docs/screenshots/tournaments-dark.png` |
-| Schedule | `docs/screenshots/schedule-light.png` | `docs/screenshots/schedule-dark.png` |
-| Catering | `docs/screenshots/catering-light.png` | `docs/screenshots/catering-dark.png` |
-| Voting | `docs/screenshots/voting-light.png` | `docs/screenshots/voting-dark.png` |
-| LFG | `docs/screenshots/lfg-light.png` | `docs/screenshots/lfg-dark.png` |
-| Files | `docs/screenshots/files-light.png` | `docs/screenshots/files-dark.png` |
-| Presence | `docs/screenshots/presence-light.png` | `docs/screenshots/presence-dark.png` |
-| Jukebox | `docs/screenshots/jukebox-light.png` | `docs/screenshots/jukebox-dark.png` |
-| Gallery | `docs/screenshots/gallery-light.png` | `docs/screenshots/gallery-dark.png` |
-| Recap | `docs/screenshots/recap-light.png` | `docs/screenshots/recap-dark.png` |
-| Infoscreen (live) | `docs/screenshots/infoscreen-light.png` | `docs/screenshots/infoscreen-dark.png` |
-| Infoscreen (recap) | `docs/screenshots/infoscreen-recap-light.png` | `docs/screenshots/infoscreen-recap-dark.png` |
-| Admin panel | `docs/screenshots/admin-light.png` | `docs/screenshots/admin-dark.png` |
+<details>
+<summary><strong>Screenshots</strong> — 17 screens × light/dark (click to expand)</summary>
+
+<table>
+<thead>
+<tr><th align="left">Screen</th><th>Light</th><th>Dark</th></tr>
+</thead>
+<tbody>
+<tr>
+<td>Homepage (news block)</td>
+<td><a href="docs/screenshots/home-light.png"><img src="docs/screenshots/home-light.png" width="380" alt="Homepage, light mode"></a></td>
+<td><a href="docs/screenshots/home-dark.png"><img src="docs/screenshots/home-dark.png" width="380" alt="Homepage, dark mode"></a></td>
+</tr>
+<tr>
+<td>Event page</td>
+<td><a href="docs/screenshots/event-page-light.png"><img src="docs/screenshots/event-page-light.png" width="380" alt="Event page, light mode"></a></td>
+<td><a href="docs/screenshots/event-page-dark.png"><img src="docs/screenshots/event-page-dark.png" width="380" alt="Event page, dark mode"></a></td>
+</tr>
+<tr>
+<td>Pre-LAN countdown</td>
+<td><a href="docs/screenshots/countdown-light.png"><img src="docs/screenshots/countdown-light.png" width="380" alt="Pre-LAN countdown, light mode"></a></td>
+<td><a href="docs/screenshots/countdown-dark.png"><img src="docs/screenshots/countdown-dark.png" width="380" alt="Pre-LAN countdown, dark mode"></a></td>
+</tr>
+<tr>
+<td>Seating</td>
+<td><a href="docs/screenshots/seating-light.png"><img src="docs/screenshots/seating-light.png" width="380" alt="Seating, light mode"></a></td>
+<td><a href="docs/screenshots/seating-dark.png"><img src="docs/screenshots/seating-dark.png" width="380" alt="Seating, dark mode"></a></td>
+</tr>
+<tr>
+<td>Live bracket</td>
+<td><a href="docs/screenshots/tournaments-light.png"><img src="docs/screenshots/tournaments-light.png" width="380" alt="Live bracket, light mode"></a></td>
+<td><a href="docs/screenshots/tournaments-dark.png"><img src="docs/screenshots/tournaments-dark.png" width="380" alt="Live bracket, dark mode"></a></td>
+</tr>
+<tr>
+<td>Schedule</td>
+<td><a href="docs/screenshots/schedule-light.png"><img src="docs/screenshots/schedule-light.png" width="380" alt="Schedule, light mode"></a></td>
+<td><a href="docs/screenshots/schedule-dark.png"><img src="docs/screenshots/schedule-dark.png" width="380" alt="Schedule, dark mode"></a></td>
+</tr>
+<tr>
+<td>Catering</td>
+<td><a href="docs/screenshots/catering-light.png"><img src="docs/screenshots/catering-light.png" width="380" alt="Catering, light mode"></a></td>
+<td><a href="docs/screenshots/catering-dark.png"><img src="docs/screenshots/catering-dark.png" width="380" alt="Catering, dark mode"></a></td>
+</tr>
+<tr>
+<td>Voting</td>
+<td><a href="docs/screenshots/voting-light.png"><img src="docs/screenshots/voting-light.png" width="380" alt="Voting, light mode"></a></td>
+<td><a href="docs/screenshots/voting-dark.png"><img src="docs/screenshots/voting-dark.png" width="380" alt="Voting, dark mode"></a></td>
+</tr>
+<tr>
+<td>LFG</td>
+<td><a href="docs/screenshots/lfg-light.png"><img src="docs/screenshots/lfg-light.png" width="380" alt="LFG, light mode"></a></td>
+<td><a href="docs/screenshots/lfg-dark.png"><img src="docs/screenshots/lfg-dark.png" width="380" alt="LFG, dark mode"></a></td>
+</tr>
+<tr>
+<td>Files</td>
+<td><a href="docs/screenshots/files-light.png"><img src="docs/screenshots/files-light.png" width="380" alt="Files, light mode"></a></td>
+<td><a href="docs/screenshots/files-dark.png"><img src="docs/screenshots/files-dark.png" width="380" alt="Files, dark mode"></a></td>
+</tr>
+<tr>
+<td>Presence</td>
+<td><a href="docs/screenshots/presence-light.png"><img src="docs/screenshots/presence-light.png" width="380" alt="Presence, light mode"></a></td>
+<td><a href="docs/screenshots/presence-dark.png"><img src="docs/screenshots/presence-dark.png" width="380" alt="Presence, dark mode"></a></td>
+</tr>
+<tr>
+<td>Jukebox</td>
+<td><a href="docs/screenshots/jukebox-light.png"><img src="docs/screenshots/jukebox-light.png" width="380" alt="Jukebox, light mode"></a></td>
+<td><a href="docs/screenshots/jukebox-dark.png"><img src="docs/screenshots/jukebox-dark.png" width="380" alt="Jukebox, dark mode"></a></td>
+</tr>
+<tr>
+<td>Gallery</td>
+<td><a href="docs/screenshots/gallery-light.png"><img src="docs/screenshots/gallery-light.png" width="380" alt="Gallery, light mode"></a></td>
+<td><a href="docs/screenshots/gallery-dark.png"><img src="docs/screenshots/gallery-dark.png" width="380" alt="Gallery, dark mode"></a></td>
+</tr>
+<tr>
+<td>Recap</td>
+<td><a href="docs/screenshots/recap-light.png"><img src="docs/screenshots/recap-light.png" width="380" alt="Recap, light mode"></a></td>
+<td><a href="docs/screenshots/recap-dark.png"><img src="docs/screenshots/recap-dark.png" width="380" alt="Recap, dark mode"></a></td>
+</tr>
+<tr>
+<td>Infoscreen (live)</td>
+<td><a href="docs/screenshots/infoscreen-light.png"><img src="docs/screenshots/infoscreen-light.png" width="380" alt="Infoscreen live scene, light mode"></a></td>
+<td><a href="docs/screenshots/infoscreen-dark.png"><img src="docs/screenshots/infoscreen-dark.png" width="380" alt="Infoscreen live scene, dark mode"></a></td>
+</tr>
+<tr>
+<td>Infoscreen (recap)</td>
+<td><a href="docs/screenshots/infoscreen-recap-light.png"><img src="docs/screenshots/infoscreen-recap-light.png" width="380" alt="Infoscreen recap scene, light mode"></a></td>
+<td><a href="docs/screenshots/infoscreen-recap-dark.png"><img src="docs/screenshots/infoscreen-recap-dark.png" width="380" alt="Infoscreen recap scene, dark mode"></a></td>
+</tr>
+<tr>
+<td>Admin panel</td>
+<td><a href="docs/screenshots/admin-light.png"><img src="docs/screenshots/admin-light.png" width="380" alt="Admin panel, light mode"></a></td>
+<td><a href="docs/screenshots/admin-dark.png"><img src="docs/screenshots/admin-dark.png" width="380" alt="Admin panel, dark mode"></a></td>
+</tr>
+</tbody>
+</table>
+
+</details>
 
 ## Project state
 
