@@ -36,6 +36,11 @@ return [
         'unauthorized' => 'Du bist nicht berechtigt, diese Aktion auszuführen.',
     ],
 
+    'upload' => [
+        'uploaded' => '{1} :count Foto hochgeladen.|[2,*] :count Fotos hochgeladen.',
+        'partial' => ':uploaded von :total Fotos hochgeladen, :skipped übersprungen.',
+    ],
+
     'page' => [
         'title' => 'Galerie',
         'empty' => 'Noch keine Fotos für dieses Event — lade die ersten hoch.',

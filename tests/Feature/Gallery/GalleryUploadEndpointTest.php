@@ -110,6 +110,50 @@ it('flashes a German error message and does not create a row when the action thr
     expect(EventPhoto::query()->count())->toBe(0);
 });
 
+it('stores the valid files in a mixed batch and flashes a per-file summary', function () {
+    config(['gallery.max_upload_mb' => 1]);
+
+    $event = Event::factory()->announced()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $user->id]);
+
+    // The bad file sits BETWEEN two valid ones: the old behaviour aborted the
+    // batch on the first failure, silently dropping the trailing valid file.
+    $response = $this->actingAs($user)->post("/events/{$event->slug}/gallery", [
+        'photos' => [
+            UploadedFile::fake()->image('good1.jpg', 800, 600),
+            UploadedFile::fake()->image('big.jpg', 5000, 5000)->size(2000), // > 1 MB → skipped
+            UploadedFile::fake()->image('good2.jpg', 800, 600),
+        ],
+    ]);
+
+    // Both valid files persist — the trailing one is NOT abandoned.
+    expect(EventPhoto::query()->where('uploaded_by', $user->id)->count())->toBe(2);
+    $response->assertSessionHas('inertia.flash_data.toast.type', 'warning');
+    $response->assertSessionHas('inertia.flash_data.toast.message', trans('gallery.upload.partial', [
+        'uploaded' => 2,
+        'total' => 3,
+        'skipped' => 1,
+    ]));
+});
+
+it('flashes a success summary when every file in a batch uploads', function () {
+    $event = Event::factory()->announced()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $user->id]);
+
+    $response = $this->actingAs($user)->post("/events/{$event->slug}/gallery", [
+        'photos' => [
+            UploadedFile::fake()->image('a.jpg', 800, 600),
+            UploadedFile::fake()->image('b.jpg', 800, 600),
+        ],
+    ]);
+
+    expect(EventPhoto::query()->where('uploaded_by', $user->id)->count())->toBe(2);
+    $response->assertSessionHas('inertia.flash_data.toast.type', 'success');
+    $response->assertSessionHas('inertia.flash_data.toast.message', trans_choice('gallery.upload.uploaded', 2, ['count' => 2]));
+});
+
 it('lets the owner delete their own photo', function () {
     $owner = User::factory()->create();
     $photo = EventPhoto::factory()->create(['uploaded_by' => $owner->id]);

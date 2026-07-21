@@ -23,6 +23,7 @@ use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -75,14 +76,44 @@ class GalleryPageController extends Controller
 
         $caption = $request->string('caption')->toString();
 
-        foreach ($request->file('photos', []) as $file) {
+        // Validation guarantees `photos` is an array; Arr::wrap normalises the
+        // framework's array|UploadedFile return type to a guaranteed array.
+        $files = Arr::wrap($request->file('photos', []));
+        $uploaded = 0;
+        $skipped = 0;
+        $lastError = 'gallery.errors.unreadable';
+
+        // Process EVERY file: one bad file (unreadable/oversize) must not abandon
+        // the rest of the batch, so we accumulate per-file outcomes and flash a
+        // single summary afterwards instead of bailing on the first failure.
+        foreach ($files as $file) {
             try {
                 $action->handle($event, $user, $file, $caption === '' ? null : $caption);
+                $uploaded++;
             } catch (GalleryException $exception) {
-                Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey)]);
-
-                return back();
+                $skipped++;
+                $lastError = $exception->translationKey;
             }
+        }
+
+        if ($skipped === 0) {
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => trans_choice('gallery.upload.uploaded', $uploaded, ['count' => $uploaded]),
+            ]);
+        } elseif ($uploaded === 0) {
+            // Nothing stored — surface the concrete reason (keeps the precise
+            // single-file error message users saw before).
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($lastError)]);
+        } else {
+            Inertia::flash('toast', [
+                'type' => 'warning',
+                'message' => trans('gallery.upload.partial', [
+                    'uploaded' => $uploaded,
+                    'total' => count($files),
+                    'skipped' => $skipped,
+                ]),
+            ]);
         }
 
         return back();
