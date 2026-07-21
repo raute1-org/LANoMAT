@@ -6,6 +6,7 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Files\Http\FilePageController;
 use App\Modules\Friends\Http\FriendsController;
+use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\Identity\Http\DiscordAuthController;
@@ -149,6 +150,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
     Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
     Route::delete('/files/{sharedFile}', [FilePageController::class, 'destroy'])->name('files.destroy');
+
+    // Gallery photo/thumbnail serving — deliberately auth-gated (approved
+    // photos to any authenticated participant, pending ones only to the
+    // owner/orga via EventPhotoPolicy::view()). The public recap uses its
+    // own narrow public-highlights path, not these routes.
+    Route::get('/gallery/photos/{eventPhoto}', [PhotoController::class, 'show'])->name('gallery.photos.show');
+    Route::get('/gallery/photos/{eventPhoto}/thumb', [PhotoController::class, 'thumb'])->name('gallery.photos.thumb');
 
     // Participant "Voice einrichten" page (roadmap 8.7): per-active-provider
     // connect data + downloadable client installers. Not event-scoped —
