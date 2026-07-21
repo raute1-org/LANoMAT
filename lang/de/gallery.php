@@ -1,6 +1,20 @@
 <?php
 
 return [
+    'resource' => [
+        'label' => 'Foto',
+        'plural_label' => 'Fotos',
+    ],
+
+    'fields' => [
+        'thumbnail' => 'Vorschau',
+        'event' => 'Event',
+        'user' => 'Nutzer',
+        'caption' => 'Bildunterschrift',
+        'visibility' => 'Status',
+        'is_highlight' => 'Highlight',
+    ],
+
     'visibility' => [
         'pending' => 'Wartet auf Freigabe',
         'approved' => 'Freigegeben',
