@@ -189,12 +189,15 @@ php artisan db:seed --class=ScreenshotSeeder
 npm run screenshots
 ```
 
-Expected output files (once the capture has been run against a live instance —
-see the honest-scope note in `scripts/screenshots/README.md`):
+Committed output files (captured against the local production stack —
+`docker compose --profile prod up`, see the run book in
+`scripts/screenshots/README.md`):
 
 | Screen | Light | Dark |
 | --- | --- | --- |
+| Homepage (news block) | `docs/screenshots/home-light.png` | `docs/screenshots/home-dark.png` |
 | Event page | `docs/screenshots/event-page-light.png` | `docs/screenshots/event-page-dark.png` |
+| Pre-LAN countdown | `docs/screenshots/countdown-light.png` | `docs/screenshots/countdown-dark.png` |
 | Seating | `docs/screenshots/seating-light.png` | `docs/screenshots/seating-dark.png` |
 | Live bracket | `docs/screenshots/tournaments-light.png` | `docs/screenshots/tournaments-dark.png` |
 | Schedule | `docs/screenshots/schedule-light.png` | `docs/screenshots/schedule-dark.png` |
@@ -202,12 +205,13 @@ see the honest-scope note in `scripts/screenshots/README.md`):
 | Voting | `docs/screenshots/voting-light.png` | `docs/screenshots/voting-dark.png` |
 | LFG | `docs/screenshots/lfg-light.png` | `docs/screenshots/lfg-dark.png` |
 | Files | `docs/screenshots/files-light.png` | `docs/screenshots/files-dark.png` |
-| Infoscreen | `docs/screenshots/infoscreen-light.png` | `docs/screenshots/infoscreen-dark.png` |
+| Presence | `docs/screenshots/presence-light.png` | `docs/screenshots/presence-dark.png` |
+| Jukebox | `docs/screenshots/jukebox-light.png` | `docs/screenshots/jukebox-dark.png` |
+| Gallery | `docs/screenshots/gallery-light.png` | `docs/screenshots/gallery-dark.png` |
+| Recap | `docs/screenshots/recap-light.png` | `docs/screenshots/recap-dark.png` |
+| Infoscreen (live) | `docs/screenshots/infoscreen-light.png` | `docs/screenshots/infoscreen-dark.png` |
+| Infoscreen (recap) | `docs/screenshots/infoscreen-recap-light.png` | `docs/screenshots/infoscreen-recap-dark.png` |
 | Admin panel | `docs/screenshots/admin-light.png` | `docs/screenshots/admin-dark.png` |
-
-> These PNGs are not committed yet — running the capture against a real/staging
-> instance and committing the resulting images is a manual follow-up (see
-> `scripts/screenshots/README.md`).
 
 ## Project state
 

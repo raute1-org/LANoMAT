@@ -27,18 +27,25 @@ const OUTPUT_DIR = path.resolve(__dirname, '../../docs/screenshots');
 const VIEWPORT = { width: 1440, height: 900 };
 
 // Must match the fixed demo fixtures created by database/seeders/ScreenshotSeeder.php.
-const EVENT_SLUG = 'screenshot-demo';
+const EVENT_SLUG = 'screenshot-demo'; // live event
+const RECAP_SLUG = 'screenshot-recap'; // finished event (M12 recap)
+const UPCOMING_SLUG = 'screenshot-upcoming'; // registration-open event (M12 countdown)
 const ORGA_EMAIL = 'screenshot-orga@example.test';
 const ORGA_PASSWORD = 'screenshot-demo-password';
 
 /**
  * Routes to capture. `auth: true` routes need the seeded orga session
- * (dashboard, /admin) — everything else in this app is intentionally public
- * (event/seating/bracket/schedule/catering/voting/lfg/files/infoscreen
- * pages have no auth middleware, see routes/web.php).
+ * (dashboard, /admin, the gallery upload page) — everything else in this app
+ * is intentionally public (home/event/seating/bracket/schedule/catering/
+ * voting/lfg/files/presence/jukebox/recap/infoscreen pages have no auth
+ * middleware, see routes/web.php). Note: capture runs entirely inside the
+ * logged-in orga context, so even the public pages render as a signed-in
+ * user (which is also what avoids the guest-null layout edge case).
  */
 const ROUTES = [
+    { name: 'home', path: '/' },
     { name: 'event-page', path: `/events/${EVENT_SLUG}` },
+    { name: 'countdown', path: `/events/${UPCOMING_SLUG}` },
     { name: 'seating', path: `/events/${EVENT_SLUG}/seating` },
     { name: 'tournaments', path: `/events/${EVENT_SLUG}/tournaments` },
     { name: 'schedule', path: `/events/${EVENT_SLUG}/schedule` },
@@ -46,7 +53,12 @@ const ROUTES = [
     { name: 'voting', path: `/events/${EVENT_SLUG}/polls` },
     { name: 'lfg', path: `/events/${EVENT_SLUG}/lfg` },
     { name: 'files', path: `/events/${EVENT_SLUG}/files` },
+    { name: 'presence', path: `/events/${EVENT_SLUG}/presence` },
+    { name: 'jukebox', path: `/events/${EVENT_SLUG}/jukebox` },
+    { name: 'gallery', path: `/events/${EVENT_SLUG}/gallery`, auth: true },
+    { name: 'recap', path: `/events/${RECAP_SLUG}/recap` },
     { name: 'infoscreen', path: `/screen/${EVENT_SLUG}` },
+    { name: 'infoscreen-recap', path: `/screen/${RECAP_SLUG}` },
     { name: 'admin', path: '/admin', auth: true },
 ];
 
