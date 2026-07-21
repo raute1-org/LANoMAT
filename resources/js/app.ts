@@ -24,10 +24,13 @@ createInertiaApp({
             // those flashes have somewhere to render. Jukebox is also
             // reachable by unauthenticated guests (read-only board), and the
             // default AppLayout's sidebar unconditionally renders NavUser
-            // assuming a non-null auth.user, so guests must not get it.
+            // assuming a non-null auth.user, so guests must not get it. The
+            // public Recap/* page (a past LAN's recap, browsable between LANs
+            // by anyone) is guest-reachable for the same reason.
             case name.startsWith('Event/'):
             case name.startsWith('Orga/'):
             case name.startsWith('Jukebox/'):
+            case name.startsWith('Recap/'):
                 return PublicShell;
             // Prefix match strips the app layout from EVERY page under this
             // directory. Future authenticated pages must not be placed here
