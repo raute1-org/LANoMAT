@@ -9,6 +9,7 @@ export * from './infoscreen';
 export * from './jukebox';
 export * from './lfg';
 export * from './navigation';
+export * from './news';
 export * from './notifications';
 export * from './presence';
 export * from './recap';

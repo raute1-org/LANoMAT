@@ -11,17 +11,29 @@ import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
 import { discord as loginDiscord } from '@/routes/login';
 import { show as presenceShow } from '@/routes/presence';
-import type { EventSummary } from '@/types';
+import type { EventSummary, NewsPostDto } from '@/types';
 
 const props = defineProps<{
     event: EventSummary;
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
+    news: NewsPostDto[];
 }>();
 
 const page = usePage();
 const isAuthenticated = computed(() => page.props.auth.user !== null);
 const isLive = computed(() => props.event.status === 'live');
+
+function formatPublishedAt(iso: string | null): string {
+    if (!iso) {
+        return '';
+    }
+
+    return new Date(iso).toLocaleString('de-DE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
 
 const dateRange = computed(() => {
     if (!props.event.startsAt) {
@@ -125,5 +137,38 @@ const cta = computed<string | null>(() => {
                 <Link :href="eventsIndex()">{{ labels.to_archive }}</Link>
             </Button>
         </div>
+
+        <section v-if="news.length > 0" class="mt-14">
+            <h2 class="text-lg font-semibold tracking-tight text-foreground">
+                {{ labels.news_heading }}
+            </h2>
+            <div class="mt-4 space-y-3">
+                <article
+                    v-for="post in news"
+                    :key="post.id"
+                    class="rounded-md border border-border bg-card p-4"
+                >
+                    <div
+                        class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
+                    >
+                        <h3 class="font-medium text-foreground">
+                            {{ post.title }}
+                        </h3>
+                        <time
+                            v-if="post.publishedAt"
+                            class="font-mono text-xs text-muted-foreground tabular-nums"
+                            :datetime="post.publishedAt"
+                        >
+                            {{ formatPublishedAt(post.publishedAt) }}
+                        </time>
+                    </div>
+                    <p
+                        class="mt-1.5 line-clamp-3 text-sm text-muted-foreground"
+                    >
+                        {{ post.body }}
+                    </p>
+                </article>
+            </div>
+        </section>
     </main>
 </template>

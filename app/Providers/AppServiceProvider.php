@@ -59,6 +59,8 @@ use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
+use App\Modules\News\Models\NewsPost;
+use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
@@ -245,6 +247,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
         Gate::policy(LinkedAccount::class, LinkedAccountPolicy::class);
         Gate::policy(Friendship::class, FriendshipPolicy::class);
+        Gate::policy(NewsPost::class, NewsPostPolicy::class);
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
         Gate::define('jukebox.participate', [JukeboxPolicy::class, 'participate']);

@@ -5,6 +5,8 @@ namespace App\Modules\Events\Http;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
+use App\Modules\News\Models\NewsPost;
+use App\Modules\News\Support\NewsQuery;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -50,6 +52,15 @@ class EventPageController
             'event' => $this->summary($event),
             'labels' => trans('events.page'),
             'statusLabels' => trans('events.status'),
+            'news' => app(NewsQuery::class)->published(3)
+                ->map(fn (NewsPost $post) => [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                    'body' => $post->body,
+                    'publishedAt' => $post->published_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 
