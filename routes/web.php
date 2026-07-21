@@ -167,6 +167,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/events/{event:slug}/gallery', [GalleryPageController::class, 'index'])->name('gallery.index');
     Route::post('/events/{event:slug}/gallery', [GalleryPageController::class, 'store'])->name('gallery.store');
     Route::delete('/gallery/photos/{eventPhoto}', [GalleryPageController::class, 'destroy'])->name('gallery.destroy');
+    Route::get('/events/{event:slug}/gallery/zip', [GalleryPageController::class, 'downloadZip'])->name('gallery.zip');
 
     // Participant "Voice einrichten" page (roadmap 8.7): per-active-provider
     // connect data + downloadable client installers. Not event-scoped —

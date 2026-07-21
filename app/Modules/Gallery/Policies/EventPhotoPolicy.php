@@ -3,6 +3,7 @@
 namespace App\Modules\Gallery\Policies;
 
 use App\Models\User;
+use App\Modules\Events\Models\Event;
 use App\Modules\Gallery\Enums\PhotoVisibility;
 use App\Modules\Gallery\Models\EventPhoto;
 
@@ -52,5 +53,15 @@ class EventPhotoPolicy
     public function highlight(User $user, EventPhoto $photo): bool
     {
         return $user->isOrga();
+    }
+
+    /**
+     * Any authenticated viewer of a public event may download the zip — this
+     * ability is about "who", not "when"; the event-status gate
+     * (Finished/Archived only) is enforced in the controller.
+     */
+    public function downloadZip(User $user, Event $event): bool
+    {
+        return true;
     }
 }

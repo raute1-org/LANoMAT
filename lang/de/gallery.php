@@ -57,5 +57,6 @@ return [
         'load_error' => 'Die Galerie konnte nicht geladen werden.',
         'photo_count' => 'Fotos',
         'close' => 'Schließen',
+        'download_zip' => 'Alle Fotos als ZIP herunterladen',
     ],
 ];

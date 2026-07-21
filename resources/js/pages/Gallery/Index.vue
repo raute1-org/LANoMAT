@@ -12,6 +12,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import PhotoGrid from '@/components/gallery/PhotoGrid.vue';
 import PhotoLightbox from '@/components/gallery/PhotoLightbox.vue';
 import PhotoUpload from '@/components/gallery/PhotoUpload.vue';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { destroy as destroyPhoto } from '@/routes/gallery';
 import type { GalleryPhotoDto } from '@/types';
@@ -85,12 +86,24 @@ onUnmounted(() => {
             <h1 class="text-3xl font-bold tracking-tight text-foreground">
                 {{ labels.title }} — {{ event.name }}
             </h1>
-            <span
-                v-if="photos.length > 0"
-                class="font-mono text-sm text-muted-foreground tabular-nums"
-            >
-                {{ photos.length }} {{ labels.photo_count }}
-            </span>
+            <div class="flex items-center gap-3">
+                <span
+                    v-if="photos.length > 0"
+                    class="font-mono text-sm text-muted-foreground tabular-nums"
+                >
+                    {{ photos.length }} {{ labels.photo_count }}
+                </span>
+                <Button
+                    v-if="canDownloadZip"
+                    as-child
+                    size="sm"
+                    variant="secondary"
+                >
+                    <a :href="`/events/${event.slug}/gallery/zip`">{{
+                        labels.download_zip
+                    }}</a>
+                </Button>
+            </div>
         </div>
 
         <div v-if="canUpload" class="mt-8">

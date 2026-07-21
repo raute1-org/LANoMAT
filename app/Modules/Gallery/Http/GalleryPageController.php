@@ -7,8 +7,10 @@ namespace App\Modules\Gallery\Http;
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Http\FilePageController;
+use App\Modules\Gallery\Actions\BuildEventPhotoZip;
 use App\Modules\Gallery\Actions\DeletePhoto;
 use App\Modules\Gallery\Actions\UploadPhoto;
 use App\Modules\Gallery\Enums\PhotoVisibility;
@@ -24,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * The participant gallery page (`Gallery/Index`). Deliberately auth-gated —
@@ -53,7 +56,7 @@ class GalleryPageController extends Controller
             'photos' => $photos->map(fn (EventPhoto $photo): array => $this->photoDto($photo, $user))->all(),
             'canUpload' => $this->canUpload($event, $user),
             'labels' => trans('gallery.page'),
-            'canDownloadZip' => false,
+            'canDownloadZip' => $this->isFinishedOrArchived($event),
         ]);
     }
 
@@ -96,6 +99,28 @@ class GalleryPageController extends Controller
         $action->handle($eventPhoto);
 
         return back();
+    }
+
+    /**
+     * Zip download of the event's approved photos — gated to Finished/
+     * Archived events only (the "when"); {@see EventPhotoPolicy::downloadZip}
+     * is the "who" (any authenticated viewer of a public event).
+     */
+    public function downloadZip(Request $request, Event $event, BuildEventPhotoZip $action): BinaryFileResponse
+    {
+        abort_unless($event->isPubliclyVisible(), 404);
+        abort_unless($this->isFinishedOrArchived($event), 403);
+
+        $this->authorize('downloadZip', [EventPhoto::class, $event]);
+
+        $path = $action->handle($event);
+
+        return response()->download($path, "{$event->slug}-fotos.zip")->deleteFileAfterSend();
+    }
+
+    private function isFinishedOrArchived(Event $event): bool
+    {
+        return in_array($event->status, [EventStatus::Finished, EventStatus::Archived], true);
     }
 
     /**
