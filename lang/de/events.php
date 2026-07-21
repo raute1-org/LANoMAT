@@ -8,6 +8,7 @@ return [
     'fields' => [
         'name' => 'Name',
         'location' => 'Ort',
+        'arrival_info' => 'Anreise-Infos',
         'starts_at' => 'Beginn',
         'ends_at' => 'Ende',
         'max_participants' => 'Max. Teilnehmer',
@@ -57,5 +58,18 @@ return [
             'live' => 'Event läuft',
         ],
         'login_to_register' => 'Zum Anmelden einloggen',
+        'countdown' => [
+            'heading' => 'Countdown',
+            'running' => 'Countdown läuft',
+            'days' => 'Tage',
+            'hours' => 'Std',
+            'minutes' => 'Min',
+            'seconds' => 'Sek',
+        ],
+        'who_is_coming' => 'Wer kommt',
+        'who_is_coming_count' => 'Anmeldungen',
+        'active_poll_teaser' => 'Es läuft eine Abstimmung',
+        'to_poll' => 'Zur Abstimmung',
+        'arrival_heading' => 'Anreise',
     ],
 ];

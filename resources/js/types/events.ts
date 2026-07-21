@@ -1,3 +1,14 @@
+export interface EventHypePollTeaser {
+    id: number;
+    question: string;
+}
+
+export interface EventHype {
+    startsAt: string;
+    registrationCount: number;
+    activePoll: EventHypePollTeaser | null;
+}
+
 export interface EventSummary {
     name: string;
     slug: string;
@@ -11,4 +22,6 @@ export interface EventSummary {
     startsAt: string | null;
     endsAt: string | null;
     location: string | null;
+    arrivalInfo: string | null;
+    hype: EventHype | null;
 }

@@ -7,6 +7,9 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Support\NewsQuery;
+use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Voting\Enums\PollStatus;
+use App\Modules\Voting\Models\Poll;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -76,6 +79,44 @@ class EventPageController
             'startsAt' => $event->starts_at?->toIso8601String(),
             'endsAt' => $event->ends_at?->toIso8601String(),
             'location' => $event->location,
+            'arrivalInfo' => $event->arrival_info,
+            'hype' => $this->hypeFor($event),
+        ];
+    }
+
+    /**
+     * Pre-LAN countdown/hype props: only meaningful before the event has
+     * actually started, so it is limited to the Announced/Registration
+     * window with a start date still in the future. Pure display data — no
+     * write path — computed fresh on every page load.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function hypeFor(Event $event): ?array
+    {
+        if (! in_array($event->status, [EventStatus::Announced, EventStatus::Registration], true)) {
+            return null;
+        }
+
+        if ($event->starts_at === null || ! $event->starts_at->isFuture()) {
+            return null;
+        }
+
+        $poll = Poll::query()
+            ->where('event_id', $event->id)
+            ->where('status', PollStatus::Open->value)
+            ->orderByDesc('created_at')
+            ->first();
+
+        return [
+            'startsAt' => $event->starts_at->toIso8601String(),
+            'registrationCount' => $event->registrations()
+                ->where('status', '!=', RegistrationStatus::Cancelled->value)
+                ->count(),
+            'activePoll' => $poll === null ? null : [
+                'id' => $poll->id,
+                'question' => $poll->question,
+            ],
         ];
     }
 }

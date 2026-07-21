@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +10,7 @@ import {
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
 import { discord as loginDiscord } from '@/routes/login';
+import { show as pollShow } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import type { EventSummary, NewsPostDto } from '@/types';
 
@@ -58,6 +59,64 @@ const cta = computed<string | null>(() => {
 
     return ctas[props.event.status] ?? null;
 });
+
+const countdownLabels = computed(() => {
+    const map = props.labels as Record<string, unknown>;
+
+    return (map.countdown ?? {}) as Record<string, string>;
+});
+
+// Pure client-side display ticker toward `hype.startsAt` — no write path.
+// Recomputed every second from wall-clock time rather than counted down, so
+// it stays correct even if the tab was backgrounded (no drift to correct).
+interface CountdownParts {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+}
+
+const now = ref(Date.now());
+let countdownHandle: ReturnType<typeof setInterval> | undefined;
+
+onMounted(() => {
+    if (props.event.hype) {
+        countdownHandle = setInterval(() => {
+            now.value = Date.now();
+        }, 1000);
+    }
+});
+
+onUnmounted(() => {
+    if (countdownHandle) {
+        clearInterval(countdownHandle);
+    }
+});
+
+const countdown = computed<CountdownParts | null>(() => {
+    const hype = props.event.hype;
+
+    if (!hype) {
+        return null;
+    }
+
+    const remainingMs = Math.max(
+        0,
+        new Date(hype.startsAt).getTime() - now.value,
+    );
+    const totalSeconds = Math.floor(remainingMs / 1000);
+
+    return {
+        days: Math.floor(totalSeconds / 86400),
+        hours: Math.floor((totalSeconds % 86400) / 3600),
+        minutes: Math.floor((totalSeconds % 3600) / 60),
+        seconds: totalSeconds % 60,
+    };
+});
+
+function pad(value: number): string {
+    return value.toString().padStart(2, '0');
+}
 </script>
 
 <template>
@@ -137,6 +196,111 @@ const cta = computed<string | null>(() => {
                 <Link :href="eventsIndex()">{{ labels.to_archive }}</Link>
             </Button>
         </div>
+
+        <section
+            v-if="event.hype && countdown"
+            class="mt-14 rounded-md border border-border bg-card p-5"
+        >
+            <LiveIndicator variant="live" :label="countdownLabels.running" />
+
+            <dl class="mt-4 flex flex-wrap items-baseline gap-x-1.5 gap-y-2">
+                <div class="flex items-baseline gap-1.5">
+                    <dd
+                        class="font-mono text-3xl font-semibold text-foreground tabular-nums sm:text-4xl"
+                    >
+                        {{ pad(countdown.days) }}
+                    </dd>
+                    <dt class="text-xs text-muted-foreground uppercase">
+                        {{ countdownLabels.days }}
+                    </dt>
+                </div>
+                <span
+                    class="font-mono text-3xl text-muted-foreground sm:text-4xl"
+                    aria-hidden="true"
+                    >:</span
+                >
+                <div class="flex items-baseline gap-1.5">
+                    <dd
+                        class="font-mono text-3xl font-semibold text-foreground tabular-nums sm:text-4xl"
+                    >
+                        {{ pad(countdown.hours) }}
+                    </dd>
+                    <dt class="text-xs text-muted-foreground uppercase">
+                        {{ countdownLabels.hours }}
+                    </dt>
+                </div>
+                <span
+                    class="font-mono text-3xl text-muted-foreground sm:text-4xl"
+                    aria-hidden="true"
+                    >:</span
+                >
+                <div class="flex items-baseline gap-1.5">
+                    <dd
+                        class="font-mono text-3xl font-semibold text-foreground tabular-nums sm:text-4xl"
+                    >
+                        {{ pad(countdown.minutes) }}
+                    </dd>
+                    <dt class="text-xs text-muted-foreground uppercase">
+                        {{ countdownLabels.minutes }}
+                    </dt>
+                </div>
+                <span
+                    class="font-mono text-3xl text-muted-foreground sm:text-4xl"
+                    aria-hidden="true"
+                    >:</span
+                >
+                <div class="flex items-baseline gap-1.5">
+                    <dd
+                        class="font-mono text-3xl font-semibold text-live tabular-nums sm:text-4xl"
+                    >
+                        {{ pad(countdown.seconds) }}
+                    </dd>
+                    <dt class="text-xs text-muted-foreground uppercase">
+                        {{ countdownLabels.seconds }}
+                    </dt>
+                </div>
+            </dl>
+
+            <div class="mt-6 grid gap-6 sm:grid-cols-2">
+                <div>
+                    <dt class="text-sm text-muted-foreground">
+                        {{ labels.who_is_coming }}
+                    </dt>
+                    <dd
+                        class="mt-1 font-mono text-lg text-foreground tabular-nums"
+                    >
+                        {{ event.hype.registrationCount }}
+                        <span class="font-sans text-sm text-muted-foreground">{{
+                            labels.who_is_coming_count
+                        }}</span>
+                    </dd>
+                </div>
+                <div v-if="event.hype.activePoll">
+                    <dt class="text-sm text-muted-foreground">
+                        {{ labels.active_poll_teaser }}
+                    </dt>
+                    <dd class="mt-1 text-lg text-foreground">
+                        <Link
+                            :href="
+                                pollShow.url({ id: event.hype.activePoll.id })
+                            "
+                            class="underline decoration-muted-foreground/50 underline-offset-4 hover:decoration-foreground"
+                        >
+                            {{ event.hype.activePoll.question }}
+                        </Link>
+                    </dd>
+                </div>
+            </div>
+        </section>
+
+        <section v-if="event.arrivalInfo" class="mt-10">
+            <h2 class="text-lg font-semibold tracking-tight text-foreground">
+                {{ labels.arrival_heading }}
+            </h2>
+            <p class="mt-3 text-sm whitespace-pre-line text-muted-foreground">
+                {{ event.arrivalInfo }}
+            </p>
+        </section>
 
         <section v-if="news.length > 0" class="mt-14">
             <h2 class="text-lg font-semibold tracking-tight text-foreground">

@@ -63,4 +63,9 @@ class EventFactory extends Factory
     {
         return $this->status(EventStatus::Archived);
     }
+
+    public function withArrivalInfo(string $arrivalInfo): static
+    {
+        return $this->state(['arrival_info' => $arrivalInfo]);
+    }
 }

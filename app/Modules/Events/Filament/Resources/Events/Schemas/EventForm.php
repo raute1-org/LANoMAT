@@ -5,6 +5,7 @@ namespace App\Modules\Events\Filament\Resources\Events\Schemas;
 use App\Modules\Events\Enums\EventStatus;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -21,6 +22,10 @@ class EventForm
                 TextInput::make('location')
                     ->label(__('events.fields.location'))
                     ->maxLength(255),
+                Textarea::make('arrival_info')
+                    ->label(__('events.fields.arrival_info'))
+                    ->rows(3)
+                    ->columnSpanFull(),
                 DateTimePicker::make('starts_at')
                     ->label(__('events.fields.starts_at')),
                 DateTimePicker::make('ends_at')

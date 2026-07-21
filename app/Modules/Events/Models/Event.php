@@ -29,6 +29,7 @@ class Event extends Model
         'slug',
         'status',
         'location',
+        'arrival_info',
         'starts_at',
         'ends_at',
         'max_participants',
