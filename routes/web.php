@@ -19,6 +19,7 @@ use App\Modules\Jukebox\Http\JukeboxController;
 use App\Modules\Lfg\Http\LfgController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Presence\Http\PresencePageController;
+use App\Modules\Recap\Http\RecapPageController;
 use App\Modules\Registration\Http\CheckInController;
 use App\Modules\Registration\Http\RegistrationController;
 use App\Modules\Schedule\Http\ScheduleController;
@@ -87,6 +88,12 @@ Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->
 // catering/polls/lfg/servers/files, no auth required" visibility rule; who is
 // checked in, where, and what's currently live (see PresenceProjection).
 Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'show'])->name('presence.show');
+
+// Public post-LAN recap — same "no auth required" visibility rule as the
+// rest of the participant UI, further gated to Finished/Archived events
+// only (see RecapPageController); this is the between-LANs page anyone can
+// revisit after the event wraps.
+Route::get('/events/{event:slug}/recap', [RecapPageController::class, 'show'])->name('recap.show');
 
 // Public beamer screen — same "public like seating/tournaments/schedule/
 // catering/polls/lfg, no auth required" visibility rule; renders with no

@@ -18,6 +18,7 @@ use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Jukebox\Models\JukeboxItem;
 use App\Modules\Jukebox\Support\JukeboxQueue;
 use App\Modules\Presence\Support\PresenceProjection;
+use App\Modules\Recap\Support\RecapProjection;
 use App\Modules\Registration\Support\QrCode;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\SeatProjection;
@@ -57,7 +58,10 @@ use Illuminate\Support\Facades\Storage;
  * never a raw `event_photos` query from here) and returns only a public
  * photo url (the new public-serving route, never the auth-gated
  * `gallery.photos.show`) + caption — no uploader name, no ids, no
- * visibility; payment-qr renders
+ * visibility; recap reads the scene's event via {@see RecapProjection}
+ * (the Recap module's own read-model, shared verbatim with the public
+ * `/events/{event}/recap` page) and passes its already-public board through
+ * unchanged; payment-qr renders
  * `config.qrPayload` via the content-agnostic {@see QrCode} (no `qrSvg` key
  * when the payload is empty/unset); sponsors resolves `config.sponsorLogoPaths`
  * to public storage URLs. Every other scene type still gets `[]`, which is
@@ -97,6 +101,7 @@ final class ScenePayload
             SceneType::Presence => self::presenceData($scene),
             SceneType::NowPlaying => self::nowPlayingData($scene),
             SceneType::Gallery => self::galleryData($scene),
+            SceneType::Recap => self::recapData($scene),
             default => [],
         };
     }
@@ -286,6 +291,41 @@ final class ScenePayload
             ->all();
 
         return ['photos' => array_values($photos)];
+    }
+
+    /**
+     * The rotation-configured recap scene shows the same post-LAN board as
+     * the public `/events/{event}/recap` page, via {@see RecapProjection}
+     * (the Recap module's own pure, IO-free read-model — this never queries
+     * tournament/gallery/jukebox tables directly, keeping the module
+     * boundary the same way `presenceData`/`nowPlayingData`/`galleryData`
+     * stay behind their own projections). `RecapProjection` is itself
+     * already public/no-PII (display names + the public photo-thumb route
+     * only), so this arm passes its `toArray()` through unchanged — no
+     * additional fields are added here. Recap is post-event static data
+     * (unlike now-playing/gallery/presence there is no live update to react
+     * to), so it needs no dedicated broadcast — the existing scene
+     * rotation/`.scenes.updated` reload already covers it.
+     *
+     * @return array{participantCount: int, tournamentCount: int, matchesPlayed: int, songsPlayed: int|null, podiums: list<array<string, mixed>>, topPhotos: list<array<string, mixed>>, mvp: array{name: string}|null}
+     */
+    private static function recapData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return [
+                'participantCount' => 0,
+                'tournamentCount' => 0,
+                'matchesPlayed' => 0,
+                'songsPlayed' => null,
+                'podiums' => [],
+                'topPhotos' => [],
+                'mvp' => null,
+            ];
+        }
+
+        return RecapProjection::forEvent($event)->toArray();
     }
 
     /**

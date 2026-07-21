@@ -21,6 +21,7 @@ enum SceneType: string
     case Presence = 'presence';
     case NowPlaying = 'now_playing';
     case Gallery = 'gallery';
+    case Recap = 'recap';
 
     /**
      * Synthetic, override-only type: a tournament's winner-moment scene is

@@ -12,6 +12,7 @@ export type SceneType =
     | 'presence'
     | 'now_playing'
     | 'gallery'
+    | 'recap'
     | 'winner'
     | 'gong'
     | 'scoreboard';

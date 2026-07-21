@@ -15,6 +15,7 @@ return [
         'presence' => 'Präsenz',
         'now_playing' => 'Läuft gerade',
         'gallery' => 'Fotogalerie',
+        'recap' => 'Rückblick',
         'winner' => 'Sieger-Einblendung',
         'gong' => 'Go-Gong',
         'scoreboard' => 'Live-Scoreboard',
@@ -213,5 +214,17 @@ return [
         // SceneGallery (Task 7) — the beamer photo slideshow, reusing
         // GalleryQuery's approvedFor() read-model.
         'gallery_empty' => 'Noch keine Fotos freigegeben.',
+
+        // SceneRecap (M12 Task 9) — the beamer post-LAN recap board, reusing
+        // RecapProjection (shared with the public recap page).
+        'recap_title' => 'Rückblick',
+        'recap_participants_label' => 'Teilnehmende',
+        'recap_tournaments_label' => 'Turniere',
+        'recap_matches_label' => 'Matches',
+        'recap_songs_label' => 'Songs',
+        'recap_podium_heading' => 'Turniersieger',
+        'recap_podium_empty' => 'Keine Turniere wurden ausgespielt.',
+        'recap_photos_heading' => 'Highlights',
+        'recap_photos_empty' => 'Keine Foto-Highlights.',
     ],
 ];

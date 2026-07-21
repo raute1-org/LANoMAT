@@ -10,6 +10,7 @@ import SceneGong from '@/components/scenes/SceneGong.vue';
 import SceneNowPlaying from '@/components/scenes/SceneNowPlaying.vue';
 import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
 import ScenePresence from '@/components/scenes/ScenePresence.vue';
+import SceneRecap from '@/components/scenes/SceneRecap.vue';
 import SceneSchedule from '@/components/scenes/SceneSchedule.vue';
 import SceneScoreboard from '@/components/scenes/SceneScoreboard.vue';
 import SceneSeatmap from '@/components/scenes/SceneSeatmap.vue';
@@ -47,6 +48,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     presence: ScenePresence,
     now_playing: SceneNowPlaying,
     gallery: SceneGallery,
+    recap: SceneRecap,
     gong: SceneGong,
     scoreboard: SceneScoreboard,
 };
