@@ -82,6 +82,19 @@ function seatAriaLabel(seat: SeatDto): string {
     return `${seat.label} — ${stateLabel(seat)}`;
 }
 
+// SVG <text> neither wraps nor clips on its own, so a long occupant name
+// spills past the tile. Ellipsis-truncate it for a clean look; the
+// #seat-clip clipPath in the template is the hard backstop that guarantees
+// nothing ever renders outside the tile (the full name stays in the title/
+// aria-label above for accessibility).
+function occupantLabel(seat: SeatDto): string {
+    const name = seat.occupant ?? '';
+
+    // Budgeted to fit the tile at the occupant font size; the #seat-clip
+    // clipPath is the hard backstop for anything still too wide.
+    return name.length > 10 ? `${name.slice(0, 9)}…` : name;
+}
+
 function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
     if (event.key !== 'Enter' && event.key !== ' ') {
         return;
@@ -179,6 +192,13 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
             class="mt-4 overflow-auto rounded-lg border border-border p-4"
         >
             <svg :viewBox="`0 0 ${maxX * CELL} ${maxY * CELL}`" class="w-full">
+                <defs>
+                    <!-- Clip seat text to the tile so a long occupant name
+                    can never render outside its seat (see occupantLabel). -->
+                    <clipPath id="seat-clip">
+                        <rect :width="CELL - 8" :height="CELL - 8" rx="6" />
+                    </clipPath>
+                </defs>
                 <g
                     v-for="seat in seats"
                     :key="seat.id"
@@ -215,14 +235,15 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                         v-if="seat.occupant"
                         x="8"
                         y="40"
-                        class="text-[9px]"
+                        clip-path="url(#seat-clip)"
+                        class="text-[8px]"
                         :fill="
                             seat.id === mySeatId
                                 ? 'var(--primary-foreground)'
                                 : 'var(--muted-foreground)'
                         "
                     >
-                        {{ seat.occupant }}
+                        {{ occupantLabel(seat) }}
                     </text>
                 </g>
             </svg>
