@@ -93,6 +93,15 @@ Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'sho
 // app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
 Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
 
+// Public gallery photo/thumbnail serving for the beamer slideshow (Task 7)
+// and the Task-9 public recap: unlike `gallery.photos.show`/`thumb` below
+// (auth-gated, re-checks EventPhotoPolicy so an uploader can see their own
+// pending photo), these routes serve ONLY photos that are already both
+// Approved and belong to a publicly-visible event — that check is itself
+// the gate (no auth middleware, no policy, see PhotoController::publicShow()).
+Route::get('/gallery/public/photos/{eventPhoto}', [PhotoController::class, 'publicShow'])->name('gallery.photos.public.show');
+Route::get('/gallery/public/photos/{eventPhoto}/thumb', [PhotoController::class, 'publicThumb'])->name('gallery.photos.public.thumb');
+
 // Public jukebox board — same "public like seating/tournaments/schedule/
 // catering/polls/lfg/servers/files/presence, no auth required" visibility
 // rule; queueing/voting/skipping/removing all require auth (see below) and

@@ -14,6 +14,7 @@ return [
         'servers' => 'Spielserver',
         'presence' => 'Präsenz',
         'now_playing' => 'Läuft gerade',
+        'gallery' => 'Fotogalerie',
         'winner' => 'Sieger-Einblendung',
         'gong' => 'Go-Gong',
         'scoreboard' => 'Live-Scoreboard',
@@ -208,5 +209,9 @@ return [
         'now_playing_artist_unknown' => 'Unbekannt',
         'now_playing_up_next_heading' => 'Als Nächstes',
         'now_playing_up_next_empty' => 'Die Warteschlange ist leer.',
+
+        // SceneGallery (Task 7) — the beamer photo slideshow, reusing
+        // GalleryQuery's approvedFor() read-model.
+        'gallery_empty' => 'Noch keine Fotos freigegeben.',
     ],
 ];

@@ -20,6 +20,7 @@ enum SceneType: string
     case Servers = 'servers';
     case Presence = 'presence';
     case NowPlaying = 'now_playing';
+    case Gallery = 'gallery';
 
     /**
      * Synthetic, override-only type: a tournament's winner-moment scene is

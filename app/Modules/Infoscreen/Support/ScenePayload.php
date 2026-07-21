@@ -3,6 +3,8 @@
 namespace App\Modules\Infoscreen\Support;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Gallery\Models\EventPhoto;
+use App\Modules\Gallery\Support\GalleryQuery;
 use App\Modules\GameServers\Support\ServerListProjection;
 use App\Modules\Infoscreen\Actions\DrawTombola;
 use App\Modules\Infoscreen\Actions\SetStatusSignal;
@@ -50,7 +52,12 @@ use Illuminate\Support\Facades\Storage;
  * {@see JukeboxQueue} (the Jukebox module's read-model, never a raw
  * `jukebox_items` query from here) and returns only public track metadata
  * (title/artist/imageUrl) — never the vote counts or adder's name the
- * participant queue view shows; payment-qr renders
+ * participant queue view shows; gallery reads the scene's event via
+ * {@see GalleryQuery::approvedFor()} (the Gallery module's own read-model,
+ * never a raw `event_photos` query from here) and returns only a public
+ * photo url (the new public-serving route, never the auth-gated
+ * `gallery.photos.show`) + caption — no uploader name, no ids, no
+ * visibility; payment-qr renders
  * `config.qrPayload` via the content-agnostic {@see QrCode} (no `qrSvg` key
  * when the payload is empty/unset); sponsors resolves `config.sponsorLogoPaths`
  * to public storage URLs. Every other scene type still gets `[]`, which is
@@ -89,6 +96,7 @@ final class ScenePayload
             SceneType::Servers => self::serversData($scene),
             SceneType::Presence => self::presenceData($scene),
             SceneType::NowPlaying => self::nowPlayingData($scene),
+            SceneType::Gallery => self::galleryData($scene),
             default => [],
         };
     }
@@ -247,6 +255,37 @@ final class ScenePayload
             'artist' => $item->artist,
             'imageUrl' => $item->image_url,
         ];
+    }
+
+    /**
+     * The rotation-configured gallery scene shows a slideshow of the
+     * event's approved photos via {@see GalleryQuery::approvedFor()} (the
+     * Gallery module's own read-model — this never queries `event_photos`
+     * directly, keeping the module boundary the same way `nowPlayingData`
+     * stays behind {@see JukeboxQueue}). Only a public photo url (the
+     * `gallery.photos.public.show` route, never the auth-gated
+     * `gallery.photos.show` a participant browser session uses) and its
+     * caption are exposed — no uploader name, no ids, no visibility. This is
+     * a public, unauthenticated beamer surface.
+     *
+     * @return array{photos: list<array{url: string, caption: string|null}>}
+     */
+    private static function galleryData(InfoscreenScene $scene): array
+    {
+        $event = self::eventFor($scene);
+
+        if ($event === null) {
+            return ['photos' => []];
+        }
+
+        $photos = app(GalleryQuery::class)->approvedFor($event)
+            ->map(fn (EventPhoto $photo): array => [
+                'url' => route('gallery.photos.public.show', $photo),
+                'caption' => $photo->caption,
+            ])
+            ->all();
+
+        return ['photos' => array_values($photos)];
     }
 
     /**

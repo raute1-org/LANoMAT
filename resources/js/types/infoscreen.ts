@@ -11,6 +11,7 @@ export type SceneType =
     | 'servers'
     | 'presence'
     | 'now_playing'
+    | 'gallery'
     | 'winner'
     | 'gong'
     | 'scoreboard';
@@ -41,4 +42,17 @@ export interface NowPlayingTrackDto {
     title: string;
     artist: string | null;
     imageUrl: string | null;
+}
+
+/**
+ * The public photo subset produced by `ScenePayload::galleryData()` for the
+ * beamer slideshow (`SceneGallery.vue`) — deliberately narrower than the
+ * participant gallery page's own `GalleryPhotoDto` (see `@/types/gallery`):
+ * `url` points at the public-only `gallery.photos.public.show` route (never
+ * the auth-gated `gallery.photos.show`), and there is no uploader name, no
+ * ids, no visibility. This is a public, unauthenticated beamer surface.
+ */
+export interface GallerySlidePhotoDto {
+    url: string;
+    caption: string | null;
 }

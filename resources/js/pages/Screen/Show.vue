@@ -5,6 +5,7 @@ import type { Component } from 'vue';
 import SceneAnnouncement from '@/components/scenes/SceneAnnouncement.vue';
 import SceneBracket from '@/components/scenes/SceneBracket.vue';
 import SceneFrame from '@/components/scenes/SceneFrame.vue';
+import SceneGallery from '@/components/scenes/SceneGallery.vue';
 import SceneGong from '@/components/scenes/SceneGong.vue';
 import SceneNowPlaying from '@/components/scenes/SceneNowPlaying.vue';
 import ScenePaymentQr from '@/components/scenes/ScenePaymentQr.vue';
@@ -45,6 +46,7 @@ const sceneComponents: Partial<Record<SceneType, Component>> = {
     servers: SceneServers,
     presence: ScenePresence,
     now_playing: SceneNowPlaying,
+    gallery: SceneGallery,
     gong: SceneGong,
     scoreboard: SceneScoreboard,
 };
@@ -79,6 +81,14 @@ useEventChannel(props.event.id, ['.scenes.updated'], () => {
 // the now-playing scene's data) whenever that happens, same pattern as the
 // scenes.updated reload above. Acceptable at LAN scale.
 useEventChannel(props.event.id, ['.jukebox.updated'], () => {
+    router.reload({ only: ['scenes'] });
+});
+
+// GalleryUpdated fires whenever a photo is approved or a highlight is
+// toggled (no per-scene push, payload-less) — reload the scene payloads
+// (including the gallery scene's photo list) so a newly-approved photo
+// appears without a manual refresh. Same mechanism as `.jukebox.updated`.
+useEventChannel(props.event.id, ['.gallery.updated'], () => {
     router.reload({ only: ['scenes'] });
 });
 
