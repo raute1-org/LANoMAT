@@ -73,9 +73,10 @@ class NewsPostsTable
     }
 
     /**
-     * Filament's `->authorize()` already gates the action's visibility/click,
-     * but resolving the actor here mirrors EventPhotosTable::actor() — a
-     * defensive check that a logged-in user really is present, surfaced as
+     * NOT an authorization check — Filament's `->authorize('publish')` on the
+     * action already gates that. This only resolves the acting user and
+     * requires one to be authenticated, mirroring EventPhotosTable::actor():
+     * a defensive guard that a logged-in user really is present, surfaced as
      * an AuthenticationException rather than silently no-op'ing.
      */
     private static function authorizeActor(NewsPost $record): void

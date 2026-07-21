@@ -399,9 +399,9 @@ established in M10.
 - **Public recap page**, `/events/{event:slug}/recap`, is gated on
   `Event::isPubliclyVisible()` **plus** `Finished`/`Archived` status — narrower than the rest
   of the public participant UI, since a recap for a still-running or not-yet-started event
-  would be premature. It needs no authentication — `Recap/Show.vue` renders with no auth-only
-  layout wrapper, the same guest-safe pattern `Presence/Index.vue` already established for the
-  public participant UI.
+  would be premature. It needs no authentication — `resources/js/app.ts` routes `Recap/*` pages
+  to the guest-safe `PublicShell` layout (the same shell used by the public `Event`/`Jukebox`
+  pages), not the default `AppLayout`, which unconditionally assumes a non-null `auth.user`.
 - **Recap beamer scene.** `SceneType::Recap` passes `RecapProjection::forEvent()->toArray()`
   through unchanged — it is already public/no-PII by construction (display names and public
   photo URLs only) — and needs no dedicated broadcast, since post-event data has nothing to

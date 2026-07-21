@@ -105,6 +105,10 @@ class EventPageController
         $poll = Poll::query()
             ->where('event_id', $event->id)
             ->where('status', PollStatus::Open->value)
+            // Mirrors Poll::isOpenNow(): a poll past its closes_at is not
+            // actually open even if no auto-close job has flipped its
+            // status yet, so it must not be teased as active here.
+            ->where(fn ($q) => $q->whereNull('closes_at')->orWhere('closes_at', '>', now()))
             ->orderByDesc('created_at')
             ->first();
 

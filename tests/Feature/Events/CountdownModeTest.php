@@ -3,6 +3,7 @@
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Voting\Models\Poll;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 
@@ -44,6 +45,26 @@ it('omits hype for an announced event whose start is in the past', function () {
     $this->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('event.hype', null));
+})->uses(RefreshDatabase::class);
+
+it('teases an open poll with a future closes_at as the active poll', function () {
+    $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->addDays(14)]);
+    $poll = Poll::factory()->open()->create(['event_id' => $event->id, 'closes_at' => now()->addHour()]);
+
+    $this->get("/events/{$event->slug}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('event.hype.activePoll.id', $poll->id));
+})->uses(RefreshDatabase::class);
+
+it('does not tease an open poll whose closes_at is already in the past', function () {
+    $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->addDays(14)]);
+    Poll::factory()->open()->create(['event_id' => $event->id, 'closes_at' => now()->subMinute()]);
+
+    $this->get("/events/{$event->slug}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('event.hype.activePoll', null));
 })->uses(RefreshDatabase::class);
 
 it('exposes arrival info on the event summary', function () {
