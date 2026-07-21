@@ -33,8 +33,27 @@ function submitPing() {
 }
 
 const CELL = 64;
-const maxX = computed(() => Math.max(1, ...props.seats.map((s) => s.x)) + 1);
-const maxY = computed(() => Math.max(1, ...props.seats.map((s) => s.y)) + 1);
+
+// Seat coordinates are 1-based (and could in theory be sparse), so normalise
+// the grid to its own bounding box: tiles are drawn from (x - minX, y - minY)
+// and the viewBox is sized to exactly cols x rows — no stray empty
+// row/column, and the grid stays centred in its container.
+const minX = computed(() =>
+    props.seats.length ? Math.min(...props.seats.map((s) => s.x)) : 0,
+);
+const minY = computed(() =>
+    props.seats.length ? Math.min(...props.seats.map((s) => s.y)) : 0,
+);
+const cols = computed(() =>
+    props.seats.length
+        ? Math.max(...props.seats.map((s) => s.x)) - minX.value + 1
+        : 1,
+);
+const rows = computed(() =>
+    props.seats.length
+        ? Math.max(...props.seats.map((s) => s.y)) - minY.value + 1
+        : 1,
+);
 
 function claim(seat: SeatDto) {
     if (!props.canClaim || seat.occupant) {
@@ -189,9 +208,13 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
         </div>
         <div
             v-else
-            class="mt-4 overflow-auto rounded-lg border border-border p-4"
+            class="mx-auto mt-4 overflow-auto rounded-lg border border-border p-4"
+            :style="{ maxWidth: `${cols * 112 + 32}px` }"
         >
-            <svg :viewBox="`0 0 ${maxX * CELL} ${maxY * CELL}`" class="w-full">
+            <svg
+                :viewBox="`0 0 ${cols * CELL} ${rows * CELL}`"
+                class="h-auto w-full"
+            >
                 <defs>
                     <!-- Clip seat text to the tile so a long occupant name
                     can never render outside its seat (see occupantLabel). -->
@@ -202,7 +225,7 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                 <g
                     v-for="seat in seats"
                     :key="seat.id"
-                    :transform="`translate(${seat.x * CELL}, ${seat.y * CELL})`"
+                    :transform="`translate(${(seat.x - minX) * CELL}, ${(seat.y - minY) * CELL})`"
                     :class="isClaimable(seat) ? 'cursor-pointer' : ''"
                     :role="isClaimable(seat) ? 'button' : undefined"
                     :tabindex="isClaimable(seat) ? 0 : undefined"
