@@ -21,6 +21,8 @@ use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Policies\SharedFilePolicy;
 use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
+use App\Modules\Gallery\Models\EventPhoto;
+use App\Modules\Gallery\Policies\EventPhotoPolicy;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\GameServers\Contracts\PelicanClient;
@@ -234,6 +236,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Poll::class, PollPolicy::class);
         Gate::policy(LfgPost::class, LfgPostPolicy::class);
         Gate::policy(SharedFile::class, SharedFilePolicy::class);
+        Gate::policy(EventPhoto::class, EventPhotoPolicy::class);
         Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
         Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
         Gate::policy(ServerLink::class, ServerLinkPolicy::class);

@@ -40,6 +40,7 @@ pest()->extend(TestCase::class)
         'Unit/CustomServers',
         'Unit/Events',
         'Unit/Friends',
+        'Unit/Gallery',
         'Unit/Games',
         'Unit/Hosts',
         'Unit/Infoscreen',
