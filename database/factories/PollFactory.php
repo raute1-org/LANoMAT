@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Voting\Enums\PollKind;
 use App\Modules\Voting\Enums\PollStatus;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Models\PollOption;
@@ -21,6 +22,7 @@ class PollFactory extends Factory
             'event_id' => Event::factory(),
             'question' => fake()->sentence().'?',
             'status' => PollStatus::Draft,
+            'kind' => PollKind::Standard,
             'closes_at' => null,
         ];
     }
@@ -33,6 +35,11 @@ class PollFactory extends Factory
     public function closed(): static
     {
         return $this->state(['status' => PollStatus::Closed]);
+    }
+
+    public function mvp(): static
+    {
+        return $this->state(['kind' => PollKind::Mvp]);
     }
 
     /**

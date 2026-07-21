@@ -7,6 +7,15 @@ return [
         'closed' => 'Geschlossen',
     ],
 
+    'kind' => [
+        'standard' => 'Standard',
+        'mvp' => 'Spieler:in des Abends',
+    ],
+
+    'mvp' => [
+        'question' => 'Wer war Spieler:in des Abends?',
+    ],
+
     'errors' => [
         'not_open' => 'Diese Umfrage ist derzeit nicht für Abstimmungen geöffnet.',
         'already_voted' => 'Du hast bei dieser Umfrage bereits abgestimmt.',
@@ -14,6 +23,7 @@ return [
         'already_open' => 'Diese Umfrage ist bereits geöffnet.',
         'not_open_yet' => 'Diese Umfrage wurde noch nicht geöffnet.',
         'already_closed' => 'Diese Umfrage ist bereits geschlossen.',
+        'mvp_poll_exists' => 'Für dieses Event gibt es bereits eine Abstimmung zur Spieler:in des Abends.',
     ],
 
     'resource' => [

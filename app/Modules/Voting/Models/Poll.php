@@ -3,6 +3,7 @@
 namespace App\Modules\Voting\Models;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Voting\Enums\PollKind;
 use App\Modules\Voting\Enums\PollStatus;
 use Database\Factories\PollFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property PollStatus $status
+ * @property PollKind $kind
  * @property Carbon|null $closes_at
  */
 class Poll extends Model
@@ -20,8 +22,8 @@ class Poll extends Model
     /** @use HasFactory<PollFactory> */
     use HasFactory;
 
-    // status deliberately NOT fillable (privilege/state field — set only
-    // via actions).
+    // status/kind deliberately NOT fillable (privilege/state fields — set
+    // only via actions, e.g. `forceFill` in SeedMvpPoll for `kind`).
     protected $fillable = [
         'event_id',
         'question',
@@ -32,6 +34,7 @@ class Poll extends Model
     {
         return [
             'status' => PollStatus::class,
+            'kind' => PollKind::class,
             'closes_at' => 'datetime',
         ];
     }

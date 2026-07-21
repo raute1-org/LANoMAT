@@ -40,4 +40,9 @@ class VotingException extends DomainException
     {
         return new self('This poll is already closed.', 'polls.errors.already_closed');
     }
+
+    public static function mvpPollExists(): self
+    {
+        return new self('This event already has an MVP poll.', 'polls.errors.mvp_poll_exists');
+    }
 }
