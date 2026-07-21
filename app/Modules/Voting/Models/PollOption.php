@@ -2,6 +2,7 @@
 
 namespace App\Modules\Voting\Models;
 
+use App\Models\User;
 use Database\Factories\PollOptionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,11 @@ class PollOption extends Model
     /** @use HasFactory<PollOptionFactory> */
     use HasFactory;
 
+    // subject_user_id deliberately NOT fillable — it identifies the
+    // participant an MVP-poll option represents (a badge-attribution
+    // linkage), so it is only ever set via `forceFill()` in
+    // {@see \App\Modules\Voting\Actions\SeedMvpPoll}. Standard poll options
+    // leave it null.
     protected $fillable = [
         'poll_id',
         'label',
@@ -30,6 +36,12 @@ class PollOption extends Model
     public function poll(): BelongsTo
     {
         return $this->belongsTo(Poll::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function subjectUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /** @return HasMany<PollVote, $this> */

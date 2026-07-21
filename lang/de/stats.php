@@ -20,5 +20,6 @@ return [
         'first_win' => 'Erster Sieg',
         'hattrick' => 'Hattrick',
         'veteran' => 'Veteran',
+        'mvp_of_the_night' => 'Spieler:in des Abends',
     ],
 ];

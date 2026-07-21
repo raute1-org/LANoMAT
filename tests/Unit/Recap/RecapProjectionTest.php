@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Jukebox\Enums\QueueItemStatus;
@@ -13,6 +14,10 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Voting\Enums\PollKind;
+use App\Modules\Voting\Models\Poll;
+use App\Modules\Voting\Models\PollOption;
+use App\Modules\Voting\Models\PollVote;
 use Illuminate\Support\Facades\DB;
 
 it('returns an empty board for an event with no activity', function () {
@@ -106,10 +111,27 @@ it('caps top photos at six, preferring highlights then most recent approved', fu
     expect($board['topPhotos'])->toHaveCount(6);
 });
 
-it('returns null mvp until the MVP poll feature exists', function () {
+it('returns null mvp when the event has no closed MVP poll', function () {
     $board = RecapProjection::forEvent(Event::factory()->create())->toArray();
 
     expect($board['mvp'])->toBeNull();
+});
+
+it('resolves mvp to the closed MVP poll winner name', function () {
+    $event = Event::factory()->create();
+    $winnerUser = User::factory()->create();
+
+    $poll = Poll::factory()->for($event)->closed()->create(['kind' => PollKind::Mvp]);
+    $winnerOption = PollOption::factory()->for($poll)->create(['sort' => 0, 'label' => 'Ada Lovelace']);
+    $winnerOption->forceFill(['subject_user_id' => $winnerUser->id])->save();
+    $otherOption = PollOption::factory()->for($poll)->create(['sort' => 1]);
+
+    PollVote::factory()->for($poll)->for($winnerOption, 'option')->count(2)->create();
+    PollVote::factory()->for($poll)->for($otherOption, 'option')->create();
+
+    $board = RecapProjection::forEvent($event)->toArray();
+
+    expect($board['mvp'])->toBe(['name' => 'Ada Lovelace']);
 });
 
 it('camelCases toArray keys', function () {

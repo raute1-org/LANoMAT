@@ -13,17 +13,18 @@ use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
+use App\Modules\Voting\Support\MvpPollQuery;
 use Illuminate\Support\Collection;
 
 /**
  * Pure, IO-free aggregator of an event's post-LAN recap: activity counts,
- * tournament podiums, top gallery photos, and (eventually) the MVP into a
+ * tournament podiums, top gallery photos, and the MVP into a
  * {@see RecapBoard} — the read model behind the public recap page (see the
  * M12 roadmap plan). No HTTP, no broadcasting, no request state; every
  * cross-module fact is read through the module's own models/read-models
- * ({@see GalleryQuery}, {@see JukeboxStats}, {@see Tournament}) — never a
- * raw cross-module table query, mirroring {@see PresenceProjection}'s
- * discipline.
+ * ({@see GalleryQuery}, {@see JukeboxStats}, {@see Tournament},
+ * {@see MvpPollQuery}) — never a raw cross-module table query, mirroring
+ * {@see PresenceProjection}'s discipline.
  */
 final class RecapProjection
 {
@@ -101,10 +102,23 @@ final class RecapProjection
         );
     }
 
-    private static function resolveMvp(Event $event): null
+    /**
+     * @return ?array{name: string}
+     */
+    private static function resolveMvp(Event $event): ?array
     {
-        // Task 13 wires the closed MVP poll here, resolving to
-        // ?array{name: string} once the closed-poll winner can be read.
-        return null;
+        $poll = MvpPollQuery::closedFor($event);
+
+        if ($poll === null) {
+            return null;
+        }
+
+        $winner = MvpPollQuery::winner($poll);
+
+        if ($winner === null) {
+            return null;
+        }
+
+        return ['name' => $winner->label];
     }
 }

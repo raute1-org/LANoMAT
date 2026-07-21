@@ -14,6 +14,9 @@ return [
 
     'mvp' => [
         'question' => 'Wer war Spieler:in des Abends?',
+        'reveal_title' => 'Spieler:in des Abends',
+        'reveal_action' => 'Ergebnis auf dem Beamer zeigen',
+        'revealed' => 'Spieler:in des Abends wurde auf dem Beamer enthüllt.',
     ],
 
     'errors' => [
@@ -24,6 +27,7 @@ return [
         'not_open_yet' => 'Diese Umfrage wurde noch nicht geöffnet.',
         'already_closed' => 'Diese Umfrage ist bereits geschlossen.',
         'mvp_poll_exists' => 'Für dieses Event gibt es bereits eine Abstimmung zur Spieler:in des Abends.',
+        'not_closed_mvp_poll' => 'Diese Abstimmung ist nicht die geschlossene Spieler:in-des-Abends-Abstimmung dieses Events.',
     ],
 
     'resource' => [

@@ -2,8 +2,11 @@
 
 namespace App\Modules\Voting\Filament\Resources\Polls\Pages;
 
+use App\Models\User;
 use App\Modules\Voting\Actions\ClosePoll;
 use App\Modules\Voting\Actions\OpenPoll;
+use App\Modules\Voting\Actions\RevealMvp;
+use App\Modules\Voting\Enums\PollKind;
 use App\Modules\Voting\Enums\PollStatus;
 use App\Modules\Voting\Exceptions\VotingException;
 use App\Modules\Voting\Filament\Resources\Polls\PollResource;
@@ -12,6 +15,8 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Support\Facades\Auth;
 
 class EditPoll extends EditRecord
 {
@@ -85,8 +90,50 @@ class EditPoll extends EditRecord
 
                     $this->refreshFormData(['status']);
                 }),
+            Action::make('revealMvp')
+                ->label(__('polls.mvp.reveal_action'))
+                ->authorize('close')
+                // Only offered for a closed MVP poll — RevealMvp itself
+                // re-validates this via MvpPollQuery, so this is a UX guard
+                // against a dead click, not the source of truth.
+                ->visible(fn (Poll $record) => $record->kind === PollKind::Mvp && $record->status === PollStatus::Closed)
+                ->requiresConfirmation()
+                ->action(function (Poll $record): void {
+                    try {
+                        app(RevealMvp::class)->handle($record, self::actor());
+                    } catch (VotingException $exception) {
+                        Notification::make()
+                            ->title(__($exception->translationKey))
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->title(__('polls.mvp.revealed'))
+                        ->success()
+                        ->send();
+                }),
             DeleteAction::make()
                 ->authorize('update'),
         ];
+    }
+
+    /**
+     * Resolves the authenticated actor for the revealMvp header action.
+     * Filament's `authMiddleware` guarantees a logged-in user reaches this
+     * page at all, so a null here would indicate the framework's own auth
+     * guarantee was broken (mirrors SharedFilesTable::actor()).
+     */
+    private static function actor(): User
+    {
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            throw new AuthenticationException;
+        }
+
+        return $user;
     }
 }

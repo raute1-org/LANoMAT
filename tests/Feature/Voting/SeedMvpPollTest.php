@@ -47,6 +47,19 @@ it('labels each seeded option with the participant display name', function () {
     expect($poll->options()->pluck('label')->all())->toContain('Ada Lovelace');
 });
 
+it('links each seeded option back to the participant via subject_user_id', function () {
+    $event = Event::factory()->create();
+    $orga = User::factory()->orga()->create();
+    $participant = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $participant->id]);
+
+    $poll = app(SeedMvpPoll::class)->handle($event, $orga);
+
+    $option = $poll->options()->first();
+
+    expect($option->subject_user_id)->toBe($participant->id);
+});
+
 it('rejects seeding a second MVP poll for the same event', function () {
     $event = Event::factory()->create();
     $orga = User::factory()->orga()->create();
