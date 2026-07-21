@@ -609,6 +609,60 @@ Gründe, auch zwischen den LANs auf die Seite zu kommen — zusammen mit dem Eve
 - **#17 MVP-des-Abends-Vote** (kaum Extra-Code): nach dem letzten Turnier stimmt die Community über den Spieler des Abends ab — nutzt das `Voting`-Modul + die Show-Ziehung (M5.8), Ergebnis gibt ein Badge (M6.5). 
 - **#18 Kür-Einzeiler** (kein Muss): Challenges/LAN-Bingo während der LAN (kleine Aufgaben, Punkte, Leaderboard) als Aufsatz auf die M6.5-Badges.
 
+### Erkenntnisse M12 (Umsetzung + Whole-Branch-Review, getaggt `m12`, Milestone #13 wird vom Controller geschlossen)
+
+M12 **FERTIG**: Galerie/Recap/News (#15), Countdown-/Hype-Modus (#16), MVP-des-Abends-Vote
+(#17). #18 (Kür-Einzeiler) bleibt bewusst außerhalb des Scopes (Post-M12-Backlog).
+
+- **Upload-Gate = angemeldet, nicht eingecheckt.** Anders als die Jukebox
+  (`JukeboxPolicy::participate`, eingecheckt-only) erlaubt die Galerie
+  (`GalleryPageController::canUpload()`) jeder nicht-stornierten `EventRegistration` das
+  Hochladen — Fotos einreichen (auch nach der LAN, fürs Recap) ist ein risikoärmerer Vorgang
+  als Live-Voten/Queuen. `EventPhotoPolicy::create` bleibt `true` (reiner Mechanismus); die
+  eigentliche Eligibility-Prüfung sitzt im Controller und läuft bei `index()` **und** `store()`
+  erneut.
+- **EXIF-Strip durch erzwungenes Re-Encode, nicht durch Metadaten-Chirurgie.** `UploadPhoto`
+  lädt den Upload über `intervention/image` v4 (GD-Treiber, automatisch von
+  `intervention/image-laravel`s Service-Provider gebunden), backt die EXIF-Orientierung mit
+  `orient()` in die Pixel, deckelt die lange Kante und re-encoded als JPEG — GD verwirft dabei
+  **sämtliche** EXIF-Metadaten (inkl. GPS) als Nebeneffekt des Decode/Re-Encode-Zyklus, das ist
+  der Strip-Mechanismus selbst, kein separater Schritt. Deshalb bleibt `imagick` bewusst
+  **nicht** installiert — nichts sonst im Code braucht es, und ein Wechsel von `IMAGE_DRIVER`
+  weg von GD müsste diese Strip-Eigenschaft neu verifizieren. `docker/Dockerfile` bekam `gd` in
+  **beiden** Build-Stages.
+- **Zwei Serving-Routen = das Privacy-Gefälle selbst.** `PhotoController::show`/`thumb` (hinter
+  `auth`, Policy-Recheck pro Request: freigegeben → jeder Teilnehmer, pending → nur
+  Uploader/Orga) bedienen die **auth-gated** Teilnehmer-Galerie-Seite
+  (`/events/{event:slug}/gallery`). `publicShow`/`publicThumb` sind eine **separate**,
+  bewusst engere Routen-Paar ohne Auth-Middleware und ohne Policy-Aufruf — die Prüfung *ist*
+  die Route (`visibility === Approved && event->isPubliclyVisible()`, sonst 404) — und
+  existieren ausschließlich für die zwei anonymen Konsumenten Beamer-Slideshow
+  (`SceneType::Gallery`) und öffentliches Recap; sie werden nie von der Teilnehmer-Seite
+  wiederverwendet. Damit sieht ein Gast nie ein pending Foto oder ein Foto eines privaten
+  Events, während ein freigegebenes Foto eines öffentlichen Events bewusst ohne Session
+  ausgeliefert werden darf.
+- **Songs-played kam rein — billig genug über `JukeboxStats`.** Die im Plan offen gelassene
+  Frage ("nur falls billig") wurde mit Ja beantwortet: `JukeboxStats::playedCount()` ist ein
+  eigenes, kleines Jukebox-Read-Model extra für diesen Zweck, damit `RecapProjection` nie
+  direkt `jukebox_items` abfragt — derselbe Modul-Grenzen-Stil wie `GalleryQuery`/
+  `MvpPollQuery`.
+- **`mvp_of_the_night`-Badge bewusst NICHT über `BadgeCalculator::for()`.** Die im
+  Plan-Self-Review geflaggte Design-Entscheidung wurde beim Whole-Branch-Review bestätigt: eine
+  neue, event-scoped `EventBadgeCalculator::forEvent()` (`app/Modules/Stats/Support/`) statt
+  eines Event-Parameters auf der bestehenden, cross-event `BadgeCalculator::for()` — die
+  aggregiert die Turnier-Historie eines einzelnen Kompetitors über alle Events hinweg und hat
+  gar keinen Event-Scope; ein Event-Argument dort würde zwei unterschiedliche
+  Aggregations-Scopes vermischen. Beide bleiben "nie gespeichert, immer on-read berechnet".
+- **MVP-Reveal wiederverwendet `SceneWinner`/`SceneOverride` statt neuer Szene.** `RevealMvp`
+  dispatcht eine synthetische `SceneType::Winner`-`SceneOverride` (gleiche Technik wie
+  `DrawTombola`/`BroadcastWinnerMoment`) mit einem MVP-spezifischen `data.title`-Override
+  („Spieler:in des Abends" statt der Turnier-Sieger-Standardüberschrift) und
+  `data.winner` = nur das Options-Label — nie `subject_user_id`. Kein-MVP-Fall: `MvpPollQuery`
+  liefert bewusst `null` (nicht „Option 0"), wenn die Poll zwar Optionen aber null Stimmen hat;
+  `RevealMvp` wirft dann `VotingException::noVotesCast()` statt einen falschen Sieger zu zeigen.
+- **Tag `m12` + Milestone #13** werden vom Controller nach dem Whole-Branch-Review gesetzt/
+  geschlossen (nicht von diesem Docs-Task — siehe die M11-Prozessfalle in der Session-Memory).
+
 ---
 
 ## M13 — Design-Polish (Rams' 10 Prinzipien, cross-cutting)

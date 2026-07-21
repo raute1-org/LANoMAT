@@ -11,7 +11,9 @@ for the full design rationale.
 
 ## Requirements
 
-- PHP 8.4 with the `pgsql`, `redis`, `sodium`, and `intl` extensions
+- PHP 8.4 with the `pgsql`, `redis`, `sodium`, `intl`, and `gd` extensions (`gd` is
+  required since M12 for the Gallery module's EXIF-strip/thumbnail pipeline; already
+  installed in `docker/Dockerfile` — a pre-M12 local app image needs a rebuild)
 - Composer 2
 - Node 22
 - Docker (for the local Postgres/Redis stack)

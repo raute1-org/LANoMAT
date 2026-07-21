@@ -51,6 +51,9 @@ bound in tests. Tests never call real third-party APIs.
 | Stats | M6 | Cross-event leaderboards and badges |
 | Friends | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
 | Jukebox | M11 | Communal per-event LAN-Radio: vote-ordered queue mirrored into Music Assistant |
+| Gallery | M12 | Per-event photo gallery with moderation gate, public serving, zip download |
+| Recap | M12 | Pure post-LAN recap projection over other modules' read-models |
+| News | M12 | Global orga news posts on the homepage |
 
 The `Tournaments` module additionally has `app/Modules/Tournaments/Domain/` — the bracket
 engine (`BracketGenerator`, `BracketProgressor`). It is pure domain code with no IO, and is
@@ -87,6 +90,9 @@ lfg_posts            (id, event_id, user_id, game_id, title, description, player
 infoscreen_scenes    (id, event_id, type, config JSONB, duration_sec, sort, enabled)
 server_links         (id, match_id NULLABLE, tournament_id NULLABLE, pelican_server_id, join_info JSONB, status)
 notifications        (Laravel standard) · discord_outbox (id, kind, dedup_key UNIQUE, sent_at)
+event_photos         (id, event_id, uploaded_by, path, thumb_path, width, height, caption NULLABLE,
+                      is_highlight, visibility[pending|approved|rejected], reviewed_by NULLABLE, reviewed_at NULLABLE)
+news_posts           (id, title, body, author_id NULLABLE, published_at NULLABLE)
 ```
 
 Key decisions (see design doc §7 for full rationale):
@@ -304,6 +310,164 @@ jukebox_skip_votes (id, jukebox_item_id, user_id, UNIQUE(jukebox_item_id, user_i
   (title/artist/image) — no vote counts, no adder name, no user ids — matching the
   public/unauthenticated beamer surface's existing no-leak invariant for presence/bracket
   scenes.
+
+## Gallery
+
+`Gallery` (`app/Modules/Gallery/`) is a per-`Event` photo gallery: any registered
+participant can submit phone photos during/after the LAN, an orga/helper moderation gate
+decides what the rest of the crowd sees, and approved photos feed a beamer slideshow, the
+public post-LAN recap, and a zip download — mirroring the M7.3 Files module's
+submit-then-moderate shape.
+
+```
+event_photos  (id, event_id, uploaded_by, path, thumb_path, width, height, caption NULLABLE,
+              is_highlight, visibility[pending|approved|rejected], reviewed_by NULLABLE, reviewed_at NULLABLE)
+```
+
+- **Upload gate is registered, not checked-in.** `GalleryPageController::canUpload()` allows
+  any non-cancelled `EventRegistration` for the event — deliberately looser than the
+  Jukebox's checked-in gate, since submitting a photo (including after the LAN, for
+  recap-building) is a lower-risk action than voting/queuing live. `EventPhotoPolicy::create`
+  itself stays `true` (mechanism only); the eligibility check lives in the controller and is
+  re-run by both `index()` and `store()`.
+- **EXIF-strip via forced re-encode, not metadata surgery.** `UploadPhoto`
+  (`app/Modules/Gallery/Actions/UploadPhoto.php`) decodes the upload with
+  `intervention/image` v4's `ImageManager` (GD driver, bound automatically by
+  `intervention/image-laravel`'s service provider), calls `orient()` to bake EXIF
+  orientation into pixels, caps the longest edge (`config('gallery.max_edge')`), and
+  re-encodes as JPEG. GD's re-encode drops **all** EXIF metadata (including GPS) as a side
+  effect of decoding into a fresh raster buffer and re-writing it — this is the
+  EXIF-stripping mechanism, not a separate step, and is why `imagick` is deliberately *not*
+  installed (nothing else in the app needs it; switching `IMAGE_DRIVER` away from GD would
+  silently reintroduce EXIF leakage and must be re-verified if ever changed). A thumbnail is
+  derived from the already-stripped original the same way. Both land on the **private**
+  `local` disk (never `public`), and the row starts `PhotoVisibility::Pending`; ownership and
+  all state fields (`path`, `thumb_path`, `width`, `height`, `visibility`, `is_highlight`,
+  `reviewed_by`/`reviewed_at`) are excluded from `$fillable` and set only via `forceFill()`
+  from the trusted authenticated actor.
+- **Moderation gate mirrors M7.3 Files.** `ApprovePhoto`/`RejectPhoto` (helper-or-orga,
+  `EventPhotoPolicy::approve`/`reject`) flip `visibility` and stamp `reviewed_by`/
+  `reviewed_at`; `ToggleHighlight` (orga-only) flips `is_highlight` on an approved photo;
+  `DeletePhoto` (owner-or-orga) removes both the full-size file and its thumbnail from
+  storage before deleting the row. `ApprovePhoto`/`ToggleHighlight` dispatch an empty
+  `GalleryUpdated` broadcast on the public `event.{id}` channel so the participant gallery
+  page and beamer scene refresh, the same pattern as `PresenceUpdated`/`JukeboxUpdated`.
+- **Two serving routes, one privacy gradient.** `PhotoController::show`/`thumb` live behind
+  `auth` middleware and re-check `EventPhotoPolicy::view()` per request (approved photos
+  visible to any authenticated participant; pending ones only to the uploader or orga) — this
+  is the route the auth-gated `/events/{event:slug}/gallery` participant page's `<img>` tags
+  point at. `PhotoController::publicShow`/`publicThumb` are a **separate, deliberately
+  narrower** pair of routes (`gallery.photos.public.show`/`.public.thumb`) with no auth
+  middleware and no policy call at all — the check *is* the route:
+  `visibility === Approved && event->isPubliclyVisible()`, otherwise 404. These public routes
+  exist solely for the two anonymous beamer/recap consumers below and are never reused for
+  the participant gallery page, so a guest browser never sees a pending or private-event
+  photo, while an approved photo of a public event is intentionally servable without a
+  session.
+- **Zip download is time-gated, not just permission-gated.** `BuildEventPhotoZip` streams
+  every approved photo (via `GalleryQuery::approvedFor()`, storage-driver-agnostic —
+  `Storage::disk('local')->get()`/`addFromString()`, never assuming a local filesystem path)
+  into a native PHP `ZipArchive` on the private disk's `tmp/` directory, returned as a
+  one-shot download and deleted after send. `GalleryPageController::downloadZip()` gates this
+  to `Finished`/`Archived` events only — downloading "the LAN's photos" only makes sense once
+  the LAN is actually over — on top of the normal `downloadZip` policy check.
+- **Gallery beamer scene.** `SceneType::Gallery` (`ScenePayload::galleryData()`) shows a
+  slideshow of `GalleryQuery::approvedFor()`'s photos, exposing only the public thumb-route
+  URL and caption — no uploader name, no ids, no visibility — read through the Gallery
+  module's own read-model rather than a raw `event_photos` query, the same module-boundary
+  discipline as the Jukebox now-playing scene.
+- **`GalleryQuery`** (`app/Modules/Gallery/Support/GalleryQuery.php`) is the single read-model
+  defining "gallery order" (highlights first, then most recent) — used identically by the
+  participant page, the zip, the beamer scene, and (via `highlightsFor()`) the Recap module,
+  mirroring `JukeboxQueue`'s role for the Jukebox module.
+
+## Recap
+
+`Recap` (`app/Modules/Recap/`) is a pure, IO-free read-model aggregating an event's post-LAN
+summary — it owns no tables of its own and reaches every fact through another module's model
+or read-model, never a raw cross-module query, the same discipline `PresenceProjection`
+established in M10.
+
+- **`RecapProjection::forEvent()`** builds a `RecapBoard` DTO from: registration/tournament
+  counts and completed-match count (`Event`/`Tournament`/`GameMatch` directly, since these are
+  simple own-aggregate counts); tournament podiums (`Tournament::winnerEntry->display_name`
+  for every `Finished` tournament with a winner); top photos (`GalleryQuery::highlightsFor()`,
+  capped at 6, linking through the **public** `gallery.photos.public.thumb` route — never the
+  auth-gated one); the MVP winner (`MvpPollQuery::closedFor()`/`::winner()`, see Voting/MVP
+  below); and songs played (`JukeboxStats::playedCount()`, a small dedicated Jukebox
+  read-model added specifically so Recap never queries `jukebox_items` directly).
+- **Public recap page**, `/events/{event:slug}/recap`, is gated on
+  `Event::isPubliclyVisible()` **plus** `Finished`/`Archived` status — narrower than the rest
+  of the public participant UI, since a recap for a still-running or not-yet-started event
+  would be premature. It needs no authentication — `Recap/Show.vue` renders with no auth-only
+  layout wrapper, the same guest-safe pattern `Presence/Index.vue` already established for the
+  public participant UI.
+- **Recap beamer scene.** `SceneType::Recap` passes `RecapProjection::forEvent()->toArray()`
+  through unchanged — it is already public/no-PII by construction (display names and public
+  photo URLs only) — and needs no dedicated broadcast, since post-event data has nothing to
+  react to live; the existing scene-rotation reload already covers it.
+
+## News
+
+`News` (`app/Modules/News/`) is a minimal, global (cross-event) orga announcement board —
+"next LAN on …"-style posts on the homepage, not scoped to any single `Event`.
+
+```
+news_posts  (id, title, body, author_id NULLABLE, published_at NULLABLE)
+```
+
+`published_at` and `author_id` are excluded from `$fillable`: `published_at` is a state field
+flipped by a Filament publish/unpublish action via `forceFill()` (mirroring `EventPhoto`'s
+`visibility`), and `author_id` is set from the authenticated actor in the create flow, never
+a client-supplied value. `NewsQuery::published()` (mirroring `GalleryQuery`) is the single
+definition of "published" (`published_at` set and not in the future) and its ordering
+(newest first); `EventPageController` renders the latest posts in a "Neuigkeiten" block on
+the homepage/event page. Full CRUD lives in a Filament `NewsPostResource`; there is no
+participant-facing write path.
+
+## Countdown / hype (pre-LAN event page)
+
+The public event page gained a status-gated "hype" mode rather than a new module: while an
+event is `Announced`/`Registration` and its `starts_at` is still in the future,
+`EventPageController::hypeFor()` computes a small display-only payload — the countdown target
+(`starts_at`), the current non-cancelled registration count, and a teaser for the latest
+`Open` poll — recomputed fresh on every page load, with no write path of its own. Outside that
+status/time window it returns `null` and the page renders its normal (non-hype) view.
+`Event.arrival_info` is a plain nullable, fillable text column edited via the Filament event
+form and surfaced alongside the hype payload for logistics info ("how to get here").
+
+## MVP-of-the-night
+
+The "player of the evening" vote is a `Voting`-module flavour, not a new module:
+`PollKind::Mvp` (alongside the existing `Standard`) marks a `Poll` as this special kind.
+`SeedMvpPoll` creates a `Draft`, `Mvp`-kind poll with one `PollOption` per registered,
+non-cancelled participant (mirroring the Gallery upload-eligibility query), each option's
+label set to that user's display name and linked back to them via the option's
+`subject_user_id` — deliberately not mass-assignable, populated only by this seed — so later
+steps can resolve the winning option to a user without name-matching. The orga can still
+edit/remove seeded options before opening the poll through the existing Filament option
+management; opening/closing reuses the existing `OpenPoll`/`ClosePoll` actions unchanged.
+
+- **`MvpPollQuery`** is the single lookup for "the event's closed MVP poll"
+  (`closedFor()`) and its winner (`winner()` — most votes, ties broken by `sort` then `id`,
+  and `null` — not "option 0" — when the poll has options but zero votes were cast).
+- **`RevealMvp`** reuses the existing `SceneWinner`/`SceneOverride` infoscreen pattern rather
+  than adding a new scene type: it authorizes via the poll's own `close` ability, re-confirms
+  `$poll` is actually the event's closed MVP poll via `MvpPollQuery` (so a stray poll id can
+  never trigger a reveal), and dispatches a synthetic `SceneType::Winner` `SceneOverride`
+  carrying only the winning option's label plus an MVP-specific `data.title` override
+  (`polls.mvp.reveal_title`) so the beamer reads "Spieler:in des Abends" instead of the
+  default tournament-winner heading — the same synthetic-scene technique `DrawTombola` and
+  `BroadcastWinnerMoment` already use, and the same no-PII-beyond-what-voters-already-saw
+  guarantee (never `subject_user_id`).
+- **`EventBadgeCalculator::forEvent()`** (`app/Modules/Stats/Support/`) computes the
+  `mvp_of_the_night` badge for the poll's winning `subject_user_id`, `[]` when there is no
+  closed MVP poll or no votes were cast. This is a **deliberately separate** class from the
+  existing cross-event `BadgeCalculator::for()` — that method aggregates a single
+  competitor's history across all events and has no event scope at all, so bolting an event
+  argument onto it would conflate two different aggregation scopes; `EventBadgeCalculator`
+  stays a distinct, event-keyed computed-badge lookup instead. Like `BadgeCalculator`, badges
+  are never stored, always derived on read.
 
 ## Real-time
 
