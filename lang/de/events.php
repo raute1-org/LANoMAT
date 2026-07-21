@@ -49,6 +49,7 @@ return [
         'to_archive' => 'Zum Archiv',
         'to_presence' => 'Wer ist da?',
         'to_jukebox' => 'Zur Jukebox',
+        'to_gallery' => 'Zur Galerie',
         'cta' => [
             'announced' => 'Bald geht die Anmeldung los',
             'registration' => 'Jetzt anmelden',

@@ -1,0 +1,157 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Gallery\Http;
+
+use App\Concerns\ResolvesAuthenticatedUser;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Modules\Events\Models\Event;
+use App\Modules\Files\Http\FilePageController;
+use App\Modules\Gallery\Actions\DeletePhoto;
+use App\Modules\Gallery\Actions\UploadPhoto;
+use App\Modules\Gallery\Enums\PhotoVisibility;
+use App\Modules\Gallery\Events\GalleryUpdated;
+use App\Modules\Gallery\Exceptions\GalleryException;
+use App\Modules\Gallery\Models\EventPhoto;
+use App\Modules\Gallery\Support\GalleryQuery;
+use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * The participant gallery page (`Gallery/Index`). Deliberately auth-gated —
+ * unlike the other public participant surfaces (jukebox, files, presence),
+ * this page renders `<img>` tags pointing at `PhotoController::show()`/
+ * `thumb()`, both of which live in the `auth` middleware group (Task 3), so
+ * a public index would show guests broken/401 images. The one guest-facing
+ * photo surface is the public recap's curated highlights (a later task,
+ * separate public path) — never this page or these routes.
+ */
+class GalleryPageController extends Controller
+{
+    use AuthorizesRequests;
+    use ResolvesAuthenticatedUser;
+
+    public function index(Request $request, Event $event, GalleryQuery $query): Response
+    {
+        abort_unless($event->isPubliclyVisible(), 404);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $photos = $this->visiblePhotosFor($event, $query, $user);
+
+        return Inertia::render('Gallery/Index', [
+            'event' => ['name' => $event->name, 'slug' => $event->slug],
+            'photos' => $photos->map(fn (EventPhoto $photo): array => $this->photoDto($photo, $user))->all(),
+            'canUpload' => $this->canUpload($event, $user),
+            'labels' => trans('gallery.page'),
+            'canDownloadZip' => false,
+        ]);
+    }
+
+    public function store(Request $request, Event $event, UploadPhoto $action): RedirectResponse
+    {
+        abort_unless($event->isPubliclyVisible(), 404);
+
+        $user = $this->authUser($request);
+        abort_unless($this->canUpload($event, $user), 403);
+
+        $request->validate([
+            'photos' => ['required', 'array', 'min:1'],
+            'photos.*' => ['required', 'image'],
+            'caption' => ['nullable', 'string'],
+        ]);
+
+        $caption = $request->string('caption')->toString();
+
+        foreach ($request->file('photos', []) as $file) {
+            try {
+                $action->handle($event, $user, $file, $caption === '' ? null : $caption);
+            } catch (GalleryException $exception) {
+                Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey)]);
+
+                return back();
+            }
+        }
+
+        return back();
+    }
+
+    public function destroy(Request $request, EventPhoto $eventPhoto, DeletePhoto $action): RedirectResponse
+    {
+        $this->authorize('delete', $eventPhoto);
+
+        $eventId = $eventPhoto->event_id;
+
+        GalleryUpdated::dispatch($eventId);
+
+        $action->handle($eventPhoto);
+
+        return back();
+    }
+
+    /**
+     * Upload eligibility is a controller-level gate, not the policy: any
+     * *registered* participant may add photos (during or after the LAN),
+     * unlike the jukebox's checked-in gate — a lower-risk surface. The
+     * `EventPhotoPolicy::create` ability stays `true` (mechanism only); this
+     * method is the actual eligibility check, re-run by `store()`.
+     */
+    private function canUpload(Event $event, ?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $user->id)
+            ->whereNotIn('status', [RegistrationStatus::Cancelled])
+            ->exists();
+    }
+
+    /**
+     * Every approved photo, plus the viewer's own pending ones — mirrors
+     * {@see FilePageController::index()}.
+     *
+     * @return Collection<int, EventPhoto>
+     */
+    private function visiblePhotosFor(Event $event, GalleryQuery $query, User $user): Collection
+    {
+        $approved = $query->approvedFor($event);
+
+        $ownPending = EventPhoto::query()
+            ->where('event_id', $event->id)
+            ->where('uploaded_by', $user->id)
+            ->where('visibility', PhotoVisibility::Pending)
+            ->with('uploader')
+            ->get();
+
+        return $approved->concat($ownPending);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function photoDto(EventPhoto $photo, User $user): array
+    {
+        return [
+            'id' => $photo->id,
+            'thumbUrl' => route('gallery.photos.thumb', $photo->id),
+            'fullUrl' => route('gallery.photos.show', $photo->id),
+            'caption' => $photo->caption,
+            'uploaderName' => $photo->uploader?->name,
+            'visibility' => $photo->visibility->value,
+            'mine' => $photo->uploaded_by === $user->id,
+            'isHighlight' => $photo->is_highlight,
+        ];
+    }
+}

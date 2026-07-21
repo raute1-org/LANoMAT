@@ -6,6 +6,7 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Files\Http\FilePageController;
 use App\Modules\Friends\Http\FriendsController;
+use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
@@ -157,6 +158,15 @@ Route::middleware(['auth'])->group(function () {
     // own narrow public-highlights path, not these routes.
     Route::get('/gallery/photos/{eventPhoto}', [PhotoController::class, 'show'])->name('gallery.photos.show');
     Route::get('/gallery/photos/{eventPhoto}/thumb', [PhotoController::class, 'thumb'])->name('gallery.photos.thumb');
+
+    // The participant gallery page itself is also auth-gated (unlike the
+    // rest of the "public like seating/tournaments/..." participant UI)
+    // because it renders <img> tags pointing at the two routes above; a
+    // public index would show guests broken/401 images. See
+    // GalleryPageController's class docblock.
+    Route::get('/events/{event:slug}/gallery', [GalleryPageController::class, 'index'])->name('gallery.index');
+    Route::post('/events/{event:slug}/gallery', [GalleryPageController::class, 'store'])->name('gallery.store');
+    Route::delete('/gallery/photos/{eventPhoto}', [GalleryPageController::class, 'destroy'])->name('gallery.destroy');
 
     // Participant "Voice einrichten" page (roadmap 8.7): per-active-provider
     // connect data + downloadable client installers. Not event-scoped —

@@ -3,6 +3,7 @@ export * from './catering';
 export * from './events';
 export * from './files';
 export * from './friends';
+export * from './gallery';
 export * from './gameservers';
 export * from './infoscreen';
 export * from './jukebox';
