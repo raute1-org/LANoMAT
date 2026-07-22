@@ -9,6 +9,12 @@ return [
         'reverb' => 'Reverb (Echtzeit)',
         'scheduler' => 'Scheduler',
         'queue_worker' => 'Queue-Worker',
+        'discord_api' => 'Discord-API',
+        'discord_gateway' => 'Discord-Gateway-Bot',
+        'mumble' => 'Mumble',
+        'teamspeak' => 'TeamSpeak',
+        'pelican' => 'Pelican (Gameserver)',
+        'music_assistant' => 'Music Assistant',
     ],
     'messages' => [
         'not_configured' => 'Nicht konfiguriert.',

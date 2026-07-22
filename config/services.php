@@ -46,6 +46,7 @@ return [
         'match_channel_cleanup_delay_minutes' => env('DISCORD_MATCH_CHANNEL_CLEANUP_DELAY_MINUTES', 30),
         'public_key' => env('DISCORD_PUBLIC_KEY'),
         'application_id' => env('DISCORD_APPLICATION_ID'),
+        'gateway_health_url' => env('DISCORD_GATEWAY_HEALTH_URL'),
     ],
 
     // Linked-account providers (M9, Identity+): Steam (OpenID, no client

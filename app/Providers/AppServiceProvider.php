@@ -63,12 +63,18 @@ use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Preflight\Actions\RunPreflight;
 use App\Modules\Preflight\Checks\DatabaseCheck;
+use App\Modules\Preflight\Checks\DiscordApiCheck;
+use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
+use App\Modules\Preflight\Checks\MumbleSidecarCheck;
+use App\Modules\Preflight\Checks\MusicAssistantCheck;
+use App\Modules\Preflight\Checks\PelicanCheck;
 use App\Modules\Preflight\Checks\QueueWorkerCheck;
 use App\Modules\Preflight\Checks\RedisCheck;
 use App\Modules\Preflight\Checks\ReverbCheck;
 use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
 use App\Modules\Preflight\Checks\StorageWritableCheck;
+use App\Modules\Preflight\Checks\TeamSpeakSidecarCheck;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
@@ -188,6 +194,12 @@ class AppServiceProvider extends ServiceProvider
             ReverbCheck::class,
             SchedulerHeartbeatCheck::class,
             QueueWorkerCheck::class,
+            DiscordApiCheck::class,
+            DiscordGatewaySidecarCheck::class,
+            MumbleSidecarCheck::class,
+            TeamSpeakSidecarCheck::class,
+            PelicanCheck::class,
+            MusicAssistantCheck::class,
         ], 'preflight.checks');
 
         $this->app->bind(
