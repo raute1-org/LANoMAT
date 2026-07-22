@@ -19,7 +19,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
 
-      - uses: actions/setup-node@v6.4.0
+      - uses: actions/setup-node@v7.0.0
         with: { node-version: 22, cache: npm }
 
       - name: Cache composer dependencies
