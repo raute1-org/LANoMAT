@@ -324,3 +324,11 @@ a small robustness backlog (backup + rehearsed restore, offline login-QR, a rele
 watcher). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
 [`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
 for the full phase roadmap.
+
+## Acknowledgements
+
+Big shoutout to **[JB (@schn4ppi)](https://github.com/schn4ppi)** — whose
+feature-input rounds shaped the robustness push toward the real LAN (the pre-LAN
+acceptance checklist, the Preflight Ampel, and the Discord Gateway bot all trace
+back to his review). Thanks for keeping the "will this actually survive the LAN
+day?" question front and centre. 🙌
