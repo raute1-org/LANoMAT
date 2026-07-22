@@ -42,20 +42,29 @@ async function postToIngress(type, data) {
         body: JSON.stringify({ type, data }),
         signal: AbortSignal.timeout(5000),
       });
-      if (res.ok) return;
+
+      if (res.ok) {
+        return;
+      }
+
       console.error(`discord-gateway: ingress ${type} -> HTTP ${res.status}`);
     } catch (err) {
       console.error(`discord-gateway: ingress ${type} attempt ${attempt} failed: ${err}`);
     }
+
     await new Promise((r) => setTimeout(r, attempt * 500));
   }
+
   console.error(`discord-gateway: dropped ${type} after retries`);
 }
 
 client.once(Events.ClientReady, (c) => console.log(`discord-gateway: logged in as ${c.user.tag}`));
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand()) {
+    return;
+  }
+
   try {
     await interaction.deferReply();
     await postToIngress('interaction', {
@@ -75,7 +84,13 @@ client.on(Events.VoiceStateUpdate, (_old, ns) =>
   postToIngress('voice_state', { guild_id: ns.guild.id, user_id: ns.id, channel_id: ns.channelId, channel_name: ns.channel?.name ?? null }));
 client.on(Events.GuildMemberAdd, (m) => postToIngress('member_add', { guild_id: m.guild.id, user_id: m.id }));
 client.on(Events.GuildMemberRemove, (m) => postToIngress('member_remove', { guild_id: m.guild.id, user_id: m.id }));
-client.on(Events.MessageCreate, (msg) => { if (msg.author.bot) return; postToIngress('message_create', { channel_id: msg.channelId, author_id: msg.author.id, message_id: msg.id }); });
+client.on(Events.MessageCreate, (msg) => {
+  if (msg.author.bot) {
+    return;
+  }
+
+  postToIngress('message_create', { channel_id: msg.channelId, author_id: msg.author.id, message_id: msg.id });
+});
 client.on(Events.MessageReactionAdd, (r, u) => postToIngress('reaction', { message_id: r.message.id, channel_id: r.message.channelId, user_id: u.id, emoji: r.emoji.name, added: true }));
 client.on(Events.MessageReactionRemove, (r, u) => postToIngress('reaction', { message_id: r.message.id, channel_id: r.message.channelId, user_id: u.id, emoji: r.emoji.name, added: false }));
 
