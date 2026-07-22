@@ -293,12 +293,34 @@ Committed output (captured against the local production stack —
 
 ## Project state
 
-M0–M6 are complete and tagged (fundament; events & identity; registration/seating/
-notifications/Discord base; teams & tournaments with Reverb realtime and Discord
-interactions; production deployment infra; game servers via Pelican + stats). M7
-(infra & operations — Traefik ingress, own image registry, moderated LAN file-sharing,
-custom Docker game servers, a separate-host LanCache setup, and a repeatable
-screenshot pipeline) is in progress. See [`CLAUDE.md`](CLAUDE.md) for the current
-implementation status and
+**All roadmap phases (M0–M12) are complete and tagged**, plus the cross-cutting
+Friends system:
+
+- **M0–M3** — fundament; events & identity; registration, QR-ticket check-in,
+  seating, in-app notifications and the Discord base; cross-event teams &
+  tournaments (pure bracket engine, Reverb realtime, Discord interactions,
+  Mumble voice).
+- **M4–M6** — catering, voting/polls and LFG; infoscreen scenes for the venue
+  projector; production deployment infra; game servers via Pelican + live stats.
+- **M7–M8** — infra & operations (Traefik ingress, own image registry, moderated
+  LAN file-sharing, custom Docker game servers, separate-host LanCache, screenshot
+  pipeline); multi-provider voice (Mumble + TeamSpeak).
+- **M9–M11** — account linking (Steam/Twitch) & the Friends system; presence +
+  casting/OBS overlays; the LAN-radio jukebox (Music Assistant).
+- **M12** — post-/pre-LAN content: moderated photo gallery (EXIF-strip, zip,
+  beamer slideshow), public recap page & scene, news block, pre-LAN countdown, and
+  the MVP-of-the-night vote.
+
+**Post-roadmap robustness** (hardening toward the real LAN, merged to `main`,
+untagged): a consolidated [pre-LAN acceptance checklist](docs/pre-lan-acceptance-checklist.md),
+the **Preflight Ampel** (`php artisan lanomat:preflight` traffic-light health
+check + Filament dashboard tile + scheduled orga bell), and the **Discord Gateway
+bot** (a thin discord.js sidecar for online presence + inbound Gateway events,
+bridged to Laravel).
+
+**What remains** is real-infra verification (working through the acceptance
+checklist against real Discord/Pelican/Mumble/TeamSpeak/Music-Assistant/hosts) and
+a small robustness backlog (backup + rehearsed restore, offline login-QR, a release
+watcher). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
 [`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
 for the full phase roadmap.
