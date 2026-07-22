@@ -19,4 +19,5 @@ Schedule::command('lanomat:send-schedule-reminders')->everyMinute();
 // see JukeboxTickCommand for the reconciliation logic.
 Schedule::command('lanomat:jukebox-tick')->everyMinute();
 Schedule::command('lanomat:heartbeat')->everyMinute();
+Schedule::command('lanomat:health-watch')->everyFiveMinutes();
 Schedule::job(new RefreshExpiringTokensJob)->hourly();

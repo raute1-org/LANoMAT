@@ -22,4 +22,8 @@ return [
         'failed_jobs' => ':count fehlgeschlagene(r) Job(s).',
         'stale' => 'Kein aktuelles Lebenszeichen.',
     ],
+    'bell' => [
+        'title' => 'Systemwarnung',
+        'body' => 'Diese Systeme brauchen Aufmerksamkeit: :systems.',
+    ],
 ];
