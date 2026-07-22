@@ -4,6 +4,7 @@ use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\GatewayIngressController;
 use App\Modules\Discord\Http\InteractionsController;
+use App\Modules\Discord\Http\VoicePresenceController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Files\Http\FilePageController;
 use App\Modules\Friends\Http\FriendsController;
@@ -127,6 +128,10 @@ Route::get('/overlay/tournament/{tournament}/bracket', [OverlayController::class
 // match's persisted score and then updated live over `tournament.{id}`'s
 // `.match.score_updated` broadcast (see OverlayController::scoreboard()).
 Route::get('/overlay/match/{match}/scoreboard', [OverlayController::class, 'scoreboard'])->name('overlay.scoreboard');
+
+// Public Discord voice occupancy read endpoint — maps current voice channels
+// and attendee counts, projection is the privacy boundary (No-PII, mapped names only).
+Route::get('discord/voice', VoicePresenceController::class)->name('discord.voice');
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
