@@ -206,30 +206,18 @@ final class RunPreflight
 }
 ```
 
-`app/Providers/AppServiceProvider.php` — in `register()`, alongside the existing client bindings, tag the checks and bind the action (checks are added to this array as later tasks create them):
+`app/Providers/AppServiceProvider.php` — in `register()`, alongside the existing client bindings, bind the action against an (initially empty) `preflight.checks` tag. **The tag starts empty on purpose** — each later check task (Tasks 2, 3, 4) appends its own check classes to this array as it creates them. Referencing a not-yet-created `::class` here would fail phpstan level 8 ("class not found"), so do **not** pre-list them:
 ```php
-$this->app->tag([
-    \App\Modules\Preflight\Checks\DatabaseCheck::class,
-    \App\Modules\Preflight\Checks\RedisCheck::class,
-    \App\Modules\Preflight\Checks\StorageWritableCheck::class,
-    \App\Modules\Preflight\Checks\SchedulerHeartbeatCheck::class,
-    \App\Modules\Preflight\Checks\QueueWorkerCheck::class,
-    \App\Modules\Preflight\Checks\FailedJobsCheck::class,
-    \App\Modules\Preflight\Checks\ReverbCheck::class,
-    \App\Modules\Preflight\Checks\DiscordApiCheck::class,
-    \App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck::class,
-    \App\Modules\Preflight\Checks\MumbleSidecarCheck::class,
-    \App\Modules\Preflight\Checks\TeamSpeakSidecarCheck::class,
-    \App\Modules\Preflight\Checks\PelicanCheck::class,
-    \App\Modules\Preflight\Checks\MusicAssistantCheck::class,
-], 'preflight.checks');
+// Preflight health checks are tagged here; each Checks/* class is added to
+// this array by the task that creates it (see the preflight plan Tasks 2-4).
+$this->app->tag([], 'preflight.checks');
 
 $this->app->bind(
     \App\Modules\Preflight\Actions\RunPreflight::class,
     fn ($app) => new \App\Modules\Preflight\Actions\RunPreflight($app->tagged('preflight.checks')),
 );
 ```
-> Note for the implementer: add each check class to the `tag([...])` array only once its file exists (Tasks 2–4), or the container cannot resolve the tag. Simplest: add the whole array now but create the check classes in Tasks 2–4 before running the full suite; keep the intermediate commits' `tag` list limited to classes that exist at that commit.
+(Task 1's `RunPreflightTest` constructs `RunPreflight` directly with fake checks, so an empty tag is correct at this task.)
 
 `bootstrap/app.php` — add to the `withCommands([...])` list:
 ```php
@@ -443,6 +431,8 @@ return [
 ];
 ```
 
+Then append these five classes to the `preflight.checks` tag array in `app/Providers/AppServiceProvider.php` (`register()`): `DatabaseCheck`, `RedisCheck`, `StorageWritableCheck`, `FailedJobsCheck`, `ReverbCheck` (fully-qualified). Add `app/Providers/AppServiceProvider.php` to this task's modified files.
+
 - [ ] **Step 4: Run — expect PASS** (`./vendor/bin/pest --filter=InternalChecks`)
 
 - [ ] **Step 5: composer check + commit**
@@ -595,6 +585,8 @@ Schedule::command('lanomat:heartbeat')->everyMinute();
 
 `lang/de/preflight.php` — add under `checks`: `'scheduler' => 'Scheduler', 'queue_worker' => 'Queue-Worker',` and under `messages`: `'stale' => 'Kein aktuelles Lebenszeichen.',`.
 
+Then append `SchedulerHeartbeatCheck` and `QueueWorkerCheck` to the `preflight.checks` tag array in `app/Providers/AppServiceProvider.php`. Add that file to this task's modified files.
+
 - [ ] **Step 4: Run — expect PASS** (`./vendor/bin/pest --filter=Heartbeat`)
 
 - [ ] **Step 5: composer check + commit**
@@ -744,6 +736,8 @@ Then:
 `.env.example` — add `DISCORD_GATEWAY_HEALTH_URL=` near the other `DISCORD_*` keys.
 
 `lang/de/preflight.php` — add labels: `'discord_api' => 'Discord-API', 'discord_gateway' => 'Discord-Gateway-Bot', 'mumble' => 'Mumble', 'teamspeak' => 'TeamSpeak', 'pelican' => 'Pelican (Gameserver)', 'music_assistant' => 'Music Assistant'`.
+
+Then append the six external check classes to the `preflight.checks` tag array in `app/Providers/AppServiceProvider.php`: `DiscordApiCheck`, `DiscordGatewaySidecarCheck`, `MumbleSidecarCheck`, `TeamSpeakSidecarCheck`, `PelicanCheck`, `MusicAssistantCheck`.
 
 - [ ] **Step 4: Run — expect PASS** (`./vendor/bin/pest --filter=ExternalChecks`)
 
