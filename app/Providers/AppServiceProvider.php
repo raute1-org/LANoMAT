@@ -62,6 +62,11 @@ use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Checks\DatabaseCheck;
+use App\Modules\Preflight\Checks\FailedJobsCheck;
+use App\Modules\Preflight\Checks\RedisCheck;
+use App\Modules\Preflight\Checks\ReverbCheck;
+use App\Modules\Preflight\Checks\StorageWritableCheck;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
@@ -173,7 +178,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Preflight health checks are tagged here; each Checks/* class is added to
         // this array by the task that creates it (see the preflight plan Tasks 2-4).
-        $this->app->tag([], 'preflight.checks');
+        $this->app->tag([
+            DatabaseCheck::class,
+            RedisCheck::class,
+            StorageWritableCheck::class,
+            FailedJobsCheck::class,
+            ReverbCheck::class,
+        ], 'preflight.checks');
 
         $this->app->bind(
             RunPreflight::class,
