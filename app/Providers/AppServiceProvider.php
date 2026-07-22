@@ -10,10 +10,15 @@ use App\Modules\Catering\Policies\FoodOrderPolicy;
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\CustomServers\Policies\CustomServerPolicy;
 use App\Modules\Discord\Contracts\DiscordClient;
+use App\Modules\Discord\Events\DiscordGuildMemberJoined;
+use App\Modules\Discord\Events\DiscordGuildMemberLeft;
+use App\Modules\Discord\Events\DiscordMessageCreated;
+use App\Modules\Discord\Events\DiscordMessageReactionChanged;
 use App\Modules\Discord\HttpDiscordClient;
 use App\Modules\Discord\Listeners\AnnounceAndCleanupOnCompleted;
 use App\Modules\Discord\Listeners\AnnounceRegistrationOpen;
 use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
+use App\Modules\Discord\Listeners\LogGatewayEvent;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
@@ -320,5 +325,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(MatchWentLive::class, BroadcastPresenceOnTournamentActivity::class);
         Event::listen(MatchCompleted::class, BroadcastPresenceOnTournamentActivity::class);
         Event::listen(TournamentStarted::class, BroadcastPresenceOnTournamentActivity::class);
+        Event::listen(DiscordGuildMemberJoined::class, LogGatewayEvent::class);
+        Event::listen(DiscordGuildMemberLeft::class, LogGatewayEvent::class);
+        Event::listen(DiscordMessageCreated::class, LogGatewayEvent::class);
+        Event::listen(DiscordMessageReactionChanged::class, LogGatewayEvent::class);
     }
 }

@@ -2,6 +2,10 @@
 
 namespace App\Modules\Discord\Http;
 
+use App\Modules\Discord\Events\DiscordGuildMemberJoined;
+use App\Modules\Discord\Events\DiscordGuildMemberLeft;
+use App\Modules\Discord\Events\DiscordMessageCreated;
+use App\Modules\Discord\Events\DiscordMessageReactionChanged;
 use App\Modules\Discord\Interactions\CommandRouter;
 use App\Modules\Discord\Interactions\InteractionResponseType;
 use App\Modules\Discord\Jobs\SendFollowupJob;
@@ -29,6 +33,10 @@ class GatewayIngressController
         match ($type) {
             'interaction' => $this->handleInteraction($data),
             'voice_state' => app(HandleVoiceState::class)->handle($data),
+            'member_add' => DiscordGuildMemberJoined::dispatch((string) ($data['user_id'] ?? '')),
+            'member_remove' => DiscordGuildMemberLeft::dispatch((string) ($data['user_id'] ?? '')),
+            'message_create' => DiscordMessageCreated::dispatch((string) ($data['channel_id'] ?? ''), (string) ($data['author_id'] ?? ''), (string) ($data['message_id'] ?? '')),
+            'reaction' => DiscordMessageReactionChanged::dispatch((string) ($data['message_id'] ?? ''), (string) ($data['channel_id'] ?? ''), (string) ($data['user_id'] ?? ''), (string) ($data['emoji'] ?? ''), (bool) ($data['added'] ?? false)),
             default => Log::info('discord.gateway.ignored', ['type' => $type]),
         };
 
