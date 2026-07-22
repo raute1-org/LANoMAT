@@ -45,6 +45,14 @@ retried up to 3 times with linear backoff (500ms, 1000ms, 1500ms) on network
 error or non-2xx; a still-failing event is logged and dropped rather than
 blocking the event loop.
 
+**Reaction caveat (surface-only for now).** `MessageReactionAdd`/`Remove` fire
+with a *partial* reaction when the target message is not in discord.js's cache
+(e.g. older messages), so `emoji`/`message_id`/`channel_id` can be null on the
+forwarded envelope. Reactions are currently logged only (no behaviour), so this
+is harmless today. Before building a reaction-driven feature (e.g.
+reaction-to-register), add `partials: [Partials.Message, Partials.Reaction]` to
+the client and `await reaction.fetch()` when `reaction.partial`.
+
 Slash-command interactions are `deferReply()`'d immediately in the sidecar
 (Discord requires an ack within 3 seconds) — the actual follow-up content is
 sent later by the PHP ingress via the interaction webhook, exactly as the
