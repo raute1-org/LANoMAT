@@ -23,3 +23,7 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 // channel — no authorization callback is registered here because the
 // beamer screen page is public and its payloads carry no private data,
 // mirroring `PollUpdated` above.
+
+// Discord voice occupancy (`DiscordVoicePresenceUpdated` -> 'voice.updated')
+// broadcasts on the public `discord-voice` channel — no authorization
+// callback (payload is empty, consumers pull VoicePresenceProjection).

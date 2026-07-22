@@ -5,6 +5,7 @@ namespace App\Modules\Discord\Http;
 use App\Modules\Discord\Interactions\CommandRouter;
 use App\Modules\Discord\Interactions\InteractionResponseType;
 use App\Modules\Discord\Jobs\SendFollowupJob;
+use App\Modules\Discord\Support\HandleVoiceState;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,7 @@ class GatewayIngressController
 
         match ($type) {
             'interaction' => $this->handleInteraction($data),
+            'voice_state' => app(HandleVoiceState::class)->handle($data),
             default => Log::info('discord.gateway.ignored', ['type' => $type]),
         };
 
