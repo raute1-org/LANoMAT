@@ -43,7 +43,7 @@ bound in tests. Tests never call real third-party APIs.
 | Catering | M4 | Group food orders and cost splitting |
 | Voting | M4 | Game votes and generic polls per event |
 | LFG | M4 | Looking-for-group posts per event |
-| Discord | M2–M3 (cross-cutting) | REST client, Interactions endpoint, channel orchestration |
+| Discord | M2–M3 (cross-cutting) | REST client, Gateway sidecar ingress, Interactions endpoint (dormant fallback), channel orchestration |
 | Voice (Mumble) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
 | Infoscreen | M5 | Fullscreen rotating scenes for the venue projector |
 | GameServers | M6 | Pelican Panel integration, match server provisioning |
@@ -90,6 +90,7 @@ lfg_posts            (id, event_id, user_id, game_id, title, description, player
 infoscreen_scenes    (id, event_id, type, config JSONB, duration_sec, sort, enabled)
 server_links         (id, match_id NULLABLE, tournament_id NULLABLE, pelican_server_id, join_info JSONB, status)
 notifications        (Laravel standard) · discord_outbox (id, kind, dedup_key UNIQUE, sent_at)
+discord_voice_states (id, discord_user_id UNIQUE, channel_id, channel_name NULLABLE, user_id NULLABLE FK)
 event_photos         (id, event_id, uploaded_by, path, thumb_path, width, height, caption NULLABLE,
                       is_highlight, visibility[pending|approved|rejected], reviewed_by NULLABLE, reviewed_at NULLABLE)
 news_posts           (id, title, body, author_id NULLABLE, published_at NULLABLE)
@@ -102,6 +103,61 @@ Key decisions (see design doc §7 for full rationale):
 - `match_reports` carries the report/confirm/dispute flow; `matches` holds the confirmed state.
 - `discord_outbox.dedup_key` gives idempotent announcement delivery (replaces in-memory dedup from v1).
 - File uploads (icons, logos) go to Laravel Storage (`*_path` columns), never Base64 in the database.
+
+## Discord Gateway sidecar
+
+Presence (online status) and inbound events (interactions, member join/leave, voice-state,
+message/reaction) now arrive over a persistent Discord Gateway connection rather than only
+REST + the HTTP Interactions endpoint. The Gateway is a long-lived WebSocket with its own
+heartbeat/resume/backoff state machine, a poor fit for Laravel's request/worker lifecycle, so
+it is held by a small **discord.js sidecar** (`docker/discord-gateway/`, discord.js `14.27.0`,
+compose service on the `prod` profile — exactly one Gateway session may exist per bot token).
+
+- **Pure transport.** The sidecar holds no database and no domain logic — it receives a
+  Gateway event, shapes it into a small JSON envelope (`type` + `data`), and `POST`s it to the
+  Laravel app's ingress. All decisions about what an event *means* live in PHP.
+- **Ingress.** `POST internal/discord/gateway` (`GatewayIngressController`, route middleware
+  alias `discord.gateway` → `App\Modules\Discord\Http\Middleware\VerifyGatewaySecret`) is
+  authenticated by a shared secret (`X-Gateway-Secret`, compared via `hash_equals`) over the
+  Docker compose network — not Discord's Ed25519 signature scheme, since this traffic never
+  leaves the internal network. The route is CSRF-exempt like the existing
+  `api/discord/interactions` endpoint.
+- **Always-defer interactions.** Slash-command interactions delivered over the Gateway are
+  `deferReply()`'d immediately by the sidecar (Discord requires an ack within 3 seconds); the
+  PHP ingress resolves the actual content and delivers it as a follow-up via the existing
+  `SendFollowupJob`/interaction-webhook path — the same deferred-job flow the HTTP Interactions
+  endpoint already used.
+- **Voice presence read-model.** `discord_voice_states` (see the data-model sketch above)
+  mirrors `VOICE_STATE_UPDATE` events: a null `channel_id` means the user left (row deleted),
+  otherwise it's an upsert keyed on `discord_user_id`, with `user_id` resolved by matching
+  `users.discord_id` where possible. Every change dispatches `DiscordVoicePresenceUpdated`
+  (`broadcastAs` `voice.updated`, empty payload, No-PII) on the public `discord-voice` channel
+  — guild-wide, so deliberately not the per-event `event.{id}` channel. `GET discord/voice`
+  (`VoicePresenceController`) is the public read endpoint consumers reload against.
+- **Member/message/reaction events** (`GuildMemberAdd`/`Remove`, `MessageCreate`,
+  `MessageReactionAdd`/`Remove`) are forwarded the same way and surfaced as typed Laravel
+  events for other modules to listen to.
+- **The Ed25519 HTTP Interactions endpoint is kept, not retired.** `InteractionsController`,
+  `VerifyDiscordSignature`, and the `POST api/discord/interactions` route stay in place as a
+  **dormant, switchable fallback** — interactions are delivered over the Gateway only while the
+  Discord Developer Portal's Interactions Endpoint URL is empty; re-setting that URL to
+  `https://<APP_DOMAIN>/api/discord/interactions` fails delivery back to the HTTP path
+  immediately (the two modes are mutually exclusive per Discord). Retirement of the HTTP
+  endpoint is a later, separate change after a stable live run on the Gateway, not part of this
+  phase.
+- **Outbound is unchanged.** Sending messages/embeds/channel management still goes exclusively
+  through the `DiscordClient` contract (`HttpDiscordClient`/`FakeDiscordClient`); the Gateway
+  sidecar only carries *inbound* events and presence.
+- **Manual portal prerequisites (real-infra, done once against the real bot).** (1) Enable the
+  **Server Members Intent** in the Developer Portal (Bot page → Privileged Gateway Intents) —
+  `GuildMemberAdd`/`GuildMemberRemove` won't fire without it, and the Gateway login is rejected
+  if the sidecar requests the `GuildMembers` intent while the portal toggle is off. (2) **Clear
+  the Interactions Endpoint URL** (General Information page) to switch interaction delivery to
+  the Gateway, per the fallback note above. Operational verification (bot showing online, a
+  live slash-command round-trip, a voice-channel join reflected in `GET /discord/voice`) is
+  deferred to `docs/pre-lan-acceptance-checklist.md` §1, the same posture as
+  `docker/mumble-admin`/`docker/teamspeak-admin` — it needs a real bot token and guild, so it
+  is not run in CI.
 
 ## Identity & account linking
 
@@ -472,8 +528,9 @@ management; opening/closing reuses the existing `OpenPoll`/`ClosePoll` actions u
 ## Real-time
 
 Reverb channels are scoped per context: `event.{id}` (infoscreen control, announcements),
-`tournament.{id}` (bracket/match updates). Real-time is an enhancement, not a dependency —
-every page must remain correct after a plain reload.
+`tournament.{id}` (bracket/match updates), and the guild-wide public `discord-voice` channel
+(Discord voice occupancy). Real-time is an enhancement, not a dependency — every page must
+remain correct after a plain reload.
 
 ## Current implementation status
 

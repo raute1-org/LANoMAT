@@ -61,7 +61,7 @@ php artisan lanomat:install --admin-discord-id=<id>   # migrate + promote/create
 - **`Event` is the aggregate root** for everything organizational (tournaments, seating, catering, schedule, votes, LFG). Users, teams, and games are cross-event.
 - **Every authorization goes through a Policy.** Never trust client-supplied user IDs.
 - **Actions pattern:** one class per use case (`RegisterForEvent`, `SubmitMatchReport`); controllers and Filament resources stay thin.
-- **No bot process:** Discord runs via REST + HTTP Interactions endpoint (Ed25519-verified route). No gateway connection.
+- **Discord Gateway via a thin sidecar:** Discord runs a persistent Gateway connection through a small discord.js sidecar (`docker/discord-gateway/`) for presence (online status) and inbound events (interactions, member join/leave, voice-state, message/reaction). The sidecar is **pure transport** — it forwards events to the Laravel app over an internal secret-authenticated endpoint (`internal/discord/gateway`, `VerifyGatewaySecret`); all domain logic stays in PHP. Slash-command interactions arrive over the Gateway (always-defer; the sidecar `deferReply()`s, PHP delivers the content as a follow-up) while the portal Interactions Endpoint URL is empty; the Ed25519 HTTP interactions endpoint is **kept as a dormant, switchable fallback** (re-set the URL to fail back; retired only later, after a stable live run). Outbound calls still go through the `DiscordClient` contract + `HttpDiscordClient`.
 - **Bracket engine is pure domain code** (`app/Modules/Tournaments/Domain/`) — no IO, exhaustively tested with Pest before any UI work.
 - Uploads go to Laravel Storage, never Base64 into the database.
 
