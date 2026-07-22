@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
+use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -37,14 +38,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'discord.signature' => VerifyDiscordSignature::class,
+            'discord.gateway' => VerifyGatewaySecret::class,
         ]);
 
         // Discord signs the raw body itself (see VerifyDiscordSignature); it
         // never carries a Laravel CSRF token, so the route is exempted here.
-        // The CS2 telemetry webhook is likewise called by a game server (no
-        // session, no CSRF token) and authenticates via its own per-server
-        // bearer token instead (see MatchTelemetryController).
-        $middleware->validateCsrfTokens(except: ['api/discord/interactions', 'api/telemetry/cs2/*']);
+        // The gateway ingress is called by the discord.js sidecar over the
+        // compose network (no session, no CSRF token) and authenticates via
+        // its own shared secret instead (see VerifyGatewaySecret). The CS2
+        // telemetry webhook is likewise called by a game server (no session,
+        // no CSRF token) and authenticates via its own per-server bearer
+        // token instead (see MatchTelemetryController).
+        $middleware->validateCsrfTokens(except: ['api/discord/interactions', 'internal/discord/gateway', 'api/telemetry/cs2/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

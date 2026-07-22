@@ -2,6 +2,7 @@
 
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
+use App\Modules\Discord\Http\GatewayIngressController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Files\Http\FilePageController;
@@ -261,6 +262,14 @@ Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
 Route::post('api/discord/interactions', InteractionsController::class)
     ->middleware('discord.signature')
     ->name('discord.interactions');
+
+// Internal ingress for gateway events forwarded by the discord.js sidecar
+// (docker/discord-gateway). Authenticated by a shared secret over the
+// compose network (see VerifyGatewaySecret), not by Discord's Ed25519
+// signature — the sidecar, not Discord, is the caller here.
+Route::post('internal/discord/gateway', GatewayIngressController::class)
+    ->middleware('discord.gateway')
+    ->name('discord.gateway.ingress');
 
 // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs
 // round/score events here, authenticated by its own per-ServerLink bearer
