@@ -133,12 +133,18 @@ their keys encrypted.
 These are **follow-ups to build**, not "verify" items — listed so this file is
 the one place to look (from JB's Runde-3 input, 2026-07-21):
 
-- **Preflight ampel (1.2):** `php artisan lanomat:preflight` probing every
-  external system (Discord API, voice sidecars, Pelican, Music Assistant,
-  Reverb, queue worker alive, scheduler ticking, storage writable,
-  `failed_jobs` empty) → a status tile in `/admin`. Bonus: a scheduler check
-  that raises an orga bell when `failed_jobs > 0` (today they vanish
-  silently). *(Own spec.)*
+- **Preflight ampel (1.2) — built.** `php artisan lanomat:preflight` probes
+  every internal check (db/redis/storage/`failed_jobs`/Reverb/scheduler/queue
+  worker) plus the external systems (Discord API, voice sidecars, Pelican,
+  Music Assistant) and prints an ampel table, exiting non-zero if any check is
+  `down`. The same results back a Filament dashboard tile
+  (`PreflightStatusWidget`) in `/admin`. The scheduled `lanomat:health-watch`
+  command (every 5 min) rings the orga bell, edge-triggered, when a system
+  goes `down` or `failed_jobs > 0` (previously these vanished silently).
+  Scheduler/queue liveness is fed by `lanomat:heartbeat` (every minute, writes
+  a cache tick + dispatches a queue heartbeat job) — run it once for real
+  (`php artisan schedule:work` or the `scheduler` compose service) before
+  relying on the ampel's scheduler/queue rows.
 - **Backup + tested restore (1.3):** `pg_dump` via scheduler (hourly during a
   live event) + the storage dir, **additive/timestamped**, and — crucially —
   a **rehearsed restore** with a spot-check hash. An unrehearsed backup is

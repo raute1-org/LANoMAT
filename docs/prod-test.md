@@ -215,6 +215,11 @@ Details/Hintergrund: [`docs/lancache-setup.md`](lancache-setup.md). **Wichtig:**
 3. **Start** auslösen → `StartCustomServer` baut einen `escapeshellarg`-abgesicherten `docker run`-Befehl und führt ihn per SSH auf dem Host aus; Status wechselt auf „läuft" (oder „fehlgeschlagen" mit `stderr` in `last_output`, falls der Start scheitert).
 4. **Stop** auslösen → `docker rm -f` auf demselben Host, Status zurück auf „gestoppt".
 
+### D9. LAN-morning readiness (Preflight ampel)
+
+1. `docker compose --profile prod exec app php artisan lanomat:preflight` → alle Zeilen sollten **grün (OK)** sein; die externen Mode-A-Systeme (Voice-Sidecars, Pelican, Music Assistant), die auf dieser Prod-Instanz noch nicht deployed sind, dürfen **SKIP** (grau) zeigen — das ist kein Fehlschlag. Ein **DOWN (rot)** lässt den Befehl mit Exit-Code ≠ 0 enden.
+2. Im Panel (`/admin`) die Preflight-Status-Kachel auf dem Dashboard prüfen — sie zeigt dieselben Ergebnisse (15 s gecacht).
+
 ---
 
 ## Teil E — Teardown
