@@ -284,6 +284,16 @@ services:
     ports: ['127.0.0.1:8086:8000']
     depends_on: [teamspeak]
 
+  # Discord Gateway sidecar (spec 2026-07-21): the single persistent Gateway
+  # connection (presence + inbound events), bridged to `app` over the compose
+  # network. Pure transport; all logic is in the Laravel app. profiles:[prod]
+  # so exactly one session per bot token exists.
+  discord-gateway:
+    build: ./docker/discord-gateway
+    profiles: [prod]
+    env_file: .env
+    restart: unless-stopped
+
   # Music Assistant (M11, Jukebox/LAN-Radio). Official image; like
   # `teamspeak`/`teamspeak-admin` above, this is `profiles: [prod]`-only for
   # now — mode A this phase (see docs/music-assistant-setup.md): contract +
