@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -112,6 +113,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+                PreflightStatusWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
