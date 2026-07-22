@@ -762,25 +762,44 @@ git commit -m "feat(preflight): external system checks (discord, voice sidecars,
 
 - [ ] **Step 1: Write the failing test**
 
-`tests/Feature/Preflight/PreflightCommandTest.php`:
+`tests/Feature/Preflight/PreflightCommandTest.php` — `RunPreflight` is `final` (not mockable by Mockery), so bind a **real** `RunPreflight` built from inline fake `HealthCheck`s into the container. This tests the command against the real action (better than a mock) and avoids Mockery's final-class limitation. Use a uniquely-named top-level helper (not `fakeCheck`, which `RunPreflightTest` already declares — a duplicate top-level function would fatal):
 ```php
 <?php
 
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Contracts\HealthCheck;
+use App\Modules\Preflight\Support\HealthResult;
+
+/** @param array<string, HealthResult> $results */
+function preflightWith(array $results): RunPreflight
+{
+    $checks = array_map(
+        fn (string $key, HealthResult $r): HealthCheck => new class($key, $r) implements HealthCheck {
+            public function __construct(private string $k, private HealthResult $r) {}
+            public function key(): string { return $this->k; }
+            public function label(): string { return ucfirst($this->k); }
+            public function run(): HealthResult { return $this->r; }
+        },
+        array_keys($results),
+        array_values($results),
+    );
+
+    return new RunPreflight($checks);
+}
 
 it('exits 0 when nothing is down', function () {
-    $this->mock(RunPreflight::class)->shouldReceive('handle')->andReturn([
-        ['key' => 'database', 'label' => 'Datenbank', 'status' => 'ok', 'message' => ''],
-        ['key' => 'pelican', 'label' => 'Pelican', 'status' => 'skipped', 'message' => 'Nicht konfiguriert.'],
-    ]);
+    $this->app->instance(RunPreflight::class, preflightWith([
+        'database' => HealthResult::ok(),
+        'pelican' => HealthResult::skipped('Nicht konfiguriert.'),
+    ]));
 
     $this->artisan('lanomat:preflight')->assertExitCode(0);
 });
 
 it('exits 1 when a check is down', function () {
-    $this->mock(RunPreflight::class)->shouldReceive('handle')->andReturn([
-        ['key' => 'redis', 'label' => 'Redis', 'status' => 'down', 'message' => 'refused'],
-    ]);
+    $this->app->instance(RunPreflight::class, preflightWith([
+        'redis' => HealthResult::down('refused'),
+    ]));
 
     $this->artisan('lanomat:preflight')->assertExitCode(1);
 });
@@ -857,26 +876,36 @@ git commit -m "feat(preflight): lanomat:preflight ampel command with exit code"
 
 - [ ] **Step 1: Write the failing test**
 
-`tests/Feature/Preflight/PreflightWidgetTest.php`:
+`tests/Feature/Preflight/PreflightWidgetTest.php` — `RunPreflight` is `final`; bind a real one whose single fake check **counts its runs** so the 15 s cache is provably exercised (the check runs once across two `results()` calls). No Mockery:
 ```php
 <?php
 
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Contracts\HealthCheck;
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
+use App\Modules\Preflight\Support\HealthResult;
 use Illuminate\Support\Facades\Cache;
 
-it('exposes cached preflight results to the view', function () {
+it('caches preflight results and exposes them to the view', function () {
     Cache::flush();
-    $this->mock(RunPreflight::class)->shouldReceive('handle')->once()->andReturn([
-        ['key' => 'database', 'label' => 'Datenbank', 'status' => 'ok', 'message' => ''],
-    ]);
+    $counter = new stdClass;
+    $counter->runs = 0;
+
+    $check = new class($counter) implements HealthCheck {
+        public function __construct(private stdClass $counter) {}
+        public function key(): string { return 'database'; }
+        public function label(): string { return 'Datenbank'; }
+        public function run(): HealthResult { $this->counter->runs++; return HealthResult::ok(); }
+    };
+
+    $this->app->instance(RunPreflight::class, new RunPreflight([$check]));
 
     $widget = new PreflightStatusWidget;
 
     expect($widget->results())->toHaveCount(1)
         ->and($widget->results()[0]['status'])->toBe('ok')
-        // second call is served from cache (mock expects exactly once)
-        ->and($widget->results())->toHaveCount(1);
+        ->and($widget->results())->toHaveCount(1)   // second call served from cache
+        ->and($counter->runs)->toBe(1);             // proves the 15 s cache: ran once, not twice
 });
 ```
 
@@ -946,27 +975,39 @@ git commit -m "feat(preflight): admin dashboard status widget"
 
 - [ ] **Step 1: Write the failing test**
 
-`tests/Feature/Preflight/HealthWatchTest.php`:
+`tests/Feature/Preflight/HealthWatchTest.php` — `RunPreflight` is `final`; bind a real one from inline fake checks (no Mockery). Use a uniquely-named helper `watchCheck` (not `fakeCheck`/`preflightWith`, which other test files already declare at top level):
 ```php
 <?php
 
 use App\Enums\Role;
 use App\Models\User;
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Contracts\HealthCheck;
 use App\Modules\Preflight\Notifications\SystemUnhealthy;
+use App\Modules\Preflight\Support\HealthResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 
 uses(RefreshDatabase::class);
 
+function watchCheck(string $key, HealthResult $result): HealthCheck
+{
+    return new class($key, $result) implements HealthCheck {
+        public function __construct(private string $k, private HealthResult $r) {}
+        public function key(): string { return $this->k; }
+        public function label(): string { return ucfirst($this->k); }
+        public function run(): HealthResult { return $this->r; }
+    };
+}
+
 it('bells orga once on a healthy->unhealthy transition, not again while still down', function () {
     Cache::flush();
     Notification::fake();
     $orga = User::factory()->create(['role' => Role::Orga]);
-    $this->mock(RunPreflight::class)->shouldReceive('handle')->andReturn([
-        ['key' => 'redis', 'label' => 'Redis', 'status' => 'down', 'message' => 'refused'],
-    ]);
+    $this->app->instance(RunPreflight::class, new RunPreflight([
+        watchCheck('redis', HealthResult::down('refused')),
+    ]));
 
     $this->artisan('lanomat:health-watch')->assertOk();
     Notification::assertSentTo($orga, SystemUnhealthy::class);
@@ -980,10 +1021,10 @@ it('does not bell when only skipped/ok', function () {
     Cache::flush();
     Notification::fake();
     User::factory()->create(['role' => Role::Orga]);
-    $this->mock(RunPreflight::class)->shouldReceive('handle')->andReturn([
-        ['key' => 'pelican', 'label' => 'Pelican', 'status' => 'skipped', 'message' => ''],
-        ['key' => 'database', 'label' => 'Datenbank', 'status' => 'ok', 'message' => ''],
-    ]);
+    $this->app->instance(RunPreflight::class, new RunPreflight([
+        watchCheck('pelican', HealthResult::skipped('')),
+        watchCheck('database', HealthResult::ok()),
+    ]));
 
     $this->artisan('lanomat:health-watch')->assertOk();
     Notification::assertNothingSent();
