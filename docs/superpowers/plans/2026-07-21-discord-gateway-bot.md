@@ -47,9 +47,8 @@
 - `compose.yml` — `discord-gateway` service.
 - `CLAUDE.md`, `docs/architecture.md` — amend the "no gateway" rule; document the sidecar.
 
-**Delete (Task 2):**
-- `app/Modules/Discord/Http/InteractionsController.php`, `app/Modules/Discord/Http/Middleware/VerifyDiscordSignature.php`.
-- `tests/Feature/Discord/InteractionsPingTest.php`, `InteractionsSignatureTest.php` (HTTP-endpoint-specific: the Gateway has no PING and no Ed25519).
+**Kept as a dormant fallback (Task 2 — nothing deleted this phase):**
+- `app/Modules/Discord/Http/InteractionsController.php`, `app/Modules/Discord/Http/Middleware/VerifyDiscordSignature.php`, the `POST api/discord/interactions` route, and `InteractionsPingTest`/`InteractionsSignatureTest` all stay. Interaction delivery switches to the Gateway via the portal (clear the Interactions Endpoint URL); re-setting it fails back to HTTP. Retirement is a later, separate change after a stable live run (per JB's Runde-3 input).
 
 ---
 
@@ -305,65 +304,80 @@ git commit -m "feat(discord): internal gateway ingress with secret auth and inte
 
 ---
 
-### Task 2: Retire the HTTP interactions endpoint
+### Task 2: Keep the HTTP interactions endpoint as a dormant fallback
+
+Per JB's Runde-3 robustness input, the Ed25519 HTTP interactions path is
+**kept, not deleted** — if the Gateway sidecar fails, re-setting the portal's
+Interactions Endpoint URL restores slash commands over HTTP in seconds. This
+task therefore makes **no code deletions**; it only (a) proves both transports
+route commands through the same `CommandRouter`, and (b) documents the
+switch/fallback procedure. Actual retirement is a later, separate change after
+a stable live Gateway run.
 
 **Files:**
-- Delete: `app/Modules/Discord/Http/InteractionsController.php`, `app/Modules/Discord/Http/Middleware/VerifyDiscordSignature.php`
-- Delete: `tests/Feature/Discord/InteractionsPingTest.php`, `tests/Feature/Discord/InteractionsSignatureTest.php`
-- Modify: `routes/web.php` (remove the interactions route + its comment), `bootstrap/app.php` (remove `discord.signature` alias + import; drop `api/discord/interactions` from CSRF exempt)
-- Modify: `tests/Feature/Discord/SlashCommandTest.php` (repoint from the HTTP route to the ingress)
+- Keep (do NOT delete): `Http/InteractionsController.php`, `Http/Middleware/VerifyDiscordSignature.php`, the `POST api/discord/interactions` route, the `discord.signature` alias, `InteractionsPingTest.php`, `InteractionsSignatureTest.php`.
+- Test: `tests/Feature/Discord/GatewayInteractionParityTest.php` (new)
 
 **Interfaces:**
-- Consumes: the ingress from Task 1 (`postInteraction` helper pattern).
+- Consumes: the ingress from Task 1 and the existing `route('discord.interactions')` HTTP path; both call `CommandRouter::dispatch`.
 
-- [ ] **Step 1: Repoint SlashCommandTest at the ingress**
+- [ ] **Step 1: Write a parity test — the same command works over both transports**
 
-`SlashCommandTest.php` currently posts signed requests to `route('discord.interactions')`. Replace its request helper so each command case posts `{type:'interaction', data:<payload>}` to `/internal/discord/gateway` with `['X-Gateway-Secret' => 'test-secret']` (set `config(['services.discord.gateway_bridge_secret' => 'test-secret'])` in `beforeEach`), and assert on the resulting `SendFollowupJob` content (via `Bus::fake()` + `Bus::assertDispatched`) instead of on the synchronous JSON body. Keep every command-behaviour assertion; only the transport changes. Concretely, replace the old signed-post helper with:
+`tests/Feature/Discord/GatewayInteractionParityTest.php`:
 ```php
-function dispatchCommand(array $data): void
-{
-    test()->postJson(
-        '/internal/discord/gateway',
-        ['type' => 'interaction', 'data' => $data],
-        ['X-Gateway-Secret' => 'test-secret'],
-    )->assertNoContent();
-}
-```
-and read the produced content from the dispatched `SendFollowupJob` (immediate commands) or assert the deferred handler's own job (deferred commands).
+<?php
 
-- [ ] **Step 2: Run SlashCommandTest — expect PASS on the new path**
+use App\Modules\Discord\Jobs\SendFollowupJob;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 
-Run: `./vendor/bin/pest --filter=SlashCommand`
-Expected: PASS.
+uses(RefreshDatabase::class);
 
-- [ ] **Step 3: Delete the HTTP endpoint + its transport-only tests**
+beforeEach(function () {
+    config([
+        'services.discord.gateway_bridge_secret' => 'test-secret',
+        'services.discord.application_id' => 'app-123',
+    ]);
+});
 
-```bash
-git rm app/Modules/Discord/Http/InteractionsController.php \
-       app/Modules/Discord/Http/Middleware/VerifyDiscordSignature.php \
-       tests/Feature/Discord/InteractionsPingTest.php \
-       tests/Feature/Discord/InteractionsSignatureTest.php
-```
+$helpPayload = [
+    'type' => 2,
+    'application_id' => 'app-123',
+    'token' => 'tok',
+    'member' => ['user' => ['id' => '900']],
+    'data' => ['name' => 'help', 'options' => []],
+];
 
-`routes/web.php` — remove the `use App\Modules\Discord\Http\InteractionsController;` import, the `Route::post('api/discord/interactions', …)` block, and the now-stale comment above it.
+it('routes a help command through the gateway ingress', function () use ($helpPayload) {
+    Bus::fake();
+    $this->postJson('/internal/discord/gateway', ['type' => 'interaction', 'data' => $helpPayload], ['X-Gateway-Secret' => 'test-secret'])
+        ->assertNoContent();
+    Bus::assertDispatched(SendFollowupJob::class);
+});
 
-`bootstrap/app.php` — remove `use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;`, remove the `'discord.signature' => VerifyDiscordSignature::class,` alias line, and drop `'api/discord/interactions'` from the `validateCsrfTokens(except: [...])` list (leaving `'internal/discord/gateway'` and `'api/telemetry/cs2/*'`).
-
-- [ ] **Step 4: Verify the old route is gone**
-
-Add to `tests/Feature/Discord/GatewayIngressAuthTest.php`:
-```php
-it('no longer exposes the retired HTTP interactions endpoint', function () {
-    $this->postJson('/api/discord/interactions', ['type' => 1])->assertNotFound();
+it('still serves the HTTP fallback route (dormant, not deleted)', function () use ($helpPayload) {
+    // The route exists and is wired to CommandRouter; the Ed25519 middleware
+    // rejects an unsigned request (401), proving the guarded fallback is live.
+    $this->postJson('/api/discord/interactions', $helpPayload)->assertUnauthorized();
+    expect(app('router')->getRoutes()->hasNamedRoute('discord.interactions'))->toBeTrue();
 });
 ```
 
-- [ ] **Step 5: composer check + commit**
+- [ ] **Step 2: Run — expect PASS** (no code changes needed; both paths already exist)
+
+Run: `./vendor/bin/pest --filter=GatewayInteractionParity`
+Expected: PASS. If the HTTP route were accidentally removed, the second test fails — that is the guard against premature retirement.
+
+- [ ] **Step 3: Document the fallback switch**
+
+In `docker/discord-gateway/README.md` (created in Task 7) and the CLAUDE.md amendment (Task 8), state the switch explicitly: *interactions are delivered over the Gateway while the portal Interactions Endpoint URL is empty; to fall back, set it to `https://<APP_DOMAIN>/api/discord/interactions` and the Ed25519 HTTP path takes over. Do not delete the HTTP endpoint until the Gateway has run a full LAN.* (No code change in this step — it is captured in those docs tasks; this checkbox is the reminder that the fallback is a documented, supported procedure.)
+
+- [ ] **Step 4: composer check + commit**
 
 Run: `composer check`
 ```bash
-git add -A
-git commit -m "refactor(discord): retire the Ed25519 HTTP interactions endpoint in favour of the gateway"
+git add tests/Feature/Discord/GatewayInteractionParityTest.php
+git commit -m "test(discord): assert command parity across gateway + dormant HTTP fallback"
 ```
 
 ---
@@ -1104,12 +1118,12 @@ git commit -m "feat(discord): discord.js gateway sidecar and compose service"
 
 Replace the `**No bot process:**` bullet with:
 ```markdown
-- **Discord Gateway via a thin sidecar:** Discord runs a persistent Gateway connection through a small discord.js sidecar (`docker/discord-gateway/`) for presence (online status) and inbound events (interactions, member join/leave, voice-state, message/reaction). The sidecar is **pure transport** — it forwards events to the Laravel app over an internal secret-authenticated endpoint (`internal/discord/gateway`, `VerifyGatewaySecret`); all domain logic stays in PHP. Slash-command interactions arrive over the Gateway (always-defer; the sidecar `deferReply()`s, PHP delivers the content as a follow-up) — the Ed25519 HTTP interactions endpoint has been retired. Outbound calls still go through the `DiscordClient` contract + `HttpDiscordClient`.
+- **Discord Gateway via a thin sidecar:** Discord runs a persistent Gateway connection through a small discord.js sidecar (`docker/discord-gateway/`) for presence (online status) and inbound events (interactions, member join/leave, voice-state, message/reaction). The sidecar is **pure transport** — it forwards events to the Laravel app over an internal secret-authenticated endpoint (`internal/discord/gateway`, `VerifyGatewaySecret`); all domain logic stays in PHP. Slash-command interactions arrive over the Gateway (always-defer; the sidecar `deferReply()`s, PHP delivers the content as a follow-up) while the portal Interactions Endpoint URL is empty; the Ed25519 HTTP interactions endpoint is **kept as a dormant, switchable fallback** (re-set the URL to fail back; retired only later, after a stable live run). Outbound calls still go through the `DiscordClient` contract + `HttpDiscordClient`.
 ```
 
 - [ ] **Step 2: Update docs/architecture.md**
 
-Add the sidecar + ingress + `discord_voice_states` read-model to the module/data-model sketch; note the retirement of the HTTP interactions endpoint and the manual portal prerequisites (Server Members Intent; clear Interactions Endpoint URL).
+Add the sidecar + ingress + `discord_voice_states` read-model to the module/data-model sketch; note that the HTTP interactions endpoint is kept as a dormant, switchable fallback (not retired this phase) and the manual portal prerequisites (Server Members Intent; clear Interactions Endpoint URL to switch delivery to the Gateway).
 
 - [ ] **Step 3: Commit**
 

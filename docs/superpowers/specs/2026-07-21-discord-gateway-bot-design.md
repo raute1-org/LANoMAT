@@ -27,8 +27,9 @@ bridges events to the app over the internal Docker network.
 - An **internal PHP ingress** (`/internal/discord/gateway`) protected by a
   shared secret, that dispatches forwarded events.
 - **Interaction handling over the Gateway**, reusing the existing
-  `CommandRouter` and command handlers at full parity; retiring the public
-  HTTP Interactions endpoint.
+  `CommandRouter` and command handlers at full parity; the public HTTP
+  Interactions endpoint is **kept as a dormant, switchable fallback** (not
+  retired this phase — see §15.3).
 - **Voice presence:** a read-model of who (mapped LANoMAT users) is in which
   Discord voice channel, updated from `VOICE_STATE_UPDATE`, exposed via a
   No-PII projection and an empty broadcast (mirrors the M10/M11 pattern).
@@ -59,10 +60,14 @@ bridges events to the app over the internal Docker network.
   `InteractionPayload`, `InteractionResponse`, `SendFollowupJob`. These are
   already transport-agnostic (they take a raw interaction payload array), so
   the Gateway path feeds them the same shape the HTTP path did.
-- **Retired:** `Http/InteractionsController`, `Http/Middleware/
-  VerifyDiscordSignature`, and the public `POST /discord/interactions` route.
+- **Kept as a dormant fallback (per JB's Runde-3 robustness input):**
+  `Http/InteractionsController`, `Http/Middleware/VerifyDiscordSignature`, and
+  the public `POST /discord/interactions` route stay in place and functional.
   Discord delivers interactions over the Gateway once the portal's
-  "Interactions Endpoint URL" is cleared (a manual step, see §9).
+  "Interactions Endpoint URL" is **cleared** (a manual step, see §9); if the
+  sidecar fails, re-setting that URL instantly restores slash commands over
+  HTTP. The endpoint is only deleted in a later phase, after the Gateway has
+  had a stable live run — otherwise a sidecar outage kills every slash command.
 
 ## 4. Architecture (X: thin sidecar + PHP brain)
 
@@ -300,9 +305,11 @@ Order matters (interactions must not go dark mid-switch):
    endpoint URL is still set).
 2. Clear the Interactions Endpoint URL in the portal → interactions switch to
    the Gateway. Verify a command.
-3. Remove the HTTP `InteractionsController`, `VerifyDiscordSignature`, and the
-   route. (Steps 2–3 can be one deploy since the code retirement and the
-   portal switch are coordinated.)
+3. **Keep** the HTTP `InteractionsController` + `VerifyDiscordSignature` +
+   route in place as the dormant fallback. If the sidecar misbehaves, re-set
+   the Interactions Endpoint URL to fail back to HTTP in seconds. Only after
+   the Gateway has proven stable across a real run is the HTTP path retired
+   (a later, separate change).
 
 ## 15. Open decisions for review
 
@@ -310,8 +317,10 @@ Order matters (interactions must not go dark mid-switch):
    also add a `SceneType::DiscordVoice` beamer scene now?
 2. **Voice scope:** guild-wide (proposed) is simplest; is any event-scoping
    wanted, or is guild-wide correct given Discord voice isn't per-LAN-event?
-3. **Keep HTTP endpoint as fallback?** Proposal: no — retire it (one clear
-   path). Confirm you don't want to keep Ed25519 HTTP as a dormant fallback.
+3. **Keep HTTP endpoint as fallback?** RESOLVED — **yes** (JB's Runde-3
+   input): the Ed25519 HTTP endpoint stays as a dormant, switchable fallback
+   so a sidecar outage doesn't kill slash commands; retire it only after a
+   stable live Gateway run.
 4. **Presence activity text:** default `Watching LANoMAT`; want something
    dynamic (e.g. the current live event name) — which would add a small
    sidecar→app pull — or is the static configurable text fine for now?
