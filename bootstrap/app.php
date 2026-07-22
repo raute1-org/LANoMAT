@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/Discord/Console',
         __DIR__.'/../app/Modules/Jukebox/Console',
         __DIR__.'/../app/Modules/Lfg/Console',
+        __DIR__.'/../app/Modules/Preflight/Console',
         __DIR__.'/../app/Modules/Schedule/Console',
         __DIR__.'/../app/Modules/Tournaments/Console',
     ])

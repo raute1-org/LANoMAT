@@ -61,6 +61,7 @@ use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
+use App\Modules\Preflight\Actions\RunPreflight;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
@@ -168,6 +169,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             LinkedAccountConnectors::abstractFor(LinkedAccountProvider::Twitch),
             TwitchConnector::class,
+        );
+
+        // Preflight health checks are tagged here; each Checks/* class is added to
+        // this array by the task that creates it (see the preflight plan Tasks 2-4).
+        $this->app->tag([], 'preflight.checks');
+
+        $this->app->bind(
+            RunPreflight::class,
+            fn ($app) => new RunPreflight($app->tagged('preflight.checks')),
         );
     }
 
