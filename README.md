@@ -327,8 +327,19 @@ for the full phase roadmap.
 
 ## Acknowledgements
 
-Big shoutout to **[JB (@schn4ppi)](https://github.com/schn4ppi)** — whose
-feature-input rounds shaped the robustness push toward the real LAN (the pre-LAN
-acceptance checklist, the Preflight Ampel, and the Discord Gateway bot all trace
-back to his review). Thanks for keeping the "will this actually survive the LAN
-day?" question front and centre. 🙌
+Big shoutout to **[JB (@schn4ppi)](https://github.com/schn4ppi)** — a driving
+source of feature ideas across the whole roadmap, not just one corner of it.
+Several rounds of his input made it into the product:
+
+- **Features woven into the phases** — the schedule favourites + triggers (M5.7),
+  the tombola & orga-ping beamer moments (M5.8), Warmup & Go and CS2 live stats
+  (M6), the separate-host **LanCache** (M7.5), moderated user file-sharing (M7.3),
+  the live-occupancy voice refinements (M8), "presence first" (M10), and the
+  crowd-controlled **LAN-radio jukebox** (M11) all started as his requests. The
+  helper role, an offline (server-less) tournament type, and payment-comfort
+  touches came from the same rounds.
+- **The robustness push toward the real LAN** — the pre-LAN acceptance checklist,
+  the Preflight Ampel, and the Discord Gateway bot all trace back to his review.
+
+Thanks for keeping the "will this actually survive the LAN day?" question front
+and centre. 🙌
