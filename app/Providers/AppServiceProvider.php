@@ -64,8 +64,10 @@ use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Preflight\Actions\RunPreflight;
 use App\Modules\Preflight\Checks\DatabaseCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
+use App\Modules\Preflight\Checks\QueueWorkerCheck;
 use App\Modules\Preflight\Checks\RedisCheck;
 use App\Modules\Preflight\Checks\ReverbCheck;
+use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
 use App\Modules\Preflight\Checks\StorageWritableCheck;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Registration\Events\RegistrationCancelled;
@@ -184,6 +186,8 @@ class AppServiceProvider extends ServiceProvider
             StorageWritableCheck::class,
             FailedJobsCheck::class,
             ReverbCheck::class,
+            SchedulerHeartbeatCheck::class,
+            QueueWorkerCheck::class,
         ], 'preflight.checks');
 
         $this->app->bind(

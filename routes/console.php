@@ -18,4 +18,5 @@ Schedule::command('lanomat:send-schedule-reminders')->everyMinute();
 // everyMinute trades a bit of now-playing staleness for not hammering MA;
 // see JukeboxTickCommand for the reconciliation logic.
 Schedule::command('lanomat:jukebox-tick')->everyMinute();
+Schedule::command('lanomat:heartbeat')->everyMinute();
 Schedule::job(new RefreshExpiringTokensJob)->hourly();
