@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
+import { login as devLogin } from '@/routes/dev';
 
 defineOptions({
     layout: {
@@ -12,7 +13,12 @@ defineOptions({
 
 defineProps<{
     status?: string;
+    devLoginEnabled?: boolean;
 }>();
+
+function demoLogin(role: 'participant' | 'orga') {
+    router.post(devLogin(role).url);
+}
 </script>
 
 <template>
@@ -44,4 +50,28 @@ defineProps<{
         </svg>
         Mit Discord anmelden
     </Button>
+
+    <div v-if="devLoginEnabled" class="mt-4 border-t border-border pt-4">
+        <p class="mb-2 text-center text-xs text-muted-foreground">
+            Nur lokal — kein Discord nötig
+        </p>
+        <div class="flex gap-2">
+            <Button
+                variant="outline"
+                class="w-full"
+                data-test="dev-login-participant"
+                @click="demoLogin('participant')"
+            >
+                Als Demo-Teilnehmer
+            </Button>
+            <Button
+                variant="outline"
+                class="w-full"
+                data-test="dev-login-orga"
+                @click="demoLogin('orga')"
+            >
+                Als Demo-Orga
+            </Button>
+        </div>
+    </div>
 </template>
