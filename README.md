@@ -91,6 +91,15 @@ for the full design rationale.
    A seeded local test user (`discord_id 100000000000000001`) is available in seeded dev
    databases — see `database/seeders`.
 
+6. **Scheduler (since M2):** event reminders (`lanomat:send-reminders`, registered in
+   `routes/console.php` via `Schedule::command(...)->everyFiveMinutes()`) only fire if
+   something is actually running Laravel's scheduler.
+
+   - **Dev:** run `php artisan schedule:work` in a separate terminal — it re-checks the
+     schedule every minute for as long as it's running, no crontab needed.
+   - **Prod:** the `scheduler` service in `compose.yml`'s `prod` profile runs
+     `php artisan schedule:work` continuously — see "Production deployment" below.
+
 ### Peek into a local clone (no Discord app needed)
 
 Under `APP_ENV=local`, the login page shows **Demo-Login** buttons (Demo-Teilnehmer /
@@ -104,15 +113,6 @@ php artisan db:seed --class=ScreenshotSeeder
 ```
 
 Then open `/login` and pick a demo role.
-
-6. **Scheduler (since M2):** event reminders (`lanomat:send-reminders`, registered in
-   `routes/console.php` via `Schedule::command(...)->everyFiveMinutes()`) only fire if
-   something is actually running Laravel's scheduler.
-
-   - **Dev:** run `php artisan schedule:work` in a separate terminal — it re-checks the
-     schedule every minute for as long as it's running, no crontab needed.
-   - **Prod:** the `scheduler` service in `compose.yml`'s `prod` profile runs
-     `php artisan schedule:work` continuously — see "Production deployment" below.
 
 ## Production deployment
 
