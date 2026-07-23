@@ -37,16 +37,16 @@ const isLive = computed(() => currentEvent.value?.status === 'live');
             </div>
 
             <nav v-if="currentEvent" class="flex items-center gap-3 text-sm text-muted-foreground">
-                <Link :href="presenceShow(currentEvent.slug)" class="hover:text-foreground">Präsenz</Link>
-                <Link :href="jukeboxIndex(currentEvent.slug)" class="hover:text-foreground">Jukebox</Link>
-                <Link :href="recapShow(currentEvent.slug)" class="hover:text-foreground">Recap</Link>
+                <Link :href="presenceShow(currentEvent.slug)" class="rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Präsenz</Link>
+                <Link :href="jukeboxIndex(currentEvent.slug)" class="rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Jukebox</Link>
+                <Link :href="recapShow(currentEvent.slug)" class="rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Recap</Link>
             </nav>
 
             <div class="ml-auto flex items-center gap-2">
                 <Link
                     v-if="user"
                     :href="profileShow(user.id)"
-                    class="flex items-center gap-2 text-sm font-medium text-foreground hover:text-foreground/80"
+                    class="flex items-center gap-2 rounded text-sm font-medium text-foreground hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     {{ user.name }}
                 </Link>
