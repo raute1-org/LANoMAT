@@ -29,7 +29,11 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { homeHref } from '@/lib/home';
-import { index as eventsIndex, show as eventsShow, seating as eventsSeating } from '@/routes/events';
+import {
+    index as eventsIndex,
+    show as eventsShow,
+    seating as eventsSeating,
+} from '@/routes/events';
 import { index as friendsIndex } from '@/routes/friends';
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
@@ -44,11 +48,19 @@ import type { NavItem } from '@/types';
 import type { EventSummary } from '@/types/events';
 
 const page = usePage();
-const currentEvent = computed<EventSummary | null>(() => page.props.currentEvent);
-const isStaff = computed<boolean>(() => page.props.auth?.user?.is_staff === true);
+const currentEvent = computed<EventSummary | null>(
+    () => page.props.currentEvent,
+);
+const isStaff = computed<boolean>(
+    () => page.props.auth?.user?.is_staff === true,
+);
 
 const generalItems = computed<NavItem[]>(() => [
-    { title: 'Aktuelle LAN', href: homeHref(currentEvent.value), icon: PartyPopper },
+    {
+        title: 'Aktuelle LAN',
+        href: homeHref(currentEvent.value),
+        icon: PartyPopper,
+    },
     { title: 'Events', href: eventsIndex(), icon: CalendarDays },
     { title: 'Teams', href: teamsIndex(), icon: Users },
     { title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy },
@@ -65,7 +77,11 @@ const eventItems = computed<NavItem[]>(() => {
 
     const items: NavItem[] = [
         { title: 'Übersicht', href: eventsShow(ev.slug), icon: PartyPopper },
-        { title: 'Zeitplan', href: scheduleIndex(ev.slug), icon: CalendarClock },
+        {
+            title: 'Zeitplan',
+            href: scheduleIndex(ev.slug),
+            icon: CalendarClock,
+        },
         { title: 'Turniere', href: tournamentsIndex(ev.slug), icon: Swords },
         { title: 'Sitzplan', href: eventsSeating(ev.slug), icon: Armchair },
         { title: 'Präsenz', href: presenceShow(ev.slug), icon: Radio },
@@ -74,7 +90,11 @@ const eventItems = computed<NavItem[]>(() => {
     ];
 
     if (isStaff.value) {
-        items.push({ title: 'Check-in', href: orgaCheckin(ev.slug), icon: UserCheck });
+        items.push({
+            title: 'Check-in',
+            href: orgaCheckin(ev.slug),
+            icon: UserCheck,
+        });
     }
 
     return items;

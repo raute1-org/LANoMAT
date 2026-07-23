@@ -14,7 +14,9 @@ import type { User } from '@/types/auth';
 import type { EventSummary } from '@/types/events';
 
 const page = usePage();
-const currentEvent = computed<EventSummary | null>(() => page.props.currentEvent);
+const currentEvent = computed<EventSummary | null>(
+    () => page.props.currentEvent,
+);
 const user = computed<User | null>(() => page.props.auth?.user ?? null);
 const isLive = computed(() => currentEvent.value?.status === 'live');
 </script>
@@ -33,20 +35,37 @@ const isLive = computed(() => currentEvent.value?.status === 'live');
 
             <div v-if="currentEvent" class="flex items-center gap-2">
                 <LiveIndicator v-if="isLive" label="LIVE" />
-                <span class="text-sm font-medium text-foreground">{{ currentEvent.name }}</span>
+                <span class="text-sm font-medium text-foreground">{{
+                    currentEvent.name
+                }}</span>
             </div>
 
-            <nav v-if="currentEvent" class="flex items-center gap-3 text-sm text-muted-foreground">
-                <Link :href="presenceShow(currentEvent.slug)" class="rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Präsenz</Link>
-                <Link :href="jukeboxIndex(currentEvent.slug)" class="rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Jukebox</Link>
-                <Link :href="recapShow(currentEvent.slug)" class="rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Recap</Link>
+            <nav
+                v-if="currentEvent"
+                class="flex items-center gap-3 text-sm text-muted-foreground"
+            >
+                <Link
+                    :href="presenceShow(currentEvent.slug)"
+                    class="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >Präsenz</Link
+                >
+                <Link
+                    :href="jukeboxIndex(currentEvent.slug)"
+                    class="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >Jukebox</Link
+                >
+                <Link
+                    :href="recapShow(currentEvent.slug)"
+                    class="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >Recap</Link
+                >
             </nav>
 
             <div class="ml-auto flex items-center gap-2">
                 <Link
                     v-if="user"
                     :href="profileShow(user.id)"
-                    class="flex items-center gap-2 rounded text-sm font-medium text-foreground hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    class="flex items-center gap-2 rounded text-sm font-medium text-foreground hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                     {{ user.name }}
                 </Link>
