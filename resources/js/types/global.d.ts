@@ -24,6 +24,12 @@ declare module '@inertiajs/core' {
             currentEvent: EventSummary | null;
             notificationLabels: Record<string, string>;
             unreadNotifications?: NotificationItem[];
+            reverb: {
+                key: string | null;
+                host: string | null;
+                port: number | null;
+                scheme: string | null;
+            };
             [key: string]: unknown;
         };
     }
