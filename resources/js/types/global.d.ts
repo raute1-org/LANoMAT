@@ -24,12 +24,6 @@ declare module '@inertiajs/core' {
             currentEvent: EventSummary | null;
             notificationLabels: Record<string, string>;
             unreadNotifications?: NotificationItem[];
-            reverb: {
-                key: string | null;
-                host: string | null;
-                port: number | null;
-                scheme: string | null;
-            };
             [key: string]: unknown;
         };
     }
@@ -40,5 +34,18 @@ declare module 'vue' {
         $inertia: typeof Router;
         $page: Page;
         $headManager: ReturnType<typeof createHeadManager>;
+    }
+}
+
+// Reverb connection config injected inline by app.blade.php (from server
+// config at request time) and read in app.ts to configure Echo at runtime.
+declare global {
+    interface Window {
+        __reverb?: {
+            key: string | null;
+            host: string | null;
+            port: number | string | null;
+            scheme: string | null;
+        };
     }
 }

@@ -7,35 +7,25 @@ import PublicShell from '@/layouts/PublicShell.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
-// Reverb connection data comes from the server as an Inertia shared prop
-// (see HandleInertiaRequests), read here from the initial page payload. This
-// is deliberately NOT import.meta.env.VITE_REVERB_*: Vite inlines those at
+// Reverb connection data comes from the server at runtime via the
+// `window.__reverb` global set inline in app.blade.php (from server config).
+// This is deliberately NOT import.meta.env.VITE_REVERB_*: Vite inlines those at
 // build time, so the Docker image would bake .env.example's values and a real
-// deploy .env could never change where the browser connects. The shared prop
-// is resolved from server config at request time instead.
-const initialReverb = (() => {
-    try {
-        const page = document.getElementById('app')?.dataset.page;
-        const props = page ? JSON.parse(page).props : undefined;
-
-        return (props?.reverb ?? {}) as {
-            key?: string | null;
-            host?: string | null;
-            port?: number | null;
-            scheme?: string | null;
-        };
-    } catch {
-        return {};
-    }
-})();
+// deploy .env could never change where the browser connects. The inline blade
+// script runs before this deferred module, so the global is always present.
+const reverb = window.__reverb;
+const reverbPort =
+    reverb?.port !== null && reverb?.port !== undefined
+        ? Number(reverb.port)
+        : undefined;
 
 configureEcho({
     broadcaster: 'reverb',
-    key: initialReverb.key ?? undefined,
-    wsHost: initialReverb.host ?? undefined,
-    wsPort: initialReverb.port ?? undefined,
-    wssPort: initialReverb.port ?? undefined,
-    forceTLS: initialReverb.scheme === 'https',
+    key: reverb?.key ?? undefined,
+    wsHost: reverb?.host ?? undefined,
+    wsPort: reverbPort,
+    wssPort: reverbPort,
+    forceTLS: reverb?.scheme === 'https',
     enabledTransports: ['ws', 'wss'],
 });
 

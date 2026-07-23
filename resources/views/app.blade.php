@@ -36,6 +36,22 @@
 
         @fonts
 
+        {{-- Reverb connection config for the browser's Echo client, exposed at
+             runtime from server config (NOT baked at build time via VITE_*).
+             This inline script runs before the deferred app module, so
+             window.__reverb is available when Echo is configured in app.ts. --}}
+        @php
+            $reverbConfig = [
+                'key' => config('broadcasting.connections.reverb.key'),
+                'host' => config('broadcasting.connections.reverb.options.host'),
+                'port' => config('broadcasting.connections.reverb.options.port'),
+                'scheme' => config('broadcasting.connections.reverb.options.scheme'),
+            ];
+        @endphp
+        <script>
+            window.__reverb = @json($reverbConfig);
+        </script>
+
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>
             <title>{{ config('app.name', 'Laravel') }}</title>

@@ -43,16 +43,6 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            // Reverb connection data for the browser's Echo client, resolved
-            // from server config at request time. Delivered as a runtime prop
-            // (not Vite's build-time VITE_REVERB_*), so a real deploy .env
-            // controls where the frontend connects without a frontend rebuild.
-            'reverb' => [
-                'key' => config('broadcasting.connections.reverb.key'),
-                'host' => config('broadcasting.connections.reverb.options.host'),
-                'port' => config('broadcasting.connections.reverb.options.port'),
-                'scheme' => config('broadcasting.connections.reverb.options.scheme'),
-            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'notificationLabels' => trans('notifications.bell'),
             'unreadNotifications' => Inertia::optional(fn () => $request->user()
