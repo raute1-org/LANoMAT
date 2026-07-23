@@ -11,7 +11,8 @@
         "lint": "eslint . --fix",
         "lint:check": "eslint .",
         "types:check": "vue-tsc --noEmit",
-        "screenshots": "node scripts/screenshots/capture.mjs"
+        "screenshots": "node scripts/screenshots/capture.mjs",
+        "smoke": "node scripts/smoke/realtime-smoke.mjs"
     },
     "devDependencies": {
         "@eslint/js": "^9.19.0",
