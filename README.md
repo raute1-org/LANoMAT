@@ -330,7 +330,13 @@ untagged): a consolidated [pre-LAN acceptance checklist](docs/pre-lan-acceptance
 the **Preflight Ampel** (`php artisan lanomat:preflight` traffic-light health
 check + Filament dashboard tile + scheduled orga bell), and the **Discord Gateway
 bot** (a thin discord.js sidecar for online presence + inbound Gateway events,
-bridged to Laravel).
+bridged to Laravel). Plus navigation and onboarding polish: a grouped,
+current-event-aware authenticated sidebar, a slim shared header for the public
+pages, and — under `APP_ENV=local` only — a demo login so a fresh clone is
+explorable without a Discord app (see Setup). Two prod bugs found running a fresh
+clone were fixed along the way: preflight heartbeat markers now survive a
+serializing cache store, and the browser's Reverb connection is delivered at
+runtime (not baked into the build).
 
 **What remains** is real-infra verification (working through the acceptance
 checklist against real Discord/Pelican/Mumble/TeamSpeak/Music-Assistant/hosts) and
