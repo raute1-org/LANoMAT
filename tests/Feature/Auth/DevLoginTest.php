@@ -4,6 +4,7 @@ use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
@@ -47,4 +48,16 @@ it('logs in a demo orga with the orga role under local', function () {
 it('rejects an unknown demo role under local', function () {
     app()['env'] = 'local';
     $this->post('/dev/login/root')->assertNotFound();
+});
+
+it('shares devLoginEnabled to the login view only under local', function () {
+    // Default test env is "testing" (non-local) → the demo-login buttons stay hidden.
+    $this->get('/login')->assertInertia(
+        fn (AssertableInertia $page) => $page->component('auth/Login')->where('devLoginEnabled', false),
+    );
+
+    app()['env'] = 'local';
+    $this->get('/login')->assertInertia(
+        fn (AssertableInertia $page) => $page->where('devLoginEnabled', true),
+    );
 });
