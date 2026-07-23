@@ -174,9 +174,6 @@ function pad(value: number): string {
                     labels.login_to_register
                 }}</Link>
             </Button>
-            <Button v-else-if="cta" size="lg" disabled aria-disabled="true">
-                {{ cta }}
-            </Button>
             <Button as-child variant="outline">
                 <Link :href="presenceShow.url(event.slug)">{{
                     labels.to_presence
