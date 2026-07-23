@@ -91,6 +91,20 @@ for the full design rationale.
    A seeded local test user (`discord_id 100000000000000001`) is available in seeded dev
    databases — see `database/seeders`.
 
+### Peek into a local clone (no Discord app needed)
+
+Under `APP_ENV=local`, the login page shows **Demo-Login** buttons (Demo-Teilnehmer /
+Demo-Orga) — no Discord OAuth app required. They are backed by a local-only
+`POST /dev/login/{role}` route that 404s in every other environment. For a populated app,
+migrate and seed demo data first:
+
+```bash
+php artisan migrate
+php artisan db:seed --class=ScreenshotSeeder
+```
+
+Then open `/login` and pick a demo role.
+
 6. **Scheduler (since M2):** event reminders (`lanomat:send-reminders`, registered in
    `routes/console.php` via `Schedule::command(...)->everyFiveMinutes()`) only fire if
    something is actually running Laravel's scheduler.
