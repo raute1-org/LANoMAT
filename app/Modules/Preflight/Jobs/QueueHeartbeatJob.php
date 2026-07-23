@@ -13,6 +13,8 @@ class QueueHeartbeatJob implements ShouldQueue
 
     public function handle(): void
     {
-        Cache::put('preflight.queue_tick', now(), now()->addMinutes(10));
+        // Int timestamp, not a Carbon — see HeartbeatCommand for why (a cached
+        // object does not survive the prod cache's serialization allowlist).
+        Cache::put('preflight.queue_tick', now()->getTimestamp(), now()->addMinutes(10));
     }
 }
