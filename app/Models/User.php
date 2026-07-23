@@ -48,10 +48,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read bool $has_password
+ * @property-read bool $is_staff
  */
 #[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'stream_url', 'profile_color', 'notification_prefs'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-#[Appends(['has_password'])]
+#[Appends(['has_password', 'is_staff'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
@@ -126,6 +127,20 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     {
         return Attribute::make(
             get: fn (): bool => $this->password !== null,
+        );
+    }
+
+    /**
+     * Whether the user is staff (helper-or-above). Appended so the frontend can
+     * conditionally render staff-only navigation (e.g. the Check-in link) without
+     * duplicating the role hierarchy — authorization itself stays in policies.
+     *
+     * @return Attribute<bool, never>
+     */
+    protected function isStaff(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): bool => $this->isHelper(),
         );
     }
 
