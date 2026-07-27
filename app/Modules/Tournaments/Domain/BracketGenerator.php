@@ -117,10 +117,10 @@ final class BracketGenerator
      * the incoming WB losers with a fixed per-size ordering (natural,
      * reverse, or reverse-half-shift) before zipping them against the
      * current LB survivors, so that a dropped WB loser does not immediately
-     * re-meet an opponent from the same recent bracket lineage. This
-     * ordering table is verified (by construction and by exhaustive
-     * simulation during development) for size 4, 8 and 16 — the sizes this
-     * engine is exhaustively tested against.
+     * re-meet an opponent from the same recent bracket lineage. That
+     * ordering is computed from the bracket's own structure by
+     * {@see LbIntakeOrdering} — there is no size ceiling; field sizes from
+     * 2 to 64 are exhaustively tested.
      *
      * @param  array<int, int>  $entryIds  already seeded, in order (index 0 = seed 1, index 1 = seed 2, ...)
      */
@@ -284,6 +284,11 @@ final class BracketGenerator
         // needed) is preceded by an internal (minor) halving round once the
         // survivor count from a *previous* intake needs reducing to match
         // the next batch's size.
+
+        // Intake permutations for every WB round whose losers drop into the LB,
+        // computed from the bracket's own structure (see LbIntakeOrdering).
+        $intakeOrdering = LbIntakeOrdering::forSize($size);
+
         for ($k = 2; $k <= $wbRoundCount; $k++) {
             $wbLoserRoundIds = $wbRoundIds[$k - 1];
             $intakeSize = count($wbLoserRoundIds);
@@ -326,7 +331,10 @@ final class BracketGenerator
 
             // Intake (major) round: zip the reordered WB losers against the
             // current LB survivors.
-            $orderedWbLoserIds = $this->lbIntakeOrder($size, $k, $wbLoserRoundIds);
+            $orderedWbLoserIds = array_map(
+                static fn (int $position): int => $wbLoserRoundIds[$position],
+                $intakeOrdering[$k],
+            );
             $currentRoundIds = [];
 
             for ($i = 0; $i < $intakeSize; $i++) {
@@ -416,72 +424,6 @@ final class BracketGenerator
         }
 
         return new BracketPlan($matches);
-    }
-
-    /**
-     * The fixed per-size ordering applied to a batch of WB round-`k` losers
-     * before they are zipped index-for-index against the current LB
-     * survivors. This mirrors the "default minor ordering" table used by
-     * mainstream double-elimination bracket generators (traced against a
-     * production reference implementation and cross-checked by exhaustive
-     * simulation during development): per bracket size, a fixed sequence of
-     * orderings (natural / reverse / reverse-half-shift / ...) is applied at
-     * each successive intake round so a dropped WB loser does not
-     * immediately re-meet an opponent from the same recent bracket lineage.
-     *
-     * Only sizes 4, 8 and 16 are covered here — the sizes this engine is
-     * exhaustively tested against (n=6 pads to size 8). Extending to size 32
-     * and beyond requires adding further table entries (and matching test
-     * coverage) rather than assuming this generalizes.
-     *
-     * `$k` is the WB round number (2-indexed WB rounds only — WB round 1's
-     * losers are always paired among themselves naturally, never reordered
-     * by this method).
-     *
-     * @param  array<int, int>  $wbLoserRoundIds  WB round-k match ids, in bracket-position order
-     * @return array<int, int> the same ids, reordered
-     */
-    private function lbIntakeOrder(int $size, int $k, array $wbLoserRoundIds): array
-    {
-        if (! in_array($size, [4, 8, 16], true)) {
-            throw new InvalidArgumentException(
-                "Double elimination LB intake ordering is only defined for size 4, 8 or 16, got {$size}.",
-            );
-        }
-
-        // The last WB round (the WB final) always drops a single loser —
-        // there is nothing to reorder.
-        if (count($wbLoserRoundIds) <= 1) {
-            return $wbLoserRoundIds;
-        }
-
-        // Per-size ordering table (index 0 = first intake round after LB
-        // round 1, i.e. WB round k=2; index 1 = the next intake round,
-        // k=3; and so on):
-        //   size 4:  ['reverse']                     (k=2 only)
-        //   size 8:  ['reverse']                      (k=2 only)
-        //   size 16: ['reverse_half_shift', 'reverse'] (k=2, then k=3)
-        return match (true) {
-            $size === 16 && $k === 2 => $this->reverseHalfShift($wbLoserRoundIds),
-            default => array_reverse($wbLoserRoundIds),
-        };
-    }
-
-    /**
-     * Reverses each half of the array in place, keeping the two halves
-     * where they are (e.g. [1,2,3,4] -> [2,1,4,3]).
-     *
-     * @param  array<int, int>  $array
-     * @return array<int, int>
-     */
-    private function reverseHalfShift(array $array): array
-    {
-        $half = intdiv(count($array), 2);
-
-        return array_merge(
-            array_reverse(array_slice($array, 0, $half)),
-            array_reverse(array_slice($array, $half)),
-        );
     }
 
     /**
