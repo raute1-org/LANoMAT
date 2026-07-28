@@ -122,7 +122,7 @@ function slotLabel(name: string | null): string {
 /**
  * True when an empty slot is a calm-register placeholder (bye or phantom)
  * rather than a genuinely unfilled slot still waiting on an earlier match —
- * gates the muted/italic treatment on the slot row.
+ * gates the muted treatment on the slot row.
  */
 function isPlaceholderSlot(name: string | null): boolean {
     return name === null && (props.match.isBye || isPhantom.value);
@@ -215,7 +215,7 @@ const hasLiveScore = computed(
                     class="truncate text-sm"
                     :class="
                         isPlaceholderSlot(match.slot1)
-                            ? 'text-muted-foreground italic'
+                            ? 'text-muted-foreground'
                             : ''
                     "
                     >{{ slotLabel(match.slot1) }}</span
@@ -236,7 +236,7 @@ const hasLiveScore = computed(
                     class="truncate text-sm"
                     :class="
                         isPlaceholderSlot(match.slot2)
-                            ? 'text-muted-foreground italic'
+                            ? 'text-muted-foreground'
                             : ''
                     "
                     >{{ slotLabel(match.slot2) }}</span

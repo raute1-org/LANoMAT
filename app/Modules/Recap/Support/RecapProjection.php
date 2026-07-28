@@ -45,6 +45,11 @@ final class RecapProjection
     {
         return GameMatch::query()
             ->where('status', MatchStatus::Completed)
+            // Byes (one entrant) and phantoms (neither slot ever filled) are
+            // also stored as Completed, but nobody actually played them —
+            // only count matches with two real entrants.
+            ->whereNotNull('entry1_id')
+            ->whereNotNull('entry2_id')
             ->whereHas('tournament', function ($query) use ($event): void {
                 $query->where('event_id', $event->id);
             })
