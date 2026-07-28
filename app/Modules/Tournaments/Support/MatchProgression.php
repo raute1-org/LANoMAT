@@ -133,6 +133,12 @@ class MatchProgression
      */
     private function diffAndPersist(Collection $rows, BracketPlan $plan): void
     {
+        // Matches nobody can ever play keep the terminal status
+        // BracketPersister already gave them — recomputed rather than read
+        // back from the row, so the domain stays the single source of truth
+        // and the status cannot flap back to Pending on a later progression.
+        $dead = array_fill_keys($this->progressor->deadMatchIds($plan), true);
+
         foreach ($plan->matches() as $domainMatch) {
             $row = $rows->get($domainMatch->id);
 
@@ -143,7 +149,7 @@ class MatchProgression
             $entry1Id = $domainMatch->slot1->entryId();
             $entry2Id = $domainMatch->slot2->entryId();
             $winnerEntryId = $domainMatch->winnerEntryId();
-            $status = $this->statusFor($domainMatch);
+            $status = $this->statusFor($domainMatch, isset($dead[$domainMatch->id]));
 
             $changed = $row->entry1_id !== $entry1Id
                 || $row->entry2_id !== $entry2Id
@@ -167,9 +173,9 @@ class MatchProgression
         }
     }
 
-    private function statusFor(BracketMatch $match): MatchStatus
+    private function statusFor(BracketMatch $match, bool $isDead): MatchStatus
     {
-        if ($match->isDecided()) {
+        if ($match->isDecided() || $isDead) {
             return MatchStatus::Completed;
         }
 

@@ -152,12 +152,21 @@ final class BracketProgressor
         do {
             $changed = false;
 
+            // Recomputed once per pass rather than per match: both are pure
+            // functions of the plan, so a single O(matches) index plus one
+            // fixed-point sweep replaces an O(matches) rescan per slot test.
+            // Auto-advancing inside the pass only ever *fills* slots, which
+            // can neither create nor remove deadness (see slotCanNeverFill()),
+            // so the values stay valid for the whole pass.
+            $sources = $this->slotSources($plan);
+            $dead = $this->deadMatchIdSet($plan, $sources);
+
             foreach ($plan->matches() as $match) {
                 if ($match->isDecided()) {
                     continue;
                 }
 
-                $auto = $this->autoResolvableWinner($plan, $match);
+                $auto = $this->autoResolvableWinner($match, $sources, $dead);
 
                 if ($auto === null) {
                     continue;
@@ -179,17 +188,19 @@ final class BracketProgressor
 
     /**
      * If `$match` can be auto-advanced without a report — one slot holds a
-     * real entry and the other is a bye or a permanently dead slot — returns
+     * real entry and the other can never hold one — returns
      * `[entryId, winnerSlot]` for the occupant that advances. Returns null
      * if the match is not (yet) auto-resolvable (e.g. both slots still
      * pending a real report, or already playable with two real entries).
      *
+     * @param  array<int, array<int, list<int>>>  $sources  see {@see slotSources()}
+     * @param  array<int, true>  $dead  see {@see deadMatchIdSet()}
      * @return array{0: int, 1: int}|null
      */
-    private function autoResolvableWinner(BracketPlan $plan, BracketMatch $match): ?array
+    private function autoResolvableWinner(BracketMatch $match, array $sources, array $dead): ?array
     {
-        $slot1Auto = $match->slot1->isBye() || $this->isDeadSlot($plan, $match->id, 1);
-        $slot2Auto = $match->slot2->isBye() || $this->isDeadSlot($plan, $match->id, 2);
+        $slot1Auto = $this->slotCanNeverFill($match->slot1, $sources[$match->id][1] ?? [], $dead);
+        $slot2Auto = $this->slotCanNeverFill($match->slot2, $sources[$match->id][2] ?? [], $dead);
 
         if ($match->slot1->isEntry() && $slot2Auto) {
             $entryId = $match->slot1->entryId()
@@ -209,32 +220,139 @@ final class BracketProgressor
     }
 
     /**
-     * A slot is "dead" — permanently unfillable, never awaiting a real
-     * report — when it is currently empty and no other match in the plan
-     * routes a winner (`nextMatch`/`nextSlot`) or a loser
-     * (`loserNextMatch`/`loserNextSlot`) into it. This is distinct from an
-     * ordinary empty slot that some other (not yet decided) match will still
-     * route into once played.
+     * The ids of every match in `$plan` that is "dead": undecided, and with
+     * neither slot able to ever hold a real entrant. Nobody can ever play
+     * such a match — it is the double-bye degenerate case, e.g. a
+     * losers-bracket round-1 match whose two winners-bracket feeders were
+     * both byes, so neither ever routes a loser into it.
+     *
+     * Exposed for the persistence bridges, which give a dead match a
+     * terminal status instead of leaving it looking like an upcoming match.
+     *
+     * @return list<int>
      */
-    private function isDeadSlot(BracketPlan $plan, int $matchId, int $slotNo): bool
+    public function deadMatchIds(BracketPlan $plan): array
     {
-        $target = $plan->match($matchId);
-        $slot = $slotNo === 1 ? $target->slot1 : $target->slot2;
+        return array_keys($this->deadMatchIdSet($plan, $this->slotSources($plan)));
+    }
 
-        if (! $slot->isEmpty()) {
+    /**
+     * Least fixed point of the mutually recursive definition
+     *
+     *   a match is dead      <=> it is undecided and neither slot can ever fill
+     *   a slot can never fill <=> it is a bye, or it holds nothing and every
+     *                             match that could deliver into it is dead
+     *
+     * computed iteratively rather than by recursion: start from "nothing is
+     * dead" and keep sweeping while the dead set grows. Both rules are
+     * monotone in the dead set, so the set only ever grows and is bounded by
+     * the number of matches — the loop provably terminates after at most that
+     * many sweeps, without relying on the routing graph being acyclic. A
+     * cyclic (i.e. malformed) plan simply leaves its cycle out of the dead
+     * set, which is the safe direction: nothing is auto-advanced.
+     *
+     * @param  array<int, array<int, list<int>>>  $sources  see {@see slotSources()}
+     * @return array<int, true> dead match ids, as a set
+     */
+    private function deadMatchIdSet(BracketPlan $plan, array $sources): array
+    {
+        /** @var array<int, true> $dead */
+        $dead = [];
+
+        do {
+            $grew = false;
+
+            foreach ($plan->matches() as $match) {
+                if (isset($dead[$match->id]) || $match->isDecided()) {
+                    continue;
+                }
+
+                if (! $this->slotCanNeverFill($match->slot1, $sources[$match->id][1] ?? [], $dead)) {
+                    continue;
+                }
+
+                if (! $this->slotCanNeverFill($match->slot2, $sources[$match->id][2] ?? [], $dead)) {
+                    continue;
+                }
+
+                $dead[$match->id] = true;
+                $grew = true;
+            }
+        } while ($grew);
+
+        return $dead;
+    }
+
+    /**
+     * Whether `$slot` can never hold a real entrant: it is a bye, or it holds
+     * nothing (empty or still pending) and every match that could deliver an
+     * entrant into it is dead. A slot with no delivering match at all is
+     * vacuously unfillable — the classic dead slot, e.g. the intake slot of a
+     * losers-bracket match whose winners-bracket feeder was a bye and
+     * therefore records no loser route.
+     *
+     * A *decided* delivering match is never dead, so a slot it deliberately
+     * left unfilled stays "fillable" and is not auto-resolved. That is what
+     * keeps the grand-final reset intact: GF2's slots await GF1, and once GF1
+     * is decided in the winners-bracket side's favour the reset is simply
+     * never armed — undecided forever, but not dead.
+     *
+     * @param  list<int>  $sources  ids of the matches that can deliver into this slot
+     * @param  array<int, true>  $dead  dead match ids known so far
+     */
+    private function slotCanNeverFill(Slot $slot, array $sources, array $dead): bool
+    {
+        if ($slot->isBye()) {
+            return true;
+        }
+
+        if ($slot->isEntry()) {
             return false;
         }
 
-        foreach ($plan->matches() as $candidate) {
-            if ($candidate->nextMatch === $matchId && $candidate->nextSlot === $slotNo) {
-                return false;
-            }
-
-            if ($candidate->loserNextMatch === $matchId && $candidate->loserNextSlot === $slotNo) {
+        foreach ($sources as $sourceId) {
+            if (! isset($dead[$sourceId])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Indexes, per match and slot number, the ids of every match that could
+     * still deliver an entrant into that slot: the matches routing their
+     * winner (`nextMatch`/`nextSlot`) or their loser
+     * (`loserNextMatch`/`loserNextSlot`) there, plus the match a still-pending
+     * slot names via {@see Slot::pendingFrom()} (a generated plan expresses
+     * the dependency both ways; a plan reconstructed from persisted rows only
+     * has the routing).
+     *
+     * @return array<int, array<int, list<int>>> match id => slot number => source match ids
+     */
+    private function slotSources(BracketPlan $plan): array
+    {
+        /** @var array<int, array<int, list<int>>> $sources */
+        $sources = [];
+
+        foreach ($plan->matches() as $match) {
+            if ($match->nextMatch !== null && $match->nextSlot !== null) {
+                $sources[$match->nextMatch][$match->nextSlot][] = $match->id;
+            }
+
+            if ($match->loserNextMatch !== null && $match->loserNextSlot !== null) {
+                $sources[$match->loserNextMatch][$match->loserNextSlot][] = $match->id;
+            }
+
+            foreach ([1 => $match->slot1, 2 => $match->slot2] as $slotNo => $slot) {
+                $pendingFrom = $slot->pendingFromMatchId();
+
+                if ($pendingFrom !== null) {
+                    $sources[$match->id][$slotNo][] = $pendingFrom;
+                }
+            }
+        }
+
+        return $sources;
     }
 }

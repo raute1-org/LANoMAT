@@ -157,6 +157,56 @@ it('activates the grand-final reset when the losers-bracket entrant wins GF1', f
         ->and($plan->match($gf2->id)->winnerEntryId())->not->toBeNull();
 });
 
+it('auto-advances past a losers-bracket match whose both feeders were byes', function () {
+    // Bracket size 8 with only 5 entrants leaves 3 byes. The two winners-
+    // bracket round-1 bye matches sit next to each other, so the losers-
+    // bracket round-1 match that would collect *their* losers can never
+    // receive an entrant on either side — nobody actually loses a bye. That
+    // match can never be played ("dead"), and every match waiting on its
+    // winner must therefore auto-advance its own real entrant instead of
+    // waiting forever.
+    $plan = app(BracketGenerator::class)->doubleElimination(entries(5));
+    $progressor = app(BracketProgressor::class);
+
+    $phantom = collect($plan->matches())
+        ->first(fn ($m) => $m->bracket === Bracket::Losers
+            && $m->round === 1
+            && $m->slot1->isEmpty()
+            && $m->slot2->isEmpty()
+            && ! collect($plan->matches())->contains(fn ($other) => $other->loserNextMatch === $m->id));
+
+    expect($phantom)->not->toBeNull('n=5 must produce a losers-bracket match with two bye feeders.');
+
+    $downstreamId = $phantom->nextMatch;
+    expect($downstreamId)->not->toBeNull();
+
+    // Play every reportable match, slot 1 always winning.
+    do {
+        $playable = collect($plan->matches())->first(fn ($m) => $m->isPlayable() && ! $m->isDecided());
+        if ($playable === null) {
+            break;
+        }
+        $plan = $progressor->apply($plan, $playable->id, 1, 0);
+    } while (true);
+
+    // The dead match itself stays undecided — no phantom winner is invented.
+    expect($plan->match($phantom->id)->isDecided())->toBeFalse()
+        ->and($plan->match($phantom->id)->winnerEntryId())->toBeNull();
+
+    // Its downstream match advanced its one real entrant instead of stalling.
+    $downstream = $plan->match($downstreamId);
+    expect($downstream->isDecided())->toBeTrue()
+        ->and($downstream->winnerEntryId())->not->toBeNull();
+
+    // And the bracket ran all the way to a champion.
+    $champion = collect($plan->matches())
+        ->filter(fn ($m) => $m->bracket === Bracket::Finals && $m->isDecided())
+        ->sortByDesc(fn ($m) => $m->round)
+        ->first();
+
+    expect($champion?->winnerEntryId())->not->toBeNull();
+});
+
 it('ends the tournament without a reset when the winners-bracket entrant wins GF1', function () {
     $plan = app(BracketGenerator::class)->doubleElimination(entries(4));
     $progressor = app(BracketProgressor::class);
@@ -186,4 +236,80 @@ it('ends the tournament without a reset when the winners-bracket entrant wins GF
     // No match remains open (playable and undecided) anywhere in the plan.
     $open = collect($plan->matches())->filter(fn ($m) => $m->isPlayable() && ! $m->isDecided());
     expect($open)->toBeEmpty();
+});
+
+it('never treats the unused grand-final reset as a dead match', function (int $n) {
+    // Regression pin for the dead-match propagation: GF2's slots await GF1,
+    // and when the winners-bracket side wins GF1 the reset is deliberately
+    // left unarmed and undecided forever. That is a *decided* feeder choosing
+    // not to deliver, not a dead one — the reset must therefore never be
+    // classified as dead and never auto-resolve a phantom champion.
+    $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
+    $progressor = app(BracketProgressor::class);
+
+    do {
+        $playable = collect($plan->matches())
+            ->first(fn ($m) => $m->isPlayable() && ! $m->isDecided() && $m->bracket !== Bracket::Finals);
+        if ($playable === null) {
+            break;
+        }
+        $plan = $progressor->apply($plan, $playable->id, 1, 0);
+    } while (true);
+
+    $gf1 = collect($plan->matches())->first(fn ($m) => $m->bracket === Bracket::Finals && $m->round === 1);
+    $gf2 = $plan->finalMatch();
+
+    expect($progressor->deadMatchIds($plan))->not->toContain($gf2->id);
+
+    // Winners-bracket side (slot 1) wins GF1 -> the reset stays unarmed.
+    $plan = $progressor->apply($plan, $gf1->id, 3, 1);
+
+    $gf2AfterGf1 = $plan->match($gf2->id);
+
+    expect($progressor->deadMatchIds($plan))->not->toContain($gf2->id)
+        ->and($gf2AfterGf1->isDecided())->toBeFalse()
+        ->and($gf2AfterGf1->winnerEntryId())->toBeNull()
+        ->and($gf2AfterGf1->isPlayable())->toBeFalse()
+        ->and($gf2AfterGf1->slot1->isEntry())->toBeFalse()
+        ->and($gf2AfterGf1->slot2->isEntry())->toBeFalse();
+})->with([4, 6, 8, 32]);
+
+it('reports only matches that can never be played as dead', function () {
+    $progressor = app(BracketProgressor::class);
+
+    // A power-of-two field has no byes at all, so nothing is ever dead.
+    $full = app(BracketGenerator::class)->doubleElimination(entries(8));
+    expect($progressor->deadMatchIds($full))->toBeEmpty();
+
+    // n=6 has two byes, but they provably never meet in the same
+    // losers-bracket match — every match is still reachable.
+    $six = app(BracketGenerator::class)->doubleElimination(entries(6));
+    expect($progressor->deadMatchIds($six))->toBeEmpty();
+
+    // n=5 puts two byes into the same losers-bracket round-1 match, which is
+    // therefore unplayable by anyone, forever.
+    $five = app(BracketGenerator::class)->doubleElimination(entries(5));
+    $dead = $progressor->deadMatchIds($five);
+
+    expect($dead)->toHaveCount(1);
+
+    $deadMatch = $five->match($dead[0]);
+
+    expect($deadMatch->bracket)->toBe(Bracket::Losers)
+        ->and($deadMatch->round)->toBe(1)
+        ->and($deadMatch->slot1->isEmpty())->toBeTrue()
+        ->and($deadMatch->slot2->isEmpty())->toBeTrue();
+
+    // Deadness is a structural property, not a phase: it still holds once the
+    // bracket has been played out, and the dead match never gains a winner.
+    do {
+        $playable = collect($five->matches())->first(fn ($m) => $m->isPlayable() && ! $m->isDecided());
+        if ($playable === null) {
+            break;
+        }
+        $five = $progressor->apply($five, $playable->id, 1, 0);
+    } while (true);
+
+    expect($progressor->deadMatchIds($five))->toBe($dead)
+        ->and($five->match($dead[0])->isDecided())->toBeFalse();
 });
