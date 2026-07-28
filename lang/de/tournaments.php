@@ -106,7 +106,7 @@ return [
         'checkin_closed' => 'Der Check-in ist derzeit nicht geöffnet.',
         'roster_size_mismatch' => 'Die Teamgröße stimmt nicht mit der geforderten Teamgröße überein.',
         'already_started' => 'Das Turnier hat bereits begonnen.',
-        'unsupported_double_elimination_size' => 'Doppel-K.-o.-System wird nur für 2, 4, 6, 8 oder 16 teilnehmende Anmeldungen unterstützt.',
+        'unsupported_double_elimination_size' => 'Doppel-K.-o.-System wird nur für 2 bis 64 teilnehmende Anmeldungen unterstützt.',
         'match_not_ready' => 'Dieses Match ist noch nicht bereit, um gemeldet zu werden.',
         'match_not_in_warmup' => 'Dieses Match ist nicht in der Aufwärmphase.',
         'stale_match' => 'Dieses Match wurde inzwischen von jemand anderem aktualisiert. Bitte lade die Seite neu und versuche es erneut.',

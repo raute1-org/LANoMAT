@@ -8,12 +8,10 @@ use App\Modules\Tournaments\Actions\OpenCheckin;
 use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Actions\StartTournament;
 use App\Modules\Tournaments\Domain\Bracket;
-use App\Modules\Tournaments\Domain\BracketGenerator;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
-use App\Modules\Tournaments\Support\BracketPersister;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -40,10 +38,9 @@ beforeEach(function () {
  * progression. Everything downstream of it advances on its own, so the
  * bracket still runs to exactly one champion.
  *
- * Goes through `BracketPersister` directly rather than `StartTournament`:
- * the action still caps double elimination at the old field-size allowlist
- * (lifted separately), while the bracket engine and the persistence bridges
- * already have to handle odd sizes correctly.
+ * Goes through `StartTournament` (the field-size cap now accepts 2..64), so
+ * this exercises the real enrollment/check-in/start path end to end rather
+ * than only the bracket engine and persistence bridges in isolation.
  */
 it('persists an unplayable losers-bracket match as terminal and still finishes a 5-player double-elim', function () {
     fakeDiscord();
@@ -63,10 +60,7 @@ it('persists an unplayable losers-bracket match as terminal and still finishes a
     app(OpenCheckin::class)->handle($tournament->fresh());
     $entries->each(fn ($entry) => app(CheckInEntry::class)->handle($entry->fresh()));
 
-    $plan = app(BracketGenerator::class)->doubleElimination($entries->pluck('id')->all());
-    app(BracketPersister::class)->persist($tournament, $plan);
-
-    $tournament->forceFill(['status' => TournamentStatus::Live])->save();
+    app(StartTournament::class)->handle($tournament->fresh());
 
     $unplayable = GameMatch::where('tournament_id', $tournament->id)
         ->whereNull('entry1_id')

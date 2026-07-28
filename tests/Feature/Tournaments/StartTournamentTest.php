@@ -261,7 +261,7 @@ it('links next_match_id and loser_match_id for a double-elimination bracket', fu
 
 it('throws for an unsupported double-elimination entry count', function () {
     $tournament = Tournament::factory()->checkIn()->doubleElim()->create();
-    TournamentEntry::factory()->checkedIn()->count(5)->create(['tournament_id' => $tournament->id]);
+    TournamentEntry::factory()->checkedIn()->count(65)->create(['tournament_id' => $tournament->id]);
 
     expect(fn () => app(StartTournament::class)->handle($tournament))
         ->toThrow(TournamentException::class);
@@ -278,3 +278,22 @@ it('succeeds for each supported double-elimination entry count', function (int $
 
     expect($started->status)->toBe(TournamentStatus::Live);
 })->with([4, 6, 8, 16]);
+
+it('starts a double-elimination tournament at previously rejected field sizes', function (int $n) {
+    $tournament = Tournament::factory()->checkIn()->doubleElim()->create();
+    TournamentEntry::factory()->checkedIn()->count($n)->create(['tournament_id' => $tournament->id]);
+
+    $started = app(StartTournament::class)->handle($tournament);
+
+    expect($started->status)->toBe(TournamentStatus::Live)
+        ->and(GameMatch::query()->where('tournament_id', $started->id)->count())
+        ->toBeGreaterThan(0);
+})->with([5, 7, 17, 31]);
+
+it('still rejects a double-elimination field above the supported ceiling', function () {
+    $tournament = Tournament::factory()->checkIn()->doubleElim()->create();
+    TournamentEntry::factory()->checkedIn()->count(65)->create(['tournament_id' => $tournament->id]);
+
+    expect(fn () => app(StartTournament::class)->handle($tournament))
+        ->toThrow(TournamentException::class);
+});

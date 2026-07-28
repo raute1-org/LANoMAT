@@ -44,7 +44,7 @@ class TournamentException extends DomainException
     public static function unsupportedDoubleEliminationSize(int $count): self
     {
         return new self(
-            "Double elimination is only supported for 2, 4, 6, 8 or 16 participating entries, got {$count}.",
+            "Double elimination is only supported for 2 to 64 participating entries, got {$count}.",
             'tournaments.errors.unsupported_double_elimination_size',
         );
     }
