@@ -53,11 +53,11 @@ it('starts a startable tournament via the header action', function () {
 });
 
 it('shows a danger notification instead of a 500 when starting a non-startable double-elimination tournament', function () {
-    // 5 entries is not among the supported double-elimination sizes
-    // (2, 4, 6, 8, 16) -- StartTournament throws TournamentException here
-    // even though the tournament's status is startable (CheckIn).
+    // 65 entries is above the supported double-elimination ceiling (2..64)
+    // -- StartTournament throws TournamentException here even though the
+    // tournament's status is startable (CheckIn).
     $tournament = Tournament::factory()->checkIn()->doubleElim()->create();
-    TournamentEntry::factory()->checkedIn()->count(5)->create(['tournament_id' => $tournament->id]);
+    TournamentEntry::factory()->checkedIn()->count(65)->create(['tournament_id' => $tournament->id]);
 
     $this->actingAs(User::factory()->orga()->create());
 

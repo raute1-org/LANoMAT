@@ -27,6 +27,89 @@ beforeEach(function () {
 });
 
 /**
+ * Odd field size with a losers-bracket match nobody can ever play: with 5
+ * entrants in a size-8 bracket, two winners-bracket round-1 byes sit side by
+ * side, so the losers-bracket round-1 match collecting *their* losers can
+ * never receive an entrant at all (nobody loses a bye).
+ *
+ * Such a match is persisted in a terminal state — `Completed` with both entry
+ * slots and the winner left null — rather than as a `Pending` match that will
+ * never become playable, and it must stay that way across every subsequent
+ * progression. Everything downstream of it advances on its own, so the
+ * bracket still runs to exactly one champion.
+ *
+ * Goes through `StartTournament` (the field-size cap now accepts 2..64), so
+ * this exercises the real enrollment/check-in/start path end to end rather
+ * than only the bracket engine and persistence bridges in isolation.
+ */
+it('persists an unplayable losers-bracket match as terminal and still finishes a 5-player double-elim', function () {
+    fakeDiscord();
+    fakeMumble();
+
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->doubleElim()->enrollment()->create([
+        'event_id' => $event->id,
+        'team_size' => 1,
+    ]);
+
+    $orga = User::factory()->orga()->create();
+
+    $entries = collect(range(1, 5))
+        ->map(fn () => app(EnrollSolo::class)->handle($tournament, User::factory()->create()));
+
+    app(OpenCheckin::class)->handle($tournament->fresh());
+    $entries->each(fn ($entry) => app(CheckInEntry::class)->handle($entry->fresh()));
+
+    app(StartTournament::class)->handle($tournament->fresh());
+
+    $unplayable = GameMatch::where('tournament_id', $tournament->id)
+        ->whereNull('entry1_id')
+        ->whereNull('entry2_id')
+        ->whereNull('winner_entry_id')
+        ->where('status', MatchStatus::Completed)
+        ->get();
+
+    expect($unplayable)->toHaveCount(1);
+    expect($unplayable->first()->bracket)->toBe(Bracket::Losers->value);
+    expect($unplayable->first()->round)->toBe(1);
+
+    // It is not offered as an upcoming match anywhere.
+    expect($unplayable->first()->status)->not->toBe(MatchStatus::Pending)
+        ->and($unplayable->first()->status)->not->toBe(MatchStatus::Ready);
+
+    $this->actingAs($orga);
+
+    $guard = 0;
+    while ($tournament->fresh()->status !== TournamentStatus::Finished && $guard++ < 100) {
+        $match = GameMatch::where('tournament_id', $tournament->id)
+            ->where('status', MatchStatus::Ready)->first();
+
+        if ($match === null) {
+            break;
+        }
+
+        [$s1, $s2] = $match->entry1_id < $match->entry2_id ? [2, 0] : [0, 2];
+        app(OverrideMatchResult::class)->handle($match, $s1, $s2);
+    }
+
+    expect($guard)->toBeLessThan(100, 'Guard tripped — the tournament never reached Finished.');
+
+    $tournament->refresh();
+    expect($tournament->status)->toBe(TournamentStatus::Finished)
+        ->and($tournament->winner_entry_id)->not->toBeNull();
+
+    // The unplayable match kept its terminal representation through every
+    // progression pass — it never flapped back to Pending, never gained a
+    // phantom winner, and never became playable.
+    $stillUnplayable = $unplayable->first()->fresh();
+
+    expect($stillUnplayable->status)->toBe(MatchStatus::Completed)
+        ->and($stillUnplayable->entry1_id)->toBeNull()
+        ->and($stillUnplayable->entry2_id)->toBeNull()
+        ->and($stillUnplayable->winner_entry_id)->toBeNull();
+});
+
+/**
  * The full 8-solo-player double-elimination acceptance run for M3: real
  * enrollment + check-in + start, then a deterministic playthrough of every
  * `Ready` match via the orga-override path (the report/confirm handshake

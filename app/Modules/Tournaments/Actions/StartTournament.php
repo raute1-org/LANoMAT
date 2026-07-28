@@ -30,15 +30,17 @@ use Illuminate\Support\Facades\Event;
  * `TournamentTickCommand`); double-start is impossible thanks to the status
  * guard plus the row lock below.
  *
- * Double-elimination brackets are only generated (and progressed) correctly
- * for participating-entry counts in {2, 4, 6, 8, 16} — see
- * `BracketGenerator::doubleElimination()`'s LB intake ordering table and
- * `BracketProgressor`'s convergence assumptions. Any other count throws
- * before the generator is invoked.
+ * Double-elimination brackets support participating-entry counts from 2 to
+ * 64, matching single elimination's tested range; counts that are not a power
+ * of two are padded with byes. Anything outside that range throws before the
+ * generator is invoked.
  */
 class StartTournament
 {
-    private const SUPPORTED_DOUBLE_ELIMINATION_SIZES = [2, 4, 6, 8, 16];
+    /** Matches single elimination's tested ceiling; see LbIntakeOrdering. */
+    private const MIN_DOUBLE_ELIMINATION_ENTRIES = 2;
+
+    private const MAX_DOUBLE_ELIMINATION_ENTRIES = 64;
 
     public function __construct(
         private readonly BracketGenerator $generator,
@@ -72,7 +74,8 @@ class StartTournament
             $entryIds = $this->seedEntries->handle($tournament, $entries);
 
             if ($tournament->format === TournamentFormat::DoubleElimination
-                && ! in_array(count($entryIds), self::SUPPORTED_DOUBLE_ELIMINATION_SIZES, true)) {
+                && (count($entryIds) < self::MIN_DOUBLE_ELIMINATION_ENTRIES
+                    || count($entryIds) > self::MAX_DOUBLE_ELIMINATION_ENTRIES)) {
                 throw TournamentException::unsupportedDoubleEliminationSize(count($entryIds));
             }
 

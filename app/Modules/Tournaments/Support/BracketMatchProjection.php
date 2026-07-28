@@ -8,6 +8,7 @@ use App\Modules\GameServers\Support\EffectiveConfig;
 use App\Modules\GameServers\Support\PelicanJoinLink;
 use App\Modules\GameServers\Support\ResourceEstimate;
 use App\Modules\Infoscreen\Support\ScenePayload;
+use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Tournaments\Models\GameMatch;
 use Illuminate\Support\Collection;
@@ -45,11 +46,33 @@ class BracketMatchProjection
             'score2' => $match->score2,
             'winnerEntryId' => $match->winner_entry_id,
             'status' => $match->status->value,
+            'isBye' => self::isBye($match),
             'lockVersion' => $match->lock_version,
             'server' => self::serverDto($match, $match->serverLink),
             'warmupStartedAt' => $match->warmup_started_at?->toIso8601String(),
             'spectateHint' => self::spectateHintFor($match),
         ];
+    }
+
+    /**
+     * A bye ("Freilos"): the entrant advanced without playing, because the
+     * bracket was padded to the next power of two or because an upstream slot
+     * turned out to be permanently unfillable.
+     *
+     * Both cases are already unambiguous in stored data — {@see BracketPersister}
+     * resolves them before persistence and writes a `Completed` row with a single
+     * occupied entry slot and no scores — so no dedicated column is needed. A
+     * forfeit is deliberately NOT a bye: it has two real entrants. A phantom
+     * losers-bracket match (both winners-bracket feeders were byes, so neither
+     * entry slot was ever filled) is also NOT a bye: nobody advanced from it.
+     */
+    private static function isBye(GameMatch $match): bool
+    {
+        if ($match->status !== MatchStatus::Completed) {
+            return false;
+        }
+
+        return ($match->entry1_id === null) !== ($match->entry2_id === null);
     }
 
     /**

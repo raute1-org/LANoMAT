@@ -40,8 +40,15 @@ it('counts participants, tournaments, matches played, and songs played', functio
     $tournament = Tournament::factory()->for($event)->create();
     Tournament::factory()->for($event)->create();
 
-    GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Completed]);
-    GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Completed]);
+    // Two real entrants each — ordinary completed matches, not byes/phantoms
+    // (see the dedicated exclusion test below for those shapes).
+    $entryA1 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id]);
+    $entryA2 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id]);
+    $entryB1 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id]);
+    $entryB2 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id]);
+
+    GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Completed, 'entry1_id' => $entryA1->id, 'entry2_id' => $entryA2->id]);
+    GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Completed, 'entry1_id' => $entryB1->id, 'entry2_id' => $entryB2->id]);
     GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Pending]);
 
     JukeboxItem::factory()->for($event)->create(['status' => QueueItemStatus::Played]);
@@ -54,6 +61,45 @@ it('counts participants, tournaments, matches played, and songs played', functio
         ->and($board->tournamentCount)->toBe(2)
         ->and($board->matchesPlayed)->toBe(2)
         ->and($board->songsPlayed)->toBe(2);
+});
+
+it('excludes byes and phantoms from matches played, counting only two-entrant completed matches', function () {
+    $event = Event::factory()->create();
+    $tournament = Tournament::factory()->for($event)->create();
+
+    $entry1 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id]);
+    $entry2 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id]);
+
+    // Ordinary two-entrant completed match — counted.
+    GameMatch::factory()->for($tournament)->create([
+        'status' => MatchStatus::Completed,
+        'entry1_id' => $entry1->id,
+        'entry2_id' => $entry2->id,
+    ]);
+
+    // Bye: exactly one entrant, nobody played it — excluded.
+    GameMatch::factory()->for($tournament)->create([
+        'status' => MatchStatus::Completed,
+        'entry1_id' => $entry1->id,
+        'entry2_id' => null,
+        'winner_entry_id' => $entry1->id,
+        'score1' => null,
+        'score2' => null,
+    ]);
+
+    // Phantom: both winners-bracket feeders were byes, neither slot ever
+    // filled, no result was ever played — excluded.
+    GameMatch::factory()->for($tournament)->create([
+        'status' => MatchStatus::Completed,
+        'entry1_id' => null,
+        'entry2_id' => null,
+        'score1' => null,
+        'score2' => null,
+    ]);
+
+    $board = RecapProjection::forEvent($event);
+
+    expect($board->matchesPlayed)->toBe(1);
 });
 
 it('lists finished tournaments winners as podiums, skipping tournaments without a winner', function () {

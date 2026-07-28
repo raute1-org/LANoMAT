@@ -159,10 +159,16 @@ the one place to look (from JB's Runde-3 input, 2026-07-21):
 
 ## 9. Minor items to confirm (not real-infra)
 
-- **Double-elimination field size:** the bracket engine supports double-elim
-  for n ∈ {2, 4, 6, 8, 16} only. If fields **larger than 16** are expected,
-  pull forward the already-noted 32-player extension; otherwise leave as-is
-  deliberately.
+- **Double-elimination field size — done.** The bracket engine now supports
+  double elimination for any field from 2 to 64 entrants, matching single
+  elimination. The per-size intake-ordering table was replaced by a computed
+  search (`LbIntakeOrdering`); non-power-of-two fields are padded with byes,
+  which surface in the bracket as "Freilos" (and, for a match that can never
+  be played because both its feeder slots are dead byes, "Entfällt"). Above
+  size 16 a small, provably unavoidable number of first-losers-bracket-match
+  rematches remains — see the counting argument in `LbIntakeOrdering`'s class
+  docblock. Property-tested at 11 discrete sizes across the 2..64 range (4, 5,
+  6, 7, 8, 16, 17, 23, 31, 32, 64), not every size in it.
 - **Gallery "retract a photo":** an orga can already delete any photo
   (`EventPhotoPolicy::delete` = owner||orga) via the participant gallery.
   Confirm the Filament moderation queue also offers a one-click way to remove

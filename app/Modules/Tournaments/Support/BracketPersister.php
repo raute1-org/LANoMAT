@@ -32,6 +32,15 @@ use Illuminate\Support\Collection;
  * the real entrant, and that same entrant is already written into the
  * downstream match's slot — there is never an open/playable bye match after
  * persistence.
+ *
+ * Dead matches: an odd field size can produce a match nobody can ever play —
+ * a losers-bracket match whose two winners-bracket feeders were both byes, so
+ * neither ever routes a loser into it (see
+ * {@see BracketProgressor::deadMatchIds()}). It is persisted like a bye, in
+ * the terminal `Completed` state, but with both entry slots *and* the winner
+ * left null — the "nobody advanced from here" shape. It is deliberately still
+ * persisted rather than dropped: downstream matches reference it through
+ * `next_match_id`.
  */
 class BracketPersister
 {
@@ -50,6 +59,8 @@ class BracketPersister
     {
         $plan = $this->resolveByes($plan);
 
+        $dead = array_fill_keys($this->progressor->deadMatchIds($plan), true);
+
         /** @var array<int, int> $idMap domain match id => persisted GameMatch id */
         $idMap = [];
 
@@ -67,7 +78,7 @@ class BracketPersister
                 'entry2_id' => $domainMatch->slot2->entryId(),
             ]);
 
-            $gameMatch->status = $this->statusFor($domainMatch);
+            $gameMatch->status = $this->statusFor($domainMatch, isset($dead[$domainMatch->id]));
 
             if ($domainMatch->isDecided()) {
                 // A "decided" match at persist time is always a bye
@@ -146,9 +157,9 @@ class BracketPersister
             || ($match->slot2->isEntry() && $match->slot1->isBye());
     }
 
-    private function statusFor(BracketMatch $match): MatchStatus
+    private function statusFor(BracketMatch $match, bool $isDead): MatchStatus
     {
-        if ($match->isDecided()) {
+        if ($match->isDecided() || $isDead) {
             return MatchStatus::Completed;
         }
 

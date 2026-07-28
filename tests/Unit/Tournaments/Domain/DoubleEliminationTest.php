@@ -24,7 +24,7 @@ it('produces exactly one grand final and one reset match', function (int $n) {
 
     // The plan-wide terminal match is unique and it is GF2.
     expect($plan->finalMatch()->id)->toBe($gf2->id);
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('routes every non-final winners-bracket match loser into the losers bracket', function (int $n) {
     $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
@@ -45,7 +45,7 @@ it('routes every non-final winners-bracket match loser into the losers bracket',
         expect($plan->match($m->loserNextMatch)->bracket)->toBe(Bracket::Losers);
         expect($m->loserNextSlot)->toBeIn([1, 2]);
     });
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('leaves bye winners-bracket matches without an lb route (nobody really lost)', function () {
     $plan = app(BracketGenerator::class)->doubleElimination(entries(6)); // size 8 -> 2 byes
@@ -76,7 +76,7 @@ it('has 2*(log2(size)-1) losers-bracket rounds', function (int $n) {
         ->unique();
 
     expect($lbRounds)->toHaveCount($expectedLbRounds);
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('chains every losers-bracket match forward, ending at the grand final', function (int $n) {
     $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
@@ -97,7 +97,7 @@ it('chains every losers-bracket match forward, ending at the grand final', funct
         ->first();
 
     expect($plan->match($lbFinal->nextMatch)->bracket)->toBe(Bracket::Finals);
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('has the winners-bracket champion feed grand final slot 1 and the losers-bracket champion feed slot 2', function (int $n) {
     $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
@@ -117,7 +117,7 @@ it('has the winners-bracket champion feed grand final slot 1 and the losers-brac
     expect($gf1->id)->toBe($lbFinal->nextMatch)
         ->and($wbFinal->nextSlot)->toBe(1)
         ->and($lbFinal->nextSlot)->toBe(2);
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('places byes only in the winners bracket for non-power-of-two sizes', function () {
     $plan = app(BracketGenerator::class)->doubleElimination(entries(6)); // size 8 -> 2 byes
@@ -146,7 +146,7 @@ it('preserves every real entrant exactly once across winners-bracket round 1', f
         ->flatMap(fn ($m) => array_filter([$m->slot1->entryId(), $m->slot2->entryId()], fn ($e) => $e !== null));
 
     expect($occupants->unique()->count())->toBe($n);
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('gives the grand final winners-bracket slot as pending from the winners-bracket final', function (int $n) {
     $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
@@ -161,7 +161,7 @@ it('gives the grand final winners-bracket slot as pending from the winners-brack
     expect($gf1->slot1->isPending())->toBeTrue()
         ->and($gf1->slot1->pendingFromMatchId())->toBe($wbFinal->id)
         ->and($gf1->slot2->isPending())->toBeTrue();
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('gives the reset match both slots pending from the grand final', function (int $n) {
     $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
@@ -173,7 +173,7 @@ it('gives the reset match both slots pending from the grand final', function (in
         ->and($gf2->slot1->pendingFromMatchId())->toBe($gf1->id)
         ->and($gf2->slot2->isPending())->toBeTrue()
         ->and($gf2->slot2->pendingFromMatchId())->toBe($gf1->id);
-})->with([4, 8, 16, 6]);
+})->with([4, 8, 16, 6, 32, 64, 5, 7, 17, 23, 31]);
 
 it('has exactly 2n-1 potential matches (n-1 WB + n-2 LB + 2 finals) for a power-of-two size', function (int $n) {
     $plan = app(BracketGenerator::class)->doubleElimination(entries($n));
@@ -181,7 +181,7 @@ it('has exactly 2n-1 potential matches (n-1 WB + n-2 LB + 2 finals) for a power-
     // Standard double elimination match count for a clean power-of-two bracket:
     // (n-1) WB matches + (n-2) LB matches + 2 grand-final matches (GF1 + reset) = 2n-1.
     expect($plan->matches())->toHaveCount(2 * $n - 1);
-})->with([4, 8, 16]);
+})->with([4, 8, 16, 32, 64]);
 
 it('handles n=2 as a degenerate case with zero losers-bracket rounds', function () {
     $plan = app(BracketGenerator::class)->doubleElimination(entries(2));
@@ -221,11 +221,3 @@ it('handles n=2 as a degenerate case with zero losers-bracket rounds', function 
 
     expect($plan->finalMatch()->id)->toBe($gf2->id);
 });
-
-it('rejects bracket sizes beyond the exhaustively verified LB intake ordering table', function () {
-    // The LB intake ordering table is only verified for size 4, 8 and 16
-    // (this engine's exhaustively tested sizes) — a bracket that resolves
-    // to size 32 must fail loudly rather than silently apply an unverified
-    // ordering.
-    app(BracketGenerator::class)->doubleElimination(entries(17));
-})->throws(InvalidArgumentException::class);

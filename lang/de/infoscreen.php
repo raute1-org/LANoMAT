@@ -154,6 +154,10 @@ return [
         'match_status_reported' => 'Gemeldet',
         'match_status_disputed' => 'Strittig',
         'match_status_completed' => 'Abgeschlossen',
+        // BracketMatchCard's bye/phantom placeholder labels (Task 5),
+        // mirrored flat here for the same reason as the labels above.
+        'bracket_state_bye' => 'Freilos',
+        'bracket_state_not_held' => 'Entfällt',
         'report_action' => 'Melden',
         'confirm_action' => 'Bestätigen',
         'dispute_action' => 'Anfechten',

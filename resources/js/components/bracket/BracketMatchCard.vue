@@ -22,6 +22,8 @@ const props = withDefaults(
         /** True for a helper/orga viewer — shows the manual "Go" control while the match is in warmup. */
         canGoLive?: boolean;
         matchStatusLabels: Record<string, string>;
+        /** `tournaments.bracket` labels: bye/not_held — the never-played-match placeholders. */
+        bracketStateLabels?: Record<string, string>;
         reportLabels: Record<string, string>;
         /** `tournaments.warmup` labels: go_action/waiting. Only needed when `canGoLive` (or the match can reach warmup). */
         warmupLabels?: Record<string, string>;
@@ -32,6 +34,7 @@ const props = withDefaults(
     }>(),
     {
         canGoLive: false,
+        bracketStateLabels: () => ({}),
         warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
@@ -90,8 +93,39 @@ function goLive() {
     });
 }
 
+/**
+ * A phantom losers-bracket match: both winners-bracket feeders were byes, so
+ * neither slot was ever filled and no result was ever played (`isBye` is
+ * deliberately `false` for this shape — see `BracketMatchProjection`). Kept
+ * as its own named check, distinct from a bye (exactly one slot null), so a
+ * later reader cannot conflate the two never-played-match states.
+ */
+const isPhantom = computed(
+    () =>
+        props.match.status === 'completed' &&
+        props.match.slot1 === null &&
+        props.match.slot2 === null,
+);
+
 function slotLabel(name: string | null): string {
-    return name ?? '—';
+    if (name !== null) {
+        return name;
+    }
+
+    if (isPhantom.value) {
+        return props.bracketStateLabels.not_held ?? '—';
+    }
+
+    return props.match.isBye ? (props.bracketStateLabels.bye ?? '—') : '—';
+}
+
+/**
+ * True when an empty slot is a calm-register placeholder (bye or phantom)
+ * rather than a genuinely unfilled slot still waiting on an earlier match —
+ * gates the muted treatment on the slot row.
+ */
+function isPlaceholderSlot(name: string | null): boolean {
+    return name === null && (props.match.isBye || isPhantom.value);
 }
 
 function statusVariant(
@@ -177,9 +211,15 @@ const hasLiveScore = computed(
                         : ''
                 "
             >
-                <span class="truncate text-sm">{{
-                    slotLabel(match.slot1)
-                }}</span>
+                <span
+                    class="truncate text-sm"
+                    :class="
+                        isPlaceholderSlot(match.slot1)
+                            ? 'text-muted-foreground'
+                            : ''
+                    "
+                    >{{ slotLabel(match.slot1) }}</span
+                >
                 <span class="font-mono text-sm tabular-nums">{{
                     match.score1 ?? ''
                 }}</span>
@@ -192,9 +232,15 @@ const hasLiveScore = computed(
                         : ''
                 "
             >
-                <span class="truncate text-sm">{{
-                    slotLabel(match.slot2)
-                }}</span>
+                <span
+                    class="truncate text-sm"
+                    :class="
+                        isPlaceholderSlot(match.slot2)
+                            ? 'text-muted-foreground'
+                            : ''
+                    "
+                    >{{ slotLabel(match.slot2) }}</span
+                >
                 <span class="font-mono text-sm tabular-nums">{{
                     match.score2 ?? ''
                 }}</span>

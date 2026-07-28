@@ -62,9 +62,15 @@ it('renders the bracket for an 8-entry single-elimination tournament with 7 matc
             // not raw translation keys.
             ->where('reportLabels.report_action', 'Melden')
             ->where('reportLabels.confirm_action', 'Bestätigen')
+            // Task 5: BracketMatchCard's never-played-match placeholder labels.
+            // Named `bracketStateLabels` (final review fix wave) to match
+            // OverlayController's identical concept and stop colliding with
+            // the pre-existing `bracketLabels` round-heading prop.
+            ->where('bracketStateLabels.bye', 'Freilos')
+            ->where('bracketStateLabels.not_held', 'Entfällt')
             ->has('matches', 7)
             ->has('matches.0', fn (AssertableInertia $match) => $match
-                ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'lockVersion', 'server', 'warmupStartedAt', 'spectateHint'])
+                ->hasAll(['id', 'round', 'bracket', 'position', 'nextMatchId', 'nextSlot', 'slot1', 'slot2', 'entry1Id', 'entry2Id', 'score1', 'score2', 'winnerEntryId', 'status', 'isBye', 'lockVersion', 'server', 'warmupStartedAt', 'spectateHint'])
             )
         );
 });
