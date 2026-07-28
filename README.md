@@ -336,7 +336,11 @@ pages, and — under `APP_ENV=local` only — a demo login so a fresh clone is
 explorable without a Discord app (see Setup). Two prod bugs found running a fresh
 clone were fixed along the way: preflight heartbeat markers now survive a
 serializing cache store, and the browser's Reverb connection is delivered at
-runtime (not baked into the build).
+runtime (not baked into the build). Double elimination now supports any field
+from 2 to 64 entrants (previously capped at n ∈ {2, 4, 6, 8, 16}), with the
+losers-bracket intake ordering computed rather than tabulated per size and
+byes rendered visibly in the bracket ("Freilos", or "Entfällt" for a match
+that can never be played).
 
 **What remains** is real-infra verification (working through the acceptance
 checklist against real Discord/Pelican/Mumble/TeamSpeak/Music-Assistant/hosts) and

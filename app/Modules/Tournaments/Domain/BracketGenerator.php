@@ -119,8 +119,8 @@ final class BracketGenerator
      * current LB survivors, so that a dropped WB loser does not immediately
      * re-meet an opponent from the same recent bracket lineage. That
      * ordering is computed from the bracket's own structure by
-     * {@see LbIntakeOrdering} — there is no size ceiling; field sizes from
-     * 2 to 64 are exhaustively tested.
+     * {@see LbIntakeOrdering} — there is no size ceiling; sizes across 2..64
+     * are tested.
      *
      * @param  array<int, int>  $entryIds  already seeded, in order (index 0 = seed 1, index 1 = seed 2, ...)
      */
