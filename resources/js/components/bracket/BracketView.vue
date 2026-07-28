@@ -11,6 +11,8 @@ const props = withDefaults(
         /** True for a helper/orga viewer — gates the match card's manual "Go" control. Omitted by read-only surfaces. */
         canGoLive?: boolean;
         matchStatusLabels: Record<string, string>;
+        /** `tournaments.bracket` labels: bye/not_held — BracketMatchCard's never-played-match placeholders. */
+        bracketStateLabels?: Record<string, string>;
         reportLabels: Record<string, string>;
         /** Omitted by read-only surfaces (e.g. the infoscreen bracket scene), which never render the "Go" control. */
         warmupLabels?: Record<string, string>;
@@ -22,6 +24,7 @@ const props = withDefaults(
     }>(),
     {
         canGoLive: false,
+        bracketStateLabels: () => ({}),
         warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
@@ -218,6 +221,7 @@ onUnmounted(() => {
                 :my-entry-id="myEntryId"
                 :can-go-live="canGoLive"
                 :match-status-labels="matchStatusLabels"
+                :bracket-state-labels="bracketStateLabels"
                 :report-labels="reportLabels"
                 :warmup-labels="warmupLabels"
                 :server-labels="serverLabels"

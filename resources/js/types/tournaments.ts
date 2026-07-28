@@ -109,6 +109,8 @@ export interface BracketMatchDto {
     score2: number | null;
     winnerEntryId: number | null;
     status: MatchStatusValue;
+    /** True when this match was won without being played (bracket padding). */
+    isBye: boolean;
     lockVersion: number;
     server: MatchServerDto | null;
     /** Set once the match enters warmup (Task 11); null before/after. */

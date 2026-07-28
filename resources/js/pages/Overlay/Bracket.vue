@@ -10,6 +10,8 @@ const props = defineProps<{
     matches: BracketMatchDto[];
     labels: {
         matchStatusLabels: Record<string, string>;
+        /** `tournaments.bracket` labels: bye/not_held — BracketMatchCard's never-played-match placeholders. */
+        bracketStateLabels: Record<string, string>;
         reportLabels: Record<string, string>;
         bracketLabels: Record<string, string>;
         liveScoreLabels: Record<string, string>;
@@ -36,6 +38,7 @@ useTournamentChannel(props.tournament.id);
             :my-entry-id="null"
             :can-go-live="false"
             :match-status-labels="labels.matchStatusLabels"
+            :bracket-state-labels="labels.bracketStateLabels"
             :report-labels="labels.reportLabels"
             :bracket-labels="labels.bracketLabels"
             :live-score-labels="labels.liveScoreLabels"

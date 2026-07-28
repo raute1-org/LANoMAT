@@ -73,3 +73,48 @@ it('does not mark a phantom match (both winners-bracket feeders were byes) as a 
 
     expect(BracketMatchProjection::fromMatch($match->fresh())['isBye'])->toBeFalse();
 });
+
+it('projects a bye and a phantom into the two distinct shapes BracketMatchCard renders as Freilos vs. Entfällt', function () {
+    // Task 5 (BracketMatchCard.vue): the UI must tell a bye ("Freilos" — a
+    // real entrant advanced unopposed) apart from a phantom ("Entfällt" — a
+    // losers-bracket match nobody ever played because both winners-bracket
+    // feeders were themselves byes). The two are distinguished purely from
+    // fields already on the projection: exactly one null slot is a bye,
+    // both null slots is a phantom — never the other way around.
+    $entry = TournamentEntry::factory()->create();
+
+    $bye = BracketMatchProjection::fromMatch(GameMatch::factory()->create([
+        'tournament_id' => $entry->tournament_id,
+        'status' => MatchStatus::Completed,
+        'entry1_id' => $entry->id,
+        'entry2_id' => null,
+        'winner_entry_id' => $entry->id,
+        'score1' => null,
+        'score2' => null,
+    ])->fresh());
+
+    $phantom = BracketMatchProjection::fromMatch(GameMatch::factory()->create([
+        'status' => MatchStatus::Completed,
+        'entry1_id' => null,
+        'entry2_id' => null,
+        'winner_entry_id' => null,
+        'score1' => null,
+        'score2' => null,
+    ])->fresh());
+
+    // Bye: exactly one slot null, isBye true — BracketMatchCard's
+    // slotLabel() renders bracketStateLabels.bye ("Freilos") for it.
+    expect($bye['isBye'])->toBeTrue();
+    expect($bye['slot1'])->not->toBeNull();
+    expect($bye['slot2'])->toBeNull();
+
+    // Phantom: both slots null, isBye false — slotLabel() renders
+    // bracketStateLabels.not_held ("Entfällt") for it instead, never "Freilos".
+    expect($phantom['isBye'])->toBeFalse();
+    expect($phantom['slot1'])->toBeNull();
+    expect($phantom['slot2'])->toBeNull();
+
+    app()->setLocale('de');
+    expect(__('tournaments.bracket.bye'))->toBe('Freilos')
+        ->and(__('tournaments.bracket.not_held'))->toBe('Entfällt');
+});

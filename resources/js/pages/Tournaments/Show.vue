@@ -22,6 +22,8 @@ const props = defineProps<{
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
     matchStatusLabels: Record<string, string>;
+    /** `tournaments.bracket` labels: bye/not_held — BracketMatchCard's never-played-match placeholders. */
+    bracketLabels: Record<string, string>;
     reportLabels: Record<string, string>;
     warmupLabels: Record<string, string>;
     serverLabels: Record<string, string>;
@@ -148,6 +150,7 @@ const isNotStarted = computed(
                     :my-entry-id="myEntryId"
                     :can-go-live="canGoLive"
                     :match-status-labels="matchStatusLabels"
+                    :bracket-state-labels="bracketLabels"
                     :report-labels="reportLabels"
                     :warmup-labels="warmupLabels"
                     :bracket-labels="labels"

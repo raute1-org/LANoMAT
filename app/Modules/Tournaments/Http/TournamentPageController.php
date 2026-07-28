@@ -124,6 +124,11 @@ class TournamentPageController extends Controller
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title')],
             'statusLabels' => trans('tournaments.status'),
             'matchStatusLabels' => trans('tournaments.match_status'),
+            // `BracketMatchCard`'s bye/phantom placeholder labels (Task 5) —
+            // distinct from `labels` (threaded to `BracketView` as its own
+            // `bracket-labels` prop for round/bracket-name headings) to
+            // avoid two differently-shaped things sharing one name.
+            'bracketLabels' => trans('tournaments.bracket'),
             'reportLabels' => trans('tournaments.report'),
             'warmupLabels' => trans('tournaments.warmup'),
             'serverLabels' => trans('gameservers.match_page'),

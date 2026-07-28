@@ -9,6 +9,8 @@ withDefaults(
         myEntryId: number | null;
         canGoLive?: boolean;
         matchStatusLabels: Record<string, string>;
+        /** `tournaments.bracket` labels: bye/not_held — BracketMatchCard's never-played-match placeholders. */
+        bracketStateLabels?: Record<string, string>;
         reportLabels: Record<string, string>;
         warmupLabels?: Record<string, string>;
         serverLabels?: Record<string, string>;
@@ -19,6 +21,7 @@ withDefaults(
     }>(),
     {
         canGoLive: false,
+        bracketStateLabels: () => ({}),
         warmupLabels: () => ({}),
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
@@ -52,6 +55,7 @@ function isParticipant(
                     :is-participant="isParticipant(match, myEntryId)"
                     :can-go-live="canGoLive"
                     :match-status-labels="matchStatusLabels"
+                    :bracket-state-labels="bracketStateLabels"
                     :report-labels="reportLabels"
                     :warmup-labels="warmupLabels"
                     :server-labels="serverLabels"

@@ -47,6 +47,9 @@ it('renders the bracket overlay for a tournament whose event is publicly visible
             )
             ->has('labels.matchStatusLabels')
             ->has('labels.bracketLabels')
+            // Task 5: BracketMatchCard's never-played-match placeholder labels.
+            ->where('labels.bracketStateLabels.bye', 'Freilos')
+            ->where('labels.bracketStateLabels.not_held', 'Entfällt')
             ->has('labels.reportLabels')
             ->has('labels.liveScoreLabels')
         );

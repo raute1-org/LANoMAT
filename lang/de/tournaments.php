@@ -93,6 +93,16 @@ return [
         'completed' => 'Abgeschlossen',
     ],
 
+    // BracketMatchCard's calm-register placeholders for never-played
+    // matches (bracket padding at odd field sizes): `bye` for a match won
+    // unopposed (exactly one slot null), `not_held` for a losers-bracket
+    // phantom (both winners-bracket feeders were byes, so both slots are
+    // null and nobody ever advances from this match).
+    'bracket' => [
+        'bye' => 'Freilos',
+        'not_held' => 'Entfällt',
+    ],
+
     'report_status' => [
         'pending' => 'Ausstehend',
         'confirmed' => 'Bestätigt',

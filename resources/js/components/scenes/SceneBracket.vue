@@ -38,6 +38,10 @@ defineProps<{
                     losers_bracket: labels.losers_bracket,
                     finals: labels.finals,
                 }"
+                :bracket-state-labels="{
+                    bye: labels.bracket_state_bye,
+                    not_held: labels.bracket_state_not_held,
+                }"
             />
         </div>
     </div>

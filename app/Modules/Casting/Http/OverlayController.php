@@ -41,6 +41,10 @@ class OverlayController extends Controller
             'matches' => BracketMatchProjection::forTournament($tournament->id),
             'labels' => [
                 'matchStatusLabels' => trans('tournaments.match_status'),
+                // BracketMatchCard's bye/phantom placeholder labels (Task 5)
+                // — distinct from `bracketLabels` below, which is
+                // BracketView's own round/bracket-name heading labels.
+                'bracketStateLabels' => trans('tournaments.bracket'),
                 'reportLabels' => trans('tournaments.report'),
                 'bracketLabels' => trans('tournaments.page'),
                 'liveScoreLabels' => trans('gameservers.live_score'),
