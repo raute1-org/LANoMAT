@@ -46,4 +46,20 @@ jobs:
       - run: npm run types:check
 
       - run: php artisan migrate --force
-      - run: ./vendor/bin/pest
+      - name: Tests (full profile)
+        run: ./vendor/bin/pest
+        env:
+          MODULES_PROFILE: full
+
+      # The module tests (isolation matrix, profile reports) spawn their own
+      # core/full processes and run in the full pest step above; the in-process
+      # guard tests assume `full`, so the whole suite is not re-run under core.
+      # This step just proves a plain core boot on CI.
+      - name: Core-profile smoke (boot)
+        run: |
+          php artisan lanomat:modules
+          php artisan route:list > /dev/null
+          php artisan schedule:list > /dev/null
+          php artisan event:list > /dev/null
+        env:
+          MODULES_PROFILE: core
