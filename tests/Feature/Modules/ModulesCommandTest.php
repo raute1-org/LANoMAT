@@ -34,17 +34,19 @@ it('fails to boot with a clear message on an invalid configuration', function ()
 });
 
 it('resolves the same modules from a cached config', function () {
-    $env = ['MODULES_PROFILE' => 'core', 'MODULE_JUKEBOX' => 'true', 'APP_ENV' => 'testing'];
-    $cache = new Process([PHP_BINARY, 'artisan', 'config:cache'], base_path(), $env);
-    $cache->mustRun();
+    // A private cache path keeps the real bootstrap/cache/config.php untouched.
+    $cachePath = sys_get_temp_dir().'/lanomat-modules-config-'.bin2hex(random_bytes(4)).'.php';
+    $env = ['MODULES_PROFILE' => 'core', 'MODULE_JUKEBOX' => 'true', 'APP_ENV' => 'testing', 'APP_CONFIG_CACHE' => $cachePath];
 
     try {
+        (new Process([PHP_BINARY, 'artisan', 'config:cache'], base_path(), $env))->mustRun();
+
         // No MODULE_* in the environment this time: only the cached config may supply them.
-        $report = modulesReport('full', ['MODULES_PROFILE' => 'full']);
+        $report = modulesReport('full', ['MODULES_PROFILE' => 'full', 'APP_CONFIG_CACHE' => $cachePath]);
         expect($report['enabled'])->toContain('jukebox')
             ->and($report['profile'])->toBe('core'); // cached value wins over env
     } finally {
-        (new Process([PHP_BINARY, 'artisan', 'config:clear'], base_path()))->mustRun();
+        @unlink($cachePath);
     }
 });
 
@@ -52,14 +54,19 @@ it('keeps all routes visible to wayfinder under the core profile', function () {
     // Remove the generated jukebox helpers so the final assertion proves regeneration.
     File::deleteDirectory(resource_path('js/routes/jukebox'));
 
-    $process = new Process(
-        [PHP_BINARY, 'artisan', 'wayfinder:generate', '--with-form'],
-        base_path(),
-        ['MODULES_PROFILE' => 'core', 'APP_ENV' => 'testing'],
-    );
-    $process->mustRun();
+    try {
+        $process = new Process(
+            [PHP_BINARY, 'artisan', 'wayfinder:generate', '--with-form'],
+            base_path(),
+            ['MODULES_PROFILE' => 'core', 'APP_ENV' => 'testing'],
+        );
+        $process->mustRun();
 
-    expect(file_exists(resource_path('js/routes/jukebox/index.ts')))->toBeTrue();
+        expect(file_exists(resource_path('js/routes/jukebox/index.ts')))->toBeTrue();
+    } finally {
+        // Never leave the helpers missing after a mid-test failure.
+        (new Process([PHP_BINARY, 'artisan', 'wayfinder:generate', '--with-form'], base_path(), ['MODULES_PROFILE' => 'full', 'APP_ENV' => 'testing']))->run();
+    }
 });
 
 it('treats an empty MODULE_<KEY> env value as unset', function () {

@@ -1,11 +1,17 @@
 <?php
 
+use App\Support\Modules\Module;
+
 /**
  * Ratchet for the modular-monolith rule "modules talk via events and explicit
  * contracts". The baseline lists every cross-module reference that exists
  * today. A NEW edge fails the test (decouple it or consciously extend the
  * baseline); an edge that disappeared also fails so the baseline only ever
  * shrinks. Regenerate with: LANOMAT_ARCH_DUMP=1 ./vendor/bin/pest tests/Architecture
+ *
+ * Real guarantee: module-level and import-based (`use`, FQCN, class-string
+ * literals). A call that never names the other module's namespace, such as
+ * `app('FQCN')` assembled at runtime, is not seen.
  */
 
 /**
@@ -59,7 +65,10 @@ $coreOptionalBaselinePath = __DIR__.'/core-optional-baseline.php';
  * @var Closure(array<string, list<string>>): array<string, list<string>> $coreOptionalEdges
  */
 $coreOptionalEdges = function (array $graph): array {
-    $core = ['Events', 'Registration', 'Seating', 'Teams', 'Games', 'Tournaments', 'Identity', 'Notifications', 'Preflight'];
+    $core = array_map(
+        fn (Module $m) => $m->name,
+        array_values(array_filter(Module::cases(), fn (Module $m) => $m->isCore())),
+    );
     $edges = [];
 
     foreach ($core as $module) {
@@ -93,7 +102,7 @@ it('introduces no new cross-module dependencies', function () use ($baselinePath
         }
     }
 
-    expect($added)->toBe([], 'New cross-module dependencies — decouple via events/contracts or extend the baseline on purpose.');
+    expect($added)->toBe([], 'New cross-module dependencies — decouple via events/contracts or extend the baseline on purpose. A new optional -> optional edge may also need a Module::requires() entry or a Modules::enabled() guard.');
     expect($removed)->toBe([], 'Dependencies were removed — shrink tests/Architecture/module-dependencies.php (LANOMAT_ARCH_DUMP=1).');
 });
 

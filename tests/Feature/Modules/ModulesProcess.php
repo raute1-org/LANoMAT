@@ -12,6 +12,14 @@ use Symfony\Component\Process\Process;
  */
 function modulesReport(string $profile, array $env = []): array
 {
+    static $cache = [];
+
+    $key = serialize([$profile, $env]);
+
+    if (isset($cache[$key])) {
+        return $cache[$key];
+    }
+
     $process = new Process(
         [PHP_BINARY, 'artisan', 'lanomat:modules', '--json'],
         base_path(),
@@ -19,5 +27,5 @@ function modulesReport(string $profile, array $env = []): array
     );
     $process->mustRun();
 
-    return json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+    return $cache[$key] = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
 }

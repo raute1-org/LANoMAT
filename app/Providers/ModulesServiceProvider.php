@@ -14,6 +14,9 @@ class ModulesServiceProvider extends ServiceProvider
             /** @var list<string> $argv */
             $argv = $_SERVER['argv'] ?? [];
 
+            // Matches only the literal `wayfinder:generate`: abbreviated command names, Artisan::call from
+            // another command, or an active route:cache bypass it. Acceptable: CI, the Vite plugin and the
+            // Dockerfile all use the full name.
             return new Modules(
                 (string) config('modules.profile'),
                 (array) config('modules.overrides'),

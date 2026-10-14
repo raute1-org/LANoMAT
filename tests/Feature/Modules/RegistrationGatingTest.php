@@ -48,7 +48,7 @@ it('does not schedule optional commands such as reminders and LFG pruning under 
     expect(implode("\n", modulesReport('full')['scheduled']))->toContain('lanomat:send-reminders')->toContain('lanomat:prune-lfg');
 });
 
-it('registers optional module policies only when the module is enabled', function () {
+it('explicitly registers optional module policies only when the module is enabled (auto-discovery still resolves them)', function () {
     $core = implode("\n", modulesReport('core')['policies']);
     $full = implode("\n", modulesReport('full')['policies']);
 

@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
+use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -44,7 +45,20 @@ class AdminPanelProvider extends PanelProvider
 
         $modules = app(Modules::class);
 
-        foreach ($modules->enabledModules() as $module) {
+        // Filament breaks equal navigationSort ties by registration order, so keep the
+        // pre-toggle order; any other enabled module with resources is appended.
+        $legacyOrder = [
+            Module::Events, Module::Seating, Module::Schedule, Module::Catering, Module::Teams, Module::Games,
+            Module::Tournaments, Module::Voting, Module::Infoscreen, Module::GameServers, Module::Hosts,
+            Module::CustomServers, Module::Files, Module::Voice, Module::Gallery, Module::News,
+        ];
+        $ordered = [...$legacyOrder, ...array_filter(Module::cases(), fn (Module $m) => ! in_array($m, $legacyOrder, true))];
+
+        foreach ($ordered as $module) {
+            if (! $modules->enabled($module)) {
+                continue;
+            }
+
             $dir = app_path("Modules/{$module->name}/Filament/Resources");
 
             if (is_dir($dir)) {

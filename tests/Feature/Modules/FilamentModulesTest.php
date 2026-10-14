@@ -23,3 +23,18 @@ it('registers every module resource under the full profile', function () {
             ->toBeTrue("No Filament resource registered for module {$module} under full");
     }
 });
+
+it('keeps the legacy Filament resource registration order under the full profile', function () {
+    $resources = modulesReport('full')['filament_resources'];
+    $legacy = ['Events', 'Seating', 'Schedule', 'Catering', 'Teams', 'Games', 'Tournaments', 'Voting', 'Infoscreen', 'GameServers', 'Hosts', 'CustomServers', 'Files', 'Voice', 'Gallery', 'News'];
+
+    $positions = [];
+    foreach ($legacy as $module) {
+        $index = collect($resources)->search(fn ($c) => str_contains($c, "Modules\\{$module}\\"));
+        if ($index !== false) {
+            $positions[] = $index;
+        }
+    }
+
+    expect($positions)->toBe(collect($positions)->sort()->values()->all())->and(count($positions))->toBeGreaterThan(10);
+});

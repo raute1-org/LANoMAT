@@ -31,6 +31,24 @@ it('boots with one optional module on top of core', function (Module $module) {
         $p = new Process([PHP_BINARY, 'artisan', ...$args], base_path(), $env);
         $p->setTimeout(120)->run();
         expect($p->isSuccessful())->toBeTrue("{$module->key()}: artisan ".implode(' ', $args).' failed: '.$p->getErrorOutput().$p->getOutput());
+
+        if ($args[0] === 'lanomat:modules') {
+            $report = json_decode($p->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+        }
+    }
+
+    // The whole requires closure is enabled, and the module's own routes are registered.
+    expect($report['enabled'])->toContain(...array_map(fn (Module $m) => $m->key(), requiresClosure($module)));
+
+    $routeByModule = [
+        'jukebox' => 'jukebox.index', 'gallery' => 'gallery.index', 'voice' => 'voice.setup', 'friends' => 'friends.index',
+        'schedule' => 'schedule.index', 'catering' => 'catering.show', 'voting' => 'polls.index', 'lfg' => 'lfg.index',
+        'game_servers' => 'servers.index', 'files' => 'files.index', 'presence' => 'presence.show', 'recap' => 'recap.show',
+        'infoscreen' => 'screen.show', 'casting' => 'overlay.bracket', 'discord' => 'discord.voice', 'stats' => 'stats.leaderboard',
+    ];
+
+    if (isset($routeByModule[$module->key()])) {
+        expect($report['routes'])->toContain($routeByModule[$module->key()]);
     }
 
     $code = <<<'PHP'

@@ -382,7 +382,10 @@ class AppServiceProvider extends ServiceProvider
         if ($this->on(Module::GameServers)) {
             Event::listen(MatchReady::class, ProvisionMatchServerOnReady::class);
             Event::listen(TournamentCompleted::class, CleanupServersOnCompleted::class);
-            Event::listen(ServerLinkUpdated::class, UpdateMatchSurfacesOnServerReady::class);
+            // Injects DiscordClient directly (bypasses the DiscordChannel guard), so it also needs Discord.
+            if ($this->on(Module::Discord)) {
+                Event::listen(ServerLinkUpdated::class, UpdateMatchSurfacesOnServerReady::class);
+            }
             Event::listen(ServerLinkUpdated::class, EnterWarmupOnServerReady::class);
         }
 
@@ -395,7 +398,8 @@ class AppServiceProvider extends ServiceProvider
             Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);
         }
 
-        if ($this->on(Module::Lfg)) {
+        // AnnounceLfgPost injects DiscordClient directly, so it also needs Discord.
+        if ($this->on(Module::Lfg) && $this->on(Module::Discord)) {
             Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
         }
 
