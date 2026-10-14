@@ -28,7 +28,7 @@ class ModulesCommand extends Command
             'scheduled' => collect($schedule->events())
                 ->map(fn ($e) => $e instanceof CallbackEvent ? (string) $e->description : (string) $e->command)
                 ->values()->all(),
-            'policies' => array_values(array_keys(Gate::policies())),
+            'policies' => array_keys(Gate::policies()),
             'preflight' => collect(app()->tagged('preflight.checks'))
                 ->map(fn (HealthCheck $c) => $c->key())->values()->all(),
         ];
