@@ -25,14 +25,10 @@ if [ ! -f "${SECRETS_FILE}" ]; then
     echo "Missing ${SECRETS_FILE}" >&2
     exit 1
 fi
-set -a
-# shellcheck disable=SC1090
-. "${SECRETS_FILE}"
-set +a
-# Empty values from the template must count as "not provided".
-for v in CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY GH_TOKEN NTFY_TOPIC DISCORD_WEBHOOK_URL; do
-    [ -n "${!v:-}" ] || unset "$v"
-done
+# shellcheck disable=SC1091
+. "${KIT}/lib.sh"
+# Data-only parse (no shell evaluation); empty template values are not exported.
+load_secrets "${SECRETS_FILE}"
 
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ ! -f "$HOME/.claude/.credentials.json" ]; then
     echo "No Claude credentials: set CLAUDE_CODE_OAUTH_TOKEN in ${SECRETS_FILE} (claude setup-token) or run 'claude' once and log in." >&2
@@ -40,8 +36,12 @@ if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [
 fi
 
 if [ -n "${GH_TOKEN:-}" ]; then
+    if [ -z "${GIT_EMAIL:-}" ]; then
+        echo "GH_TOKEN is set but GIT_EMAIL is empty in ${SECRETS_FILE}." >&2
+        exit 1
+    fi
     git config --global user.name "${GIT_NAME:-LANoMAT VM session}"
-    git config --global user.email "${GIT_EMAIL:?set GIT_EMAIL in the secrets file}"
+    git config --global user.email "${GIT_EMAIL}"
     gh auth setup-git >/dev/null 2>&1 || true
 fi
 
@@ -70,9 +70,12 @@ while [ "${iteration}" -lt "${MAX_ITERATIONS}" ]; do
     fi
 
     # The session asked the operator for input (WAITING_HUMAN holds the question):
-    # wait until a non-empty ANSWERS.md newer than the question appears.
+    # resume once ANSWERS.md has content that was not consumed yet (tracked by hash, not mtime).
     if [ -f "${STATE_DIR}/WAITING_HUMAN" ]; then
-        if [ -s "${STATE_DIR}/ANSWERS.md" ] && [ "${STATE_DIR}/ANSWERS.md" -nt "${STATE_DIR}/WAITING_HUMAN" ]; then
+        current="$(sha256sum "${STATE_DIR}/ANSWERS.md" 2>/dev/null | cut -d' ' -f1)"
+        consumed="$(cat "${STATE_DIR}/.answers-consumed" 2>/dev/null || true)"
+        if [ -s "${STATE_DIR}/ANSWERS.md" ] && [ "${current}" != "${consumed}" ]; then
+            printf '%s' "${current}" >"${STATE_DIR}/.answers-consumed"
             rm -f "${STATE_DIR}/WAITING_HUMAN"
         else
             sleep "${HUMAN_POLL}"
@@ -85,30 +88,43 @@ while [ "${iteration}" -lt "${MAX_ITERATIONS}" ]; do
     echo "[$(date -Is)] iteration ${iteration}"
 
     common=(--dangerously-skip-permissions --output-format json)
+    started=$(date +%s)
     if [ -s "${SESSION_FILE}" ]; then
-        prompt="Weiter. Lies zuerst ${STATE_DIR}/STATE.md und ${STATE_DIR}/ANSWERS.md (falls vorhanden; neue Antworten des Operators haben Vorrang), dann arbeite an der Mission weiter, bis alles läuft oder du wirklich auf den Operator warten musst."
+        prompt="Weiter. Lies zuerst ${STATE_DIR}/STATE.md und ${STATE_DIR}/ANSWERS.md (falls vorhanden; Einträge, die du noch nicht in STATE.md als erledigt vermerkt hast, haben Vorrang), dann arbeite an der Mission weiter, bis alles läuft oder du wirklich auf den Operator warten musst."
         timeout "${ITERATION_TIMEOUT}" claude -p "${prompt}" --resume "$(cat "${SESSION_FILE}")" "${common[@]}" >"${out}" 2>"${out}.err"
     else
-        timeout "${ITERATION_TIMEOUT}" claude -p "${MISSION}" "${common[@]}" >"${out}" 2>"${out}.err"
+        # Fixed session id: a timeout or crash on the very first run still leaves a resumable session.
+        printf '%s' "$(cat /proc/sys/kernel/random/uuid)" >"${SESSION_FILE}"
+        timeout "${ITERATION_TIMEOUT}" claude -p "${MISSION}" --session-id "$(cat "${SESSION_FILE}")" "${common[@]}" >"${out}" 2>"${out}.err"
     fi
     status=$?
 
-    sid="$(jq -r '.session_id // empty' "${out}" 2>/dev/null || true)"
-    [ -n "${sid}" ] && printf '%s' "${sid}" >"${SESSION_FILE}"
+    # exit 0 can still carry an error result (e.g. usage limit): inspect the JSON too.
+    is_error="$(jq -r '.is_error // false' "${out}" 2>/dev/null || echo false)"
 
-    if [ "${status}" -ne 0 ]; then
-        # Resume failed or usage limit reached: start a fresh session next time
-        # only when the session itself is gone; otherwise just back off.
+    if [ "${status}" -ne 0 ] || [ "${is_error}" = "true" ]; then
         if grep -qiE 'no conversation found|session.*not found' "${out}" "${out}.err" 2>/dev/null; then
+            # The session is gone (VM rebuilt, pruned): start a fresh one right away, STATE.md carries the memory.
             rm -f "${SESSION_FILE}"
+            continue
         fi
-        "${KIT}/notify.sh" "Iteration ${iteration} endete mit Fehler (exit ${status}); neuer Versuch in $((ERROR_SLEEP / 60)) Min."
+        if [ "${status}" -eq 124 ]; then
+            "${KIT}/notify.sh" "Iteration ${iteration} lief ins Zeitlimit (${ITERATION_TIMEOUT}); mache weiter."
+            sleep 30
+            continue
+        fi
+        "${KIT}/notify.sh" "Iteration ${iteration} Fehler (exit ${status}, is_error=${is_error}); neuer Versuch in $((ERROR_SLEEP / 60)) Min."
         sleep "${ERROR_SLEEP}"
         continue
     fi
 
     if [ -f "${STATE_DIR}/WAITING_HUMAN" ]; then
         "${KIT}/notify.sh" "Brauche dich: $(head -c 400 "${STATE_DIR}/WAITING_HUMAN")"
+    fi
+
+    # Never spin: an iteration that returned almost immediately gets a pause.
+    if [ $(($(date +%s) - started)) -lt 60 ]; then
+        sleep "${MIN_ITERATION_GAP:-60}"
     fi
 done
 

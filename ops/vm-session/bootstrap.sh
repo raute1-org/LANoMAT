@@ -12,6 +12,9 @@ REPO_URL="${REPO_URL:-https://github.com/raute1-org/LANoMAT.git}"
 REPO_DIR="${REPO_DIR:-/home/${CLAUDE_USER}/LANoMAT}"
 SECRETS_FILE="/home/${CLAUDE_USER}/secrets/lanomat.env"
 
+# shellcheck disable=SC1091
+. "$(dirname "$(readlink -f "$0")")/lib.sh"
+
 log() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 skip() { [ "${1:-0}" = "1" ]; }
 
@@ -68,8 +71,8 @@ if ! skip "${SKIP_TAILSCALE:-0}"; then
     fi
     # Join the tailnet only when an auth key is available (secrets file).
     if [ -f "${SECRETS_FILE}" ]; then
-        TS_AUTHKEY="$(grep -E '^TS_AUTHKEY=' "${SECRETS_FILE}" | head -n1 | cut -d= -f2- | tr -d '"' || true)"
-        TS_HOSTNAME="$(grep -E '^TS_HOSTNAME=' "${SECRETS_FILE}" | head -n1 | cut -d= -f2- | tr -d '"' || true)"
+        TS_AUTHKEY="$(secret_value "${SECRETS_FILE}" TS_AUTHKEY)"
+        TS_HOSTNAME="$(secret_value "${SECRETS_FILE}" TS_HOSTNAME)"
         if [ -n "${TS_AUTHKEY}" ] && ! tailscale status >/dev/null 2>&1; then
             tailscale up --authkey="${TS_AUTHKEY}" --hostname="${TS_HOSTNAME:-lanomat-control}" --ssh=false
         fi
@@ -81,11 +84,16 @@ fi
 if ! skip "${SKIP_TOOLCHAIN:-0}"; then
     log "Toolchain: PHP 8.4, Composer, Node 22 (to run composer check / npm gates when fixing bugs)"
     if ! command -v php >/dev/null 2>&1 || ! php -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);'; then
-        if [ "${ID}" = "ubuntu" ]; then
-            add-apt-repository -y ppa:ondrej/php
-        else
-            curl -fsSL https://packages.sury.org/php/apt.gpg -o /etc/apt/trusted.gpg.d/sury-php.gpg
-            echo "deb https://packages.sury.org/php/ ${VERSION_CODENAME} main" >/etc/apt/sources.list.d/sury-php.list
+        # Only add a third-party repo when the distribution does not ship PHP 8.4 itself.
+        if ! apt-cache policy php8.4-cli 2>/dev/null | grep -q 'Candidate: [0-9]'; then
+            if [ "${ID}" = "ubuntu" ]; then
+                add-apt-repository -y ppa:ondrej/php
+            else
+                install -d -m 0755 /etc/apt/keyrings
+                curl -fsSL https://packages.sury.org/php/apt.gpg -o /etc/apt/keyrings/sury-php.gpg
+                echo "deb [signed-by=/etc/apt/keyrings/sury-php.gpg] https://packages.sury.org/php/ ${VERSION_CODENAME} main" \
+                    >/etc/apt/sources.list.d/sury-php.list
+            fi
         fi
         apt-get update -y
         apt-get install -y --no-install-recommends \
