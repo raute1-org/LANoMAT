@@ -40,3 +40,18 @@ it('registers no optional listener under the core profile', function () {
         ->not->toContain('CreateMatchChannelOnReady')
         ->not->toContain('ProvisionMatchVoiceOnReady');
 });
+
+it('does not schedule optional commands such as reminders and LFG pruning under core', function () {
+    $scheduled = implode("\n", modulesReport('core')['scheduled']);
+
+    expect($scheduled)->not->toContain('lanomat:send-reminders')->not->toContain('lanomat:prune-lfg');
+    expect(implode("\n", modulesReport('full')['scheduled']))->toContain('lanomat:send-reminders')->toContain('lanomat:prune-lfg');
+});
+
+it('registers optional module policies only when the module is enabled', function () {
+    $core = implode("\n", modulesReport('core')['policies']);
+    $full = implode("\n", modulesReport('full')['policies']);
+
+    expect($core)->not->toContain('Modules\\Voting\\Models\\Poll')->not->toContain('VoiceClientInstaller')
+        ->and($full)->toContain('Modules\\Voting\\Models\\Poll')->toContain('VoiceClientInstaller');
+});

@@ -13,7 +13,8 @@ return [
 
     'overrides' => collect(Module::cases())
         ->mapWithKeys(fn (Module $m) => [$m->key() => env('MODULE_'.strtoupper($m->key()))])
-        ->filter(fn ($value) => $value !== null)
+        // An empty `MODULE_FOO=` counts as unset, not as an explicit disable.
+        ->filter(fn ($value) => $value !== null && $value !== '')
         ->map(fn ($value) => filter_var($value, FILTER_VALIDATE_BOOLEAN))
         ->all(),
 ];

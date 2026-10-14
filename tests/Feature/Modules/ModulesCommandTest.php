@@ -61,3 +61,8 @@ it('keeps all routes visible to wayfinder under the core profile', function () {
 
     expect(file_exists(resource_path('js/routes/jukebox/index.ts')))->toBeTrue();
 });
+
+it('treats an empty MODULE_<KEY> env value as unset', function () {
+    expect(modulesReport('core', ['MODULE_JUKEBOX' => ''])['enabled'])->not->toContain('jukebox')
+        ->and(modulesReport('full', ['MODULE_VOICE' => ''])['enabled'])->toContain('voice');
+});

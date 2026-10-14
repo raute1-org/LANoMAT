@@ -9,6 +9,7 @@ use Filament\Facades\Filament;
 use Illuminate\Console\Command;
 use Illuminate\Console\Scheduling\CallbackEvent;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
 class ModulesCommand extends Command
@@ -27,6 +28,7 @@ class ModulesCommand extends Command
             'scheduled' => collect($schedule->events())
                 ->map(fn ($e) => $e instanceof CallbackEvent ? (string) $e->description : (string) $e->command)
                 ->values()->all(),
+            'policies' => array_values(array_keys(Gate::policies())),
             'preflight' => collect(app()->tagged('preflight.checks'))
                 ->map(fn (HealthCheck $c) => $c->key())->values()->all(),
         ];
