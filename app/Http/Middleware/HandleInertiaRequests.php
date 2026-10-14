@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Modules\Events\Support\CurrentEvent;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
@@ -40,6 +42,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'modules' => fn () => array_map(
+                fn (Module $m) => $m->key(),
+                app(Modules::class)->enabledModules(),
+            ),
             'auth' => [
                 'user' => $request->user(),
             ],
