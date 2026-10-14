@@ -31,33 +31,49 @@ bound in tests. Tests never call real third-party APIs.
 
 ### Module list (design doc §6)
 
+Modules are either **core** (always on: Events, Registration, Seating, Teams, Games,
+Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per deployment via
+`config/modules.php`, see the "Module toggles" section below). The table marks them.
+
 | Module | Phase | Responsibility |
 |---|---|---|
-| Identity | M0–M1 | Discord OAuth login, profile, roles (`admin`/`orga`/`participant`) |
-| Events | M1 | Event CRUD, lifecycle, "current event" context |
-| Registration | M2 | Sign-up, ticket tiers, manual payment status, QR check-in |
-| Seating | M2 | Seating chart editor, seat selection, network metadata per seat |
-| Teams | M3 | Cross-event teams, rosters, join requests |
-| Tournaments | M3 | Bracket engine, check-in, match reporting/disputes, live bracket UI |
-| Schedule | M4 | Event timeline, manual slots, ICS export |
-| Catering | M4 | Group food orders and cost splitting |
-| Voting | M4 | Game votes and generic polls per event |
-| LFG | M4 | Looking-for-group posts per event |
-| Discord | M2–M3 (cross-cutting) | REST client, Gateway sidecar ingress, Interactions endpoint (dormant fallback), channel orchestration |
-| Voice (Mumble) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
-| Infoscreen | M5 | Fullscreen rotating scenes for the venue projector |
-| GameServers | M6 | Pelican Panel integration, match server provisioning |
-| Notifications | M2 (cross-cutting) | `database` + `discord` notification channels |
-| Stats | M6 | Cross-event leaderboards and badges |
-| Friends | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
-| Jukebox | M11 | Communal per-event LAN-Radio: vote-ordered queue mirrored into Music Assistant |
-| Gallery | M12 | Per-event photo gallery with moderation gate, public serving, zip download |
-| Recap | M12 | Pure post-LAN recap projection over other modules' read-models |
-| News | M12 | Global orga news posts on the homepage |
+| Identity (core) | M0–M1 | Discord OAuth login, profile, roles (`admin`/`orga`/`participant`) |
+| Events (core) | M1 | Event CRUD, lifecycle, "current event" context |
+| Registration (core) | M2 | Sign-up, ticket tiers, manual payment status, QR check-in |
+| Seating (core) | M2 | Seating chart editor, seat selection, network metadata per seat |
+| Teams (core) | M3 | Cross-event teams, rosters, join requests |
+| Tournaments (core) | M3 | Bracket engine, check-in, match reporting/disputes, live bracket UI |
+| Schedule (optional) | M4 | Event timeline, manual slots, ICS export |
+| Catering (optional) | M4 | Group food orders and cost splitting |
+| Voting (optional) | M4 | Game votes and generic polls per event |
+| LFG (optional) | M4 | Looking-for-group posts per event |
+| Discord (optional) | M2–M3 (cross-cutting) | REST client, Gateway sidecar ingress, Interactions endpoint (dormant fallback), channel orchestration |
+| Voice (Mumble) (optional) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
+| Infoscreen (optional) | M5 | Fullscreen rotating scenes for the venue projector |
+| GameServers (optional) | M6 | Pelican Panel integration, match server provisioning |
+| Notifications (core) | M2 (cross-cutting) | `database` + `discord` notification channels |
+| Stats (optional) | M6 | Cross-event leaderboards and badges |
+| Friends (optional) | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
+| Jukebox (optional) | M11 | Communal per-event LAN-Radio: vote-ordered queue mirrored into Music Assistant |
+| Gallery (optional) | M12 | Per-event photo gallery with moderation gate, public serving, zip download |
+| Recap (optional) | M12 | Pure post-LAN recap projection over other modules' read-models |
+| News (optional) | M12 | Global orga news posts on the homepage |
 
 The `Tournaments` module additionally has `app/Modules/Tournaments/Domain/` — the bracket
 engine (`BracketGenerator`, `BracketProgressor`). It is pure domain code with no IO, and is
 exhaustively tested with Pest before any UI work is built on top of it.
+
+## Module toggles
+
+`App\Support\Modules\Module` (enum, one case per `app/Modules` directory) carries the static
+metadata (`isCore()`, `requires()`); `App\Support\Modules\Modules` resolves the enabled set from
+`config/modules.php` (`MODULES_PROFILE` + `MODULE_<KEY>` overrides) and fails boot listing every
+violation (core disabled, unknown profile, enabled module whose `requires` is off). Optional
+modules depend on each other only through `requires()`. Gated per module: routes (404), Filament resources, scheduler
+entries, listeners, policies/gates, Preflight probes. Artisan commands stay registered (only their
+scheduler entries are gated) and container bindings stay unconditional. `php artisan lanomat:modules`
+prints the resulting profile; `tests/Feature/Modules/IsolationMatrixTest.php` boots core plus each
+optional module (with its `requires` closure) alone.
 
 ## Data model: Event as aggregate root
 

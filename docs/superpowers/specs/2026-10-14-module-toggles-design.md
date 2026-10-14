@@ -42,24 +42,34 @@ one, which §5 handles explicitly.
 ## 1. Configuration
 
 - Backed enum `App\Support\Modules\Module` with one case per module (29), string values = lower-case module key (`jukebox`).
-- `config/modules.php`: for each module `core` (bool), `requires` (list of modules) and the resolved `enabled` flag.
+- `config/modules.php` carries only `profile` and `overrides`; the static metadata (`core`, `requires`) lives in the `Module` enum (amended during implementation).
 - Resolution order: `MODULE_<KEY>` env override → `MODULES_PROFILE` (`core` default, `full` = everything) → module's `core` flag. Core modules cannot be disabled (override to false is a boot error).
 - Class `App\Support\Modules\Modules` (bound as singleton, facade-free): `enabled(Module): bool`, `all(): list<Module>`, `enabledModules(): list<Module>`. Validates `requires` at construction and throws `InvalidModuleConfiguration` listing every violation.
 
-Declared dependencies (initial; derived from real runtime use):
+Declared dependencies (as implemented in `app/Support/Modules/Module.php`, derived from runtime use):
 
 | Module | requires |
 |---|---|
 | CustomServers, Lancache | Hosts |
-| GameServers | Games |
-| Infoscreen | — (reads others defensively, see §5) |
-| Recap | Gallery, Jukebox (stats read-models) |
-| Friends | — |
-| Voice, Discord, Schedule, Catering, Voting, Lfg, Presence, Stats, Files, Gallery, News, Jukebox, Casting, Hosts | — |
+| Recap | Gallery, Jukebox, Voting, Presence |
+| News | Gallery |
+| Gallery | Files |
+| Stats | Voting |
+| Friends | Presence |
+| all others (GameServers, Infoscreen, Voice, Discord, Schedule, Catering, Voting, Lfg, Presence, Files, Jukebox, Casting, Hosts) | none (Infoscreen and GameServers read others defensively, see §5) |
 
-(The spec's first implementation task re-derives this table from the
-architecture baseline and corrects it before coding; Recap/Casting/Infoscreen
-are the ones to verify.)
+The isolation matrix (`tests/Feature/Modules/IsolationMatrixTest.php`) verified that every
+optional module boots alone with exactly this closure; it needed no further entries.
+
+**Amendments made during implementation (spec and code agree):**
+
+1. Container **bindings stay unconditional** (they are lazy, and Identity resolves `VoiceProviders` regardless). Only listeners, policies/gates, scheduler, probes, routes and Filament are gated.
+2. Artisan **commands stay registered** (`withCommands` runs before config exists); only their *scheduler entries* are gated. Running a disabled module's command by hand is harmless.
+3. **Static metadata lives in the enum**, not in the config (see above).
+4. **Broadcast channels needed no gating**: channel definitions are inert without the module's events/routes.
+5. **Wayfinder `routable()` rule**: the frontend imports generated route helpers for every module, and Wayfinder generates from *registered* routes (dev Vite plugin, CI, Docker build). `Modules::routable()` therefore returns true for every module while `wayfinder:generate` runs; generation is never gated, only serving.
+6. **`DiscordChannel` central guard**: the Discord notification channel is a no-op when Discord is off, so every notification (core or optional) can keep listing it in `via()`.
+7. An empty `MODULE_<KEY>=` counts as unset, not as an explicit disable.
 
 ## 2. Gated entry points
 

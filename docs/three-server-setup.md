@@ -35,6 +35,8 @@ Each host gets a wildcard DNS record under its own subdomain, e.g.
 
 ## 2. Public host
 
+- [ ] Pick the module profile in the prod `.env` (`MODULES_PROFILE=core|full`, `MODULE_<KEY>` overrides; see README "Project state"). Compose services you can skip when the module is off: `discord-gateway` (no Discord), the `mumble-admin` / `teamspeak-admin` sidecars (no Voice), the Pelican panel/Wings (no GameServers), the registry and LanCache host (no Hosts/Lancache/CustomServers), the Music Assistant integration (no Jukebox). Preflight only probes systems of enabled modules.
+
 - [ ] DNS: `A app.example.org`, `A ws.app.example.org` (+ wildcard if used) -> public IP.
 - [ ] Clone repo, create prod `.env`: `APP_ENV=production`, `APP_URL`, `APP_DOMAIN`, `ACME_EMAIL`, `DB_HOST=postgres`, `REDIS_HOST=redis`, `REVERB_*`, `DISCORD_*`, `DISCORD_GATEWAY_BRIDGE_SECRET` (random), `DISCORD_GATEWAY_INGRESS_URL`.
 - [ ] `docker compose --profile prod up -d --build`; `php artisan lanomat:install --admin-discord-id=<id>`.
