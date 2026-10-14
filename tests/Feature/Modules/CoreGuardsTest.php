@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Models\ServerLink;
@@ -74,6 +75,10 @@ it('drops the Discord channel from the bell notifications when Discord is off', 
 it('shows a profile without friend state when Friends is off', function () {
     $viewer = User::factory()->create();
     $target = User::factory()->create();
+
+    $this->actingAs($viewer)->get("/users/{$target->id}")->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('relationship.state', 'none'));
+
     goCoreOnly();
 
     $this->actingAs($viewer)->get("/users/{$target->id}")->assertOk()
@@ -93,6 +98,9 @@ it('renders the tournament page without voice links or labels when Voice is off'
     $viewer = User::find(TournamentEntry::find($match->entry1_id)->user_id);
     $match->update(['voice_channels' => ['mumble' => ['entry1_channel_id' => 101, 'entry2_channel_id' => 102]]]);
 
+    $this->actingAs($viewer)->get("/tournaments/{$tournament->id}")->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('myMatchVoiceLinks', 1));
+
     goCoreOnly();
 
     $this->actingAs($viewer)->get("/tournaments/{$tournament->id}")->assertOk()
@@ -110,4 +118,19 @@ it('projects no server DTO when GameServers is off', function () {
     goCoreOnly();
 
     expect(BracketMatchProjection::fromMatch($match->fresh())['server'])->toBeNull();
+});
+
+it('sends no Discord DM through DiscordChannel when Discord is off (optional modules notify via it too)', function () {
+    $fake = fakeDiscord();
+    $user = User::factory()->create(['discord_id' => '123456789']);
+    $notification = new CheckinOpened(Event::factory()->create());
+
+    app(DiscordChannel::class)->send($user, $notification);
+    $fake->assertDmSent('123456789');
+
+    $fake->dms = [];
+    goCoreOnly();
+
+    app(DiscordChannel::class)->send($user, $notification);
+    $fake->assertNothingSent();
 });
