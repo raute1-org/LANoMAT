@@ -5,6 +5,8 @@ namespace App\Modules\Registration\Notifications;
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Events\Models\Event;
 use App\Modules\Infoscreen\Actions\TriggerCheckinOpen;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -32,7 +34,7 @@ class CheckinOpened extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', DiscordChannel::class];
+        return app(Modules::class)->enabled(Module::Discord) ? ['database', DiscordChannel::class] : ['database'];
     }
 
     /**

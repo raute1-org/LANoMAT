@@ -5,6 +5,8 @@ namespace App\Modules\Discord\Channels;
 use App\Models\User;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Notifications\Support\NotificationPreferences;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -27,6 +29,11 @@ class DiscordChannel
 
     public function send(object $notifiable, Notification $notification): void
     {
+        // Optional modules (Catering, Schedule, Infoscreen) also notify via Discord; no-op when the module is off.
+        if (! app(Modules::class)->enabled(Module::Discord)) {
+            return;
+        }
+
         if (! method_exists($notification, 'toDiscord')) {
             return;
         }

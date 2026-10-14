@@ -30,6 +30,8 @@ use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
 use App\Modules\Voice\Support\VoiceJoinLink;
 use App\Modules\Voice\Support\VoiceOccupancy;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -135,7 +137,7 @@ class TournamentPageController extends Controller
             'serverLabels' => trans('gameservers.match_page'),
             'serverLinkStatusLabels' => trans('gameservers.server_link_status'),
             'liveScoreLabels' => trans('gameservers.live_score'),
-            'voiceLabels' => trans('voice.join'),
+            'voiceLabels' => app(Modules::class)->enabled(Module::Voice) ? trans('voice.join') : [],
         ]);
     }
 
@@ -376,6 +378,10 @@ class TournamentPageController extends Controller
      */
     private function voiceLinksFor(GameMatch $match, TournamentEntry $myEntry): array
     {
+        if (! app(Modules::class)->enabled(Module::Voice)) {
+            return [];
+        }
+
         $voiceChannels = $match->voice_channels;
 
         if ($voiceChannels === null) {

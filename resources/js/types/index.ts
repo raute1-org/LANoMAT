@@ -22,3 +22,34 @@ export * from './tournaments';
 export * from './ui';
 export * from './voice';
 export * from './voting';
+
+export type ModuleKey =
+    | 'casting'
+    | 'catering'
+    | 'custom_servers'
+    | 'discord'
+    | 'events'
+    | 'files'
+    | 'friends'
+    | 'gallery'
+    | 'game_servers'
+    | 'games'
+    | 'hosts'
+    | 'identity'
+    | 'infoscreen'
+    | 'jukebox'
+    | 'lancache'
+    | 'lfg'
+    | 'news'
+    | 'notifications'
+    | 'preflight'
+    | 'presence'
+    | 'recap'
+    | 'registration'
+    | 'schedule'
+    | 'seating'
+    | 'stats'
+    | 'teams'
+    | 'tournaments'
+    | 'voice'
+    | 'voting';

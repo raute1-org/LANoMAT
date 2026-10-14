@@ -27,3 +27,5 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 // Discord voice occupancy (`DiscordVoicePresenceUpdated` -> 'voice.updated')
 // broadcasts on the public `discord-voice` channel — no authorization
 // callback (payload is empty, consumers pull VoicePresenceProjection).
+
+// Public event/tournament/discord-voice channels carry no auth callback; nothing to gate.

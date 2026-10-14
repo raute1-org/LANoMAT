@@ -32,7 +32,13 @@ use App\Modules\Teams\Http\TeamController;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Voice\Http\VoiceSetupController;
 use App\Modules\Voting\Http\PollPageController;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Support\Facades\Route;
+
+$modules = app(Modules::class);
+
+// ---- core (always) ----
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
 Route::get('/events', [EventPageController::class, 'archive'])->name('events.index');
@@ -42,11 +48,6 @@ Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.s
 Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
 Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
 
-// Public cross-event leaderboard — aggregates completed matches/tournament
-// wins across every event (see LeaderboardQuery), so unlike the rest of the
-// participant UI it is not scoped under /events/{event:slug}.
-Route::get('/stats/leaderboard', [StatsPageController::class, 'leaderboard'])->name('stats.leaderboard');
-
 // Public "who sits where" seat map — readable without authentication;
 // claiming/releasing a seat requires auth + an active registration (see below).
 Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');
@@ -55,84 +56,6 @@ Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])-
 // enrolling/checking in/reporting requires auth (see below).
 Route::get('/events/{event:slug}/tournaments', [TournamentPageController::class, 'index'])->name('tournaments.index');
 Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'])->name('tournaments.show');
-
-// Public programme/schedule page — same "public like seating/tournaments,
-// no auth required" visibility rule as the rest of the participant UI.
-Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
-Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics'])->name('schedule.ics');
-
-// Public catering page — same "public like seating/tournaments/schedule, no
-// auth required" visibility rule; placing/cancelling an item requires auth
-// (see below).
-Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
-
-// Public polls pages — same "public like seating/tournaments/schedule/catering,
-// no auth required" visibility rule; casting a vote requires auth (see below).
-Route::get('/events/{event:slug}/polls', [PollPageController::class, 'index'])->name('polls.index');
-Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.show');
-
-// Public LFG board — same "public like seating/tournaments/schedule/catering/
-// polls, no auth required" visibility rule; creating/deleting a post requires
-// auth (see below).
-Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
-
-// Public server list — same "public like seating/tournaments/schedule/
-// catering/polls/lfg, no auth required" visibility rule; lists the event's
-// Ready game servers only (see ServerListProjection).
-Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
-
-// Public LAN file-sharing list — same "public like seating/tournaments/
-// schedule/catering/polls/lfg, no auth required" visibility rule; shows only
-// approved files (+ the viewer's own pending ones); uploading/deleting
-// requires auth (see below). Files are approved by a helper/orga (Task 6).
-Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->name('files.index');
-
-// Public presence board — same "public like seating/tournaments/schedule/
-// catering/polls/lfg/servers/files, no auth required" visibility rule; who is
-// checked in, where, and what's currently live (see PresenceProjection).
-Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'show'])->name('presence.show');
-
-// Public post-LAN recap — same "no auth required" visibility rule as the
-// rest of the participant UI, further gated to Finished/Archived events
-// only (see RecapPageController); this is the between-LANs page anyone can
-// revisit after the event wraps.
-Route::get('/events/{event:slug}/recap', [RecapPageController::class, 'show'])->name('recap.show');
-
-// Public beamer screen — same "public like seating/tournaments/schedule/
-// catering/polls/lfg, no auth required" visibility rule; renders with no
-// app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
-Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
-
-// Public gallery photo/thumbnail serving for the beamer slideshow (Task 7)
-// and the Task-9 public recap: unlike `gallery.photos.show`/`thumb` below
-// (auth-gated, re-checks EventPhotoPolicy so an uploader can see their own
-// pending photo), these routes serve ONLY photos that are already both
-// Approved and belong to a publicly-visible event — that check is itself
-// the gate (no auth middleware, no policy, see PhotoController::publicShow()).
-Route::get('/gallery/public/photos/{eventPhoto}', [PhotoController::class, 'publicShow'])->name('gallery.photos.public.show');
-Route::get('/gallery/public/photos/{eventPhoto}/thumb', [PhotoController::class, 'publicThumb'])->name('gallery.photos.public.thumb');
-
-// Public jukebox board — same "public like seating/tournaments/schedule/
-// catering/polls/lfg/servers/files/presence, no auth required" visibility
-// rule; queueing/voting/skipping/removing all require auth (see below) and
-// are further gated by JukeboxPolicy inside each action.
-Route::get('/events/{event:slug}/jukebox', [JukeboxController::class, 'index'])->name('jukebox.index');
-
-// Public, no-auth, transparent-background OBS overlay — reuses the already-
-// public bracket data (BracketMatchProjection, same as the tournament show
-// page) rendered render-only; gated by the owning event's public visibility,
-// same rule as every other public participant surface above.
-Route::get('/overlay/tournament/{tournament}/bracket', [OverlayController::class, 'bracket'])->name('overlay.bracket');
-
-// Public, no-auth, transparent-background per-match scoreboard OBS overlay —
-// same public-visibility gate as the bracket overlay above, seeded from the
-// match's persisted score and then updated live over `tournament.{id}`'s
-// `.match.score_updated` broadcast (see OverlayController::scoreboard()).
-Route::get('/overlay/match/{match}/scoreboard', [OverlayController::class, 'scoreboard'])->name('overlay.scoreboard');
-
-// Public Discord voice occupancy read endpoint — maps current voice channels
-// and attendee counts, projection is the privacy boundary (No-PII, mapped names only).
-Route::get('discord/voice', VoicePresenceController::class)->name('discord.voice');
 
 // Local-only demo login (guarded to 404 unless APP_ENV=local — see the
 // controller). Lets people explore a local clone without a Discord app.
@@ -145,16 +68,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
     Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
 
-    Route::post('/food-orders/{foodOrder}/items', [CateringController::class, 'store'])->name('catering.items.store');
-    Route::delete('/food-order-items/{foodOrderItem}', [CateringController::class, 'destroy'])->name('catering.items.destroy');
-
     Route::post('/events/{event:slug}/seating/{seat}', [SeatingController::class, 'claim'])->name('events.seating.claim');
     Route::delete('/events/{event:slug}/seating', [SeatingController::class, 'release'])->name('events.seating.release');
 
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
-
-    Route::post('/schedule/{item}/favorite', [ScheduleController::class, 'favorite'])->name('schedule.favorite');
-    Route::delete('/schedule/{item}/favorite', [ScheduleController::class, 'unfavorite'])->name('schedule.unfavorite');
 
     Route::post('/tournaments/{tournament}/enroll', [TournamentPageController::class, 'enroll'])->name('tournaments.enroll');
     Route::post('/tournaments/{tournament}/checkin', [TournamentPageController::class, 'checkin'])->name('tournaments.checkin');
@@ -163,97 +80,17 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/matches/{match}/dispute', [TournamentPageController::class, 'dispute'])->name('matches.dispute');
     Route::post('/matches/{match}/go', [TournamentPageController::class, 'go'])->name('matches.go');
 
-    Route::post('/polls/{poll}/vote', [PollPageController::class, 'vote'])->name('polls.vote');
-
-    Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
-    Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
-
-    Route::get('/events/{event:slug}/jukebox/search', [JukeboxController::class, 'search'])->name('jukebox.search');
-    Route::post('/events/{event:slug}/jukebox', [JukeboxController::class, 'add'])->name('jukebox.add');
-    Route::post('/events/{event:slug}/jukebox/skip', [JukeboxController::class, 'skip'])->name('jukebox.skip');
-    Route::post('/jukebox/{jukeboxItem}/vote', [JukeboxController::class, 'vote'])->name('jukebox.vote');
-    Route::post('/jukebox/{jukeboxItem}/skip-vote', [JukeboxController::class, 'skipVote'])->name('jukebox.skip-vote');
-    Route::delete('/jukebox/{jukeboxItem}', [JukeboxController::class, 'remove'])->name('jukebox.remove');
-
-    Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
-    Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
-    Route::delete('/files/{sharedFile}', [FilePageController::class, 'destroy'])->name('files.destroy');
-
-    // Gallery photo/thumbnail serving — deliberately auth-gated (approved
-    // photos to any authenticated participant, pending ones only to the
-    // owner/orga via EventPhotoPolicy::view()). The public recap uses its
-    // own narrow public-highlights path, not these routes.
-    Route::get('/gallery/photos/{eventPhoto}', [PhotoController::class, 'show'])->name('gallery.photos.show');
-    Route::get('/gallery/photos/{eventPhoto}/thumb', [PhotoController::class, 'thumb'])->name('gallery.photos.thumb');
-
-    // The participant gallery page itself is also auth-gated (unlike the
-    // rest of the "public like seating/tournaments/..." participant UI)
-    // because it renders <img> tags pointing at the two routes above; a
-    // public index would show guests broken/401 images. See
-    // GalleryPageController's class docblock.
-    Route::get('/events/{event:slug}/gallery', [GalleryPageController::class, 'index'])->name('gallery.index');
-    Route::post('/events/{event:slug}/gallery', [GalleryPageController::class, 'store'])->name('gallery.store');
-    Route::delete('/gallery/photos/{eventPhoto}', [GalleryPageController::class, 'destroy'])->name('gallery.destroy');
-    Route::get('/events/{event:slug}/gallery/zip', [GalleryPageController::class, 'downloadZip'])->name('gallery.zip');
-
-    // Participant "Voice einrichten" page (roadmap 8.7): per-active-provider
-    // connect data + downloadable client installers. Not event-scoped —
-    // voice providers are an installation-wide concern, not per-event.
-    Route::get('/voice/setup', [VoiceSetupController::class, 'index'])->name('voice.setup');
-    Route::get('/voice/installers/{installer}/download', [VoiceSetupController::class, 'download'])->name('voice.installers.download');
-
-    Route::get('/friends', [FriendsController::class, 'index'])->name('friends.index');
-    Route::post('/friends/request', [FriendsController::class, 'request'])->name('friends.request');
-    Route::patch('/friends/{friendship}/respond', [FriendsController::class, 'respond'])->name('friends.respond');
-    Route::delete('/friends/{friendship}/cancel', [FriendsController::class, 'cancel'])->name('friends.cancel');
-    Route::delete('/friends/{user}', [FriendsController::class, 'remove'])->name('friends.remove');
-    Route::post('/friends/{user}/block', [FriendsController::class, 'block'])->name('friends.block');
-    Route::delete('/friends/{user}/block', [FriendsController::class, 'unblock'])->name('friends.unblock');
-
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
     Route::patch('/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
     Route::post('/teams/{team}/join', [TeamController::class, 'join'])->name('teams.join');
     Route::post('/teams/{team}/requests/{teamRequest}', [TeamController::class, 'respond'])->name('teams.respond');
     Route::delete('/teams/{team}/leave', [TeamController::class, 'leave'])->name('teams.leave');
-
-    // Task 13: the "Orga rufen" participant button — no ticket system, just a
-    // ping to everyone with an orga-or-above role, carrying the caller's seat
-    // + up to three optional words. Throttled since there is no other rate
-    // limit on this action and it fans out to every orga/helper.
-    Route::post('/events/{event:slug}/ping-orga', [OrgaPingController::class, 'store'])
-        ->middleware('throttle:5,1')
-        ->name('events.ping-orga');
 });
 
 Route::middleware(['auth', 'role:helper'])->group(function () {
     Route::get('/orga/events/{event:slug}/checkin', [CheckInController::class, 'show'])->name('orga.checkin');
     Route::post('/orga/events/{event:slug}/checkin', [CheckInController::class, 'store'])->name('orga.checkin.store');
-
-    // Helper "remote": a one-click "show now" push of a configured scene to
-    // the beamer (see ShowSceneNow), reusing the same Action as the
-    // Filament resource's show_now row action so the two surfaces never
-    // drift on behaviour.
-    Route::get('/screen/{event:slug}/control', [ScreenControlController::class, 'index'])->name('screen.control');
-
-    // One-click triggers (Task 10): notify the bell (Discord DM mirrors per
-    // preference), then, for the food trigger, also push the beamer.
-    Route::post('/screen/{event:slug}/control/triggers/food-ready/{foodOrder}', [ScreenControlController::class, 'foodReady'])->name('screen.control.trigger.food-ready');
-    Route::post('/screen/{event:slug}/control/triggers/checkin-open', [ScreenControlController::class, 'checkinOpen'])->name('screen.control.trigger.checkin-open');
-
-    // Task 11: the tombola "draw next prize" trigger, one draw per request
-    // (the control page lists remaining undrawn prizes, one button each).
-    Route::post('/screen/{event:slug}/control/tombola/{tombolaPrize}/draw', [ScreenControlController::class, 'tombolaDraw'])->name('screen.control.tombola.draw');
-
-    // Task 12: the operations status tile's "set status" control — a helper
-    // flags one component's level, popping an outage reassurance onto the
-    // beamer (or clearing it on recovery to Ok). Registered before the
-    // generic `{scene}` show-now route below: both are single extra path
-    // segments under `/control/`, so `status` would otherwise be swallowed
-    // as a (non-existent) scene id.
-    Route::post('/screen/{event:slug}/control/status', [ScreenControlController::class, 'setStatus'])->name('screen.control.set-status');
-
-    Route::post('/screen/{event:slug}/control/{scene}', [ScreenControlController::class, 'show'])->name('screen.control.show');
 });
 
 Route::middleware(['guest'])->group(function () {
@@ -265,28 +102,253 @@ Route::middleware(['guest'])->group(function () {
 // hitting an already-authenticated session).
 Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
 
-// Discord HTTP Interactions endpoint. No routes/api.php exists in this project
-// (see bootstrap/app.php), so this lives here like the rest of the app's routes;
-// it is exempted from CSRF and from session/cookie middleware concerns via its
-// own signature verification instead (see bootstrap/app.php CSRF exception).
-Route::post('api/discord/interactions', InteractionsController::class)
-    ->middleware('discord.signature')
-    ->name('discord.interactions');
+// ---- optional modules (one block each; 404 when the module is off) ----
 
-// Internal ingress for gateway events forwarded by the discord.js sidecar
-// (docker/discord-gateway). Authenticated by a shared secret over the
-// compose network (see VerifyGatewaySecret), not by Discord's Ed25519
-// signature — the sidecar, not Discord, is the caller here.
-Route::post('internal/discord/gateway', GatewayIngressController::class)
-    ->middleware('discord.gateway')
-    ->name('discord.gateway.ingress');
+if ($modules->routable(Module::Stats)) {
+    // Public cross-event leaderboard — aggregates completed matches/tournament
+    // wins across every event (see LeaderboardQuery), so unlike the rest of the
+    // participant UI it is not scoped under /events/{event:slug}.
+    Route::get('/stats/leaderboard', [StatsPageController::class, 'leaderboard'])->name('stats.leaderboard');
+}
 
-// CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs
-// round/score events here, authenticated by its own per-ServerLink bearer
-// token (see MatchTelemetryController) rather than a Laravel session — like
-// the Discord interactions endpoint above, it is exempted from CSRF in
-// bootstrap/app.php instead of relying on session/cookie state.
-Route::post('api/telemetry/cs2/{serverLink}', MatchTelemetryController::class)
-    ->name('telemetry.cs2');
+if ($modules->routable(Module::Schedule)) {
+    // Public programme/schedule page — same "public like seating/tournaments,
+    // no auth required" visibility rule as the rest of the participant UI.
+    Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
+    Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics'])->name('schedule.ics');
+
+    Route::middleware(['auth'])->group(function () {
+        Route::post('/schedule/{item}/favorite', [ScheduleController::class, 'favorite'])->name('schedule.favorite');
+        Route::delete('/schedule/{item}/favorite', [ScheduleController::class, 'unfavorite'])->name('schedule.unfavorite');
+    });
+}
+
+if ($modules->routable(Module::Catering)) {
+    // Public catering page — same "public like seating/tournaments/schedule, no
+    // auth required" visibility rule; placing/cancelling an item requires auth
+    // (see below).
+    Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
+
+    Route::middleware(['auth'])->group(function () {
+        Route::post('/food-orders/{foodOrder}/items', [CateringController::class, 'store'])->name('catering.items.store');
+        Route::delete('/food-order-items/{foodOrderItem}', [CateringController::class, 'destroy'])->name('catering.items.destroy');
+    });
+}
+
+if ($modules->routable(Module::Voting)) {
+    // Public polls pages — same "public like seating/tournaments/schedule/catering,
+    // no auth required" visibility rule; casting a vote requires auth (see below).
+    Route::get('/events/{event:slug}/polls', [PollPageController::class, 'index'])->name('polls.index');
+    Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.show');
+
+    Route::middleware(['auth'])->group(function () {
+        Route::post('/polls/{poll}/vote', [PollPageController::class, 'vote'])->name('polls.vote');
+    });
+}
+
+if ($modules->routable(Module::Lfg)) {
+    // Public LFG board — same "public like seating/tournaments/schedule/catering/
+    // polls, no auth required" visibility rule; creating/deleting a post requires
+    // auth (see below).
+    Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
+
+    Route::middleware(['auth'])->group(function () {
+        Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
+        Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
+    });
+}
+
+if ($modules->routable(Module::GameServers)) {
+    // Public server list — same "public like seating/tournaments/schedule/
+    // catering/polls/lfg, no auth required" visibility rule; lists the event's
+    // Ready game servers only (see ServerListProjection).
+    Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+
+    // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs
+    // round/score events here, authenticated by its own per-ServerLink bearer
+    // token (see MatchTelemetryController) rather than a Laravel session — like
+    // the Discord interactions endpoint, it is exempted from CSRF in
+    // bootstrap/app.php instead of relying on session/cookie state.
+    Route::post('api/telemetry/cs2/{serverLink}', MatchTelemetryController::class)
+        ->name('telemetry.cs2');
+}
+
+if ($modules->routable(Module::Files)) {
+    // Public LAN file-sharing list — same "public like seating/tournaments/
+    // schedule/catering/polls/lfg, no auth required" visibility rule; shows only
+    // approved files (+ the viewer's own pending ones); uploading/deleting
+    // requires auth (see below). Files are approved by a helper/orga (Task 6).
+    Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->name('files.index');
+
+    Route::middleware(['auth'])->group(function () {
+        Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
+        Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
+        Route::delete('/files/{sharedFile}', [FilePageController::class, 'destroy'])->name('files.destroy');
+    });
+}
+
+if ($modules->routable(Module::Presence)) {
+    // Public presence board — same "public like seating/tournaments/schedule/
+    // catering/polls/lfg/servers/files, no auth required" visibility rule; who is
+    // checked in, where, and what's currently live (see PresenceProjection).
+    Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'show'])->name('presence.show');
+}
+
+if ($modules->routable(Module::Recap)) {
+    // Public post-LAN recap — same "no auth required" visibility rule as the
+    // rest of the participant UI, further gated to Finished/Archived events
+    // only (see RecapPageController); this is the between-LANs page anyone can
+    // revisit after the event wraps.
+    Route::get('/events/{event:slug}/recap', [RecapPageController::class, 'show'])->name('recap.show');
+}
+
+if ($modules->routable(Module::Infoscreen)) {
+    // Public beamer screen — same "public like seating/tournaments/schedule/
+    // catering/polls/lfg, no auth required" visibility rule; renders with no
+    // app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
+    Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
+
+    Route::middleware(['auth'])->group(function () {
+        // Task 13: the "Orga rufen" participant button — no ticket system, just a
+        // ping to everyone with an orga-or-above role, carrying the caller's seat
+        // + up to three optional words. Throttled since there is no other rate
+        // limit on this action and it fans out to every orga/helper.
+        Route::post('/events/{event:slug}/ping-orga', [OrgaPingController::class, 'store'])
+            ->middleware('throttle:5,1')
+            ->name('events.ping-orga');
+    });
+
+    Route::middleware(['auth', 'role:helper'])->group(function () {
+        // Helper "remote": a one-click "show now" push of a configured scene to
+        // the beamer (see ShowSceneNow), reusing the same Action as the
+        // Filament resource's show_now row action so the two surfaces never
+        // drift on behaviour.
+        Route::get('/screen/{event:slug}/control', [ScreenControlController::class, 'index'])->name('screen.control');
+
+        // One-click triggers (Task 10): notify the bell (Discord DM mirrors per
+        // preference), then, for the food trigger, also push the beamer.
+        Route::post('/screen/{event:slug}/control/triggers/food-ready/{foodOrder}', [ScreenControlController::class, 'foodReady'])->name('screen.control.trigger.food-ready');
+        Route::post('/screen/{event:slug}/control/triggers/checkin-open', [ScreenControlController::class, 'checkinOpen'])->name('screen.control.trigger.checkin-open');
+
+        // Task 11: the tombola "draw next prize" trigger, one draw per request
+        // (the control page lists remaining undrawn prizes, one button each).
+        Route::post('/screen/{event:slug}/control/tombola/{tombolaPrize}/draw', [ScreenControlController::class, 'tombolaDraw'])->name('screen.control.tombola.draw');
+
+        // Task 12: the operations status tile's "set status" control — a helper
+        // flags one component's level, popping an outage reassurance onto the
+        // beamer (or clearing it on recovery to Ok). Registered before the
+        // generic `{scene}` show-now route below: both are single extra path
+        // segments under `/control/`, so `status` would otherwise be swallowed
+        // as a (non-existent) scene id.
+        Route::post('/screen/{event:slug}/control/status', [ScreenControlController::class, 'setStatus'])->name('screen.control.set-status');
+
+        Route::post('/screen/{event:slug}/control/{scene}', [ScreenControlController::class, 'show'])->name('screen.control.show');
+    });
+}
+
+if ($modules->routable(Module::Gallery)) {
+    // Public gallery photo/thumbnail serving for the beamer slideshow (Task 7)
+    // and the Task-9 public recap: unlike `gallery.photos.show`/`thumb` below
+    // (auth-gated, re-checks EventPhotoPolicy so an uploader can see their own
+    // pending photo), these routes serve ONLY photos that are already both
+    // Approved and belong to a publicly-visible event — that check is itself
+    // the gate (no auth middleware, no policy, see PhotoController::publicShow()).
+    Route::get('/gallery/public/photos/{eventPhoto}', [PhotoController::class, 'publicShow'])->name('gallery.photos.public.show');
+    Route::get('/gallery/public/photos/{eventPhoto}/thumb', [PhotoController::class, 'publicThumb'])->name('gallery.photos.public.thumb');
+
+    Route::middleware(['auth'])->group(function () {
+        // Gallery photo/thumbnail serving — deliberately auth-gated (approved
+        // photos to any authenticated participant, pending ones only to the
+        // owner/orga via EventPhotoPolicy::view()). The public recap uses its
+        // own narrow public-highlights path, not these routes.
+        Route::get('/gallery/photos/{eventPhoto}', [PhotoController::class, 'show'])->name('gallery.photos.show');
+        Route::get('/gallery/photos/{eventPhoto}/thumb', [PhotoController::class, 'thumb'])->name('gallery.photos.thumb');
+
+        // The participant gallery page itself is also auth-gated (unlike the
+        // rest of the "public like seating/tournaments/..." participant UI)
+        // because it renders <img> tags pointing at the two routes above; a
+        // public index would show guests broken/401 images. See
+        // GalleryPageController's class docblock.
+        Route::get('/events/{event:slug}/gallery', [GalleryPageController::class, 'index'])->name('gallery.index');
+        Route::post('/events/{event:slug}/gallery', [GalleryPageController::class, 'store'])->name('gallery.store');
+        Route::delete('/gallery/photos/{eventPhoto}', [GalleryPageController::class, 'destroy'])->name('gallery.destroy');
+        Route::get('/events/{event:slug}/gallery/zip', [GalleryPageController::class, 'downloadZip'])->name('gallery.zip');
+    });
+}
+
+if ($modules->routable(Module::Jukebox)) {
+    // Public jukebox board — same "public like seating/tournaments/schedule/
+    // catering/polls/lfg/servers/files/presence, no auth required" visibility
+    // rule; queueing/voting/skipping/removing all require auth (see below) and
+    // are further gated by JukeboxPolicy inside each action.
+    Route::get('/events/{event:slug}/jukebox', [JukeboxController::class, 'index'])->name('jukebox.index');
+
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/jukebox/search', [JukeboxController::class, 'search'])->name('jukebox.search');
+        Route::post('/events/{event:slug}/jukebox', [JukeboxController::class, 'add'])->name('jukebox.add');
+        Route::post('/events/{event:slug}/jukebox/skip', [JukeboxController::class, 'skip'])->name('jukebox.skip');
+        Route::post('/jukebox/{jukeboxItem}/vote', [JukeboxController::class, 'vote'])->name('jukebox.vote');
+        Route::post('/jukebox/{jukeboxItem}/skip-vote', [JukeboxController::class, 'skipVote'])->name('jukebox.skip-vote');
+        Route::delete('/jukebox/{jukeboxItem}', [JukeboxController::class, 'remove'])->name('jukebox.remove');
+    });
+}
+
+if ($modules->routable(Module::Casting)) {
+    // Public, no-auth, transparent-background OBS overlay — reuses the already-
+    // public bracket data (BracketMatchProjection, same as the tournament show
+    // page) rendered render-only; gated by the owning event's public visibility,
+    // same rule as every other public participant surface above.
+    Route::get('/overlay/tournament/{tournament}/bracket', [OverlayController::class, 'bracket'])->name('overlay.bracket');
+
+    // Public, no-auth, transparent-background per-match scoreboard OBS overlay —
+    // same public-visibility gate as the bracket overlay above, seeded from the
+    // match's persisted score and then updated live over `tournament.{id}`'s
+    // `.match.score_updated` broadcast (see OverlayController::scoreboard()).
+    Route::get('/overlay/match/{match}/scoreboard', [OverlayController::class, 'scoreboard'])->name('overlay.scoreboard');
+}
+
+if ($modules->routable(Module::Voice)) {
+    Route::middleware(['auth'])->group(function () {
+        // Participant "Voice einrichten" page (roadmap 8.7): per-active-provider
+        // connect data + downloadable client installers. Not event-scoped —
+        // voice providers are an installation-wide concern, not per-event.
+        Route::get('/voice/setup', [VoiceSetupController::class, 'index'])->name('voice.setup');
+        Route::get('/voice/installers/{installer}/download', [VoiceSetupController::class, 'download'])->name('voice.installers.download');
+    });
+}
+
+if ($modules->routable(Module::Friends)) {
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/friends', [FriendsController::class, 'index'])->name('friends.index');
+        Route::post('/friends/request', [FriendsController::class, 'request'])->name('friends.request');
+        Route::patch('/friends/{friendship}/respond', [FriendsController::class, 'respond'])->name('friends.respond');
+        Route::delete('/friends/{friendship}/cancel', [FriendsController::class, 'cancel'])->name('friends.cancel');
+        Route::delete('/friends/{user}', [FriendsController::class, 'remove'])->name('friends.remove');
+        Route::post('/friends/{user}/block', [FriendsController::class, 'block'])->name('friends.block');
+        Route::delete('/friends/{user}/block', [FriendsController::class, 'unblock'])->name('friends.unblock');
+    });
+}
+
+if ($modules->routable(Module::Discord)) {
+    // Public Discord voice occupancy read endpoint — maps current voice channels
+    // and attendee counts, projection is the privacy boundary (No-PII, mapped names only).
+    Route::get('discord/voice', VoicePresenceController::class)->name('discord.voice');
+
+    // Discord HTTP Interactions endpoint. No routes/api.php exists in this project
+    // (see bootstrap/app.php), so this lives here like the rest of the app's routes;
+    // it is exempted from CSRF and from session/cookie middleware concerns via its
+    // own signature verification instead (see bootstrap/app.php CSRF exception).
+    Route::post('api/discord/interactions', InteractionsController::class)
+        ->middleware('discord.signature')
+        ->name('discord.interactions');
+
+    // Internal ingress for gateway events forwarded by the discord.js sidecar
+    // (docker/discord-gateway). Authenticated by a shared secret over the
+    // compose network (see VerifyGatewaySecret), not by Discord's Ed25519
+    // signature — the sidecar, not Discord, is the caller here.
+    Route::post('internal/discord/gateway', GatewayIngressController::class)
+        ->middleware('discord.gateway')
+        ->name('discord.gateway.ingress');
+}
 
 require __DIR__.'/settings.php';

@@ -707,6 +707,10 @@ M12 **FERTIG**: Galerie/Recap/News (#15), Countdown-/Hype-Modus (#16), MVP-des-A
 - **Notabene (Vue-Core-Bug):** SVG-Geometrie warf `Failed setting prop width/height/transform … has only a getter`-Warnungen — ein **Vue-3.5.39-Hydration-Bug** (seit M2 latent, durch den Restyle sichtbar), heute upstream in **3.5.40** gefixt (vuejs/core#15082); Lösung = `vue`-Bump, Konsole verifiziert sauber.
 - **Offene Follow-ups (nicht blockierend):** verwaiste `NavFooter.vue`/`AppHeader.vue` (tot, entfernbar); Light-Mode + `/admin` + auth-pflichtige Seiten gate-/diff- statt screenshot-verifiziert (Dark + öffentliche Seiten live verifiziert); `NavMain`-Label „Platform"; „Mine"-Badge/Show-not-started rein per Code geprüft.
 
+### Erkenntnisse Modul-Toggles (2026-10-14)
+
+- Optionale Module hängen hinter `config/modules.php` (`MODULES_PROFILE=core|full`, `MODULE_<KEY>`); Fallstrick: die Frontend-Route-Helfer werden von Wayfinder aus *registrierten* Routen generiert, daher muss `Modules::routable()` während `wayfinder:generate` für alle Module `true` liefern (nie die Generierung gaten, nur das Ausliefern); die Isolations-Matrix (Core + je 1 Modul + `requires`-Closure) lief 20/20 grün ohne Zusatz-Guards. Details: Spec `2026-10-14-module-toggles-design.md`.
+
 ---
 
 ## Arbeitsweise

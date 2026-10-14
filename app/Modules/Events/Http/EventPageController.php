@@ -10,6 +10,8 @@ use App\Modules\News\Support\NewsQuery;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Voting\Enums\PollStatus;
 use App\Modules\Voting\Models\Poll;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -55,7 +57,8 @@ class EventPageController
             'event' => $this->summary($event),
             'labels' => trans('events.page'),
             'statusLabels' => trans('events.status'),
-            'news' => app(NewsQuery::class)->published(3)
+            // Kept as [] (not absent) when News is off: Event/Show reads news.length unconditionally.
+            'news' => ! app(Modules::class)->enabled(Module::News) ? [] : app(NewsQuery::class)->published(3)
                 ->map(fn (NewsPost $post) => [
                     'id' => $post->id,
                     'title' => $post->title,
@@ -102,7 +105,7 @@ class EventPageController
             return null;
         }
 
-        $poll = Poll::query()
+        $poll = ! app(Modules::class)->enabled(Module::Voting) ? null : Poll::query()
             ->where('event_id', $event->id)
             ->where('status', PollStatus::Open->value)
             // Mirrors Poll::isOpenNow(): a poll past its closes_at is not

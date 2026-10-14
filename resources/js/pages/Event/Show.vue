@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
+import { useModules } from '@/composables/useModules';
 import {
     index as eventsIndex,
     register as eventsRegister,
@@ -21,6 +22,7 @@ const props = defineProps<{
     news: NewsPostDto[];
 }>();
 
+const { has } = useModules();
 const page = usePage();
 const isAuthenticated = computed(() => page.props.auth.user !== null);
 const isLive = computed(() => props.event.status === 'live');
@@ -174,17 +176,21 @@ function pad(value: number): string {
                     labels.login_to_register
                 }}</Link>
             </Button>
-            <Button as-child variant="outline">
+            <Button v-if="has('presence')" as-child variant="outline">
                 <Link :href="presenceShow.url(event.slug)">{{
                     labels.to_presence
                 }}</Link>
             </Button>
-            <Button as-child variant="outline">
+            <Button v-if="has('jukebox')" as-child variant="outline">
                 <Link :href="jukeboxIndex.url(event.slug)">{{
                     labels.to_jukebox
                 }}</Link>
             </Button>
-            <Button v-if="isAuthenticated" as-child variant="outline">
+            <Button
+                v-if="has('gallery') && isAuthenticated"
+                as-child
+                variant="outline"
+            >
                 <Link :href="galleryIndex.url(event.slug)">{{
                     labels.to_gallery
                 }}</Link>
@@ -272,7 +278,7 @@ function pad(value: number): string {
                         }}</span>
                     </dd>
                 </div>
-                <div v-if="event.hype.activePoll">
+                <div v-if="has('voting') && event.hype.activePoll">
                     <dt class="text-sm text-muted-foreground">
                         {{ labels.active_poll_teaser }}
                     </dt>
@@ -299,7 +305,7 @@ function pad(value: number): string {
             </p>
         </section>
 
-        <section v-if="news.length > 0" class="mt-14">
+        <section v-if="has('news') && news.length > 0" class="mt-14">
             <h2 class="text-lg font-semibold tracking-tight text-foreground">
                 {{ labels.news_heading }}
             </h2>

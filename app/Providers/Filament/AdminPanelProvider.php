@@ -4,6 +4,8 @@ namespace App\Providers\Filament;
 
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -24,7 +26,7 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $panel = $panel
             ->default()
             ->id('admin')
             ->path('admin')
@@ -39,71 +41,32 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => '#a85a00',
             ])
-            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
-            ->discoverResources(
-                in: app_path('Modules/Events/Filament/Resources'),
-                for: 'App\Modules\Events\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Seating/Filament/Resources'),
-                for: 'App\Modules\Seating\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Schedule/Filament/Resources'),
-                for: 'App\Modules\Schedule\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Catering/Filament/Resources'),
-                for: 'App\Modules\Catering\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Teams/Filament/Resources'),
-                for: 'App\Modules\Teams\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Games/Filament/Resources'),
-                for: 'App\Modules\Games\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Tournaments/Filament/Resources'),
-                for: 'App\Modules\Tournaments\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Voting/Filament/Resources'),
-                for: 'App\Modules\Voting\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Infoscreen/Filament/Resources'),
-                for: 'App\Modules\Infoscreen\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/GameServers/Filament/Resources'),
-                for: 'App\Modules\GameServers\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Hosts/Filament/Resources'),
-                for: 'App\Modules\Hosts\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/CustomServers/Filament/Resources'),
-                for: 'App\Modules\CustomServers\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Files/Filament/Resources'),
-                for: 'App\Modules\Files\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Voice/Filament/Resources'),
-                for: 'App\Modules\Voice\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/Gallery/Filament/Resources'),
-                for: 'App\Modules\Gallery\Filament\Resources',
-            )
-            ->discoverResources(
-                in: app_path('Modules/News/Filament/Resources'),
-                for: 'App\Modules\News\Filament\Resources',
-            )
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources');
+
+        $modules = app(Modules::class);
+
+        // Filament breaks equal navigationSort ties by registration order, so keep the
+        // pre-toggle order; any other enabled module with resources is appended.
+        $legacyOrder = [
+            Module::Events, Module::Seating, Module::Schedule, Module::Catering, Module::Teams, Module::Games,
+            Module::Tournaments, Module::Voting, Module::Infoscreen, Module::GameServers, Module::Hosts,
+            Module::CustomServers, Module::Files, Module::Voice, Module::Gallery, Module::News,
+        ];
+        $ordered = [...$legacyOrder, ...array_filter(Module::cases(), fn (Module $m) => ! in_array($m, $legacyOrder, true))];
+
+        foreach ($ordered as $module) {
+            if (! $modules->enabled($module)) {
+                continue;
+            }
+
+            $dir = app_path("Modules/{$module->name}/Filament/Resources");
+
+            if (is_dir($dir)) {
+                $panel->discoverResources(in: $dir, for: "App\\Modules\\{$module->name}\\Filament\\Resources");
+            }
+        }
+
+        return $panel
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,

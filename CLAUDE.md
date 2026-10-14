@@ -58,6 +58,7 @@ php artisan lanomat:install --admin-discord-id=<id>   # migrate + promote/create
 ## Architecture rules
 
 - **Modular monolith:** `app/Modules/<Name>/{Models,Actions,Policies,Filament,Jobs,Events,Contracts}`; tests mirrored in `tests/{Feature,Unit}/<Name>/`. Modules communicate via Laravel events and explicit service interfaces — never reach into another module's tables.
+- **Optional modules sit behind `config/modules.php` toggles** (`MODULES_PROFILE=core|full`, `MODULE_<KEY>` overrides; `App\Support\Modules\{Module,Modules}`). An enabled module reaches an optional module only via an event, a contract with a null implementation, or a `Modules::enabled()` guard — the architecture ratchet enforces it. A new module needs an enum case, its gating in routes/Filament/scheduler/listeners/policies/probes, and a `requires()` entry if it genuinely calls another optional module.
 - **`Event` is the aggregate root** for everything organizational (tournaments, seating, catering, schedule, votes, LFG). Users, teams, and games are cross-event.
 - **Every authorization goes through a Policy.** Never trust client-supplied user IDs.
 - **Actions pattern:** one class per use case (`RegisterForEvent`, `SubmitMatchReport`); controllers and Filament resources stay thin.

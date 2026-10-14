@@ -37,6 +37,7 @@ Each host gets a wildcard DNS record under its own subdomain, e.g.
 
 - [ ] DNS: `A app.example.org`, `A ws.app.example.org` (+ wildcard if used) -> public IP.
 - [ ] Clone repo, create prod `.env`: `APP_ENV=production`, `APP_URL`, `APP_DOMAIN`, `ACME_EMAIL`, `DB_HOST=postgres`, `REDIS_HOST=redis`, `REVERB_*`, `DISCORD_*`, `DISCORD_GATEWAY_BRIDGE_SECRET` (random), `DISCORD_GATEWAY_INGRESS_URL`.
+- [ ] Pick the module profile in the prod `.env` (`MODULES_PROFILE=core|full`, `MODULE_<KEY>` overrides; see README "Project state"). Compose services you can skip when the module is off: `discord-gateway` (no Discord), the `mumble-admin` / `teamspeak-admin` sidecars (no Voice), the Pelican panel/Wings (no GameServers), the registry and LanCache host (no Hosts/Lancache/CustomServers), the Music Assistant integration (no Jukebox). Preflight only probes systems of enabled modules. After changing the profile, recreate the containers (`docker compose --profile prod up -d`); a plain restart does not re-read `env_file`, so queue/scheduler/reverb would keep the old profile (after `php artisan optimize`, run `optimize:clear` too).
 - [ ] `docker compose --profile prod up -d --build`; `php artisan lanomat:install --admin-discord-id=<id>`.
 - [ ] **Check:** `https://APP_DOMAIN` serves with a real Let's Encrypt cert; `/up` is 200; `queue`/`scheduler` show no `unhealthy`; Discord login works.
 - [ ] `php artisan lanomat:preflight` is green or lists only known not-yet-wired systems.

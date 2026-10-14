@@ -128,6 +128,14 @@ healthchecked on `/up`), `queue` (`php artisan queue:work`), `scheduler`
 run at the same time), and `traefik` (TLS-terminating reverse proxy in front of `app`/
 `reverb-prod`, see below). `docker compose up -d` (no flags) is unaffected by any of this.
 
+> **Upgrading an existing install:** the default profile is `core`. Set
+> `MODULES_PROFILE=full` in the prod `.env` before deploying, or every optional
+> module (Discord ingress/interactions, Jukebox, Gallery, ...) silently goes 404.
+> After changing the profile, recreate the containers
+> (`docker compose --profile prod up -d`): a plain `restart` does not re-read
+> `env_file`, so queue/scheduler/reverb would keep the old profile. If you ran
+> `php artisan optimize`, run `php artisan optimize:clear` first.
+
 1. **Configure `.env` for production:**
 
    ```
@@ -341,6 +349,19 @@ from 2 to 64 entrants (previously capped at n ∈ {2, 4, 6, 8, 16}), with the
 losers-bracket intake ordering computed rather than tabulated per size and
 byes rendered visibly in the bracket ("Freilos", or "Entfällt" for a match
 that can never be played).
+
+**Module toggles.** Everything except the nine core modules is optional and
+switched per deployment in `config/modules.php` (env: `MODULES_PROFILE` plus
+`MODULE_<KEY>=true|false` overrides). A disabled module registers no routes
+(404), Filament resources, scheduler entries, listeners or Preflight
+probes (optional module policies are not explicitly registered; only entry points and gate definitions are gated), and its navigation links disappear. Fresh installs default to `core`;
+set `MODULES_PROFILE=full` to keep the pre-toggle behaviour (the test suite runs
+under `full`). Inspect the result with `php artisan lanomat:modules`.
+
+| Profile | Modules |
+|---|---|
+| `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight |
+| `full` | all 29 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Recap, Schedule, Stats, Voice, Voting) |
 
 **What remains** is real-infra verification (working through the acceptance
 checklist against real Discord/Pelican/Mumble/TeamSpeak/Music-Assistant/hosts) and

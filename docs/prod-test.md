@@ -66,6 +66,8 @@ cp .env.example .env
 php artisan key:generate            # setzt APP_KEY
 ```
 
+> **Wichtig:** `.env.example` setzt `MODULES_PROFILE=core`. Für den Prod-Test mit Discord (Interactions, Gateway, Jukebox usw.) `MODULES_PROFILE=full` setzen (oder mindestens `MODULE_DISCORD=true`), sonst liefert z. B. `/api/discord/interactions` 404. Nach einer Profiländerung Container neu erzeugen (`docker compose --profile prod up -d`), ein bloßes `restart` liest `env_file` nicht neu.
+
 Dann in `.env` diese Werte setzen/anpassen (die DB-/Redis-Hosts zeigen im prod-Compose-Netz auf die Service-Namen `postgres`/`redis`):
 
 ```dotenv

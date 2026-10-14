@@ -25,6 +25,8 @@ use App\Modules\Seating\Support\SeatProjection;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -151,7 +153,7 @@ final class ScenePayload
     {
         $event = self::eventFor($scene);
 
-        if ($event === null) {
+        if ($event === null || ! app(Modules::class)->enabled(Module::Schedule)) {
             return ['items' => [], 'now' => null, 'next' => null];
         }
 
@@ -186,7 +188,7 @@ final class ScenePayload
     {
         $event = self::eventFor($scene);
 
-        if ($event === null) {
+        if ($event === null || ! app(Modules::class)->enabled(Module::GameServers)) {
             return ['servers' => []];
         }
 
@@ -208,7 +210,7 @@ final class ScenePayload
     {
         $event = self::eventFor($scene);
 
-        if ($event === null) {
+        if ($event === null || ! app(Modules::class)->enabled(Module::Presence)) {
             return ['checkedInCount' => 0, 'liveMatches' => [], 'freeSlots' => []];
         }
 
@@ -236,7 +238,7 @@ final class ScenePayload
     {
         $event = self::eventFor($scene);
 
-        if ($event === null) {
+        if ($event === null || ! app(Modules::class)->enabled(Module::Jukebox)) {
             return ['track' => null, 'upNext' => []];
         }
 
@@ -279,7 +281,7 @@ final class ScenePayload
     {
         $event = self::eventFor($scene);
 
-        if ($event === null) {
+        if ($event === null || ! app(Modules::class)->enabled(Module::Gallery)) {
             return ['photos' => []];
         }
 
@@ -313,7 +315,7 @@ final class ScenePayload
     {
         $event = self::eventFor($scene);
 
-        if ($event === null) {
+        if ($event === null || ! app(Modules::class)->enabled(Module::Recap)) {
             return [
                 'participantCount' => 0,
                 'tournamentCount' => 0,

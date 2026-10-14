@@ -1,3 +1,4 @@
+import type { ModuleKey } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { EventSummary } from '@/types/events';
 import type { NotificationItem } from '@/types/notifications';
@@ -22,6 +23,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             currentEvent: EventSummary | null;
+            modules: ModuleKey[];
             notificationLabels: Record<string, string>;
             unreadNotifications?: NotificationItem[];
             [key: string]: unknown;
