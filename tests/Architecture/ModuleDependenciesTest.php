@@ -9,10 +9,12 @@
  */
 
 /**
- * @return array<string, list<string>> module => sorted modules it references
+ * Module graph from PHP tokens, so comments/docblocks never count and both
+ * `use`/FQCN names and class-string literals ('App\\Modules\\X\\Y') are seen.
+ *
+ * @var Closure(): array<string, list<string>> $moduleDependencyGraph
  */
-function moduleDependencyGraph(): array
-{
+$moduleDependencyGraph = function (): array {
     $root = dirname(__DIR__, 2).'/app/Modules';
     $graph = [];
 
@@ -26,11 +28,13 @@ function moduleDependencyGraph(): array
                 continue;
             }
 
-            preg_match_all('/App\\\\Modules\\\\([A-Za-z]+)\\\\/', (string) file_get_contents($file->getPathname()), $matches);
+            foreach (token_get_all((string) file_get_contents($file->getPathname())) as $token) {
+                if (! is_array($token) || ! in_array($token[0], [T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_CONSTANT_ENCAPSED_STRING], true)) {
+                    continue;
+                }
 
-            foreach ($matches[1] as $other) {
-                if ($other !== $module) {
-                    $deps[$other] = true;
+                if (preg_match('/App\\\\{1,2}Modules\\\\{1,2}([A-Za-z]+)\\\\/', $token[1], $m) && $m[1] !== $module) {
+                    $deps[$m[1]] = true;
                 }
             }
         }
@@ -43,15 +47,16 @@ function moduleDependencyGraph(): array
     ksort($graph);
 
     return $graph;
-}
+};
 
 $baselinePath = __DIR__.'/module-dependencies.php';
 
-it('introduces no new cross-module dependencies', function () use ($baselinePath) {
-    $actual = moduleDependencyGraph();
+it('introduces no new cross-module dependencies', function () use ($baselinePath, $moduleDependencyGraph) {
+    $actual = $moduleDependencyGraph();
 
     if (getenv('LANOMAT_ARCH_DUMP') === '1') {
         file_put_contents($baselinePath, "<?php\n\nreturn ".var_export($actual, true).";\n");
+        $this->markTestSkipped('Baseline regenerated — review the diff, run pint, then re-run without LANOMAT_ARCH_DUMP.');
     }
 
     /** @var array<string, list<string>> $baseline */
@@ -75,14 +80,14 @@ it('introduces no new cross-module dependencies', function () use ($baselinePath
 
 arch('bracket engine domain is pure (no framework, no IO)')
     ->expect('App\Modules\Tournaments\Domain')
-    ->not->toUse(['Illuminate', 'App\Modules\Tournaments\Models', 'Livewire']);
+    ->toOnlyUse('App\Modules\Tournaments\Domain');
 
 it('declares only interfaces in module Contracts namespaces', function () {
     $offenders = [];
 
-    foreach (glob(dirname(__DIR__, 2).'/app/Modules/*/Contracts/*.php') ?: [] as $file) {
-        if (! preg_match('/^interface\s/m', (string) file_get_contents($file))) {
-            $offenders[] = basename(dirname($file, 2)).'/'.basename($file);
+    foreach (glob(dirname(__DIR__, 2).'/app/Modules/*/Contracts/{,*/}*.php', GLOB_BRACE) ?: [] as $file) {
+        if (! preg_match('/^(?:readonly\s+)?interface\s/m', (string) file_get_contents($file))) {
+            $offenders[] = substr($file, strlen(dirname(__DIR__, 2).'/app/Modules/'));
         }
     }
 

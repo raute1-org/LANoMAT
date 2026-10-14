@@ -57,9 +57,8 @@ return [
         5 => 'Voice',
     ],
     'Games' => [
-        0 => 'GameServers',
-        1 => 'Identity',
-        2 => 'Tournaments',
+        0 => 'Identity',
+        1 => 'Tournaments',
     ],
     'Hosts' => [
         0 => 'Events',
