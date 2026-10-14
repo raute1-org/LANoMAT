@@ -136,6 +136,10 @@ services:
     profiles: [prod]
     command: php artisan queue:work --tries=3 --max-time=3600
     env_file: .env
+    # Worker without an HTTP server: the image's curl /up HEALTHCHECK can
+    # never pass here, so it would report `unhealthy` forever.
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,6 +158,9 @@ services:
     profiles: [prod]
     command: php artisan schedule:work
     env_file: .env
+    # No HTTP server — see the `queue` service.
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,6 +181,14 @@ services:
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     env_file: .env
     ports: ['8081:8080']
+    # Reverb listens on :8080, not :80 — probe the websocket port instead of
+    # the image's curl /up HEALTHCHECK.
+    healthcheck:
+      test: ['CMD', 'php', '-r', 'exit(@fsockopen("127.0.0.1", 8080) ? 0 : 1);']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     depends_on:
       redis:
         condition: service_started
