@@ -11,6 +11,8 @@ use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Support\Collection;
 
 /**
@@ -121,7 +123,7 @@ class BracketMatchProjection
      */
     private static function serverDto(GameMatch $match, ?ServerLink $link): ?array
     {
-        if ($link === null) {
+        if ($link === null || ! app(Modules::class)->enabled(Module::GameServers)) {
             return null;
         }
 

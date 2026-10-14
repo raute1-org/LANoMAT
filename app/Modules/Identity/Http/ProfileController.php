@@ -4,6 +4,8 @@ namespace App\Modules\Identity\Http;
 
 use App\Models\User;
 use App\Modules\Friends\Support\FriendService;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,6 +50,10 @@ class ProfileController
      */
     private function relationship(Request $request, User $target): ?array
     {
+        if (! app(Modules::class)->enabled(Module::Friends)) {
+            return null;
+        }
+
         $viewer = $request->user();
 
         if (! $viewer instanceof User) {
