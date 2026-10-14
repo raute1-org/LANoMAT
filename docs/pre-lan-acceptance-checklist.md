@@ -13,6 +13,9 @@ afternoon before November — so the LAN day is *arriving*, not *debugging*.
 have seen the real behaviour, not the faked one. Nothing here blocks
 day-to-day dev — the app + fakes are complete without it.
 
+> To stand up real hosts for these checks, follow
+> [`three-server-setup.md`](three-server-setup.md) first.
+>
 > Related robustness work that is **not yet built** (own follow-ups, not
 > "verify" items) is indexed in [§8](#8-not-yet-built-robustness-gaps) so this
 > stays the one place to look.
