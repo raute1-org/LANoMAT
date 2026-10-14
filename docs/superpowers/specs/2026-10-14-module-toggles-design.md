@@ -63,23 +63,24 @@ optional module boots alone with exactly this closure; it needed no further entr
 
 **Amendments made during implementation (spec and code agree):**
 
-1. Container **bindings stay unconditional** (they are lazy, and Identity resolves `VoiceProviders` regardless). Only listeners, policies/gates, scheduler, probes, routes and Filament are gated.
+1. Container **bindings stay unconditional** (they are lazy, and Identity resolves `VoiceProviders` regardless). Only listeners, scheduler, probes, routes, Filament and gate definitions are gated; explicit `Gate::policy` registration for optional modules is kept but has no runtime effect, because Laravel's policy auto-discovery still resolves `Models\X` to `Policies\XPolicy`.
 2. Artisan **commands stay registered** (`withCommands` runs before config exists); only their *scheduler entries* are gated. Running a disabled module's command by hand is harmless.
 3. **Static metadata lives in the enum**, not in the config (see above).
 4. **Broadcast channels needed no gating**: channel definitions are inert without the module's events/routes.
 5. **Wayfinder `routable()` rule**: the frontend imports generated route helpers for every module, and Wayfinder generates from *registered* routes (dev Vite plugin, CI, Docker build). `Modules::routable()` therefore returns true for every module while `wayfinder:generate` runs; generation is never gated, only serving.
 6. **`DiscordChannel` central guard**: the Discord notification channel is a no-op when Discord is off, so every notification (core or optional) can keep listing it in `via()`.
-7. An empty `MODULE_<KEY>=` counts as unset, not as an explicit disable.
+7. The planned Preflight note when the profile is `core` was dropped (YAGNI); the operator-facing notes live in the README and `docs/prod-test.md`.
+8. An empty `MODULE_<KEY>=` counts as unset, not as an explicit disable.
 
 ## 2. Gated entry points
 
 | Entry point | Today | Change |
 |---|---|---|
 | Routes (`routes/web.php`, 95 routes) | one file | grouped per module behind `Modules::enabled()`; layout in this order: core, then optional modules alphabetically |
-| Broadcast channels (`routes/channels.php`) | unconditional | per-module guard |
+| Broadcast channels (`routes/channels.php`) | unconditional | stays unconditional (inert without the module's events/routes, see amendment 4) |
 | Filament resources | 17 hand-written `discoverResources` calls in `AdminPanelProvider` | one loop over enabled modules (+ their pages/widgets); `Preflight` widget stays |
 | Scheduler (`routes/console.php`) | 10 entries | each optional entry wrapped by its module flag |
-| Console commands (`bootstrap/app.php` `withCommands`) | fixed list | built from enabled modules |
+| Console commands (`bootstrap/app.php` `withCommands`) | fixed list | stay registered; only their scheduler entries are gated (amendment 2) |
 | Listeners, policies, bindings (`AppServiceProvider`, 333 lines) | unconditional | registered inside `if (modules->enabled(...))` blocks per module; grouped by module so the later move to per-module providers is mechanical |
 | Preflight probes (`preflight.checks` tag) | all 13 | a probe is tagged only if its owning module is enabled; DB/Redis/Reverb/Queue/Scheduler/Storage/FailedJobs stay core |
 
@@ -115,7 +116,7 @@ runtime. Each gets an explicit guard; none may throw when its target is off.
 | `Tournaments\MatchReadyBell`, `Registration\CheckinOpened` | `DiscordChannel`, `MatchEmbed` | `via()` drops the Discord channel when off |
 | `Registration\CheckinOpened`, `Seating\SeatProjection`, `Tournaments` | Infoscreen actions/`ScenePayload` | skip trigger / keep payload builder usable (pure) |
 | `Registration\CheckInRegistration`, `EventRegistration` | Presence event/projection | event dispatch is harmless without listeners; projection call guarded |
-| `Tournaments\TournamentScheduleParticipantResolver` | Schedule | binding only registered when Schedule on (already contract-based) |
+| `Tournaments\TournamentScheduleParticipantResolver` | Schedule | binding stays registered (bindings are unconditional, amendment 1); the resolver is contract-based and only reached from the gated Schedule listeners |
 | `Identity\ProfileController`, `LinkedAccountConnectors` | Friends, Voice | friend data/voice providers omitted when off |
 
 Rule for new code: an enabled module reaches an optional module only through
@@ -158,4 +159,4 @@ mergeable PRs.
 
 - **Hidden core→optional runtime paths** not visible as `use` imports (container-resolved classes, string morph types). Mitigation: `CoreProfileTest` exercises every core page, plus the core-profile CI smoke job.
 - **Config caching:** `config/modules.php` must read env only via `config()` at boot; covered by a test running with `config:cache`.
-- **Default flip:** the `core` default changes behaviour for anyone who pulls without reading the docs; mitigated by the documented `full` opt-in and a Preflight note when profile is `core`.
+- **Default flip:** the `core` default changes behaviour for anyone who pulls without reading the docs; mitigated by the documented `full` opt-in and a prominent README/prod-test upgrade note. (A Preflight note under `core` was dropped as YAGNI.)

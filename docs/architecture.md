@@ -58,6 +58,25 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | Gallery (optional) | M12 | Per-event photo gallery with moderation gate, public serving, zip download |
 | Recap (optional) | M12 | Pure post-LAN recap projection over other modules' read-models |
 | News (optional) | M12 | Global orga news posts on the homepage |
+| Games (core) | M1 | Cross-event game catalog used by tournaments and voting |
+| Preflight (core) | M-Robustness | Health-check registry, `lanomat:preflight` traffic light, Filament tile |
+| Presence (optional) | M10 | Who is online/playing/free per event (projection, beamer scene) |
+| Casting (optional) | M10 | Stream links and no-auth OBS overlays |
+| Files (optional) | M7 | Moderated LAN file-sharing on a private disk with quota |
+| Hosts (optional) | M7 | Managed remote hosts (IP + SSH key) behind `RemoteExecutor` |
+| CustomServers (optional) | M7 | Custom Docker game servers on a managed host |
+| Lancache (optional) | M7 | LanCache bootstrap on a separate host |
+
+Hard dependencies between optional modules (`Module::requires()`, enforced at boot):
+
+| Module | requires |
+|---|---|
+| CustomServers, Lancache | Hosts |
+| Recap | Gallery, Jukebox, Voting, Presence |
+| News | Gallery |
+| Gallery | Files |
+| Stats | Voting |
+| Friends | Presence |
 
 The `Tournaments` module additionally has `app/Modules/Tournaments/Domain/` — the bracket
 engine (`BracketGenerator`, `BracketProgressor`). It is pure domain code with no IO, and is
@@ -70,7 +89,8 @@ metadata (`isCore()`, `requires()`); `App\Support\Modules\Modules` resolves the 
 `config/modules.php` (`MODULES_PROFILE` + `MODULE_<KEY>` overrides) and fails boot listing every
 violation (core disabled, unknown profile, enabled module whose `requires` is off). Optional
 modules depend on each other only through `requires()`. Gated per module: routes (404), Filament resources, scheduler
-entries, listeners, policies/gates, Preflight probes. Artisan commands stay registered (only their
+entries, listeners, `jukebox.*` gate definitions and Preflight probes (optional module policies are not
+explicitly registered, but Laravel's policy auto-discovery still resolves them; only entry points are gated). Artisan commands stay registered (only their
 scheduler entries are gated) and container bindings stay unconditional. `php artisan lanomat:modules`
 prints the resulting profile; `tests/Feature/Modules/IsolationMatrixTest.php` boots core plus each
 optional module (with its `requires` closure) alone.
