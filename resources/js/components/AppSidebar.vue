@@ -28,6 +28,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useModules } from '@/composables/useModules';
 import { homeHref } from '@/lib/home';
 import {
     index as eventsIndex,
@@ -55,6 +56,8 @@ const isStaff = computed<boolean>(
     () => page.props.auth?.user?.is_staff === true,
 );
 
+const { has } = useModules();
+
 const generalItems = computed<NavItem[]>(() => [
     {
         title: 'Aktuelle LAN',
@@ -63,9 +66,15 @@ const generalItems = computed<NavItem[]>(() => [
     },
     { title: 'Events', href: eventsIndex(), icon: CalendarDays },
     { title: 'Teams', href: teamsIndex(), icon: Users },
-    { title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy },
-    { title: 'Freunde', href: friendsIndex(), icon: UserPlus },
-    { title: 'Voice einrichten', href: voiceSetup(), icon: Mic },
+    ...(has('stats')
+        ? [{ title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy }]
+        : []),
+    ...(has('friends')
+        ? [{ title: 'Freunde', href: friendsIndex(), icon: UserPlus }]
+        : []),
+    ...(has('voice')
+        ? [{ title: 'Voice einrichten', href: voiceSetup(), icon: Mic }]
+        : []),
 ]);
 
 const eventItems = computed<NavItem[]>(() => {
@@ -77,16 +86,26 @@ const eventItems = computed<NavItem[]>(() => {
 
     const items: NavItem[] = [
         { title: 'Übersicht', href: eventsShow(ev.slug), icon: PartyPopper },
-        {
-            title: 'Zeitplan',
-            href: scheduleIndex(ev.slug),
-            icon: CalendarClock,
-        },
+        ...(has('schedule')
+            ? [
+                  {
+                      title: 'Zeitplan',
+                      href: scheduleIndex(ev.slug),
+                      icon: CalendarClock,
+                  },
+              ]
+            : []),
         { title: 'Turniere', href: tournamentsIndex(ev.slug), icon: Swords },
         { title: 'Sitzplan', href: eventsSeating(ev.slug), icon: Armchair },
-        { title: 'Präsenz', href: presenceShow(ev.slug), icon: Radio },
-        { title: 'Jukebox', href: jukeboxIndex(ev.slug), icon: Music },
-        { title: 'Galerie', href: galleryIndex(ev.slug), icon: Image },
+        ...(has('presence')
+            ? [{ title: 'Präsenz', href: presenceShow(ev.slug), icon: Radio }]
+            : []),
+        ...(has('jukebox')
+            ? [{ title: 'Jukebox', href: jukeboxIndex(ev.slug), icon: Music }]
+            : []),
+        ...(has('gallery')
+            ? [{ title: 'Galerie', href: galleryIndex(ev.slug), icon: Image }]
+            : []),
     ];
 
     if (isStaff.value) {

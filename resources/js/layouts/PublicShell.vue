@@ -5,6 +5,7 @@ import AppLogo from '@/components/AppLogo.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
+import { useModules } from '@/composables/useModules';
 import { homeHref } from '@/lib/home';
 import { index as jukeboxIndex } from '@/routes/jukebox';
 import { show as presenceShow } from '@/routes/presence';
@@ -17,6 +18,7 @@ const page = usePage();
 const currentEvent = computed<EventSummary | null>(
     () => page.props.currentEvent,
 );
+const { has } = useModules();
 const user = computed<User | null>(() => page.props.auth?.user ?? null);
 const isLive = computed(() => currentEvent.value?.status === 'live');
 </script>
@@ -45,16 +47,19 @@ const isLive = computed(() => currentEvent.value?.status === 'live');
                 class="flex items-center gap-3 text-sm text-muted-foreground"
             >
                 <Link
+                    v-if="has('presence')"
                     :href="presenceShow(currentEvent.slug)"
                     class="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >Präsenz</Link
                 >
                 <Link
+                    v-if="has('jukebox')"
                     :href="jukeboxIndex(currentEvent.slug)"
                     class="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >Jukebox</Link
                 >
                 <Link
+                    v-if="has('recap')"
                     :href="recapShow(currentEvent.slug)"
                     class="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >Recap</Link
