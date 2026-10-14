@@ -4,6 +4,13 @@ Runs the real-infra build (`docs/three-server-setup.md`) in a Claude Code sessio
 operator's laptop is not needed once it has started. Progress and questions reach the operator's
 phone via ntfy/Discord; answers go back by writing one file over SSH.
 
+## Working method (fixed)
+
+Default model **sonnet**, advisor **opus** (`--model sonnet --advisor opus`), **superpowers
+subagent-driven development** for all implementation with **haiku** implementer subagents, and the
+**frontend-design** skill for any UI work. Both plugins are installed by `bootstrap.sh` /
+`run-mission.sh`; override only via `MISSION_MODEL` / `MISSION_ADVISOR`.
+
 ## What runs where
 
 - **Control VM** — any always-on Debian 12/13 or Ubuntu 22.04/24.04 machine with a public IP or

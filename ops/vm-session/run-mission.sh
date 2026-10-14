@@ -59,6 +59,23 @@ Blocked on operator: -
 Findings: -
 EOF
 
+# Binding working method (user decision): default model sonnet, advisor opus,
+# superpowers + frontend-design plugins always loaded, implementer subagents on haiku (see MISSION.md).
+MISSION_MODEL="${MISSION_MODEL:-sonnet}"
+MISSION_ADVISOR="${MISSION_ADVISOR:-opus}"
+for plugin in superpowers frontend-design; do
+    if ! claude plugin list 2>/dev/null | grep -q "${plugin}"; then
+        claude plugin install "${plugin}@claude-plugins-official" >>"${STATE_DIR}/log/plugins.log" 2>&1 \
+            || "${KIT}/notify.sh" "Plugin ${plugin} konnte nicht installiert werden (siehe log/plugins.log)."
+    fi
+done
+for plugin in superpowers frontend-design; do
+    claude plugin list 2>/dev/null | grep -q "${plugin}" || {
+        echo "Required plugin '${plugin}' is not installed; see ${STATE_DIR}/log/plugins.log" >&2
+        exit 1
+    }
+done
+
 SESSION_FILE="${STATE_DIR}/session_id"
 MISSION="$(cat "${KIT}/MISSION.md")"
 iteration=0
@@ -87,7 +104,7 @@ while [ "${iteration}" -lt "${MAX_ITERATIONS}" ]; do
     out="${STATE_DIR}/log/iter-$(printf '%03d' "${iteration}").json"
     echo "[$(date -Is)] iteration ${iteration}"
 
-    common=(--dangerously-skip-permissions --output-format json)
+    common=(--dangerously-skip-permissions --output-format json --model "${MISSION_MODEL}" --advisor "${MISSION_ADVISOR}")
     started=$(date +%s)
     if [ -s "${SESSION_FILE}" ]; then
         prompt="Weiter. Lies zuerst ${STATE_DIR}/STATE.md und ${STATE_DIR}/ANSWERS.md (falls vorhanden; Einträge, die du noch nicht in STATE.md als erledigt vermerkt hast, haben Vorrang), dann arbeite an der Mission weiter, bis alles läuft oder du wirklich auf den Operator warten musst."

@@ -128,6 +128,11 @@ if ! skip "${SKIP_CLAUDE:-0}"; then
         && ! [ -x "/home/${CLAUDE_USER}/.local/bin/claude" ]; then
         sudo -u "${CLAUDE_USER}" -H bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
     fi
+    # Plugins required by the mission (the supervisor re-checks and installs them if this fails).
+    for plugin in superpowers frontend-design; do
+        sudo -u "${CLAUDE_USER}" -H bash -lc "claude plugin install ${plugin}@claude-plugins-official" \
+            || echo "NOTE: plugin ${plugin} not installed yet (needs Claude login/network); run-mission.sh retries."
+    done
     PROFILE="/home/${CLAUDE_USER}/.profile"
     grep -q '.local/bin' "${PROFILE}" 2>/dev/null \
         || echo 'export PATH="$HOME/.local/bin:$PATH"' >>"${PROFILE}"

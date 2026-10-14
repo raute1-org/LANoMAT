@@ -30,6 +30,14 @@ final report into `STATE.md` and create the file `$STATE_DIR/DONE`.
 - Operator memory files in `$STATE_DIR` (= `~/mission-state`): `STATE.md` (your durable memory — update it after every meaningful step; German, short, for the operator), `ANSWERS.md` (operator replies, take precedence), `WAITING_HUMAN` (you create it, see below), `DONE`.
 - Read first: `CLAUDE.md`, `docs/three-server-setup.md`, `docs/pre-lan-acceptance-checklist.md`, `docs/traefik-setup.md`, `docs/teamspeak-setup.md`, `docs/lancache-setup.md`, `docs/registry-setup.md`, `docs/music-assistant-setup.md`, `docs/prod-test.md`.
 
+## Working method (binding, from the operator)
+
+- **Always** use the `superpowers:subagent-driven-development` skill for any implementation work in the repo (plan → one fresh subagent per task → task review → whole-branch review). Use `superpowers:brainstorming` / `superpowers:writing-plans` first when the work is more than a one-file fix.
+- **Models:** you run on **sonnet** (default). **Implementer subagents always start on `haiku`** (set `model: "haiku"` on every implementer dispatch); escalate a task to a stronger model only if haiku fails it or it is obviously too complex. Reviewer subagents are not affected by the haiku rule (use sonnet; the final whole-branch review on opus).
+- **Advisor: opus.** Call the `advisor` tool before substantive work, when stuck or about to change approach, and before declaring a phase or the mission done. Give its advice serious weight; if it conflicts with evidence you gathered, reconcile in one more advisor call instead of silently switching.
+- **UI work: always invoke the `frontend-design` skill first** and design against `docs/design.md` (Signalpult). No UI change without it.
+- Infra work (servers, Docker, DNS, Discord, Pelican, voice, LanCache) follows the phases below; use the same subagent-driven method for anything that becomes code or scripts in the repo.
+
 ## How to work
 
 - Follow the phases of `docs/three-server-setup.md` in order; a phase ends with its check. Record each result in `STATE.md`.
