@@ -120,6 +120,8 @@ use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -191,6 +193,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Preflight health checks are tagged here; each Checks/* class is added to
         // this array by the task that creates it (see the preflight plan Tasks 2-4).
+        $modules = app(Modules::class);
+
         $this->app->tag([
             DatabaseCheck::class,
             RedisCheck::class,
@@ -199,12 +203,10 @@ class AppServiceProvider extends ServiceProvider
             ReverbCheck::class,
             SchedulerHeartbeatCheck::class,
             QueueWorkerCheck::class,
-            DiscordApiCheck::class,
-            DiscordGatewaySidecarCheck::class,
-            MumbleSidecarCheck::class,
-            TeamSpeakSidecarCheck::class,
-            PelicanCheck::class,
-            MusicAssistantCheck::class,
+            ...($modules->enabled(Module::Discord) ? [DiscordApiCheck::class, DiscordGatewaySidecarCheck::class] : []),
+            ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
+            ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
+            ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
         ], 'preflight.checks');
 
         $this->app->bind(
@@ -274,26 +276,73 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TournamentEntry::class, TournamentPolicy::class);
         Gate::policy(GameMatch::class, TournamentPolicy::class);
         Gate::policy(MatchReport::class, TournamentPolicy::class);
-        Gate::policy(ScheduleItem::class, ScheduleItemPolicy::class);
-        Gate::policy(FoodOrder::class, FoodOrderPolicy::class);
-        Gate::policy(FoodOrderItem::class, FoodOrderItemPolicy::class);
-        Gate::policy(Poll::class, PollPolicy::class);
-        Gate::policy(LfgPost::class, LfgPostPolicy::class);
-        Gate::policy(SharedFile::class, SharedFilePolicy::class);
-        Gate::policy(EventPhoto::class, EventPhotoPolicy::class);
-        Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
-        Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
-        Gate::policy(ServerLink::class, ServerLinkPolicy::class);
-        Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
-        Gate::policy(CustomServer::class, CustomServerPolicy::class);
-        Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
         Gate::policy(LinkedAccount::class, LinkedAccountPolicy::class);
-        Gate::policy(Friendship::class, FriendshipPolicy::class);
-        Gate::policy(NewsPost::class, NewsPostPolicy::class);
+
+        if ($this->on(Module::Schedule)) {
+            Gate::policy(ScheduleItem::class, ScheduleItemPolicy::class);
+        }
+
+        if ($this->on(Module::Catering)) {
+            Gate::policy(FoodOrder::class, FoodOrderPolicy::class);
+            Gate::policy(FoodOrderItem::class, FoodOrderItemPolicy::class);
+        }
+
+        if ($this->on(Module::Voting)) {
+            Gate::policy(Poll::class, PollPolicy::class);
+        }
+
+        if ($this->on(Module::Lfg)) {
+            Gate::policy(LfgPost::class, LfgPostPolicy::class);
+        }
+
+        if ($this->on(Module::Files)) {
+            Gate::policy(SharedFile::class, SharedFilePolicy::class);
+        }
+
+        if ($this->on(Module::Gallery)) {
+            Gate::policy(EventPhoto::class, EventPhotoPolicy::class);
+        }
+
+        if ($this->on(Module::Infoscreen)) {
+            Gate::policy(InfoscreenScene::class, InfoscreenScenePolicy::class);
+            Gate::policy(TombolaPrize::class, TombolaPrizePolicy::class);
+        }
+
+        if ($this->on(Module::GameServers)) {
+            Gate::policy(ServerLink::class, ServerLinkPolicy::class);
+        }
+
+        if ($this->on(Module::Hosts)) {
+            Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
+        }
+
+        if ($this->on(Module::CustomServers)) {
+            Gate::policy(CustomServer::class, CustomServerPolicy::class);
+        }
+
+        if ($this->on(Module::Voice)) {
+            Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
+        }
+
+        if ($this->on(Module::Friends)) {
+            Gate::policy(Friendship::class, FriendshipPolicy::class);
+        }
+
+        if ($this->on(Module::News)) {
+            Gate::policy(NewsPost::class, NewsPostPolicy::class);
+        }
 
         Gate::define('claim-seat', [SeatAssignmentPolicy::class, 'claim']);
-        Gate::define('jukebox.participate', [JukeboxPolicy::class, 'participate']);
-        Gate::define('jukebox.moderate', [JukeboxPolicy::class, 'moderate']);
+
+        if ($this->on(Module::Jukebox)) {
+            Gate::define('jukebox.participate', [JukeboxPolicy::class, 'participate']);
+            Gate::define('jukebox.moderate', [JukeboxPolicy::class, 'moderate']);
+        }
+    }
+
+    private function on(Module $module): bool
+    {
+        return app(Modules::class)->enabled($module);
     }
 
     /**
@@ -302,32 +351,59 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureEventListeners(): void
     {
+        // Registration order per event is preserved from the pre-gating
+        // listener list, so the full profile dispatches exactly as before.
         Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
-        Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);
-        Event::listen(MatchReady::class, CreateMatchChannelOnReady::class);
+
+        if ($this->on(Module::Discord)) {
+            Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);
+            Event::listen(MatchReady::class, CreateMatchChannelOnReady::class);
+            Event::listen(MatchCompleted::class, AnnounceAndCleanupOnCompleted::class);
+            Event::listen(DiscordGuildMemberJoined::class, LogGatewayEvent::class);
+            Event::listen(DiscordGuildMemberLeft::class, LogGatewayEvent::class);
+            Event::listen(DiscordMessageCreated::class, LogGatewayEvent::class);
+            Event::listen(DiscordMessageReactionChanged::class, LogGatewayEvent::class);
+        }
+
         Event::listen(MatchReady::class, NotifyRosterOnMatchReady::class);
-        Event::listen(MatchCompleted::class, AnnounceAndCleanupOnCompleted::class);
-        Event::listen(MatchCompleted::class, BroadcastWinnerMoment::class);
-        Event::listen(MatchWentLive::class, GongOnMatchLive::class);
-        Event::listen(MatchScoreUpdated::class, BroadcastScoreboardOnScoreUpdated::class);
-        Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);
-        Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
-        Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
-        Event::listen(MatchReady::class, ProvisionMatchServerOnReady::class);
-        Event::listen(TournamentCompleted::class, CleanupServersOnCompleted::class);
-        Event::listen(ServerLinkUpdated::class, UpdateMatchSurfacesOnServerReady::class);
-        Event::listen(ServerLinkUpdated::class, EnterWarmupOnServerReady::class);
-        Event::listen(ServerLinkUpdated::class, ProvisionServerVoiceOnReady::class);
-        Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
-        Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
-        Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);
-        Event::listen(MatchReady::class, BroadcastPresenceOnTournamentActivity::class);
-        Event::listen(MatchWentLive::class, BroadcastPresenceOnTournamentActivity::class);
-        Event::listen(MatchCompleted::class, BroadcastPresenceOnTournamentActivity::class);
-        Event::listen(TournamentStarted::class, BroadcastPresenceOnTournamentActivity::class);
-        Event::listen(DiscordGuildMemberJoined::class, LogGatewayEvent::class);
-        Event::listen(DiscordGuildMemberLeft::class, LogGatewayEvent::class);
-        Event::listen(DiscordMessageCreated::class, LogGatewayEvent::class);
-        Event::listen(DiscordMessageReactionChanged::class, LogGatewayEvent::class);
+
+        if ($this->on(Module::Infoscreen)) {
+            Event::listen(MatchCompleted::class, BroadcastWinnerMoment::class);
+            Event::listen(MatchWentLive::class, GongOnMatchLive::class);
+            Event::listen(MatchScoreUpdated::class, BroadcastScoreboardOnScoreUpdated::class);
+        }
+
+        if ($this->on(Module::Voice)) {
+            Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);
+            Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
+            Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
+        }
+
+        if ($this->on(Module::GameServers)) {
+            Event::listen(MatchReady::class, ProvisionMatchServerOnReady::class);
+            Event::listen(TournamentCompleted::class, CleanupServersOnCompleted::class);
+            Event::listen(ServerLinkUpdated::class, UpdateMatchSurfacesOnServerReady::class);
+            Event::listen(ServerLinkUpdated::class, EnterWarmupOnServerReady::class);
+        }
+
+        if ($this->on(Module::Voice)) {
+            Event::listen(ServerLinkUpdated::class, ProvisionServerVoiceOnReady::class);
+        }
+
+        if ($this->on(Module::Schedule)) {
+            Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
+            Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);
+        }
+
+        if ($this->on(Module::Lfg)) {
+            Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
+        }
+
+        if ($this->on(Module::Presence)) {
+            Event::listen(MatchReady::class, BroadcastPresenceOnTournamentActivity::class);
+            Event::listen(MatchWentLive::class, BroadcastPresenceOnTournamentActivity::class);
+            Event::listen(MatchCompleted::class, BroadcastPresenceOnTournamentActivity::class);
+            Event::listen(TournamentStarted::class, BroadcastPresenceOnTournamentActivity::class);
+        }
     }
 }
