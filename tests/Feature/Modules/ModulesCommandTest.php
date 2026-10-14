@@ -1,0 +1,63 @@
+<?php
+
+use Illuminate\Support\Facades\File;
+use Symfony\Component\Process\Process;
+
+require_once __DIR__.'/ModulesProcess.php';
+
+it('reports the full profile with every module enabled', function () {
+    $report = modulesReport('full');
+
+    expect($report['profile'])->toBe('full')
+        ->and($report['enabled'])->toContain('jukebox', 'voice', 'discord');
+});
+
+it('reports the core profile with only core modules', function () {
+    $report = modulesReport('core');
+
+    expect($report['enabled'])->toEqualCanonicalizing([
+        'events', 'registration', 'seating', 'teams', 'games',
+        'tournaments', 'identity', 'notifications', 'preflight',
+    ]);
+});
+
+it('fails to boot with a clear message on an invalid configuration', function () {
+    $process = new Process(
+        [PHP_BINARY, 'artisan', 'lanomat:modules', '--json'],
+        base_path(),
+        ['MODULES_PROFILE' => 'core', 'MODULE_EVENTS' => 'false', 'APP_ENV' => 'testing'],
+    );
+    $process->run();
+
+    expect($process->isSuccessful())->toBeFalse()
+        ->and($process->getErrorOutput().$process->getOutput())->toContain('Core module "events" cannot be disabled.');
+});
+
+it('resolves the same modules from a cached config', function () {
+    $env = ['MODULES_PROFILE' => 'core', 'MODULE_JUKEBOX' => 'true', 'APP_ENV' => 'testing'];
+    $cache = new Process([PHP_BINARY, 'artisan', 'config:cache'], base_path(), $env);
+    $cache->mustRun();
+
+    try {
+        // No MODULE_* in the environment this time: only the cached config may supply them.
+        $report = modulesReport('full', ['MODULES_PROFILE' => 'full']);
+        expect($report['enabled'])->toContain('jukebox')
+            ->and($report['profile'])->toBe('core'); // cached value wins over env
+    } finally {
+        (new Process([PHP_BINARY, 'artisan', 'config:clear'], base_path()))->mustRun();
+    }
+});
+
+it('keeps all routes visible to wayfinder under the core profile', function () {
+    // Remove the generated jukebox helpers so the final assertion proves regeneration.
+    File::deleteDirectory(resource_path('js/routes/jukebox'));
+
+    $process = new Process(
+        [PHP_BINARY, 'artisan', 'wayfinder:generate', '--with-form'],
+        base_path(),
+        ['MODULES_PROFILE' => 'core', 'APP_ENV' => 'testing'],
+    );
+    $process->mustRun();
+
+    expect(file_exists(resource_path('js/routes/jukebox/index.ts')))->toBeTrue();
+});
