@@ -12,9 +12,14 @@ return [
         'starts_at' => 'Beginn',
         'ends_at' => 'Ende',
         'max_participants' => 'Max. Teilnehmer',
+        'max_participants_hint' => 'Leer lassen für unbegrenzt.',
         'status' => 'Status',
         'public_url' => 'Öffentlicher Link',
         'url_copied' => 'Link kopiert',
+    ],
+    'validation' => [
+        'ends_after_starts' => 'Das Ende muss nach dem Beginn liegen.',
+        'max_participants_min' => 'Die maximale Teilnehmerzahl muss mindestens 1 sein (leer lassen für unbegrenzt).',
     ],
     'status' => [
         'draft' => 'Entwurf',

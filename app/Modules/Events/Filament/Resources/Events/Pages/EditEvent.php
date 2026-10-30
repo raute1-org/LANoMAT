@@ -20,23 +20,34 @@ class EditEvent extends EditRecord
 {
     protected static string $resource = EventResource::class;
 
+    private function currentEvent(): Event
+    {
+        /** @var Event $event */
+        $event = $this->getRecord();
+
+        return $event;
+    }
+
     protected function getHeaderActions(): array
     {
         /** @var Event $event */
         $event = $this->getRecord();
 
-        // The action list below is built from allowedTransitions(), so a
-        // DomainException should never fire in normal operation. It is still
-        // caught defensively (e.g. a concurrent transition by another orga
-        // between page load and click) and surfaced as a notification instead
-        // of a 500.
-        $transitions = collect($event->status->allowedTransitions())
+        // One action per possible target status, shown only while the CURRENT
+        // record allows it. The list is built once per mount, so visibility
+        // must be evaluated lazily against the live record: otherwise the
+        // header stays stale after a transition and the next click is lost.
+        // A DomainException (e.g. a concurrent transition by another orga) is
+        // surfaced as a notification instead of a 500.
+        $transitions = collect(EventStatus::cases())
+            ->reject(fn (EventStatus $to) => $to === EventStatus::Draft)
             ->map(fn (EventStatus $to) => Action::make('transition_'.$to->value)
                 ->label(__('events.transition.'.$to->value))
+                ->visible(fn () => in_array($to, $this->currentEvent()->status->allowedTransitions(), true))
                 ->requiresConfirmation()
-                ->action(function () use ($event, $to) {
+                ->action(function () use ($to) {
                     try {
-                        app(TransitionEventStatus::class)->handle($event, $to);
+                        app(TransitionEventStatus::class)->handle($this->currentEvent(), $to);
                     } catch (DomainException $exception) {
                         Notification::make()
                             ->title($exception->getMessage())
@@ -51,8 +62,10 @@ class EditEvent extends EditRecord
                         ->success()
                         ->send();
 
+                    $this->currentEvent()->refresh();
                     $this->refreshFormData(['status']);
                 }))
+            ->values()
             ->all();
 
         $qrActions = [

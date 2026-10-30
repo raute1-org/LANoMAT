@@ -32,10 +32,10 @@ it('only shows the header action for the allowed next status', function () {
 
     Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
         ->assertActionExists('transition_announced')
-        ->assertActionDoesNotExist('transition_registration')
-        ->assertActionDoesNotExist('transition_live')
-        ->assertActionDoesNotExist('transition_finished')
-        ->assertActionDoesNotExist('transition_archived');
+        ->assertActionHidden('transition_registration')
+        ->assertActionHidden('transition_live')
+        ->assertActionHidden('transition_finished')
+        ->assertActionHidden('transition_archived');
 });
 
 it('transitions the event status via the header action', function () {
@@ -55,12 +55,11 @@ it('shows no transition actions for an archived event', function () {
     $this->actingAs(User::factory()->orga()->create());
 
     Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
-        ->assertActionDoesNotExist('transition_draft')
-        ->assertActionDoesNotExist('transition_announced')
-        ->assertActionDoesNotExist('transition_registration')
-        ->assertActionDoesNotExist('transition_live')
-        ->assertActionDoesNotExist('transition_finished')
-        ->assertActionDoesNotExist('transition_archived');
+        ->assertActionHidden('transition_announced')
+        ->assertActionHidden('transition_registration')
+        ->assertActionHidden('transition_live')
+        ->assertActionHidden('transition_finished')
+        ->assertActionHidden('transition_archived');
 });
 
 it('creates an event with an auto-generated slug and draft status', function () {
@@ -92,4 +91,47 @@ it('shows the german public-url column label', function () {
         ->get('/admin/events')
         ->assertOk()
         ->assertSee('Öffentlicher Link');
+});
+
+it('rejects an end before the start and a participant limit below one', function () {
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(CreateEvent::class)
+        ->fillForm([
+            'name' => 'Bad LAN',
+            'starts_at' => '2027-03-03 10:00:00',
+            'ends_at' => '2027-03-01 18:00:00',
+            'max_participants' => 0,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['ends_at', 'max_participants']);
+
+    expect(Event::query()->where('name', 'Bad LAN')->exists())->toBeFalse();
+});
+
+it('accepts an empty participant limit as unlimited', function () {
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(CreateEvent::class)
+        ->fillForm([
+            'name' => 'Open LAN',
+            'starts_at' => '2027-03-01 10:00:00',
+            'ends_at' => '2027-03-03 18:00:00',
+            'max_participants' => null,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Event::query()->where('name', 'Open LAN')->firstOrFail()->max_participants)->toBeNull();
+});
+
+it('offers the next transition right after a transition without a reload', function () {
+    $event = Event::factory()->draft()->create();
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
+        ->callAction('transition_announced')
+        ->assertActionHidden('transition_announced')
+        ->assertActionVisible('transition_registration');
 });
