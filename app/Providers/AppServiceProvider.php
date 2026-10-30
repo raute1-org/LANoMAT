@@ -133,6 +133,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -232,9 +233,27 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureUrls();
+        $this->configureRouteParameterPatterns();
         $this->configureSocialite();
         $this->configureAuthorization();
         $this->configureEventListeners();
+    }
+
+    /**
+     * Every id-style route parameter is a bigint primary key: anything else (or a
+     * value beyond bigint) must 404 at routing time instead of reaching the
+     * database, where Postgres would reject it and surface as a 500. Slug and
+     * token parameters (`{event:slug}`, `{token}`, `{provider}`) are unaffected.
+     */
+    protected function configureRouteParameterPatterns(): void
+    {
+        foreach ([
+            'user', 'team', 'teamRequest', 'tournament', 'match', 'notification', 'seat', 'eventPhoto',
+            'foodOrder', 'foodOrderItem', 'friendship', 'installer', 'item', 'jukeboxItem', 'lfgPost',
+            'poll', 'scene', 'serverLink', 'sharedFile', 'tombolaPrize',
+        ] as $parameter) {
+            Route::pattern($parameter, '[0-9]{1,18}');
+        }
     }
 
     /**
