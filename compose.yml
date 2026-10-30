@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: lanomat
       POSTGRES_DB: lanomat
     # host port 5434: defaults 5432/5433 are taken for other local containers
-    ports: ['5434:5432']
+    ports: ['127.0.0.1:5434:5432']
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
@@ -20,7 +20,7 @@ services:
   redis:
     image: redis:7-alpine
     # host port 6380: default 6379 is taken by another local container
-    ports: ['6380:6379']
+    ports: ['127.0.0.1:6380:6379']
 
   # Dev-only Reverb (websocket) server. This reuses the official PHP CLI
   # image against the working tree — same approach `composer run dev` uses
@@ -99,7 +99,10 @@ services:
       dockerfile: docker/Dockerfile
     profiles: [prod]
     env_file: .env
-    ports: ['8000:80']
+    # Loopback only: Traefik is the sole public entry point. Binding to all
+    # interfaces would let clients bypass TLS and forge X-Forwarded-* headers
+    # (trusted in bootstrap/app.php). Docker port publishing also bypasses ufw.
+    ports: ['127.0.0.1:8000:80']
     depends_on:
       postgres:
         condition: service_healthy
@@ -180,7 +183,9 @@ services:
     profiles: [prod]
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     env_file: .env
-    ports: ['8081:8080']
+    # Loopback only, same reason as `app` above: public websocket traffic goes
+    # through Traefik's `ws.` router.
+    ports: ['127.0.0.1:8081:8080']
     # Reverb listens on :8080, not :80 — probe the websocket port instead of
     # the image's curl /up HEALTHCHECK.
     healthcheck:

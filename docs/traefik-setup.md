@@ -145,10 +145,11 @@ Nothing about the M5.6 `prod` profile's existing services (`app`, `queue`,
 - adds `traefik.*` router/service labels to `app` and `reverb-prod` (no
   behavior change for `queue`/`scheduler` — they aren't routed to),
   and
-- keeps `app`'s/`reverb-prod`'s existing `ports:` publishes
-  (`8000:80`/`8081:8080`) as-is, for direct host access during debugging —
-  Traefik does not require them removed, it just adds a second, public,
-  TLS-terminated path to the same containers on 80/443.
+- keeps `app`'s/`reverb-prod`'s existing `ports:` publishes for direct host
+  access during debugging, now bound to loopback only
+  (`127.0.0.1:8000:80`/`127.0.0.1:8081:8080`). Traefik is the only public
+  entry point on 80/443; a publicly reachable plain-HTTP port would bypass
+  TLS and let clients forge the `X-Forwarded-*` headers the app trusts.
 
 Once real infra exists, `docs/prod-test.md`'s one-time walkthrough gets a
 Traefik-fronted `APP_URL=https://${APP_DOMAIN}` instead of a
