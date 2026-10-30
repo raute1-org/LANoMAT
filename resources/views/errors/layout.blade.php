@@ -56,7 +56,7 @@
 
                 <div class="mt-8 flex flex-wrap items-center gap-3">
                     <a href="{{ url('/') }}" class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none">{{ __('errors.home') }}</a>
-                    @if (request()->is('admin', 'admin/*'))
+                    @if (request()->is('admin', 'admin/*') && (auth()->user()?->isOrga() ?? false))
                         <a href="{{ url('/admin') }}" class="inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none">{{ __('errors.admin_home') }}</a>
                     @endif
                 </div>

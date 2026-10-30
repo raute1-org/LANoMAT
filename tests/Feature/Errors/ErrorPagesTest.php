@@ -67,3 +67,10 @@ it('keeps the admin panel reachable and 404s inside it sanely', function () {
 
     $this->actingAs($admin)->get('/admin/nonexistent')->assertNotFound()->assertSee('Seite nicht gefunden');
 });
+
+it('offers the admin link on an admin 403 only to staff, never to participants', function () {
+    $participant = User::factory()->create(['role' => 'participant']);
+
+    $this->actingAs($participant)->get('/admin/events')->assertForbidden()
+        ->assertDontSee('Zum Admin-Bereich');
+});
