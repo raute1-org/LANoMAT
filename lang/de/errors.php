@@ -13,6 +13,10 @@ return [
         'title' => 'Seite nicht gefunden',
         'message' => 'Diese Adresse gibt es nicht oder sie wurde verschoben. Prüfe den Link oder starte auf der Startseite.',
     ],
+    '413' => [
+        'title' => 'Anfrage zu groß',
+        'message' => 'Die gesendeten Daten sind für diese Seite zu groß. Verkleinere die Datei oder sende weniger auf einmal.',
+    ],
     '419' => [
         'title' => 'Sitzung abgelaufen',
         'message' => 'Die Seite war zu lange offen. Lade sie neu und versuche es noch einmal.',

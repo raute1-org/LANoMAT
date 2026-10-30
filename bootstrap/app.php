@@ -5,6 +5,7 @@ use App\Http\Middleware\AddContentSecurityPolicy;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LimitRequestBodySize;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
 use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
 use Illuminate\Foundation\Application;
@@ -53,6 +54,8 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        $middleware->web(prepend: [LimitRequestBodySize::class]);
 
         $middleware->web(append: [
             AddContentSecurityPolicy::class,
