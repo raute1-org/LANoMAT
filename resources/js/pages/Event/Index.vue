@@ -4,7 +4,10 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { formatInstant } from '@/lib/datetime';
-import { register as eventsRegister, show as eventsShow } from '@/routes/events';
+import {
+    register as eventsRegister,
+    show as eventsShow,
+} from '@/routes/events';
 import type { EventSummary } from '@/types';
 
 defineProps<{

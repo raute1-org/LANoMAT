@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Notifications\TeamJoinRequestAnswered;
 use App\Modules\Teams\Notifications\TeamJoinRequestReceived;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -40,7 +41,7 @@ it('enforces uniqueness in the database on lower(name)', function () {
     expect(fn () => DB::table('teams')->insert([
         'name' => 'ALPHA', 'tag' => 'X', 'owner_id' => User::factory()->create()->id,
         'created_at' => now(), 'updated_at' => now(),
-    ]))->toThrow(Illuminate\Database\UniqueConstraintViolationException::class);
+    ]))->toThrow(UniqueConstraintViolationException::class);
 });
 
 it('notifies the owner of a join request and the requester of the answer', function () {

@@ -6,6 +6,7 @@ use App\Modules\Games\Filament\Resources\Games\Pages\EditGame;
 use App\Modules\Games\Filament\Resources\Games\Pages\ListGames;
 use App\Modules\Games\Models\Game;
 use App\Modules\Tournaments\Models\Tournament;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -25,7 +26,7 @@ it('keeps tournament game_id intact even for a raw delete (restrictOnDelete)', f
     $tournament = Tournament::factory()->create(['game_id' => $game->id]);
 
     expect(fn () => DB::transaction(fn () => Game::query()->whereKey($game->id)->toBase()->delete()))
-        ->toThrow(Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
     expect($tournament->fresh()->game_id)->toBe($game->id);
 });
 

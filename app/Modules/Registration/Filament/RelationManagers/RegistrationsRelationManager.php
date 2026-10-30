@@ -78,8 +78,8 @@ class RegistrationsRelationManager extends RelationManager
                     ->authorize(fn (EventRegistration $record): bool => Gate::allows('cancel', $record))
                     ->visible(fn (EventRegistration $record): bool => $record->status !== RegistrationStatus::Cancelled)
                     ->requiresConfirmation()
-                    ->modalHeading(fn (EventRegistration $record): string => __('registration.admin.cancel_heading', ['name' => $record->user?->name ?? '—']))
-                    ->modalDescription(fn (EventRegistration $record): string => __('registration.admin.cancel_description', ['name' => $record->user?->name ?? '—']))
+                    ->modalHeading(fn (EventRegistration $record): string => __('registration.admin.cancel_heading', ['name' => (string) data_get($record, 'user.name', '—')]))
+                    ->modalDescription(fn (EventRegistration $record): string => __('registration.admin.cancel_description', ['name' => (string) data_get($record, 'user.name', '—')]))
                     ->color('danger')
                     ->action(fn (EventRegistration $record) => app(CancelRegistration::class)->handle($record)),
                 Action::make('toggle_paid')

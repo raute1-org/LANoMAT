@@ -10,9 +10,8 @@ use Illuminate\Notifications\Notification;
 
 /**
  * Surfaces the M2.11 registration-open announcement in the bell — previously
- * this only reached the Discord announcement channel (see
- * {@see \App\Modules\Discord\Listeners\AnnounceRegistrationOpen}, which
- * remains the mirror via a direct channel-wide `sendMessage`, unchanged).
+ * this only reached the Discord announcement channel (the Discord module's
+ * own listener remains the mirror via a direct channel-wide `sendMessage`).
  * The bell is the source of truth: this is a plain `database`-only
  * notification (no Discord DM here — the channel broadcast already covers
  * Discord for this announcement).

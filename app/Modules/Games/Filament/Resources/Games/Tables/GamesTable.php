@@ -2,15 +2,16 @@
 
 namespace App\Modules\Games\Filament\Resources\Games\Tables;
 
-use Filament\Actions\BulkActionGroup;
 use App\Modules\Games\Models\Game;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Notifications\Notification;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 
 class GamesTable
 {
@@ -48,7 +49,7 @@ class GamesTable
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
                         ->before(function (DeleteBulkAction $action, Collection $records): void {
-                            if ($records->contains(fn (Game $game): bool => $game->isInUse())) {
+                            if ($records->contains(fn (Model $game): bool => $game instanceof Game && $game->isInUse())) {
                                 Notification::make()->title(__('games.errors.in_use'))->danger()->send();
                                 $action->halt();
                             }

@@ -7,6 +7,7 @@ use App\Modules\Presence\Events\PresenceUpdated;
 use App\Modules\Registration\Actions\RotateEventCheckinToken;
 use App\Modules\Registration\Models\EventCheckinToken;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Support\CheckinUrl;
 use App\Modules\Registration\Support\SelfCheckInWindow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event as EventBus;
@@ -295,7 +296,7 @@ it('builds the QR check-in URL from APP_URL, not from the request host', functio
     $event = Event::factory()->live()->create();
     $token = tokenFor($event);
 
-    expect(App\Modules\Registration\Support\CheckinUrl::for($token))->toBe("https://lan.example.org/checkin/{$token}");
+    expect(CheckinUrl::for($token))->toBe("https://lan.example.org/checkin/{$token}");
 
     $this->actingAs(User::factory()->orga()->create())
         ->get("http://other-host.test/orga/events/{$event->slug}/checkin-qr")

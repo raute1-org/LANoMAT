@@ -2,9 +2,9 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
-use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Filament\Resources\Seats\Pages\CreateSeat;
 use App\Modules\Seating\Filament\Resources\Seats\Pages\EditSeat;
+use App\Modules\Seating\Models\Seat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
