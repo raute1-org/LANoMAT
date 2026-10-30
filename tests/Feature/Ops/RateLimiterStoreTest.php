@@ -3,7 +3,10 @@
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use Illuminate\Cache\RateLimiter;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+
+uses(RefreshDatabase::class);
 
 /**
  * A Redis outage must not take login and on-site check-in down with it: the

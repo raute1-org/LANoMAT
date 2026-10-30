@@ -1,8 +1,11 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as LaravelRoute;
 use Illuminate\Support\Facades\Route;
+
+uses(RefreshDatabase::class);
 
 /**
  * Every id-bound route parameter of the app's own routes (everything except

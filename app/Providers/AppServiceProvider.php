@@ -248,12 +248,15 @@ class AppServiceProvider extends ServiceProvider
     protected function configureRouteParameterPatterns(): void
     {
         foreach ([
-            'user', 'team', 'teamRequest', 'tournament', 'match', 'notification', 'seat', 'eventPhoto',
+            'user', 'team', 'teamRequest', 'tournament', 'match', 'seat', 'eventPhoto',
             'foodOrder', 'foodOrderItem', 'friendship', 'installer', 'item', 'jukeboxItem', 'lfgPost',
             'poll', 'scene', 'serverLink', 'sharedFile', 'tombolaPrize',
         ] as $parameter) {
             Route::pattern($parameter, '[0-9]{1,18}');
         }
+
+        // Database notifications are keyed by UUID, not bigint.
+        Route::pattern('notification', '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
     }
 
     /**

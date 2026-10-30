@@ -2,7 +2,10 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+
+uses(RefreshDatabase::class);
 
 it('renders a german 404 page in the app shell look for guests', function () {
     $response = $this->get('/does-not-exist');

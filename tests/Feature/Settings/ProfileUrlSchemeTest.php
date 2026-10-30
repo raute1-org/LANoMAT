@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('rejects non-https stream urls with a german message', function (string $url) {
     $user = User::factory()->create();
