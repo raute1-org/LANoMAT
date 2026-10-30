@@ -116,7 +116,7 @@ return [
             'unknown' => 'Unbekannt',
             'present' => 'Erwartet anwesend',
             'peak' => 'Spitze: :count am :slot',
-            'no_peak' => 'Noch keine Angaben für eine Spitze.',
+            'no_peak' => 'Noch keine Angaben für eine Spitze',
             'unknown_note' => ':count Anmeldungen ohne Ankunft sind in der Anwesenheit nicht enthalten.',
             'no_days' => 'Das Event hat noch keine Zeiträume (Start und Ende fehlen).',
             'empty' => 'Noch keine Anmeldungen mit Angaben.',

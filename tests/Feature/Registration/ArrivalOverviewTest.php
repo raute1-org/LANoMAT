@@ -101,3 +101,12 @@ it('sorts the table by day, then by window in enum order, unknown last', functio
         ->sortTable('arrival_day')
         ->assertCanSeeTableRecords([$morning, $afternoon, $evening, $night, $next, $none], inOrder: true);
 });
+
+it('does not double the period when no peak is known', function () {
+    $event = overviewEvent();
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(ExpectedPresentChart::class, ['eventId' => $event->id])
+        ->assertSee('Noch keine Angaben für eine Spitze.')
+        ->assertDontSee('Spitze..');
+});
