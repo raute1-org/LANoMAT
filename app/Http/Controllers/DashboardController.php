@@ -7,6 +7,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Support\LinkedProviders;
+use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Support\MyRegistration;
 use App\Modules\Seating\Support\MySeat;
 use App\Modules\Teams\Support\MyTeams;
@@ -51,6 +52,7 @@ class DashboardController extends Controller
             'startsAt' => $event->starts_at?->toIso8601String(),
             'endsAt' => $event->ends_at?->toIso8601String(),
             'location' => $event->location,
+            ...RegistrationAvailability::summary($event),
         ];
     }
 }

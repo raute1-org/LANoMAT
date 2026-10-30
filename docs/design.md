@@ -103,7 +103,7 @@ The layout of every Inertia page is decided in **one table**: `resources/js/lib/
 
 | Kind | Shell | Pages |
 |------|-------|-------|
-| `app` | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Dashboard`, `Event/*`, `Teams/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Recap/*`, `Gallery/*`, `Schedule/*`, … |
+| `app` | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Dashboard`, `Checkin/*` (phone self check-in, `narrow`, see docs/self-checkin.md), `Event/*`, `Teams/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Recap/*`, `Gallery/*`, `Schedule/*`, … |
 | `settings` | `AppLayout` + `layouts/settings/Layout.vue` | `settings/*` |
 | `auth` | `AuthLayout` | `auth/*` |
 | `profile` | `AppLayout` if logged in, bare for guests | `Profile/Show` (`/users/{user}` stays publicly reachable) |
@@ -156,14 +156,19 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 
 | Status | Registered? | Event page | Seating page |
 |--------|-------------|-----------|--------------|
+| `draft` | any | not publicly visible (404) | — |
 | `announced` | no | hint "Die Anmeldung öffnet bald." (no button) | "Der Sitzplan öffnet mit der Anmeldung." |
-| `registration` | no | primary "Jetzt anmelden" | "Melde dich zuerst zum Event an …" + button "Zur Anmeldung" |
+| `registration` | no, spots free | primary "Jetzt anmelden" (+ "Noch X Plätze frei" if limited) | "Melde dich zuerst zum Event an …" + button "Zur Anmeldung" |
+| `registration` | no, full | hint "Ausgebucht" (no button) | "Ausgebucht — alle Plätze sind vergeben …" |
 | `registration` | yes | "Du bist angemeldet" + Ticket / Sitzplatz links | claim/release seat |
-| `live` | no | "Das Event läuft — die Anmeldung ist beendet." | "Die Anmeldung ist beendet …" |
+| `live` | no, spots free | hint "Das Event läuft — du kannst dich noch anmelden." + primary "Jetzt anmelden" (walk-ins) | same as `registration` |
+| `live` | no, full | hint "Ausgebucht" | "Ausgebucht — …" |
 | `live` | yes | "Du bist angemeldet" (+ "eingecheckt") + links, `LiveIndicator` | claim/release seat |
 | `finished`/`archived` | any | "Dieses Event ist vorbei." + "Zum Rückblick" (recap module) | registration-closed hint |
 
-Backing props: `registration` (`Registration\Support\MyRegistration::summary`, never the QR payload) and `registrationState` (`upcoming|open|closed`).
+**One rule decides "registration open":** `Registration\Enums\RegistrationAvailability::for($event)` (`upcoming|open|full|closed`) — open in `registration` OR `live` while capacity remains (`max_participants`, `null` = unlimited, cancelled registrations do not count). RegisterForEvent, `RegistrationPolicy::create`, the controllers and every Inertia prop (`availability` + `freeSpots`; on `currentEvent` for the sidebar "Anmeldung" item) use it — never compare `EventStatus` for this.
+
+Backing props: `availability`/`freeSpots` (see above), `registration` (`Registration\Support\MyRegistration::summary`, never the QR payload) and `registrationState` (`upcoming|open|closed`).
 
 ### 7. New page checklist
 

@@ -209,3 +209,7 @@ Users, registrations and linked accounts stay in the same database.
 - Plain `restart` keeps the old environment. Use `up -d` after changing `.env`.
 - All prod services use `restart: unless-stopped`, so they come back after a
   host reboot.
+
+## On-site self check-in
+
+Participants can check in with their phone via one printed QR code per event. How orga prints, rotates and what the rules are: [self-checkin.md](self-checkin.md).

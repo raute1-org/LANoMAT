@@ -16,6 +16,11 @@ class CheckInException extends DomainException
         return new self('No registration matches this QR token for this event.', 'registration.checkin.errors.unknown_token');
     }
 
+    public static function windowClosed(): self
+    {
+        return new self('Self check-in is not open for this event.', 'registration.self_checkin.not_open_title');
+    }
+
     public static function alreadyCheckedIn(): self
     {
         return new self('This registration is already checked in.', 'registration.checkin.errors.already_checked_in');

@@ -152,6 +152,6 @@ it('tells the page whether registration is open, upcoming or closed', function (
 })->with([
     'announced' => ['announced', 'upcoming'],
     'registration' => ['registration', 'open'],
-    'live' => ['live', 'closed'],
+    'live' => ['live', 'open'],
     'finished' => ['finished', 'closed'],
 ]);

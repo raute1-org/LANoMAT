@@ -19,6 +19,7 @@ return [
         'heading' => 'Dein Ticket',
         'type' => 'Ticket-Art',
         'none_open' => 'Du bist noch nicht angemeldet.',
+        'none_full' => 'Ausgebucht',
         'none_upcoming' => 'Die Anmeldung öffnet bald.',
         'none_closed' => 'Die Anmeldung ist beendet.',
         'register' => 'Jetzt anmelden',

@@ -7,6 +7,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Support\NewsQuery;
+use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Support\MyRegistration;
 use App\Modules\Voting\Enums\PollStatus;
@@ -66,7 +67,7 @@ class EventPageController
         $user = $request->user();
 
         return Inertia::render('Event/Show', [
-            'event' => $this->summary($event),
+            'event' => [...$this->summary($event), ...RegistrationAvailability::summary($event)],
             'labels' => trans('events.page'),
             'statusLabels' => trans('events.status'),
             // The viewer's own active registration (no QR payload), or null.

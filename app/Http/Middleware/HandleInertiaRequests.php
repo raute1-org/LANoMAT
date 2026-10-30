@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Modules\Events\Support\CurrentEvent;
+use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Http\Request;
@@ -68,6 +69,7 @@ class HandleInertiaRequests extends Middleware
                     'startsAt' => $event->starts_at !== null ? $event->starts_at->toIso8601String() : null,
                     'endsAt' => $event->ends_at !== null ? $event->ends_at->toIso8601String() : null,
                     'location' => $event->location,
+                    ...RegistrationAvailability::summary($event),
                 ],
         ];
     }

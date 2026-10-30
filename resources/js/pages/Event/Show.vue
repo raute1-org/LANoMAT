@@ -66,7 +66,13 @@ const cta = computed<string | null>(() => {
     const map = props.labels as Record<string, unknown>;
     const ctas = (map.cta ?? {}) as Record<string, string>;
 
-    return ctas[props.event.status] ?? null;
+    return (
+        ctas[
+            props.event.availability === 'open'
+                ? 'registration'
+                : props.event.status
+        ] ?? null
+    );
 });
 
 const hintLabels = computed(() => {
@@ -80,7 +86,17 @@ const hintLabels = computed(() => {
 // sign up; the remaining states are plain hints with no action.
 const registered = computed(() => props.registration !== null);
 const canRegister = computed(
-    () => props.event.status === 'registration' && !registered.value,
+    () => props.event.availability === 'open' && !registered.value,
+);
+const freeSpotsHint = computed<string | null>(() =>
+    canRegister.value &&
+    props.event.freeSpots !== null &&
+    props.event.freeSpots !== undefined
+        ? hintLabels.value.free_spots.replace(
+              ':count',
+              String(props.event.freeSpots),
+          )
+        : null,
 );
 const statusHint = computed<string | null>(() => {
     if (registered.value) {
@@ -89,16 +105,20 @@ const statusHint = computed<string | null>(() => {
             : hintLabels.value.registered;
     }
 
-    switch (props.event.status) {
-        case 'announced':
+    switch (props.event.availability) {
+        case 'upcoming':
             return hintLabels.value.announced;
-        case 'live':
-            return hintLabels.value.live;
-        case 'finished':
-        case 'archived':
-            return hintLabels.value.finished;
+        case 'open':
+            return props.event.status === 'live'
+                ? hintLabels.value.live_open
+                : null;
+        case 'full':
+            return hintLabels.value.full;
         default:
-            return null;
+            return props.event.status === 'finished' ||
+                props.event.status === 'archived'
+                ? hintLabels.value.finished
+                : null;
     }
 });
 const isPast = computed(
@@ -246,6 +266,13 @@ function pad(value: number): string {
             <Button v-if="canRegister" as-child size="lg">
                 <Link :href="eventsRegister.url(event.slug)">{{ cta }}</Link>
             </Button>
+            <p
+                v-if="freeSpotsHint"
+                class="self-center text-sm text-muted-foreground"
+                data-test="event-free-spots"
+            >
+                {{ freeSpotsHint }}
+            </p>
             <Button v-if="has('presence')" as-child variant="outline">
                 <Link :href="presenceShow.url(event.slug)">{{
                     labels.to_presence

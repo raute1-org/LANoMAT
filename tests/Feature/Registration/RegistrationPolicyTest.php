@@ -54,3 +54,15 @@ it('restricts viewAny and update to orga', function () {
         ->and($user->can('update', $registration))->toBeFalse()
         ->and($orga->can('update', $registration))->toBeTrue();
 });
+
+it('allows creating a registration while the event is live (walk-ins)', function () {
+    $event = Event::factory()->live()->create();
+
+    expect(User::factory()->create()->can('create', [EventRegistration::class, $event]))->toBeTrue();
+});
+
+it('denies creating a registration for finished events', function () {
+    $event = Event::factory()->finished()->create();
+
+    expect(User::factory()->create()->can('create', [EventRegistration::class, $event]))->toBeFalse();
+});

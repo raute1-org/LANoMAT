@@ -22,6 +22,7 @@ type DashboardEvent = {
     startsAt: string | null;
     endsAt: string | null;
     location: string | null;
+    availability: 'upcoming' | 'open' | 'full' | 'closed';
 };
 
 const props = defineProps<{
@@ -124,10 +125,12 @@ const ticketNote = computed<string>(() => {
             : t.confirmed;
     }
 
-    switch (props.event?.status) {
-        case 'registration':
+    switch (props.event?.availability) {
+        case 'open':
             return t.none_open;
-        case 'announced':
+        case 'full':
+            return t.none_full;
+        case 'upcoming':
             return t.none_upcoming;
         default:
             return t.none_closed;
@@ -279,7 +282,7 @@ const ticketNote = computed<string>(() => {
                             }}</Link>
                         </Button>
                         <Button
-                            v-else-if="event.status === 'registration'"
+                            v-else-if="event.availability === 'open'"
                             as-child
                             size="sm"
                         >
