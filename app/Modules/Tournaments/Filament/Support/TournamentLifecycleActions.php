@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tournaments\Filament\Support;
 
+use App\Modules\Tournaments\Actions\AnnounceTournament;
 use App\Modules\Tournaments\Actions\OpenCheckin;
 use App\Modules\Tournaments\Actions\OpenTournamentEnrollment;
 use App\Modules\Tournaments\Actions\ReopenToDraft;
@@ -20,8 +21,9 @@ use Livewire\Component;
  * header and the list table's row actions so both offer identical,
  * status-conditioned next steps:
  *
- *   draft --openEnrollment--> enrollment --openCheckin--> check_in --start--> live
- *   enrollment|check_in --closeEnrollment (no entries only)--> draft
+ *   draft --announce--> announced --openEnrollment--> enrollment --openCheckin--> check_in --start--> live
+ *   draft --openEnrollment--> enrollment   (shortcut: announce + open in one step, same validation)
+ *   announced --closeEnrollment--> draft; enrollment|check_in --closeEnrollment (no entries only)--> draft
  *
  * Every action is policy-gated via `manage` and delegates to an Action class
  * (which owns the row lock and the guards).
@@ -32,11 +34,23 @@ class TournamentLifecycleActions
     public static function make(): array
     {
         return [
+            self::announce(),
             self::openEnrollment(),
             self::openCheckin(),
             self::closeEnrollment(),
             self::start(),
         ];
+    }
+
+    private static function announce(): Action
+    {
+        return self::build(
+            'announce',
+            'announce',
+            'announced',
+            fn (Tournament $record) => app(AnnounceTournament::class)->handle($record),
+            fn (Tournament $record): bool => $record->status === TournamentStatus::Draft,
+        )->color('gray')->icon('heroicon-o-megaphone');
     }
 
     private static function openEnrollment(): Action
@@ -46,7 +60,7 @@ class TournamentLifecycleActions
             'open_enrollment',
             'enrollment_opened',
             fn (Tournament $record) => app(OpenTournamentEnrollment::class)->handle($record),
-            fn (Tournament $record): bool => $record->status === TournamentStatus::Draft,
+            fn (Tournament $record): bool => in_array($record->status, [TournamentStatus::Draft, TournamentStatus::Announced], true),
         )->color('primary')->icon('heroicon-o-lock-open');
     }
 
@@ -70,8 +84,9 @@ class TournamentLifecycleActions
             fn (Tournament $record) => app(ReopenToDraft::class)->handle($record),
             // Only offered while it can actually succeed: with entries the
             // next step is the check-in phase instead.
-            fn (Tournament $record): bool => in_array($record->status, [TournamentStatus::Enrollment, TournamentStatus::CheckIn], true)
-                && ! $record->entries()->where('status', '!=', EntryStatus::Withdrawn->value)->exists(),
+            fn (Tournament $record): bool => $record->status === TournamentStatus::Announced
+                || (in_array($record->status, [TournamentStatus::Enrollment, TournamentStatus::CheckIn], true)
+                && ! $record->entries()->where('status', '!=', EntryStatus::Withdrawn->value)->exists()),
         )->color('gray')->icon('heroicon-o-lock-closed');
     }
 

@@ -32,6 +32,8 @@ class OverlayController extends Controller
         $event = $tournament->event;
         abort_if($event === null, 500, 'Tournament has no associated event.');
         abort_unless($event->isPubliclyVisible(), 404);
+        // Overlays are anonymous: draft (orga-only) tournaments never render.
+        abort_unless($tournament->isVisibleTo(null), 404);
 
         return Inertia::render('Overlay/Bracket', [
             'tournament' => [
@@ -76,6 +78,7 @@ class OverlayController extends Controller
         $event = $tournament->event;
         abort_if($event === null, 500, 'Tournament has no associated event.');
         abort_unless($event->isPubliclyVisible(), 404);
+        abort_unless($tournament->isVisibleTo(null), 404);
 
         return Inertia::render('Overlay/Scoreboard', [
             'tournamentId' => $tournament->id,

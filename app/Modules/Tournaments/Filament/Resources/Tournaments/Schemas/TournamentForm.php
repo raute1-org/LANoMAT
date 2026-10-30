@@ -9,6 +9,7 @@ use App\Modules\Tournaments\Support\StandingsView;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
@@ -87,6 +88,12 @@ class TournamentForm
                     ->label(__('tournaments.fields.checkin_closes_at'))
                     ->after('checkin_opens_at')
                     ->validationMessages(['after' => __('tournaments.errors.checkin_closes_after_opens')]),
+                Textarea::make('rules')
+                    ->label(__('tournaments.fields.rules'))
+                    ->helperText(__('tournaments.fields.rules_help'))
+                    ->rows(6)
+                    ->maxLength(10000)
+                    ->columnSpanFull(),
                 KeyValue::make('settings')
                     ->label(__('tournaments.fields.settings')),
                 // Round robin: the derived table, read-only (Filament-native text lines).

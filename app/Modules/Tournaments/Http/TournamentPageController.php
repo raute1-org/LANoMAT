@@ -64,6 +64,7 @@ class TournamentPageController extends Controller
 
         $tournamentModels = Tournament::query()
             ->where('event_id', $event->id)
+            ->visibleTo($user)
             ->orderBy('starts_at')
             ->with('game')
             ->withCount(['entries as active_entries_count' => fn ($query) => $query->where('status', '!=', EntryStatus::Withdrawn->value)])
@@ -74,8 +75,9 @@ class TournamentPageController extends Controller
                 TournamentStatus::Live => 0,
                 TournamentStatus::CheckIn => 1,
                 TournamentStatus::Enrollment => 2,
-                TournamentStatus::Draft => 3,
-                TournamentStatus::Finished => 4,
+                TournamentStatus::Announced => 3,
+                TournamentStatus::Draft => 4,
+                TournamentStatus::Finished => 5,
             })
             ->values();
 
@@ -151,6 +153,7 @@ class TournamentPageController extends Controller
         $event = $tournament->event;
         abort_if($event === null, 500, 'Tournament has no associated event.');
         abort_unless($event->isPubliclyVisible(), 404);
+        abort_unless($tournament->isVisibleTo($request->user()), 404);
 
         $matches = BracketMatchProjection::matchesForTournament($tournament->id);
 
@@ -168,6 +171,12 @@ class TournamentPageController extends Controller
                 'event' => ['name' => $event->name, 'slug' => $event->slug],
                 'winnerEntryId' => $tournament->winner_entry_id,
                 'winnerName' => $tournament->winnerEntry?->display_name,
+                // Info block of the announced state (and the header of every later one).
+                'startsAt' => $tournament->starts_at->toIso8601String(),
+                'maxEntries' => $tournament->max_entries,
+                'teamSize' => $tournament->team_size,
+                'gameName' => $tournament->game?->name,
+                'rules' => $tournament->rules,
             ],
             'standings' => StandingsView::forTournament($tournament),
             'standingsLabels' => trans('tournaments.standings'),
@@ -185,7 +194,8 @@ class TournamentPageController extends Controller
             // the action; the server-side Gate check in GoLive remains the
             // real authorization boundary regardless of this flag.
             'canGoLive' => $user !== null && $user->isHelper(),
-            'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title')],
+            'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.show_title'), 'format' => trans('tournaments.fields.format')],
+            'formatLabels' => trans('tournaments.format'),
             'statusLabels' => trans('tournaments.status'),
             'matchStatusLabels' => trans('tournaments.match_status'),
             // `BracketMatchCard`'s bye/phantom placeholder labels (Task 5) —

@@ -2,12 +2,14 @@
 
 namespace App\Modules\Tournaments\Models;
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\Tournaments\Enums\TournamentFormat;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Events\TournamentSaved;
 use Database\Factories\TournamentFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -84,6 +86,29 @@ class Tournament extends Model
     public function winnerEntry(): BelongsTo
     {
         return $this->belongsTo(TournamentEntry::class, 'winner_entry_id');
+    }
+
+    /**
+     * Draft tournaments are orga-only. Every participant-facing read of
+     * tournaments (pages, overlays, Discord, schedule) goes through this
+     * scope or {@see isVisibleTo()}; a null viewer (guest, Discord user,
+     * overlay) is a non-orga viewer.
+     *
+     * @param  Builder<Tournament>  $query
+     * @return Builder<Tournament>
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if ($user === null || ! $user->isOrga()) {
+            $query->where('status', '!=', TournamentStatus::Draft->value);
+        }
+
+        return $query;
+    }
+
+    public function isVisibleTo(?User $user): bool
+    {
+        return $this->status->isParticipantVisible() || ($user !== null && $user->isOrga());
     }
 
     protected static function newFactory(): TournamentFactory

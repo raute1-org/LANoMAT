@@ -130,6 +130,11 @@ class TournamentException extends DomainException
         return new self('The tournament is not a draft.', 'tournaments.errors.not_draft');
     }
 
+    public static function notAnnounced(): self
+    {
+        return new self('Only a draft or announced tournament can be opened for enrollment.', 'tournaments.errors.not_announced');
+    }
+
     /** @param list<string> $missingLabels */
     public static function incompleteSetup(array $missingLabels): self
     {
@@ -142,7 +147,7 @@ class TournamentException extends DomainException
 
     public static function cannotReturnToDraft(): self
     {
-        return new self('Only an enrollment or check-in phase without entries can return to draft.', 'tournaments.errors.cannot_return_to_draft');
+        return new self('Only an announced tournament or an enrollment/check-in phase without entries can return to draft.', 'tournaments.errors.cannot_return_to_draft');
     }
 
     public static function hasEntries(): self

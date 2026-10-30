@@ -7,6 +7,7 @@ import PageContainer from '@/components/PageContainer.vue';
 import StandingsTable from '@/components/tournaments/StandingsTable.vue';
 import TournamentEntryActions from '@/components/tournaments/TournamentEntryActions.vue';
 import { Button } from '@/components/ui/button';
+import { formatInstant } from '@/lib/datetime';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
 import { index as tournamentsIndex } from '@/routes/tournaments';
 import type {
@@ -36,6 +37,7 @@ const props = defineProps<{
     /** True for a helper/orga viewer — gates the match card's manual "Go" control. */
     canGoLive: boolean;
     labels: Record<string, string>;
+    formatLabels: Record<string, string>;
     statusLabels: Record<string, string>;
     matchStatusLabels: Record<string, string>;
     /** `tournaments.bracket` labels: bye/not_held — BracketMatchCard's never-played-match placeholders. */
@@ -68,10 +70,12 @@ const voiceLinks = computed(() =>
 );
 
 const isLive = computed(() => props.tournament.status === 'live');
+const isAnnounced = computed(() => props.tournament.status === 'announced');
 const isFinished = computed(() => props.tournament.status === 'finished');
 const isNotStarted = computed(
     () =>
         props.tournament.status === 'draft' ||
+        props.tournament.status === 'announced' ||
         props.tournament.status === 'enrollment' ||
         props.tournament.status === 'check_in',
 );
@@ -161,8 +165,65 @@ const isNotStarted = computed(
             </p>
         </div>
 
+        <section
+            v-if="isAnnounced"
+            class="mt-8 rounded-lg border border-border bg-card p-4"
+            :aria-label="labels.announced_info"
+        >
+            <p class="text-sm font-medium text-foreground" role="status">
+                {{ labels.announced_hint }}
+            </p>
+            <dl class="mt-4 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+                <div v-if="tournament.gameName">
+                    <dt class="text-muted-foreground">{{ labels.game }}</dt>
+                    <dd class="font-medium text-foreground">
+                        {{ tournament.gameName }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-muted-foreground">
+                        {{ labels.format }}
+                    </dt>
+                    <dd class="font-medium text-foreground">
+                        {{ formatLabels[tournament.format] }}
+                    </dd>
+                </div>
+                <div v-if="tournament.maxEntries !== null">
+                    <dt class="text-muted-foreground">{{ labels.slots }}</dt>
+                    <dd
+                        class="font-mono font-medium text-foreground tabular-nums"
+                    >
+                        {{ tournament.maxEntries }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-muted-foreground">{{ labels.starts }}</dt>
+                    <dd
+                        class="font-mono font-medium text-foreground tabular-nums"
+                    >
+                        {{
+                            formatInstant(tournament.startsAt, {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                            })
+                        }}
+                    </dd>
+                </div>
+            </dl>
+            <div v-if="tournament.rules" class="mt-4">
+                <h2 class="text-sm font-medium text-muted-foreground">
+                    {{ labels.rules }}
+                </h2>
+                <p
+                    class="mt-1 max-w-prose text-sm whitespace-pre-line text-foreground"
+                >
+                    {{ tournament.rules }}
+                </p>
+            </div>
+        </section>
+
         <div
-            v-if="isNotStarted"
+            v-else-if="isNotStarted"
             class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
         >
             <p class="text-sm text-muted-foreground">

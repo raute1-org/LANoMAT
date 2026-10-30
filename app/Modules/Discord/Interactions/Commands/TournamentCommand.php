@@ -60,6 +60,7 @@ class TournamentCommand
 
         $tournaments = Tournament::query()
             ->where('event_id', $event->id)
+            ->visibleTo(null)
             ->orderBy('starts_at')
             ->get();
 
@@ -184,6 +185,7 @@ class TournamentCommand
         }
 
         return Tournament::query()
+            ->visibleTo(null)
             ->whereHas('event', function (Builder $query): Builder {
                 /** @var Builder<Event> $query */
                 return $query->publiclyVisible();

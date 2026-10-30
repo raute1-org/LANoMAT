@@ -37,8 +37,8 @@ it('counts participants, tournaments, matches played, and songs played', functio
 
     EventRegistration::factory()->for($event)->count(3)->create();
 
-    $tournament = Tournament::factory()->for($event)->create();
-    Tournament::factory()->for($event)->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create();
+    Tournament::factory()->for($event)->announced()->create();
 
     // Two real entrants each — ordinary completed matches, not byes/phantoms
     // (see the dedicated exclusion test below for those shapes).

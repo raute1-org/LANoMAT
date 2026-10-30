@@ -6,7 +6,7 @@ use App\Modules\Schedule\Policies\ScheduleItemPolicy;
 use App\Modules\Tournaments\Models\Tournament;
 
 it('creates exactly one schedule item when a tournament is created', function () {
-    $tournament = Tournament::factory()->create([
+    $tournament = Tournament::factory()->announced()->create([
         'name' => 'Winter Cup',
         'starts_at' => '2026-08-01 10:00:00',
     ]);
@@ -27,7 +27,7 @@ it('creates exactly one schedule item when a tournament is created', function ()
 });
 
 it('updates the same schedule item without creating a duplicate when the tournament changes', function () {
-    $tournament = Tournament::factory()->create([
+    $tournament = Tournament::factory()->announced()->create([
         'name' => 'Winter Cup',
         'starts_at' => '2026-08-01 10:00:00',
     ]);
@@ -51,7 +51,7 @@ it('updates the same schedule item without creating a duplicate when the tournam
 });
 
 it('does not create a duplicate schedule item when unrelated attributes change', function () {
-    $tournament = Tournament::factory()->create();
+    $tournament = Tournament::factory()->announced()->create();
 
     $tournament->update(['rules' => 'Best of 3, single elimination.']);
 
@@ -62,7 +62,7 @@ it('does not create a duplicate schedule item when unrelated attributes change',
 });
 
 it('allows a guest (unauthenticated user) to view the public schedule', function () {
-    $tournament = Tournament::factory()->create();
+    $tournament = Tournament::factory()->announced()->create();
     $item = ScheduleItem::query()
         ->where('ref_type', 'tournament')
         ->where('ref_id', $tournament->id)

@@ -41,7 +41,8 @@ export interface TournamentSummary {
     id: number;
     name: string;
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
-    status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
+    status:
+        'draft' | 'announced' | 'enrollment' | 'check_in' | 'live' | 'finished';
     startsAt: string | null;
     /** Non-withdrawn entries (people for solo, teams for team tournaments). */
     entryCount: number;
@@ -58,11 +59,18 @@ export interface TournamentDetail {
     id: number;
     name: string;
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
-    status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
+    status:
+        'draft' | 'announced' | 'enrollment' | 'check_in' | 'live' | 'finished';
     event: { name: string; slug: string };
     winnerEntryId: number | null;
     /** Champion's display name once the tournament is finished. */
     winnerName: string | null;
+    startsAt: string;
+    maxEntries: number | null;
+    teamSize: number;
+    gameName: string | null;
+    /** Plain text; render with whitespace preserved, never as HTML. */
+    rules: string | null;
 }
 
 /**

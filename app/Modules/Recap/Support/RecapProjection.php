@@ -32,7 +32,7 @@ final class RecapProjection
     {
         return new RecapBoard(
             participantCount: $event->registrations()->count(),
-            tournamentCount: $event->tournaments()->count(),
+            tournamentCount: $event->tournaments()->visibleTo(null)->count(),
             matchesPlayed: self::matchesPlayedCount($event),
             songsPlayed: (new JukeboxStats)->playedCount($event),
             podiums: self::podiums($event),

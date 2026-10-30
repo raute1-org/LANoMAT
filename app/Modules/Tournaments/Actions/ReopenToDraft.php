@@ -10,7 +10,7 @@ use App\Modules\Tournaments\Models\TournamentEntry;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Enrollment/CheckIn -> Draft, only while no non-withdrawn entry exists.
+ * Announced/Enrollment/CheckIn -> Draft, only while no non-withdrawn entry exists.
  * Locks the tournament row first (same order as EnrollSolo/StartTournament),
  * so it serializes against a concurrent enrollment: either the entry lands
  * first and this refuses, or this wins and the enrollment is rejected.
@@ -22,7 +22,7 @@ class ReopenToDraft
         return DB::transaction(function () use ($tournament): Tournament {
             $tournament = Tournament::query()->whereKey($tournament->getKey())->lockForUpdate()->firstOrFail();
 
-            if (! in_array($tournament->status, [TournamentStatus::Enrollment, TournamentStatus::CheckIn], true)) {
+            if (! in_array($tournament->status, [TournamentStatus::Announced, TournamentStatus::Enrollment, TournamentStatus::CheckIn], true)) {
                 throw TournamentException::cannotReturnToDraft();
             }
 

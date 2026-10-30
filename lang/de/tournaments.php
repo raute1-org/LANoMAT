@@ -18,6 +18,8 @@ return [
         'checkin_opens_at' => 'Check-in öffnet',
         'checkin_closes_at' => 'Check-in schließt',
         'settings' => 'Einstellungen',
+        'rules' => 'Regeln',
+        'rules_help' => 'Für Teilnehmende sichtbar, sobald das Turnier angekündigt ist. Reiner Text, Zeilenumbrüche bleiben erhalten.',
     ],
 
     'admin' => [
@@ -37,12 +39,15 @@ return [
         'actions' => [
             'start' => 'Turnier starten',
             'started' => 'Turnier gestartet.',
+            'announce' => 'Ankündigen',
+            'announce_description' => 'Das Turnier wird für alle angemeldeten Nutzer sichtbar (Infos, Regeln, Modus, Plätze). Die Anmeldung bleibt geschlossen ("Anmeldung öffnet bald"). Vorher werden Spiel, Teilnehmerlimit und Check-in-Fenster geprüft.',
+            'announced' => 'Turnier angekündigt.',
             'open_enrollment' => 'Anmeldung öffnen',
-            'open_enrollment_description' => 'Das Turnier wird für Teilnehmende sichtbar anmeldbar. Vorher werden Spiel, Teilnehmerlimit und Check-in-Fenster geprüft.',
+            'open_enrollment_description' => 'Das Turnier wird für Teilnehmende anmeldbar. Aus dem Entwurf heraus wird es dabei gleich mit angekündigt. Vorher werden Spiel, Teilnehmerlimit und Check-in-Fenster geprüft.',
             'enrollment_opened' => 'Anmeldung geöffnet.',
-            'close_enrollment' => 'Anmeldung schließen',
-            'close_enrollment_description' => 'Das Turnier geht zurück in den Entwurf. Das ist nur möglich, solange es keine Anmeldungen gibt.',
-            'enrollment_closed' => 'Anmeldung geschlossen, das Turnier ist wieder ein Entwurf.',
+            'close_enrollment' => 'Zurück zum Entwurf',
+            'close_enrollment_description' => 'Das Turnier ist danach nur noch für das Orga-Team sichtbar. Aus der Anmeldephase ist das nur möglich, solange es keine Anmeldungen gibt.',
+            'enrollment_closed' => 'Das Turnier ist wieder ein Entwurf.',
             'open_checkin' => 'Zur Check-in-Phase',
             'open_checkin_description' => 'Beendet die Anmeldephase und öffnet den Check-in für die Angemeldeten.',
             'checkin_opened' => 'Check-in-Phase gestartet.',
@@ -99,6 +104,12 @@ return [
         'team_create' => 'Team erstellen',
         'team_none_ready' => 'Keines deiner Teams hat genau :size Mitglieder.',
         'enroll_team' => 'Mit Team anmelden',
+        'announced_hint' => 'Anmeldung öffnet bald',
+        'announced_info' => 'Infos zum Turnier',
+        'rules' => 'Regeln',
+        'game' => 'Spiel',
+        'slots' => 'Plätze',
+        'starts' => 'Beginn',
         'registration_not_open' => 'Die Event-Anmeldung ist derzeit nicht geöffnet.',
     ],
 
@@ -110,6 +121,7 @@ return [
 
     'status' => [
         'draft' => 'Entwurf',
+        'announced' => 'Angekündigt',
         'enrollment' => 'Anmeldung offen',
         'check_in' => 'Check-in',
         'live' => 'Live',
@@ -150,9 +162,10 @@ return [
     'errors' => [
         'checkin_window_order' => 'Check-in schließt (muss nach Check-in öffnet liegen)',
         'team_required' => 'Wähle ein Team, mit dem du dich anmelden möchtest.',
-        'not_draft' => 'Nur ein Entwurf kann für Anmeldungen geöffnet werden.',
+        'not_draft' => 'Nur ein Entwurf kann angekündigt werden.',
+        'not_announced' => 'Nur ein Entwurf oder ein angekündigtes Turnier kann für Anmeldungen geöffnet werden.',
         'incomplete_setup' => 'Vor dem Öffnen der Anmeldung fehlen noch: :fields.',
-        'cannot_return_to_draft' => 'Nur eine Anmelde- oder Check-in-Phase kann zum Entwurf zurückgesetzt werden.',
+        'cannot_return_to_draft' => 'Nur ein angekündigtes Turnier oder eine Anmelde- bzw. Check-in-Phase kann zum Entwurf zurückgesetzt werden.',
         'has_entries' => 'Es gibt bereits Anmeldungen. Zurück zum Entwurf ist nur ohne Anmeldungen möglich.',
         'withdrawal_closed' => 'Zurückziehen ist nur während der Anmeldung oder des Check-ins möglich.',
         'registration_required' => 'Melde dich zuerst zum Event an.',

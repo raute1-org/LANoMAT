@@ -23,7 +23,8 @@ import type {
 
 const props = defineProps<{
     tournamentId: number;
-    status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
+    status:
+        'draft' | 'announced' | 'enrollment' | 'check_in' | 'live' | 'finished';
     myEntry: TournamentMyEntry | null;
     registration: TournamentRegistrationGate;
     teamPicker?: TournamentTeamPicker | null;
@@ -40,8 +41,13 @@ const readyTeams = computed(
 
 /** What the viewer can do right now; one place so Index and Show never drift. */
 const mode = computed<
-    'enroll' | 'checkin' | 'entered' | 'register_first' | 'none'
+    'enroll' | 'checkin' | 'entered' | 'register_first' | 'announced' | 'none'
 >(() => {
+    // Announced: visible, sign-up not open yet — a hint instead of any action.
+    if (props.status === 'announced') {
+        return 'announced';
+    }
+
     const open = props.status === 'enrollment' || props.status === 'check_in';
 
     if (!open) {
@@ -95,7 +101,10 @@ function withdraw() {
 
 <template>
     <div v-if="mode !== 'none'" class="flex flex-col items-end gap-1.5">
-        <div class="flex flex-wrap items-center justify-end gap-2">
+        <div
+            v-if="mode !== 'announced'"
+            class="flex flex-wrap items-center justify-end gap-2"
+        >
             <Badge
                 v-if="myEntry && mode !== 'register_first'"
                 variant="outline"
@@ -215,6 +224,13 @@ function withdraw() {
                         )
                       : ''
             }}
+        </p>
+        <p
+            v-if="mode === 'announced'"
+            class="text-sm text-muted-foreground"
+            role="status"
+        >
+            {{ labels.announced_hint }}
         </p>
         <p
             v-if="mode === 'register_first'"

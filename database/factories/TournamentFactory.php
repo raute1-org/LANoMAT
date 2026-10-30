@@ -31,6 +31,11 @@ class TournamentFactory extends Factory
         ];
     }
 
+    public function announced(): static
+    {
+        return $this->state(['status' => TournamentStatus::Announced]);
+    }
+
     public function enrollment(): static
     {
         return $this->state(['status' => TournamentStatus::Enrollment]);

@@ -54,7 +54,7 @@ beforeEach(function () {
 
 it('lists the current event tournaments for /tournament list', function () {
     $event = Event::factory()->live()->create();
-    Tournament::factory()->for($event)->create(['name' => 'Valorant Cup']);
+    Tournament::factory()->for($event)->announced()->create(['name' => 'Valorant Cup']);
 
     $body = applicationCommand('tournament', [
         ['name' => 'list', 'type' => 1, 'options' => []],
@@ -249,7 +249,7 @@ it('returns not-found instead of leaking a link for /tournament bracket on a dra
 
 it('returns tournament info for /tournament info', function () {
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create(['name' => 'CS Masters']);
+    $tournament = Tournament::factory()->for($event)->announced()->create(['name' => 'CS Masters']);
 
     $body = applicationCommand('tournament', [
         ['name' => 'info', 'type' => 1, 'options' => [
@@ -267,7 +267,7 @@ it('defers /tournament bracket and delivers the bracket link via a follow-up job
     Bus::fake();
 
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create(['name' => 'Bracket Cup']);
+    $tournament = Tournament::factory()->for($event)->announced()->create(['name' => 'Bracket Cup']);
 
     $body = applicationCommand('tournament', [
         ['name' => 'bracket', 'type' => 1, 'options' => [
@@ -333,4 +333,18 @@ it('tells an unregistered participant to register for the event before checking 
         ->assertJsonPath('data.content', __('tournaments.errors.registration_required'));
 
     expect($entry->fresh()->status)->toBe(EntryStatus::Registered);
+});
+
+it('does not list draft tournaments for /tournament list nor reveal them via /tournament info', function () {
+    $event = Event::factory()->live()->create();
+    $draft = Tournament::factory()->for($event)->create(['name' => 'Entwurfs Cup']);
+    Tournament::factory()->for($event)->announced()->create(['name' => 'Angekuendigt Cup']);
+
+    postInteraction(applicationCommand('tournament', [['name' => 'list', 'type' => 1]]))
+        ->assertOk()
+        ->assertJsonPath('data.content', fn (string $content): bool => str_contains($content, 'Angekuendigt Cup') && ! str_contains($content, 'Entwurfs Cup'));
+
+    postInteraction(applicationCommand('tournament', [
+        ['name' => 'info', 'type' => 1, 'options' => [['name' => 'id', 'type' => 4, 'value' => $draft->id]]],
+    ]))->assertJsonPath('data.content', __('discord.commands.tournament.info.not_found'));
 });
