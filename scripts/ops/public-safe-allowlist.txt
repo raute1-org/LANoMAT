@@ -7,3 +7,11 @@
 # git@github.com is the generic SSH clone user of GitHub, not a personal address.
 docs/superpowers/plans/2026-07-15-m5-kickoff.md:^git@github\.com$
 docs/superpowers/plans/2026-07-16-m6-kickoff.md:^git@github\.com$
+
+# docs/infra: the nftables PRIVATE4 set lists the standard private/CGNAT range constants
+# (RFC1918 + 100.64.0.0/10) that the egress isolation blocks. They are range definitions,
+# not addresses of any real machine.
+docs/infra/proxmox-test-vm-lancache.md:^10\.0\.0\.0$
+docs/infra/proxmox-test-vm-lancache.md:^172\.16\.0\.0$
+docs/infra/proxmox-test-vm-lancache.md:^192\.168\.0\.0$
+docs/infra/proxmox-test-vm-lancache.md:^100\.64\.0\.0$
