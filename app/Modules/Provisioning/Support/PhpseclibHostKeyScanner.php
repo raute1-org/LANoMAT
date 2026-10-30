@@ -11,8 +11,10 @@ use Throwable;
 
 /**
  * Reads the presented host key with phpseclib: transport handshake only,
- * `getServerPublicHostKey()` never authenticates. ed25519 is preferred so the
- * result can be compared with `ssh-keyscan -t ed25519` on the other path.
+ * `getServerPublicHostKey()` never authenticates. It deliberately uses the same
+ * default negotiation as SshRemoteExecutor, so the key type that gets pinned is
+ * the one every later login will see; the cross-check accepts any key type that
+ * `ssh-keyscan` returns on the independent path.
  */
 class PhpseclibHostKeyScanner implements HostKeyScanner
 {
@@ -22,7 +24,6 @@ class PhpseclibHostKeyScanner implements HostKeyScanner
     {
         try {
             $ssh = new SSH2($address, $port, $this->timeoutSeconds);
-            $ssh->setPreferredAlgorithms(['hostkey' => ['ssh-ed25519', 'ecdsa-sha2-nistp256', 'rsa-sha2-512', 'rsa-sha2-256']]);
             $key = $ssh->getServerPublicHostKey();
 
             return $key === false ? null : SshRemoteExecutor::deriveFingerprint($key);

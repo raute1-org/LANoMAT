@@ -20,6 +20,7 @@ use App\Modules\Provisioning\Enums\VmPowerState;
 use App\Modules\Provisioning\Exceptions\ProvisioningException;
 use App\Modules\Provisioning\Support\ProvisioningContext;
 use phpseclib3\Crypt\EC;
+use Throwable;
 
 /**
  * Step 0b: create the VM from the imported image with cloud-init, and register
@@ -49,19 +50,23 @@ class CreateVm implements ProvisioningStep
         $spec = $this->spec($context, 'ssh-ed25519 <generated public key>', "{$c->imageStorage}:import/{$c->image->filename}");
 
         return new StepDescription(
-            'Create the VM with cloud-init and register it as a remote host',
+            __('provisioning.steps.create_vm.title'),
             [
-                PlannedAction::local('generate a fresh ed25519 key pair for this VM (private key stored encrypted on the remote host record only)'),
-                PlannedAction::hypervisor('pick a free VM id'.($c->vmid === null ? '' : " (configured: {$c->vmid})").'; refuse when the id is taken by another VM'),
-                PlannedAction::hypervisor(sprintf(
-                    'create VM %s (id %s) on node %s: %d MiB RAM (balloon %d), %d cores, cpu %s, %s/%s, bridge %s, %s, agent on, serial0, onboot; scsi0 imported from %s on %s and resized to %d GiB; efidisk, cloud-init drive',
-                    $spec->name, $context->vmidLabel(), $spec->node, $spec->memoryMb, $spec->balloonMb, $spec->cores, $spec->cpu, $spec->machine, $spec->bios, $spec->bridge, $spec->scsihw, $spec->importFromVolume, $spec->storage, $spec->diskSizeGb,
-                )),
-                PlannedAction::hypervisor(sprintf('cloud-init: user %s, %d admin key(s) + the generated key, ip %s/%d gw %s, nameserver %s%s', $c->ciUser, count($c->adminSshKeys), $c->ip, $c->prefix, $c->gateway, $c->nameserver, $c->searchDomain === null ? '' : ", search {$c->searchDomain}")),
-                PlannedAction::local("register remote host [{$c->name}] at {$c->ip}:22 (role lancache, user {$c->ciUser}); host key is pinned later, out of band"),
+                PlannedAction::local(__('provisioning.steps.create_vm.generate_key')),
+                PlannedAction::hypervisor(__('provisioning.steps.create_vm.pick_vmid', ['configured' => $c->vmid === null ? __('provisioning.steps.create_vm.auto') : (string) $c->vmid])),
+                PlannedAction::hypervisor(__('provisioning.steps.create_vm.create', [
+                    'name' => $spec->name, 'vmid' => $context->vmidLabel(), 'node' => $spec->node, 'memory' => $spec->memoryMb, 'balloon' => $spec->balloonMb,
+                    'cores' => $spec->cores, 'cpu' => $spec->cpu, 'machine' => $spec->machine, 'bios' => $spec->bios, 'bridge' => $spec->bridge, 'scsihw' => $spec->scsihw,
+                    'volume' => $spec->importFromVolume, 'storage' => $spec->storage, 'disk' => $spec->diskSizeGb,
+                ])),
+                PlannedAction::hypervisor(__('provisioning.steps.create_vm.cloud_init', [
+                    'user' => $c->ciUser, 'keys' => count($c->adminSshKeys), 'ip' => $c->ip, 'prefix' => $c->prefix, 'gateway' => $c->gateway, 'nameserver' => $c->nameserver,
+                    'search' => $c->searchDomain ?? '-',
+                ])),
+                PlannedAction::local(__('provisioning.steps.create_vm.register_host', ['name' => $c->name, 'ip' => $c->ip, 'user' => $c->ciUser])),
             ],
-            ['the VM exists on the hypervisor under the expected name'],
-            'stop and delete the VM (purge) and remove the remote host record, only when this run created them',
+            [__('provisioning.steps.create_vm.verify')],
+            __('provisioning.steps.create_vm.rollback'),
         );
     }
 
@@ -104,7 +109,20 @@ class CreateVm implements ProvisioningStep
         $privateKey = $key->toString('OpenSSH');
         $context->registerSecret($privateKey);
 
-        $client->createVm($this->spec($context, $publicKey, $context->get('image_volume') ?? "{$c->imageStorage}:import/{$c->image->filename}"));
+        try {
+            $client->createVm($this->spec($context, $publicKey, $context->get('image_volume') ?? "{$c->imageStorage}:import/{$c->image->filename}"));
+        } catch (Throwable $e) {
+            // The create task and the resize task are separate: the VM may exist although the call failed.
+            // The id and name were proven free above, so a VM with our name and tag now is ours to clean up.
+            $partial = $client->getVm($node, $vmid);
+
+            if ($partial !== null && $partial->name === $c->name && in_array('lanomat', $partial->tags, true)) {
+                $context->put('vm_created', true);
+            }
+
+            throw $e;
+        }
+
         $context->put('vm_created', true);
         $context->log("created VM {$vmid}");
 

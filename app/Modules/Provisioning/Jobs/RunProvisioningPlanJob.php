@@ -29,6 +29,8 @@ class RunProvisioningPlanJob implements ShouldQueue
     public function __construct(public readonly int $runId)
     {
         $this->timeout = (int) config('provisioning.steps.timeout') * 10 + 300;
+        // Long jobs get their own queue so they never block the default worker (see docs/provisioning.md).
+        $this->onQueue('provisioning');
     }
 
     public function handle(ExecuteProvisioningRun $execute): void

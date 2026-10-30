@@ -41,6 +41,9 @@ class FakeHypervisorClient implements HypervisorClient
 
     public bool $agentAnswers = true;
 
+    /** Simulates a create task that allocated the VM but a later task (resize) failed. */
+    public bool $failAfterCreate = false;
+
     public int $nextVmid = 100;
 
     /** @var list<HypervisorStorage> */
@@ -117,6 +120,10 @@ class FakeHypervisorClient implements HypervisorClient
 
         $this->specs[$spec->vmid] = $spec;
         $this->vms[$spec->vmid] = new VmSummary($spec->vmid, $spec->name, VmPowerState::Stopped, $spec->cores, $spec->memoryMb * 1024 * 1024, $spec->diskSizeGb * 1024 ** 3, $spec->tags);
+
+        if ($this->failAfterCreate) {
+            throw HypervisorException::taskFailed('fake failure after the VM was allocated (resize task)');
+        }
     }
 
     public function importDisk(string $node, int $vmid, string $disk, string $storage, string $volume): void

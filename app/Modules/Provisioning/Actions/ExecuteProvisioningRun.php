@@ -9,6 +9,8 @@ use App\Modules\Provisioning\Enums\RunStatus;
 use App\Modules\Provisioning\Models\ProvisioningRun;
 use App\Modules\Provisioning\Support\ProvisioningContext;
 use App\Modules\Provisioning\Support\ProvisioningPlans;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Closure;
 use Illuminate\Support\Facades\Gate;
 
@@ -30,6 +32,13 @@ class ExecuteProvisioningRun
     public function handle(ProvisioningRun $run, ?Closure $sleeper = null): ProvisioningRun
     {
         if ($run->status !== RunStatus::Pending) {
+            return $run;
+        }
+
+        if (! app(Modules::class)->enabled(Module::Provisioning)) {
+            // Without the module no policy is registered and Gate::before would let an admin through.
+            $run->forceFill(['status' => RunStatus::Failed, 'error' => 'The provisioning module is disabled.', 'finished_at' => now()])->save();
+
             return $run;
         }
 

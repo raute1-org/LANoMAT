@@ -17,6 +17,7 @@ use App\Modules\Provisioning\Jobs\RunProvisioningPlanJob;
 use App\Modules\Provisioning\Models\ProvisioningRun;
 use App\Modules\Provisioning\Plans\TestVmWithLancache;
 use App\Modules\Provisioning\Support\RunOptions;
+use App\Support\Modules\Modules;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -163,7 +164,7 @@ it('queues the run as a never-retried job with a generous timeout', function () 
 
     $run = app(StartProvisioningRun::class)->handle(TestVmWithLancache::KEY, sampleConfig(), $w['hypervisor'], $w['actor']);
 
-    Queue::assertPushed(RunProvisioningPlanJob::class, fn ($job) => $job->runId === $run->id && $job->tries === 1 && $job->timeout >= 9 * 600);
+    Queue::assertPushed(RunProvisioningPlanJob::class, fn ($job) => $job->runId === $run->id && $job->queue === 'provisioning' && $job->tries === 1 && $job->timeout >= 9 * 600);
     expect($run->status)->toBe(RunStatus::Pending)->and($run->steps)->toHaveCount(9);
 });
 
@@ -197,4 +198,25 @@ it('rejects an unknown plan and an invalid config before anything is stored', fu
     expect(fn () => app(StartProvisioningRun::class)->handle('nope', sampleConfig(), $w['hypervisor'], $w['actor'], dispatch: false))->toThrow(ProvisioningException::class, 'Unknown');
     expect(fn () => app(StartProvisioningRun::class)->handle(TestVmWithLancache::KEY, sampleConfig(['ip' => '999.1.1.1']), $w['hypervisor'], $w['actor'], dispatch: false))->toThrow(ProvisioningException::class, 'ip');
     expect(DB::table('provisioning_runs')->count())->toBe(0);
+});
+
+it('cleans up a VM that was allocated although the create call failed (resize after create)', function () {
+    $w = provisioningWorld();
+    $w['hv']->failAfterCreate = true;
+
+    $run = runPlan($w);
+
+    expect($run->status)->toBe(RunStatus::Failed)->and(statuses($run)['create_vm'])->toBe('rolled_back');
+    expect($w['hv']->vms)->toBe([])->and(RemoteHost::query()->where('name', 'lancache-test')->exists())->toBeFalse();
+    $w['hv']->assertCalled('deleteVm');
+});
+
+it('fails a queued run when the module has been switched off in the meantime', function () {
+    $w = provisioningWorld();
+    $run = app(StartProvisioningRun::class)->handle(TestVmWithLancache::KEY, sampleConfig(), $w['hypervisor'], $w['actor'], dispatch: false);
+
+    app()->singleton(Modules::class, fn () => new Modules('full', ['provisioning' => false]));
+    $executed = app(ExecuteProvisioningRun::class)->handle($run->fresh(), fn (int $s) => null);
+
+    expect($executed->status)->toBe(RunStatus::Failed)->and($executed->error)->toContain('module is disabled')->and($w['hv']->calls)->toBe([]);
 });
