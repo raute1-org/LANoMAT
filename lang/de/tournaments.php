@@ -119,7 +119,7 @@ return [
         'unsupported_double_elimination_size' => 'Doppel-K.-o.-System wird nur für 2 bis 64 teilnehmende Anmeldungen unterstützt.',
         'match_not_ready' => 'Dieses Match ist noch nicht bereit, um gemeldet zu werden.',
         'match_not_in_warmup' => 'Dieses Match ist nicht in der Aufwärmphase.',
-        'stale_match' => 'Dieses Match wurde inzwischen von jemand anderem aktualisiert. Bitte lade die Seite neu und versuche es erneut.',
+        'stale_match' => 'Das Ergebnis wurde inzwischen geändert. Seite neu geladen.',
         'not_a_participant' => 'Diese Anmeldung ist keine Teilnehmerin dieses Matches.',
         'cannot_confirm_own_report' => 'Die meldende Anmeldung kann die eigene Meldung nicht bestätigen oder anfechten.',
         'reporter_has_no_owner' => 'Die meldende Anmeldung hat weder eine Person noch einen Team-Owner.',

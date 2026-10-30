@@ -17,7 +17,7 @@ class ConfirmReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lock_version' => ['required', 'integer'],
+            'lock_version' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ];
     }
 }

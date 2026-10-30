@@ -13,8 +13,11 @@ use DomainException;
  */
 class StaleMatchException extends DomainException
 {
+    public readonly string $translationKey;
+
     public function __construct()
     {
+        $this->translationKey = 'tournaments.errors.stale_match';
         parent::__construct('This match was already updated by someone else. Please reload and try again.');
     }
 }

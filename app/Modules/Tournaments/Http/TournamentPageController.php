@@ -18,6 +18,7 @@ use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Actions\SubmitMatchReport;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
+use App\Modules\Tournaments\Exceptions\StaleMatchException;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Http\Requests\ConfirmReportRequest;
 use App\Modules\Tournaments\Http\Requests\SubmitReportRequest;
@@ -156,7 +157,7 @@ class TournamentPageController extends Controller
             } else {
                 $enrollSolo->handle($tournament, $user);
             }
-        } catch (TournamentException $e) {
+        } catch (TournamentException|StaleMatchException $e) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
 
             return back();
@@ -178,7 +179,7 @@ class TournamentPageController extends Controller
 
         try {
             $action->handle($entry);
-        } catch (TournamentException $e) {
+        } catch (TournamentException|StaleMatchException $e) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
 
             return back();
@@ -202,7 +203,7 @@ class TournamentPageController extends Controller
 
         try {
             $action->handle($match, $entry, $data['score1'], $data['score2']);
-        } catch (TournamentException $e) {
+        } catch (TournamentException|StaleMatchException $e) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
 
             return back();
@@ -229,7 +230,7 @@ class TournamentPageController extends Controller
 
         try {
             $action->handle($report, $entry, $data['lock_version']);
-        } catch (TournamentException $e) {
+        } catch (TournamentException|StaleMatchException $e) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
 
             return back();
@@ -254,7 +255,7 @@ class TournamentPageController extends Controller
 
         try {
             $action->handle($report, $entry);
-        } catch (TournamentException $e) {
+        } catch (TournamentException|StaleMatchException $e) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
 
             return back();
@@ -280,7 +281,7 @@ class TournamentPageController extends Controller
 
         try {
             $action->handle($match, $user);
-        } catch (TournamentException $e) {
+        } catch (TournamentException|StaleMatchException $e) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
 
             return back();

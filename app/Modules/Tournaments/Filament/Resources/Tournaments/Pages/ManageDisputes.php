@@ -4,6 +4,7 @@ namespace App\Modules\Tournaments\Filament\Resources\Tournaments\Pages;
 
 use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Exceptions\StaleMatchException;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Providers\Filament\AdminNavigationGroup;
@@ -83,12 +84,14 @@ class ManageDisputes extends Page implements HasTable
                             ->label(__('tournaments.admin.disputes.score1'))
                             ->required()
                             ->numeric()
-                            ->minValue(0),
+                            ->minValue(0)
+                            ->maxValue(9999),
                         TextInput::make('score2')
                             ->label(__('tournaments.admin.disputes.score2'))
                             ->required()
                             ->numeric()
                             ->minValue(0)
+                            ->maxValue(9999)
                             // A match cannot end in a tie (see
                             // BracketProgressor::apply()'s "no draws" domain
                             // rule) — reject it here so the orga override
@@ -101,7 +104,7 @@ class ManageDisputes extends Page implements HasTable
                     ->action(function (GameMatch $record, array $data): void {
                         try {
                             app(OverrideMatchResult::class)->handle($record, (int) $data['score1'], (int) $data['score2']);
-                        } catch (TournamentException $exception) {
+                        } catch (TournamentException|StaleMatchException $exception) {
                             Notification::make()
                                 ->title(__($exception->translationKey))
                                 ->danger()
