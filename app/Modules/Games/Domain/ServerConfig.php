@@ -28,6 +28,13 @@ final readonly class ServerConfig
      * @param  array<string, scalar>  $environment  Explicit Pelican egg variable
      *                                              overrides (`ENV_NAME => value`); win over the
      *                                              values derived from max_players/map/password.
+     * @param  list<string>  $overridable  Environment keys the orga may override per server
+     *                                     (all others are fixed by the preset).
+     * @param  list<string>  $extraPorts  Env variable names that each get an extra allocation's
+     *                                    port (e.g. `TV_PORT` for CS2 SourceTV); one pool allocation
+     *                                    per entry besides the main one.
+     * @param  string|null  $readinessType  `a2s` (Source query) or null/`none`.
+     * @param  string|null  $contentType  `none`, `workshop` or `upload`.
      */
     public function __construct(
         public ?int $maxPlayers = null,
@@ -38,6 +45,16 @@ final readonly class ServerConfig
         public ?int $diskMb = null,
         public ?int $cpuPercent = null,
         public array $environment = [],
+        public array $overridable = [],
+        public array $extraPorts = [],
+        public ?string $readinessType = null,
+        public ?string $readinessGame = null,
+        public ?string $readinessFolder = null,
+        public ?int $readinessTimeout = null,
+        public ?string $connectTemplate = null,
+        public ?string $contentType = null,
+        public ?string $contentRef = null,
+        public ?string $installMarker = null,
     ) {}
 
     /**
@@ -54,6 +71,16 @@ final readonly class ServerConfig
             'disk_mb' => $this->diskMb,
             'cpu_percent' => $this->cpuPercent,
             'environment' => $this->environment,
+            'overridable' => $this->overridable,
+            'extra_ports' => $this->extraPorts,
+            'readiness_type' => $this->readinessType,
+            'readiness_game' => $this->readinessGame,
+            'readiness_folder' => $this->readinessFolder,
+            'readiness_timeout' => $this->readinessTimeout,
+            'connect_template' => $this->connectTemplate,
+            'content_type' => $this->contentType,
+            'content_ref' => $this->contentRef,
+            'install_marker' => $this->installMarker,
         ];
 
         return array_filter(
@@ -80,7 +107,39 @@ final readonly class ServerConfig
             diskMb: isset($data['disk_mb']) ? (int) $data['disk_mb'] : null,
             cpuPercent: isset($data['cpu_percent']) ? (int) $data['cpu_percent'] : null,
             environment: is_array($environment) ? $environment : [],
+            overridable: self::stringList($data['overridable'] ?? []),
+            extraPorts: self::stringList($data['extra_ports'] ?? []),
+            readinessType: self::nullableString($data['readiness_type'] ?? null),
+            readinessGame: self::nullableString($data['readiness_game'] ?? null),
+            readinessFolder: self::nullableString($data['readiness_folder'] ?? null),
+            readinessTimeout: isset($data['readiness_timeout']) ? (int) $data['readiness_timeout'] : null,
+            connectTemplate: self::nullableString($data['connect_template'] ?? null),
+            contentType: self::nullableString($data['content_type'] ?? null),
+            contentRef: self::nullableString($data['content_ref'] ?? null),
+            installMarker: self::nullableString($data['install_marker'] ?? null),
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_map(static fn (mixed $item): string => (string) $item, array_filter($value, 'is_scalar')));
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        return is_scalar($value) && (string) $value !== '' ? (string) $value : null;
+    }
+
+    public function usesA2sReadiness(): bool
+    {
+        return $this->readinessType === 'a2s';
     }
 
     /**

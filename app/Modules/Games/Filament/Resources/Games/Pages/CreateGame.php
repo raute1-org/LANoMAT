@@ -9,6 +9,7 @@ use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
+use App\Modules\Games\Filament\Resources\Games\PresetFormMapper;
 use App\Modules\Games\Models\Game;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -124,15 +125,7 @@ class CreateGame extends CreateRecord
         }
 
         return array_values(array_map(
-            static fn (array $row): ServerPreset => new ServerPreset(
-                key: (string) ($row['key'] ?? ''),
-                name: (string) ($row['name'] ?? ''),
-                config: new ServerConfig(
-                    maxPlayers: isset($row['max_players']) ? (int) $row['max_players'] : null,
-                    map: $row['map'] ?? null,
-                    password: $row['password'] ?? null,
-                ),
-            ),
+            static fn (array $row): ServerPreset => PresetFormMapper::fromForm($row),
             $rows,
         ));
     }
