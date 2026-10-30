@@ -24,7 +24,7 @@ Wordmark: `LANoMAT` (exact spelling), Space Grotesk semibold, set beside the mar
 
 | Topic        | Rule                                                                                                            |
 | ------------ | --------------------------------------------------------------------------------------------------------------- |
-| Clear space  | 1x (one node diameter, 5 units = 21% of mark height) on all sides.                                            |
+| Clear space  | 1x (one node diameter, 5 units = 21% of mark height) on all sides.                                              |
 | Minimum size | Mark alone 16px; mark with wordmark 24px mark height.                                                           |
 | One-colour   | All five nodes `currentColor`. Use where amber is unavailable (print, mono).                                    |
 | Amber        | Light bg: `--primary` (`#a85a00`, AA). Dark bg: bright amber `#ffb020`. Always via token, never raw hex in Vue. |
