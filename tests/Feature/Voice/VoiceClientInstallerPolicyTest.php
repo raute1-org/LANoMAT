@@ -74,3 +74,11 @@ it('streams the installer download for an authenticated user', function () {
 
     $response->assertOk();
 });
+
+it('answers 404 instead of 500 when the installer file is missing on disk', function () {
+    $installer = VoiceClientInstaller::factory()->create(['path' => 'voice-installers/gone.exe']);
+
+    $this->actingAs(User::factory()->create())
+        ->get("/voice/installers/{$installer->id}/download")
+        ->assertNotFound();
+});
