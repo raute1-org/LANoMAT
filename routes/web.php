@@ -25,7 +25,9 @@ use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Presence\Http\PresencePageController;
 use App\Modules\Recap\Http\RecapPageController;
 use App\Modules\Registration\Http\CheckInController;
+use App\Modules\Registration\Http\CheckinQrPrintController;
 use App\Modules\Registration\Http\RegistrationController;
+use App\Modules\Registration\Http\SelfCheckInController;
 use App\Modules\Schedule\Http\ScheduleController;
 use App\Modules\Seating\Http\SeatingController;
 use App\Modules\Stats\Http\StatsPageController;
@@ -67,6 +69,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
     Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
 
+    // On-site self check-in (one QR per event). 404 for unknown/rotated tokens.
+    Route::get('/checkin/{token}', [SelfCheckInController::class, 'show'])->middleware('throttle:self-checkin')->name('checkin.show');
+    Route::post('/checkin/{token}', [SelfCheckInController::class, 'store'])->middleware('throttle:self-checkin')->name('checkin.store');
+
     Route::post('/events/{event:slug}/seating/{seat}', [SeatingController::class, 'claim'])->name('events.seating.claim');
     Route::delete('/events/{event:slug}/seating', [SeatingController::class, 'release'])->name('events.seating.release');
 
@@ -90,6 +96,10 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'role:helper'])->group(function () {
     Route::get('/orga/events/{event:slug}/checkin', [CheckInController::class, 'show'])->name('orga.checkin');
     Route::post('/orga/events/{event:slug}/checkin', [CheckInController::class, 'store'])->name('orga.checkin.store');
+});
+
+Route::middleware(['auth', 'role:orga'])->group(function () {
+    Route::get('/orga/events/{event:slug}/checkin-qr', CheckinQrPrintController::class)->name('orga.checkin.print');
 });
 
 Route::middleware(['guest'])->group(function () {

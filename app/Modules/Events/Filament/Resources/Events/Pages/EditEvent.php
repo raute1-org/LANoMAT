@@ -6,11 +6,15 @@ use App\Modules\Events\Actions\TransitionEventStatus;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Filament\Resources\Events\EventResource;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Actions\RotateEventCheckinToken;
+use App\Modules\Registration\Models\EventCheckinToken;
+use App\Modules\Registration\Support\QrCode;
 use DomainException;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Icons\Heroicon;
 
 class EditEvent extends EditRecord
 {
@@ -51,7 +55,46 @@ class EditEvent extends EditRecord
                 }))
             ->all();
 
+        $qrActions = [
+            Action::make('checkinQr')
+                ->label(__('registration.self_checkin.admin.show'))
+                ->icon(Heroicon::OutlinedQrCode)
+                ->color('gray')
+                ->authorize(fn () => auth()->user()?->can('update', $event) ?? false)
+                ->modalHeading(__('registration.self_checkin.admin.heading', ['event' => $event->name]))
+                ->modalContent(function () use ($event) {
+                    $url = route('checkin.show', ['token' => EventCheckinToken::forEvent($event)->token]);
+
+                    return view('filament.checkin-qr', ['svg' => app(QrCode::class)->svg($url), 'url' => $url]);
+                })
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel(__('registration.self_checkin.admin.close'))
+                ->extraModalFooterActions([
+                    Action::make('checkinQrPrint')
+                        ->label(__('registration.self_checkin.admin.print'))
+                        ->icon(Heroicon::OutlinedPrinter)
+                        ->url(route('orga.checkin.print', ['event' => $event->slug]), shouldOpenInNewTab: true),
+                ]),
+            Action::make('rotateCheckinToken')
+                ->label(__('registration.self_checkin.admin.rotate'))
+                ->icon(Heroicon::OutlinedArrowPath)
+                ->color('gray')
+                ->authorize(fn () => auth()->user()?->can('update', $event) ?? false)
+                ->requiresConfirmation()
+                ->modalHeading(__('registration.self_checkin.admin.rotate_heading'))
+                ->modalDescription(__('registration.self_checkin.admin.rotate_description'))
+                ->action(function () use ($event): void {
+                    app(RotateEventCheckinToken::class)->handle($event);
+
+                    Notification::make()
+                        ->title(__('registration.self_checkin.admin.rotated'))
+                        ->success()
+                        ->send();
+                }),
+        ];
+
         return [
+            ...$qrActions,
             ...$transitions,
             DeleteAction::make(),
         ];

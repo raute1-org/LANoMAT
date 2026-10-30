@@ -322,6 +322,7 @@ Committed output (captured against the local production stack —
 **All roadmap phases (M0–M12) are complete and tagged**, plus the cross-cutting
 Friends system:
 
+- **Self check-in & walk-ins** — on-site QR (`/checkin/{token}`, rotatable in the admin panel) lets participants check themselves in; registration stays open while the event is live as long as spots remain (see `docs/self-checkin.md`).
 - **M0–M3** — fundament; events & identity; registration, QR-ticket check-in,
   seating, in-app notifications and the Discord base; cross-event teams &
   tournaments (pure bracket engine, Reverb realtime, Discord interactions,
