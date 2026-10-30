@@ -36,6 +36,7 @@ QUAD="(?<![\\w.])${OCTET}(?:\\.${OCTET}){3}(?![\\w]|\\.[0-9])"
 EMAIL='[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(?![A-Za-z0-9-])'
 SSH_PUB='(?:ssh-(?:rsa|ed25519|dss)|ecdsa-sha2-nistp[0-9]+) AAAA[0-9A-Za-z+/]{20,}'
 PRIV_KEY='-----BEGIN [A-Z ]*PRIVATE KEY-----'
+ROOT_SSH='(?i)\bssh\s+(?:-\S+\s+)*root@\S+|\broot@[A-Za-z0-9<][A-Za-z0-9._<>-]*'
 SSH_FP='SHA256:[A-Za-z0-9+/]{43}'
 SNOWFLAKE='(?i)(?:guild(?:[ _-]?id)?|discord[ _-]?id|user id)\W{0,20}[0-9]{17,20}'
 
@@ -130,7 +131,7 @@ scan() {
   done < <(cd "$ROOT" && grep -nIoHP -- "$EMAIL" "${files[@]}" || true)
 
   local pair rule re
-  for pair in "ssh-public-key|$SSH_PUB" "private-key|$PRIV_KEY" "ssh-fingerprint|$SSH_FP"; do
+  for pair in "ssh-public-key|$SSH_PUB" "private-key|$PRIV_KEY" "ssh-fingerprint|$SSH_FP" "root-ssh|$ROOT_SSH"; do
     rule="${pair%%|*}"; re="${pair#*|}"
     while IFS=: read -r path ln tok; do
       report "$path" "$ln" "$rule" "$tok"
@@ -175,6 +176,9 @@ self_test() {
   expect ssh-pub 1 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
   expect priv-key 1 "-----BEGIN OPENSSH PRIVATE KEY-----"
   expect fingerprint 1 "SHA256:abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ" "abcdefghij"
+  expect root-ssh 1 "ssh root@${dot}x" 
+  expect root-at-host 1 "login root@srv${dot}test"
+  expect non-root-ssh 0 "ssh <ssh-user>@<APP_SERVER> deploy"
   expect snowflake 1 "guild id 123456789012345678" "123456789012345678"
   expect clean 0 "localhost 127${dot}0${dot}0${dot}1, dns 1${dot}1${dot}1${dot}1, doc 203${dot}0${dot}113${dot}7, bob@example.org, <APP_SERVER_IP>, discord_id 100000000000000001, noreply@anthropic.com"
   # Files outside the scanned areas are not this script's business.
