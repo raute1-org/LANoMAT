@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import BracketView from '@/components/bracket/BracketView.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import StandingsTable from '@/components/tournaments/StandingsTable.vue';
 import TournamentEntryActions from '@/components/tournaments/TournamentEntryActions.vue';
 import { Button } from '@/components/ui/button';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
@@ -15,12 +16,16 @@ import type {
     TournamentDetail,
     TournamentMyEntry,
     TournamentRegistrationGate,
+    TournamentStandingRow,
     TournamentTeamPicker,
 } from '@/types';
 
 const props = defineProps<{
     tournament: TournamentDetail;
     matches: BracketMatchDto[];
+    /** Round-robin table; null for elimination formats. */
+    standings: TournamentStandingRow[] | null;
+    standingsLabels: Record<string, string>;
     myEntryId: number | null;
     /** The viewer's pending result claims keyed by match id (participants only). */
     pendingReports: Record<number, PendingReportDto>;
@@ -166,6 +171,22 @@ const isNotStarted = computed(
                 class="mt-8 rounded-lg border border-border bg-card p-4"
             >
                 <LiveIndicator variant="ok" :label="labels.finished" />
+                <p v-if="tournament.winnerName" class="mt-2 text-sm">
+                    <span class="text-muted-foreground"
+                        >{{ labels.champion }}:</span
+                    >
+                    <span class="ml-1 font-semibold text-foreground">{{
+                        tournament.winnerName
+                    }}</span>
+                </p>
+            </div>
+
+            <div v-if="standings !== null" class="mt-8">
+                <StandingsTable
+                    :rows="standings"
+                    :my-entry-id="myEntryId"
+                    :labels="standingsLabels"
+                />
             </div>
 
             <div class="mt-8">

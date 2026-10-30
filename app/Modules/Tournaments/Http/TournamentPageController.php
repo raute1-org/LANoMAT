@@ -32,6 +32,7 @@ use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Tournaments\Support\EventRegistrationRequirement;
 use App\Modules\Tournaments\Support\PendingReportView;
+use App\Modules\Tournaments\Support\StandingsView;
 use App\Modules\Tournaments\Support\TeamPicker;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
@@ -138,7 +139,10 @@ class TournamentPageController extends Controller
                 'status' => $tournament->status->value,
                 'event' => ['name' => $event->name, 'slug' => $event->slug],
                 'winnerEntryId' => $tournament->winner_entry_id,
+                'winnerName' => $tournament->winnerEntry?->display_name,
             ],
+            'standings' => StandingsView::forTournament($tournament),
+            'standingsLabels' => trans('tournaments.standings'),
             'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
             'teamPicker' => TeamPicker::for($tournament, TeamPicker::ownedTeams($user)),
             'myEntryId' => $myEntry?->id,

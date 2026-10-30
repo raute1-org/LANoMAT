@@ -75,6 +75,7 @@ return [
         'join_voice' => 'Voice beitreten',
         'not_started' => 'Das Turnier hat noch nicht begonnen.',
         'finished' => 'Turnier beendet',
+        'champion' => 'Sieger',
         'withdraw' => 'Abmelden',
         'withdraw_confirm' => 'Wirklich vom Turnier abmelden? Dein Platz wird freigegeben.',
         'entered' => 'Angemeldet',
@@ -204,6 +205,19 @@ return [
         'opponent_label' => 'Gegner',
         'reported_by' => 'Gemeldet von :name',
         'awaiting' => 'Warte auf Bestätigung durch :name',
+    ],
+
+    'standings' => [
+        'title' => 'Tabelle',
+        'empty' => 'Noch keine Ergebnisse.',
+        'rank' => 'Platz',
+        'name' => 'Teilnehmer',
+        'played' => 'Sp.',
+        'wins' => 'S',
+        'losses' => 'N',
+        'points' => 'Punkte',
+        'difference' => 'Diff.',
+        'tiebreak' => 'Bei Gleichstand zählen Siege, dann Punktdifferenz, dann der direkte Vergleich und die erzielten Punkte.',
     ],
 
     'warmup' => [

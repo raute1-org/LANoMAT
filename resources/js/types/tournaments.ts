@@ -54,6 +54,8 @@ export interface TournamentDetail {
     status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
     event: { name: string; slug: string };
     winnerEntryId: number | null;
+    /** Champion's display name once the tournament is finished. */
+    winnerName: string | null;
 }
 
 /**
@@ -160,4 +162,17 @@ export interface PendingReportDto {
     reporterName: string | null;
     opponentName: string | null;
     reportedAt: string | null;
+}
+
+/** One row of the round-robin table (derived server-side by the pure standings calculator). */
+export interface TournamentStandingRow {
+    rank: number;
+    entryId: number;
+    name: string;
+    played: number;
+    wins: number;
+    losses: number;
+    pointsFor: number;
+    pointsAgainst: number;
+    scoreDifference: number;
 }
