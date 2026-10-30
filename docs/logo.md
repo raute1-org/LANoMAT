@@ -18,7 +18,9 @@ Wordmark: `LANoMAT` (exact spelling), Space Grotesk semibold, set beside the mar
 | `public/favicon.svg`                       | Same as `logo-mark.svg`.                                                         |
 | `public/favicon.ico`                       | 16/32/48, light mark + bright amber, transparent (reads on dark and mid tabs).   |
 | `public/apple-touch-icon.png`              | 180x180, opaque `--graphite-950` (`#0f1215`), mark at 60%.                       |
-| `resources/views/filament/brand.blade.php` | Filament panel brand (mark + wordmark); favicon set in `AdminPanelProvider`.     |
+| `resources/views/filament/brand.blade.php` | Filament brand (derives from `logo-mark.svg`, adds the admin badge); favicon in `AdminPanelProvider`. |
+
+Parity: `public/logo-mark.svg` is the canonical geometry. `tests/Feature/ShellParity` asserts `AppLogoIcon.vue` and `favicon.svg` are identical to it; the Filament brand view reads it at render time. Change the circles in **`logo-mark.svg`, `favicon.svg` and `AppLogoIcon.vue` together** (and regenerate the raster assets below).
 
 ## Rules
 

@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
+use App\Support\Brand\ShellParity;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Filament\Actions\Action;
@@ -15,6 +16,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -32,19 +34,21 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->brandName('LANoMAT')
+            ->brandName(ShellParity::BRAND_NAME)
             ->brandLogo(fn () => view('filament.brand'))
-            ->brandLogoHeight('1.75rem')
+            ->brandLogoHeight(ShellParity::BRAND_LOGO_HEIGHT)
             // Same shell as the participant app: sidebar navigation (Filament's
             // default), user menu pinned to the sidebar footer, collapsible on desktop.
             ->userMenu(position: UserMenuPosition::Sidebar)
             ->sidebarCollapsibleOnDesktop()
             ->userMenuItems([
                 Action::make('back-to-app')
-                    ->label('Zur App')
+                    ->label(ShellParity::FILAMENT_BACK_LABEL)
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->url('/'),
             ])
+            ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.shell.admin-stripe'))
+            ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.back-to-app'))
             ->favicon(asset('favicon.svg'))
             // Signal-amber brand accent (docs/design.md "Signalpult"): the
             // light-mode primary `#a85a00` is passed as a single hex so

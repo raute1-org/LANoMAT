@@ -178,6 +178,40 @@ Backing props: `registration` (`Registration\Support\MyRegistration::summary`, n
 - [ ] German copy, consistent action names, no English leftovers.
 - [ ] Pest feature test for new props/controller; `composer check` + `types:check`/`lint:check`/`format:check`/`build` green.
 
+## Two apps, one shell (parity rules)
+
+LANoMAT ships **two UI stacks** that must read as one product:
+
+| | Participant app | Admin panel |
+|---|---|---|
+| Stack | Inertia v2 + Vue 3 + Tailwind v4 + shadcn-vue | Filament v5 (Livewire/Blade) at `/admin` |
+| Shell | `resources/js/layouts/*`, `components/AppSidebar.vue`, `AppLogo*.vue`, `UserMenuContent.vue` | `app/Providers/Filament/AdminPanelProvider.php`, `resources/views/filament/**` |
+| Tokens/CSS | `resources/css/app.css` (compiled by Vite) | Filament's own compiled CSS and `--primary-*` / `--gray-*` variables |
+
+**Why Filament ignores app Tailwind classes:** the panel loads Filament's prebuilt stylesheet, not our Vite bundle. A class such as `h-6` or `gap-2` in a Blade view under `resources/views/filament/` silently does nothing. Use `fi-*` classes, Filament components (`<x-filament::button>`), render hooks and inline styles (or a small scoped `<style>`) there.
+
+### Shell contract
+
+Single definition: `App\Support\Brand\ShellParity`. Canonical logo geometry: `public/logo-mark.svg` (the Filament brand view derives from it at render time).
+
+| Contract row | Participant app | Admin panel |
+|---|---|---|
+| Brand name / wordmark `LANoMAT` | `AppLogo.vue` | `brandName()` + `filament/brand.blade.php` |
+| Logo mark geometry | `AppLogoIcon.vue` (inline, for HMR) | `filament/brand.blade.php` (derived from `logo-mark.svg`); `favicon.svg` copy |
+| User menu at sidebar bottom | `AppSidebar.vue` footer | `userMenu(position: Sidebar)` |
+| Sidebar collapsible on desktop | shadcn `Sidebar` | `sidebarCollapsibleOnDesktop()` |
+| User-menu items, German | "Admin-Bereich", "Einstellungen", "Abmelden" | "Zur App", Filament profile/logout |
+| Admin marker present **only** in admin | none (must stay absent) | neutral "Admin" badge in the brand + 3px top stripe (`PanelsRenderHook::BODY_START`) |
+| Back link to app always visible in admin | n/a | "Zur App" button (`PanelsRenderHook::TOPBAR_END`) + user-menu item |
+
+**Marker colour choice:** the badge and stripe are neutral high-contrast (Filament `gray-950` on light, `gray-50` on dark), not amber. Amber is rationed to the primary action and live state (see above); using it for "you are in admin" would dilute that signal.
+
+**Rule: a change to any row of the contract touches both apps in the same PR.**
+
+**Verify visually:** log in with the dev "Als Demo-Orga" button, then look at both `/dashboard` (participant) and `/admin`, in light and dark. Tailwind-only changes can look right in one and broken in the other.
+
+**The net:** `tests/Feature/ShellParity/ShellParityTest.php` fails if the logo copies drift, the panel config leaves the contract, the user-menu labels change, the admin marker/back link disappear or leak into the app, or a Filament view uses app-only Tailwind utilities (a regex heuristic over `class="..."` in `resources/views/filament/**`; `fi-*` is allowed). The PR template carries the matching checklist item.
+
 ## Beamer (the loud surface)
 
 `/screen/{event}` is the exception to "quiet". Near-black canvas, huge type, the amber accent at full brightness, celebratory motion (winner confetti, tombola reveal) — but still disciplined: one focal thing per scene, legible at distance, high contrast. The winner/celebration colour aligns to `--live` amber (not an ad-hoc yellow).
