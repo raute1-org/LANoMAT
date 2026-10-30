@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { pingOrga, register as eventsRegister } from '@/routes/events';
+import {
+    pingOrga,
+    register as eventsRegister,
+    show as eventsShow,
+} from '@/routes/events';
 import {
     claim as claimSeat,
     release as releaseSeat,
@@ -128,11 +133,11 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-5xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer
+        width="wide"
+        :title="`${labels.title} — ${event.name}`"
+        :back="{ href: eventsShow.url(event.slug), label: 'Zurück zum Event' }"
+    >
         <div v-if="!canClaim" class="mt-4 space-y-3" data-test="seating-hint">
             <p class="text-sm text-muted-foreground">
                 {{
@@ -285,5 +290,5 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                 </g>
             </svg>
         </div>
-    </main>
+    </PageContainer>
 </template>

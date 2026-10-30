@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { show as showPoll } from '@/routes/polls';
 import type { PollSummaryDto } from '@/types';
@@ -19,11 +20,10 @@ function isOpen(poll: PollSummaryDto): boolean {
 <template>
     <Head :title="`${labels.index_title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.index_title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer
+        width="default"
+        :title="`${labels.index_title} — ${event.name}`"
+    >
         <div
             v-if="polls.length === 0"
             class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
@@ -65,5 +65,5 @@ function isOpen(poll: PollSummaryDto): boolean {
                 <Badge v-else variant="outline">{{ poll.statusLabel }}</Badge>
             </li>
         </ul>
-    </main>
+    </PageContainer>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -38,12 +39,8 @@ function submit() {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-5xl px-4 py-12">
-        <div class="flex items-center justify-between">
-            <h1 class="text-3xl font-bold tracking-tight">
-                {{ labels.title }}
-            </h1>
-
+    <PageContainer width="wide" :title="labels.title">
+        <template #actions>
             <Dialog v-model:open="open">
                 <DialogTrigger as-child>
                     <Button>{{ labels.create }}</Button>
@@ -94,7 +91,7 @@ function submit() {
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </template>
 
         <p v-if="teams.length === 0" class="mt-8 text-sm text-muted-foreground">
             {{ labels.no_teams }}
@@ -131,5 +128,5 @@ function submit() {
                 </div>
             </Link>
         </div>
-    </main>
+    </PageContainer>
 </template>

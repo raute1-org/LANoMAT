@@ -8,6 +8,7 @@
 // reasoning) — every section instead has its own empty state for the
 // (very normal) case of a quiet LAN with no tournaments/photos yet.
 import { Head } from '@inertiajs/vue3';
+import PageContainer from '@/components/PageContainer.vue';
 import {
     Card,
     CardDescription,
@@ -58,11 +59,7 @@ function statValue(key: (typeof stats)[number]['key']): number {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <!-- headline numbers -->
         <div class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div
@@ -163,5 +160,5 @@ function statValue(key: (typeof stats)[number]['key']): number {
                 </figure>
             </div>
         </section>
-    </main>
+    </PageContainer>
 </template>

@@ -111,11 +111,22 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 
 ### 2. Page anatomy (`app` pages)
 
-- **Title:** one `<h1>` (`text-2xl font-semibold tracking-tight`; event hero pages may use `text-4xl`+) with an optional one-line `text-sm text-muted-foreground` description directly below. Settings subpages use `Heading` + a `sr-only` h1.
-- **Width & spacing:** content wrapper `mx-auto w-full max-w-{lg|3xl|5xl} px-4 py-8` (forms `lg`, reading/lists `3xl`, grids/dashboard/seating `5xl`; scanner pages stay narrow). Vertical rhythm from the Tailwind scale: `space-y-8` between sections, `gap-4` in grids.
+- **Container:** every `app`/`profile` page is wrapped in `components/PageContainer.vue` (`<PageContainer width="…" title="…" description="…" :back="…">`). It owns horizontal/vertical padding (`px-4 py-8 sm:px-6 lg:px-8`), the width cap and the standard header; no page hand-rolls `<main class="mx-auto max-w-…">` (the architecture test fails on a missing container or a hand-rolled wrapper). The container is **left-aligned** in the main area, so every page starts at the same x-position as the breadcrumb bar regardless of tier; it is never centered.
+- **Width tiers** (`resources/js/lib/pageWidths.ts`, the single source):
+
+| `width` | Cap | Use for |
+|---------|-----|---------|
+| `narrow` | `max-w-xl` | forms, single-column flows, scanner/check-in, registration |
+| `default` | `max-w-3xl` | reading, lists, overviews, detail pages (event page, polls, teams detail) |
+| `wide` | `max-w-6xl` | dashboard, card grids, tables, seat map, brackets, galleries |
+| `full` | none | canvases that manage their own scrolling (use sparingly) |
+
+- **Header:** `title` renders the one `<h1>` (`text-2xl font-semibold tracking-tight`) with the optional one-line `description` below; pages with a bespoke hero (event page, team header, tournament header) fill the `#header` slot instead but keep the same h1 size (event hero may be larger). The primary action and secondary actions go in the `#actions` slot (right of the title, wraps below on narrow screens). Settings subpages use `Heading` + a `sr-only` h1.
+- **Back link:** sub-pages pass `:back="{ href, label }"` — rendered as an arrow-icon link above the title ("Zurück zum Event", "Zurück zu allen Turnieren"). Label always names the destination.
+- **Spacing:** below the header, sections stack with `mt-8` (or `space-y-8` via `class` on the container); `gap-4` in grids.
 - **Primary action:** one primary (amber) `Button` per screen, next to the thing it acts on (card footer or under the title). Secondary actions use `variant="outline"`; destructive ones sit apart and confirm.
 - **Sections & cards:** a section is `<h2 class="text-lg font-semibold tracking-tight">` + content; group into a card (`rounded-md border border-border bg-card p-5`) only when the content is a self-contained unit. Hairline borders, no shadows beyond `shadow-sm`.
-- **Breadcrumbs / back links:** root sidebar pages need none. Settings and deep pages pass `defineOptions({ layout: { breadcrumbs: [...] } })`; detail pages link back to their list in-page.
+- **Breadcrumbs / back links:** root sidebar pages need none. Settings and deep pages pass `defineOptions({ layout: { breadcrumbs: [...] } })`; detail pages use the `back` prop of `PageContainer`.
 - **Status & hints:** state of the thing (event status, ticket, registration) goes directly under the title in a `rounded-md border bg-card p-4` hint row; live state uses `LiveIndicator`. Hints are calm text, actions are buttons.
 
 ### 3. States (all four, every data surface)
@@ -158,7 +169,7 @@ Backing props: `registration` (`Registration\Support\MyRegistration::summary`, n
 - [ ] Route behind `auth` (or consciously public + guest-safe), module-gated if optional.
 - [ ] Authorization through a Policy; no client-supplied user IDs.
 - [ ] Reachable: sidebar entry, Dashboard/contextual link, or visible in-page CTA.
-- [ ] One `<h1>`, standard width wrapper, spacing from the scale.
+- [ ] `<PageContainer>` with a width tier, one `<h1>` via `title`/`#header`, `back` for sub-pages, spacing from the scale.
 - [ ] Empty, loading, error and normal states implemented.
 - [ ] Only semantic tokens (no hex, no `<style>`); amber only for primary action/live.
 - [ ] Visible focus, `motion-reduce`, usable at 375px, AA contrast.

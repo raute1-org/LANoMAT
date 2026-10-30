@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { show as eventsShow } from '@/routes/events';
 import {
@@ -13,6 +14,7 @@ import type { RegistrationDetails } from '@/types';
 const props = defineProps<{
     event: { name: string; slug: string; status: string };
     tickets: string[];
+    ticketLabels: Record<string, string>;
     registration: RegistrationDetails | null;
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
@@ -60,11 +62,12 @@ function cancel() {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-lg px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ event.name }}
-        </h1>
-
+    <PageContainer
+        width="narrow"
+        :title="event.name"
+        :description="labels.title"
+        :back="{ href: eventsShow.url(event.slug), label: 'Zurück zum Event' }"
+    >
         <section v-if="registration" class="mt-8 space-y-6">
             <div class="flex items-center justify-between">
                 <h2 class="text-xl font-semibold text-foreground">
@@ -94,8 +97,8 @@ function cancel() {
 
             <dl class="grid grid-cols-2 gap-y-2 text-sm">
                 <dt class="text-muted-foreground">{{ labels.ticket }}</dt>
-                <dd class="font-mono text-foreground">
-                    {{ registration.ticketType }}
+                <dd class="text-foreground">
+                    {{ registration.ticketLabel }}
                 </dd>
                 <dt class="text-muted-foreground">{{ labels.status }}</dt>
                 <dd class="text-foreground">
@@ -132,7 +135,9 @@ function cancel() {
                         name="ticket"
                         class="accent-primary"
                     />
-                    <span class="font-mono text-foreground">{{ ticket }}</span>
+                    <span class="text-foreground">{{
+                        ticketLabels[ticket] ?? ticket
+                    }}</span>
                 </label>
             </div>
             <Button :disabled="registerForm.processing" @click="submit">{{
@@ -146,12 +151,5 @@ function cancel() {
         >
             <p class="text-sm text-muted-foreground">{{ labels.closed }}</p>
         </div>
-
-        <Link
-            :href="eventsShow.url(event.slug)"
-            class="mt-6 inline-block rounded-sm text-sm text-muted-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-            {{ event.name }}
-        </Link>
-    </main>
+    </PageContainer>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,11 +70,7 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <div
             v-if="tournaments.length === 0"
             class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
@@ -152,5 +149,5 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
                 </div>
             </li>
         </ul>
-    </main>
+    </PageContainer>
 </template>

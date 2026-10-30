@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     leave as leaveTeam,
     respond as respondToRequest,
+    show as showTeam,
     update as updateTeam,
 } from '@/routes/teams';
 import type { TeamEditDetail } from '@/types';
@@ -54,11 +56,11 @@ function leave() {
 <template>
     <Head :title="team.name" />
 
-    <main class="mx-auto max-w-2xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.edit }} — {{ team.name }}
-        </h1>
-
+    <PageContainer
+        width="narrow"
+        :title="`${labels.edit} — ${team.name}`"
+        :back="{ href: showTeam.url(props.team.id), label: 'Zurück zum Team' }"
+    >
         <form class="mt-8 space-y-6" @submit.prevent="submit">
             <div class="grid gap-2">
                 <Label for="name">{{ labels.create_name }}</Label>
@@ -168,5 +170,5 @@ function leave() {
                 {{ labels.leave }}
             </Button>
         </section>
-    </main>
+    </PageContainer>
 </template>

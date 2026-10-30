@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import PageContainer from '@/components/PageContainer.vue';
 import { show as eventsShow } from '@/routes/events';
 import type { EventSummary } from '@/types';
 
@@ -16,11 +17,7 @@ function year(iso: string | null): string {
 <template>
     <Head :title="labels.archive_title" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ labels.archive_title }}
-        </h1>
-
+    <PageContainer width="default" :title="labels.archive_title">
         <div
             v-if="events.length === 0"
             class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
@@ -49,5 +46,5 @@ function year(iso: string | null): string {
                 </Link>
             </li>
         </ul>
-    </main>
+    </PageContainer>
 </template>

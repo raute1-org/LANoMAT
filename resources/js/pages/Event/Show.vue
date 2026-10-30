@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { useModules } from '@/composables/useModules';
 import {
@@ -23,6 +24,7 @@ const props = defineProps<{
     news: NewsPostDto[];
     registration: {
         ticketType: string;
+        ticketLabel: string;
         status: string;
         paid: boolean;
         checkedIn: boolean;
@@ -166,7 +168,7 @@ function pad(value: number): string {
 <template>
     <Head :title="event.name" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12 sm:py-16">
+    <PageContainer width="default">
         <LiveIndicator
             v-if="isLive"
             variant="live"
@@ -401,5 +403,5 @@ function pad(value: number): string {
                 </article>
             </div>
         </section>
-    </main>
+    </PageContainer>
 </template>

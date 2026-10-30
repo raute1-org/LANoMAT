@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import {
     block as blockUser,
@@ -10,6 +12,8 @@ import {
     unblock as unblockUser,
 } from '@/routes/friends';
 import type { RelationshipDto } from '@/types';
+
+const isAuthenticated = computed(() => usePage().props.auth?.user != null);
 
 const props = defineProps<{
     profile: {
@@ -75,7 +79,7 @@ function unblock(): void {
 <template>
     <Head :title="profile.name" />
 
-    <main class="mx-auto max-w-2xl px-4 py-12">
+    <PageContainer width="default" :as="isAuthenticated ? 'div' : 'main'">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-4">
                 <div
@@ -87,7 +91,7 @@ function unblock(): void {
                         '--tw-ring-color': profile.profileColor ?? undefined,
                     }"
                 />
-                <h1 class="text-3xl font-bold tracking-tight">
+                <h1 class="text-2xl font-semibold tracking-tight">
                     {{ profile.name }}
                 </h1>
             </div>
@@ -194,5 +198,5 @@ function unblock(): void {
         >
             {{ labels.steam }}
         </a>
-    </main>
+    </PageContainer>
 </template>

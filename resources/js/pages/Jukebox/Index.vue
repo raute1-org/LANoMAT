@@ -14,6 +14,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import NowPlayingCard from '@/components/jukebox/NowPlayingCard.vue';
 import QueueRow from '@/components/jukebox/QueueRow.vue';
 import SearchBox from '@/components/jukebox/SearchBox.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEventChannel } from '@/composables/useEventChannel';
 import {
@@ -185,11 +186,7 @@ function skipNow(): void {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <!-- loading: only shown mid-navigation, e.g. a partial reload -->
         <div v-if="isNavigating" class="mt-8 space-y-4">
             <Skeleton class="h-24 w-full rounded-lg" />
@@ -289,5 +286,5 @@ function skipNow(): void {
                 </ul>
             </section>
         </template>
-    </main>
+    </PageContainer>
 </template>

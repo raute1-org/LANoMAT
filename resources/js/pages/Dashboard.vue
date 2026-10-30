@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { dashboard } from '@/routes';
@@ -27,6 +28,7 @@ const props = defineProps<{
     event: DashboardEvent | null;
     registration: {
         ticketType: string;
+        ticketLabel: string;
         status: string;
         paid: boolean;
         checkedIn: boolean;
@@ -136,16 +138,12 @@ const ticketNote = computed<string>(() => {
 <template>
     <Head :title="labels.title" />
 
-    <div class="mx-auto w-full max-w-5xl space-y-8 px-4 py-8">
-        <header class="space-y-1">
-            <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-                {{ labels.title }}
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                {{ labels.description }}
-            </p>
-        </header>
-
+    <PageContainer
+        width="wide"
+        :title="labels.title"
+        :description="labels.description"
+        class="space-y-8"
+    >
         <!-- loading: only shown mid-navigation, e.g. on a client-side refresh -->
         <div
             v-if="isNavigating"
@@ -250,6 +248,10 @@ const ticketNote = computed<string>(() => {
                         v-if="registration"
                         class="mt-2 space-y-1 text-sm text-muted-foreground"
                     >
+                        <li>
+                            {{ labels.ticket.type }}:
+                            {{ registration.ticketLabel }}
+                        </li>
                         <li>
                             {{
                                 registration.paid
@@ -404,5 +406,5 @@ const ticketNote = computed<string>(() => {
                 </div>
             </section>
         </template>
-    </div>
+    </PageContainer>
 </template>

@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -159,15 +160,12 @@ function openSpotsLabel(openSpots: number | null): string {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <div class="flex flex-wrap items-baseline justify-between gap-3">
-            <h1 class="text-3xl font-bold tracking-tight text-foreground">
-                {{ labels.title }} — {{ event.name }}
-            </h1>
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
+        <template #actions>
             <p class="font-mono text-sm text-muted-foreground tabular-nums">
                 {{ checkedInCountLabel() }}
             </p>
-        </div>
+        </template>
 
         <!-- loading: only shown mid-navigation, e.g. a partial reload -->
         <div v-if="isNavigating" class="mt-8 space-y-4">
@@ -399,5 +397,5 @@ function openSpotsLabel(openSpots: number | null): string {
                 </div>
             </section>
         </template>
-    </main>
+    </PageContainer>
 </template>

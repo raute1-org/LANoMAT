@@ -63,3 +63,48 @@ it('has no stale layout entries that match no page', function () use ($table, $p
 
     expect($stale)->toBe([]);
 });
+
+it('wraps every app/profile page in the shared PageContainer', function () use ($table, $pages, $root) {
+    $kinds = $table();
+
+    $kindFor = function (string $name) use ($kinds): string {
+        if (isset($kinds[$name])) {
+            return $kinds[$name];
+        }
+
+        foreach ($kinds as $key => $kind) {
+            if (str_ends_with($key, '/') && str_starts_with($name, $key)) {
+                return $kind;
+            }
+        }
+
+        return 'bare';
+    };
+
+    $missing = array_values(array_filter($pages(), function (string $name) use ($kindFor, $root): bool {
+        if (! in_array($kindFor($name), ['app', 'profile'], true)) {
+            return false;
+        }
+
+        $source = (string) file_get_contents($root.'/resources/js/pages/'.$name.'.vue');
+
+        return ! str_contains($source, '<PageContainer');
+    }));
+
+    expect($missing)->toBe([], 'Wrap these pages in <PageContainer width="..."> (see docs/design.md "Page anatomy & layout rules").');
+});
+
+it('keeps raw max-w/mx-auto wrappers out of app pages', function () use ($pages, $root) {
+    $offenders = array_values(array_filter($pages(), function (string $name) use ($root): bool {
+        if (str_starts_with($name, 'settings/') || str_starts_with($name, 'auth/') || str_starts_with($name, 'Screen/') || str_starts_with($name, 'Overlay/') || $name === 'Welcome') {
+            return false;
+        }
+
+        $source = (string) file_get_contents($root.'/resources/js/pages/'.$name.'.vue');
+        $template = substr($source, (int) strpos($source, '<template>'));
+
+        return (bool) preg_match('/<(main|div)\s+class="[^"]*mx-auto[^"]*max-w-/', $template);
+    }));
+
+    expect($offenders)->toBe([], 'Use <PageContainer width> instead of a hand-rolled page wrapper.');
+});

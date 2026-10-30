@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import FriendRow from '@/components/friends/FriendRow.vue';
 import RequestRow from '@/components/friends/RequestRow.vue';
 import SuggestionRow from '@/components/friends/SuggestionRow.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import {
     block as blockUser,
@@ -70,16 +71,11 @@ function add(userId: number) {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <header class="space-y-0.5">
-            <h1 class="text-3xl font-bold tracking-tight">
-                {{ labels.title }}
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                {{ labels.description }}
-            </p>
-        </header>
-
+    <PageContainer
+        width="default"
+        :title="labels.title"
+        :description="labels.description"
+    >
         <section class="mt-10">
             <h2 class="text-xl font-semibold">{{ labels.incoming_title }}</h2>
             <p
@@ -213,5 +209,5 @@ function add(userId: number) {
                 </FriendRow>
             </ul>
         </section>
-    </main>
+    </PageContainer>
 </template>

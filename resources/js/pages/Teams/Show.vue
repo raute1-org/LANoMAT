@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { discord as loginDiscord } from '@/routes/login';
-import { edit as editTeam, join as joinTeam } from '@/routes/teams';
+import {
+    edit as editTeam,
+    index as teamsIndex,
+    join as joinTeam,
+} from '@/routes/teams';
 import type { TeamDetail } from '@/types';
 
 const props = defineProps<{
@@ -28,32 +33,38 @@ function join() {
 <template>
     <Head :title="team.name" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <div class="flex items-center gap-4">
-            <img
-                v-if="team.logoUrl"
-                :src="team.logoUrl"
-                :alt="team.name"
-                width="64"
-                height="64"
-                loading="lazy"
-                class="h-16 w-16 rounded-md object-cover"
-            />
-            <div
-                v-else
-                class="flex h-16 w-16 items-center justify-center rounded-md bg-muted text-lg font-semibold"
-            >
-                {{ team.tag }}
+    <PageContainer
+        width="default"
+        :back="{ href: teamsIndex.url(), label: 'Zurück zu den Teams' }"
+    >
+        <template #header>
+            <div class="flex items-center gap-4">
+                <img
+                    v-if="team.logoUrl"
+                    :src="team.logoUrl"
+                    :alt="team.name"
+                    width="64"
+                    height="64"
+                    loading="lazy"
+                    class="h-16 w-16 rounded-md object-cover"
+                />
+                <div
+                    v-else
+                    class="flex h-16 w-16 items-center justify-center rounded-md bg-muted text-lg font-semibold"
+                >
+                    {{ team.tag }}
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold tracking-tight">
+                        {{ team.name }}
+                    </h1>
+                    <p class="text-sm text-muted-foreground">
+                        {{ team.tag }} · {{ labels.owner }}:
+                        {{ team.owner.name }}
+                    </p>
+                </div>
             </div>
-            <div>
-                <h1 class="text-3xl font-bold tracking-tight">
-                    {{ team.name }}
-                </h1>
-                <p class="text-sm text-muted-foreground">
-                    {{ team.tag }} · {{ labels.owner }}: {{ team.owner.name }}
-                </p>
-            </div>
-        </div>
+        </template>
 
         <div class="mt-6 flex gap-3">
             <Button v-if="isOwner" as-child variant="outline">
@@ -91,5 +102,5 @@ function join() {
                 </li>
             </ul>
         </section>
-    </main>
+    </PageContainer>
 </template>

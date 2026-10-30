@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import BracketView from '@/components/bracket/BracketView.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -56,27 +57,30 @@ const isNotStarted = computed(
 <template>
     <Head :title="`${labels.title} — ${tournament.name}`" />
 
-    <main class="mx-auto max-w-6xl px-4 py-12">
-        <a
-            :href="tournamentsIndex.url(tournament.event.slug)"
-            class="text-sm text-muted-foreground hover:underline"
-        >
-            &larr; {{ labels.back_to_index }}
-        </a>
-
-        <div class="mt-2 flex items-center gap-3">
-            <h1 class="text-3xl font-bold tracking-tight">
-                {{ tournament.name }}
-            </h1>
-            <LiveIndicator
-                v-if="isLive"
-                variant="live"
-                :label="statusLabels[tournament.status]"
-            />
-        </div>
-        <p class="text-sm text-muted-foreground">
-            {{ tournament.event.name }}
-        </p>
+    <PageContainer
+        width="wide"
+        :back="{
+            href: tournamentsIndex.url(tournament.event.slug),
+            label: labels.back_to_index,
+        }"
+    >
+        <template #header>
+            <div class="flex items-center gap-3">
+                <h1
+                    class="text-2xl font-semibold tracking-tight text-foreground"
+                >
+                    {{ tournament.name }}
+                </h1>
+                <LiveIndicator
+                    v-if="isLive"
+                    variant="live"
+                    :label="statusLabels[tournament.status]"
+                />
+            </div>
+            <p class="text-sm text-muted-foreground">
+                {{ tournament.event.name }}
+            </p>
+        </template>
 
         <div v-if="voiceLinks.length" class="mt-4">
             <h2 class="text-sm font-medium text-muted-foreground">
@@ -160,5 +164,5 @@ const isNotStarted = computed(
                 />
             </div>
         </template>
-    </main>
+    </PageContainer>
 </template>
