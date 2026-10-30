@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Enums;
 
 /**
- * A game server's lifecycle state, normalized across Pelican's own vocabulary
- * (the Application API reports a nullable `status` string: null means active
- * and running, `installing`/`install_failed`/`reinstall_failed` cover the
- * install pipeline, `suspended` covers panel-side suspension — there is no
- * dedicated "stopped" status on the Server resource itself; that is a Wings
- * power-state concept exposed only via the Client API's resources endpoint).
- * `HttpPelicanClient` maps Pelican's raw status onto this enum; `Provisioning`
- * is LANoMAT's own pre-creation state used by `FakePelicanClient` and the
- * provisioning workflow (Task 4) before the panel has assigned a server at all.
+ * A game server's lifecycle state, normalized across Pelican's two vocabularies.
+ * The Application API's `status` is null once a server is installed (it only
+ * reports `installing`/`install_failed`/`reinstall_failed`/`suspended`), so the
+ * real runtime state comes from the Client API's resources endpoint
+ * (`current_state`: running|offline|starting|stopping) — `HttpPelicanClient`
+ * merges the two. `Provisioning` is LANoMAT's own pre-creation state;
+ * `Unknown` means the runtime state has not been (or could not be) fetched.
  */
 enum ServerState: string
 {
@@ -22,6 +20,9 @@ enum ServerState: string
     case Running = 'running';
     case Stopped = 'stopped';
     case Failed = 'failed';
+    case Starting = 'starting';
+    case Stopping = 'stopping';
+    case Unknown = 'unknown';
 
     public function label(): string
     {
@@ -31,6 +32,9 @@ enum ServerState: string
             self::Running => 'Läuft',
             self::Stopped => 'Gestoppt',
             self::Failed => 'Fehlgeschlagen',
+            self::Starting => 'Startet',
+            self::Stopping => 'Stoppt',
+            self::Unknown => 'Unbekannt',
         };
     }
 }

@@ -21,9 +21,95 @@ use DomainException;
  */
 class GameServerException extends DomainException
 {
-    private function __construct(string $message, public readonly string $translationKey)
-    {
+    /**
+     * @param  list<string>  $details  Panel-side validation messages (422), for logs/operators — never rendered raw to participants.
+     */
+    private function __construct(
+        string $message,
+        public readonly string $translationKey,
+        public readonly ?int $httpStatus = null,
+        public readonly array $details = [],
+    ) {
         parent::__construct($message);
+    }
+
+    /** Pelican URL or API token missing — the module is enabled but not configured. */
+    public static function pelicanNotConfigured(): self
+    {
+        return new self(
+            'Pelican is not configured (url and application/client token are required).',
+            'gameservers.errors.pelican_not_configured',
+        );
+    }
+
+    /** 401/403: wrong token type, expired token, or a key without the needed scope. */
+    public static function pelicanUnauthorized(int $status, string $detail = ''): self
+    {
+        return new self(
+            "Pelican rejected the API token (HTTP {$status}). {$detail}",
+            'gameservers.errors.pelican_unauthorized',
+            $status,
+        );
+    }
+
+    public static function pelicanNotFound(string $what): self
+    {
+        return new self(
+            "Pelican resource not found: {$what}.",
+            'gameservers.errors.pelican_not_found',
+            404,
+        );
+    }
+
+    /** 409 on Client API endpoints: server is installing, suspended or transferring. */
+    public static function pelicanServerBusy(string $detail = ''): self
+    {
+        return new self(
+            "Pelican server is busy (installing/suspended). {$detail}",
+            'gameservers.errors.pelican_server_busy',
+            409,
+        );
+    }
+
+    /**
+     * 422: the panel rejected the create/update payload.
+     *
+     * @param  list<string>  $details
+     */
+    public static function pelicanRejected(array $details): self
+    {
+        return new self(
+            'Pelican rejected the request: '.implode(' ', $details),
+            'gameservers.errors.pelican_rejected',
+            422,
+            $details,
+        );
+    }
+
+    /** 5xx/429/timeouts after the retry budget, or any other unexpected status. */
+    public static function pelicanUnavailable(?int $status, string $detail = ''): self
+    {
+        return new self(
+            'Pelican is unavailable'.($status !== null ? " (HTTP {$status})" : '').". {$detail}",
+            'gameservers.errors.pelican_unavailable',
+            $status,
+        );
+    }
+
+    public static function noFreeAllocation(string $nodeId): self
+    {
+        return new self(
+            "Node {$nodeId} has no free allocation left.",
+            'gameservers.errors.no_free_allocation',
+        );
+    }
+
+    public static function noNodeConfigured(): self
+    {
+        return new self(
+            'No Pelican node given and services.pelican.default_node_id is not set.',
+            'gameservers.errors.no_node_configured',
+        );
     }
 
     /**
