@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from '@lucide/vue';
+import { LayoutDashboard, LogOut, Settings } from '@lucide/vue';
+import Dashboard from '@/actions/Filament/Pages/Dashboard';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -31,6 +32,17 @@ defineProps<Props>();
     </DropdownMenuLabel>
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
+        <DropdownMenuItem v-if="user.can_access_admin" :as-child="true">
+            <!-- Full-page anchor: /admin is a separate Filament app, not an Inertia page. -->
+            <a
+                class="block w-full cursor-pointer"
+                :href="Dashboard.url()"
+                data-test="admin-link"
+            >
+                <LayoutDashboard class="mr-2 h-4 w-4" />
+                Admin-Bereich
+            </a>
+        </DropdownMenuItem>
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full cursor-pointer" :href="edit()" prefetch>
                 <Settings class="mr-2 h-4 w-4" />

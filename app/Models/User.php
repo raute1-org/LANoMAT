@@ -49,10 +49,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $updated_at
  * @property-read bool $has_password
  * @property-read bool $is_staff
+ * @property-read bool $can_access_admin
  */
 #[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'stream_url', 'profile_color', 'notification_prefs'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-#[Appends(['has_password', 'is_staff'])]
+#[Appends(['has_password', 'is_staff', 'can_access_admin'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
@@ -141,6 +142,21 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     {
         return Attribute::make(
             get: fn (): bool => $this->isHelper(),
+        );
+    }
+
+    /**
+     * Whether the user may open the Filament admin panel (`/admin`). Mirrors the
+     * rule in canAccessPanel() (orga or admin, NOT helper). Appended so the
+     * frontend can show the admin link only where the panel is reachable,
+     * without duplicating the role check — authorization stays in canAccessPanel().
+     *
+     * @return Attribute<bool, never>
+     */
+    protected function canAccessAdmin(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): bool => $this->isOrga(),
         );
     }
 
