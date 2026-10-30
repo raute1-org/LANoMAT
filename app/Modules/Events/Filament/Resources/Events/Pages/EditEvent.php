@@ -8,6 +8,7 @@ use App\Modules\Events\Filament\Resources\Events\EventResource;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Actions\RotateEventCheckinToken;
 use App\Modules\Registration\Models\EventCheckinToken;
+use App\Modules\Registration\Support\CheckinUrl;
 use App\Modules\Registration\Support\QrCode;
 use DomainException;
 use Filament\Actions\Action;
@@ -76,7 +77,7 @@ class EditEvent extends EditRecord
                 ->authorize(fn () => auth()->user()?->can('update', $event) ?? false)
                 ->modalHeading(__('registration.self_checkin.admin.heading', ['event' => $event->name]))
                 ->modalContent(function () use ($event) {
-                    $url = route('checkin.show', ['token' => EventCheckinToken::forEvent($event)->token]);
+                    $url = CheckinUrl::for(EventCheckinToken::forEvent($event)->token);
 
                     return view('filament.checkin-qr', ['svg' => app(QrCode::class)->svg($url), 'url' => $url]);
                 })

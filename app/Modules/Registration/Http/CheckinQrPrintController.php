@@ -6,6 +6,7 @@ use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventCheckinToken;
+use App\Modules\Registration\Support\CheckinUrl;
 use App\Modules\Registration\Support\QrCode;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -20,7 +21,7 @@ class CheckinQrPrintController extends Controller
     {
         $this->authorize('update', $event);
 
-        $url = route('checkin.show', ['token' => EventCheckinToken::forEvent($event)->token]);
+        $url = CheckinUrl::for(EventCheckinToken::forEvent($event)->token);
 
         return view('registration.checkin-print', [
             'event' => $event,

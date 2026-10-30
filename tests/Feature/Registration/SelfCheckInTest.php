@@ -289,3 +289,17 @@ it('keeps the window closed even for admins (Gate::before must not bypass it)', 
 
     expect($reg->fresh()->checked_in_at)->toBeNull();
 });
+
+it('builds the QR check-in URL from APP_URL, not from the request host', function () {
+    config(['app.url' => 'https://lan.example.org']);
+    $event = Event::factory()->live()->create();
+    $token = tokenFor($event);
+
+    expect(App\Modules\Registration\Support\CheckinUrl::for($token))->toBe("https://lan.example.org/checkin/{$token}");
+
+    $this->actingAs(User::factory()->orga()->create())
+        ->get("http://other-host.test/orga/events/{$event->slug}/checkin-qr")
+        ->assertOk()
+        ->assertSee("https://lan.example.org/checkin/{$token}")
+        ->assertDontSee('other-host.test/checkin');
+});
