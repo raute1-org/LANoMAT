@@ -7,6 +7,7 @@ namespace App\Modules\Identity\Support;
 use App\Modules\Identity\Contracts\LinkedAccountConnector;
 use App\Modules\Identity\Models\LinkedAccount;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Arr;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Two\User as SocialiteTwoUser;
 
@@ -52,7 +53,11 @@ final readonly class LinkedAccountData
             token_expires_at: $isOauth2 && $u->expiresIn !== null
                 ? CarbonImmutable::now()->addSeconds($u->expiresIn)
                 : null,
-            scopes: $isOauth2 ? $u->approvedScopes : [],
+            // Socialite's Two\User property is untyped and stays null when the
+            // provider never sets it (Steam), despite its `@var array` docblock —
+            // Arr::wrap maps that null to [] so the typed `array $scopes`
+            // parameter never receives null.
+            scopes: $isOauth2 ? Arr::wrap($u->approvedScopes) : [],
         );
     }
 }
