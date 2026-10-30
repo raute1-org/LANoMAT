@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -9,7 +10,7 @@ uses(RefreshDatabase::class);
 it('shows the current event on the home page', function () {
     $event = Event::factory()->registration()->create(['name' => 'Testlan 2026']);
 
-    $this->get('/')
+    $this->actingAs(User::factory()->create())->get('/')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Event/Show')
@@ -22,7 +23,7 @@ it('shows the current event on the home page', function () {
 it('shows the archive on the home page when no event is public', function () {
     Event::factory()->archived()->create();
 
-    $this->get('/')
+    $this->actingAs(User::factory()->create())->get('/')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Event/Index'));
 });
@@ -30,7 +31,7 @@ it('shows the archive on the home page when no event is public', function () {
 it('renders a single event by slug', function () {
     $event = Event::factory()->finished()->create(['name' => 'Old LAN']);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Event/Show')
@@ -43,7 +44,7 @@ it('lists past events in the archive descending', function () {
     Event::factory()->archived()->create(['name' => 'B', 'starts_at' => now()->subMonth()]);
     Event::factory()->draft()->create(['name' => 'Hidden']);
 
-    $this->get('/events')
+    $this->actingAs(User::factory()->create())->get('/events')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Event/Index')
@@ -55,11 +56,11 @@ it('lists past events in the archive descending', function () {
 it('returns 404 for a draft event requested by slug', function () {
     $event = Event::factory()->draft()->create(['name' => 'Unannounced LAN']);
 
-    $this->get("/events/{$event->slug}")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertNotFound();
 });
 
 it('renders 404 for a draft event by slug (helper-driven)', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertNotFound();
 });

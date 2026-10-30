@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Models\Game;
@@ -38,7 +39,7 @@ function matchWithReadyServerLink(): GameMatch
 it('surfaces a Ready match ServerLink in the tournament-page match DTO', function () {
     $match = matchWithReadyServerLink();
 
-    $this->get("/tournaments/{$match->tournament_id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$match->tournament_id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
@@ -63,7 +64,7 @@ it('surfaces the game spectate hint on the tournament-page match DTO', function 
     $tournament = Tournament::factory()->for($event)->for($game, 'game')->create();
     GameMatch::factory()->for($tournament)->create();
 
-    $this->get("/tournaments/{$tournament->id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
@@ -78,7 +79,7 @@ it('exposes null spectateHint on the match DTO when the game has no spectate hin
     $tournament = Tournament::factory()->for($event)->create();
     GameMatch::factory()->for($tournament)->create();
 
-    $this->get("/tournaments/{$tournament->id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
@@ -91,7 +92,7 @@ it('exposes null server on the match DTO when no ServerLink exists', function ()
     $tournament = Tournament::factory()->for($event)->create();
     GameMatch::factory()->for($tournament)->create();
 
-    $this->get("/tournaments/{$tournament->id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')

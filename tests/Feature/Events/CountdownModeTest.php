@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventRegistration;
@@ -13,7 +14,7 @@ it('exposes hype props for an announced future event', function () {
     $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->addDays(14)]);
     EventRegistration::factory()->count(3)->create(['event_id' => $event->id]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('event.hype.registrationCount', 3)
@@ -25,7 +26,7 @@ it('excludes cancelled registrations from the hype registration count', function
     EventRegistration::factory()->count(2)->create(['event_id' => $event->id]);
     EventRegistration::factory()->cancelled()->create(['event_id' => $event->id]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('event.hype.registrationCount', 2));
@@ -34,7 +35,7 @@ it('excludes cancelled registrations from the hype registration count', function
 it('omits hype for a finished event', function () {
     $event = Event::factory()->create(['status' => EventStatus::Finished, 'starts_at' => now()->subDay()]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('event.hype', null));
 })->uses(RefreshDatabase::class);
@@ -42,7 +43,7 @@ it('omits hype for a finished event', function () {
 it('omits hype for an announced event whose start is in the past', function () {
     $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->subHour()]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('event.hype', null));
 })->uses(RefreshDatabase::class);
@@ -51,7 +52,7 @@ it('teases an open poll with a future closes_at as the active poll', function ()
     $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->addDays(14)]);
     $poll = Poll::factory()->open()->create(['event_id' => $event->id, 'closes_at' => now()->addHour()]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('event.hype.activePoll.id', $poll->id));
@@ -61,7 +62,7 @@ it('does not tease an open poll whose closes_at is already in the past', functio
     $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->addDays(14)]);
     Poll::factory()->open()->create(['event_id' => $event->id, 'closes_at' => now()->subMinute()]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('event.hype.activePoll', null));
@@ -73,7 +74,7 @@ it('exposes arrival info on the event summary', function () {
         'arrival_info' => 'Parkplatz hinter der Halle, Einlass ab 16 Uhr.',
     ]);
 
-    $this->get("/events/{$event->slug}")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('event.arrivalInfo', 'Parkplatz hinter der Halle, Einlass ab 16 Uhr.'));

@@ -34,12 +34,12 @@ it('keeps the news prop present but empty on the event page when News is off', f
     $event = Event::factory()->live()->create();
     NewsPost::factory()->published()->create();
 
-    $this->get("/events/{$event->slug}")->assertOk()
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->has('news', 1));
 
     goCoreOnly();
 
-    $this->get("/events/{$event->slug}")->assertOk()
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('news', []));
 });
 
@@ -47,12 +47,12 @@ it('omits the poll teaser from the hype data when Voting is off', function () {
     $event = Event::factory()->create(['status' => EventStatus::Announced, 'starts_at' => now()->addDays(14)]);
     Poll::factory()->create(['event_id' => $event->id, 'status' => PollStatus::Open, 'closes_at' => null]);
 
-    $this->get("/events/{$event->slug}")->assertOk()
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('event.hype.activePoll.id', fn ($id) => $id !== null));
 
     goCoreOnly();
 
-    $this->get("/events/{$event->slug}")->assertOk()
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('event.hype.registrationCount')
             ->where('event.hype.activePoll', null));

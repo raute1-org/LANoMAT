@@ -44,7 +44,7 @@ it('marks a viewer\'s friends on the presence board and never broadcasts it', fu
     expect((new PresenceUpdated($event->id))->broadcastWith())->toBe([]);
 });
 
-it('marks isFriend false for every participant when the viewer is a guest', function () {
+it('marks isFriend false for every participant when the viewer has no friends', function () {
     $friend = User::factory()->create();
 
     $event = Event::factory()->live()->create();
@@ -52,7 +52,7 @@ it('marks isFriend false for every participant when the viewer is a guest', func
 
     expect(auth()->check())->toBeFalse();
 
-    $this->get("/events/{$event->slug}/presence")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/presence")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where(

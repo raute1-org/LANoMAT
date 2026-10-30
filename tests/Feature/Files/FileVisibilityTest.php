@@ -68,17 +68,16 @@ it('reports the viewers used and cap quota bytes', function () {
         );
 });
 
-it('reports a null quota for a guest', function () {
+it('redirects guests to login', function () {
     $event = Event::factory()->registration()->create();
 
-    $this->get("/events/{$event->slug}/files")
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('quota', null));
+    $this->get("/events/{$event->slug}/files")->assertRedirect(route('login'));
 });
 
 it('returns 404 for a draft events file page', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/files")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/files")->assertNotFound();
 });
 
 it('streams an approved files download with a 200', function () {

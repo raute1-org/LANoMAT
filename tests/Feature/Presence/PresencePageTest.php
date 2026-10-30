@@ -25,7 +25,7 @@ it('renders the presence board with a checked-in seated participant and a free s
     $tournament = Tournament::factory()->for($event)->enrollment()->create(['max_entries' => 8, 'name' => 'Open Cup']);
     TournamentEntry::factory()->count(3)->for($tournament, 'tournament')->create();
 
-    $this->get("/events/{$event->slug}/presence")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/presence")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Presence/Index')
@@ -43,14 +43,12 @@ it('renders the presence board with a checked-in seated participant and a free s
 it('404s the presence page for a draft event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/presence")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/presence")
         ->assertNotFound();
 });
 
-it('is reachable without a logged-in user', function () {
+it('redirects guests to login', function () {
     $event = Event::factory()->live()->create();
 
-    expect(auth()->check())->toBeFalse();
-
-    $this->get("/events/{$event->slug}/presence")->assertOk();
+    $this->get("/events/{$event->slug}/presence")->assertRedirect(route('login'));
 });

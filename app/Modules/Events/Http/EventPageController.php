@@ -12,14 +12,23 @@ use App\Modules\Voting\Enums\PollStatus;
 use App\Modules\Voting\Models\Poll;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class EventPageController
 {
-    public function home(CurrentEvent $current): Response
+    public function home(Request $request, CurrentEvent $current): Response
     {
+        // Guests get an event-free landing: no event data may leave the server
+        // for anyone who is not logged in.
+        if ($request->user() === null) {
+            return Inertia::render('Welcome', [
+                'labels' => trans('welcome'),
+            ]);
+        }
+
         $event = $current->get();
 
         return $event === null

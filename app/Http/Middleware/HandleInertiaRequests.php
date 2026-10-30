@@ -59,7 +59,7 @@ class HandleInertiaRequests extends Middleware
                     'body' => $n->data['body'] ?? '',
                     'createdAt' => $n->created_at?->toIso8601String(),
                 ])->values()->all() ?? []),
-            'currentEvent' => fn () => ($event = app(CurrentEvent::class)->get()) === null
+            'currentEvent' => fn () => $request->user() === null || ($event = app(CurrentEvent::class)->get()) === null
                 ? null
                 : [
                     'name' => $event->name,

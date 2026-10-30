@@ -39,6 +39,6 @@ class DiscordAuthController
 
         Auth::login($user, remember: true);
 
-        return redirect('/');
+        return redirect()->intended('/');
     }
 }

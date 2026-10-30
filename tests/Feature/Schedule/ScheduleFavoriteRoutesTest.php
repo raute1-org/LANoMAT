@@ -72,11 +72,11 @@ it('marks an item as mine in the schedule page payload once favorited', function
             ->where('items.0.mine', true));
 });
 
-it('marks an item as not mine for a guest visitor', function () {
+it('marks an item as not mine for a viewer without favorites', function () {
     $event = Event::factory()->live()->create();
     ScheduleItem::factory()->for($event)->create();
 
-    $this->get("/events/{$event->slug}/schedule")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('items.0.mine', false));

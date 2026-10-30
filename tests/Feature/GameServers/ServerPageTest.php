@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -22,7 +23,7 @@ it('renders the public server list page with german labels and a ready server\'s
         'join_info' => new JoinInfo(address: '203.0.113.5', port: 27015, connectString: 'steam://connect/203.0.113.5:27015'),
     ]);
 
-    $this->get("/events/{$event->slug}/servers")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/servers")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Servers/Index')
@@ -35,16 +36,14 @@ it('renders the public server list page with german labels and a ready server\'s
 it('404s the server list page for a draft event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/servers")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/servers")
         ->assertNotFound();
 });
 
-it('is reachable without a logged-in user', function () {
+it('redirects guests to login', function () {
     $event = Event::factory()->live()->create();
 
-    expect(auth()->check())->toBeFalse();
-
-    $this->get("/events/{$event->slug}/servers")->assertOk();
+    $this->get("/events/{$event->slug}/servers")->assertRedirect(route('login'));
 });
 
 it('omits servers belonging to other events\' tournaments', function () {
@@ -60,7 +59,7 @@ it('omits servers belonging to other events\' tournaments', function () {
         'join_info' => new JoinInfo(address: '198.51.100.9', port: 27015),
     ]);
 
-    $this->get("/events/{$event->slug}/servers")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/servers")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Servers/Index')
