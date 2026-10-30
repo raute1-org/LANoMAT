@@ -110,6 +110,11 @@ class TournamentException extends DomainException
         return new self('This report has already been resolved.', 'tournaments.errors.report_not_pending');
     }
 
+    public static function cannotWithdrawOthersReport(): self
+    {
+        return new self('Only the reporting side can withdraw or correct its report.', 'tournaments.errors.cannot_withdraw_others_report');
+    }
+
     public static function matchNotDisputable(): self
     {
         return new self('This match can no longer be disputed.', 'tournaments.errors.match_not_disputable');

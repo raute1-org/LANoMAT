@@ -157,6 +157,7 @@ return [
         'pending' => 'Ausstehend',
         'confirmed' => 'Bestätigt',
         'disputed' => 'Strittig',
+        'withdrawn' => 'Zurückgezogen',
     ],
 
     'errors' => [
@@ -188,6 +189,8 @@ return [
         'reporter_has_no_owner' => 'Die meldende Anmeldung hat weder eine Person noch einen Team-Owner.',
         'tied_score' => 'Ein Match kann nicht unentschieden enden.',
         'report_not_pending' => 'Diese Meldung wurde bereits bearbeitet.',
+        'report_withdrawn' => 'Die Meldung wurde zurückgezogen. Warte auf eine neue Meldung des Gegners.',
+        'cannot_withdraw_others_report' => 'Nur die meldende Seite kann die Meldung zurückziehen oder ändern.',
         'match_not_disputable' => 'Dieses Match kann nicht mehr angefochten werden.',
         'entry_withdrawn' => 'Diese Anmeldung wurde zurückgezogen und kann nicht mehr eingecheckt werden.',
     ],
@@ -232,6 +235,12 @@ return [
         'opponent_label' => 'Gegner',
         'reported_by' => 'Gemeldet von :name',
         'awaiting' => 'Warte auf Bestätigung durch :name',
+        'change_action' => 'Ergebnis ändern',
+        'withdraw_action' => 'Meldung zurückziehen',
+        'withdrawn' => 'Meldung zurückgezogen. Das Match ist wieder offen.',
+        'corrected' => 'Ergebnis geändert. Warte auf Bestätigung durch den Gegner.',
+        'cancel_action' => 'Abbrechen',
+        'save_change_action' => 'Änderung melden',
     ],
 
     'standings' => [

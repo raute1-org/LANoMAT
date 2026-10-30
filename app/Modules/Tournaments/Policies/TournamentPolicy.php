@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Enums\EntryStatus;
+use App\Modules\Tournaments\Enums\ReportStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -167,6 +168,16 @@ class TournamentPolicy
     public function dispute(User $user, MatchReport $report): bool
     {
         return $user->isOrga() || $this->ownsOpponentEntry($user, $report);
+    }
+
+    /**
+     * Withdrawing or correcting a report: only the side that submitted it
+     * ($report->reported_by) and only while it is still pending — once the
+     * opponent confirmed or disputed, only the orga override remains.
+     */
+    public function withdrawReport(User $user, MatchReport $report): bool
+    {
+        return $report->status === ReportStatus::Pending && $report->reported_by === $user->id;
     }
 
     private function ownsOpponentEntry(User $user, MatchReport $report): bool

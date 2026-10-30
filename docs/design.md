@@ -183,6 +183,8 @@ Backing props: `availability`/`freeSpots` (see above), `registration` (`Registra
 | `check_in` | checked in | badge "Eingecheckt" + "Abmelden" |
 | `live`/`finished` | any | no entry actions (withdraw closes when the tournament starts) |
 
+**Match card, reporter side:** while the own claim is still pending the card shows "Warte auf Bestätigung durch <Gegner>" plus "Ergebnis ändern" (inline form prefilled with the claim, "Änderung melden") and "Meldung zurückziehen". Both are gone as soon as the opponent confirms or disputes (`ReportStatus` Withdrawn is the audit trail of a taken-back claim).
+
 Team tournaments (`team_size > 1`) replace the one-click "Anmelden" with a team picker (shadcn `Select` of the viewer's own teams, `TeamPicker` read model) + "Mit Team anmelden"; teams whose roster is not exactly `team_size` are listed but disabled ("2 von 3 Mitgliedern"). A viewer without a team gets a hint plus "Team erstellen" (link to `/teams`). Solo tournaments stay one-click.
 
 **Admin lifecycle actions (Filament, orga only, `TournamentLifecycleActions`):** the status badge sits under the tournament title (`EditTournament::getSubheading`, `x-filament::badge`) and the next steps are header actions (also row actions on the list), each with a confirmation modal and conditioned on the status. A tournament is created as `draft` and is invisible to everyone but orga (tournaments pages, overlays, Discord `/tournament`, schedule) until announced; `Tournament::scopeVisibleTo` / `isVisibleTo` is the one rule:

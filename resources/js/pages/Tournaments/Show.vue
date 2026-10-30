@@ -7,8 +7,8 @@ import PageContainer from '@/components/PageContainer.vue';
 import StandingsTable from '@/components/tournaments/StandingsTable.vue';
 import TournamentEntryActions from '@/components/tournaments/TournamentEntryActions.vue';
 import { Button } from '@/components/ui/button';
-import { formatInstant } from '@/lib/datetime';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
+import { formatInstant } from '@/lib/datetime';
 import { index as tournamentsIndex } from '@/routes/tournaments';
 import type {
     BracketMatchDto,

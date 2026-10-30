@@ -11,12 +11,14 @@ use App\Modules\Identity\Support\GameOwnershipHint;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Actions\ConfirmMatchReport;
+use App\Modules\Tournaments\Actions\CorrectMatchReport;
 use App\Modules\Tournaments\Actions\DisputeMatchReport;
 use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\EnrollTeam;
 use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Actions\SubmitMatchReport;
 use App\Modules\Tournaments\Actions\WithdrawEntry;
+use App\Modules\Tournaments\Actions\WithdrawMatchReport;
 use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
@@ -24,6 +26,7 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\StaleMatchException;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Http\Requests\ConfirmReportRequest;
+use App\Modules\Tournaments\Http\Requests\CorrectReportRequest;
 use App\Modules\Tournaments\Http\Requests\SubmitReportRequest;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -381,6 +384,62 @@ class TournamentPageController extends Controller
         return back();
     }
 
+    public function withdrawReport(ConfirmReportRequest $request, GameMatch $match, WithdrawMatchReport $action): RedirectResponse
+    {
+        $report = $this->pendingReportFor($match);
+
+        if ($report === null) {
+            return $this->reportAlreadyHandled($request, $match);
+        }
+
+        $this->authorize('withdrawReport', $report);
+
+        $entry = $this->entryForMatch($match, $this->authUser($request));
+
+        abort_if($entry === null, 404);
+
+        try {
+            $action->handle($report, $entry, $request->validated()['lock_version']);
+        } catch (TournamentException|StaleMatchException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.report.withdrawn')]);
+
+        return back();
+    }
+
+    public function correctReport(CorrectReportRequest $request, GameMatch $match, CorrectMatchReport $action): RedirectResponse
+    {
+        $report = $this->pendingReportFor($match);
+
+        if ($report === null) {
+            return $this->reportAlreadyHandled($request, $match);
+        }
+
+        $this->authorize('withdrawReport', $report);
+
+        $entry = $this->entryForMatch($match, $this->authUser($request));
+
+        abort_if($entry === null, 404);
+
+        $data = $request->validated();
+
+        try {
+            $action->handle($report, $entry, $data['score1'], $data['score2'], $data['lock_version']);
+        } catch (TournamentException|StaleMatchException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.report.corrected')]);
+
+        return back();
+    }
+
     /**
      * A stale second click (the report was already confirmed/disputed): a
      * participant gets a friendly flash instead of a raw 404 page. A match
@@ -395,7 +454,10 @@ class TournamentPageController extends Controller
             404,
         );
 
-        Inertia::flash('toast', ['type' => 'info', 'message' => trans('tournaments.errors.report_not_pending')]);
+        $withdrawn = $match->status === MatchStatus::Ready
+            && $match->reports()->where('status', ReportStatus::Withdrawn->value)->exists();
+
+        Inertia::flash('toast', ['type' => 'info', 'message' => trans($withdrawn ? 'tournaments.errors.report_withdrawn' : 'tournaments.errors.report_not_pending')]);
 
         return back();
     }
