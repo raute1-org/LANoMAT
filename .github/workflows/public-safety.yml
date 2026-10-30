@@ -1,0 +1,45 @@
+# Public-repository safety net. This repository is PUBLIC, so nothing sensitive
+# (IPs, IDs, e-mails, keys, secrets) may ever land in it. See CONTRIBUTING.md,
+# "Public repository rules".
+#
+# Deliberately a SEPARATE workflow from ci.yml: ci.yml skips docs-only changes
+# (paths-ignore for **.md / docs/**), but docs-only PRs are exactly where
+# leaks happen. This workflow has NO paths filter and runs on every pull
+# request and every push to main.
+#
+# Not part of the aggregate `ci` job (a job in another workflow cannot be a
+# `needs` target); mark the `public-safety` check as required in branch
+# protection next to `ci`.
+name: public-safety
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: public-safety-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  public-safety:
+    name: public-safety
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # gitleaks scans the whole history
+
+      # Pinned official image (exact tag + digest). The license-gated
+      # gitleaks-action is intentionally not used.
+      - name: gitleaks (full history)
+        run: |
+          docker run --rm -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+
+      - name: Public-safety check (IPs, e-mails, keys, Discord IDs)
+        run: scripts/ops/check-public-safe.sh
