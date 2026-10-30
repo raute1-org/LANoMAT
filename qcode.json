@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "mode": "adopted",
+  "stack": "laravel",
+  "client": null,
+  "surface": "internal",
+  "brand": null,
+  "features": {
+    "ui": "shadcn",
+    "auth": "builtin",
+    "sso": false
+  },
+  "compose_options": {
+    "db": "postgres",
+    "services": [
+      "scheduler",
+      "worker"
+    ]
+  },
+  "deploy": {
+    "form": "compose"
+  },
+  "adopted": {
+    "at": "2026-10-30T12:27:49.902Z",
+    "qcode_stack": "0.7.1",
+    "detected": {
+      "package_manager": "npm",
+      "lockfiles": [
+        "package-lock.json"
+      ],
+      "layout": "single",
+      "workspaces": null,
+      "nuxt": null,
+      "tailwind": 4,
+      "tailwind_config": [],
+      "tailwind_conflict": false,
+      "toast": [
+        "vue-sonner"
+      ],
+      "forms": [],
+      "datetime": [],
+      "icons": [
+        "@lucide/vue"
+      ],
+      "auth_packages": [
+        "laravel/fortify",
+        "laravel/socialite"
+      ],
+      "deploy": [],
+      "compose": [
+        "compose.yml"
+      ],
+      "agent_files": [
+        "CLAUDE.md",
+        ".mcp.json"
+      ],
+      "release_age_gate": null,
+      "gitignore_env": true,
+      "has_package_json": true,
+      "auth_evidence": [],
+      "auth_unchecked": [],
+      "unrecognized": [],
+      "notes": [],
+      "db_connection": "pgsql",
+      "scheduler": true,
+      "queue_jobs": true
+    }
+  },
+  "declined_slices": [],
+  "accepted": [],
+  "created_with": {
+    "qcode_stack": "0.7.1",
+    "builder": "0.10.6"
+  },
+  "created_at": "2026-10-30T12:27:49.902Z"
+}
