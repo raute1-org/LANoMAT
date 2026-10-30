@@ -73,3 +73,20 @@ it('rejects an empty private key', function () {
     expect(fn () => (new RegisterHost)->handle(registerHostData(), '', $orga))
         ->toThrow(ValidationException::class);
 });
+
+it('rejects a malformed hostname and accepts hostnames and IP literals', function () {
+    $orga = User::factory()->orga()->create();
+
+    foreach (['not a host;rm', 'ho$t', '-bad.example', 'a..b', 'host:22', ''] as $bad) {
+        expect(fn () => (new RegisterHost)->handle([...registerHostData(), 'hostname' => $bad], VALID_TEST_PRIVATE_KEY, $orga))
+            ->toThrow(ValidationException::class);
+    }
+
+    expect(RemoteHost::count())->toBe(0);
+
+    foreach (['cache-01.lan.example', 'cache01', '10.0.0.5', '2001:db8::1'] as $good) {
+        (new RegisterHost)->handle([...registerHostData(), 'hostname' => $good], VALID_TEST_PRIVATE_KEY, $orga);
+    }
+
+    expect(RemoteHost::count())->toBe(4);
+});

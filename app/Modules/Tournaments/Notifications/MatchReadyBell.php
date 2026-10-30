@@ -4,7 +4,6 @@ namespace App\Modules\Tournaments\Notifications;
 
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Discord\Support\MatchEmbed;
-use App\Modules\Tournaments\Listeners\NotifyRosterOnMatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
