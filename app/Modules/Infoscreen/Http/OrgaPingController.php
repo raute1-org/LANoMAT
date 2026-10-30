@@ -25,6 +25,8 @@ class OrgaPingController extends Controller
 
     public function store(Request $request, Event $event, PingOrga $action): RedirectResponse
     {
+        abort_unless($event->isPubliclyVisible(), 404);
+
         $validated = $request->validate([
             'words' => ['nullable', 'string', 'max:40'],
         ]);

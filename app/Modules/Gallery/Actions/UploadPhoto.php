@@ -97,5 +97,12 @@ class UploadPhoto
         if (! is_array($allowed) || ! in_array($mime, $allowed, true)) {
             throw GalleryException::invalidType();
         }
+
+        // Decompression-bomb guard: a small file can declare an enormous
+        // canvas; refuse it from the header before the decoder allocates it.
+        $dimensions = @getimagesize($file->getRealPath());
+        if ($dimensions !== false && (int) config('gallery.max_pixels') < $dimensions[0] * $dimensions[1]) {
+            throw GalleryException::tooLarge();
+        }
     }
 }
