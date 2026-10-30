@@ -2,6 +2,12 @@
 
 Participants check themselves in with their phone: scan the ONE QR code posted at the venue, log in with Discord if needed, tap "Einchecken". The orga scanner flow (`/orga/events/{slug}/checkin`, personal ticket QR) is unchanged and uses the same `CheckInRegistration` action, so `checked_in_at` and the `PresenceUpdated` event are identical.
 
+## Orga: camera scanner
+
+`/orga/events/{slug}/checkin` has a **Kamera scannen** button (helper and above). It opens the rear camera and scans personal ticket QR codes continuously: each code is POSTed to the same endpoint (`CheckInRegistration`, same validation) and the result panel shows the participant's name and ticket label (or the German failure reason). The same code is ignored for 4 seconds and nothing is scanned while a check-in is in flight, so holding the phone steady never double-submits. The token field stays as the fallback (also shown for camera permission denied, no camera, camera busy and non-HTTPS pages: browsers only allow cameras on `https://` or `localhost`).
+
+Decoding uses the native `BarcodeDetector` where available (Chrome on Android) and otherwise the `barcode-detector` ponyfill (ZXing WASM). The WASM binary is bundled and served from our own origin, so the scanner works on an offline LAN and needs `script-src 'wasm-unsafe-eval'` if a CSP is enforced. Only the scanned token leaves the device (the POST); no frames are uploaded. The stream is stopped when you press **Kamera stoppen**, leave the page or close the tab.
+
 ## Orga: print and post the code
 
 1. Admin panel -> Events -> edit the event -> **Check-in-QR** (modal with the QR and its URL).
