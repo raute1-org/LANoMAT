@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 final class TeamPicker
 {
     /**
-     * @return Collection<int, array{id: int, name: string, memberCount: int<0, max>}> empty for guests
+     * @return Collection<int, array{id: int, name: string, tag: string, memberCount: int<0, max>}> empty for guests
      */
     public static function ownedTeams(?User $user): Collection
     {
@@ -32,13 +32,14 @@ final class TeamPicker
             ->map(fn (Team $team): array => [
                 'id' => $team->id,
                 'name' => $team->name,
+                'tag' => $team->tag,
                 'memberCount' => (int) $team->members_count,
             ]);
     }
 
     /**
-     * @param  Collection<int, array{id: int, name: string, memberCount: int<0, max>}>  $ownedTeams  from {@see ownedTeams()}
-     * @return array{teamSize: int, teams: list<array{id: int, name: string, memberCount: int, eligible: bool}>, createUrl: string}|null
+     * @param  Collection<int, array{id: int, name: string, tag: string, memberCount: int<0, max>}>  $ownedTeams  from {@see ownedTeams()}
+     * @return array{teamSize: int, teams: list<array{id: int, name: string, tag: string, memberCount: int, eligible: bool}>, createUrl: string}|null
      */
     public static function for(Tournament $tournament, Collection $ownedTeams): ?array
     {

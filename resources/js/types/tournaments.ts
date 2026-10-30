@@ -27,6 +27,7 @@ export interface TournamentTeamPicker {
     teams: {
         id: number;
         name: string;
+        tag: string;
         memberCount: number;
         eligible: boolean;
     }[];

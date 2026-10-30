@@ -2,6 +2,8 @@
 
 namespace App\Modules\Teams\Filament\Resources\Teams\Schemas;
 
+use App\Modules\Teams\Models\Team;
+use App\Modules\Teams\Rules\UniqueTeamName;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -16,7 +18,8 @@ class TeamForm
                 TextInput::make('name')
                     ->label(__('teams.fields.name'))
                     ->required()
-                    ->maxLength(64),
+                    ->maxLength(64)
+                    ->rules(fn (?Team $record) => [new UniqueTeamName($record?->id)]),
                 TextInput::make('tag')
                     ->label(__('teams.fields.tag'))
                     ->required()

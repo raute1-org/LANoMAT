@@ -125,6 +125,11 @@ function withdraw() {
                         :value="String(team.id)"
                         :disabled="!team.eligible"
                     >
+                        <span
+                            v-if="team.tag"
+                            class="font-mono text-xs text-muted-foreground"
+                            >[{{ team.tag }}]</span
+                        >
                         {{ team.name }}
                         <span
                             v-if="!team.eligible"
