@@ -24,7 +24,7 @@ class MyRegistration
     }
 
     /**
-     * @return array{ticketType: string, status: string, paid: bool, checkedIn: bool}|null
+     * @return array{ticketType: string, ticketLabel: string, status: string, paid: bool, checkedIn: bool}|null
      */
     public static function summary(Event $event, User $user): ?array
     {
@@ -32,6 +32,7 @@ class MyRegistration
 
         return $registration === null ? null : [
             'ticketType' => $registration->ticket_type,
+            'ticketLabel' => TicketLabel::for($registration->ticket_type),
             'status' => $registration->status->value,
             'paid' => $registration->paid_at !== null,
             'checkedIn' => $registration->checked_in_at !== null,

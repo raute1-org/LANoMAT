@@ -7,6 +7,10 @@ return [
         'cancelled' => 'Storniert',
     ],
 
+    'tickets' => [
+        'standard' => 'Standard',
+    ],
+
     'page' => [
         'title' => 'Zum Event anmelden',
         'choose_ticket' => 'Ticket wählen',
