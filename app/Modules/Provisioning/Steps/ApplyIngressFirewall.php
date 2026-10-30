@@ -42,17 +42,17 @@ class ApplyIngressFirewall implements ProvisioningStep
         $policy = $context->config->firewall();
 
         return new StepDescription(
-            'Ingress firewall: ufw and the DOCKER-USER chain',
+            __('provisioning.steps.ingress_firewall.title'),
             [
-                PlannedAction::local('refuse to continue (lock-out guard) when the address LANoMAT connects from is not in '.implode(', ', $policy->allowedSourceCidrs)),
+                PlannedAction::local(__('provisioning.steps.ingress_firewall.guard', ['cidrs' => implode(', ', $policy->allowedSourceCidrs)])),
                 PlannedAction::ssh($this->sourceGuard()->render()),
                 PlannedAction::ssh($this->check($policy)->render()),
                 ...VmShell::installActions($policy->dockerUserBlock(), self::BLOCK_FILE, '0640'),
                 PlannedAction::ssh($this->applyScript($policy)->render()),
-                PlannedAction::local('open a second, fresh SSH session; on failure disable ufw and remove the block again'),
+                PlannedAction::local(__('provisioning.steps.ingress_firewall.second_session')),
             ],
-            ['ufw is active', 'DOCKER-USER lists every allowed source and the final DROP'],
-            'ufw disable, remove the managed block from after.rules, reload',
+            [__('provisioning.steps.ingress_firewall.verify_ufw'), __('provisioning.steps.ingress_firewall.verify_docker_user')],
+            __('provisioning.steps.ingress_firewall.rollback'),
         );
     }
 

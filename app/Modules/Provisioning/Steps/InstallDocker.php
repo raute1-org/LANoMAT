@@ -32,10 +32,10 @@ class InstallDocker implements ProvisioningStep
     public function describe(ProvisioningContext $context): StepDescription
     {
         return new StepDescription(
-            'Install Docker Engine from the official apt repository',
+            __('provisioning.steps.install_docker.title'),
             [PlannedAction::ssh($this->check()->render()), PlannedAction::ssh($this->install()->render())],
-            ['docker uses the json-file log driver and `docker compose` is available'],
-            'nothing (Docker stays installed; remove it manually if the VM is kept)',
+            [__('provisioning.steps.install_docker.verify')],
+            __('provisioning.steps.install_docker.rollback'),
         );
     }
 

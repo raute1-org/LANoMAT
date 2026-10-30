@@ -42,16 +42,16 @@ class BaseSetup implements ProvisioningStep
     public function describe(ProvisioningContext $context): StepDescription
     {
         return new StepDescription(
-            'Base system: packages, guest agent, timezone, sshd hardening',
+            __('provisioning.steps.base_setup.title'),
             [
                 PlannedAction::ssh($this->check($context)->render()),
                 PlannedAction::ssh($this->packages($context)->render()),
                 ...VmShell::installActions(self::HARDENING, self::DROP_IN),
                 PlannedAction::ssh($this->reloadSsh()->render()),
-                PlannedAction::local('open a second, fresh SSH session; on failure remove the drop-in and reload sshd again'),
+                PlannedAction::local(__('provisioning.steps.base_setup.second_session')),
             ],
-            ['sshd -T shows password login, keyboard-interactive and root login off', 'the guest agent answers a ping through the hypervisor'],
-            'remove the sshd drop-in and reload sshd (packages stay installed)',
+            [__('provisioning.steps.base_setup.verify_sshd'), __('provisioning.steps.base_setup.verify_agent')],
+            __('provisioning.steps.base_setup.rollback'),
         );
     }
 

@@ -41,9 +41,9 @@ class ApplyLancache implements ProvisioningStep
         $c = $context->config->lancache();
 
         return new StepDescription(
-            'LanCache stack (lancachenet monolithic + lancache-dns)',
+            __('provisioning.steps.lancache.title'),
             [
-                PlannedAction::local('skip everything below when files and containers already match:'),
+                PlannedAction::local(__('provisioning.steps.lancache.skip_when')),
                 PlannedAction::ssh(LancacheStack::satisfied($c)),
                 PlannedAction::ssh(LancacheStack::resolverCheck($c)),
                 PlannedAction::ssh(LancacheStack::prepare($c)),
@@ -53,8 +53,8 @@ class ApplyLancache implements ProvisioningStep
                 PlannedAction::ssh(LancacheStack::install(LancacheStack::COMPOSE_FILE, '0644')),
                 PlannedAction::ssh(LancacheStack::up()),
             ],
-            ['both containers run with matching files', 'ports 53/80/443 are bound to the cache IP only', 'the heartbeat answers 204'],
-            'docker compose down (cache data stays in the cache root)',
+            [__('provisioning.steps.lancache.verify_containers'), __('provisioning.steps.lancache.verify_ports'), __('provisioning.steps.lancache.verify_heartbeat')],
+            __('provisioning.steps.lancache.rollback'),
         );
     }
 

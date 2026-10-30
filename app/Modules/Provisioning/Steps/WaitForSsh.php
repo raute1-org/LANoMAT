@@ -45,16 +45,16 @@ class WaitForSsh implements ProvisioningStep
         $ip = $context->config->ip;
 
         return new StepDescription(
-            'Wait for SSH and pin the host key out of band',
+            __('provisioning.steps.wait_for_ssh.title'),
             [
-                PlannedAction::local("poll {$ip}:22 until the VM presents an SSH host key (up to ".config('provisioning.steps.ssh_wait_seconds').' s)'),
-                PlannedAction::local("read the host key directly from LANoMAT and through the hypervisor's jump host; they must be equal"),
-                PlannedAction::local('on the hypervisor host (independent path), run:'),
+                PlannedAction::local(__('provisioning.steps.wait_for_ssh.poll', ['ip' => $ip, 'seconds' => (int) config('provisioning.steps.ssh_wait_seconds')])),
+                PlannedAction::local(__('provisioning.steps.wait_for_ssh.compare')),
+                PlannedAction::local(__('provisioning.steps.wait_for_ssh.jump_run')),
                 PlannedAction::ssh(CrossCheckHostKeyTrust::keyscanScript($ip, 22)->render()),
-                PlannedAction::local('pin the agreed fingerprint on the remote host, then log in with the generated key (fresh connection)'),
+                PlannedAction::local(__('provisioning.steps.wait_for_ssh.pin')),
             ],
-            ['a fresh SSH login with the pinned key works'],
-            'nothing (the VM deletion of an earlier step removes the host record)',
+            [__('provisioning.steps.wait_for_ssh.verify')],
+            __('provisioning.steps.wait_for_ssh.rollback'),
         );
     }
 

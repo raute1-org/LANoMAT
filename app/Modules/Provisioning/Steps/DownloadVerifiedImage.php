@@ -34,14 +34,14 @@ class DownloadVerifiedImage implements ProvisioningStep
         $c = $context->config;
 
         return new StepDescription(
-            'Download and verify the cloud image on the hypervisor',
+            __('provisioning.steps.download_image.title'),
             [
-                PlannedAction::hypervisor("check that storage [{$c->imageStorage}] accepts content type [import]"),
-                PlannedAction::hypervisor("skip when [{$this->volume($context)}] already exists"),
-                PlannedAction::hypervisor("download-url {$c->image->url} -> {$this->volume($context)} (verified {$c->image->algorithm} {$c->image->checksum})"),
+                PlannedAction::hypervisor(__('provisioning.steps.download_image.check_storage', ['storage' => $c->imageStorage])),
+                PlannedAction::hypervisor(__('provisioning.steps.download_image.skip_when_exists', ['volume' => $this->volume($context)])),
+                PlannedAction::hypervisor(__('provisioning.steps.download_image.download', ['url' => $c->image->url, 'volume' => $this->volume($context), 'algorithm' => $c->image->algorithm, 'checksum' => $c->image->checksum])),
             ],
-            ['the volume exists on the storage'],
-            'nothing (the verified image stays cached; delete it on the hypervisor to reclaim space)',
+            [__('provisioning.steps.download_image.verify')],
+            __('provisioning.steps.download_image.rollback'),
         );
     }
 

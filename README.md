@@ -22,87 +22,87 @@ for the full design rationale.
 
 1. **Start the dev stack** (Postgres 16 + Redis 7):
 
-   ```bash
-   docker compose up -d
-   ```
+    ```bash
+    docker compose up -d
+    ```
 
-   This exposes Postgres on host port **5434** and Redis on host port **6380** — deliberate
-   non-default ports, since 5432/5433 and 6379 are commonly already in use locally. `.env.example`
-   is already configured to match.
+    This exposes Postgres on host port **5434** and Redis on host port **6380** — deliberate
+    non-default ports, since 5432/5433 and 6379 are commonly already in use locally. `.env.example`
+    is already configured to match.
 
 2. **Install dependencies:**
 
-   ```bash
-   composer install
-   npm install
-   ```
+    ```bash
+    composer install
+    npm install
+    ```
 
 3. **Configure the environment:**
 
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
 
-   Optional: set `DISCORD_LOGIN_GUILD_ID` to the ID of your Discord server to allow
-   only its members to log in (admins are exempt; no bot needed; see
-   [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md), section 3a).
+    Optional: set `DISCORD_LOGIN_GUILD_ID` to the ID of your Discord server to allow
+    only its members to log in (admins are exempt; no bot needed; see
+    [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md), section 3a).
 
-   Then set up Discord OAuth (the only login method — there is no password login for
-   participants):
+    Then set up Discord OAuth (the only login method — there is no password login for
+    participants):
 
-   1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and
-      create a new application.
-   2. Under **OAuth2 → General**, add a redirect URI:
-      `http://localhost:8000/auth/discord/callback`
-   3. Copy the **Client ID** and **Client Secret** into your `.env`:
+    1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and
+       create a new application.
+    2. Under **OAuth2 → General**, add a redirect URI:
+       `http://localhost:8000/auth/discord/callback`
+    3. Copy the **Client ID** and **Client Secret** into your `.env`:
 
-      ```
-      DISCORD_CLIENT_ID=...
-      DISCORD_CLIENT_SECRET=...
-      DISCORD_REDIRECT_URI=http://localhost:8000/auth/discord/callback
-      ```
+        ```
+        DISCORD_CLIENT_ID=...
+        DISCORD_CLIENT_SECRET=...
+        DISCORD_REDIRECT_URI=http://localhost:8000/auth/discord/callback
+        ```
 
-   4. **Optional, for Discord announcements/DMs (since M2):** create a bot user under
-      **Bot** in the same application, copy its token into `DISCORD_BOT_TOKEN`, and invite
-      the bot to your server with permission to view/send messages in the channel you want
-      announcements in. Set `DISCORD_ANNOUNCE_CHANNEL_ID` to that channel's ID (right-click
-      the channel in Discord with Developer Mode enabled → "Copy Channel ID"). Without a
-      bot token/announce channel configured, registration-open announcements and event
-      reminders are silently skipped (`AnnounceRegistrationOpen` and
-      `lanomat:send-reminders` both no-op when `services.discord.announce_channel_id` is
-      blank) — everything else still works.
+    4. **Optional, for Discord announcements/DMs (since M2):** create a bot user under
+       **Bot** in the same application, copy its token into `DISCORD_BOT_TOKEN`, and invite
+       the bot to your server with permission to view/send messages in the channel you want
+       announcements in. Set `DISCORD_ANNOUNCE_CHANNEL_ID` to that channel's ID (right-click
+       the channel in Discord with Developer Mode enabled → "Copy Channel ID"). Without a
+       bot token/announce channel configured, registration-open announcements and event
+       reminders are silently skipped (`AnnounceRegistrationOpen` and
+       `lanomat:send-reminders` both no-op when `services.discord.announce_channel_id` is
+       blank) — everything else still works.
 
 4. **Run migrations and create the first admin** (replace `<id>` with your Discord user ID;
    log in once via Discord first, or let the command create the user record):
 
-   ```bash
-   php artisan lanomat:install --admin-discord-id=<id>
-   ```
+    ```bash
+    php artisan lanomat:install --admin-discord-id=<id>
+    ```
 
-   This is idempotent — running it again re-promotes the same user without creating
-   duplicates.
+    This is idempotent — running it again re-promotes the same user without creating
+    duplicates.
 
 5. **Start the dev servers** (app, queue worker, and Vite):
 
-   ```bash
-   composer run dev
-   ```
+    ```bash
+    composer run dev
+    ```
 
-   The app runs at `http://localhost:8000`. Log in via Discord to get a `participant`
-   account, then `/admin` becomes reachable once your role is `orga` or `admin`.
+    The app runs at `http://localhost:8000`. Log in via Discord to get a `participant`
+    account, then `/admin` becomes reachable once your role is `orga` or `admin`.
 
-   A seeded local test user (`discord_id 100000000000000001`) is available in seeded dev
-   databases — see `database/seeders`.
+    A seeded local test user (`discord_id 100000000000000001`) is available in seeded dev
+    databases — see `database/seeders`.
 
 6. **Scheduler (since M2):** event reminders (`lanomat:send-reminders`, registered in
    `routes/console.php` via `Schedule::command(...)->everyFiveMinutes()`) only fire if
    something is actually running Laravel's scheduler.
 
-   - **Dev:** run `php artisan schedule:work` in a separate terminal — it re-checks the
-     schedule every minute for as long as it's running, no crontab needed.
-   - **Prod:** the `scheduler` service in `compose.yml`'s `prod` profile runs
-     `php artisan schedule:work` continuously — see "Production deployment" below.
+    - **Dev:** run `php artisan schedule:work` in a separate terminal — it re-checks the
+      schedule every minute for as long as it's running, no crontab needed.
+    - **Prod:** the `scheduler` service in `compose.yml`'s `prod` profile runs
+      `php artisan schedule:work` continuously — see "Production deployment" below.
 
 ### Peek into a local clone (no Discord app needed)
 
@@ -142,30 +142,30 @@ run at the same time), and `traefik` (TLS-terminating reverse proxy in front of 
 
 1. **Configure `.env` for production:**
 
-   ```
-   APP_ENV=production
-   APP_DEBUG=false
-   APP_URL=https://lan.example
-   REVERB_SCHEME=https
-   REVERB_ALLOWED_ORIGINS=https://lan.example
-   ```
+    ```
+    APP_ENV=production
+    APP_DEBUG=false
+    APP_URL=https://lan.example
+    REVERB_SCHEME=https
+    REVERB_ALLOWED_ORIGINS=https://lan.example
+    ```
 
-   `REVERB_ALLOWED_ORIGINS` locks Reverb's websocket handshake down to the real origin(s)
-   the browser client connects from (comma-separated for more than one) — see
-   `config/reverb.php`. Leaving it unset defaults to `*` (fine for dev, not for prod).
+    `REVERB_ALLOWED_ORIGINS` locks Reverb's websocket handshake down to the real origin(s)
+    the browser client connects from (comma-separated for more than one) — see
+    `config/reverb.php`. Leaving it unset defaults to `*` (fine for dev, not for prod).
 
 2. **Bring up the stack:**
 
-   ```bash
-   docker compose --profile prod up -d
-   ```
+    ```bash
+    docker compose --profile prod up -d
+    ```
 
 3. **Run migrations and create the first admin**, same command as dev, just inside the
    `app` container:
 
-   ```bash
-   docker compose --profile prod exec app php artisan lanomat:install --admin-discord-id=<id>
-   ```
+    ```bash
+    docker compose --profile prod exec app php artisan lanomat:install --admin-discord-id=<id>
+    ```
 
 **TLS / reverse proxy:** `compose.yml`'s `prod` profile includes a Traefik v3 `traefik`
 service that TLS-terminates in front of `app` (participant UI + Filament `/admin`) and
@@ -181,9 +181,14 @@ relying on public Docker Hub/GHCR pulls at deploy time — see
 `.github/workflows/publish-images.yml` CI workflow that builds and pushes the `app` image on
 a version tag/release, and how a prod host pulls from it.
 
+**Provisioning (optional module):** `php artisan provisioning:plan|run|probe-hypervisor` turns the
+Proxmox test-VM runbook into a function: dry run first, then a queued, idempotent, rollback-capable run
+that creates a hardened Debian VM with Docker, a LanCache and egress isolation. Backend and console
+only, tested against fakes (no live Proxmox token verified yet). See [`docs/provisioning.md`](docs/provisioning.md).
+
 **LanCache (separate host):** a [LanCache](https://lancache.net) instance on its own LAN
 host transparently caches Steam/Epic/Battle.net downloads at LAN speed after the first pull
-— it is *not* a service in this repo's `compose.yml`, but a host registered in LANoMAT's
+— it is _not_ a service in this repo's `compose.yml`, but a host registered in LANoMAT's
 managed remote-hosts registry (`role=lancache`) and bootstrapped over SSH via
 `ApplyLancacheSetup`. See [`docs/lancache-setup.md`](docs/lancache-setup.md) for registering
 the host, DNS pointing for the game CDNs, and the pre-caching-before-the-LAN checklist.
@@ -364,10 +369,10 @@ probes (optional module policies are not explicitly registered; only entry point
 set `MODULES_PROFILE=full` to keep the pre-toggle behaviour (the test suite runs
 under `full`). Inspect the result with `php artisan lanomat:modules`.
 
-| Profile | Modules |
-|---|---|
-| `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight |
-| `full` | all 30 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting) |
+| Profile          | Modules                                                                                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight                                                                                                                    |
+| `full`           | all 30 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting) |
 
 **Live deployment** of `lan.raute1.org` (core profile): runbook in
 [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) (DNS, `.env`, start command, first admin, test checklist, backups).

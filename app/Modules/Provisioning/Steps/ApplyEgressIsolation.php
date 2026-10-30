@@ -42,7 +42,7 @@ class ApplyEgressIsolation implements ProvisioningStep
         $minutes = $context->config->safetyNetMinutes;
 
         return new StepDescription(
-            'Egress isolation (nftables) with a lock-out safety net',
+            __('provisioning.steps.egress_isolation.title'),
             [
                 PlannedAction::ssh($this->check($policy)->render()),
                 PlannedAction::ssh($this->prepare()->render()),
@@ -51,15 +51,15 @@ class ApplyEgressIsolation implements ProvisioningStep
                 PlannedAction::ssh($this->syntax()->render()),
                 PlannedAction::ssh($this->arm($minutes)->render()),
                 PlannedAction::ssh($this->load()->render()),
-                PlannedAction::local('open a second, fresh SSH session; ONLY on success cancel the safety net, otherwise leave it armed'),
+                PlannedAction::local(__('provisioning.steps.egress_isolation.second_session')),
                 PlannedAction::ssh($this->finalize()->render()),
             ],
             [
-                'the table lanomat_isolation exists and nftables is enabled',
-                'DNS to the gateway, ping to the gateway and HTTPS to the internet work',
-                'a private address fails fast, from the VM and from a container (when negative_probe_host is configured)',
+                __('provisioning.steps.egress_isolation.verify_table'),
+                __('provisioning.steps.egress_isolation.verify_positive'),
+                __('provisioning.steps.egress_isolation.verify_negative'),
             ],
-            'delete the table, disable nftables, restore /etc/nftables.conf from the backup',
+            __('provisioning.steps.egress_isolation.rollback'),
         );
     }
 

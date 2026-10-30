@@ -23,7 +23,7 @@ it('prints the dry run in German chrome with every step, and executes nothing', 
 
     $this->artisan('provisioning:plan', ['--config' => configFile()])
         ->expectsOutputToContain('Trockenlauf: Es wird nichts ausgeführt')
-        ->expectsOutputToContain('1. Download and verify the cloud image on the hypervisor [download_image]')
+        ->expectsOutputToContain('1. Cloud-Image auf dem Hypervisor herunterladen und prüfen [download_image]')
         ->expectsOutputToContain('[egress_isolation]')
         ->expectsOutputToContain('systemd-run --unit=isolation-safety-net --on-active=')
         ->expectsOutputToContain('define WAN_IF = "eth0"')
@@ -68,7 +68,7 @@ it('queues without --sync and needs an authorized user', function () {
     $w = provisioningWorld();
 
     $this->artisan('provisioning:run', ['--config' => configFile(), '--hypervisor' => $w['hypervisor']->name, '--as' => $w['actor']->id, '--confirm' => true])
-        ->expectsOutputToContain('in die Queue gestellt')->assertSuccessful();
+        ->expectsOutputToContain('in die Queue "provisioning" gestellt')->assertSuccessful();
 
     $participant = User::factory()->create();
     DB::table('provisioning_runs')->delete();

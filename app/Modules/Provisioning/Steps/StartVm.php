@@ -25,10 +25,10 @@ class StartVm implements ProvisioningStep
     public function describe(ProvisioningContext $context): StepDescription
     {
         return new StepDescription(
-            'Start the VM',
-            [PlannedAction::hypervisor("start VM {$context->vmidLabel()} on node {$context->node()} (skipped when already running)")],
-            ['the VM is running'],
-            'stop the VM, only when this run started it',
+            __('provisioning.steps.start_vm.title'),
+            [PlannedAction::hypervisor(__('provisioning.steps.start_vm.start', ['vmid' => $context->vmidLabel(), 'node' => $context->node()]))],
+            [__('provisioning.steps.start_vm.verify')],
+            __('provisioning.steps.start_vm.rollback'),
         );
     }
 
