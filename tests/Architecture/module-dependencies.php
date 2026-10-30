@@ -117,6 +117,10 @@ return [
         6 => 'Tournaments',
         7 => 'Voice',
     ],
+    'Provisioning' => [
+        0 => 'Hosts',
+        1 => 'Lancache',
+    ],
     'Recap' => [
         0 => 'Events',
         1 => 'Gallery',
