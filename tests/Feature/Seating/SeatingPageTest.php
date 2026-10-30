@@ -139,3 +139,19 @@ it('returns 404 for a draft event on the seating page', function () {
 
     $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/seating")->assertNotFound();
 });
+
+it('tells the page whether registration is open, upcoming or closed', function (string $state, string $expected) {
+    $event = Event::factory()->{$state}()->create();
+
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/seating")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registrationState', $expected)
+            ->where('labels.opens_with_registration', 'Der Sitzplan öffnet mit der Anmeldung.')
+        );
+})->with([
+    'announced' => ['announced', 'upcoming'],
+    'registration' => ['registration', 'open'],
+    'live' => ['live', 'closed'],
+    'finished' => ['finished', 'closed'],
+]);

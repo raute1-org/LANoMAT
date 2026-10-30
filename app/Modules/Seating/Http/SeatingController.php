@@ -4,6 +4,7 @@ namespace App\Modules\Seating\Http;
 
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
+use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
@@ -44,6 +45,12 @@ class SeatingController extends Controller
             'seats' => $seats,
             'mySeatId' => $mySeatId,
             'canClaim' => $myRegistration !== null,
+            // Why the viewer cannot claim: registration not open yet vs. open vs. over.
+            'registrationState' => match ($event->status) {
+                EventStatus::Announced => 'upcoming',
+                EventStatus::Registration => 'open',
+                default => 'closed',
+            },
             'canPing' => $user !== null,
             'labels' => trans('seating.page'),
             'orgaPingLabels' => trans('infoscreen.orga_ping'),
