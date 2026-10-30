@@ -6,12 +6,12 @@ import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { useModules } from '@/composables/useModules';
 import { formatInstant } from '@/lib/datetime';
+import { show as cateringShow } from '@/routes/catering';
 import {
     index as eventsIndex,
     register as eventsRegister,
     seating as eventsSeating,
 } from '@/routes/events';
-import { show as cateringShow } from '@/routes/catering';
 import { index as filesIndex } from '@/routes/files';
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';

@@ -39,23 +39,23 @@ import {
 import { useModules } from '@/composables/useModules';
 import { homeHref } from '@/lib/home';
 import { dashboard } from '@/routes';
+import { show as cateringShow } from '@/routes/catering';
 import {
     index as eventsIndex,
     show as eventsShow,
     register as eventsRegister,
     seating as eventsSeating,
 } from '@/routes/events';
-import { show as cateringShow } from '@/routes/catering';
 import { index as filesIndex } from '@/routes/files';
 import { index as friendsIndex } from '@/routes/friends';
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
 import { index as lfgIndex } from '@/routes/lfg';
-import { index as pollsIndex } from '@/routes/polls';
 import { checkin as orgaCheckin } from '@/routes/orga';
+import { index as pollsIndex } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
-import { control as screenControl } from '@/routes/screen';
 import { index as scheduleIndex } from '@/routes/schedule';
+import { control as screenControl } from '@/routes/screen';
 import { index as serversIndex } from '@/routes/servers';
 import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
@@ -235,17 +235,19 @@ const eventGroupLabel = computed(() =>
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="generalItems" label="Allgemein" />
-            <NavMain
-                v-if="eventItems.length > 0"
-                :items="eventItems"
-                :label="eventGroupLabel"
-            />
-            <NavMain
-                v-if="moreItems.length > 0"
-                :items="moreItems"
-                label="Mehr"
-            />
+            <nav aria-label="Hauptnavigation" class="contents">
+                <NavMain :items="generalItems" label="Allgemein" />
+                <NavMain
+                    v-if="eventItems.length > 0"
+                    :items="eventItems"
+                    :label="eventGroupLabel"
+                />
+                <NavMain
+                    v-if="moreItems.length > 0"
+                    :items="moreItems"
+                    label="Mehr"
+                />
+            </nav>
         </SidebarContent>
 
         <SidebarFooter>

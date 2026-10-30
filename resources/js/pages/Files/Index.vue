@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import FilePicker from '@/components/FilePicker.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -170,10 +171,8 @@ function formatDateTime(iso: string): string {
                         <Label for="file-upload">{{
                             labels.upload_label
                         }}</Label>
-                        <input
+                        <FilePicker
                             id="file-upload"
-                            type="file"
-                            class="rounded-md border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                             required
                             @change="onFileChange"
                         />

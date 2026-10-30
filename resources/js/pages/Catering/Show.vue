@@ -160,6 +160,7 @@ function menuOptionName(
                             v-if="foodOrder.isOpen"
                             class="mt-3"
                             :placeholder="labels.note_placeholder"
+                            :aria-label="labels.note_placeholder"
                             :model-value="noteFor(foodOrder.id)"
                             @update:model-value="
                                 (value) =>
