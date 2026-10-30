@@ -11,11 +11,15 @@ import {
     register as eventsRegister,
     seating as eventsSeating,
 } from '@/routes/events';
+import { show as cateringShow } from '@/routes/catering';
+import { index as filesIndex } from '@/routes/files';
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
-import { show as pollShow } from '@/routes/polls';
+import { index as lfgIndex } from '@/routes/lfg';
+import { index as pollsIndex, show as pollShow } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import { show as recapShow } from '@/routes/recap';
+import { index as serversIndex } from '@/routes/servers';
 import type { EventSummary, NewsPostDto } from '@/types';
 
 const props = defineProps<{
@@ -287,6 +291,31 @@ function pad(value: number): string {
             <Button v-if="has('gallery')" as-child variant="outline">
                 <Link :href="galleryIndex.url(event.slug)">{{
                     labels.to_gallery
+                }}</Link>
+            </Button>
+            <Button v-if="has('catering')" as-child variant="outline">
+                <Link :href="cateringShow.url(event.slug)">{{
+                    labels.to_catering
+                }}</Link>
+            </Button>
+            <Button v-if="has('voting')" as-child variant="outline">
+                <Link :href="pollsIndex.url(event.slug)">{{
+                    labels.to_polls
+                }}</Link>
+            </Button>
+            <Button v-if="has('lfg')" as-child variant="outline">
+                <Link :href="lfgIndex.url(event.slug)">{{
+                    labels.to_lfg
+                }}</Link>
+            </Button>
+            <Button v-if="has('files')" as-child variant="outline">
+                <Link :href="filesIndex.url(event.slug)">{{
+                    labels.to_files
+                }}</Link>
+            </Button>
+            <Button v-if="has('game_servers')" as-child variant="outline">
+                <Link :href="serversIndex.url(event.slug)">{{
+                    labels.to_servers
                 }}</Link>
             </Button>
             <Button as-child variant="outline">

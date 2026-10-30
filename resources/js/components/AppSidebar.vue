@@ -3,6 +3,12 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     CalendarClock,
     CalendarDays,
+    FolderOpen,
+    HandHelping,
+    MonitorPlay,
+    Server,
+    UtensilsCrossed,
+    Vote,
     Image,
     Mic,
     PartyPopper,
@@ -39,12 +45,18 @@ import {
     register as eventsRegister,
     seating as eventsSeating,
 } from '@/routes/events';
+import { show as cateringShow } from '@/routes/catering';
+import { index as filesIndex } from '@/routes/files';
 import { index as friendsIndex } from '@/routes/friends';
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
+import { index as lfgIndex } from '@/routes/lfg';
+import { index as pollsIndex } from '@/routes/polls';
 import { checkin as orgaCheckin } from '@/routes/orga';
 import { show as presenceShow } from '@/routes/presence';
+import { control as screenControl } from '@/routes/screen';
 import { index as scheduleIndex } from '@/routes/schedule';
+import { index as serversIndex } from '@/routes/servers';
 import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -131,9 +143,76 @@ const eventItems = computed<NavItem[]>(() => {
             href: orgaCheckin(ev.slug),
             icon: UserCheck,
         });
+
+        if (has('infoscreen')) {
+            items.push({
+                title: 'Infoscreen-Steuerung',
+                href: screenControl(ev.slug),
+                icon: MonitorPlay,
+            });
+        }
     }
 
     return items;
+});
+
+// Secondary event modules: every one of them is gated by its module toggle,
+// so the "Mehr" group disappears entirely on a core profile.
+const moreItems = computed<NavItem[]>(() => {
+    const ev = currentEvent.value;
+
+    if (!ev) {
+        return [];
+    }
+
+    return [
+        ...(has('catering')
+            ? [
+                  {
+                      title: 'Essensbestellung',
+                      href: cateringShow(ev.slug),
+                      icon: UtensilsCrossed,
+                  },
+              ]
+            : []),
+        ...(has('voting')
+            ? [
+                  {
+                      title: 'Abstimmungen',
+                      href: pollsIndex(ev.slug),
+                      icon: Vote,
+                      prefix: true,
+                  },
+              ]
+            : []),
+        ...(has('lfg')
+            ? [
+                  {
+                      title: 'Mitspieler finden',
+                      href: lfgIndex(ev.slug),
+                      icon: HandHelping,
+                  },
+              ]
+            : []),
+        ...(has('files')
+            ? [
+                  {
+                      title: 'Dateien',
+                      href: filesIndex(ev.slug),
+                      icon: FolderOpen,
+                  },
+              ]
+            : []),
+        ...(has('game_servers')
+            ? [
+                  {
+                      title: 'Spielserver',
+                      href: serversIndex(ev.slug),
+                      icon: Server,
+                  },
+              ]
+            : []),
+    ];
 });
 
 const eventGroupLabel = computed(() =>
@@ -161,6 +240,11 @@ const eventGroupLabel = computed(() =>
                 v-if="eventItems.length > 0"
                 :items="eventItems"
                 :label="eventGroupLabel"
+            />
+            <NavMain
+                v-if="moreItems.length > 0"
+                :items="moreItems"
+                label="Mehr"
             />
         </SidebarContent>
 
