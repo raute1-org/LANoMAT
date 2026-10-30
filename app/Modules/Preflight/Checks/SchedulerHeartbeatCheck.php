@@ -20,11 +20,12 @@ class SchedulerHeartbeatCheck implements HealthCheck
 
     public function run(): HealthResult
     {
-        // Marker is a Unix timestamp (int) written by lanomat:heartbeat — see
-        // HeartbeatCommand for why it is not a Carbon.
+        // Marker is a Unix timestamp written by HeartbeatCommand — see HeartbeatCommand for
+        // why it is not a Carbon. Redis returns numeric values as numeric strings
+        // (not ints), so accept any numeric value and compare it as an int.
         $tick = Cache::get('preflight.scheduler_tick');
 
-        if (! is_int($tick) || $tick < now()->subMinutes(2)->getTimestamp()) {
+        if (! is_numeric($tick) || (int) $tick < now()->subMinutes(2)->getTimestamp()) {
             return HealthResult::down(__('preflight.messages.stale'));
         }
 

@@ -63,3 +63,32 @@ it('liveness markers survive a serializing cache store (file)', function () {
 
     Cache::store('file')->flush();
 });
+
+// Regression (prod bug, 2026-10-30): the redis cache store returns numeric
+// values as numeric STRINGS (RedisStore::serialize keeps numbers raw, so the
+// GET reply is "1793355480"), not ints. The checks must accept that, or the
+// scheduler and queue worker read "down" in prod while the heartbeat runs.
+it('scheduler check accepts a numeric-string marker as returned by redis', function () {
+    Cache::put('preflight.scheduler_tick', (string) now()->getTimestamp(), now()->addMinutes(10));
+    expect(app(SchedulerHeartbeatCheck::class)->run()->status->value)->toBe('ok');
+});
+
+it('scheduler check is down on a stale numeric-string marker', function () {
+    Cache::put('preflight.scheduler_tick', (string) now()->subMinutes(5)->getTimestamp(), now()->addMinutes(10));
+    expect(app(SchedulerHeartbeatCheck::class)->run()->status->value)->toBe('down');
+});
+
+it('queue check accepts a numeric-string marker as returned by redis', function () {
+    Cache::put('preflight.queue_tick', (string) now()->getTimestamp(), now()->addMinutes(10));
+    expect(app(QueueWorkerCheck::class)->run()->status->value)->toBe('ok');
+});
+
+it('queue check is down on a stale numeric-string marker', function () {
+    Cache::put('preflight.queue_tick', (string) now()->subMinutes(5)->getTimestamp(), now()->addMinutes(10));
+    expect(app(QueueWorkerCheck::class)->run()->status->value)->toBe('down');
+});
+
+it('queue check is down without a marker', function () {
+    Cache::forget('preflight.queue_tick');
+    expect(app(QueueWorkerCheck::class)->run()->status->value)->toBe('down');
+});

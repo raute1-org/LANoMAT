@@ -1,37 +1,38 @@
 @php
-    $dotColorClass = [
-        'ok' => 'bg-ok',
-        'warn' => 'bg-warn',
-        'down' => 'bg-down',
-        'skipped' => 'bg-muted-foreground',
+    // Filament-native only: the admin panel does not load the app's Tailwind
+    // CSS, so this view uses x-filament components and fi-* classes only.
+    $badgeColor = [
+        'ok' => 'success',
+        'warn' => 'warning',
+        'down' => 'danger',
+        'skipped' => 'gray',
     ];
 @endphp
 
 <x-filament-widgets::widget>
-    <x-filament::section heading="Preflight-Ampel">
+    <x-filament::section heading="Preflight-Ampel" divided>
         <x-slot name="afterHeader">
             <x-filament::button color="primary" wire:click="refresh">
                 Neu prüfen
             </x-filament::button>
         </x-slot>
 
-        <ul class="divide-y divide-border">
-            @foreach ($this->results() as $result)
-                <li class="flex items-center gap-3 py-2">
-                    <span
-                        class="inline-flex size-2 shrink-0 rounded-full {{ $dotColorClass[$result['status']] ?? 'bg-muted-foreground' }}"
-                        aria-hidden="true"
-                    ></span>
+        @foreach ($this->results() as $result)
+            <div>
+                <div>
+                    <x-filament::badge :color="$badgeColor[$result['status']] ?? 'gray'">
+                        {{ __('preflight.status.'.$result['status']) }}
+                    </x-filament::badge>
 
-                    <span class="flex-1 text-sm text-foreground">
-                        {{ $result['label'] }}
-                    </span>
+                    <span>{{ $result['label'] }}</span>
+                </div>
 
-                    <span class="font-mono text-xs text-muted-foreground">
+                @if (filled($result['message']))
+                    <p class="fi-section-header-description">
                         {{ $result['message'] }}
-                    </span>
-                </li>
-            @endforeach
-        </ul>
+                    </p>
+                @endif
+            </div>
+        @endforeach
     </x-filament::section>
 </x-filament-widgets::widget>
