@@ -168,6 +168,8 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 
 **One rule decides "registration open":** `Registration\Enums\RegistrationAvailability::for($event)` (`upcoming|open|full|closed`) — open in `registration` OR `live` while capacity remains (`max_participants`, `null` = unlimited, cancelled registrations do not count). RegisterForEvent, `RegistrationPolicy::create`, the controllers and every Inertia prop (`availability` + `freeSpots`; on `currentEvent` for the sidebar "Anmeldung" item) use it — never compare `EventStatus` for this.
 
+Arrival plan (optional, see [arrival-planning.md](arrival-planning.md)): with a registration, `Event/Register.vue` shows "Ankunft und Abreise" (values or "noch offen" + "Angeben"/"Ändern") and the Dashboard ticket card the same lines; editable until the event is `finished`/`archived`, read-only with a hint afterwards (`registration.arrival.editable`). The registration form carries the same optional fields.
+
 Backing props: `availability`/`freeSpots` (see above), `registration` (`Registration\Support\MyRegistration::summary`, never the QR payload) and `registrationState` (`upcoming|open|closed`).
 
 ### 7. New page checklist

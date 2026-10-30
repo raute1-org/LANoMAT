@@ -8,6 +8,7 @@ use App\Modules\Events\Filament\Resources\Events\Pages\ListEvents;
 use App\Modules\Events\Filament\Resources\Events\Schemas\EventForm;
 use App\Modules\Events\Filament\Resources\Events\Tables\EventsTable;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Filament\Pages\ArrivalOverview;
 use App\Modules\Registration\Filament\RelationManagers\RegistrationsRelationManager;
 use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
@@ -60,6 +61,7 @@ class EventResource extends Resource
             'index' => ListEvents::route('/'),
             'create' => CreateEvent::route('/create'),
             'edit' => EditEvent::route('/{record}/edit'),
+            'arrival' => ArrivalOverview::route('/{record}/arrival'),
         ];
     }
 }

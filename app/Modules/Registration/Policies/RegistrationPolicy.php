@@ -3,6 +3,7 @@
 namespace App\Modules\Registration\Policies;
 
 use App\Models\User;
+use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
@@ -43,5 +44,18 @@ class RegistrationPolicy
             && $registration->user_id === $user->id
             && $registration->status !== RegistrationStatus::Cancelled
             && SelfCheckInWindow::isOpen($event);
+    }
+
+    /**
+     * Own, non-cancelled registration, until the event is finished/archived.
+     */
+    public function updateArrivalPlan(User $user, EventRegistration $registration): bool
+    {
+        $event = $registration->event()->first();
+
+        return $event !== null
+            && $registration->user_id === $user->id
+            && $registration->status !== RegistrationStatus::Cancelled
+            && ! in_array($event->status, [EventStatus::Finished, EventStatus::Archived], true);
     }
 }

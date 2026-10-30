@@ -323,6 +323,7 @@ Committed output (captured against the local production stack —
 Friends system:
 
 - **Self check-in & walk-ins** — on-site QR (`/checkin/{token}`, rotatable in the admin panel) lets participants check themselves in; registration stays open while the event is live as long as spots remain (see `docs/self-checkin.md`).
+- **Arrival planning** — participants optionally state arrival and departure (day + time window) when registering or later; orga get an "Anreise-Übersicht" (expected arrivals, people on site over time, peak, actual vs expected) on the event in the admin panel (see `docs/arrival-planning.md`).
 - **M0–M3** — fundament; events & identity; registration, QR-ticket check-in,
   seating, in-app notifications and the Discord base; cross-event teams &
   tournaments (pure bracket engine, Reverb realtime, Discord interactions,
