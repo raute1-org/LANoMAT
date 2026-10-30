@@ -162,19 +162,61 @@ This runs `migrate --force` and promotes or creates that account as admin.
 
 ## 8. Backups
 
-No backup mechanism is built into the repo yet (backlog 1.3). Use cron on the
-host. Adjust the paths to where the compose project lives:
+`scripts/ops/backup.sh` creates the nightly backup. It runs with
+`set -euo pipefail`, dumps Postgres (`pg_dump` via
+`docker compose --profile prod exec -T postgres`) and the storage volume
+(`lanomat_app_storage`) into a temp directory, verifies both archives
+(`gzip -t` and a minimum size of 1 KiB), then moves them atomically into
+`/var/backups/lanomat` (override with `BACKUP_DIR`). Files older than 14 days
+are deleted. A failed run exits non-zero (1 database, 2 storage, 3 setup),
+publishes nothing and leaves `.last-success` untouched. Output has UTC
+timestamps.
 
-```cron
-# Database dump, daily at 03:00 (gzip, keep 14 days)
-0 3 * * * cd /opt/lanomat && docker compose --profile prod exec -T postgres sh -c 'pg_dump -U lanomat -d "$POSTGRES_DB"' | gzip > /var/backups/lanomat/db-$(date +\%F).sql.gz && find /var/backups/lanomat -name 'db-*.sql.gz' -mtime +14 -delete
+Install the cron job once, as root, from the project directory:
 
-# Uploads (volume lanomat_app_storage), daily at 03:10
-10 3 * * * docker run --rm -v lanomat_app_storage:/data:ro -v /var/backups/lanomat:/backup alpine tar czf /backup/storage-$(date +\%F).tgz -C /data .
+```bash
+cd /opt/lanomat && sudo scripts/ops/install-backup-cron.sh /opt/lanomat
 ```
 
-Create `/var/backups/lanomat` first. Copy the backups off the host regularly.
-A backup that stays on the same disk does not count.
+This writes `/etc/cron.d/lanomat-backup` with:
+
+```cron
+SHELL=/bin/bash
+0 3 * * * root cd /opt/lanomat && ./scripts/ops/backup.sh >> /var/log/lanomat-backup.log 2>&1
+```
+
+After a fully successful run the script writes a Unix timestamp to
+`/var/backups/lanomat/.last-success`. The `app` service mounts
+`/var/backups/lanomat` read-only (compose.yml), and the Preflight check
+"Backup" reads the marker (`BACKUP_MARKER_PATH`, default
+`/var/backups/lanomat/.last-success`): OK under 26 h, warning above, outage
+above 50 h. A missing marker is a warning in production.
+
+Restore, in short:
+
+1. Stop the writers: `docker compose --profile prod stop app queue scheduler reverb-prod` (adjust to your service list).
+2. Database: `gunzip -c db-<stamp>.sql.gz | docker compose --profile prod exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` into an empty database (drop and recreate it first).
+3. Uploads: `docker run --rm -v lanomat_app_storage:/data -v /var/backups/lanomat:/backup:ro alpine tar xzf /backup/storage-<stamp>.tgz -C /data`
+4. Start the services again and run `php artisan lanomat:preflight`.
+5. Test a restore on a scratch host before you need it.
+
+The backups must be copied off the host regularly. A backup that stays on the
+same disk does not count. The repo does not set up an off-host target; choose
+one yourself.
+
+## Security headers
+
+Traefik's `secure-headers` middleware (`docker/traefik/dynamic.yml`) sets HSTS,
+frame deny, nosniff, `Referrer-Policy: strict-origin-when-cross-origin` and a
+restrictive `Permissions-Policy` (camera only for the same origin, in case
+check-in gets in-browser QR scanning; microphone, geolocation, payment and USB
+denied). The image sets `expose_php = 0`, so `X-Powered-By` is not sent.
+
+No `Content-Security-Policy` is set yet. Filament/Livewire/Alpine need inline
+scripts and styles, and the participant app uses Vite assets and Reverb
+websockets, so a CSP needs an owner decision and should start as
+`Content-Security-Policy-Report-Only`. Open question: accept `'unsafe-inline'`
+for the admin panel or invest in nonces.
 
 ## 9. Later: switch to the full profile
 

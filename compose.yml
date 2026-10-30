@@ -110,6 +110,8 @@ services:
     env_file: .env
     volumes:
       - app_storage:/app/storage/app
+      # Backup marker for the Preflight BackupFreshnessCheck (read-only).
+      - /var/backups/lanomat:/var/backups/lanomat:ro
     # Loopback only: Traefik is the sole public entry point. Binding to all
     # interfaces would let clients bypass TLS and forge X-Forwarded-* headers
     # (trusted in bootstrap/app.php). Docker port publishing also bypasses ufw.

@@ -69,6 +69,7 @@ use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Checks\BackupFreshnessCheck;
 use App\Modules\Preflight\Checks\DatabaseCheck;
 use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
@@ -211,6 +212,7 @@ class AppServiceProvider extends ServiceProvider
             ReverbCheck::class,
             SchedulerHeartbeatCheck::class,
             QueueWorkerCheck::class,
+            BackupFreshnessCheck::class,
             ...($modules->enabled(Module::Discord) ? [DiscordApiCheck::class, DiscordGatewaySidecarCheck::class] : []),
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
