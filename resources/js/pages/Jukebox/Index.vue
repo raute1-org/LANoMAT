@@ -9,8 +9,8 @@
  * partial reload re-fetches the authorized `nowPlaying`/`queue`/`skipVotes`
  * props rather than trusting client-held state.
  */
-import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import { onMounted, onUnmounted, ref } from 'vue';
 import NowPlayingCard from '@/components/jukebox/NowPlayingCard.vue';
 import QueueRow from '@/components/jukebox/QueueRow.vue';
 import SearchBox from '@/components/jukebox/SearchBox.vue';
@@ -63,9 +63,6 @@ const props = defineProps<{
     canModerate: boolean;
     labels: JukeboxLabels;
 }>();
-
-const page = usePage();
-const isAuthenticated = computed(() => page.props.auth.user !== null);
 
 // Live board: any queue/vote/skip mutation broadcasts a bare signal on the
 // public `event.{id}` channel; reload just the affected props rather than
@@ -209,16 +206,12 @@ function skipNow(): void {
         </div>
 
         <template v-else>
-            <!-- non-checked-in / guest notice: an invitation, not an apology -->
+            <!-- non-checked-in notice: an invitation, not an apology -->
             <p
                 v-if="!canParticipate"
                 class="mt-4 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground"
             >
-                {{
-                    isAuthenticated
-                        ? labels.not_checked_in_notice
-                        : labels.guest_notice
-                }}
+                {{ labels.not_checked_in_notice }}
             </p>
 
             <!-- now playing -->

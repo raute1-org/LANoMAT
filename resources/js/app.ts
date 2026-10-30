@@ -3,9 +3,9 @@ import { configureEcho } from '@laravel/echo-vue';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
-import PublicShell from '@/layouts/PublicShell.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import type { Auth } from '@/types/auth';
 
 // Reverb connection data comes from the server at runtime via the
 // `window.__reverb` global set inline in app.blade.php (from server config).
@@ -33,29 +33,15 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
-    layout: (name) => {
+    layout: (name, page) => {
         switch (true) {
-            // Event/*, Orga/* and Jukebox/* pages flash toasts (registration,
-            // seating, check-in, queue/vote/skip mutations) but have no
-            // sidebar/header chrome, so they get the minimal PublicShell
-            // instead of no layout — it exists solely to mount <Toaster/> so
-            // those flashes have somewhere to render. Jukebox is also
-            // reachable by unauthenticated guests (read-only board), and the
-            // default AppLayout's sidebar unconditionally renders NavUser
-            // assuming a non-null auth.user, so guests must not get it. The
-            // public Recap/* page (a past LAN's recap, browsable between LANs
-            // by anyone) is guest-reachable for the same reason.
-            case name.startsWith('Event/'):
-            case name.startsWith('Orga/'):
-            case name.startsWith('Jukebox/'):
-            case name.startsWith('Recap/'):
-                return PublicShell;
-            // Prefix match strips the app layout from EVERY page under this
-            // directory. Future authenticated pages must not be placed here
-            // unless they also want no layout — otherwise set an explicit
-            // layout via `defineOptions({ layout: ... })`.
+            // Public profile (/users/{user}) is the one participant page that
+            // guests may still open: logged-in users get the full app shell,
+            // guests stay bare (the sidebar's NavUser assumes a non-null user).
             case name.startsWith('Profile/'):
-                return null;
+                return (page.props as { auth?: Auth }).auth?.user
+                    ? AppLayout
+                    : null;
             // The public beamer screen renders a bare full-viewport shell —
             // no app navigation/header, no toaster (it is unattended and
             // never triggers flashes).
