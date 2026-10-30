@@ -79,6 +79,7 @@ return [
         'not_started' => 'Das Turnier hat noch nicht begonnen.',
         'finished' => 'Turnier beendet',
         'champion' => 'Sieger',
+        'connection_lost' => 'Verbindung unterbrochen, aktualisiere nach dem Wiederverbinden',
         'withdraw' => 'Abmelden',
         'withdraw_confirm' => 'Wirklich vom Turnier abmelden? Dein Platz wird freigegeben.',
         'entered' => 'Angemeldet',

@@ -50,7 +50,15 @@ const props = defineProps<{
     voiceLabels: Record<string, string>;
 }>();
 
-useTournamentChannel(props.tournament.id);
+const { connection } = useTournamentChannel(props.tournament.id);
+
+// Calm, honest hint only while the live socket is down (the LIVE badge is tournament status, not socket state).
+const connectionLost = computed(
+    () =>
+        connection.value === 'disconnected' ||
+        connection.value === 'failed' ||
+        connection.value === 'reconnecting',
+);
 
 /** Default provider first so the rationed amber action always leads the cluster. */
 const voiceLinks = computed(() =>
@@ -90,6 +98,13 @@ const isNotStarted = computed(
                     v-if="isLive"
                     variant="live"
                     :label="statusLabels[tournament.status]"
+                />
+                <LiveIndicator
+                    v-if="isLive && connectionLost"
+                    variant="warn"
+                    :pulse="false"
+                    :label="labels.connection_lost"
+                    role="status"
                 />
             </div>
             <p class="text-sm text-muted-foreground">
