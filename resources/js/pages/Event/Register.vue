@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import ArrivalPlanFields from '@/components/ArrivalPlanFields.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { show as eventsShow } from '@/routes/events';
+import { arrival as arrivalRoute } from '@/routes/events/register';
 import {
     destroy as destroyRegistration,
     store as storeRegistration,
 } from '@/routes/events/register';
-import type { RegistrationDetails } from '@/types';
+import type { ArrivalOptions, RegistrationDetails } from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string; status: string };
@@ -18,13 +20,53 @@ const props = defineProps<{
     tickets: string[];
     ticketLabels: Record<string, string>;
     registration: RegistrationDetails | null;
+    arrivalOptions: ArrivalOptions;
+    arrivalLabels: Record<string, any>;
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
 }>();
 
 const selected = ref(props.tickets[0] ?? 'standard');
 
-const registerForm = useForm({ ticket_type: selected.value });
+const registerForm = useForm({
+    ticket_type: selected.value,
+    arrival_day: '',
+    arrival_window: '',
+    departure_day: '',
+    departure_window: '',
+});
+
+const hasDays = computed(() => props.arrivalOptions.days.length > 0);
+
+// Editing the plan after registering.
+const editing = ref(false);
+const arrivalForm = useForm({
+    arrival_day: props.registration?.arrival.arrivalDay ?? '',
+    arrival_window: props.registration?.arrival.arrivalWindow ?? '',
+    departure_day: props.registration?.arrival.departureDay ?? '',
+    departure_window: props.registration?.arrival.departureWindow ?? '',
+});
+
+function startEditing() {
+    arrivalForm.defaults({
+        arrival_day: props.registration?.arrival.arrivalDay ?? '',
+        arrival_window: props.registration?.arrival.arrivalWindow ?? '',
+        departure_day: props.registration?.arrival.departureDay ?? '',
+        departure_window: props.registration?.arrival.departureWindow ?? '',
+    });
+    arrivalForm.reset();
+    arrivalForm.clearErrors();
+    editing.value = true;
+}
+
+function saveArrival() {
+    arrivalForm.patch(arrivalRoute.url({ event: props.event.slug }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            editing.value = false;
+        },
+    });
+}
 const cancelForm = useForm({});
 
 const registrationState = computed<'checked_in' | 'pending' | 'confirmed'>(
@@ -108,6 +150,82 @@ function cancel() {
                 </dd>
             </dl>
 
+            <div
+                v-if="hasDays"
+                id="arrival"
+                class="space-y-3 rounded-md border border-border bg-card p-4"
+                data-test="arrival-plan"
+            >
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-lg font-semibold tracking-tight">
+                        {{ arrivalLabels.heading }}
+                    </h3>
+                    <Button
+                        v-if="registration.arrival.editable && !editing"
+                        variant="outline"
+                        size="sm"
+                        data-test="arrival-edit"
+                        @click="startEditing"
+                    >
+                        {{
+                            registration.arrival.arrivalLabel ||
+                            registration.arrival.departureLabel
+                                ? arrivalLabels.change
+                                : arrivalLabels.set
+                        }}
+                    </Button>
+                </div>
+
+                <template v-if="editing">
+                    <ArrivalPlanFields
+                        v-model="arrivalForm"
+                        :options="arrivalOptions"
+                        :labels="arrivalLabels"
+                        :errors="arrivalForm.errors"
+                    />
+                    <div class="flex gap-2">
+                        <Button
+                            :disabled="arrivalForm.processing"
+                            data-test="arrival-save"
+                            @click="saveArrival"
+                        >
+                            {{ arrivalLabels.save }}
+                        </Button>
+                        <Button variant="outline" @click="editing = false">
+                            {{ arrivalLabels.cancel }}
+                        </Button>
+                    </div>
+                </template>
+                <template v-else>
+                    <dl class="grid grid-cols-2 gap-y-2 text-sm">
+                        <dt class="text-muted-foreground">
+                            {{ arrivalLabels.arrival }}
+                        </dt>
+                        <dd class="text-foreground">
+                            {{
+                                registration.arrival.arrivalLabel ??
+                                arrivalLabels.open
+                            }}
+                        </dd>
+                        <dt class="text-muted-foreground">
+                            {{ arrivalLabels.departure }}
+                        </dt>
+                        <dd class="text-foreground">
+                            {{
+                                registration.arrival.departureLabel ??
+                                arrivalLabels.open
+                            }}
+                        </dd>
+                    </dl>
+                    <p
+                        v-if="!registration.arrival.editable"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ arrivalLabels.locked }}
+                    </p>
+                </template>
+            </div>
+
             <Button
                 variant="destructive"
                 :disabled="cancelForm.processing"
@@ -145,6 +263,17 @@ function cancel() {
                         ticketLabels[ticket] ?? ticket
                     }}</span>
                 </label>
+            </div>
+            <div v-if="hasDays" class="space-y-3" data-test="arrival-section">
+                <h3 class="text-lg font-semibold tracking-tight">
+                    {{ arrivalLabels.heading }}
+                </h3>
+                <ArrivalPlanFields
+                    v-model="registerForm"
+                    :options="arrivalOptions"
+                    :labels="arrivalLabels"
+                    :errors="registerForm.errors"
+                />
             </div>
             <Button :disabled="registerForm.processing" @click="submit">{{
                 labels.register
