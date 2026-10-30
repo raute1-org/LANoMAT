@@ -21,11 +21,12 @@ defineProps<Props>();
         v-bind="$attrs"
     >
         <g fill="currentColor">
-            <circle cx="4.5" cy="4.5" r="2.6" />
-            <circle cx="4.5" cy="12" r="2.6" />
-            <circle cx="4.5" cy="19.5" r="2.6" />
-            <circle cx="12" cy="19.5" r="2.6" />
+            <circle cx="5.8" cy="2.7" r="2.5" />
+            <circle cx="5.8" cy="8.9" r="2.5" />
+            <circle cx="5.8" cy="15.1" r="2.5" />
+            <circle cx="5.8" cy="21.3" r="2.5" />
+            <circle cx="12" cy="21.3" r="2.5" />
         </g>
-        <circle class="fill-primary" cx="19.5" cy="19.5" r="2.6" />
+        <circle class="fill-primary" cx="18.2" cy="21.3" r="2.5" />
     </svg>
 </template>
