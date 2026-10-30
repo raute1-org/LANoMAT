@@ -419,3 +419,76 @@ it('fails gracefully when unconfigured instead of calling out', function (string
     'no application token' => [PANEL, '', 'pacc_x', 'app'],
     'no client token' => [PANEL, 'papp_x', '', 'client'],
 ]);
+
+it('reads the egg uuid from the egg list and from a single egg', function () {
+    Http::fake([
+        'pelican.example.test/api/application/eggs/9*' => Http::response(['object' => 'egg', 'attributes' => ['id' => 9, 'uuid' => 'uuid-nine', 'name' => 'Nine']]),
+        'pelican.example.test/api/application/eggs*' => Http::response(pelicanList([
+            ['object' => 'egg', 'attributes' => ['id' => 9, 'uuid' => 'uuid-nine', 'name' => 'Nine']],
+        ], null)),
+    ]);
+
+    expect(pelicanClient()->listEggs()[0]->uuid)->toBe('uuid-nine')
+        ->and(pelicanClient()->getEgg('9')->uuid)->toBe('uuid-nine');
+});
+
+it('imports an egg by posting the raw yaml to the application api', function () {
+    Http::fake(['pelican.example.test/api/application/eggs/import' => Http::response(['object' => 'egg', 'attributes' => ['id' => 11, 'uuid' => 'uuid-eleven', 'name' => 'Eleven']], 201)]);
+
+    $egg = pelicanClient()->importEgg("meta:\n  version: PLCN_v3\nname: Eleven\n");
+
+    expect($egg->id)->toBe('11')->and($egg->uuid)->toBe('uuid-eleven');
+    Http::assertSent(fn (Request $r) => $r->method() === 'POST'
+        && $r->url() === PANEL.'/api/application/eggs/import'
+        && $r->hasHeader('Authorization', 'Bearer papp_FAKE_APPLICATION')
+        && str_contains($r->header('Content-Type')[0], 'yaml')
+        && str_contains($r->body(), 'PLCN_v3'));
+});
+
+it('surfaces a 403 on egg import as unauthorized and never retries the import', function () {
+    Http::fake(['pelican.example.test/api/application/eggs/import' => Http::response(['errors' => [['code' => 'AccessDenied', 'status' => '403', 'detail' => 'denied']]], 403)]);
+
+    expect(fn () => pelicanClient()->importEgg('x'))->toThrow(GameServerException::class);
+    Http::assertSentCount(1);
+});
+
+it('creates node allocations for explicit ports through the application api', function () {
+    Http::fake(['pelican.example.test/api/application/nodes/1/allocations' => Http::response('', 204)]);
+
+    pelicanClient()->createAllocations('1', '192.0.2.10', ['27016', '27020']);
+
+    Http::assertSent(fn (Request $r) => $r->method() === 'POST'
+        && $r->url() === PANEL.'/api/application/nodes/1/allocations'
+        && $r['ip'] === '192.0.2.10'
+        && $r['ports'] === ['27016', '27020']);
+});
+
+it('lists the file names of a server directory through the client api', function () {
+    Http::fake(['pelican.example.test/api/client/servers/81ec06ec/files/list*' => Http::response(['object' => 'list', 'data' => [
+        ['object' => 'file_object', 'attributes' => ['name' => 'garrysmod', 'is_file' => false]],
+        ['object' => 'file_object', 'attributes' => ['name' => 'srcds_run', 'is_file' => true]],
+    ]])]);
+
+    expect(pelicanClient()->listFiles('81ec06ec', '/'))->toBe(['garrysmod', 'srcds_run']);
+    Http::assertSent(fn (Request $r) => $r->hasHeader('Authorization', 'Bearer pacc_FAKE_CLIENT') && str_contains($r->url(), 'directory=%2F'));
+});
+
+it('triggers a reinstall through the application api', function () {
+    Http::fake(['pelican.example.test/api/application/servers/12/reinstall' => Http::response('', 204)]);
+
+    pelicanClient()->reinstallServer('12');
+
+    Http::assertSent(fn (Request $r) => $r->method() === 'POST' && str_ends_with($r->url(), '/servers/12/reinstall'));
+});
+
+it('sends additional allocations and the allocation feature limit on create', function () {
+    Http::fake(['pelican.example.test/api/application/servers' => Http::response(['object' => 'server', 'attributes' => pelicanServerAttributes()], 201),
+        'pelican.example.test/api/application/nodes/1/allocations*' => Http::response(pelicanList([pelicanAllocation(2, 27015)]))]);
+
+    $spec = new ServerSpec('lanomat-test', '3', '4', [], new ServerLimits(memory: 1024, disk: 2048, allocations: 2), '2', '1', startOnCompletion: false, additionalAllocationIds: ['3']);
+    pelicanClient()->createServer($spec);
+
+    Http::assertSent(fn (Request $r) => $r->url() === PANEL.'/api/application/servers'
+        && $r['allocation'] === ['default' => 2, 'additional' => [3]]
+        && $r['feature_limits']['allocations'] === 2);
+});

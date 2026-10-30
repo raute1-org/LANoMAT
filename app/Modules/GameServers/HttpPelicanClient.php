@@ -78,7 +78,7 @@ class HttpPelicanClient implements PelicanClient
             'environment' => $spec->environment === [] ? new stdClass : $spec->environment,
             'limits' => $spec->limits->toLimitsPayload(),
             'feature_limits' => $spec->limits->toFeatureLimitsPayload(),
-            'allocation' => ['default' => (int) $allocationId],
+            'allocation' => ['default' => (int) $allocationId] + ($spec->additionalAllocationIds === [] ? [] : ['additional' => array_map('intval', $spec->additionalAllocationIds)]),
             'start_on_completion' => $spec->startOnCompletion,
         ];
 
@@ -208,6 +208,41 @@ class HttpPelicanClient implements PelicanClient
         return $this->toEgg($this->attributes($response));
     }
 
+    public function importEgg(string $content): PelicanEgg
+    {
+        // No retry: a replay is harmless (upsert by uuid) but a 403 is final anyway.
+        $response = $this->send(false, 'POST', '/api/application/eggs/import', retry: false, what: 'egg import', body: $content);
+
+        return $this->toEgg($this->attributes($response));
+    }
+
+    public function createAllocations(string $nodeId, string $ip, array $ports): void
+    {
+        $this->send(false, 'POST', "/api/application/nodes/{$nodeId}/allocations", json: ['ip' => $ip, 'ports' => $ports], retry: false, what: "node {$nodeId}");
+    }
+
+    public function listFiles(string $identifier, string $directory = '/'): array
+    {
+        $response = $this->send(true, 'GET', "/api/client/servers/{$identifier}/files/list", ['directory' => $directory], what: "server {$identifier}");
+        $rows = $response->json('data');
+        $names = [];
+
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $name = is_array($row) ? ($this->rowAttributes($row)['name'] ?? null) : null;
+
+            if (is_string($name)) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    public function reinstallServer(string $serverId): void
+    {
+        $this->send(false, 'POST', "/api/application/servers/{$serverId}/reinstall", retry: false, what: "server {$serverId}");
+    }
+
     // -- transport ----------------------------------------------------------
 
     /**
@@ -216,7 +251,7 @@ class HttpPelicanClient implements PelicanClient
      *
      * @throws GameServerException
      */
-    private function send(bool $clientApi, string $method, string $path, array $query = [], ?array $json = null, bool $retry = true, string $what = ''): Response
+    private function send(bool $clientApi, string $method, string $path, array $query = [], ?array $json = null, bool $retry = true, string $what = '', ?string $body = null): Response
     {
         $token = $clientApi ? $this->clientToken : $this->applicationToken;
 
@@ -236,7 +271,9 @@ class HttpPelicanClient implements PelicanClient
         $url = rtrim($this->panelUrl, '/').$path;
 
         try {
-            $response = $this->dispatch($request, $method, $url, $query, $json);
+            $response = $body !== null
+                ? $request->withBody($body, 'application/yaml')->post($url)
+                : $this->dispatch($request, $method, $url, $query, $json);
         } catch (ConnectionException $e) {
             throw GameServerException::pelicanUnavailable(null, 'Connection failed.');
         }
@@ -551,6 +588,12 @@ class HttpPelicanClient implements PelicanClient
             }
         }
 
-        return new PelicanEgg((string) $a['id'], (string) ($a['name'] ?? ''), $variables, $required);
+        return new PelicanEgg(
+            (string) $a['id'],
+            (string) ($a['name'] ?? ''),
+            $variables,
+            $required,
+            isset($a['uuid']) && is_string($a['uuid']) ? $a['uuid'] : null,
+        );
     }
 }
