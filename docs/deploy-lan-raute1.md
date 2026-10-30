@@ -250,6 +250,9 @@ largest class. To change a cap, change `config/lanomat.php` and the matching
 drift). `deploy.sh` recreates Traefik when `docker/traefik` or `compose.yml`
 changes, so a deploy picks the new caps up.
 
+Team logos are additionally re-encoded without metadata (EXIF/GPS) and capped
+to 512 px on the longest edge (`config/teams.php`).
+
 ### Content Security Policy (report-only by default)
 
 The Laravel app sends the policy itself (`App\Http\Middleware\AddContentSecurityPolicy`,
