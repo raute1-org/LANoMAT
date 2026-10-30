@@ -31,3 +31,9 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Public repository: never commit backups or key material (see CONTRIBUTING.md)
+*.bak
+.env*.bak
+*.pem
+*.key
