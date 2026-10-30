@@ -109,6 +109,8 @@ scan() {
   while IFS= read -r -d '' f; do
     [[ "$f" =~ $SCOPE_RE ]] || continue
     [[ "$f" =~ $SKIP_RE ]] && continue
+    # The checker and its allowlist necessarily contain the patterns/tokens.
+    case "$f" in scripts/ops/check-public-safe.sh|scripts/ops/public-safe-allowlist.txt) continue ;; esac
     [ -f "$ROOT/$f" ] || continue
     files+=("$f")
   done < <(list_files)
