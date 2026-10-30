@@ -80,7 +80,7 @@ services:
   # docker/traefik/traefik.yml + dynamic.yml and docs/traefik-setup.md.
   traefik:
     restart: unless-stopped
-    image: traefik:v3.5
+    image: traefik:v3.6
     profiles: [prod]
     command:
       # ACME account email is the one static-config value that can't live
