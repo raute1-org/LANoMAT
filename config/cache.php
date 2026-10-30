@@ -109,6 +109,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate Limiter Cache Store
+    |--------------------------------------------------------------------------
+    |
+    | Store backing the RateLimiter (login throttle, check-in throttle, ...).
+    | Deliberately independent of the default store: login and on-site check-in
+    | must keep working during a Redis outage, so this defaults to the
+    | database (like sessions) even when CACHE_STORE=redis.
+    |
+    */
+
+    'limiter' => env('CACHE_LIMITER_STORE', 'database'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Key Prefix
     |--------------------------------------------------------------------------
     |

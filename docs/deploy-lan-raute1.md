@@ -52,6 +52,7 @@ POSTGRES_PASSWORD=<same strong password>   # read by compose's postgres service
 REDIS_HOST=redis
 REDIS_PORT=6379
 QUEUE_CONNECTION=redis
+CACHE_LIMITER_STORE=database   # rate limiters (login, check-in) stay off Redis, so a Redis outage cannot break login
 
 DISCORD_CLIENT_ID=...
 DISCORD_CLIENT_SECRET=...
