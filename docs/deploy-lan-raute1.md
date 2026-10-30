@@ -39,6 +39,7 @@ APP_URL=https://lan.raute1.org
 APP_DOMAIN=lan.raute1.org
 ACME_EMAIL=<mailbox for Let's Encrypt notices>
 MODULES_PROFILE=core
+LOG_LEVEL=warning
 
 # Inside the compose network, not 127.0.0.1
 DB_CONNECTION=pgsql
@@ -137,7 +138,7 @@ host. Adjust the paths to where the compose project lives:
 
 ```cron
 # Database dump, daily at 03:00 (gzip, keep 14 days)
-0 3 * * * cd /opt/lanomat && docker compose --profile prod exec -T postgres pg_dump -U lanomat -d lanomat | gzip > /var/backups/lanomat/db-$(date +\%F).sql.gz && find /var/backups/lanomat -name 'db-*.sql.gz' -mtime +14 -delete
+0 3 * * * cd /opt/lanomat && docker compose --profile prod exec -T postgres sh -c 'pg_dump -U lanomat -d "$POSTGRES_DB"' | gzip > /var/backups/lanomat/db-$(date +\%F).sql.gz && find /var/backups/lanomat -name 'db-*.sql.gz' -mtime +14 -delete
 
 # Uploads (volume lanomat_app_storage), daily at 03:10
 10 3 * * * docker run --rm -v lanomat_app_storage:/data:ro -v /var/backups/lanomat:/backup alpine tar czf /backup/storage-$(date +\%F).tgz -C /data .
@@ -160,6 +161,17 @@ interactions, Jukebox, Gallery, and so on):
    for any new migrations.
 
 Users, registrations and linked accounts stay in the same database.
+
+## Troubleshooting
+
+- **Hairpin NAT:** the `app` and `queue` containers reach Reverb through its
+  public name `ws.lan.raute1.org`, via Traefik. The host must therefore resolve
+  and reach its own public IP, which many home and LAN routers do not allow. If
+  broadcasts fail from the server side, check that first. The fix is a
+  split-horizon DNS entry on the host or router, or an internal `REVERB_HOST`
+  for server-side use (browsers keep the public name).
+- **`LOG_LEVEL=warning`** keeps production logs quiet. `debug` writes request
+  payload details and is only for short debugging sessions.
 
 ## Operational cautions
 
