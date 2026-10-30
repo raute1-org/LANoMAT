@@ -103,7 +103,7 @@ const eventItems = computed<NavItem[]>(() => {
                   },
               ]
             : []),
-        ...(ev.status === 'registration'
+        ...(ev.availability === 'open'
             ? [
                   {
                       title: 'Anmeldung',

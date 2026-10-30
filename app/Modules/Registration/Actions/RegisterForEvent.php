@@ -3,8 +3,8 @@
 namespace App\Modules\Registration\Actions;
 
 use App\Models\User;
-use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Models\EventRegistration;
@@ -15,7 +15,7 @@ class RegisterForEvent
 {
     public function handle(Event $event, User $user, string $ticketType): EventRegistration
     {
-        if ($event->status !== EventStatus::Registration) {
+        if (! RegistrationAvailability::acceptsStatus($event->status)) {
             throw RegistrationException::eventNotOpen();
         }
 
@@ -47,12 +47,9 @@ class RegisterForEvent
                 throw RegistrationException::alreadyRegistered();
             }
 
-            $activeCount = EventRegistration::query()
-                ->where('event_id', $event->id)
-                ->where('status', '!=', RegistrationStatus::Cancelled->value)
-                ->count();
-
-            if ($event->max_participants !== null && $activeCount >= $event->max_participants) {
+            // Capacity is read under the parent-row lock above (single rule
+            // source: RegistrationAvailability).
+            if (RegistrationAvailability::freeSpots($event) === 0) {
                 throw RegistrationException::full();
             }
 

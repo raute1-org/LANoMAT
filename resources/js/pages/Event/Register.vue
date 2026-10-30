@@ -13,6 +13,8 @@ import type { RegistrationDetails } from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string; status: string };
+    availability: 'upcoming' | 'open' | 'full' | 'closed';
+    freeSpots: number | null;
     tickets: string[];
     ticketLabels: Record<string, string>;
     registration: RegistrationDetails | null;
@@ -115,13 +117,17 @@ function cancel() {
             </Button>
         </section>
 
-        <section
-            v-else-if="event.status === 'registration'"
-            class="mt-8 space-y-6"
-        >
+        <section v-else-if="availability === 'open'" class="mt-8 space-y-6">
             <h2 class="text-xl font-semibold text-foreground">
                 {{ labels.choose_ticket }}
             </h2>
+            <p
+                v-if="freeSpots !== null"
+                class="text-sm text-muted-foreground"
+                data-test="register-free-spots"
+            >
+                {{ labels.free_spots.replace(':count', String(freeSpots)) }}
+            </p>
             <div class="space-y-2">
                 <label
                     v-for="ticket in tickets"
@@ -149,7 +155,9 @@ function cancel() {
             v-else
             class="mt-8 rounded-lg border border-dashed border-border p-6 text-center"
         >
-            <p class="text-sm text-muted-foreground">{{ labels.closed }}</p>
+            <p class="text-sm text-muted-foreground">
+                {{ availability === 'full' ? labels.full : labels.closed }}
+            </p>
         </div>
     </PageContainer>
 </template>

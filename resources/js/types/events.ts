@@ -24,4 +24,8 @@ export interface EventSummary {
     location: string | null;
     arrivalInfo: string | null;
     hype: EventHype | null;
+    /** Registration rule result (RegistrationAvailability); absent on archive lists. */
+    availability?: 'upcoming' | 'open' | 'full' | 'closed';
+    /** Remaining spots; null = unlimited. */
+    freeSpots?: number | null;
 }

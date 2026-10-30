@@ -21,7 +21,7 @@ const props = defineProps<{
     seats: SeatDto[];
     mySeatId: number | null;
     canClaim: boolean;
-    registrationState: 'upcoming' | 'open' | 'closed';
+    registrationState: 'upcoming' | 'open' | 'full' | 'closed';
     canPing: boolean;
     labels: Record<string, string>;
     orgaPingLabels: Record<string, string>;
@@ -145,7 +145,9 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                         ? labels.need_registration
                         : registrationState === 'upcoming'
                           ? labels.opens_with_registration
-                          : labels.registration_closed
+                          : registrationState === 'full'
+                            ? labels.registration_full
+                            : labels.registration_closed
                 }}
             </p>
             <Button v-if="registrationState === 'open'" as-child size="sm">

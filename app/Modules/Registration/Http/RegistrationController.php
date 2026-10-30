@@ -8,6 +8,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Notifications\Notifications\RegistrationConfirmed;
 use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Actions\RegisterForEvent;
+use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Http\Requests\RegisterRequest;
@@ -33,6 +34,7 @@ class RegistrationController extends Controller
 
         return Inertia::render('Event/Register', [
             'event' => ['name' => $event->name, 'slug' => $event->slug, 'status' => $event->status->value],
+            ...RegistrationAvailability::summary($event),
             'tickets' => $this->tickets($event),
             'ticketLabels' => TicketLabel::map($this->tickets($event)),
             'registration' => $registration === null ? null : [
