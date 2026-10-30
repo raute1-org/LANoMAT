@@ -35,7 +35,7 @@ return [
             'start' => 'Turnier starten',
             'started' => 'Turnier gestartet.',
             'open_enrollment' => 'Anmeldung öffnen',
-            'open_enrollment_description' => 'Das Turnier wird für Teilnehmende sichtbar anmeldbar. Vorher werden Spiel, Teilnehmerlimit, Beginn und Check-in-Fenster geprüft.',
+            'open_enrollment_description' => 'Das Turnier wird für Teilnehmende sichtbar anmeldbar. Vorher werden Spiel, Teilnehmerlimit und Check-in-Fenster geprüft.',
             'enrollment_opened' => 'Anmeldung geöffnet.',
             'close_enrollment' => 'Anmeldung schließen',
             'close_enrollment_description' => 'Das Turnier geht zurück in den Entwurf. Das ist nur möglich, solange es keine Anmeldungen gibt.',
