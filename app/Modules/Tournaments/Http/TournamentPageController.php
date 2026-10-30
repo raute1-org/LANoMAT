@@ -66,7 +66,18 @@ class TournamentPageController extends Controller
             ->where('event_id', $event->id)
             ->orderBy('starts_at')
             ->with('game')
-            ->get();
+            ->withCount(['entries as active_entries_count' => fn ($query) => $query->where('status', '!=', EntryStatus::Withdrawn->value)])
+            ->get()
+            // Live and open tournaments first, finished ones last; starts_at
+            // (already the query order) breaks ties because the sort is stable.
+            ->sortBy(fn (Tournament $tournament): int => match ($tournament->status) {
+                TournamentStatus::Live => 0,
+                TournamentStatus::CheckIn => 1,
+                TournamentStatus::Enrollment => 2,
+                TournamentStatus::Draft => 3,
+                TournamentStatus::Finished => 4,
+            })
+            ->values();
 
         // The viewer's own active entries (solo, or as team owner), keyed by tournament.
         $myEntries = $user === null ? collect() : TournamentEntry::query()
@@ -89,6 +100,11 @@ class TournamentPageController extends Controller
                 'format' => $tournament->format->value,
                 'status' => $tournament->status->value,
                 'startsAt' => $tournament->starts_at->toIso8601String(),
+                // Entries are people for solo and teams for team tournaments;
+                // withdrawn entries never count (same rule as the capacity check).
+                'entryCount' => (int) $tournament->getAttribute('active_entries_count'),
+                'maxEntries' => $tournament->max_entries,
+                'teamSize' => $tournament->team_size,
                 'myEntry' => $this->myEntryState($user, $myEntries->get($tournament->id)),
                 'gameName' => $tournament->game?->name,
                 // ADVISORY only — see GameOwnershipHint's docblock and

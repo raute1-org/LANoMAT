@@ -24,7 +24,10 @@ defineProps<{
             {{ labels.empty }}
         </p>
 
-        <div v-else class="mt-3 overflow-x-auto rounded-lg border border-border">
+        <div
+            v-else
+            class="mt-3 overflow-x-auto rounded-lg border border-border"
+        >
             <table class="w-full text-sm">
                 <thead
                     class="bg-muted/40 text-left text-xs text-muted-foreground"
@@ -36,10 +39,16 @@ defineProps<{
                         <th scope="col" class="px-3 py-2 font-medium">
                             {{ labels.name }}
                         </th>
-                        <th scope="col" class="px-3 py-2 text-right font-medium">
+                        <th
+                            scope="col"
+                            class="px-3 py-2 text-right font-medium"
+                        >
                             {{ labels.played }}
                         </th>
-                        <th scope="col" class="px-3 py-2 text-right font-medium">
+                        <th
+                            scope="col"
+                            class="px-3 py-2 text-right font-medium"
+                        >
                             {{ labels.wins }}
                         </th>
                         <th
@@ -54,7 +63,10 @@ defineProps<{
                         >
                             {{ labels.points }}
                         </th>
-                        <th scope="col" class="px-3 py-2 text-right font-medium">
+                        <th
+                            scope="col"
+                            class="px-3 py-2 text-right font-medium"
+                        >
                             {{ labels.difference }}
                         </th>
                     </tr>
@@ -76,14 +88,10 @@ defineProps<{
                         <td class="max-w-48 truncate px-3 py-2">
                             {{ row.name }}
                         </td>
-                        <td
-                            class="px-3 py-2 text-right font-mono tabular-nums"
-                        >
+                        <td class="px-3 py-2 text-right font-mono tabular-nums">
                             {{ row.played }}
                         </td>
-                        <td
-                            class="px-3 py-2 text-right font-mono tabular-nums"
-                        >
+                        <td class="px-3 py-2 text-right font-mono tabular-nums">
                             {{ row.wins }}
                         </td>
                         <td
@@ -96,9 +104,7 @@ defineProps<{
                         >
                             {{ row.pointsFor }}:{{ row.pointsAgainst }}
                         </td>
-                        <td
-                            class="px-3 py-2 text-right font-mono tabular-nums"
-                        >
+                        <td class="px-3 py-2 text-right font-mono tabular-nums">
                             {{
                                 row.scoreDifference > 0
                                     ? `+${row.scoreDifference}`

@@ -84,7 +84,9 @@ class TournamentForm
                 DateTimePicker::make('checkin_opens_at')
                     ->label(__('tournaments.fields.checkin_opens_at')),
                 DateTimePicker::make('checkin_closes_at')
-                    ->label(__('tournaments.fields.checkin_closes_at')),
+                    ->label(__('tournaments.fields.checkin_closes_at'))
+                    ->after('checkin_opens_at')
+                    ->validationMessages(['after' => __('tournaments.errors.checkin_closes_after_opens')]),
                 KeyValue::make('settings')
                     ->label(__('tournaments.fields.settings')),
                 // Round robin: the derived table, read-only (Filament-native text lines).

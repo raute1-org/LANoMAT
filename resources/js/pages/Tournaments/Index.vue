@@ -24,6 +24,26 @@ function formatDate(iso: string | null): string {
         : '';
 }
 
+function entryCountLabel(tournament: TournamentSummary): string {
+    const count =
+        tournament.maxEntries === null
+            ? String(tournament.entryCount)
+            : `${tournament.entryCount} / ${tournament.maxEntries}`;
+    const unit =
+        tournament.teamSize > 1
+            ? props.labels.entries_teams
+            : props.labels.entries_players;
+
+    return `${count} ${unit}`;
+}
+
+function isFull(tournament: TournamentSummary): boolean {
+    return (
+        tournament.maxEntries !== null &&
+        tournament.entryCount >= tournament.maxEntries
+    );
+}
+
 function isLive(tournament: TournamentSummary): boolean {
     return tournament.status === 'live';
 }
@@ -82,6 +102,19 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
                             <span class="font-mono tabular-nums">{{
                                 formatDate(tournament.startsAt)
                             }}</span>
+                        </template>
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                        <span class="font-mono tabular-nums">{{
+                            entryCountLabel(tournament)
+                        }}</span>
+                        <template
+                            v-if="
+                                isFull(tournament) &&
+                                tournament.status === 'enrollment'
+                            "
+                        >
+                            · {{ labels.full }}
                         </template>
                     </p>
                 </div>

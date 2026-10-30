@@ -40,6 +40,10 @@ export interface TournamentSummary {
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
     status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
     startsAt: string | null;
+    /** Non-withdrawn entries (people for solo, teams for team tournaments). */
+    entryCount: number;
+    maxEntries: number | null;
+    teamSize: number;
     /** Null when the tournament has no game attached. */
     gameName: string | null;
     /** Null when not signed in or the tournament has no game attached. */

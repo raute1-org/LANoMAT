@@ -3,10 +3,13 @@
 namespace App\Modules\Tournaments\Console;
 
 use App\Modules\Tournaments\Actions\OpenCheckin;
+use App\Modules\Tournaments\Actions\StartTournament;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Jobs\StartTournamentJob;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class TournamentTickCommand extends Command
 {
@@ -22,7 +25,7 @@ class TournamentTickCommand extends Command
      * the bracket; this tick only dispatches the autostart job once
      * `starts_at` has arrived.
      */
-    public function handle(OpenCheckin $openCheckin): int
+    public function handle(OpenCheckin $openCheckin, StartTournament $startTournament): int
     {
         $now = now();
 
@@ -44,7 +47,23 @@ class TournamentTickCommand extends Command
         Tournament::query()
             ->whereIn('status', [TournamentStatus::CheckIn->value, TournamentStatus::Enrollment->value])
             ->where('starts_at', '<=', $now)
-            ->each(function (Tournament $tournament): void {
+            ->each(function (Tournament $tournament) use ($startTournament): void {
+                $count = $startTournament->participatingCount($tournament);
+
+                // Under-filled: starting would only throw. Skip (and say so
+                // once per cache window rather than every minute); the first
+                // tick after enough entries checked in dispatches normally.
+                if ($count < 2) {
+                    if (Cache::add("tournament-autostart-skipped:{$tournament->id}", true, now()->addHours(6))) {
+                        Log::warning('Tournament autostart skipped: fewer than 2 participating entries.', [
+                            'tournament_id' => $tournament->id,
+                            'participating_entries' => $count,
+                        ]);
+                    }
+
+                    return;
+                }
+
                 StartTournamentJob::dispatch($tournament);
             });
 

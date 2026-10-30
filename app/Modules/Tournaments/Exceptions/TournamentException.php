@@ -50,6 +50,31 @@ class TournamentException extends DomainException
         );
     }
 
+    public static function notEnoughEntries(int $count): self
+    {
+        return new self(
+            "At least 2 participating entries are required to start, got {$count}.",
+            'tournaments.errors.not_enough_entries',
+            ['count' => (string) $count],
+        );
+    }
+
+    public static function unsupportedSingleEliminationSize(int $count): self
+    {
+        return new self(
+            "Single elimination is only supported for 2 to 64 participating entries, got {$count}.",
+            'tournaments.errors.unsupported_single_elimination_size',
+        );
+    }
+
+    public static function checkinWindowAlreadyClosed(): self
+    {
+        return new self(
+            'The check-in window already closed; adjust check-in closes before opening check-in early.',
+            'tournaments.errors.checkin_window_closed_early',
+        );
+    }
+
     public static function matchNotReady(): self
     {
         return new self('This match is not ready to be reported.', 'tournaments.errors.match_not_ready');

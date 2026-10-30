@@ -6,6 +6,8 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Tournaments\Actions\StartTournament;
+use App\Modules\Tournaments\Enums\EntryStatus;
+use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
@@ -471,4 +473,24 @@ it('flashes an error instead of a 404 when a team tournament is enrolled without
     $this->actingAs($user)->post("/tournaments/{$tournament->id}/enroll")->assertRedirect();
 
     expect(TournamentEntry::query()->where('tournament_id', $tournament->id)->exists())->toBeFalse();
+});
+
+// F-S4-11
+it('lists live and open tournaments before finished ones, with enrollment counts', function () {
+    $event = Event::factory()->live()->create();
+    $finished = Tournament::factory()->for($event)->create(['name' => 'Done Cup', 'status' => TournamentStatus::Finished, 'starts_at' => now()->subDay()]);
+    $open = Tournament::factory()->for($event)->enrollment()->create(['name' => 'Open Cup', 'max_entries' => 8, 'team_size' => 1, 'starts_at' => now()->addDays(3)]);
+    $live = Tournament::factory()->for($event)->live()->create(['name' => 'Live Cup', 'starts_at' => now()->addDays(4)]);
+    TournamentEntry::factory()->count(3)->create(['tournament_id' => $open->id]);
+    TournamentEntry::factory()->create(['tournament_id' => $open->id, 'status' => EntryStatus::Withdrawn]);
+
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/tournaments")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tournaments.0.name', 'Live Cup')
+            ->where('tournaments.1.name', 'Open Cup')
+            ->where('tournaments.2.name', 'Done Cup')
+            ->where('tournaments.1.entryCount', 3)
+            ->where('tournaments.1.maxEntries', 8)
+            ->where('tournaments.1.teamSize', 1)
+        );
 });
