@@ -27,6 +27,19 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/Tournaments/Console',
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        // Traefik terminates TLS and forwards plain HTTP on the compose network.
+        // Trust its X-Forwarded-* headers so generated URLs (OAuth redirects,
+        // asset links) and request->secure() reflect the public https origin.
+        // Safe because the app is only reachable through Traefik (see compose.yml:
+        // published app port is bound to 127.0.0.1).
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [

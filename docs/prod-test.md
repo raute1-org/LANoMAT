@@ -3,10 +3,10 @@
 Diese Anleitung führt dich **einmal** komplett durch das Produktions-Deployment von LANoMAT (FrankenPHP-Image + Compose-`prod`-Profil) inklusive vollständiger **Discord-Einrichtung**. Ziel: bestätigen, dass der prod-Stack läuft, Login/Realtime/Queue/Scheduler funktionieren und Discord (OAuth-Login, Announcements, Slash-Commands, Match-Channels) sauber angebunden ist.
 
 > **Wichtig vorab — HTTPS:** Discord ruft den **Interactions-Endpoint** (`/api/discord/interactions`) und den **OAuth-Callback** über das öffentliche Internet auf und verlangt **HTTPS**. TLS/Reverse-Proxy ist bewusst erst **M7 (Traefik)**. Für diesen einmaligen Test brauchst du also eine **öffentlich erreichbare HTTPS-URL** auf deinen lokalen `app`-Container. Am einfachsten per Tunnel:
-> - **Cloudflare Tunnel:** `cloudflared tunnel --url http://localhost:8080` → gibt dir eine `https://<zufall>.trycloudflare.com`-URL.
-> - oder **ngrok:** `ngrok http 8080`.
+> - **Cloudflare Tunnel:** `cloudflared tunnel --url http://localhost:8000` → gibt dir eine `https://<zufall>.trycloudflare.com`-URL.
+> - oder **ngrok:** `ngrok http 8000`.
 >
-> Diese HTTPS-URL ist im Folgenden `APP_URL` (Platzhalter: `https://DEINE-PUBLIC-URL`). Der `app`-Container lauscht im prod-Profil auf Host-Port **8080** (siehe `compose.yml`), darauf zeigt der Tunnel.
+> Diese HTTPS-URL ist im Folgenden `APP_URL` (Platzhalter: `https://DEINE-PUBLIC-URL`). Der `app`-Container lauscht im prod-Profil auf Host-Port **8000** (siehe `compose.yml`), darauf zeigt der Tunnel.
 
 ---
 
@@ -141,9 +141,9 @@ docker compose --profile prod exec app php artisan lanomat:install --admin-disco
 curl -sf https://DEINE-PUBLIC-URL/up && echo OK
 ```
 
-Parallel den **Tunnel** laufen lassen (zeigt auf `http://localhost:8080`):
+Parallel den **Tunnel** laufen lassen (zeigt auf `http://localhost:8000`):
 ```bash
-cloudflared tunnel --url http://localhost:8080     # oder: ngrok http 8080
+cloudflared tunnel --url http://localhost:8000     # oder: ngrok http 8000
 ```
 
 ---

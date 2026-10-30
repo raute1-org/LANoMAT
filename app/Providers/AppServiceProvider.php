@@ -127,6 +127,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
@@ -221,6 +222,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureUrls();
         $this->configureSocialite();
         $this->configureAuthorization();
         $this->configureEventListeners();
@@ -246,6 +248,17 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    /**
+     * Generate https URLs in production. Trusted proxies (bootstrap/app.php)
+     * already honour X-Forwarded-Proto from Traefik; forcing the scheme here
+     * guarantees OAuth redirects and asset URLs stay https even if a request
+     * ever arrives without that header.
+     */
+    protected function configureUrls(): void
+    {
+        URL::forceHttps(app()->isProduction());
     }
 
     /**

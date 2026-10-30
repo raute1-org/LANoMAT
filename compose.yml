@@ -2,13 +2,19 @@ name: lanomat
 
 services:
   postgres:
+    restart: unless-stopped
     image: postgres:16-alpine
     environment:
+      # The role stays `lanomat`: docker/postgres/init-test-db.sql hard-codes it
+      # as the owner of the test database. Password and database name are
+      # configurable. POSTGRES_PASSWORD is only read while pgdata is empty (first
+      # start); later changes need `ALTER USER` inside the container. It must
+      # equal DB_PASSWORD in .env (the app connects with that value).
       POSTGRES_USER: lanomat
-      POSTGRES_PASSWORD: lanomat
-      POSTGRES_DB: lanomat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lanomat}
+      POSTGRES_DB: ${POSTGRES_DB:-lanomat}
     # host port 5434: defaults 5432/5433 are taken for other local containers
-    ports: ['5434:5432']
+    ports: ['127.0.0.1:5434:5432']
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
@@ -18,9 +24,10 @@ services:
       retries: 10
 
   redis:
+    restart: unless-stopped
     image: redis:7-alpine
     # host port 6380: default 6379 is taken by another local container
-    ports: ['6380:6379']
+    ports: ['127.0.0.1:6380:6379']
 
   # Dev-only Reverb (websocket) server. This reuses the official PHP CLI
   # image against the working tree — same approach `composer run dev` uses
@@ -72,6 +79,7 @@ services:
   # -d`, no profile) never runs this and is unaffected. See
   # docker/traefik/traefik.yml + dynamic.yml and docs/traefik-setup.md.
   traefik:
+    restart: unless-stopped
     image: traefik:v3.5
     profiles: [prod]
     command:
@@ -94,12 +102,18 @@ services:
       - traefik_acme:/letsencrypt
 
   app:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: docker/Dockerfile
     profiles: [prod]
     env_file: .env
-    ports: ['8000:80']
+    volumes:
+      - app_storage:/app/storage/app
+    # Loopback only: Traefik is the sole public entry point. Binding to all
+    # interfaces would let clients bypass TLS and forge X-Forwarded-* headers
+    # (trusted in bootstrap/app.php). Docker port publishing also bypasses ufw.
+    ports: ['127.0.0.1:8000:80']
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,12 +144,15 @@ services:
       traefik.http.services.app.loadbalancer.server.port: '80'
 
   queue:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: docker/Dockerfile
     profiles: [prod]
     command: php artisan queue:work --tries=3 --max-time=3600
     env_file: .env
+    volumes:
+      - app_storage:/app/storage/app
     # Worker without an HTTP server: the image's curl /up HEALTHCHECK can
     # never pass here, so it would report `unhealthy` forever.
     healthcheck:
@@ -152,12 +169,15 @@ services:
   # containerized equivalent of the README's dev instruction to run
   # `php artisan schedule:work` in a separate terminal.
   scheduler:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: docker/Dockerfile
     profiles: [prod]
     command: php artisan schedule:work
     env_file: .env
+    volumes:
+      - app_storage:/app/storage/app
     # No HTTP server — see the `queue` service.
     healthcheck:
       disable: true
@@ -174,13 +194,18 @@ services:
   # REVERB_PORT in .env.example (only one of `reverb`/`reverb-prod` is ever
   # running at a time — dev xor prod).
   reverb-prod:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: docker/Dockerfile
     profiles: [prod]
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     env_file: .env
-    ports: ['8081:8080']
+    volumes:
+      - app_storage:/app/storage/app
+    # Loopback only, same reason as `app` above: public websocket traffic goes
+    # through Traefik's `ws.` router.
+    ports: ['127.0.0.1:8081:8080']
     # Reverb listens on :8080, not :80 — probe the websocket port instead of
     # the image's curl /up HEALTHCHECK.
     healthcheck:
@@ -215,12 +240,13 @@ services:
   # mumble-admin sidecar (a separate container) can reach it over the
   # compose network. icesecretwrite gates all Ice write calls.
   mumble:
+    restart: unless-stopped
     image: mumblevoip/mumble-server:v1.4.230
     environment:
       MUMBLE_CONFIG_ICE: 'tcp -h 0.0.0.0 -p 6502'
-      MUMBLE_CONFIG_ICESECRETWRITE: ${MUMBLE_ICE_SECRET}
-      MUMBLE_CONFIG_SERVERPASSWORD: ${MUMBLE_SERVER_PASSWORD}
-      MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_ICE_SECRET}
+      MUMBLE_CONFIG_ICESECRETWRITE: ${MUMBLE_ICE_SECRET:-}
+      MUMBLE_CONFIG_SERVERPASSWORD: ${MUMBLE_SERVER_PASSWORD:-}
+      MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_ICE_SECRET:-}
     # host ports 64738 (TCP+UDP): Mumble's own default, no local collision
     # observed; kept as-is. The Ice port (6502) is intentionally NOT
     # published to the host — only mumble-admin (same compose network)
@@ -238,11 +264,12 @@ services:
   # entirely encapsulated behind the `MumbleClient` interface (never called
   # directly from tests; see docker/mumble-admin/app.py's module docstring).
   mumble-admin:
+    restart: unless-stopped
     build: ./docker/mumble-admin
     environment:
       MUMBLE_ICE_HOST: mumble
       MUMBLE_ICE_PORT: '6502'
-      MUMBLE_ICE_SECRET: ${MUMBLE_ICE_SECRET}
+      MUMBLE_ICE_SECRET: ${MUMBLE_ICE_SECRET:-}
     # Host port 8085, bound to loopback only (127.0.0.1): non-default,
     # mirrors the postgres/redis/reverb convention above, but this
     # bearer-token-protected sidecar must never be reachable from outside
@@ -262,6 +289,7 @@ services:
   # running server, so it stays out of the default dev `docker compose up
   # -d` until that verification happens.
   teamspeak:
+    restart: unless-stopped
     image: teamspeak:latest
     profiles: [prod]
     environment:
@@ -283,14 +311,15 @@ services:
   # uncertain third-party ServerQuery wrapper on the Python side either; see
   # docker/teamspeak-admin/README.md.
   teamspeak-admin:
+    restart: unless-stopped
     build: ./docker/teamspeak-admin
     profiles: [prod]
     environment:
       TEAMSPEAK_HOST: teamspeak
       TEAMSPEAK_QUERY_PORT: '10011'
       TEAMSPEAK_QUERY_USER: serveradmin
-      TEAMSPEAK_QUERY_PASSWORD: ${TEAMSPEAK_QUERY_PASSWORD}
-      TEAMSPEAK_ADMIN_TOKEN: ${TEAMSPEAK_ADMIN_TOKEN}
+      TEAMSPEAK_QUERY_PASSWORD: ${TEAMSPEAK_QUERY_PASSWORD:-}
+      TEAMSPEAK_ADMIN_TOKEN: ${TEAMSPEAK_ADMIN_TOKEN:-}
     # Host port 8086, bound to loopback only (127.0.0.1): non-default
     # (mirrors mumble-admin's 8085 convention above), and this
     # bearer-token-protected sidecar must never be reachable from outside the
@@ -329,6 +358,7 @@ services:
   # access to 8095/8097 to the LAN, since host networking bypasses the
   # loopback-only pattern mumble-admin/teamspeak-admin use above.
   music-assistant:
+    restart: unless-stopped
     image: ghcr.io/music-assistant/server:latest
     profiles: [prod]
     network_mode: host
@@ -337,6 +367,9 @@ services:
 
 volumes:
   pgdata:
+  # User uploads (avatars, shared files, gallery photos): storage/app on the
+  # public/private disks. Survives image rebuilds. `down -v` deletes it.
+  app_storage:
   mumble_data:
   teamspeak_data:
   music_assistant_data:
