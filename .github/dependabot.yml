@@ -33,7 +33,9 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: "npm"
-    directory: "/"
+    directories:
+      - "/"
+      - "/docker/discord-gateway"
     schedule:
       interval: "weekly"
     cooldown:
