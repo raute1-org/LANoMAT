@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Gallery\Actions\BuildEventPhotoZip;
+use App\Modules\Gallery\Enums\PhotoVisibility;
 use App\Modules\Gallery\Models\EventPhoto;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -79,4 +80,39 @@ it('only includes approved photos in the zip, not pending or rejected ones', fun
 
     $zip->close();
     unlink($path);
+});
+
+it('answers a finished event without approved photos with a friendly redirect, not a 500', function () {
+    Storage::fake('local');
+    $event = Event::factory()->create(['status' => EventStatus::Finished]);
+    EventPhoto::factory()->create(['event_id' => $event->id, 'visibility' => PhotoVisibility::Pending]);
+
+    $this->actingAs(User::factory()->create())
+        ->from("/events/{$event->slug}/gallery")
+        ->get("/events/{$event->slug}/gallery/zip")
+        ->assertRedirect("/events/{$event->slug}/gallery");
+});
+
+it('redirects instead of 500 when building the zip fails (photo missing on disk)', function () {
+    Storage::fake('local');
+    $event = Event::factory()->create(['status' => EventStatus::Finished]);
+    EventPhoto::factory()->approved()->create(['event_id' => $event->id]);
+
+    $this->actingAs(User::factory()->create())
+        ->from("/events/{$event->slug}/gallery")
+        ->get("/events/{$event->slug}/gallery/zip")
+        ->assertRedirect("/events/{$event->slug}/gallery");
+});
+
+it('hides the zip button when there is nothing approved to download', function () {
+    $event = Event::factory()->create(['status' => EventStatus::Finished]);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get("/events/{$event->slug}/gallery")
+        ->assertInertia(fn ($p) => $p->where('canDownloadZip', false));
+
+    EventPhoto::factory()->approved()->create(['event_id' => $event->id]);
+
+    $this->actingAs($user)->get("/events/{$event->slug}/gallery")
+        ->assertInertia(fn ($p) => $p->where('canDownloadZip', true));
 });

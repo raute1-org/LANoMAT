@@ -24,6 +24,7 @@ defineProps<{
     canUpload: boolean;
     labels: Record<string, string>;
     canDownloadZip: boolean;
+    photoCountLabel: string;
 }>();
 
 const openPhoto = ref<GalleryPhotoDto | null>(null);
@@ -88,7 +89,7 @@ onUnmounted(() => {
                 v-if="photos.length > 0"
                 class="font-mono text-sm text-muted-foreground tabular-nums"
             >
-                {{ photos.length }} {{ labels.photo_count }}
+                {{ photoCountLabel }}
             </span>
             <Button
                 v-if="canDownloadZip"
