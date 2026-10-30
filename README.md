@@ -44,6 +44,10 @@ for the full design rationale.
    php artisan key:generate
    ```
 
+   Optional: set `DISCORD_LOGIN_GUILD_ID` to the ID of your Discord server to allow
+   only its members to log in (admins are exempt; no bot needed; see
+   [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md), section 3a).
+
    Then set up Discord OAuth (the only login method — there is no password login for
    participants):
 

@@ -44,8 +44,10 @@ use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Hosts\SshRemoteExecutor;
+use App\Modules\Identity\Connectors\HttpGuildMembershipChecker;
 use App\Modules\Identity\Connectors\SteamConnector;
 use App\Modules\Identity\Connectors\TwitchConnector;
+use App\Modules\Identity\Contracts\GuildMembershipChecker;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Identity\Policies\LinkedAccountPolicy;
@@ -145,6 +147,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DiscordClient::class, fn () => new HttpDiscordClient(
             (string) config('services.discord.bot_token'),
         ));
+
+        $this->app->bind(GuildMembershipChecker::class, HttpGuildMembershipChecker::class);
 
         $this->app->bind(VoiceClient::class, fn () => new HttpMumbleClient(
             (string) config('services.mumble.rest_url'),
