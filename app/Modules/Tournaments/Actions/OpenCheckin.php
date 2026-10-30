@@ -5,6 +5,7 @@ namespace App\Modules\Tournaments\Actions;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class OpenCheckin
@@ -33,7 +34,7 @@ class OpenCheckin
                     throw TournamentException::checkinWindowAlreadyClosed();
                 }
 
-                $tournament->checkin_opens_at = now();
+                $tournament->checkin_opens_at = Carbon::now();
             }
 
             $tournament->status = TournamentStatus::CheckIn;

@@ -26,47 +26,62 @@ final class RoundRobinStandings
      */
     public static function fromPlan(BracketPlan $plan): array
     {
-        /** @var array<int, array{played: int, wins: int, losses: int, for: int, against: int}> $stats */
-        $stats = [];
+        /** @var array<int, int> $played */
+        $played = [];
+        /** @var array<int, int> $wins */
+        $wins = [];
+        /** @var array<int, int> $losses */
+        $losses = [];
+        /** @var array<int, int> $for */
+        $for = [];
+        /** @var array<int, int> $against */
+        $against = [];
         /** @var array<string, int> $headToHead "a:b" => winner entry id */
         $headToHead = [];
 
         foreach ($plan->matches() as $match) {
-            foreach ([$match->slot1->entryId(), $match->slot2->entryId()] as $entryId) {
-                if ($entryId !== null && ! isset($stats[$entryId])) {
-                    $stats[$entryId] = ['played' => 0, 'wins' => 0, 'losses' => 0, 'for' => 0, 'against' => 0];
-                }
-            }
-
             $a = $match->slot1->entryId();
             $b = $match->slot2->entryId();
 
-            if (! $match->isDecided() || $a === null || $b === null || $match->score1 === null || $match->score2 === null) {
-                continue;
+            foreach ([$a, $b] as $entryId) {
+                if ($entryId !== null && ! isset($played[$entryId])) {
+                    $played[$entryId] = 0;
+                    $wins[$entryId] = 0;
+                    $losses[$entryId] = 0;
+                    $for[$entryId] = 0;
+                    $against[$entryId] = 0;
+                }
             }
 
             $winner = $match->winnerEntryId();
+
+            if ($winner === null || $a === null || $b === null || $match->score1 === null || $match->score2 === null) {
+                continue;
+            }
+
             $loser = $winner === $a ? $b : $a;
 
-            $stats[$a]['played']++;
-            $stats[$b]['played']++;
-            $stats[$a]['for'] += $match->score1;
-            $stats[$a]['against'] += $match->score2;
-            $stats[$b]['for'] += $match->score2;
-            $stats[$b]['against'] += $match->score1;
-            $stats[$winner]['wins']++;
-            $stats[$loser]['losses']++;
+            $played[$a]++;
+            $played[$b]++;
+            $for[$a] += $match->score1;
+            $against[$a] += $match->score2;
+            $for[$b] += $match->score2;
+            $against[$b] += $match->score1;
+            $wins[$winner]++;
+            $losses[$loser]++;
             $headToHead[min($a, $b).':'.max($a, $b)] = $winner;
         }
 
-        $ids = array_keys($stats);
+        /** @var list<int> $ids */
+        $ids = array_map('intval', array_keys($played));
 
         // Group by (wins, difference) to apply the two-way head-to-head rule.
         $groups = [];
         foreach ($ids as $id) {
-            $groups[$stats[$id]['wins'].'|'.($stats[$id]['for'] - $stats[$id]['against'])][] = $id;
+            $groups[$wins[$id].'|'.($for[$id] - $against[$id])][] = $id;
         }
 
+        /** @var array<int, int> $h2hBonus */
         $h2hBonus = [];
         foreach ($groups as $members) {
             if (count($members) === 2) {
@@ -78,10 +93,10 @@ final class RoundRobinStandings
         }
 
         $key = static fn (int $id): array => [
-            $stats[$id]['wins'],
-            $stats[$id]['for'] - $stats[$id]['against'],
+            $wins[$id],
+            $for[$id] - $against[$id],
             $h2hBonus[$id] ?? 0,
-            $stats[$id]['for'],
+            $for[$id],
         ];
 
         usort($ids, static function (int $x, int $y) use ($key): int {
@@ -101,8 +116,7 @@ final class RoundRobinStandings
             }
 
             $previousKey = $current;
-            $s = $stats[$id];
-            $rows[] = new StandingsRow($id, $rank, $s['played'], $s['wins'], $s['losses'], $s['for'], $s['against']);
+            $rows[] = new StandingsRow($id, $rank, $played[$id], $wins[$id], $losses[$id], $for[$id], $against[$id]);
         }
 
         return $rows;

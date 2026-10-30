@@ -42,7 +42,7 @@ class PendingReportView
 
         /** @var Collection<int, MatchReport> $reports */
         $reports = MatchReport::query()
-            ->whereIn('match_id', $mine->modelKeys())
+            ->whereIn('match_id', $mine->pluck('id')->all())
             ->where('status', ReportStatus::Pending->value)
             ->orderBy('id')
             ->get()
