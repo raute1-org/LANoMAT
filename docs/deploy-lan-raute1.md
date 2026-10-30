@@ -125,7 +125,7 @@ Check health: `docker compose --profile prod ps`. `app` should be `healthy`.
 ### Updating later
 
 On the host: `/opt/lanomat/scripts/deploy/deploy.sh` (or via
-`ssh root@lan.raute1.org /opt/lanomat/scripts/deploy/deploy.sh`). It pulls
+`ssh <ssh-user>@<APP_SERVER> /opt/lanomat/scripts/deploy/deploy.sh`; the real host and SSH user are kept out of this public repo). It pulls
 `origin/main` fast-forward only, rebuilds with `build --pull` (fresh FrankenPHP/Node base images, so PHP and Node patch releases are picked up on every deploy), recreates the core services,
 waits for `app` to be healthy and runs `migrate --force`. It never touches
 volumes or `.env`.

@@ -2,7 +2,8 @@
 # Deploy the current origin/main on the production host (core profile).
 #
 # Run it ON the server inside the checkout (e.g. /opt/lanomat), or remotely:
-#   ssh root@lan.raute1.org /opt/lanomat/scripts/deploy/deploy.sh
+#   ssh <ssh-user>@<APP_SERVER> /opt/lanomat/scripts/deploy/deploy.sh
+#   (the real host and SSH user are kept out of this public repo)
 #
 # Pulls fast-forward only, rebuilds the image (pulling fresh base images), recreates the core services and
 # runs migrations. It never touches volumes (no `down -v`) or `.env`.

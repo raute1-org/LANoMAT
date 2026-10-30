@@ -1,0 +1,32 @@
+# gitleaks configuration (this repository is PUBLIC).
+# Schema: gitleaks v8.30 ([[allowlists]] with targetRules, condition, regexTarget).
+# Run locally:
+#   docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+#     detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+title = "LANoMAT gitleaks config"
+
+[extend]
+useDefault = true
+
+# Exactly two known false positives are allowlisted. Anything else, including
+# any OTHER private key, must still fail.
+
+# (a) Documentation template for the unattended VM session. Every secret value
+# in the file is empty by design; nothing real lives here (history included).
+[[allowlists]]
+description = "ops/vm-session/secrets.env.example: empty template, no real secrets"
+targetRules = ["generic-api-key"]
+paths = ['''^ops/vm-session/secrets\.env\.example$''']
+
+# (b) Throwaway ed25519 key used only by the RegisterHost unit test (documented
+# as test-only in the file; it guards nothing). Matched on the path AND on a
+# fragment of the key's own public-key bytes (second body line). The first body
+# line is identical for every unencrypted OpenSSH ed25519 key, so it would
+# allow any such key and is deliberately not used.
+[[allowlists]]
+description = "tests/Unit/Hosts/RegisterHostTest.php: throwaway test-only ed25519 key"
+targetRules = ["private-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''^tests/Unit/Hosts/RegisterHostTest\.php$''']
+regexes = ['''QyNTUxOQAAACCE4M2ej63S3''']
