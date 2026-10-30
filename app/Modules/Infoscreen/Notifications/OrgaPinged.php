@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Infoscreen\Actions\PingOrga;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * Bell is the source of truth (`database` always lands); the Discord DM
  * mirrors only per the `orga_ping` category preference.
  */
-class OrgaPinged extends Notification
+class OrgaPinged extends Notification implements ShouldQueue
 {
     use Queueable;
 
