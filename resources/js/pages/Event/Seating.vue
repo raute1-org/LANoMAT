@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { pingOrga } from '@/routes/events';
+import {
+    pingOrga,
+    register as eventsRegister,
+    show as eventsShow,
+} from '@/routes/events';
 import {
     claim as claimSeat,
     release as releaseSeat,
@@ -16,6 +21,7 @@ const props = defineProps<{
     seats: SeatDto[];
     mySeatId: number | null;
     canClaim: boolean;
+    registrationState: 'upcoming' | 'open' | 'closed';
     canPing: boolean;
     labels: Record<string, string>;
     orgaPingLabels: Record<string, string>;
@@ -127,14 +133,27 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-5xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
-        <p v-if="!canClaim" class="mt-4 text-sm text-muted-foreground">
-            {{ labels.need_registration }}
-        </p>
+    <PageContainer
+        width="wide"
+        :title="`${labels.title} — ${event.name}`"
+        :back="{ href: eventsShow.url(event.slug), label: 'Zurück zum Event' }"
+    >
+        <div v-if="!canClaim" class="mt-4 space-y-3" data-test="seating-hint">
+            <p class="text-sm text-muted-foreground">
+                {{
+                    registrationState === 'open'
+                        ? labels.need_registration
+                        : registrationState === 'upcoming'
+                          ? labels.opens_with_registration
+                          : labels.registration_closed
+                }}
+            </p>
+            <Button v-if="registrationState === 'open'" as-child size="sm">
+                <Link :href="eventsRegister.url(event.slug)">{{
+                    labels.to_registration
+                }}</Link>
+            </Button>
+        </div>
         <div v-else-if="mySeatId" class="mt-4 flex items-center gap-3">
             <span class="font-mono text-sm text-primary uppercase tabular-nums">
                 {{ labels.my_seat }}
@@ -271,5 +290,5 @@ function onSeatKeydown(event: KeyboardEvent, seat: SeatDto) {
                 </g>
             </svg>
         </div>
-    </main>
+    </PageContainer>
 </template>

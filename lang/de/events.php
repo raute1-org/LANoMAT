@@ -57,7 +57,16 @@ return [
             'registration' => 'Jetzt anmelden',
             'live' => 'Event läuft',
         ],
-        'login_to_register' => 'Zum Anmelden einloggen',
+        'hint' => [
+            'announced' => 'Die Anmeldung öffnet bald.',
+            'registered' => 'Du bist angemeldet',
+            'checked_in' => 'Du bist angemeldet und eingecheckt',
+            'live' => 'Das Event läuft — die Anmeldung ist beendet.',
+            'finished' => 'Dieses Event ist vorbei.',
+        ],
+        'to_ticket' => 'Ticket anzeigen',
+        'to_seating' => 'Sitzplatz wählen',
+        'to_recap' => 'Zum Rückblick',
         'countdown' => [
             'heading' => 'Countdown',
             'running' => 'Countdown läuft',

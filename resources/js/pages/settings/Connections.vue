@@ -16,7 +16,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Connections settings',
+                title: 'Verknüpfungen',
                 href: edit(),
             },
         ],

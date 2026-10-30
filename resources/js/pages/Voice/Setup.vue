@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -56,10 +57,7 @@ onUnmounted(() => {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.title }}
-        </h1>
+    <PageContainer width="default" :title="labels.title">
         <p class="mt-2 text-sm text-muted-foreground">
             {{ labels.intro }}
         </p>
@@ -168,5 +166,5 @@ onUnmounted(() => {
                 </Card>
             </div>
         </template>
-    </main>
+    </PageContainer>
 </template>

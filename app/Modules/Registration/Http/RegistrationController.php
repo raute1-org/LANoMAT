@@ -13,6 +13,7 @@ use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Http\Requests\RegisterRequest;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Support\QrCode;
+use App\Modules\Registration\Support\TicketLabel;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,8 +34,10 @@ class RegistrationController extends Controller
         return Inertia::render('Event/Register', [
             'event' => ['name' => $event->name, 'slug' => $event->slug, 'status' => $event->status->value],
             'tickets' => $this->tickets($event),
+            'ticketLabels' => TicketLabel::map($this->tickets($event)),
             'registration' => $registration === null ? null : [
                 'ticketType' => $registration->ticket_type,
+                'ticketLabel' => TicketLabel::for($registration->ticket_type),
                 'status' => $registration->status->value,
                 'paid' => $registration->paid_at !== null,
                 'checkedIn' => $registration->checked_in_at !== null,

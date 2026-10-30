@@ -53,6 +53,8 @@ it('shows my registration with a qr code when already registered', function () {
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('registration.ticketType', 'standard')
+            ->where('registration.ticketLabel', 'Standard')
+            ->where('ticketLabels.standard', 'Standard')
             ->has('registration.qrSvg')
         );
 });

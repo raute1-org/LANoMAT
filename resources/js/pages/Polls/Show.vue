@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,15 +60,14 @@ function hasVoted(): boolean {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-2xl px-4 py-12">
-        <Link
-            :href="pollsIndex.url(event.slug)"
-            class="text-sm text-muted-foreground hover:underline"
-        >
-            &larr; {{ labels.back_to_index }}
-        </Link>
-
-        <Card class="mt-4">
+    <PageContainer
+        width="default"
+        :back="{
+            href: pollsIndex.url(event.slug),
+            label: labels.back_to_index,
+        }"
+    >
+        <Card>
             <CardHeader>
                 <div class="flex items-center justify-between gap-4">
                     <CardTitle>{{ poll.question }}</CardTitle>
@@ -128,5 +128,5 @@ function hasVoted(): boolean {
                 </ul>
             </CardContent>
         </Card>
-    </main>
+    </PageContainer>
 </template>

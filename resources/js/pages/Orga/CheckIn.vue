@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { QrcodeStream } from 'vue-qrcode-reader';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { store as storeCheckIn } from '@/routes/orga/checkin';
@@ -30,11 +31,7 @@ function onDetect(detected: { rawValue: string }[]) {
 <template>
     <Head :title="labels.title" />
 
-    <main class="mx-auto max-w-md px-4 py-8">
-        <h1 class="text-2xl font-bold">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="narrow" :title="`${labels.title} — ${event.name}`">
         <div
             class="mt-6 aspect-square overflow-hidden rounded-lg border border-border"
         >
@@ -50,5 +47,5 @@ function onDetect(detected: { rawValue: string }[]) {
                 labels.submit
             }}</Button>
         </form>
-    </main>
+    </PageContainer>
 </template>

@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { Star } from '@lucide/vue';
 import { computed } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,11 +76,7 @@ const groupedItems = computed(() => {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <div v-if="now || next" class="mt-8 grid gap-4 sm:grid-cols-2">
             <Card v-if="now" class="border-primary">
                 <CardHeader>
@@ -195,5 +192,5 @@ const groupedItems = computed(() => {
                 </ul>
             </section>
         </div>
-    </main>
+    </PageContainer>
 </template>

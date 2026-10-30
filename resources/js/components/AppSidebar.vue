@@ -12,6 +12,8 @@ import {
     UserPlus,
     Users,
     Armchair,
+    LayoutDashboard,
+    Ticket,
     Radio,
     Music,
 } from '@lucide/vue';
@@ -30,9 +32,11 @@ import {
 } from '@/components/ui/sidebar';
 import { useModules } from '@/composables/useModules';
 import { homeHref } from '@/lib/home';
+import { dashboard } from '@/routes';
 import {
     index as eventsIndex,
     show as eventsShow,
+    register as eventsRegister,
     seating as eventsSeating,
 } from '@/routes/events';
 import { index as friendsIndex } from '@/routes/friends';
@@ -59,13 +63,17 @@ const isStaff = computed<boolean>(
 const { has } = useModules();
 
 const generalItems = computed<NavItem[]>(() => [
+    { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
     {
         title: 'Aktuelle LAN',
         href: homeHref(currentEvent.value),
         icon: PartyPopper,
+        // With an active LAN the event group's "Übersicht" owns the highlight
+        // for the same URL, so it is not marked twice.
+        ...(currentEvent.value ? { isActive: false } : {}),
     },
     { title: 'Events', href: eventsIndex(), icon: CalendarDays },
-    { title: 'Teams', href: teamsIndex(), icon: Users },
+    { title: 'Teams', href: teamsIndex(), icon: Users, prefix: true },
     ...(has('stats')
         ? [{ title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy }]
         : []),
@@ -92,6 +100,15 @@ const eventItems = computed<NavItem[]>(() => {
                       title: 'Zeitplan',
                       href: scheduleIndex(ev.slug),
                       icon: CalendarClock,
+                  },
+              ]
+            : []),
+        ...(ev.status === 'registration'
+            ? [
+                  {
+                      title: 'Anmeldung',
+                      href: eventsRegister(ev.slug),
+                      icon: Ticket,
                   },
               ]
             : []),

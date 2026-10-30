@@ -12,6 +12,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import PhotoGrid from '@/components/gallery/PhotoGrid.vue';
 import PhotoLightbox from '@/components/gallery/PhotoLightbox.vue';
 import PhotoUpload from '@/components/gallery/PhotoUpload.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { destroy as destroyPhoto } from '@/routes/gallery';
@@ -81,30 +82,25 @@ onUnmounted(() => {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-5xl px-4 py-12">
-        <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h1 class="text-3xl font-bold tracking-tight text-foreground">
-                {{ labels.title }} — {{ event.name }}
-            </h1>
-            <div class="flex items-center gap-3">
-                <span
-                    v-if="photos.length > 0"
-                    class="font-mono text-sm text-muted-foreground tabular-nums"
-                >
-                    {{ photos.length }} {{ labels.photo_count }}
-                </span>
-                <Button
-                    v-if="canDownloadZip"
-                    as-child
-                    size="sm"
-                    variant="secondary"
-                >
-                    <a :href="`/events/${event.slug}/gallery/zip`">{{
-                        labels.download_zip
-                    }}</a>
-                </Button>
-            </div>
-        </div>
+    <PageContainer width="wide" :title="`${labels.title} — ${event.name}`">
+        <template #actions>
+            <span
+                v-if="photos.length > 0"
+                class="font-mono text-sm text-muted-foreground tabular-nums"
+            >
+                {{ photos.length }} {{ labels.photo_count }}
+            </span>
+            <Button
+                v-if="canDownloadZip"
+                as-child
+                size="sm"
+                variant="secondary"
+            >
+                <a :href="`/events/${event.slug}/gallery/zip`">{{
+                    labels.download_zip
+                }}</a>
+            </Button>
+        </template>
 
         <div v-if="canUpload" class="mt-8">
             <PhotoUpload :event-slug="event.slug" :labels="labels" />
@@ -163,5 +159,5 @@ onUnmounted(() => {
             @close="closeLightbox"
             @delete="remove"
         />
-    </main>
+    </PageContainer>
 </template>

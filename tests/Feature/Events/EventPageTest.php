@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 
@@ -63,4 +64,34 @@ it('renders 404 for a draft event by slug (helper-driven)', function () {
     $event = Event::factory()->draft()->create();
 
     $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")->assertNotFound();
+});
+
+it('exposes no registration for a user who has not registered', function () {
+    $event = Event::factory()->registration()->create();
+
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('registration', null));
+});
+
+it('exposes the own active registration on the event page', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->checkedIn()->create();
+
+    $this->actingAs($user)->get("/events/{$event->slug}")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration.status', 'confirmed')
+            ->where('registration.checkedIn', true)
+            ->missing('registration.qrSvg')
+        );
+});
+
+it('ignores cancelled and foreign registrations on the event page', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->cancelled()->create();
+    EventRegistration::factory()->for($event)->create();
+
+    $this->actingAs($user)->get("/events/{$event->slug}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('registration', null));
 });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -123,11 +124,7 @@ function formatDateTime(iso: string): string {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <Card class="mt-8">
             <CardHeader>
                 <CardTitle>{{ labels.upload_title }}</CardTitle>
@@ -277,5 +274,5 @@ function formatDateTime(iso: string): string {
                 </Card>
             </div>
         </template>
-    </main>
+    </PageContainer>
 </template>

@@ -34,6 +34,9 @@ return [
         'claim' => 'Platz wählen',
         'release' => 'Platz freigeben',
         'need_registration' => 'Melde dich zuerst zum Event an, um einen Platz zu wählen.',
+        'opens_with_registration' => 'Der Sitzplan öffnet mit der Anmeldung.',
+        'registration_closed' => 'Die Anmeldung ist beendet — Plätze können nicht mehr gewählt werden.',
+        'to_registration' => 'Zur Anmeldung',
         'empty' => 'Der Sitzplan für dieses Event ist noch nicht angelegt — schau später nochmal vorbei.',
     ],
     'errors' => [

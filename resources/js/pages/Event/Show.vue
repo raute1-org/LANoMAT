@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { useModules } from '@/composables/useModules';
 import {
     index as eventsIndex,
     register as eventsRegister,
+    seating as eventsSeating,
 } from '@/routes/events';
 import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
-import { discord as loginDiscord } from '@/routes/login';
 import { show as pollShow } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
+import { show as recapShow } from '@/routes/recap';
 import type { EventSummary, NewsPostDto } from '@/types';
 
 const props = defineProps<{
@@ -20,11 +22,16 @@ const props = defineProps<{
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
     news: NewsPostDto[];
+    registration: {
+        ticketType: string;
+        ticketLabel: string;
+        status: string;
+        paid: boolean;
+        checkedIn: boolean;
+    } | null;
 }>();
 
 const { has } = useModules();
-const page = usePage();
-const isAuthenticated = computed(() => page.props.auth.user !== null);
 const isLive = computed(() => props.event.status === 'live');
 
 function formatPublishedAt(iso: string | null): string {
@@ -61,6 +68,43 @@ const cta = computed<string | null>(() => {
 
     return ctas[props.event.status] ?? null;
 });
+
+const hintLabels = computed(() => {
+    const map = props.labels as Record<string, unknown>;
+
+    return (map.hint ?? {}) as Record<string, string>;
+});
+
+// Status-dependent call to action (see docs/design.md "Event status -> CTA").
+// registered: the viewer holds an active registration; open: they can still
+// sign up; the remaining states are plain hints with no action.
+const registered = computed(() => props.registration !== null);
+const canRegister = computed(
+    () => props.event.status === 'registration' && !registered.value,
+);
+const statusHint = computed<string | null>(() => {
+    if (registered.value) {
+        return props.registration?.checkedIn
+            ? hintLabels.value.checked_in
+            : hintLabels.value.registered;
+    }
+
+    switch (props.event.status) {
+        case 'announced':
+            return hintLabels.value.announced;
+        case 'live':
+            return hintLabels.value.live;
+        case 'finished':
+        case 'archived':
+            return hintLabels.value.finished;
+        default:
+            return null;
+    }
+});
+const isPast = computed(
+    () =>
+        props.event.status === 'finished' || props.event.status === 'archived',
+);
 
 const countdownLabels = computed(() => {
     const map = props.labels as Record<string, unknown>;
@@ -124,7 +168,7 @@ function pad(value: number): string {
 <template>
     <Head :title="event.name" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12 sm:py-16">
+    <PageContainer width="default">
         <LiveIndicator
             v-if="isLive"
             variant="live"
@@ -159,22 +203,48 @@ function pad(value: number): string {
             </div>
         </dl>
 
-        <div class="mt-10 flex flex-wrap gap-3">
-            <Button
-                v-if="event.status === 'registration' && isAuthenticated"
-                as-child
-                size="lg"
+        <div
+            v-if="statusHint"
+            class="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-md border border-border bg-card p-4"
+            data-test="event-status-hint"
+        >
+            <p
+                class="text-sm"
+                :class="
+                    registered
+                        ? 'font-medium text-foreground'
+                        : 'text-muted-foreground'
+                "
             >
-                <Link :href="eventsRegister.url(event.slug)">{{ cta }}</Link>
-            </Button>
+                {{ statusHint }}
+            </p>
+            <template v-if="registered">
+                <Button as-child size="sm" variant="outline">
+                    <Link :href="eventsRegister.url(event.slug)">{{
+                        labels.to_ticket
+                    }}</Link>
+                </Button>
+                <Button v-if="!isPast" as-child size="sm" variant="outline">
+                    <Link :href="eventsSeating.url(event.slug)">{{
+                        labels.to_seating
+                    }}</Link>
+                </Button>
+            </template>
             <Button
-                v-else-if="event.status === 'registration'"
+                v-if="isPast && has('recap')"
                 as-child
-                size="lg"
+                size="sm"
+                variant="outline"
             >
-                <Link :href="loginDiscord.url()">{{
-                    labels.login_to_register
+                <Link :href="recapShow.url(event.slug)">{{
+                    labels.to_recap
                 }}</Link>
+            </Button>
+        </div>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+            <Button v-if="canRegister" as-child size="lg">
+                <Link :href="eventsRegister.url(event.slug)">{{ cta }}</Link>
             </Button>
             <Button v-if="has('presence')" as-child variant="outline">
                 <Link :href="presenceShow.url(event.slug)">{{
@@ -186,11 +256,7 @@ function pad(value: number): string {
                     labels.to_jukebox
                 }}</Link>
             </Button>
-            <Button
-                v-if="has('gallery') && isAuthenticated"
-                as-child
-                variant="outline"
-            >
+            <Button v-if="has('gallery')" as-child variant="outline">
                 <Link :href="galleryIndex.url(event.slug)">{{
                     labels.to_gallery
                 }}</Link>
@@ -337,5 +403,5 @@ function pad(value: number): string {
                 </article>
             </div>
         </section>
-    </main>
+    </PageContainer>
 </template>

@@ -3,9 +3,10 @@ import { configureEcho } from '@laravel/echo-vue';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
-import PublicShell from '@/layouts/PublicShell.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { layoutKindFor } from '@/lib/pageLayouts';
+import type { Auth } from '@/types/auth';
 
 // Reverb connection data comes from the server at runtime via the
 // `window.__reverb` global set inline in app.blade.php (from server config).
@@ -33,47 +34,24 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
-    layout: (name) => {
-        switch (true) {
-            // Event/*, Orga/* and Jukebox/* pages flash toasts (registration,
-            // seating, check-in, queue/vote/skip mutations) but have no
-            // sidebar/header chrome, so they get the minimal PublicShell
-            // instead of no layout — it exists solely to mount <Toaster/> so
-            // those flashes have somewhere to render. Jukebox is also
-            // reachable by unauthenticated guests (read-only board), and the
-            // default AppLayout's sidebar unconditionally renders NavUser
-            // assuming a non-null auth.user, so guests must not get it. The
-            // public Recap/* page (a past LAN's recap, browsable between LANs
-            // by anyone) is guest-reachable for the same reason.
-            case name.startsWith('Event/'):
-            case name.startsWith('Orga/'):
-            case name.startsWith('Jukebox/'):
-            case name.startsWith('Recap/'):
-                return PublicShell;
-            // Prefix match strips the app layout from EVERY page under this
-            // directory. Future authenticated pages must not be placed here
-            // unless they also want no layout — otherwise set an explicit
-            // layout via `defineOptions({ layout: ... })`.
-            case name.startsWith('Profile/'):
+    // Layout choice is table-driven (lib/pageLayouts.ts) and guarded by
+    // tests/Architecture/PageLayoutsTest.php — unknown pages throw, they never
+    // silently fall into a default shell.
+    layout: (name, page) => {
+        switch (layoutKindFor(name)) {
+            case 'bare':
                 return null;
-            // The public beamer screen renders a bare full-viewport shell —
-            // no app navigation/header, no toaster (it is unattended and
-            // never triggers flashes).
-            case name.startsWith('Screen/'):
-                return null;
-            // The guest landing is a bare, event-free shell (no sidebar).
-            case name === 'Welcome':
-                return null;
-            // Public, no-auth OBS browser-source overlays (bracket,
-            // scoreboard, ...) — bare full-viewport shell like Screen/, but
-            // with a transparent background (see OverlayFrame.vue) so OBS
-            // composites the page over gameplay footage.
-            case name.startsWith('Overlay/'):
-                return null;
-            case name.startsWith('auth/'):
+            case 'auth':
                 return AuthLayout;
-            case name.startsWith('settings/'):
+            case 'settings':
                 return [AppLayout, SettingsLayout];
+            // Public profile (/users/{user}) is the one participant page guests
+            // may still open: logged-in users get the app shell, guests stay
+            // bare (the sidebar's NavUser assumes a non-null user).
+            case 'profile':
+                return (page.props as { auth?: Auth }).auth?.user
+                    ? AppLayout
+                    : null;
             default:
                 return AppLayout;
         }

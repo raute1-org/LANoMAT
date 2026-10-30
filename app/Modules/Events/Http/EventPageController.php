@@ -8,6 +8,7 @@ use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Support\NewsQuery;
 use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Registration\Support\MyRegistration;
 use App\Modules\Voting\Enums\PollStatus;
 use App\Modules\Voting\Models\Poll;
 use App\Support\Modules\Module;
@@ -33,16 +34,16 @@ class EventPageController
 
         return $event === null
             ? $this->archive()
-            : $this->renderShow($event);
+            : $this->renderShow($request, $event);
     }
 
-    public function show(Event $event): Response
+    public function show(Request $request, Event $event): Response
     {
         if (! $event->isPubliclyVisible()) {
             throw new NotFoundHttpException;
         }
 
-        return $this->renderShow($event);
+        return $this->renderShow($request, $event);
     }
 
     public function archive(): Response
@@ -60,12 +61,16 @@ class EventPageController
         ]);
     }
 
-    private function renderShow(Event $event): Response
+    private function renderShow(Request $request, Event $event): Response
     {
+        $user = $request->user();
+
         return Inertia::render('Event/Show', [
             'event' => $this->summary($event),
             'labels' => trans('events.page'),
             'statusLabels' => trans('events.status'),
+            // The viewer's own active registration (no QR payload), or null.
+            'registration' => $user === null ? null : MyRegistration::summary($event, $user),
             // Kept as [] (not absent) when News is off: Event/Show reads news.length unconditionally.
             'news' => ! app(Modules::class)->enabled(Module::News) ? [] : app(NewsQuery::class)->published(3)
                 ->map(fn (NewsPost $post) => [

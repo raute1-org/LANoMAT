@@ -20,23 +20,23 @@ const page = usePage();
 // straight back out of.
 const sidebarNavItems = computed<NavItem[]>(() => [
     {
-        title: 'Profile',
+        title: 'Profil',
         href: editProfile(),
     },
     ...(page.props.auth.user.has_password
         ? [
               {
-                  title: 'Security',
+                  title: 'Sicherheit',
                   href: editSecurity(),
               },
           ]
         : []),
     {
-        title: 'Appearance',
+        title: 'Darstellung',
         href: editAppearance(),
     },
     {
-        title: 'Connections',
+        title: 'Verknüpfungen',
         href: editConnections(),
     },
 ]);
@@ -47,15 +47,15 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 <template>
     <div class="px-4 py-6">
         <Heading
-            title="Settings"
-            description="Manage your profile and account settings"
+            title="Einstellungen"
+            description="Verwalte dein Profil und deine Kontoeinstellungen"
         />
 
         <div class="flex flex-col lg:flex-row lg:space-x-12">
             <aside class="w-full max-w-xl lg:w-48">
                 <nav
                     class="flex flex-col space-y-1 space-x-0"
-                    aria-label="Settings"
+                    aria-label="Einstellungen"
                 >
                     <Button
                         v-for="item in sidebarNavItems"

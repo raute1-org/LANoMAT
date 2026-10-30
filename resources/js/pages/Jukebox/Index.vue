@@ -9,11 +9,12 @@
  * partial reload re-fetches the authorized `nowPlaying`/`queue`/`skipVotes`
  * props rather than trusting client-held state.
  */
-import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import { onMounted, onUnmounted, ref } from 'vue';
 import NowPlayingCard from '@/components/jukebox/NowPlayingCard.vue';
 import QueueRow from '@/components/jukebox/QueueRow.vue';
 import SearchBox from '@/components/jukebox/SearchBox.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEventChannel } from '@/composables/useEventChannel';
 import {
@@ -63,9 +64,6 @@ const props = defineProps<{
     canModerate: boolean;
     labels: JukeboxLabels;
 }>();
-
-const page = usePage();
-const isAuthenticated = computed(() => page.props.auth.user !== null);
 
 // Live board: any queue/vote/skip mutation broadcasts a bare signal on the
 // public `event.{id}` channel; reload just the affected props rather than
@@ -188,11 +186,7 @@ function skipNow(): void {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <!-- loading: only shown mid-navigation, e.g. a partial reload -->
         <div v-if="isNavigating" class="mt-8 space-y-4">
             <Skeleton class="h-24 w-full rounded-lg" />
@@ -209,16 +203,12 @@ function skipNow(): void {
         </div>
 
         <template v-else>
-            <!-- non-checked-in / guest notice: an invitation, not an apology -->
+            <!-- non-checked-in notice: an invitation, not an apology -->
             <p
                 v-if="!canParticipate"
                 class="mt-4 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground"
             >
-                {{
-                    isAuthenticated
-                        ? labels.not_checked_in_notice
-                        : labels.guest_notice
-                }}
+                {{ labels.not_checked_in_notice }}
             </p>
 
             <!-- now playing -->
@@ -296,5 +286,5 @@ function skipNow(): void {
                 </ul>
             </section>
         </template>
-    </main>
+    </PageContainer>
 </template>

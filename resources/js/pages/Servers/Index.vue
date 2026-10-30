@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -90,11 +91,7 @@ async function copyHint(serverId: number, text: string) {
 <template>
     <Head :title="`${labels.title} — ${event.name}`" />
 
-    <main class="mx-auto max-w-3xl px-4 py-12">
-        <h1 class="text-3xl font-bold tracking-tight">
-            {{ labels.title }} — {{ event.name }}
-        </h1>
-
+    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <!-- loading: only shown mid-navigation, e.g. a partial reload -->
         <div v-if="isNavigating" class="mt-8 space-y-4">
             <Skeleton class="h-28 w-full rounded-lg" />
@@ -276,5 +273,5 @@ async function copyHint(serverId: number, text: string) {
                 </Card>
             </div>
         </template>
-    </main>
+    </PageContainer>
 </template>
