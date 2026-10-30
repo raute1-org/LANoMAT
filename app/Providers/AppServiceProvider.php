@@ -17,6 +17,7 @@ use App\Modules\Discord\Events\DiscordMessageReactionChanged;
 use App\Modules\Discord\HttpDiscordClient;
 use App\Modules\Discord\Listeners\AnnounceAndCleanupOnCompleted;
 use App\Modules\Discord\Listeners\AnnounceRegistrationOpen;
+use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
 use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
 use App\Modules\Discord\Listeners\LogGatewayEvent;
 use App\Modules\Events\Events\EventStatusChanged;
@@ -412,6 +413,8 @@ class AppServiceProvider extends ServiceProvider
         // Registration order per event is preserved from the pre-gating
         // listener list, so the full profile dispatches exactly as before.
         Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
+        // The bell works without Discord; the Discord listener only mirrors the channel announcement.
+        Event::listen(EventStatusChanged::class, NotifyUsersRegistrationOpen::class);
 
         if ($this->on(Module::Discord)) {
             Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);

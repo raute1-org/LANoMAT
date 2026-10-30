@@ -2,8 +2,6 @@
 
 namespace App\Modules\Teams\Notifications;
 
-use App\Models\User;
-use App\Modules\Notifications\Support\NotificationPreferences;
 use App\Modules\Teams\Models\Team;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
@@ -26,11 +24,7 @@ class TeamJoinRequestAnswered extends Notification
      */
     public function via(object $notifiable): array
     {
-        if (! $notifiable instanceof User) {
-            return ['database'];
-        }
-
-        return app(NotificationPreferences::class)->wants($notifiable, 'teams') ? ['database'] : [];
+        return ['database'];
     }
 
     /**

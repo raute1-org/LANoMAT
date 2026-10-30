@@ -64,17 +64,13 @@ it('notifies the owner of a join request and the requester of the answer', funct
     Notification::assertSentTo($requester, TeamJoinRequestAnswered::class, fn ($n) => $n->accepted);
 });
 
-it('writes a bell entry for the owner and respects a disabled teams preference', function () {
+it('writes a bell entry for the owner', function () {
     $owner = User::factory()->create();
-    $quiet = User::factory()->create(['notification_prefs' => ['teams' => false]]);
     $requester = User::factory()->create();
     $team = Team::factory()->create(['owner_id' => $owner->id]);
-    $quietTeam = Team::factory()->create(['owner_id' => $quiet->id]);
 
     $this->actingAs($requester)->post(route('teams.join', $team));
-    $this->actingAs($requester)->post(route('teams.join', $quietTeam));
 
     expect($owner->unreadNotifications()->count())->toBe(1)
-        ->and($owner->unreadNotifications()->first()->data['title'])->toBe('Neue Beitrittsanfrage')
-        ->and($quiet->unreadNotifications()->count())->toBe(0);
+        ->and($owner->unreadNotifications()->first()->data['title'])->toBe('Neue Beitrittsanfrage');
 });

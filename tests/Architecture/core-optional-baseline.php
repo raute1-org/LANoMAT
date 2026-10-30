@@ -2,9 +2,8 @@
 
 return [
     'Events' => [
-        0 => 'Discord',
-        1 => 'News',
-        2 => 'Voting',
+        0 => 'News',
+        1 => 'Voting',
     ],
     'Registration' => [
         0 => 'Discord',

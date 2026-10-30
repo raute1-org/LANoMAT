@@ -1,16 +1,17 @@
 <?php
 
-namespace App\Modules\Events\Notifications;
+namespace App\Modules\Notifications\Notifications;
 
-use App\Modules\Discord\Listeners\AnnounceRegistrationOpen;
+use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Notifications\Support\NotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
 /**
  * Surfaces the M2.11 registration-open announcement in the bell — previously
  * this only reached the Discord announcement channel (see
- * {@see AnnounceRegistrationOpen}, which
+ * {@see \App\Modules\Discord\Listeners\AnnounceRegistrationOpen}, which
  * remains the mirror via a direct channel-wide `sendMessage`, unchanged).
  * The bell is the source of truth: this is a plain `database`-only
  * notification (no Discord DM here — the channel broadcast already covers
@@ -29,7 +30,11 @@ class RegistrationOpened extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        if (! $notifiable instanceof User) {
+            return ['database'];
+        }
+
+        return app(NotificationPreferences::class)->wants($notifiable, 'registration') ? ['database'] : [];
     }
 
     /**
