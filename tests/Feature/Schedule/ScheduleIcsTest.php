@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Schedule\Enums\ScheduleItemType;
 use App\Modules\Schedule\Models\ScheduleItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -30,4 +31,21 @@ it('404s the schedule ICS export for a draft event', function () {
 
     $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule.ics")
         ->assertNotFound();
+});
+
+it('exports items without an end with an estimated duration instead of a zero-length event', function () {
+    $event = Event::factory()->live()->create();
+    $start = now()->addDay()->startOfHour()->utc();
+    ScheduleItem::factory()->for($event)->create([
+        'type' => ScheduleItemType::Tournament,
+        'title' => 'Finale',
+        'starts_at' => $start,
+        'ends_at' => null,
+    ]);
+
+    $body = $this->actingAs(User::factory()->create())
+        ->get("/events/{$event->slug}/schedule.ics")->assertOk()->getContent();
+
+    expect($body)->toContain('DTSTART:'.$start->format('Ymd\THis\Z'))
+        ->and($body)->toContain('DTEND:'.$start->copy()->addHours(2)->format('Ymd\THis\Z'));
 });

@@ -9,6 +9,7 @@ use App\Modules\Jukebox\Enums\QueueItemStatus;
 use App\Modules\Jukebox\Models\JukeboxItem;
 use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
@@ -108,4 +109,30 @@ it('renders nowPlaying as null and an empty queue when nothing is queued', funct
             ->where('nowPlaying', null)
             ->has('queue', 0)
         );
+});
+
+it('reports Music Assistant availability as a deferred prop and never 500s when it is down', function () {
+    $event = Event::factory()->live()->create();
+    $music = fakeMusic();
+    $music->willBeUnavailable();
+    Cache::forget('jukebox.music-available');
+
+    $this->actingAs(User::factory()->create())
+        ->get("/events/{$event->slug}/jukebox")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Jukebox/Index')
+            ->missing('musicAvailable')
+            ->loadDeferredProps(fn (AssertableInertia $reloaded) => $reloaded->where('musicAvailable', false)));
+});
+
+it('reports the backend as available when it answers', function () {
+    $event = Event::factory()->live()->create();
+    fakeMusic();
+    Cache::forget('jukebox.music-available');
+
+    $this->actingAs(User::factory()->create())
+        ->get("/events/{$event->slug}/jukebox")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->loadDeferredProps(fn (AssertableInertia $reloaded) => $reloaded->where('musicAvailable', true)));
 });

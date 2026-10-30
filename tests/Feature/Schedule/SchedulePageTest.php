@@ -20,7 +20,7 @@ it('renders the public schedule page with german labels and the item list', func
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Schedule/Index')
-            ->where('labels.title', 'Programm')
+            ->where('labels.title', 'Zeitplan')
             ->has('items', 1)
             ->where('items.0.title', 'Opening Ceremony')
             ->has('items.0', fn (AssertableInertia $item) => $item
@@ -115,8 +115,8 @@ it('surfaces the correct now/next pair via time travel', function () {
 it('resolves the german schedule page labels', function () {
     app()->setLocale('de');
 
-    expect(__('schedule.page.title'))->toBe('Programm')
+    expect(__('schedule.page.title'))->toBe('Zeitplan')
         ->and(__('schedule.page.now'))->toBe('Jetzt')
         ->and(__('schedule.page.next'))->toBe('Gleich')
-        ->and(__('schedule.page.empty'))->toBe('Noch kein Programm');
+        ->and(__('schedule.page.empty'))->toBe('Noch kein Zeitplan');
 });

@@ -20,20 +20,20 @@ return [
     ],
 
     'errors' => [
-        'not_open' => 'Diese Umfrage ist derzeit nicht für Abstimmungen geöffnet.',
-        'already_voted' => 'Du hast bei dieser Umfrage bereits abgestimmt.',
-        'option_not_in_poll' => 'Die gewählte Option gehört nicht zu dieser Umfrage.',
-        'already_open' => 'Diese Umfrage ist bereits geöffnet.',
-        'not_open_yet' => 'Diese Umfrage wurde noch nicht geöffnet.',
-        'already_closed' => 'Diese Umfrage ist bereits geschlossen.',
+        'not_open' => 'Diese Abstimmung ist derzeit nicht geöffnet.',
+        'already_voted' => 'Du hast bei dieser Abstimmung bereits abgestimmt.',
+        'option_not_in_poll' => 'Die gewählte Option gehört nicht zu dieser Abstimmung.',
+        'already_open' => 'Diese Abstimmung ist bereits geöffnet.',
+        'not_open_yet' => 'Diese Abstimmung wurde noch nicht geöffnet.',
+        'already_closed' => 'Diese Abstimmung ist bereits geschlossen.',
         'mvp_poll_exists' => 'Für dieses Event gibt es bereits eine Abstimmung zur Spieler:in des Abends.',
         'not_closed_mvp_poll' => 'Diese Abstimmung ist nicht die geschlossene Spieler:in-des-Abends-Abstimmung dieses Events.',
         'no_votes_cast' => 'Für diese Abstimmung wurden keine Stimmen abgegeben, es gibt daher kein Ergebnis zum Enthüllen.',
     ],
 
     'resource' => [
-        'label' => 'Umfrage',
-        'plural_label' => 'Umfragen',
+        'label' => 'Abstimmung',
+        'plural_label' => 'Abstimmungen',
     ],
 
     'fields' => [
@@ -51,9 +51,9 @@ return [
     'admin' => [
         'actions' => [
             'open' => 'Öffnen',
-            'opened' => 'Umfrage wurde geöffnet.',
+            'opened' => 'Abstimmung wurde geöffnet.',
             'close' => 'Schließen',
-            'closed' => 'Umfrage wurde geschlossen.',
+            'closed' => 'Abstimmung wurde geschlossen.',
         ],
     ],
 
@@ -63,6 +63,8 @@ return [
         'no_polls' => 'Für dieses Event gibt es aktuell keine Abstimmungen.',
         'back_to_index' => 'Zurück zu allen Abstimmungen',
         'vote' => 'Abstimmen',
+        'your_vote' => 'Deine Stimme',
+        'open' => 'Offen',
         'you_voted' => 'Du hast abgestimmt.',
         'closed' => 'Diese Abstimmung ist geschlossen.',
         'total_votes' => 'Stimmen gesamt',

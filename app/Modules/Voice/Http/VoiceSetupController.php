@@ -45,6 +45,8 @@ class VoiceSetupController extends Controller
     {
         $this->authorize('download', $installer);
 
+        abort_unless(Storage::disk('local')->exists($installer->path), 404, __('voice.setup.installer_missing'));
+
         return Storage::disk('local')->download($installer->path, $installer->original_name);
     }
 

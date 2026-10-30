@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import FilePicker from '@/components/FilePicker.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,11 +89,10 @@ function leave() {
                     height="64"
                     class="h-16 w-16 rounded-md object-cover"
                 />
-                <input
+                <FilePicker
                     id="logo"
-                    type="file"
                     accept="image/*"
-                    class="text-sm"
+                    button-label="Bild auswählen"
                     @change="onLogoChange"
                 />
                 <p v-if="form.errors.logo" class="text-sm text-destructive">

@@ -74,7 +74,7 @@ function hasVoted(): boolean {
                     <LiveIndicator
                         v-if="poll.isOpen"
                         variant="live"
-                        :label="labels.title"
+                        :label="labels.open"
                     />
                     <Badge v-else variant="outline">{{ labels.closed }}</Badge>
                 </div>
@@ -122,7 +122,11 @@ function hasVoted(): boolean {
                             :disabled="!poll.isOpen || hasVoted()"
                             @click="vote(option.id)"
                         >
-                            {{ labels.vote }}
+                            {{
+                                myVoteOptionId === option.id
+                                    ? labels.your_vote
+                                    : labels.vote
+                            }}
                         </Button>
                     </li>
                 </ul>

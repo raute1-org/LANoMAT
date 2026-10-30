@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { reactive } from 'vue';
+import { toast } from 'vue-sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -98,6 +99,13 @@ function setStatusLevel(component: string, level: StatusLevel) {
         message: statusMessages[component] || '',
     }).post(setStatus.url({ event: props.event.slug }), {
         preserveScroll: true,
+        onError: (errors) => {
+            const first = Object.values(errors)[0];
+
+            if (first) {
+                toast.error(first);
+            }
+        },
     });
 }
 

@@ -154,6 +154,8 @@ class HttpMusicClient implements MusicClient, PlaybackControl
         try {
             $response = Http::withToken($this->token)
                 ->acceptJson()
+                ->connectTimeout(3)
+                ->timeout(10)
                 ->post("{$this->baseUrl}/api", [
                     'command' => $name,
                     'args' => $args,

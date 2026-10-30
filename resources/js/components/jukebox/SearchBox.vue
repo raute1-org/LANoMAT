@@ -114,6 +114,7 @@ onUnmounted(() => {
             v-model="query"
             type="search"
             :placeholder="labels.search_placeholder"
+            :aria-label="labels.search_placeholder"
             @input="onInput"
         />
 

@@ -162,3 +162,14 @@ it('writes the status signal only for the URL event, not a different event a hel
     expect(StatusSignal::query()->where('event_id', $event->id)->where('component', 'voice')->count())->toBe(1)
         ->and(StatusSignal::query()->where('event_id', $otherEvent->id)->count())->toBe(0);
 });
+
+it('uses German attribute names in the status control validation messages', function () {
+    $event = Event::factory()->live()->create();
+
+    $response = $this->actingAs(User::factory()->helper()->create())
+        ->postJson("/screen/{$event->slug}/control/status", [])
+        ->assertUnprocessable();
+
+    expect($response->json('errors.component.0'))->toBe('Die Komponente ist erforderlich.')
+        ->and($response->json('errors.level.0'))->toBe('Der Status ist erforderlich.');
+});

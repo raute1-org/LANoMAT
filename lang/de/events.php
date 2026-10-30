@@ -62,6 +62,11 @@ return [
         'to_presence' => 'Wer ist da?',
         'to_jukebox' => 'Zur Jukebox',
         'to_gallery' => 'Zur Galerie',
+        'to_catering' => 'Essen bestellen',
+        'to_polls' => 'Zu den Abstimmungen',
+        'to_lfg' => 'Mitspieler finden',
+        'to_files' => 'Zu den Dateien',
+        'to_servers' => 'Zu den Spielservern',
         'news_heading' => 'Neuigkeiten',
         'cta' => [
             'announced' => 'Bald geht die Anmeldung los',

@@ -22,10 +22,10 @@ return [
         'break' => 'Pause',
     ],
     'page' => [
-        'title' => 'Programm',
+        'title' => 'Zeitplan',
         'now' => 'Jetzt',
         'next' => 'Gleich',
-        'empty' => 'Noch kein Programm',
+        'empty' => 'Noch kein Zeitplan',
         'favorite' => 'Merken',
         'unfavorite' => 'Nicht mehr merken',
     ],

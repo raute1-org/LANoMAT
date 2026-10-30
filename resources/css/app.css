@@ -252,3 +252,11 @@
         transition-duration: 0.01ms !important;
     }
 }
+
+/* OBS browser-source overlays (Overlay/* pages, flagged `html.overlay` by the
+   root view) composite over gameplay footage: the document itself must paint
+   nothing, in light and dark theme alike. */
+html.overlay,
+html.overlay body {
+    background: transparent !important;
+}

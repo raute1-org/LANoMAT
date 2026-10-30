@@ -13,6 +13,7 @@ return [
         'title' => 'Voice einrichten',
         'intro' => 'Verbinde dich mit dem LAN-Voice-Server und lade dir bei Bedarf den passenden Client herunter.',
         'connect' => 'Verbinden',
+        'installer_missing' => 'Dieser Installer ist gerade nicht verfügbar. Bitte sag der Orga Bescheid.',
         'server_address' => 'Serveradresse',
         'installers_heading' => 'Client herunterladen',
         'installers_empty' => 'Für diese Plattform ist noch kein Installer hinterlegt — frag die Orga oder lade den offiziellen Client direkt beim Anbieter herunter.',

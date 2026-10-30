@@ -35,7 +35,7 @@ const widthClass = computed(() => pageWidthClasses[props.width]);
             <Link
                 v-if="back"
                 :href="back.href"
-                class="mb-4 inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                class="mb-4 inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-10"
             >
                 <ArrowLeft class="size-4" aria-hidden="true" />
                 {{ back.label }}
