@@ -90,6 +90,43 @@ allein deckt das Frontend-Formatting nicht ab.
 
 ---
 
+## Öffentliches Repository – Regeln
+
+Dieses Repository ist **öffentlich**. Die Git-Historie ist es auch: was einmal
+committet wurde, gilt als veröffentlicht (auch nach einem Revert).
+
+**Niemals committen:**
+
+- echte IP-Adressen oder interne Hostnamen (Server, VMs, LAN, VPN)
+- Discord-IDs (User, Guild, Channel) und andere Account-Kennungen
+- echte E-Mail-Adressen
+- Tokens, Passwörter, API-Keys, `.env`-Inhalte, `*.pem`/`*.key`
+- SSH-Schlüssel und SSH-Fingerprints
+- Produktivdaten, Datenbank-Dumps, Backups (`*.bak`, `*.sql.gz`)
+- Screenshots mit echten Nutzerdaten
+
+**Platzhalter-Konventionen:** `<APP_SERVER_IP>`, `<VM_IP>`, `<DISCORD_ID>`,
+`example.org` bzw. `user@example.org`; für Beispiel-IPs nur die
+Dokumentationsbereiche `203.0.113.0/24`, `198.51.100.0/24`, `192.0.2.0/24`.
+
+**Lokal prüfen (vor dem Push):**
+
+```bash
+scripts/ops/check-public-safe.sh          # IPs, E-Mails, SSH-Material, Discord-IDs in docs/, scripts/, ops/, README, compose, docker/, .github/
+docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+  detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+```
+
+Ein begründeter Ausnahmefall kommt in `scripts/ops/public-safe-allowlist.txt`
+(Pfad + Regex, mit Kommentar) bzw. `.gitleaks.toml` – nie pauschal.
+
+**Die CI erzwingt beides:** der Workflow `public-safety`
+(`.github/workflows/public-safety.yml`) läuft bei **jedem** Pull Request und
+Push auf `main`, auch bei reinen Doku-Änderungen (kein `paths-ignore`), und
+scannt mit gitleaks die gesamte Historie plus den Public-Safety-Check.
+
+---
+
 ## Fragen?
 
 Bei Fragen zur Architektur oder zum Vorgehen: siehe [`docs/architecture.md`](docs/architecture.md)
