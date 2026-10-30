@@ -8,12 +8,14 @@ use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Support\EventDays;
+use App\Modules\Registration\ValueObjects\ArrivalPlan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class RegisterForEvent
 {
-    public function handle(Event $event, User $user, string $ticketType): EventRegistration
+    public function handle(Event $event, User $user, string $ticketType, ?ArrivalPlan $plan = null): EventRegistration
     {
         if (! RegistrationAvailability::acceptsStatus($event->status)) {
             throw RegistrationException::eventNotOpen();
@@ -23,7 +25,11 @@ class RegisterForEvent
             throw RegistrationException::invalidTicketType($ticketType);
         }
 
-        return DB::transaction(function () use ($event, $user, $ticketType): EventRegistration {
+        if ($plan !== null && ! $plan->isValidFor(EventDays::dates($event))) {
+            throw RegistrationException::invalidArrivalPlan();
+        }
+
+        return DB::transaction(function () use ($event, $user, $ticketType, $plan): EventRegistration {
             // Lock the PARENT event row first. `events_registrations` has no
             // rows at all for a brand-new event, so a `FOR UPDATE` on the
             // (empty) child rowset locks nothing and two concurrent first
@@ -70,6 +76,8 @@ class RegisterForEvent
                 // should count again) and must never carry over silently.
                 $existing->checked_in_at = null;
                 $existing->paid_at = null;
+                // A returning participant states their plan afresh.
+                UpdateArrivalPlan::apply($existing, $plan ?? new ArrivalPlan);
                 $existing->save();
 
                 return $existing;
@@ -81,6 +89,7 @@ class RegisterForEvent
                 'ticket_type' => $ticketType,
             ]);
             $registration->status = RegistrationStatus::Confirmed;
+            UpdateArrivalPlan::apply($registration, $plan ?? new ArrivalPlan);
             $registration->save();
 
             return $registration;

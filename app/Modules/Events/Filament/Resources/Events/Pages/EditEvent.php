@@ -93,7 +93,15 @@ class EditEvent extends EditRecord
                 }),
         ];
 
+        $arrivalAction = Action::make('arrivalOverview')
+            ->label(__('registration.admin.arrival_overview'))
+            ->icon(Heroicon::OutlinedChartBar)
+            ->color('gray')
+            ->authorize(fn () => auth()->user()?->can('view', $event) ?? false)
+            ->url(EventResource::getUrl('arrival', ['record' => $event]));
+
         return [
+            $arrivalAction,
             ...$qrActions,
             ...$transitions,
             DeleteAction::make(),

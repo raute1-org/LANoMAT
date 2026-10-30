@@ -30,6 +30,11 @@ return [
         'unpaid' => 'Noch nicht bezahlt',
         'checked_in' => 'Eingecheckt',
         'not_checked_in' => 'Noch nicht eingecheckt',
+        'arrival' => 'Ankunft',
+        'departure' => 'Abreise',
+        'arrival_open' => 'noch offen',
+        'arrival_set' => 'Angeben',
+        'arrival_change' => 'Ändern',
     ],
 
     'seat' => [

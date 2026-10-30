@@ -67,6 +67,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/events/{event:slug}/register', [RegistrationController::class, 'show'])->name('events.register');
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
+    Route::patch('/events/{event:slug}/register/arrival', [RegistrationController::class, 'updateArrival'])->name('events.register.arrival');
     Route::delete('/events/{event:slug}/register', [RegistrationController::class, 'destroy'])->name('events.register.destroy');
 
     // On-site self check-in (one QR per event). 404 for unknown/rotated tokens.

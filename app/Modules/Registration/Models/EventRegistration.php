@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Presence\Support\PresenceProjection;
 use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Registration\Enums\TimeWindow;
 use App\Modules\Seating\Models\SeatAssignment;
 use Database\Factories\EventRegistrationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,13 +21,18 @@ use Illuminate\Support\Str;
  * @property Carbon|null $paid_at
  * @property Carbon|null $checked_in_at
  * @property string $qr_token
+ * @property Carbon|null $arrival_day
+ * @property TimeWindow|null $arrival_window
+ * @property Carbon|null $departure_day
+ * @property TimeWindow|null $departure_window
  */
 class EventRegistration extends Model
 {
     /** @use HasFactory<EventRegistrationFactory> */
     use HasFactory;
 
-    // status/paid_at/checked_in_at/qr_token deliberately NOT fillable
+    // status/paid_at/checked_in_at/qr_token deliberately NOT fillable; the
+    // arrival plan is written only via UpdateArrivalPlan/RegisterForEvent.
     // (privilege/state fields — set only via actions or the creating hook).
     protected $fillable = [
         'event_id',
@@ -49,6 +55,10 @@ class EventRegistration extends Model
             'status' => RegistrationStatus::class,
             'paid_at' => 'datetime',
             'checked_in_at' => 'datetime',
+            'arrival_day' => 'date',
+            'arrival_window' => TimeWindow::class,
+            'departure_day' => 'date',
+            'departure_window' => TimeWindow::class,
         ];
     }
 

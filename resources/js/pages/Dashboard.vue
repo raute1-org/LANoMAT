@@ -33,6 +33,11 @@ const props = defineProps<{
         status: string;
         paid: boolean;
         checkedIn: boolean;
+        arrival: {
+            arrivalLabel: string | null;
+            departureLabel: string | null;
+            editable: boolean;
+        };
     } | null;
     seat: { id: number; label: string } | null;
     teams: { id: number; name: string; tag: string; role: string }[];
@@ -269,8 +274,19 @@ const ticketNote = computed<string>(() => {
                                     : labels.ticket.not_checked_in
                             }}
                         </li>
+                        <li data-test="dashboard-arrival">
+                            {{ labels.ticket.arrival }}:
+                            {{
+                                registration.arrival.arrivalLabel ??
+                                labels.ticket.arrival_open
+                            }}
+                        </li>
+                        <li v-if="registration.arrival.departureLabel">
+                            {{ labels.ticket.departure }}:
+                            {{ registration.arrival.departureLabel }}
+                        </li>
                     </ul>
-                    <div class="mt-4">
+                    <div class="mt-4 flex flex-wrap gap-2">
                         <Button
                             v-if="registration"
                             as-child
@@ -280,6 +296,24 @@ const ticketNote = computed<string>(() => {
                             <Link :href="eventsRegister.url(event.slug)">{{
                                 labels.ticket.show
                             }}</Link>
+                        </Button>
+                        <Button
+                            v-if="registration && registration.arrival.editable"
+                            as-child
+                            variant="outline"
+                            size="sm"
+                            data-test="dashboard-arrival-edit"
+                        >
+                            <Link
+                                :href="
+                                    eventsRegister.url(event.slug) + '#arrival'
+                                "
+                                >{{
+                                    registration.arrival.arrivalLabel
+                                        ? labels.ticket.arrival_change
+                                        : labels.ticket.arrival_set
+                                }}</Link
+                            >
                         </Button>
                         <Button
                             v-else-if="event.availability === 'open'"

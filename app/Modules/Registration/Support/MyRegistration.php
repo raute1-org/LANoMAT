@@ -24,7 +24,7 @@ class MyRegistration
     }
 
     /**
-     * @return array{ticketType: string, ticketLabel: string, status: string, paid: bool, checkedIn: bool}|null
+     * @return array{ticketType: string, ticketLabel: string, status: string, paid: bool, checkedIn: bool, arrival: array<string, mixed>}|null
      */
     public static function summary(Event $event, User $user): ?array
     {
@@ -36,6 +36,7 @@ class MyRegistration
             'status' => $registration->status->value,
             'paid' => $registration->paid_at !== null,
             'checkedIn' => $registration->checked_in_at !== null,
+            'arrival' => ArrivalPlanView::summary($registration, $user),
         ];
     }
 }
