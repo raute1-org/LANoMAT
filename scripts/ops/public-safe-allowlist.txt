@@ -1,0 +1,14 @@
+# Allowlist for scripts/ops/check-public-safe.sh (the repository is PUBLIC).
+# Format: <repo-relative path>:<bash extended regex>
+# The regex is matched against the offending TOKEN (the IP, e-mail address, ...),
+# not the whole line, and must match it completely (anchor with ^...$).
+# Every entry needs a justification comment. Keep this list short.
+
+# The project's own public production hostname (it is the public URL of the
+# instance and appears in the README/deploy docs); only the ssh login form of it.
+docs/deploy-lan-raute1.md:^root@lan\.raute1\.org$
+scripts/deploy/deploy.sh:^root@lan\.raute1\.org$
+
+# git@github.com is the generic SSH clone user of GitHub, not a personal address.
+docs/superpowers/plans/2026-07-15-m5-kickoff.md:^git@github\.com$
+docs/superpowers/plans/2026-07-16-m6-kickoff.md:^git@github\.com$
