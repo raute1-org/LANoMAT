@@ -70,6 +70,8 @@ pest()->extend(TestCase::class)
         'Unit/GameServers',
     );
 
+pest()->use(RefreshDatabase::class)->in('Feature/Provisioning');
+
 // Prevent stray HTTP requests in Discord/Voice tests to ensure all external
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
