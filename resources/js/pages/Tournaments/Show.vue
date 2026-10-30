@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import BracketView from '@/components/bracket/BracketView.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import TournamentEntryActions from '@/components/tournaments/TournamentEntryActions.vue';
 import { Button } from '@/components/ui/button';
 import { useTournamentChannel } from '@/composables/useTournamentChannel';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -11,12 +12,16 @@ import type {
     BracketMatchDto,
     MatchVoiceLinks,
     TournamentDetail,
+    TournamentMyEntry,
+    TournamentRegistrationGate,
 } from '@/types';
 
 const props = defineProps<{
     tournament: TournamentDetail;
     matches: BracketMatchDto[];
     myEntryId: number | null;
+    myEntry: TournamentMyEntry | null;
+    registration: TournamentRegistrationGate;
     myMatchVoiceLinks: MatchVoiceLinks;
     /** True for a helper/orga viewer — gates the match card's manual "Go" control. */
     canGoLive: boolean;
@@ -138,6 +143,15 @@ const isNotStarted = computed(
             <p class="text-sm text-muted-foreground">
                 {{ labels.not_started }}
             </p>
+            <div class="mt-4 flex justify-center">
+                <TournamentEntryActions
+                    :tournament-id="tournament.id"
+                    :status="tournament.status"
+                    :my-entry="myEntry"
+                    :registration="registration"
+                    :labels="labels"
+                />
+            </div>
         </div>
 
         <template v-else>

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Tournaments\Actions\StartTournament;
@@ -196,6 +197,7 @@ it('404s on show for a tournament whose event is still draft', function () {
 it('creates an entry on POST enroll while the tournament is in enrollment', function () {
     $tournament = Tournament::factory()->enrollment()->create();
     $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
 
     $this->actingAs($user)
         ->post("/tournaments/{$tournament->id}/enroll")
@@ -220,6 +222,7 @@ it('lets a team owner enroll their team into a team tournament', function () {
     $team = Team::factory()->create(['owner_id' => $owner->id]);
     TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id]);
     TeamMember::factory()->create(['team_id' => $team->id]);
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $owner->id]);
 
     $this->actingAs($owner)
         ->post("/tournaments/{$tournament->id}/enroll", ['team_id' => $team->id])
@@ -235,6 +238,7 @@ it('forbids enrolling a team the acting user does not own or manage', function (
     TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $team->owner_id]);
     TeamMember::factory()->create(['team_id' => $team->id]);
     $stranger = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $stranger->id]);
 
     $this->actingAs($stranger)
         ->post("/tournaments/{$tournament->id}/enroll", ['team_id' => $team->id])
@@ -398,6 +402,7 @@ it('creates an entry on POST checkin while the entry owner acts during the check
     $tournament = Tournament::factory()->checkIn()->create();
     $user = User::factory()->create();
     $entry = TournamentEntry::factory()->solo()->create(['tournament_id' => $tournament->id, 'user_id' => $user->id]);
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
 
     $this->actingAs($user)
         ->post("/tournaments/{$tournament->id}/checkin")

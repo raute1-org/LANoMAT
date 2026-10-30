@@ -7,6 +7,7 @@ use App\Modules\Games\Models\Game;
 use App\Modules\Identity\Actions\LinkAccount;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Support\LinkedAccountData;
+use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -25,6 +26,7 @@ it('lets a user enroll when ownership is Unknown (no linked account at all)', fu
     ]);
     $tournament = Tournament::factory()->enrollment()->create(['game_id' => $game->id]);
     $user = User::factory()->create(); // no linked Steam at all → Unknown
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
 
     $this->actingAs($user)->post(route('tournaments.enroll', $tournament))->assertRedirect();
 
@@ -47,6 +49,7 @@ it('lets a user enroll when ownership genuinely resolves to NotOwned via the con
     ]);
     $tournament = Tournament::factory()->enrollment()->create(['game_id' => $game->id]);
     $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
 
     fakeLinkedAccounts()->willReportOwnership(LinkedAccountProvider::Steam, owns: false);
     app(LinkAccount::class)->handle($user, LinkedAccountProvider::Steam, new LinkedAccountData(

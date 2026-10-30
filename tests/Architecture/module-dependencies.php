@@ -162,9 +162,10 @@ return [
         3 => 'Games',
         4 => 'Identity',
         5 => 'Infoscreen',
-        6 => 'Schedule',
-        7 => 'Teams',
-        8 => 'Voice',
+        6 => 'Registration',
+        7 => 'Schedule',
+        8 => 'Teams',
+        9 => 'Voice',
     ],
     'Voice' => [
         0 => 'Discord',

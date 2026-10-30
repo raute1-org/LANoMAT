@@ -6,6 +6,20 @@
  */
 export type OwnershipHintStatus = 'owned' | 'not_owned' | 'unknown';
 
+/** The viewer's own active entry; `canWithdraw` mirrors TournamentPolicy::withdraw. */
+export interface TournamentMyEntry {
+    id: number;
+    status: 'registered' | 'checked_in';
+    canWithdraw: boolean;
+}
+
+/** Ruling A: whether the viewer must register for the event before entering tournaments. */
+export interface TournamentRegistrationGate {
+    required: boolean;
+    open: boolean;
+    url: string;
+}
+
 export interface TournamentSummary {
     id: number;
     name: string;
@@ -16,6 +30,7 @@ export interface TournamentSummary {
     gameName: string | null;
     /** Null when not signed in or the tournament has no game attached. */
     ownershipHint: OwnershipHintStatus | null;
+    myEntry: TournamentMyEntry | null;
 }
 
 export interface TournamentDetail {

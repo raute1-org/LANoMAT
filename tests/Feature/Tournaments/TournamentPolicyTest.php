@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Tournaments\Models\Tournament;
@@ -13,6 +14,9 @@ it('allows enroll only while the tournament is in enrollment status', function (
     $user = User::factory()->create();
     $enrollmentTournament = Tournament::factory()->enrollment()->create();
     $draftTournament = Tournament::factory()->create(); // draft
+    foreach ([$enrollmentTournament, $draftTournament] as $tournament) {
+        EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
+    }
 
     expect($user->can('enroll', $enrollmentTournament))->toBeTrue()
         ->and($user->can('enroll', $draftTournament))->toBeFalse();
@@ -21,6 +25,7 @@ it('allows enroll only while the tournament is in enrollment status', function (
 it('allows check-in for the entry owner (solo)', function () {
     $owner = User::factory()->create();
     $entry = TournamentEntry::factory()->solo()->create(['user_id' => $owner->id]);
+    EventRegistration::factory()->create(['event_id' => $entry->tournament->event_id, 'user_id' => $owner->id]);
 
     expect($owner->can('checkIn', $entry))->toBeTrue();
 });
@@ -29,6 +34,7 @@ it('allows check-in for the team owner of the entry team', function () {
     $teamOwner = User::factory()->create();
     $team = Team::factory()->create(['owner_id' => $teamOwner->id]);
     $entry = TournamentEntry::factory()->team()->create(['team_id' => $team->id]);
+    EventRegistration::factory()->create(['event_id' => $entry->tournament->event_id, 'user_id' => $teamOwner->id]);
 
     expect($teamOwner->can('checkIn', $entry))->toBeTrue();
 });

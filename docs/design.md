@@ -172,6 +172,16 @@ Arrival plan (optional, see [arrival-planning.md](arrival-planning.md)): with a 
 
 Backing props: `availability`/`freeSpots` (see above), `registration` (`Registration\Support\MyRegistration::summary`, never the QR payload) and `registrationState` (`upcoming|open|closed`).
 
+**Tournament entry CTAs** (`components/tournaments/TournamentEntryActions.vue`, shared by `Tournaments/Index` and `Tournaments/Show`; decided by `TournamentPolicy`, see [qa/rulings.md](qa/rulings.md) A/B): enrolling and checking in need a non-cancelled event registration (orga exempt) — without one the CTA is replaced by "Melde dich zuerst zum Event an …" plus "Zur Event-Anmeldung" while `RegistrationAvailability` is `open`, otherwise "Die Event-Anmeldung ist derzeit nicht geöffnet." (props `registration.{required,open,url}`).
+
+| Tournament status | Viewer state | Shown |
+|---|---|---|
+| `enrollment` | registered for event, no entry | primary "Anmelden" |
+| `enrollment` | entry | badge "Angemeldet" + ghost "Abmelden" (`confirm()`, own entry / team owner only) |
+| `check_in` | entry not checked in | outline "Einchecken" + "Abmelden" |
+| `check_in` | checked in | badge "Eingecheckt" + "Abmelden" |
+| `live`/`finished`/`draft` | any | no entry actions (withdraw closes when the tournament starts) |
+
 ### 7. New page checklist
 
 - [ ] Entry in `resources/js/lib/pageLayouts.ts` (guard test green).

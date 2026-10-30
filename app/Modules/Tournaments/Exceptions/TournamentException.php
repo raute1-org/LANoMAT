@@ -93,4 +93,9 @@ class TournamentException extends DomainException
     {
         return new self('This entry has been withdrawn and cannot check in.', 'tournaments.errors.entry_withdrawn');
     }
+
+    public static function withdrawalClosed(): self
+    {
+        return new self('Entries can only be withdrawn while enrollment or check-in is open.', 'tournaments.errors.withdrawal_closed');
+    }
 }

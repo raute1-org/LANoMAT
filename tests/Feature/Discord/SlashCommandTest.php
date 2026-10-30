@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Modules\Discord\Jobs\SendFollowupJob;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Models\Tournament;
@@ -76,6 +77,7 @@ it('checks in the mapped user entry for /tournament checkin when the window is o
         'user_id' => $user->id,
         'status' => EntryStatus::Registered,
     ]);
+    EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $user->id]);
 
     $body = applicationCommand('tournament', [
         ['name' => 'checkin', 'type' => 1, 'options' => [
@@ -140,6 +142,7 @@ it('never invokes CheckInEntry when the resolved entry fails the checkIn policy 
         'user_id' => $user->id,
         'status' => EntryStatus::Registered,
     ]);
+    EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $user->id]);
 
     $this->partialMock(CheckInEntry::class, function ($mock) {
         $mock->shouldNotReceive('handle');
@@ -189,6 +192,7 @@ it('returns an error message (not a 500) when checkin happens outside the window
         'user_id' => $user->id,
         'status' => EntryStatus::Registered,
     ]);
+    EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $user->id]);
 
     $body = applicationCommand('tournament', [
         ['name' => 'checkin', 'type' => 1, 'options' => [
@@ -304,4 +308,29 @@ it('returns the help text for /help', function () {
         ->assertOk()
         ->assertJsonPath('type', 4)
         ->assertJsonPath('data.content', __('discord.help.text'));
+});
+
+it('tells an unregistered participant to register for the event before checking in', function () {
+    $user = User::factory()->create(['discord_id' => '555666777']);
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->checkIn()->create([
+        'checkin_opens_at' => now()->subMinute(),
+        'checkin_closes_at' => now()->addHour(),
+    ]);
+    $entry = TournamentEntry::factory()->solo()->for($tournament)->create([
+        'user_id' => $user->id,
+        'status' => EntryStatus::Registered,
+    ]);
+
+    $body = applicationCommand('tournament', [
+        ['name' => 'checkin', 'type' => 1, 'options' => [
+            ['name' => 'id', 'type' => 4, 'value' => $tournament->id],
+        ]],
+    ], discordUserId: '555666777');
+
+    postInteraction($body)
+        ->assertOk()
+        ->assertJsonPath('data.content', __('tournaments.errors.registration_required'));
+
+    expect($entry->fresh()->status)->toBe(EntryStatus::Registered);
 });

@@ -5,11 +5,13 @@ namespace App\Modules\Tournaments\Policies;
 use App\Models\User;
 use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\Tournaments\Actions\GoLive;
+use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Support\EventRegistrationRequirement;
 
 class TournamentPolicy
 {
@@ -45,16 +47,49 @@ class TournamentPolicy
         return $this->manage($user, $tournament);
     }
 
+    /**
+     * Enrollment window open AND (Ruling A / OQ-07) the acting user holds a
+     * non-cancelled registration for the tournament's event; orga bypasses.
+     */
     public function enroll(User $user, Tournament $tournament): bool
     {
-        return $tournament->status === TournamentStatus::Enrollment;
+        return $tournament->status === TournamentStatus::Enrollment
+            && EventRegistrationRequirement::satisfiedBy($user, $tournament);
     }
 
     public function checkIn(User $user, TournamentEntry $entry): bool
     {
-        return $user->isOrga()
-            || $entry->user_id === $user->id
-            || $entry->team?->owner_id === $user->id;
+        if ($user->isOrga()) {
+            return true;
+        }
+
+        $owns = $entry->user_id === $user->id || $entry->team?->owner_id === $user->id;
+        $tournament = $entry->tournament()->first();
+
+        return $owns
+            && $tournament !== null
+            && EventRegistrationRequirement::satisfiedBy($user, $tournament);
+    }
+
+    /**
+     * Withdrawing an entry (Ruling B / OQ-N6): the entry's owner — the user of a
+     * solo entry, the team OWNER (captain) of a team entry, never a plain
+     * member — while enrollment or check-in is open. Orga uses the Filament
+     * `manage` path instead.
+     */
+    public function withdraw(User $user, TournamentEntry $entry): bool
+    {
+        if ($entry->status === EntryStatus::Withdrawn) {
+            return false;
+        }
+
+        $tournament = $entry->tournament()->first();
+
+        if ($tournament === null || ! in_array($tournament->status, [TournamentStatus::Enrollment, TournamentStatus::CheckIn], true)) {
+            return false;
+        }
+
+        return $entry->user_id === $user->id || $entry->team?->owner_id === $user->id;
     }
 
     public function manage(User $user, Tournament $tournament): bool

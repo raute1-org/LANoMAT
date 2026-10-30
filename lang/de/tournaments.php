@@ -62,6 +62,13 @@ return [
         'join_voice' => 'Voice beitreten',
         'not_started' => 'Das Turnier hat noch nicht begonnen.',
         'finished' => 'Turnier beendet',
+        'withdraw' => 'Abmelden',
+        'withdraw_confirm' => 'Wirklich vom Turnier abmelden? Dein Platz wird freigegeben.',
+        'entered' => 'Angemeldet',
+        'checked_in' => 'Eingecheckt',
+        'registration_required' => 'Melde dich zuerst zum Event an, um dich für Turniere anzumelden.',
+        'register_now' => 'Zur Event-Anmeldung',
+        'registration_not_open' => 'Die Event-Anmeldung ist derzeit nicht geöffnet.',
     ],
 
     'format' => [
@@ -110,6 +117,8 @@ return [
     ],
 
     'errors' => [
+        'withdrawal_closed' => 'Zurückziehen ist nur während der Anmeldung oder des Check-ins möglich.',
+        'registration_required' => 'Melde dich zuerst zum Event an.',
         'not_in_enrollment' => 'Das Turnier ist nicht für Anmeldungen geöffnet.',
         'full' => 'Das Turnier ist ausgebucht.',
         'already_enrolled' => 'Diese Person oder dieses Team ist bereits angemeldet.',

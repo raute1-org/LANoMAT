@@ -1,48 +1,21 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import TournamentEntryActions from '@/components/tournaments/TournamentEntryActions.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-    checkin as checkinTournament,
-    enroll as enrollTournament,
-    show as showTournament,
-} from '@/routes/tournaments';
-import type { TournamentSummary } from '@/types';
+import { show as showTournament } from '@/routes/tournaments';
+import type { TournamentRegistrationGate, TournamentSummary } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     event: { name: string; slug: string };
     tournaments: TournamentSummary[];
+    registration: TournamentRegistrationGate;
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
     formatLabels: Record<string, string>;
     ownershipHintLabels: Record<string, string>;
 }>();
-
-function enroll(tournament: TournamentSummary) {
-    useForm({}).post(enrollTournament.url(tournament.id), {
-        preserveScroll: true,
-    });
-}
-
-function checkin(tournament: TournamentSummary) {
-    useForm({}).post(checkinTournament.url(tournament.id), {
-        preserveScroll: true,
-    });
-}
-
-function ctaFor(tournament: TournamentSummary): 'enroll' | 'checkin' | null {
-    if (tournament.status === 'enrollment') {
-        return 'enroll';
-    }
-
-    if (tournament.status === 'check_in') {
-        return 'checkin';
-    }
-
-    return null;
-}
 
 function formatDate(iso: string | null): string {
     return iso ? new Date(iso).toLocaleString() : '';
@@ -61,7 +34,9 @@ function isLive(tournament: TournamentSummary): boolean {
  */
 function showsOwnershipWarning(tournament: TournamentSummary): boolean {
     return (
-        ctaFor(tournament) === 'enroll' &&
+        tournament.status === 'enrollment' &&
+        tournament.myEntry === null &&
+        !props.registration.required &&
         tournament.ownershipHint === 'not_owned'
     );
 }
@@ -118,22 +93,14 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
                         <Badge v-else variant="outline">{{
                             statusLabels[tournament.status]
                         }}</Badge>
-                        <Button
-                            v-if="ctaFor(tournament) === 'enroll'"
-                            size="sm"
-                            @click="enroll(tournament)"
-                        >
-                            {{ labels.enroll }}
-                        </Button>
-                        <Button
-                            v-else-if="ctaFor(tournament) === 'checkin'"
-                            size="sm"
-                            variant="outline"
-                            @click="checkin(tournament)"
-                        >
-                            {{ labels.check_in }}
-                        </Button>
                     </div>
+                    <TournamentEntryActions
+                        :tournament-id="tournament.id"
+                        :status="tournament.status"
+                        :my-entry="tournament.myEntry"
+                        :registration="registration"
+                        :labels="labels"
+                    />
                     <!-- Advisory only — never blocks enroll() above. See GameOwnershipHint. -->
                     <p
                         v-if="showsOwnershipWarning(tournament)"

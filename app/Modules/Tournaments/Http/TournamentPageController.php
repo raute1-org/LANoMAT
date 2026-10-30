@@ -16,8 +16,11 @@ use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\EnrollTeam;
 use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Actions\SubmitMatchReport;
+use App\Modules\Tournaments\Actions\WithdrawEntry;
+use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
+use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\StaleMatchException;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Http\Requests\ConfirmReportRequest;
@@ -27,6 +30,7 @@ use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
+use App\Modules\Tournaments\Support\EventRegistrationRequirement;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
 use App\Modules\Voice\Support\VoiceJoinLink;
@@ -55,17 +59,31 @@ class TournamentPageController extends Controller
 
         $user = $request->user();
 
-        $tournaments = Tournament::query()
+        $tournamentModels = Tournament::query()
             ->where('event_id', $event->id)
             ->orderBy('starts_at')
             ->with('game')
+            ->get();
+
+        // The viewer's own active entries (solo, or as team owner), keyed by tournament.
+        $myEntries = $user === null ? collect() : TournamentEntry::query()
+            ->whereIn('tournament_id', $tournamentModels->modelKeys())
+            ->where('status', '!=', EntryStatus::Withdrawn->value)
+            ->ownedBy($user)
+            ->with('tournament')
+            ->latest('id')
             ->get()
+            ->unique('tournament_id')
+            ->keyBy('tournament_id');
+
+        $tournaments = $tournamentModels
             ->map(fn (Tournament $tournament): array => [
                 'id' => $tournament->id,
                 'name' => $tournament->name,
                 'format' => $tournament->format->value,
                 'status' => $tournament->status->value,
                 'startsAt' => $tournament->starts_at->toIso8601String(),
+                'myEntry' => $this->myEntryState($user, $myEntries->get($tournament->id)),
                 'gameName' => $tournament->game?->name,
                 // ADVISORY only — see GameOwnershipHint's docblock and
                 // OwnershipHintNeverBlocksTest: this never gates enrollment,
@@ -80,6 +98,7 @@ class TournamentPageController extends Controller
         return Inertia::render('Tournaments/Index', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'tournaments' => $tournaments,
+            'registration' => EventRegistrationRequirement::viewState($user, $event),
             'labels' => [...trans('tournaments.page'), 'title' => trans('tournaments.page.index_title')],
             'statusLabels' => trans('tournaments.status'),
             'formatLabels' => trans('tournaments.format'),
@@ -117,6 +136,8 @@ class TournamentPageController extends Controller
             ],
             'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
             'myEntryId' => $myEntry?->id,
+            'myEntry' => $this->myEntryState($user, $myEntry),
+            'registration' => EventRegistrationRequirement::viewState($user, $event),
             'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry),
             // Gates the match card's manual "Go" control (Task 11) —
             // mirrors TournamentPolicy::goLive (helper-or-above) so the
@@ -144,9 +165,15 @@ class TournamentPageController extends Controller
 
     public function enroll(Request $request, Tournament $tournament, EnrollSolo $enrollSolo, EnrollTeam $enrollTeam): RedirectResponse
     {
-        $this->authorize('enroll', $tournament);
-
         $user = $this->authUser($request);
+
+        if ($tournament->status === TournamentStatus::Enrollment && ! EventRegistrationRequirement::satisfiedBy($user, $tournament)) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans('tournaments.errors.registration_required')]);
+
+            return back();
+        }
+
+        $this->authorize('enroll', $tournament);
 
         try {
             if ($tournament->team_size > 1) {
@@ -175,6 +202,12 @@ class TournamentPageController extends Controller
 
         abort_if($entry === null, 404);
 
+        if (! EventRegistrationRequirement::satisfiedBy($user, $tournament)) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans('tournaments.errors.registration_required')]);
+
+            return back();
+        }
+
         $this->authorize('checkIn', $entry);
 
         try {
@@ -186,6 +219,27 @@ class TournamentPageController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.checkin.checked_in')]);
+
+        return back();
+    }
+
+    public function withdraw(Request $request, Tournament $tournament, WithdrawEntry $action): RedirectResponse
+    {
+        $entry = $this->entryFor($tournament, $this->authUser($request));
+
+        abort_if($entry === null, 404);
+
+        $this->authorize('withdraw', $entry);
+
+        try {
+            $action->handle($entry);
+        } catch (TournamentException|StaleMatchException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.enrollment.withdrawn')]);
 
         return back();
     }
@@ -319,6 +373,22 @@ class TournamentPageController extends Controller
     }
 
     /**
+     * @return array{id: int, status: string, canWithdraw: bool}|null
+     */
+    private function myEntryState(?User $user, ?TournamentEntry $entry): ?array
+    {
+        if ($user === null || $entry === null) {
+            return null;
+        }
+
+        return [
+            'id' => $entry->id,
+            'status' => $entry->status->value,
+            'canWithdraw' => $user->can('withdraw', $entry),
+        ];
+    }
+
+    /**
      * The viewer's own entry for this tournament — directly owned, or via
      * team ownership — or null if they have none.
      */
@@ -326,7 +396,9 @@ class TournamentPageController extends Controller
     {
         return TournamentEntry::query()
             ->where('tournament_id', $tournament->id)
+            ->where('status', '!=', EntryStatus::Withdrawn->value)
             ->ownedBy($user)
+            ->latest('id')
             ->first();
     }
 

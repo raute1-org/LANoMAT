@@ -81,6 +81,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/tournaments/{tournament}/enroll', [TournamentPageController::class, 'enroll'])->name('tournaments.enroll');
     Route::post('/tournaments/{tournament}/checkin', [TournamentPageController::class, 'checkin'])->name('tournaments.checkin');
+    Route::post('/tournaments/{tournament}/withdraw', [TournamentPageController::class, 'withdraw'])->name('tournaments.withdraw');
     Route::post('/matches/{match}/report', [TournamentPageController::class, 'report'])->name('matches.report');
     Route::post('/matches/{match}/confirm', [TournamentPageController::class, 'confirm'])->name('matches.confirm');
     Route::post('/matches/{match}/dispute', [TournamentPageController::class, 'dispute'])->name('matches.dispute');
