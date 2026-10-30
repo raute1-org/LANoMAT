@@ -6,6 +6,8 @@ The visual identity for LANoMAT (M13 design polish). One idea runs through every
 
 The participant and admin UI stays calm, precise and out of the way (Rams: *unobtrusive*, *as little design as possible*). All the loudness — colour, scale, motion, celebration — is spent on the `/screen/{event}` beamer, where it belongs. A single **signal-amber** accent is the through-line: it always means *primary action* or *live/now*, nothing else.
 
+Logo and brand mark: see [logo.md](logo.md).
+
 This document is the source of truth. Every colour and type decision derives from the tokens in `resources/css/app.css`; don't hardcode hex values in components — use the token utilities (`bg-primary`, `text-muted-foreground`, `text-live`, `font-mono`, …).
 
 ## Palette
