@@ -1,10 +1,29 @@
 name: CI
 on:
-  push: { branches: [main] }
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+
+# A newer push to the same PR supersedes the running one; runs on main are
+# never cancelled (every merge commit gets a full result).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
+  php:
+    name: php
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -16,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # '8.4' resolves to the newest 8.4.x patch available on the runner.
       - uses: shivammathur/setup-php@v2
         with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
 
@@ -30,20 +50,17 @@ jobs:
           restore-keys: composer-${{ runner.os }}-
 
       - run: composer install --no-interaction --prefer-dist
-      - run: npm ci
-
       - run: cp .env.testing .env && php artisan key:generate
 
-      # The Vite plugin shells out to this at buildStart; run it explicitly so
-      # resources/js/{routes,actions,wayfinder} exist before type-checking/build.
-      - run: php artisan wayfinder:generate --with-form
-
+      # The feature tests render Inertia pages through the Vite-powered root
+      # view, which needs public/build/manifest.json (the Vite plugin also runs
+      # wayfinder:generate itself). The frontend job runs the same build as its
+      # own check; this one only produces the manifest for the tests.
+      - run: npm ci
       - run: npm run build
+
       - run: ./vendor/bin/pint --test
       - run: ./vendor/bin/phpstan analyse --memory-limit=1G
-      - run: npm run lint:check
-      - run: npm run format:check
-      - run: npm run types:check
 
       - run: php artisan migrate --force
       - name: Tests (full profile)
@@ -63,3 +80,51 @@ jobs:
           php artisan event:list > /dev/null
         env:
           MODULES_PROFILE: core
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
+
+      # '22' resolves to the newest 22.x LTS patch; `cache: npm` caches ~/.npm.
+      - uses: actions/setup-node@v7.1.0
+        with: { node-version: 22, cache: npm }
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Composer is only needed so `php artisan wayfinder:generate` can boot.
+      - run: composer install --no-interaction --prefer-dist
+      - run: npm ci
+
+      - run: cp .env.testing .env && php artisan key:generate
+
+      # The Vite plugin shells out to this at buildStart; run it explicitly so
+      # resources/js/{routes,actions,wayfinder} exist before type-checking/build.
+      - run: php artisan wayfinder:generate --with-form
+
+      - run: npm run build
+      - run: npm run lint:check
+      - run: npm run format:check
+      - run: npm run types:check
+
+  # Aggregate gate: keeps the single required-check name `ci` stable for
+  # branch protection / `gh pr checks`, whatever the job split underneath.
+  ci:
+    name: ci
+    needs: [php, frontend]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all jobs to pass
+        run: |
+          echo "php=${{ needs.php.result }} frontend=${{ needs.frontend.result }}"
+          [ "${{ needs.php.result }}" = "success" ] && [ "${{ needs.frontend.result }}" = "success" ]
