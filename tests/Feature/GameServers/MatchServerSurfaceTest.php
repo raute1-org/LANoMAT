@@ -19,7 +19,7 @@ uses(RefreshDatabase::class);
 function matchWithReadyServerLink(): GameMatch
 {
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create();
     $match = GameMatch::factory()->for($tournament)->create();
 
     $link = ServerLink::factory()->create([
@@ -61,7 +61,7 @@ it('surfaces the game spectate hint on the tournament-page match DTO', function 
         ),
     ]);
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->for($game, 'game')->create();
+    $tournament = Tournament::factory()->for($event)->for($game, 'game')->announced()->create();
     GameMatch::factory()->for($tournament)->create();
 
     $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
@@ -76,7 +76,7 @@ it('surfaces the game spectate hint on the tournament-page match DTO', function 
 
 it('exposes null spectateHint on the match DTO when the game has no spectate hint configured', function () {
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create();
     GameMatch::factory()->for($tournament)->create();
 
     $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
@@ -89,7 +89,7 @@ it('exposes null spectateHint on the match DTO when the game has no spectate hin
 
 it('exposes null server on the match DTO when no ServerLink exists', function () {
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create();
     GameMatch::factory()->for($tournament)->create();
 
     $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
@@ -131,7 +131,7 @@ it('does nothing when the match has no Discord channel yet', function () {
     $fake = fakeDiscord();
 
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create();
     $match = GameMatch::factory()->for($tournament)->create(['discord_channels' => null]);
 
     $link = ServerLink::factory()->create([
