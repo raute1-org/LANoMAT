@@ -20,6 +20,7 @@ class ServerLinkFactory extends Factory
             'match_id' => null,
             'tournament_id' => null,
             'pelican_server_id' => null,
+            'pelican_server_identifier' => null,
             // Factories bypass $fillable, so pelican_server_id/join_info/
             // status can be set directly here (mirrors GameFactory's
             // default_server_config).

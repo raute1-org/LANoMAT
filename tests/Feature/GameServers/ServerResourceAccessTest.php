@@ -5,6 +5,7 @@ use App\Modules\GameServers\Domain\PowerAction;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Filament\Resources\ServerLinks\Pages\ListServerLinks;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Tournaments\Models\GameMatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -41,7 +42,8 @@ it('calls PelicanClient::powerAction(Start) via the Start power action', functio
     $match = GameMatch::factory()->create();
     $link = ServerLink::factory()->create([
         'match_id' => $match->id,
-        'pelican_server_id' => 'abc-123',
+        'pelican_server_id' => '7',
+        'pelican_server_identifier' => '81ec06ec',
         'status' => ServerLinkStatus::Ready,
     ]);
 
@@ -50,5 +52,23 @@ it('calls PelicanClient::powerAction(Start) via the Start power action', functio
     Livewire::test(ListServerLinks::class)
         ->callTableAction('start', $link);
 
-    $fake->assertPowerAction('abc-123', PowerAction::Start);
+    // The Client API is addressed by the short identifier, never the numeric id.
+    $fake->assertPowerAction('81ec06ec', PowerAction::Start);
+});
+
+it('resolves and stores a missing identifier from the Application API before powering', function () {
+    $fake = fakePelican();
+    $server = $fake->createServer(FakePelicanClient::makeSpec('5'));
+    $link = ServerLink::factory()->create([
+        'pelican_server_id' => $server->id,
+        'pelican_server_identifier' => null,
+        'status' => ServerLinkStatus::Ready,
+    ]);
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(ListServerLinks::class)->callTableAction('stop', $link);
+
+    $fake->assertPowerAction($server->identifier, PowerAction::Stop);
+    expect($link->fresh()->pelican_server_identifier)->toBe($server->identifier);
 });

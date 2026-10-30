@@ -4,10 +4,12 @@ use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Actions\UploadServerConfig;
+use App\Modules\GameServers\Domain\PelicanEgg;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Jobs\ProvisionMatchServerJob;
 use App\Modules\GameServers\Support\EffectiveConfig;
+use App\Modules\GameServers\Support\ServerSpecBuilder;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,17 +70,19 @@ it('feeds the resolved uploaded config to the fake Pelican client via the provis
     // is exactly what createServer would receive once wired to a real
     // selection, by calling createServer with it directly against the same
     // fake used by the job.
-    $server = $fake->createServer($game->pelican_egg_id, $config);
+    $fake->eggs['egg-77'] = new PelicanEgg('egg-77', 'CS2', ['MAX_PLAYERS' => '12', 'SRCDS_MAP' => 'de_mirage']);
+    config(['services.pelican.owner_user_id' => '1']);
+    $fake->createServer((new ServerSpecBuilder($fake))->build($game, $game->pelican_egg_id, $config, 'upload-test'));
 
     $fake->assertServerCreated('egg-77');
-    expect($fake->created[0]['config'])->toMatchArray(['max_players' => 24, 'map' => 'de_nuke']);
+    expect($fake->created[0]['spec']->environment)->toBe(['MAX_PLAYERS' => '24', 'SRCDS_MAP' => 'de_nuke']);
 
     // And the job itself still resolves to *a* single effective config
     // (currently the game default, since no selection mechanism is wired
     // into MatchReady yet) when actually provisioning the match server.
     (new ProvisionMatchServerJob($match->id))->handle($fake);
     $fake->assertServerCreated('egg-77');
-    expect($fake->created[1]['config'])->toMatchArray(['max_players' => 10, 'map' => 'de_dust2']);
+    expect($fake->created[1]['spec']->environment)->toBe(['MAX_PLAYERS' => '10', 'SRCDS_MAP' => 'de_dust2']);
 });
 
 it('surfaces a german translated error message when both a preset and an uploaded config are supplied', function () {

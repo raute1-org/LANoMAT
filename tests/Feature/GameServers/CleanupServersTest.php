@@ -4,6 +4,7 @@ use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Jobs\CleanupServerJob;
 use App\Modules\GameServers\Listeners\CleanupServersOnCompleted;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Tournaments\Events\TournamentCompleted;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
@@ -35,7 +36,7 @@ it('dispatches a delayed CleanupServerJob for each match server link and any tou
 it('deletes the pelican server and marks the link Stopped', function () {
     $fake = fakePelican();
 
-    $created = $fake->createServer('egg-1', []);
+    $created = $fake->createServer(FakePelicanClient::makeSpec('egg-1'));
     $link = ServerLink::factory()->create([
         'pelican_server_id' => $created->id,
         'status' => ServerLinkStatus::Ready,
@@ -51,7 +52,7 @@ it('deletes the pelican server and marks the link Stopped', function () {
 it('is idempotent: re-running CleanupServerJob after Stopped is a no-op', function () {
     $fake = fakePelican();
 
-    $created = $fake->createServer('egg-1', []);
+    $created = $fake->createServer(FakePelicanClient::makeSpec('egg-1'));
     $link = ServerLink::factory()->create([
         'pelican_server_id' => $created->id,
         'status' => ServerLinkStatus::Ready,

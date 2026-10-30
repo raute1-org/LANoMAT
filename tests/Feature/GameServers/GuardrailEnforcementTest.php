@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Config;
 
 uses(RefreshDatabase::class);
 
+beforeEach(fn () => config(['services.pelican.owner_user_id' => '1']));
+
 function guardrailBreachingMatch(): GameMatch
 {
     $game = Game::factory()->create([

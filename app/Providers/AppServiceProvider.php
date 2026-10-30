@@ -169,10 +169,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(VoiceProviders::class);
 
         $this->app->bind(PelicanClient::class, fn () => new HttpPelicanClient(
-            (string) config('services.pelican.panel_url'),
+            (string) (config('services.pelican.url') ?? config('services.pelican.panel_url')),
             (string) config('services.pelican.application_token'),
             (string) config('services.pelican.client_token'),
-            config('services.pelican.node_id'),
+            config('services.pelican.default_node_id') !== null ? (string) config('services.pelican.default_node_id') : null,
+            (int) config('services.pelican.timeout'),
+            (int) config('services.pelican.connect_timeout'),
         ));
 
         $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(

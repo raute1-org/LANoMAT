@@ -15,8 +15,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**
- * Polls a provisioned server's install status
- * ({@see PelicanClient::getServer()}) after
+ * Polls a provisioned server's install and runtime state
+ * ({@see PelicanClient::getServer()}, which merges the Application API's
+ * install status with the Client API's real running/offline state) after
  * {@see ProvisionMatchServerJob} kicked off creation:
  *
  * - {@see ServerState::Running} -> writes the join details as a
@@ -69,6 +70,10 @@ class PollServerStatusJob implements ShouldQueue
         }
 
         $server = $client->getServer($link->pelican_server_id);
+
+        if ($link->pelican_server_identifier === null && $server->identifier !== null) {
+            $link->pelican_server_identifier = $server->identifier;
+        }
 
         if ($server->state === ServerState::Running) {
             $link->join_info = new JoinInfo(

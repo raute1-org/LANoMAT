@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Filament\Resources\ServerLinks\Tables;
 
 use App\Modules\GameServers\Actions\DeprovisionServer;
-use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Actions\PowerServer;
 use App\Modules\GameServers\Domain\PowerAction;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Exceptions\GameServerException;
@@ -48,7 +48,7 @@ class ServerLinksTable
                     ->color('primary')
                     ->url(
                         fn (?ServerLink $record): ?string => $record !== null && $record->pelican_server_id !== null
-                            ? rtrim((string) config('services.pelican.panel_url'), '/')."/server/{$record->pelican_server_id}"
+                            ? rtrim((string) config('services.pelican.panel_url'), '/').'/server/'.($record->pelican_server_identifier ?? $record->pelican_server_id)
                             : null,
                         shouldOpenInNewTab: true,
                     )
@@ -111,7 +111,7 @@ class ServerLinksTable
         }
 
         try {
-            app(PelicanClient::class)->powerAction($record->pelican_server_id, $action);
+            app(PowerServer::class)->handle($record, $action);
         } catch (GameServerException $e) {
             Notification::make()
                 ->title(__($e->translationKey))
