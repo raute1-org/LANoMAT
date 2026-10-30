@@ -58,7 +58,7 @@ class WithdrawMatchReport
 
         // Re-read under the match lock: a concurrent confirm/dispute/withdraw
         // may have resolved the report since the caller loaded it.
-        $report = MatchReport::query()->findOrFail($report->getKey());
+        $report = MatchReport::query()->whereKey($report->getKey())->firstOrFail();
 
         if ($report->status !== ReportStatus::Pending || $match->status !== MatchStatus::Reported) {
             throw TournamentException::reportNotPending();

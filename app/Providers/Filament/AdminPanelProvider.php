@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\AddContentSecurityPolicy;
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
 use App\Support\Brand\ShellParity;
@@ -100,6 +101,7 @@ class AdminPanelProvider extends PanelProvider
                 PreflightStatusWidget::class,
             ])
             ->middleware([
+                AddContentSecurityPolicy::class.':panel',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

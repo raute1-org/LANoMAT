@@ -213,15 +213,71 @@ one yourself.
 
 Traefik's `secure-headers` middleware (`docker/traefik/dynamic.yml`) sets HSTS,
 frame deny, nosniff, `Referrer-Policy: strict-origin-when-cross-origin` and a
-restrictive `Permissions-Policy` (camera only for the same origin, in case
-check-in gets in-browser QR scanning; microphone, geolocation, payment and USB
+restrictive `Permissions-Policy` (camera only for the same origin, used by the
+check-in camera scanner; microphone, geolocation, payment and USB
 denied). The image sets `expose_php = 0`, so `X-Powered-By` is not sent.
 
-No `Content-Security-Policy` is set yet. Filament/Livewire/Alpine need inline
-scripts and styles, and the participant app uses Vite assets and Reverb
-websockets, so a CSP needs an owner decision and should start as
-`Content-Security-Policy-Report-Only`. Open question: accept `'unsafe-inline'`
-for the admin panel or invest in nonces.
+### Content Security Policy (report-only by default)
+
+The Laravel app sends the policy itself (`App\Http\Middleware\AddContentSecurityPolicy`,
+built by `App\Support\Security\ContentSecurityPolicy`), controlled by one env
+flag:
+
+| `CSP_MODE` | Effect |
+|---|---|
+| `report-only` (default) | sends `Content-Security-Policy-Report-Only`; nothing is ever blocked |
+| `enforce` | sends the enforcing `Content-Security-Policy` header |
+| `off` | sends no CSP header |
+
+Any other value behaves like `report-only`. The change takes effect after
+`php artisan config:clear` (or a container restart with a cached config).
+
+What the policy allows:
+
+- **Participant, beamer and overlay pages** (Inertia/Vue): `script-src 'self'`
+  plus a fresh per-request nonce (Laravel's `Vite::useCspNonce()` stamps `@vite`
+  tags, the inline scripts in `app.blade.php` carry it too) and
+  `'wasm-unsafe-eval'` for the self-hosted ZXing decoder of the check-in camera
+  scanner. No `'unsafe-eval'`, no `'unsafe-inline'` for scripts.
+- **Admin panel** (`/admin`, Filament): the same, plus `'unsafe-eval'`.
+  Alpine compiles its attribute expressions with `new Function`, and Filament's
+  own documentation says `script-src` still needs it there (Livewire's CSP-safe
+  build is not supported by Filament). Filament panels do not run the `web`
+  middleware group, so the middleware is registered on the panel separately.
+- `style-src 'self' 'unsafe-inline'` everywhere (Filament documents that a strict
+  `style-src` is unsupported; the Vue UI binds `style` attributes).
+- `img-src 'self' data: blob: https:` (Discord avatars), `font-src 'self'`,
+  `connect-src 'self'` plus the Reverb `ws(s)://host:port` from
+  `REVERB_HOST/PORT/SCHEME`, `object-src 'none'`, `base-uri 'self'`,
+  `frame-ancestors 'none'`, `form-action 'self'` plus the Discord, Steam and
+  Twitch hosts (`config/security.php`).
+- In non-production, the Vite dev server origin from `public/hot` is allowed.
+
+Violations are POSTed by the browser to `POST /csp-report` (no session, no CSRF,
+no login, 8 KB limit, 60 requests/minute per IP, both `report-uri` and Reporting
+API formats) and logged as one line each to `storage/logs/csp.log` (daily
+rotation):
+
+```
+csp-violation directive=script-src-elem blocked=https://evil.example/x.js document=/events/spring source=/build/app.js line=12 disposition=report
+```
+
+Query strings and fragments are stripped and no IP, user agent or cookie is
+logged. What to watch: `docker compose exec app tail -f storage/logs/csp.log`
+while clicking through the participant pages, `/screen/{event}`, the OBS overlays
+and `/admin`. Expected, ignorable noise: browser extensions
+(`blocked=chrome-extension` / `moz-extension` / `inline` from a page you did not
+write). Anything with a first-party `source=` or a CDN host is a real finding:
+fix the asset (self-host it, add the nonce) or extend the policy deliberately.
+
+**Switching to enforce:** run report-only through at least one full event
+rehearsal (all pages above, check-in scanner, Discord login round trip, Steam and
+Twitch linking, an upload), confirm the log has no first-party entries, set
+`CSP_MODE=enforce`, reload config, and re-test the same paths. To back out, set
+`CSP_MODE=report-only` again. Known caveat: the OAuth login redirects
+(Discord/Steam/Twitch) are plain navigations or redirects after a form POST; if
+Chrome reports `form-action` violations for a redirect target, add that host to
+`security.csp.form_action_hosts`.
 
 ## 9. Later: switch to the full profile
 
