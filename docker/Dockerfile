@@ -17,8 +17,16 @@
 # trixie ("php8.4", not "-alpine" — the Alpine variant is musl-libc, which
 # would work too, but the `*-php8.4` default variant is what FrankenPHP's
 # own docs use for the Laravel examples, so this follows that path for the
-# least surprise). 1.12.4 is the latest stable release as of 2026-07
-# (verified against Docker Hub's tag list).
+# least surprise).
+#
+# The tag is a MOVING MINOR tag (`1.13-php8.4`), deliberately not a full
+# patch pin: every rebuild picks up the newest PHP 8.4 patch release that
+# FrankenPHP has published for the 1.13 line (security fixes land in PHP
+# patch releases, e.g. 8.4.27 at the time of writing). The flip side is that
+# Docker's layer cache will happily keep serving an OLD base, so builds and
+# deploys MUST pull fresh bases (`docker compose build --pull`,
+# `docker/build-push-action` with `pull: true`; scripts/deploy/deploy.sh does
+# this). Override with `--build-arg FRANKENPHP_VERSION=...` to pin.
 #
 # Single "builder" stage: the frontend build (`npm run build`) shells out to
 # `php artisan wayfinder:generate` (see vite.config.ts's `wayfinder()`
@@ -27,7 +35,7 @@
 # stage. Building both PHP deps and frontend assets here, then copying only
 # the runtime-relevant output into the final stage, keeps the shipped image
 # free of Node/npm/dev-composer-packages.
-ARG FRANKENPHP_VERSION=1.12.4-php8.4
+ARG FRANKENPHP_VERSION=1.13-php8.4
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION} AS builder
 
@@ -54,8 +62,9 @@ RUN install-php-extensions \
     opcache \
     pcntl
 
-# Node 22, matching package.json's engines / README requirement, for the
-# frontend asset build below (removed from the final image — see the last
+# Node 22 (latest 22.x LTS patch: NodeSource's setup_22.x repo is a moving
+# channel, so every uncached build installs the newest 22.x), matching
+# package.json's engines / README requirement, for the frontend asset build below (removed from the final image — see the last
 # stage, which copies only `public/build` out of here).
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \

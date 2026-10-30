@@ -4,7 +4,7 @@
 # Run it ON the server inside the checkout (e.g. /opt/lanomat), or remotely:
 #   ssh root@lan.raute1.org /opt/lanomat/scripts/deploy/deploy.sh
 #
-# Pulls fast-forward only, rebuilds the image, recreates the core services and
+# Pulls fast-forward only, rebuilds the image (pulling fresh base images), recreates the core services and
 # runs migrations. It never touches volumes (no `down -v`) or `.env`.
 set -euo pipefail
 
@@ -15,8 +15,11 @@ SERVICES=(traefik app queue scheduler reverb-prod postgres redis)
 echo "==> Pulling origin/main (fast-forward only)"
 git pull --ff-only
 
-echo "==> Building and starting: ${SERVICES[*]}"
-docker compose --profile prod up -d --build "${SERVICES[@]}"
+# --pull refreshes the moving base tags (FrankenPHP 1.13-php8.4, node:22-alpine)
+# so every deploy ships the newest PHP/Node patch releases (security fixes).
+echo "==> Building (pulling fresh base images) and starting: ${SERVICES[*]}"
+docker compose --profile prod build --pull "${SERVICES[@]}"
+docker compose --profile prod up -d "${SERVICES[@]}"
 
 echo "==> Waiting for app to become healthy"
 for _ in $(seq 1 30); do
