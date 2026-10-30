@@ -15,3 +15,7 @@ docs/infra/proxmox-test-vm-lancache.md:^10\.0\.0\.0$
 docs/infra/proxmox-test-vm-lancache.md:^172\.16\.0\.0$
 docs/infra/proxmox-test-vm-lancache.md:^192\.168\.0\.0$
 docs/infra/proxmox-test-vm-lancache.md:^100\.64\.0\.0$
+
+# docs/infra/wireguard-tunnel.md: `wg-quick@wg0.service` is a systemd template-unit instance name
+# (service wg-quick, instance wg0), not an e-mail address.
+docs/infra/wireguard-tunnel.md:^wg-quick@wg0\.service$
