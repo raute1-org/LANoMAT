@@ -9,6 +9,7 @@ use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
 use App\Modules\Games\Models\Game;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 
@@ -110,7 +111,13 @@ class EditGame extends EditRecord
     {
         return [
             DeleteAction::make()
-                ->authorize('delete'),
+                ->authorize('delete')
+                ->before(function (DeleteAction $action, Game $record): void {
+                    if ($record->isInUse()) {
+                        Notification::make()->title(__('games.errors.in_use'))->danger()->send();
+                        $action->halt();
+                    }
+                }),
         ];
     }
 }

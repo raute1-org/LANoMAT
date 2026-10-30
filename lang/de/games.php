@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'errors' => [
+        'in_use' => 'Dieses Spiel wird von Turnieren verwendet und kann nicht gelöscht werden.',
+    ],
+
     'resource' => [
         'label' => 'Spiel',
         'plural_label' => 'Spiele',

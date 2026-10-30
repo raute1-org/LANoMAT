@@ -7,6 +7,7 @@ use App\Modules\Games\Casts\ServerConfigCast;
 use App\Modules\Games\Casts\ServerPresetsCast;
 use App\Modules\Games\Casts\SpectateHintCast;
 use App\Modules\Games\Domain\InstallHint;
+use App\Modules\Games\Exceptions\GameInUseException;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Domain\SpectateHint;
@@ -72,9 +73,20 @@ class Game extends Model
         return $this->hasMany(Tournament::class);
     }
 
+    public function isInUse(): bool
+    {
+        return $this->tournaments()->exists();
+    }
+
     protected static function booted(): void
     {
         static::deleting(function (self $game) {
+            // Authoritative guard (also behind the restrictOnDelete FK): a game
+            // that tournaments reference must never vanish silently.
+            if ($game->isInUse()) {
+                throw new GameInUseException;
+            }
+
             if ($game->icon_path !== null) {
                 Storage::disk('public')->delete($game->icon_path);
             }
