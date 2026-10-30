@@ -245,3 +245,14 @@ it('resolves streamUrl from the user without an extra query, and null when absen
         ->and($byName['Bob']->streamUrl)->toBeNull()
         ->and($byName['Bob']->toArray()['streamUrl'])->toBeNull();
 });
+
+it('never exposes a non-https stream url (legacy rows), whatever is stored', function () {
+    $event = Event::factory()->create();
+
+    $user = User::factory()->create(['name' => 'Eve', 'stream_url' => 'javascript:alert(1)']);
+    EventRegistration::factory()->for($event)->for($user, 'user')->checkedIn()->create();
+
+    $board = PresenceProjection::forEvent($event);
+
+    expect(collect($board->participants)->keyBy('name')['Eve']->streamUrl)->toBeNull();
+});
