@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import BracketMatchCard from '@/components/bracket/BracketMatchCard.vue';
-import type { BracketMatchDto } from '@/types';
+import type { BracketMatchDto, PendingReportDto } from '@/types';
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         title: string;
         matches: BracketMatchDto[];
@@ -16,6 +16,9 @@ withDefaults(
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
         liveScoreLabels?: Record<string, string>;
+        /** The viewer's pending result claims keyed by match id (participants only). */
+        pendingReports?: Record<number, PendingReportDto>;
+        tournamentFinished?: boolean;
         /** Registers (or unregisters, when `el` is null) a card's DOM element with the parent BracketView for connector measurement. */
         registerCard: (matchId: number, el: Element | null) => void;
     }>(),
@@ -26,6 +29,8 @@ withDefaults(
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
         liveScoreLabels: () => ({}),
+        pendingReports: () => ({}),
+        tournamentFinished: false,
     },
 );
 
@@ -61,6 +66,8 @@ function isParticipant(
                     :server-labels="serverLabels"
                     :server-link-status-labels="serverLinkStatusLabels"
                     :live-score-labels="liveScoreLabels"
+                    :pending-report="props.pendingReports[match.id] ?? null"
+                    :tournament-finished="props.tournamentFinished"
                 />
             </div>
         </div>

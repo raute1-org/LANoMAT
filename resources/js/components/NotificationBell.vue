@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
 import { Bell } from '@lucide/vue';
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,13 +21,10 @@ type Props = {
 defineProps<Props>();
 
 const page = usePage();
-// unreadNotifications is an Inertia::optional prop: absent until explicitly
-// requested, so default defensively to an empty array.
+// Both props are shared on every response (including redirects after a
+// mutation), so the badge and list stay correct without a follow-up reload.
 const notifications = computed(() => page.props.unreadNotifications ?? []);
-
-onMounted(() => {
-    router.reload({ only: ['unreadNotifications'] });
-});
+const unreadCount = computed(() => page.props.unreadNotificationCount ?? 0);
 
 function markAsRead(id: string) {
     router.post(read.url({ notification: id }), {}, { preserveScroll: true });
@@ -44,11 +41,11 @@ function markAsRead(id: string) {
             >
                 <Bell class="size-5 opacity-80 group-hover:opacity-100" />
                 <Badge
-                    v-if="notifications.length > 0"
+                    v-if="unreadCount > 0"
                     variant="destructive"
                     class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]"
                 >
-                    {{ notifications.length }}
+                    {{ unreadCount > 99 ? '99+' : unreadCount }}
                 </Badge>
             </Button>
         </DropdownMenuTrigger>

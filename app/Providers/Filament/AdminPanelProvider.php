@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\AddContentSecurityPolicy;
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
 use App\Support\Brand\ShellParity;
@@ -49,7 +50,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.shell.admin-stripe'))
             ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.back-to-app'))
-            ->favicon(asset('favicon.svg'))
+            // Closure: resolved at render time, after AppServiceProvider::boot() has
+            // forced https in production (asset() here would bake in http://).
+            ->favicon(fn (): string => asset('favicon.svg'))
             // Signal-amber brand accent (docs/design.md "Signalpult"): the
             // light-mode primary `#a85a00` is passed as a single hex so
             // Filament generates the full shade palette from it (Filament
@@ -98,6 +101,7 @@ class AdminPanelProvider extends PanelProvider
                 PreflightStatusWidget::class,
             ])
             ->middleware([
+                AddContentSecurityPolicy::class.':panel',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

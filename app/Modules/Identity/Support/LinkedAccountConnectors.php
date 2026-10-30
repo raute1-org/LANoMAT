@@ -61,7 +61,7 @@ class LinkedAccountConnectors
         ));
     }
 
-    private function isConfigured(LinkedAccountProvider $provider): bool
+    public function isConfigured(LinkedAccountProvider $provider): bool
     {
         /** @var array<string, mixed> $config */
         $config = config("services.{$provider->socialiteDriver()}", []);

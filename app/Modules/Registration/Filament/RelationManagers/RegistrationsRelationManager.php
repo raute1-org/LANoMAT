@@ -3,16 +3,21 @@
 namespace App\Modules\Registration\Filament\RelationManagers;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Support\ArrivalPlanView;
+use App\Modules\Registration\Support\TicketLabel;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use LogicException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -33,11 +38,20 @@ class RegistrationsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modelLabel(__('registration.admin.model_label'))
+            ->pluralModelLabel(__('registration.admin.plural_model_label'))
+            ->emptyStateHeading(__('registration.admin.empty'))
             ->columns([
                 TextColumn::make('user.name')
                     ->label(__('registration.admin.participant'))
                     ->searchable(),
-                TextColumn::make('ticket_type')->label(__('registration.admin.ticket')),
+                TextColumn::make('ticket_type')
+                    ->label(__('registration.admin.ticket'))
+                    ->formatStateUsing(fn (string $state): string => TicketLabel::for($state)),
+                TextColumn::make('arrival_day')
+                    ->label(__('registration.admin.arrival_columns.arrival'))
+                    ->state(fn (EventRegistration $record): string => ArrivalPlanView::label($record->arrival_day?->toDateString(), $record->arrival_window)
+                        ?? __('registration.admin.arrival_columns.open')),
                 TextColumn::make('status')
                     ->label(__('registration.admin.status'))
                     ->badge()
@@ -51,7 +65,23 @@ class RegistrationsRelationManager extends RelationManager
                     ->boolean()
                     ->state(fn (EventRegistration $record) => $record->checked_in_at !== null),
             ])
+            ->filters([
+                SelectFilter::make('status')
+                    ->label(__('registration.admin.status'))
+                    ->options(collect(RegistrationStatus::cases())
+                        ->mapWithKeys(fn (RegistrationStatus $status): array => [$status->value => $status->label()])
+                        ->all()),
+            ])
             ->recordActions([
+                Action::make('cancel_registration')
+                    ->label(__('registration.admin.cancel'))
+                    ->authorize(fn (EventRegistration $record): bool => Gate::allows('cancel', $record))
+                    ->visible(fn (EventRegistration $record): bool => $record->status !== RegistrationStatus::Cancelled)
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (EventRegistration $record): string => __('registration.admin.cancel_heading', ['name' => (string) data_get($record, 'user.name', '—')]))
+                    ->modalDescription(fn (EventRegistration $record): string => __('registration.admin.cancel_description', ['name' => (string) data_get($record, 'user.name', '—')]))
+                    ->color('danger')
+                    ->action(fn (EventRegistration $record) => app(CancelRegistration::class)->handle($record)),
                 Action::make('toggle_paid')
                     ->label(__('registration.admin.toggle_paid'))
                     ->action(function (EventRegistration $record): void {

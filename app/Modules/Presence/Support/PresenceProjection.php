@@ -91,7 +91,7 @@ final class PresenceProjection
                     userId: $user->id,
                     name: $user->name,
                     avatarUrl: $user->avatar_url,
-                    streamUrl: $user->stream_url,
+                    streamUrl: self::safeStreamUrl($user->stream_url),
                     seatLabel: $registration->seatAssignment?->seat?->label,
                     activity: $playing !== null ? self::activityLabel($playing['match']) : null,
                     isPlaying: $playing !== null,
@@ -151,6 +151,15 @@ final class PresenceProjection
             })
             ->with(['entry1', 'entry2', 'tournament.game'])
             ->get();
+    }
+
+    /**
+     * Defense in depth for rows written before the profile form enforced https:
+     * only an https URL is ever handed to the participant UI as a link target.
+     */
+    private static function safeStreamUrl(?string $url): ?string
+    {
+        return $url !== null && str_starts_with(strtolower($url), 'https://') ? $url : null;
     }
 
     /**

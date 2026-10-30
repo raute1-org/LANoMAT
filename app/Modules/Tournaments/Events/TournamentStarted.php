@@ -4,6 +4,7 @@ namespace App\Modules\Tournaments\Events;
 
 use App\Modules\Tournaments\Actions\StartTournament;
 use App\Modules\Tournaments\Models\Tournament;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -25,6 +26,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class TournamentStarted implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly Tournament $tournament,

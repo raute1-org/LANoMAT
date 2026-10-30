@@ -75,14 +75,14 @@ trait ProfileValidationRules
 
     /**
      * Get the validation rules used to validate the user's stream URL. Any
-     * https URL is permitted — unlike the Steam URL, we don't restrict this
+     * https URL is permitted (and only https: no http/ftp/data schemes) — unlike the Steam URL, we don't restrict this
      * to a single platform (Twitch, YouTube, Kick, …).
      *
      * @return array<int, ValidationRule|array<mixed>|string>
      */
     protected function streamUrlRules(): array
     {
-        return ['nullable', 'url', 'max:255'];
+        return ['nullable', 'url:https', 'max:255'];
     }
 
     /**

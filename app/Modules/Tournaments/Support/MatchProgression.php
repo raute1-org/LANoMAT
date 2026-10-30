@@ -6,8 +6,10 @@ use App\Modules\Tournaments\Domain\Bracket;
 use App\Modules\Tournaments\Domain\BracketMatch;
 use App\Modules\Tournaments\Domain\BracketPlan;
 use App\Modules\Tournaments\Domain\BracketProgressor;
+use App\Modules\Tournaments\Domain\RoundRobinStandings;
 use App\Modules\Tournaments\Domain\Slot;
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Enums\TournamentFormat;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Events\MatchReady;
@@ -83,9 +85,12 @@ class MatchProgression
     }
 
     /**
+     * Rebuilds the domain plan from persisted rows (also used by read models
+     * such as the round-robin standings).
+     *
      * @param  Collection<int, GameMatch>  $rows
      */
-    private function reconstruct(Collection $rows): BracketPlan
+    public function reconstruct(Collection $rows): BracketPlan
     {
         $matches = [];
 
@@ -213,11 +218,10 @@ class MatchProgression
      * `nextMatch` chains to another `Finals` match but slot 1 (winners-
      * bracket side) won — the reset-armed case is explicitly excluded.
      *
-     * Round-robin plans are exempt (see {@see BracketPlan}'s own progressing-
-     * plan invariant): every match there has `nextMatch === null` by design,
-     * since standings are derived by counting wins rather than by chaining
-     * matches forward, so this bracket-progression completion detection does
-     * not apply to them at all.
+     * Round robin is handled separately ({@see completeRoundRobin()}): every
+     * match there has `nextMatch === null` by design, standings are derived by
+     * counting wins. A single-final plan (two entrants) also has no match with
+     * a `nextMatch`; it is NOT a round robin and ends on its only match.
      */
     private function detectCompletion(Tournament $tournament, BracketPlan $plan): void
     {
@@ -225,9 +229,12 @@ class MatchProgression
             return;
         }
 
-        $isProgressing = collect($plan->matches())->contains(fn (BracketMatch $m): bool => $m->nextMatch !== null);
+        // Round robin has no chained matches (every `nextMatch` is null by
+        // design), so its completion is "every match decided" and the winner
+        // is the top of the derived standings — not a bracket final.
+        if ($tournament->format === TournamentFormat::RoundRobin) {
+            $this->completeRoundRobin($tournament, $plan);
 
-        if (! $isProgressing) {
             return;
         }
 
@@ -244,6 +251,25 @@ class MatchProgression
         }
 
         $tournament->winner_entry_id = $championEntryId;
+        $tournament->status = TournamentStatus::Finished;
+        $tournament->save();
+
+        Event::dispatch(new TournamentCompleted($tournament));
+    }
+
+    private function completeRoundRobin(Tournament $tournament, BracketPlan $plan): void
+    {
+        if (! RoundRobinStandings::isComplete($plan)) {
+            return;
+        }
+
+        $leader = RoundRobinStandings::fromPlan($plan)[0] ?? null;
+
+        if ($leader === null) {
+            return;
+        }
+
+        $tournament->winner_entry_id = $leader->entryId;
         $tournament->status = TournamentStatus::Finished;
         $tournament->save();
 

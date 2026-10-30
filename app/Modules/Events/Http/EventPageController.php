@@ -56,7 +56,21 @@ class EventPageController
             ->map(fn (Event $e) => $this->summary($e))
             ->all();
 
+        // Everything that is not yet over and not a draft: announced, open for
+        // registration, or running. Soonest first (undated events last).
+        $current = Event::query()
+            ->whereIn('status', [
+                EventStatus::Announced->value,
+                EventStatus::Registration->value,
+                EventStatus::Live->value,
+            ])
+            ->orderByRaw('starts_at asc nulls last')
+            ->get()
+            ->map(fn (Event $e) => [...$this->summary($e), ...RegistrationAvailability::summary($e)])
+            ->all();
+
         return Inertia::render('Event/Index', [
+            'current' => $current,
             'events' => $events,
             'labels' => trans('events.page'),
         ]);

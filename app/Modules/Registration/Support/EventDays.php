@@ -3,10 +3,13 @@
 namespace App\Modules\Registration\Support;
 
 use App\Modules\Events\Models\Event;
+use App\Support\DisplayTimezone;
 use Carbon\CarbonImmutable;
 
 /**
- * The calendar days an event spans (app timezone), starts_at..ends_at inclusive.
+ * The calendar days an event spans in the display timezone (`config('lanomat.timezone')`, Europe/Berlin), starts_at..ends_at
+ * inclusive — so an event starting 00:30 Berlin time (23:30 UTC the day before) still
+ * offers its Berlin start day first.
  * Single source for validation, form options and the arrival forecast.
  *
  * An ends_at at exactly 00:00 does not add an extra (empty) day. A missing
@@ -21,12 +24,11 @@ class EventDays
             return [];
         }
 
-        $tz = (string) config('app.timezone');
-        $first = CarbonImmutable::instance($startsAt)->setTimezone($tz)->startOfDay();
+        $first = DisplayTimezone::local($startsAt)->startOfDay();
         $last = $first;
 
         if ($endsAt !== null) {
-            $end = CarbonImmutable::instance($endsAt)->setTimezone($tz);
+            $end = DisplayTimezone::local($endsAt);
             // Ending exactly at midnight does not open another day.
             $candidate = $end->equalTo($end->startOfDay()) ? $end->subSecond()->startOfDay() : $end->startOfDay();
             if ($candidate->greaterThan($first)) {

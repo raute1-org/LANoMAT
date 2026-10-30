@@ -28,6 +28,9 @@ class ItemsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modelLabel(__('catering.admin.item_model_label'))
+            ->pluralModelLabel(__('catering.admin.item_plural_model_label'))
+            ->emptyStateHeading(__('catering.admin.items_empty'))
             ->columns([
                 TextColumn::make('user.name')
                     ->label(__('catering.admin.participant')),

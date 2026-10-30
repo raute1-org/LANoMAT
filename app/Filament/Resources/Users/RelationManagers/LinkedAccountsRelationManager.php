@@ -32,6 +32,9 @@ class LinkedAccountsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modelLabel(__('identity.admin.model_label'))
+            ->pluralModelLabel(__('identity.admin.plural_model_label'))
+            ->emptyStateHeading(__('identity.admin.empty'))
             ->columns([
                 TextColumn::make('provider')
                     ->label(__('identity.admin.provider'))

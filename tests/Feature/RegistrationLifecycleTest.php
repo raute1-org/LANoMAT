@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Actions\CheckInRegistration;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\CheckInException;
@@ -50,10 +51,14 @@ it('carries a participant through the full register-seat-checkin-cancel-reregist
     app(CheckInRegistration::class)->handle($event, $firstToken);
     expect($registration->fresh()->checked_in_at)->not->toBeNull();
 
-    // 4. Cancel — the seat assignment must be auto-released (seat freed).
+    // 4. Self-cancel is blocked once checked in (ruling C); the orga cancels —
+    // the seat assignment must be auto-released (seat freed) and check-in cleared.
     $this->actingAs($user)
         ->delete("/events/{$event->slug}/register")
         ->assertRedirect();
+    expect($registration->fresh()->status)->toBe(RegistrationStatus::Confirmed);
+
+    app(CancelRegistration::class)->handle($registration);
 
     $registration->refresh();
     expect($registration->status)->toBe(RegistrationStatus::Cancelled);

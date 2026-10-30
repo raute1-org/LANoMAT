@@ -2,6 +2,8 @@
 
 namespace App\Modules\Games\Filament\Resources\Games\Schemas;
 
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
@@ -11,6 +13,17 @@ use Filament\Schemas\Schema;
 
 class GameForm
 {
+    /**
+     * The Pelican egg, default server config, presets and the "So kommst du
+     * ran" install hint only matter to game servers: hidden (and left
+     * untouched on save, see CreateGame/EditGame) while that optional module
+     * is off.
+     */
+    public static function gameServersEnabled(): bool
+    {
+        return app(Modules::class)->enabled(Module::GameServers);
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -43,7 +56,8 @@ class GameForm
                     ->minValue(1),
                 TextInput::make('pelican_egg_id')
                     ->label(__('games.fields.pelican_egg_id'))
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->visible(self::gameServersEnabled(...)),
 
                 // Mode toggle for the game's default config (T9,
                 // EffectiveConfig::resolve's "neither preset nor upload"
@@ -62,7 +76,8 @@ class GameForm
                     ->default('form')
                     ->live()
                     ->inline()
-                    ->dehydrated(false),
+                    ->dehydrated(false)
+                    ->visible(self::gameServersEnabled(...)),
 
                 // Typed default_server_config fields. `default_server_config`
                 // itself is not fillable (see Game::$fillable), so these flat
@@ -73,15 +88,15 @@ class GameForm
                     ->numeric()
                     ->integer()
                     ->minValue(1)
-                    ->visible(fn (Get $get): bool => $get('default_config_mode') !== 'upload'),
+                    ->visible(fn (Get $get): bool => self::gameServersEnabled() && $get('default_config_mode') !== 'upload'),
                 TextInput::make('map')
                     ->label(__('games.fields.map'))
                     ->maxLength(255)
-                    ->visible(fn (Get $get): bool => $get('default_config_mode') !== 'upload'),
+                    ->visible(fn (Get $get): bool => self::gameServersEnabled() && $get('default_config_mode') !== 'upload'),
                 TextInput::make('password')
                     ->label(__('games.fields.password'))
                     ->maxLength(255)
-                    ->visible(fn (Get $get): bool => $get('default_config_mode') !== 'upload'),
+                    ->visible(fn (Get $get): bool => self::gameServersEnabled() && $get('default_config_mode') !== 'upload'),
 
                 // Upload mode: an orga uploads a raw config file instead of
                 // filling in the settings form above. Stored via
@@ -93,7 +108,7 @@ class GameForm
                     ->label(__('games.fields.default_config_upload'))
                     ->disk('public')
                     ->directory('gameserver-configs')
-                    ->visible(fn (Get $get): bool => $get('default_config_mode') === 'upload'),
+                    ->visible(fn (Get $get): bool => self::gameServersEnabled() && $get('default_config_mode') === 'upload'),
 
                 // Per-game one-click presets (T9): a Nitrado/ShockByte-style
                 // settings-form repeater, each row a named, reusable
@@ -130,7 +145,8 @@ class GameForm
                     ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
                     ->addActionLabel(__('games.fields.preset_add'))
                     ->reorderable(false)
-                    ->defaultItems(0),
+                    ->defaultItems(0)
+                    ->visible(self::gameServersEnabled(...)),
 
                 // Typed install_hint fields ("So kommst du ran", roadmap
                 // 7.5): install_hint itself is not fillable (see Game
@@ -140,14 +156,17 @@ class GameForm
                 TextInput::make('install_hint_steam_url')
                     ->label(__('games.fields.install_hint_steam_url'))
                     ->maxLength(255)
-                    ->url(),
+                    ->url()
+                    ->visible(self::gameServersEnabled(...)),
                 TextInput::make('install_hint_share_url')
                     ->label(__('games.fields.install_hint_share_url'))
                     ->maxLength(255)
-                    ->url(),
+                    ->url()
+                    ->visible(self::gameServersEnabled(...)),
                 TextInput::make('install_hint_version_note')
                     ->label(__('games.fields.install_hint_version_note'))
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->visible(self::gameServersEnabled(...)),
 
                 // Typed spectate_hint fields ("So schaust du zu", M10 T8):
                 // spectate_hint itself is not fillable (see Game model), so

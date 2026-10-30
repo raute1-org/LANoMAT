@@ -10,6 +10,22 @@ return [
         'owner_must_transfer' => 'Der Kapitän muss die Teamleitung übergeben, bevor er das Team verlassen kann.',
         'not_a_member' => 'Der neue Kapitän muss bereits Mitglied des Teams sein.',
         'stale_request' => 'Diese Beitrittsanfrage ist nicht mehr gültig.',
+        'name_taken' => 'Dieser Teamname ist bereits vergeben.',
+    ],
+
+    'notifications' => [
+        'request_received' => [
+            'title' => 'Neue Beitrittsanfrage',
+            'body' => ':name möchte dem Team :team beitreten.',
+        ],
+        'request_accepted' => [
+            'title' => 'Beitrittsanfrage angenommen',
+            'body' => 'Du bist jetzt Mitglied im Team :team.',
+        ],
+        'request_declined' => [
+            'title' => 'Beitrittsanfrage abgelehnt',
+            'body' => 'Deine Anfrage für das Team :team wurde abgelehnt.',
+        ],
     ],
 
     'page' => [

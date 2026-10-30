@@ -95,3 +95,23 @@ it('ignores cancelled and foreign registrations on the event page', function () 
     $this->actingAs($user)->get("/events/{$event->slug}")
         ->assertInertia(fn (AssertableInertia $page) => $page->where('registration', null));
 });
+
+it('lists announced, registration and live events above the archive, soonest first, without drafts', function () {
+    Event::factory()->announced()->create(['name' => 'Later', 'starts_at' => now()->addMonths(3)]);
+    Event::factory()->registration()->create(['name' => 'Sooner', 'starts_at' => now()->addMonth()]);
+    Event::factory()->live()->create(['name' => 'Running', 'starts_at' => now()->subDay()]);
+    Event::factory()->draft()->create(['name' => 'Hidden']);
+    Event::factory()->finished()->create(['name' => 'Done']);
+
+    $this->actingAs(User::factory()->create())->get('/events')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Event/Index')
+            ->has('current', 3)
+            ->where('current.0.name', 'Running')
+            ->where('current.1.name', 'Sooner')
+            ->where('current.2.name', 'Later')
+            ->where('current.1.availability', 'open')
+            ->has('events', 1)
+            ->where('events.0.name', 'Done'));
+});

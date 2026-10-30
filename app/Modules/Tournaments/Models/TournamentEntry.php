@@ -86,6 +86,19 @@ class TournamentEntry extends Model
     }
 
     /**
+     * Entries the user takes part in without owning them: a plain member of
+     * the entered team. Display-only (shows "Angemeldet"); every authorization
+     * keeps using {@see scopeOwnedBy()}.
+     *
+     * @param  Builder<TournamentEntry>  $query
+     * @return Builder<TournamentEntry>
+     */
+    public function scopeRosteredBy(Builder $query, User $user): Builder
+    {
+        return $query->whereHas('team.members', fn (Builder $members) => $members->where('user_id', $user->id));
+    }
+
+    /**
      * Discord user ids for every participant of this entry — every
      * `roster_snapshot` member for a team entry, or the single `user` for a
      * solo entry. Participants without a linked `discord_id` (never

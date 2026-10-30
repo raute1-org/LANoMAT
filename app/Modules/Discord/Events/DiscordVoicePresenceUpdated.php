@@ -2,6 +2,7 @@
 
 namespace App\Modules\Discord\Events;
 
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class DiscordVoicePresenceUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function broadcastOn(): Channel
     {

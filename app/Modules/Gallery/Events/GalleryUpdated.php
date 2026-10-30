@@ -6,6 +6,7 @@ namespace App\Modules\Gallery\Events;
 
 use App\Modules\Jukebox\Events\JukeboxUpdated;
 use App\Modules\Presence\Events\PresenceUpdated;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -28,6 +29,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class GalleryUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly int $eventId,

@@ -7,6 +7,7 @@ use App\Modules\Teams\Enums\JoinRequestStatus;
 use App\Modules\Teams\Exceptions\TeamException;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamJoinRequest;
+use App\Modules\Teams\Notifications\TeamJoinRequestReceived;
 use Illuminate\Database\QueryException;
 
 class RequestToJoin
@@ -40,11 +41,15 @@ class RequestToJoin
                 ->whereIn('status', [JoinRequestStatus::Accepted->value, JoinRequestStatus::Declined->value])
                 ->delete();
 
-            return TeamJoinRequest::create([
+            $request = TeamJoinRequest::create([
                 'team_id' => $team->id,
                 'user_id' => $user->id,
                 'message' => $message,
             ]);
+
+            $team->owner?->notify(new TeamJoinRequestReceived($team, $user));
+
+            return $request;
         } catch (QueryException $e) {
             // Only a unique-key violation on (team_id, user_id, status) means
             // two concurrent requests raced past the check above. Any other

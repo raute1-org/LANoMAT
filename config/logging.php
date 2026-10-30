@@ -73,6 +73,16 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // CSP violation reports (POST /csp-report); one compact, PII-free line
+        // each. Separate file so the app log stays readable.
+        'csp' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/csp.log'),
+            'level' => 'info',
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

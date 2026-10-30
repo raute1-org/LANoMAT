@@ -27,3 +27,13 @@ http:
         stsIncludeSubdomains: true
         stsPreload: true
         stsSeconds: 31536000
+        referrerPolicy: strict-origin-when-cross-origin
+        # camera=(self) stays allowed for future in-browser QR scanning at
+        # check-in (no getUserMedia use in resources/js yet); everything else
+        # sensitive is denied.
+        permissionsPolicy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
+        # Content-Security-Policy is deliberately NOT set: Filament/Livewire/
+        # Alpine and the Inertia/Vite app need inline scripts/styles and
+        # Reverb websockets, so a CSP needs an owner decision and a
+        # report-only rollout first (see docs/deploy-lan-raute1.md,
+        # "Security headers").

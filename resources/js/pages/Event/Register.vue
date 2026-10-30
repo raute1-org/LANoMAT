@@ -23,6 +23,7 @@ const props = defineProps<{
     arrivalOptions: ArrivalOptions;
     arrivalLabels: Record<string, any>;
     labels: Record<string, string>;
+    cancelBlockedLabels: Record<string, string>;
     statusLabels: Record<string, string>;
 }>();
 
@@ -227,12 +228,20 @@ function cancel() {
             </div>
 
             <Button
+                v-if="registration.canCancel"
                 variant="destructive"
                 :disabled="cancelForm.processing"
                 @click="cancel"
             >
                 {{ labels.cancel }}
             </Button>
+            <p
+                v-else-if="registration.cancelBlockedReason"
+                class="text-sm text-muted-foreground"
+                data-test="cancel-blocked"
+            >
+                {{ cancelBlockedLabels[registration.cancelBlockedReason] }}
+            </p>
         </section>
 
         <section v-else-if="availability === 'open'" class="mt-8 space-y-6">

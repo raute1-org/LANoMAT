@@ -55,6 +55,9 @@ return [
     ],
 
     'admin' => [
+        'item_model_label' => 'Position',
+        'item_plural_model_label' => 'Positionen',
+        'items_empty' => 'Noch keine Positionen',
         'actions' => [
             'open' => 'Öffnen',
             'opened' => 'Bestellung wurde geöffnet.',

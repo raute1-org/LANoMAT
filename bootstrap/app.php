@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\CspReportController;
+use App\Http\Middleware\AddContentSecurityPolicy;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -10,6 +12,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function (): void {
+            // CSP violation reports: browsers POST these on their own, so no
+            // session, cookies or CSRF (the `web` group is deliberately not
+            // applied); size-limited in the controller and throttled here.
+            Route::post('/csp-report', CspReportController::class)
+                ->middleware('throttle:csp-report')
+                ->name('csp-report');
+        },
     )
     ->withCommands([
         __DIR__.'/../app/Modules/Discord/Console',
@@ -43,6 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
+            AddContentSecurityPolicy::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

@@ -4,6 +4,7 @@ namespace App\Modules\Infoscreen\Events;
 
 use App\Modules\Infoscreen\Actions\SetStatusSignal;
 use App\Modules\Infoscreen\Enums\StatusLevel;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -29,6 +30,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class ScenesUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly int $eventId,

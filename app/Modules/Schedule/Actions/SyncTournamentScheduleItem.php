@@ -4,6 +4,7 @@ namespace App\Modules\Schedule\Actions;
 
 use App\Modules\Schedule\Enums\ScheduleItemType;
 use App\Modules\Schedule\Models\ScheduleItem;
+use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Support\Facades\DB;
 
@@ -23,16 +24,27 @@ class SyncTournamentScheduleItem
      * `StartTournament`/`EnrollSolo`/`RegisterForEvent`), so two concurrent
      * syncs for the same tournament serialize instead of racing to insert
      * duplicate rows — the `(ref_type, ref_id)` index is not unique.
+     *
+     * Returns null (and removes any existing item) for a draft tournament.
      */
-    public function handle(Tournament $tournament): ScheduleItem
+    public function handle(Tournament $tournament): ?ScheduleItem
     {
-        return DB::transaction(function () use ($tournament): ScheduleItem {
+        return DB::transaction(function () use ($tournament): ?ScheduleItem {
             $tournament = Tournament::query()->whereKey($tournament->getKey())->lockForUpdate()->firstOrFail();
 
             $item = ScheduleItem::query()
                 ->where('ref_type', 'tournament')
                 ->where('ref_id', $tournament->id)
                 ->first();
+
+            // Draft tournaments are orga-only, so they must not surface on the
+            // participant schedule: no item while draft, and returning to
+            // draft withdraws the one that was announced.
+            if ($tournament->status === TournamentStatus::Draft) {
+                $item?->delete();
+
+                return null;
+            }
 
             $item ??= new ScheduleItem;
             $item->ref_type = 'tournament';

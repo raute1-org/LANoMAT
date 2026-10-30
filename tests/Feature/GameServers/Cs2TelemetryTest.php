@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
 function cs2ServerLink(): ServerLink
 {
     $event = Event::factory()->live()->create();
-    $tournament = Tournament::factory()->for($event)->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create();
     $match = GameMatch::factory()->for($tournament)->create([
         'status' => MatchStatus::Ready,
     ]);

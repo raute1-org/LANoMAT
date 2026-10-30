@@ -7,6 +7,7 @@ namespace App\Modules\Jukebox\Events;
 use App\Modules\Infoscreen\Events\ScenesUpdated;
 use App\Modules\Jukebox\Support\JukeboxQueue;
 use App\Modules\Presence\Events\PresenceUpdated;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -30,6 +31,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class JukeboxUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly int $eventId,

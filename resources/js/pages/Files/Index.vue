@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatInstant } from '@/lib/datetime';
 import { destroy as destroyFile, store as storeFile } from '@/routes/files';
 import type { FileQuotaDto, SharedFileDto } from '@/types';
 
@@ -117,7 +118,7 @@ function formatSize(bytes: number): string {
 }
 
 function formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString('de-DE');
+    return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
 }
 </script>
 

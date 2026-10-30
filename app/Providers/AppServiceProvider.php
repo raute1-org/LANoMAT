@@ -68,7 +68,9 @@ use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
+use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Checks\BackupFreshnessCheck;
 use App\Modules\Preflight\Checks\DatabaseCheck;
 use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
@@ -122,9 +124,14 @@ use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
+use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Carbon\CarbonImmutable;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Schemas\Schema;
+use Filament\Support\Facades\FilamentTimezone;
+use Filament\Tables\Table;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -132,6 +139,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -211,6 +219,7 @@ class AppServiceProvider extends ServiceProvider
             ReverbCheck::class,
             SchedulerHeartbeatCheck::class,
             QueueWorkerCheck::class,
+            BackupFreshnessCheck::class,
             ...($modules->enabled(Module::Discord) ? [DiscordApiCheck::class, DiscordGatewaySidecarCheck::class] : []),
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
@@ -229,10 +238,62 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureDisplayTimezone();
         $this->configureUrls();
+        $this->configureRouteParameterPatterns();
         $this->configureSocialite();
         $this->configureAuthorization();
         $this->configureEventListeners();
+    }
+
+    /**
+     * Storage stays UTC; Filament date-time pickers/columns read and write in
+     * the single display timezone (see config/lanomat.php).
+     */
+    private function configureDisplayTimezone(): void
+    {
+        FilamentTimezone::set(fn (): string => DisplayTimezone::name());
+
+        // German date order everywhere in the panel (31.10.2026 17:40) instead
+        // of Filament's US defaults ("Oct 31, 2026 17:40:18"); pickers use
+        // Filament's own (non-native) picker so the format is not left to the
+        // browser locale.
+        Table::configureUsing(fn (Table $table): Table => $table
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i')
+            ->defaultTimeDisplayFormat('H:i'));
+        Schema::configureUsing(fn (Schema $schema): Schema => $schema
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i')
+            ->defaultTimeDisplayFormat('H:i'));
+        DateTimePicker::configureUsing(fn (DateTimePicker $picker): DateTimePicker => $picker
+            ->native(false)
+            ->seconds(false)
+            ->firstDayOfWeek(1)
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i')
+            ->defaultDateTimeWithSecondsDisplayFormat('d.m.Y H:i:s')
+            ->defaultTimeDisplayFormat('H:i'));
+    }
+
+    /**
+     * Every id-style route parameter is a bigint primary key: anything else (or a
+     * value beyond bigint) must 404 at routing time instead of reaching the
+     * database, where Postgres would reject it and surface as a 500. Slug and
+     * token parameters (`{event:slug}`, `{token}`, `{provider}`) are unaffected.
+     */
+    protected function configureRouteParameterPatterns(): void
+    {
+        foreach ([
+            'user', 'team', 'teamRequest', 'tournament', 'match', 'seat', 'eventPhoto',
+            'foodOrder', 'foodOrderItem', 'friendship', 'installer', 'item', 'jukeboxItem', 'lfgPost',
+            'poll', 'scene', 'serverLink', 'sharedFile', 'tombolaPrize',
+        ] as $parameter) {
+            Route::pattern($parameter, '[0-9]{1,18}');
+        }
+
+        // Database notifications are keyed by UUID, not bigint.
+        Route::pattern('notification', '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
     }
 
     /**
@@ -285,6 +346,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureAuthorization(): void
     {
+        RateLimiter::for('csp-report', fn (Request $request) => Limit::perMinute(60)->by('csp-report|'.$request->ip()));
         RateLimiter::for('self-checkin', fn (Request $request) => Limit::perMinute(30)->by('self-checkin|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
@@ -376,6 +438,8 @@ class AppServiceProvider extends ServiceProvider
         // Registration order per event is preserved from the pre-gating
         // listener list, so the full profile dispatches exactly as before.
         Event::listen(RegistrationCancelled::class, ReleaseSeatOnCancellation::class);
+        // The bell works without Discord; the Discord listener only mirrors the channel announcement.
+        Event::listen(EventStatusChanged::class, NotifyUsersRegistrationOpen::class);
 
         if ($this->on(Module::Discord)) {
             Event::listen(EventStatusChanged::class, AnnounceRegistrationOpen::class);

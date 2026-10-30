@@ -8,6 +8,10 @@ return [
         'label' => 'Sitzplatz',
         'plural_label' => 'Sitzplätze',
     ],
+    'validation' => [
+        'label_taken' => 'In diesem Event gibt es bereits einen Platz mit dieser Bezeichnung.',
+    ],
+
     'fields' => [
         'event' => 'Event',
         'label' => 'Platz',

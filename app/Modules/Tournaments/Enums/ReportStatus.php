@@ -7,6 +7,7 @@ enum ReportStatus: string
     case Pending = 'pending';
     case Confirmed = 'confirmed';
     case Disputed = 'disputed';
+    case Withdrawn = 'withdrawn';
 
     public function label(): string
     {

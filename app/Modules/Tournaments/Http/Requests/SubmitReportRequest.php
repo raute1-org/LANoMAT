@@ -18,10 +18,10 @@ class SubmitReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'score1' => ['required', 'integer', 'min:0'],
+            'score1' => ['required', 'integer', 'min:0', 'max:9999'],
             // A match cannot end in a tie — score2 must differ from score1
             // (see BracketProgressor::apply()'s "no draws" domain rule).
-            'score2' => ['required', 'integer', 'min:0', Rule::notIn([$this->input('score1')])],
+            'score2' => ['required', 'integer', 'min:0', 'max:9999', Rule::notIn([$this->input('score1')])],
         ];
     }
 

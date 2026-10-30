@@ -8,9 +8,11 @@ use App\Modules\Discord\Jobs\SendFollowupJob;
 use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Tournaments\Actions\CheckInEntry;
+use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Support\EventRegistrationRequirement;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Bus;
@@ -58,6 +60,7 @@ class TournamentCommand
 
         $tournaments = Tournament::query()
             ->where('event_id', $event->id)
+            ->visibleTo(null)
             ->orderBy('starts_at')
             ->get();
 
@@ -112,11 +115,17 @@ class TournamentCommand
 
         $entry = TournamentEntry::query()
             ->where('tournament_id', $tournament->id)
+            ->where('status', '!=', EntryStatus::Withdrawn->value)
             ->ownedBy($user)
+            ->latest('id')
             ->first();
 
         if ($entry === null) {
             return InteractionResponse::message(__('discord.commands.tournament.checkin.no_entry'));
+        }
+
+        if (! EventRegistrationRequirement::satisfiedBy($user, $tournament)) {
+            return InteractionResponse::message(__('tournaments.errors.registration_required'));
         }
 
         try {
@@ -176,6 +185,7 @@ class TournamentCommand
         }
 
         return Tournament::query()
+            ->visibleTo(null)
             ->whereHas('event', function (Builder $query): Builder {
                 /** @var Builder<Event> $query */
                 return $query->publiclyVisible();

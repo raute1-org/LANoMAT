@@ -4,10 +4,10 @@ namespace App\Http\Middleware;
 
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Registration\Enums\RegistrationAvailability;
+use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -43,6 +43,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'displayTimezone' => DisplayTimezone::name(),
             'modules' => fn () => array_map(
                 fn (Module $m) => $m->key(),
                 app(Modules::class)->enabledModules(),
@@ -52,14 +53,18 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'notificationLabels' => trans('notifications.bell'),
-            'unreadNotifications' => Inertia::optional(fn () => $request->user()
+            // Always included (closure, not Inertia::optional): an optional prop is
+            // dropped from every redirect response, which emptied the bell and its
+            // badge after any mutation although notifications were still unread.
+            'unreadNotificationCount' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,
+            'unreadNotifications' => fn () => $request->user()
                 ?->unreadNotifications()->take(15)->get()
                 ->map(fn ($n) => [
                     'id' => $n->id,
                     'title' => $n->data['title'] ?? '',
                     'body' => $n->data['body'] ?? '',
                     'createdAt' => $n->created_at?->toIso8601String(),
-                ])->values()->all() ?? []),
+                ])->values()->all() ?? [],
             'currentEvent' => fn () => $request->user() === null || ($event = app(CurrentEvent::class)->get()) === null
                 ? null
                 : [

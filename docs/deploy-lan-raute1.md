@@ -52,6 +52,7 @@ POSTGRES_PASSWORD=<same strong password>   # read by compose's postgres service
 REDIS_HOST=redis
 REDIS_PORT=6379
 QUEUE_CONNECTION=redis
+CACHE_LIMITER_STORE=database   # rate limiters (login, check-in) stay off Redis, so a Redis outage cannot break login
 
 DISCORD_CLIENT_ID=...
 DISCORD_CLIENT_SECRET=...
@@ -102,6 +103,10 @@ Empty (the default) means anyone with a Discord account can log in.
   ID), so the operator cannot be locked out.
 - Sessions that are already active are not revoked when someone leaves the
   server. They are blocked at their next login.
+
+### Timezone
+
+Timestamps are stored in UTC (`app.timezone`, never change it on a live database). Everything a person reads or types uses one display zone, `APP_DISPLAY_TIMEZONE` (default `Europe/Berlin`, `config('lanomat.timezone')`): arrival days (`EventDays`), Filament date-time inputs/columns (`FilamentTimezone`), notification times, and the Vue pages (shared Inertia prop `displayTimezone`, formatter `resources/js/lib/datetime.ts`). Do not call `toLocaleString()` without `timeZone` in new UI; use `formatInstant()`.
 
 ## 4. Start the stack
 
@@ -162,19 +167,117 @@ This runs `migrate --force` and promotes or creates that account as admin.
 
 ## 8. Backups
 
-No backup mechanism is built into the repo yet (backlog 1.3). Use cron on the
-host. Adjust the paths to where the compose project lives:
+`scripts/ops/backup.sh` creates the nightly backup. It runs with
+`set -euo pipefail`, dumps Postgres (`pg_dump` via
+`docker compose --profile prod exec -T postgres`) and the storage volume
+(`lanomat_app_storage`) into a temp directory, verifies both archives
+(`gzip -t` and a minimum size of 1 KiB), then moves them atomically into
+`/var/backups/lanomat` (override with `BACKUP_DIR`). Files older than 14 days
+are deleted. A failed run exits non-zero (1 database, 2 storage, 3 setup),
+publishes nothing and leaves `.last-success` untouched. Output has UTC
+timestamps.
 
-```cron
-# Database dump, daily at 03:00 (gzip, keep 14 days)
-0 3 * * * cd /opt/lanomat && docker compose --profile prod exec -T postgres sh -c 'pg_dump -U lanomat -d "$POSTGRES_DB"' | gzip > /var/backups/lanomat/db-$(date +\%F).sql.gz && find /var/backups/lanomat -name 'db-*.sql.gz' -mtime +14 -delete
+Install the cron job once, as root, from the project directory:
 
-# Uploads (volume lanomat_app_storage), daily at 03:10
-10 3 * * * docker run --rm -v lanomat_app_storage:/data:ro -v /var/backups/lanomat:/backup alpine tar czf /backup/storage-$(date +\%F).tgz -C /data .
+```bash
+cd /opt/lanomat && sudo scripts/ops/install-backup-cron.sh /opt/lanomat
 ```
 
-Create `/var/backups/lanomat` first. Copy the backups off the host regularly.
-A backup that stays on the same disk does not count.
+This writes `/etc/cron.d/lanomat-backup` with:
+
+```cron
+SHELL=/bin/bash
+0 3 * * * root cd /opt/lanomat && ./scripts/ops/backup.sh >> /var/log/lanomat-backup.log 2>&1
+```
+
+After a fully successful run the script writes a Unix timestamp to
+`/var/backups/lanomat/.last-success`. The `app` service mounts
+`/var/backups/lanomat` read-only (compose.yml), and the Preflight check
+"Backup" reads the marker (`BACKUP_MARKER_PATH`, default
+`/var/backups/lanomat/.last-success`): OK under 26 h, warning above, outage
+above 50 h. A missing marker is a warning in production.
+
+Restore, in short:
+
+1. Stop the writers: `docker compose --profile prod stop app queue scheduler reverb-prod` (adjust to your service list).
+2. Database: `gunzip -c db-<stamp>.sql.gz | docker compose --profile prod exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` into an empty database (drop and recreate it first).
+3. Uploads: `docker run --rm -v lanomat_app_storage:/data -v /var/backups/lanomat:/backup:ro alpine tar xzf /backup/storage-<stamp>.tgz -C /data`
+4. Start the services again and run `php artisan lanomat:preflight`.
+5. Test a restore on a scratch host before you need it.
+
+The backups must be copied off the host regularly. A backup that stays on the
+same disk does not count. The repo does not set up an off-host target; choose
+one yourself.
+
+## Security headers
+
+Traefik's `secure-headers` middleware (`docker/traefik/dynamic.yml`) sets HSTS,
+frame deny, nosniff, `Referrer-Policy: strict-origin-when-cross-origin` and a
+restrictive `Permissions-Policy` (camera only for the same origin, used by the
+check-in camera scanner; microphone, geolocation, payment and USB
+denied). The image sets `expose_php = 0`, so `X-Powered-By` is not sent.
+
+### Content Security Policy (report-only by default)
+
+The Laravel app sends the policy itself (`App\Http\Middleware\AddContentSecurityPolicy`,
+built by `App\Support\Security\ContentSecurityPolicy`), controlled by one env
+flag:
+
+| `CSP_MODE` | Effect |
+|---|---|
+| `report-only` (default) | sends `Content-Security-Policy-Report-Only`; nothing is ever blocked |
+| `enforce` | sends the enforcing `Content-Security-Policy` header |
+| `off` | sends no CSP header |
+
+Any other value behaves like `report-only`. The change takes effect after
+`php artisan config:clear` (or a container restart with a cached config).
+
+What the policy allows:
+
+- **Participant, beamer and overlay pages** (Inertia/Vue): `script-src 'self'`
+  plus a fresh per-request nonce (Laravel's `Vite::useCspNonce()` stamps `@vite`
+  tags, the inline scripts in `app.blade.php` carry it too) and
+  `'wasm-unsafe-eval'` for the self-hosted ZXing decoder of the check-in camera
+  scanner. No `'unsafe-eval'`, no `'unsafe-inline'` for scripts.
+- **Admin panel** (`/admin`, Filament): the same, plus `'unsafe-eval'`.
+  Alpine compiles its attribute expressions with `new Function`, and Filament's
+  own documentation says `script-src` still needs it there (Livewire's CSP-safe
+  build is not supported by Filament). Filament panels do not run the `web`
+  middleware group, so the middleware is registered on the panel separately.
+- `style-src 'self' 'unsafe-inline'` everywhere (Filament documents that a strict
+  `style-src` is unsupported; the Vue UI binds `style` attributes).
+- `img-src 'self' data: blob: https:` (Discord avatars), `font-src 'self'`,
+  `connect-src 'self'` plus the Reverb `ws(s)://host:port` from
+  `REVERB_HOST/PORT/SCHEME`, `object-src 'none'`, `base-uri 'self'`,
+  `frame-ancestors 'none'`, `form-action 'self'` plus the Discord, Steam and
+  Twitch hosts (`config/security.php`).
+- In non-production, the Vite dev server origin from `public/hot` is allowed.
+
+Violations are POSTed by the browser to `POST /csp-report` (no session, no CSRF,
+no login, 8 KB limit, 60 requests/minute per IP, both `report-uri` and Reporting
+API formats) and logged as one line each to `storage/logs/csp.log` (daily
+rotation):
+
+```
+csp-violation directive=script-src-elem blocked=https://evil.example/x.js document=/events/spring source=/build/app.js line=12 disposition=report
+```
+
+Query strings and fragments are stripped and no IP, user agent or cookie is
+logged. What to watch: `docker compose exec app tail -f storage/logs/csp.log`
+while clicking through the participant pages, `/screen/{event}`, the OBS overlays
+and `/admin`. Expected, ignorable noise: browser extensions
+(`blocked=chrome-extension` / `moz-extension` / `inline` from a page you did not
+write). Anything with a first-party `source=` or a CDN host is a real finding:
+fix the asset (self-host it, add the nonce) or extend the policy deliberately.
+
+**Switching to enforce:** run report-only through at least one full event
+rehearsal (all pages above, check-in scanner, Discord login round trip, Steam and
+Twitch linking, an upload), confirm the log has no first-party entries, set
+`CSP_MODE=enforce`, reload config, and re-test the same paths. To back out, set
+`CSP_MODE=report-only` again. Known caveat: the OAuth login redirects
+(Discord/Steam/Twitch) are plain navigations or redirects after a form POST; if
+Chrome reports `form-action` violations for a redirect target, add that host to
+`security.csp.form_action_hosts`.
 
 ## 9. Later: switch to the full profile
 

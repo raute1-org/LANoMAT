@@ -15,12 +15,16 @@ return [
         'teamspeak' => 'TeamSpeak',
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
+        'backup' => 'Backup',
     ],
     'messages' => [
         'not_configured' => 'Nicht konfiguriert.',
         'storage_mismatch' => 'Schreibprobe stimmte nicht überein.',
         'failed_jobs' => ':count fehlgeschlagene(r) Job(s).',
         'stale' => 'Kein aktuelles Lebenszeichen.',
+        'backup_missing' => 'Kein Backup-Marker gefunden. Läuft das Backup-Skript?',
+        'backup_unreadable' => 'Backup-Marker ist unlesbar.',
+        'backup_age' => 'Letztes erfolgreiches Backup vor :hours Stunden.',
     ],
     'status' => [
         'ok' => 'OK',

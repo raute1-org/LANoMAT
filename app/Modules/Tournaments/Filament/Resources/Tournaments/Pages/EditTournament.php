@@ -2,15 +2,14 @@
 
 namespace App\Modules\Tournaments\Filament\Resources\Tournaments\Pages;
 
-use App\Modules\Tournaments\Actions\StartTournament;
-use App\Modules\Tournaments\Enums\TournamentStatus;
-use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\TournamentResource;
+use App\Modules\Tournaments\Filament\Support\TournamentLifecycleActions;
 use App\Modules\Tournaments\Models\Tournament;
-use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 
 class EditTournament extends EditRecord
 {
@@ -19,48 +18,24 @@ class EditTournament extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('start')
-                ->label(__('tournaments.admin.actions.start'))
-                ->authorize('manage')
-                // Only startable from Enrollment/CheckIn and never once
-                // already Live/Finished — mirrors StartTournament's own
-                // guard, so the button reflects reality instead of being a
-                // dead click that always ends in a caught exception.
-                ->visible(fn (Tournament $record) => in_array(
-                    $record->status,
-                    [TournamentStatus::Enrollment, TournamentStatus::CheckIn],
-                    true,
-                ))
-                ->requiresConfirmation()
-                ->action(function (Tournament $record): void {
-                    try {
-                        app(StartTournament::class)->handle($record);
-                    } catch (TournamentException $exception) {
-                        Notification::make()
-                            ->title(__($exception->translationKey))
-                            ->danger()
-                            ->send();
-
-                        return;
-                    }
-
-                    // The action locks and saves a *fresh* instance
-                    // internally (see StartTournament), so `$record` here is
-                    // still the pre-transition object in memory. Refresh it
-                    // before refreshFormData(['status']) re-fills the form,
-                    // otherwise the header still shows the old status until
-                    // a manual page reload.
-                    $record->refresh();
-
-                    Notification::make()
-                        ->title(__('tournaments.admin.actions.started'))
-                        ->success()
-                        ->send();
-
-                    $this->refreshFormData(['status']);
-                }),
+            ...TournamentLifecycleActions::make(),
             DeleteAction::make()
                 ->authorize('manage'),
         ];
+    }
+
+    /**
+     * The current lifecycle status as a native Filament badge right under the
+     * title; the next-step actions sit beside it in the header.
+     */
+    public function getSubheading(): string|Htmlable|null
+    {
+        /** @var Tournament $record */
+        $record = $this->getRecord();
+
+        return new HtmlString(Blade::render(
+            '<x-filament::badge :color="$color">{{ $label }}</x-filament::badge>',
+            ['color' => $record->status->color(), 'label' => $record->status->label()],
+        ));
     }
 }

@@ -29,6 +29,11 @@ return [
         'free_spots' => 'Noch :count Plätze frei.',
     ],
 
+    'cancel_blocked' => [
+        'checked_in' => 'Du bist bereits eingecheckt — eine Stornierung ist nur noch über die Orga möglich.',
+        'event_over' => 'Dieses Event ist vorbei — eine Stornierung ist nicht mehr möglich.',
+    ],
+
     'arrival' => [
         'windows' => [
             'morning' => 'bis 12 Uhr',
@@ -78,6 +83,12 @@ return [
 
     'admin' => [
         'title' => 'Anmeldungen',
+        'cancel' => 'Stornieren',
+        'cancel_heading' => 'Anmeldung von :name stornieren?',
+        'cancel_description' => 'Die Anmeldung von :name wird storniert und ein zugewiesener Sitzplatz wird frei.',
+        'model_label' => 'Anmeldung',
+        'plural_model_label' => 'Anmeldungen',
+        'empty' => 'Noch keine Anmeldungen',
         'participant' => 'Teilnehmer',
         'ticket' => 'Ticket',
         'status' => 'Status',
@@ -116,7 +127,7 @@ return [
             'unknown' => 'Unbekannt',
             'present' => 'Erwartet anwesend',
             'peak' => 'Spitze: :count am :slot',
-            'no_peak' => 'Noch keine Angaben für eine Spitze.',
+            'no_peak' => 'Noch keine Angaben für eine Spitze',
             'unknown_note' => ':count Anmeldungen ohne Ankunft sind in der Anwesenheit nicht enthalten.',
             'no_days' => 'Das Event hat noch keine Zeiträume (Start und Ende fehlen).',
             'empty' => 'Noch keine Anmeldungen mit Angaben.',
@@ -136,6 +147,21 @@ return [
         'manual' => 'Token manuell eingeben',
         'submit' => 'Einchecken',
         'done' => ':name eingecheckt.',
+        'camera' => [
+            'start' => 'Kamera scannen',
+            'stop' => 'Kamera stoppen',
+            'starting' => 'Kamera startet …',
+            'video_label' => 'Kamerabild zum Scannen der Ticket-QR-Codes',
+            'hint' => 'Halte das Ticket-QR in den Bildausschnitt. Der nächste Code wird automatisch gescannt.',
+            'checked_in' => 'Eingecheckt',
+            'ticket' => 'Ticket',
+            'denied' => 'Der Kamerazugriff wurde blockiert. Erlaube die Kamera in den Browser-Einstellungen für diese Seite oder gib den Token unten manuell ein.',
+            'no_camera' => 'Es wurde keine Kamera gefunden. Gib den Token unten manuell ein.',
+            'camera_busy' => 'Die Kamera wird gerade von einer anderen App benutzt. Schließe die andere App und versuche es erneut.',
+            'insecure' => 'Die Kamera ist nur über eine sichere Verbindung (HTTPS) verfügbar. Öffne die Seite über https:// oder gib den Token unten manuell ein.',
+            'unsupported' => 'Dieser Browser kann nicht auf die Kamera zugreifen. Gib den Token unten manuell ein.',
+            'error' => 'Die Kamera konnte nicht gestartet werden. Versuche es erneut oder gib den Token unten manuell ein.',
+        ],
         'errors' => [
             'unknown_token' => 'Kein Ticket mit diesem QR-Code für dieses Event gefunden.',
             'already_checked_in' => 'Dieser Teilnehmer ist bereits eingecheckt.',

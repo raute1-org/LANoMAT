@@ -6,7 +6,8 @@ use DomainException;
 
 class TournamentException extends DomainException
 {
-    private function __construct(string $message, public readonly string $translationKey)
+    /** @param array<string, string> $translationParams */
+    private function __construct(string $message, public readonly string $translationKey, public readonly array $translationParams = [])
     {
         parent::__construct($message);
     }
@@ -49,6 +50,31 @@ class TournamentException extends DomainException
         );
     }
 
+    public static function notEnoughEntries(int $count): self
+    {
+        return new self(
+            "At least 2 participating entries are required to start, got {$count}.",
+            'tournaments.errors.not_enough_entries',
+            ['count' => (string) $count],
+        );
+    }
+
+    public static function unsupportedSingleEliminationSize(int $count): self
+    {
+        return new self(
+            "Single elimination is only supported for 2 to 64 participating entries, got {$count}.",
+            'tournaments.errors.unsupported_single_elimination_size',
+        );
+    }
+
+    public static function checkinWindowAlreadyClosed(): self
+    {
+        return new self(
+            'The check-in window already closed; adjust check-in closes before opening check-in early.',
+            'tournaments.errors.checkin_window_closed_early',
+        );
+    }
+
     public static function matchNotReady(): self
     {
         return new self('This match is not ready to be reported.', 'tournaments.errors.match_not_ready');
@@ -84,6 +110,11 @@ class TournamentException extends DomainException
         return new self('This report has already been resolved.', 'tournaments.errors.report_not_pending');
     }
 
+    public static function cannotWithdrawOthersReport(): self
+    {
+        return new self('Only the reporting side can withdraw or correct its report.', 'tournaments.errors.cannot_withdraw_others_report');
+    }
+
     public static function matchNotDisputable(): self
     {
         return new self('This match can no longer be disputed.', 'tournaments.errors.match_not_disputable');
@@ -92,5 +123,40 @@ class TournamentException extends DomainException
     public static function entryWithdrawn(): self
     {
         return new self('This entry has been withdrawn and cannot check in.', 'tournaments.errors.entry_withdrawn');
+    }
+
+    public static function withdrawalClosed(): self
+    {
+        return new self('Entries can only be withdrawn while enrollment or check-in is open.', 'tournaments.errors.withdrawal_closed');
+    }
+
+    public static function notDraft(): self
+    {
+        return new self('The tournament is not a draft.', 'tournaments.errors.not_draft');
+    }
+
+    public static function notAnnounced(): self
+    {
+        return new self('Only a draft or announced tournament can be opened for enrollment.', 'tournaments.errors.not_announced');
+    }
+
+    /** @param list<string> $missingLabels */
+    public static function incompleteSetup(array $missingLabels): self
+    {
+        return new self(
+            'The tournament is missing required settings: '.implode(', ', $missingLabels).'.',
+            'tournaments.errors.incomplete_setup',
+            ['fields' => implode(', ', $missingLabels)],
+        );
+    }
+
+    public static function cannotReturnToDraft(): self
+    {
+        return new self('Only an announced tournament or an enrollment/check-in phase without entries can return to draft.', 'tournaments.errors.cannot_return_to_draft');
+    }
+
+    public static function hasEntries(): self
+    {
+        return new self('The tournament already has entries.', 'tournaments.errors.has_entries');
     }
 }

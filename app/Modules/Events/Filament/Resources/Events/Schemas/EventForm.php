@@ -29,10 +29,17 @@ class EventForm
                 DateTimePicker::make('starts_at')
                     ->label(__('events.fields.starts_at')),
                 DateTimePicker::make('ends_at')
-                    ->label(__('events.fields.ends_at')),
+                    ->label(__('events.fields.ends_at'))
+                    ->after('starts_at')
+                    ->validationMessages(['after' => __('events.validation.ends_after_starts')]),
+                // Empty = unlimited; 0 would make the event permanently "full".
                 TextInput::make('max_participants')
                     ->label(__('events.fields.max_participants'))
-                    ->numeric(),
+                    ->numeric()
+                    ->integer()
+                    ->minValue(1)
+                    ->helperText(__('events.fields.max_participants_hint'))
+                    ->validationMessages(['min' => __('events.validation.max_participants_min')]),
                 // Status is changed only via the transition action buttons on the
                 // edit page, so it is shown read-only here (no free editing that
                 // could bypass the allowed-transitions map).

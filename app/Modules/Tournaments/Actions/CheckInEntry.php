@@ -7,7 +7,6 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 class CheckInEntry
@@ -29,7 +28,7 @@ class CheckInEntry
 
         $tournament = Tournament::query()->findOrFail($entry->tournament_id);
 
-        if (! $this->windowIsOpen($tournament->status, $tournament->checkin_opens_at, $tournament->checkin_closes_at)) {
+        if (! self::windowIsOpen($tournament)) {
             throw TournamentException::checkinClosed();
         }
 
@@ -40,8 +39,13 @@ class CheckInEntry
         return $entry;
     }
 
-    private function windowIsOpen(TournamentStatus $status, ?CarbonInterface $opensAt, ?CarbonInterface $closesAt): bool
+    /** Whether the tournament currently accepts check-ins (status and time window). */
+    public static function windowIsOpen(Tournament $tournament): bool
     {
+        $status = $tournament->status;
+        $opensAt = $tournament->checkin_opens_at;
+        $closesAt = $tournament->checkin_closes_at;
+
         if ($status !== TournamentStatus::CheckIn) {
             return false;
         }

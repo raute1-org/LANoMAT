@@ -7,6 +7,7 @@ use App\Modules\Teams\Enums\TeamRole;
 use App\Modules\Teams\Exceptions\TeamException;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamJoinRequest;
+use App\Modules\Teams\Notifications\TeamJoinRequestAnswered;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ class RespondToJoinRequest
     public function handle(TeamJoinRequest $request, bool $accept): TeamJoinRequest
     {
         try {
-            return DB::transaction(function () use ($request, $accept): TeamJoinRequest {
+            $answered = DB::transaction(function () use ($request, $accept): TeamJoinRequest {
                 if ($accept) {
                     $team = Team::query()->findOrFail($request->team_id);
                     $member = $team->members()->where('user_id', $request->user_id)->first();
@@ -32,6 +33,13 @@ class RespondToJoinRequest
 
                 return $request;
             });
+
+            $team = $answered->team;
+            if ($team !== null) {
+                $answered->user?->notify(new TeamJoinRequestAnswered($team, $accept));
+            }
+
+            return $answered;
         } catch (QueryException $e) {
             // Only a unique-key violation on (team_id, user_id, status) means
             // a stale/duplicate terminal row already exists for this pair.

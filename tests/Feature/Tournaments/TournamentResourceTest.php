@@ -2,10 +2,12 @@
 
 use App\Models\User;
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Enums\ReportStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\EditTournament;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use Filament\Actions\Testing\TestAction;
@@ -116,4 +118,33 @@ it('rejects a tied override from the dispute queue with a validation error', fun
         ->assertHasTableActionErrors(['score2' => 'different']);
 
     expect($match->fresh()->status)->toBe(MatchStatus::Disputed);
+});
+
+// F-S4-2: the dispute queue shows the claimed result, who reported it and when.
+it('shows the reported score, reporter and time in the disputes table', function () {
+    $tournament = Tournament::factory()->live()->singleElim()->create();
+    $entry1 = TournamentEntry::factory()->checkedIn()->create(['tournament_id' => $tournament->id]);
+    $entry2 = TournamentEntry::factory()->checkedIn()->create(['tournament_id' => $tournament->id]);
+    $match = GameMatch::factory()->create([
+        'tournament_id' => $tournament->id,
+        'entry1_id' => $entry1->id,
+        'entry2_id' => $entry2->id,
+        'status' => MatchStatus::Disputed,
+    ]);
+    $reporter = User::find($entry2->user_id);
+    $report = MatchReport::create([
+        'match_id' => $match->id,
+        'reported_by' => $reporter->id,
+        'score1' => 0,
+        'score2' => 2,
+    ]);
+    $report->status = ReportStatus::Disputed;
+    $report->save();
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(ManageDisputes::class)
+        ->assertCanSeeTableRecords([$match])
+        ->assertTableColumnStateSet('reported_score', '0 : 2', $match)
+        ->assertTableColumnStateSet('reported_by', $reporter->name, $match);
 });

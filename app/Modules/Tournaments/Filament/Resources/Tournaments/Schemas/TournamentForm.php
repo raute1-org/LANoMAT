@@ -3,14 +3,50 @@
 namespace App\Modules\Tournaments\Filament\Resources\Tournaments\Schemas;
 
 use App\Modules\Tournaments\Enums\TournamentFormat;
+use App\Modules\Tournaments\Enums\TournamentStatus;
+use App\Modules\Tournaments\Models\Tournament;
+use App\Modules\Tournaments\Support\StandingsView;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 
 class TournamentForm
 {
+    /** @return list<Text> */
+    private static function standingsLines(?Tournament $record): array
+    {
+        if ($record === null) {
+            return [];
+        }
+
+        $rows = StandingsView::forTournament($record) ?? [];
+
+        if ($rows === []) {
+            return [Text::make(__('tournaments.standings.empty'))];
+        }
+
+        return array_map(
+            fn (array $row): Text => Text::make(sprintf(
+                '%d. %s: %d %s, %d %s, %d:%d (%+d)',
+                $row['rank'],
+                $row['name'],
+                $row['wins'],
+                __('tournaments.standings.wins'),
+                $row['losses'],
+                __('tournaments.standings.losses'),
+                $row['pointsFor'],
+                $row['pointsAgainst'],
+                $row['scoreDifference'],
+            )),
+            $rows,
+        );
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -49,9 +85,25 @@ class TournamentForm
                 DateTimePicker::make('checkin_opens_at')
                     ->label(__('tournaments.fields.checkin_opens_at')),
                 DateTimePicker::make('checkin_closes_at')
-                    ->label(__('tournaments.fields.checkin_closes_at')),
+                    ->label(__('tournaments.fields.checkin_closes_at'))
+                    ->after('checkin_opens_at')
+                    ->validationMessages(['after' => __('tournaments.errors.checkin_closes_after_opens')]),
+                Textarea::make('rules')
+                    ->label(__('tournaments.fields.rules'))
+                    ->helperText(__('tournaments.fields.rules_help'))
+                    ->rows(6)
+                    ->maxLength(10000)
+                    ->columnSpanFull(),
                 KeyValue::make('settings')
                     ->label(__('tournaments.fields.settings')),
+                // Round robin: the derived table, read-only (Filament-native text lines).
+                Section::make(__('tournaments.standings.title'))
+                    ->description(__('tournaments.standings.tiebreak'))
+                    ->columnSpanFull()
+                    ->visible(fn (?Tournament $record): bool => $record !== null
+                        && $record->format === TournamentFormat::RoundRobin
+                        && in_array($record->status, [TournamentStatus::Live, TournamentStatus::Finished], true))
+                    ->schema(fn (?Tournament $record): array => self::standingsLines($record)),
                 // status/winner_entry_id are action-only (StartTournament,
                 // bracket progression) and are deliberately not part of this
                 // form, so mass assignment via the form can never write them.

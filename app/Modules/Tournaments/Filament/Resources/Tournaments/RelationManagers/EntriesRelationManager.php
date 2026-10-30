@@ -28,6 +28,9 @@ class EntriesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modelLabel(__('tournaments.admin.entries.model_label'))
+            ->pluralModelLabel(__('tournaments.admin.entries.plural_model_label'))
+            ->emptyStateHeading(__('tournaments.admin.entries.empty'))
             ->columns([
                 TextColumn::make('display_name')
                     ->label(__('tournaments.admin.entries.display_name'))
@@ -55,8 +58,12 @@ class EntriesRelationManager extends RelationManager
                     // orga acting, but the explicit ->authorize() is kept per
                     // the "every Filament action gets an authorize()" rule.
                     ->authorize('checkIn')
+                    // Only offered while check-in is actually open: otherwise the
+                    // action could only fail with "Der Check-in ist derzeit nicht geöffnet.".
                     ->visible(fn (TournamentEntry $record) => $record->status !== EntryStatus::CheckedIn
-                        && $record->status !== EntryStatus::Withdrawn)
+                        && $record->status !== EntryStatus::Withdrawn
+                        && $record->tournament !== null
+                        && CheckInEntry::windowIsOpen($record->tournament))
                     ->action(function (TournamentEntry $record): void {
                         try {
                             app(CheckInEntry::class)->handle($record);

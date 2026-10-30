@@ -22,9 +22,37 @@ class RegistrationPolicy
         return RegistrationAvailability::acceptsStatus($event->status);
     }
 
+    /**
+     * Ruling C (OQ-N6): a participant can cancel their own registration only
+     * until they are checked in and while the event is not finished/archived;
+     * orga can always cancel (via the admin panel).
+     */
     public function cancel(User $user, EventRegistration $registration): bool
     {
-        return $user->isOrga() || $registration->user_id === $user->id;
+        if ($user->isOrga()) {
+            return true;
+        }
+
+        return $registration->user_id === $user->id && self::cancelBlockedReason($registration) === null;
+    }
+
+    /**
+     * Why a participant cannot cancel right now (`checked_in` | `event_over`),
+     * or null when they can. Single source for the policy and the UI prop.
+     */
+    public static function cancelBlockedReason(EventRegistration $registration): ?string
+    {
+        if ($registration->checked_in_at !== null) {
+            return 'checked_in';
+        }
+
+        $event = $registration->event()->first();
+
+        if ($event !== null && in_array($event->status, [EventStatus::Finished, EventStatus::Archived], true)) {
+            return 'event_over';
+        }
+
+        return null;
     }
 
     public function update(User $user, EventRegistration $registration): bool

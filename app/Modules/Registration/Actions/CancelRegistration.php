@@ -22,6 +22,10 @@ class CancelRegistration
         }
 
         $registration->status = RegistrationStatus::Cancelled;
+        // A cancelled registration is no longer "on site": drop the check-in
+        // so arrival/presence counts stay honest (the seat is released by the
+        // RegistrationCancelled listener).
+        $registration->checked_in_at = null;
         $registration->save();
 
         RegistrationCancelled::dispatch($registration);

@@ -12,6 +12,7 @@ import {
 export type ConnectionProvider = {
     provider: string;
     label: string;
+    available: boolean;
     linked: boolean;
     nickname: string | null;
     needsReauth: boolean;
@@ -73,8 +74,16 @@ function unlink() {
             </div>
 
             <div class="flex items-center gap-3">
+                <p
+                    v-if="!connection.linked && !connection.available"
+                    class="text-sm text-muted-foreground"
+                    data-test="provider-unavailable"
+                >
+                    {{ labels.unavailable }}
+                </p>
+
                 <Button
-                    v-if="!connection.linked"
+                    v-else-if="!connection.linked"
                     as-child
                     variant="outline"
                     data-test="link-button"

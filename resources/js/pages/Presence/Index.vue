@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEventChannel } from '@/composables/useEventChannel';
+import { useResync } from '@/composables/useResync';
 import { show as tournamentsShow } from '@/routes/tournaments';
 import type { PresenceBoardDto } from '@/types';
 
@@ -61,6 +62,9 @@ const props = defineProps<{
 useEventChannel(props.event.id, ['.presence.updated'], () => {
     router.reload({ only: ['presence'] });
 });
+
+// Signals missed while offline are recovered on reconnect / tab focus.
+useResync(() => router.reload({ only: ['presence'] }));
 
 function t<S extends keyof PresenceLabels>(
     section: S,

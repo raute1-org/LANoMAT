@@ -5,6 +5,7 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatInstant } from '@/lib/datetime';
 import { dashboard } from '@/routes';
 import { edit as editConnections } from '@/routes/connections';
 import {
@@ -90,9 +91,9 @@ const dateRange = computed(() => {
         dateStyle: 'medium',
         timeStyle: 'short',
     };
-    const start = new Date(props.event.startsAt).toLocaleString('de-DE', opts);
+    const start = formatInstant(props.event.startsAt, opts);
     const end = props.event.endsAt
-        ? new Date(props.event.endsAt).toLocaleString('de-DE', opts)
+        ? formatInstant(props.event.endsAt, opts)
         : null;
 
     return end ? `${start} – ${end}` : start;

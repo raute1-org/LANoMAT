@@ -25,7 +25,8 @@ declare module '@inertiajs/core' {
             currentEvent: EventSummary | null;
             modules: ModuleKey[];
             notificationLabels: Record<string, string>;
-            unreadNotifications?: NotificationItem[];
+            unreadNotificationCount: number;
+            unreadNotifications: NotificationItem[];
             [key: string]: unknown;
         };
     }

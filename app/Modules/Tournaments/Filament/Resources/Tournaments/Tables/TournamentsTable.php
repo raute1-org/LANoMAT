@@ -4,6 +4,7 @@ namespace App\Modules\Tournaments\Filament\Resources\Tournaments\Tables;
 
 use App\Modules\Tournaments\Enums\TournamentFormat;
 use App\Modules\Tournaments\Enums\TournamentStatus;
+use App\Modules\Tournaments\Filament\Support\TournamentLifecycleActions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -30,6 +31,7 @@ class TournamentsTable
                 TextColumn::make('status')
                     ->label(__('tournaments.fields.status'))
                     ->badge()
+                    ->color(fn (TournamentStatus $state): string => $state->color())
                     ->formatStateUsing(fn (TournamentStatus $state) => $state->label()),
                 TextColumn::make('team_size')
                     ->label(__('tournaments.fields.team_size'))
@@ -50,6 +52,7 @@ class TournamentsTable
                         ->all()),
             ])
             ->recordActions([
+                ...TournamentLifecycleActions::make(),
                 EditAction::make(),
             ])
             ->toolbarActions([

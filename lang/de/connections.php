@@ -16,6 +16,7 @@ return [
         'unlink_button' => 'Trennen',
         'reauth_warning' => 'Die Verknüpfung ist abgelaufen. Bitte erneut anmelden, damit sie weiter funktioniert.',
         'reauth_button' => 'Erneut anmelden',
+        'unavailable' => 'Derzeit nicht verfügbar.',
         'empty' => 'Aktuell ist kein Anbieter für Verknüpfungen verfügbar.',
         'provider_id_label' => 'Konto-ID',
         'load_error' => 'Die Verknüpfungen konnten nicht geladen werden. Bitte lade die Seite neu.',

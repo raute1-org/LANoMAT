@@ -30,17 +30,18 @@ use Illuminate\Support\Facades\Event;
  * `TournamentTickCommand`); double-start is impossible thanks to the status
  * guard plus the row lock below.
  *
- * Double-elimination brackets support participating-entry counts from 2 to
- * 64, matching single elimination's tested range; counts that are not a power
- * of two are padded with byes. Anything outside that range throws before the
- * generator is invoked.
+ * Every format needs at least 2 participating entries; both elimination
+ * formats support 2 to 64 (counts that are not a power of two are padded with
+ * byes). Anything outside that range throws a German {@see TournamentException}
+ * before the generator is invoked.
  */
 class StartTournament
 {
-    /** Matches single elimination's tested ceiling; see LbIntakeOrdering. */
-    private const MIN_DOUBLE_ELIMINATION_ENTRIES = 2;
+    /** Every format needs a pairing: at least two participating entries. */
+    private const MIN_ENTRIES = 2;
 
-    private const MAX_DOUBLE_ELIMINATION_ENTRIES = 64;
+    /** The tested ceiling of both elimination formats; see LbIntakeOrdering. */
+    private const MAX_ELIMINATION_ENTRIES = 64;
 
     public function __construct(
         private readonly BracketGenerator $generator,
@@ -73,10 +74,18 @@ class StartTournament
 
             $entryIds = $this->seedEntries->handle($tournament, $entries);
 
-            if ($tournament->format === TournamentFormat::DoubleElimination
-                && (count($entryIds) < self::MIN_DOUBLE_ELIMINATION_ENTRIES
-                    || count($entryIds) > self::MAX_DOUBLE_ELIMINATION_ENTRIES)) {
-                throw TournamentException::unsupportedDoubleEliminationSize(count($entryIds));
+            if (count($entryIds) < self::MIN_ENTRIES) {
+                throw TournamentException::notEnoughEntries(count($entryIds));
+            }
+
+            if (count($entryIds) > self::MAX_ELIMINATION_ENTRIES) {
+                if ($tournament->format === TournamentFormat::DoubleElimination) {
+                    throw TournamentException::unsupportedDoubleEliminationSize(count($entryIds));
+                }
+
+                if ($tournament->format === TournamentFormat::SingleElimination) {
+                    throw TournamentException::unsupportedSingleEliminationSize(count($entryIds));
+                }
             }
 
             $plan = match ($tournament->format) {
@@ -104,6 +113,16 @@ class StartTournament
 
             return $tournament;
         });
+    }
+
+    /**
+     * How many entries would take part right now, before any auto-team
+     * shuffle: the scheduler uses it to skip tournaments that cannot start
+     * yet instead of dispatching a job that is bound to fail every minute.
+     */
+    public function participatingCount(Tournament $tournament): int
+    {
+        return $this->participatingEntries($tournament)->count();
     }
 
     /**

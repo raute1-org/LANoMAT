@@ -10,6 +10,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+// The callback only exists for providers with configured credentials.
+beforeEach(function () {
+    config()->set('services.twitch.client_id', 'k');
+    config()->set('services.twitch.client_secret', 'k');
+});
+
 it('links a Twitch account for the authenticated user, storing OAuth tokens', function () {
     fakeLinkedAccounts()->willResolve(LinkedAccountProvider::Twitch, new LinkedAccountData(
         provider_user_id: '123456789', nickname: 'StreamerX',

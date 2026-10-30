@@ -10,6 +10,7 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Support\EventDays;
 use App\Modules\Registration\ValueObjects\ArrivalPlan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
@@ -23,12 +24,14 @@ function arrivalEvent(array $attrs = []): Event
     ]);
 }
 
-it('knows the calendar days of the event', function () {
+it('knows the calendar days of the event (in Berlin time)', function () {
+    $berlin = fn (string $at) => Carbon::parse($at, 'Europe/Berlin')->utc();
+
     expect(EventDays::dates(arrivalEvent()))->toBe(['2026-11-20', '2026-11-21', '2026-11-22'])
-        ->and(EventDays::dates(arrivalEvent(['ends_at' => '2026-11-21 00:00:00'])))->toBe(['2026-11-20'])
-        ->and(EventDays::dates(arrivalEvent(['starts_at' => '2026-11-20 22:00:00', 'ends_at' => '2026-11-21 03:00:00'])))
+        ->and(EventDays::dates(arrivalEvent(['ends_at' => $berlin('2026-11-21 00:00:00')])))->toBe(['2026-11-20'])
+        ->and(EventDays::dates(arrivalEvent(['starts_at' => $berlin('2026-11-20 22:00:00'), 'ends_at' => $berlin('2026-11-21 03:00:00')])))
         ->toBe(['2026-11-20', '2026-11-21'])
-        ->and(EventDays::dates(arrivalEvent(['ends_at' => '2026-11-20 20:00:00'])))->toBe(['2026-11-20'])
+        ->and(EventDays::dates(arrivalEvent(['ends_at' => $berlin('2026-11-20 20:00:00')])))->toBe(['2026-11-20'])
         ->and(EventDays::options(arrivalEvent())[0])->toBe(['value' => '2026-11-20', 'label' => 'Fr, 20.11.']);
 });
 

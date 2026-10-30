@@ -7,6 +7,7 @@ use App\Modules\Presence\Events\PresenceUpdated;
 use App\Modules\Registration\Actions\RotateEventCheckinToken;
 use App\Modules\Registration\Models\EventCheckinToken;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Support\CheckinUrl;
 use App\Modules\Registration\Support\SelfCheckInWindow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event as EventBus;
@@ -288,4 +289,18 @@ it('keeps the window closed even for admins (Gate::before must not bypass it)', 
     $this->actingAs($admin)->post('/checkin/'.tokenFor($event))->assertRedirect();
 
     expect($reg->fresh()->checked_in_at)->toBeNull();
+});
+
+it('builds the QR check-in URL from APP_URL, not from the request host', function () {
+    config(['app.url' => 'https://lan.example.org']);
+    $event = Event::factory()->live()->create();
+    $token = tokenFor($event);
+
+    expect(CheckinUrl::for($token))->toBe("https://lan.example.org/checkin/{$token}");
+
+    $this->actingAs(User::factory()->orga()->create())
+        ->get("http://other-host.test/orga/events/{$event->slug}/checkin-qr")
+        ->assertOk()
+        ->assertSee("https://lan.example.org/checkin/{$token}")
+        ->assertDontSee('other-host.test/checkin');
 });

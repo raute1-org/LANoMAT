@@ -2,9 +2,12 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Tournaments\Actions\StartTournament;
+use App\Modules\Tournaments\Enums\EntryStatus;
+use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
@@ -196,6 +199,7 @@ it('404s on show for a tournament whose event is still draft', function () {
 it('creates an entry on POST enroll while the tournament is in enrollment', function () {
     $tournament = Tournament::factory()->enrollment()->create();
     $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
 
     $this->actingAs($user)
         ->post("/tournaments/{$tournament->id}/enroll")
@@ -220,6 +224,7 @@ it('lets a team owner enroll their team into a team tournament', function () {
     $team = Team::factory()->create(['owner_id' => $owner->id]);
     TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id]);
     TeamMember::factory()->create(['team_id' => $team->id]);
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $owner->id]);
 
     $this->actingAs($owner)
         ->post("/tournaments/{$tournament->id}/enroll", ['team_id' => $team->id])
@@ -235,6 +240,7 @@ it('forbids enrolling a team the acting user does not own or manage', function (
     TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $team->owner_id]);
     TeamMember::factory()->create(['team_id' => $team->id]);
     $stranger = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $stranger->id]);
 
     $this->actingAs($stranger)
         ->post("/tournaments/{$tournament->id}/enroll", ['team_id' => $team->id])
@@ -344,7 +350,7 @@ it('lets the opponent dispute a report', function () {
     expect($match->fresh()->status->value)->toBe('disputed');
 });
 
-it('404s confirming a report that has already been disputed', function () {
+it('refuses confirming a report that has already been disputed with a friendly redirect (Ruling G)', function () {
     $tournament = startEightEntrySingleElim();
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
@@ -361,15 +367,15 @@ it('404s confirming a report that has already been disputed', function () {
         ->assertRedirect();
 
     // pendingReportFor() must no longer resolve the (now Disputed) report,
-    // so confirm 404s instead of re-confirming a disputed report.
+    // so confirm is refused (friendly redirect, Ruling G) instead of re-confirming a disputed report.
     $this->actingAs($opponent)
         ->post("/matches/{$match->id}/confirm", ['lock_version' => $match->fresh()->lock_version])
-        ->assertNotFound();
+        ->assertRedirect();
 
     expect($match->fresh()->status->value)->toBe('disputed');
 });
 
-it('404s disputing a report on a match that already completed', function () {
+it('refuses disputing a report on a match that already completed with a friendly redirect (Ruling G)', function () {
     $tournament = startEightEntrySingleElim();
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
@@ -386,10 +392,10 @@ it('404s disputing a report on a match that already completed', function () {
         ->assertRedirect();
 
     // pendingReportFor() must no longer resolve the (now Confirmed) report,
-    // so dispute 404s instead of flipping a Completed match back to Disputed.
+    // so dispute is refused (friendly redirect, Ruling G) instead of flipping a Completed match back to Disputed.
     $this->actingAs($opponent)
         ->post("/matches/{$match->id}/dispute")
-        ->assertNotFound();
+        ->assertRedirect();
 
     expect($match->fresh()->status->value)->toBe('completed');
 });
@@ -398,6 +404,7 @@ it('creates an entry on POST checkin while the entry owner acts during the check
     $tournament = Tournament::factory()->checkIn()->create();
     $user = User::factory()->create();
     $entry = TournamentEntry::factory()->solo()->create(['tournament_id' => $tournament->id, 'user_id' => $user->id]);
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
 
     $this->actingAs($user)
         ->post("/tournaments/{$tournament->id}/checkin")
@@ -411,4 +418,102 @@ it('resolves the german tournaments index and show titles', function () {
 
     expect(__('tournaments.page.index_title'))->toBe('Turniere')
         ->and(__('tournaments.page.show_title'))->toBe('Turnier');
+});
+
+it('gives team tournaments a team picker with only the viewer-owned teams on the index', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 2]);
+    $owner = User::factory()->create();
+    $full = Team::factory()->create(['owner_id' => $owner->id, 'name' => 'Full Squad']);
+    TeamMember::factory()->create(['team_id' => $full->id, 'user_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $full->id]);
+    $short = Team::factory()->create(['owner_id' => $owner->id, 'name' => 'Short Squad']);
+    TeamMember::factory()->create(['team_id' => $short->id, 'user_id' => $owner->id]);
+    $foreign = Team::factory()->create(['name' => 'Foreign']);
+    TeamMember::factory()->create(['team_id' => $foreign->id, 'user_id' => $owner->id]);
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $owner->id]);
+
+    $this->actingAs($owner)->get("/events/{$tournament->event->slug}/tournaments")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tournaments.0.teamPicker.teamSize', 2)
+            ->has('tournaments.0.teamPicker.teams', 2)
+            ->where('tournaments.0.teamPicker.teams.0.name', 'Full Squad')
+            ->where('tournaments.0.teamPicker.teams.0.eligible', true)
+            ->where('tournaments.0.teamPicker.teams.1.eligible', false)
+            ->where('tournaments.0.teamPicker.createUrl', route('teams.index'))
+        );
+});
+
+it('has no team picker for solo tournaments and an empty one for users without a team', function () {
+    $solo = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 1]);
+    $teamT = Tournament::factory()->for($solo->event)->enrollment()->create(['team_size' => 3]);
+
+    $this->actingAs(User::factory()->create())->get("/events/{$solo->event->slug}/tournaments")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tournaments', fn ($list) => collect($list)->firstWhere('id', $solo->id)['teamPicker'] === null)
+            ->where('tournaments', fn ($list) => collect(collect($list)->firstWhere('id', $teamT->id)['teamPicker']['teams'])->isEmpty())
+        );
+});
+
+it('exposes the team picker on the tournament show page as well', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 2]);
+
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('teamPicker.teamSize', 2)
+            ->has('teamPicker.teams', 0)
+        );
+});
+
+it('flashes an error instead of a 404 when a team tournament is enrolled without a team', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 2]);
+    $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
+
+    $this->actingAs($user)->post("/tournaments/{$tournament->id}/enroll")->assertRedirect();
+
+    expect(TournamentEntry::query()->where('tournament_id', $tournament->id)->exists())->toBeFalse();
+});
+
+// F-S4-11
+it('lists live and open tournaments before finished ones, with enrollment counts', function () {
+    $event = Event::factory()->live()->create();
+    $finished = Tournament::factory()->for($event)->create(['name' => 'Done Cup', 'status' => TournamentStatus::Finished, 'starts_at' => now()->subDay()]);
+    $open = Tournament::factory()->for($event)->enrollment()->create(['name' => 'Open Cup', 'max_entries' => 8, 'team_size' => 1, 'starts_at' => now()->addDays(3)]);
+    $live = Tournament::factory()->for($event)->live()->create(['name' => 'Live Cup', 'starts_at' => now()->addDays(4)]);
+    TournamentEntry::factory()->count(3)->create(['tournament_id' => $open->id]);
+    TournamentEntry::factory()->create(['tournament_id' => $open->id, 'status' => EntryStatus::Withdrawn]);
+
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/tournaments")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tournaments.0.name', 'Live Cup')
+            ->where('tournaments.1.name', 'Open Cup')
+            ->where('tournaments.2.name', 'Done Cup')
+            ->where('tournaments.1.entryCount', 3)
+            ->where('tournaments.1.maxEntries', 8)
+            ->where('tournaments.1.teamSize', 1)
+        );
+});
+
+it('shows a plain team member that their team is entered, without owner actions', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live()->create())->enrollment()->create(['team_size' => 2]);
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $member->id]);
+    TournamentEntry::factory()->team()->create(['tournament_id' => $tournament->id, 'team_id' => $team->id]);
+
+    $this->actingAs($member)->get("/tournaments/{$tournament->id}")
+        ->assertInertia(fn ($page) => $page
+            ->where('myEntry.status', 'registered')
+            ->where('myEntry.isOwner', false)
+            ->where('myEntry.canWithdraw', false));
+
+    $this->actingAs($member)->get("/events/{$tournament->event->slug}/tournaments")
+        ->assertInertia(fn ($page) => $page
+            ->where('tournaments.0.myEntry.isOwner', false));
+
+    $this->actingAs($owner)->get("/tournaments/{$tournament->id}")
+        ->assertInertia(fn ($page) => $page->where('myEntry.isOwner', true));
 });

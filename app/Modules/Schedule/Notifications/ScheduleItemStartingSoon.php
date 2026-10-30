@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Notifications\Support\NotificationPreferences;
 use App\Modules\Schedule\Models\ScheduleItem;
+use App\Support\DisplayTimezone;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -49,7 +50,7 @@ class ScheduleItemStartingSoon extends Notification implements ShouldQueue
             'title' => __('schedule.notify.starting_soon.title'),
             'body' => __('schedule.notify.starting_soon.body', [
                 'title' => $this->scheduleItem->title,
-                'time' => $this->scheduleItem->starts_at->format('H:i'),
+                'time' => DisplayTimezone::local($this->scheduleItem->starts_at)->format('H:i'),
             ]),
         ];
     }
@@ -58,7 +59,7 @@ class ScheduleItemStartingSoon extends Notification implements ShouldQueue
     {
         return __('schedule.notify.starting_soon.discord', [
             'title' => $this->scheduleItem->title,
-            'time' => $this->scheduleItem->starts_at->format('H:i'),
+            'time' => DisplayTimezone::local($this->scheduleItem->starts_at)->format('H:i'),
         ]);
     }
 }

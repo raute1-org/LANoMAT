@@ -7,8 +7,10 @@ use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
+use App\Modules\Games\Filament\Resources\Games\Schemas\GameForm;
 use App\Modules\Games\Models\Game;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 
@@ -96,9 +98,13 @@ class EditGame extends EditRecord
         $record->update($data);
 
         if ($record instanceof Game) {
-            $record->default_server_config = $config;
-            $record->server_presets = $presets;
-            $record->install_hint = $installHint;
+            // With the GameServers module off its fields are hidden and absent
+            // from $data: keep what is stored instead of overwriting it empty.
+            if (GameForm::gameServersEnabled()) {
+                $record->default_server_config = $config;
+                $record->server_presets = $presets;
+                $record->install_hint = $installHint;
+            }
             $record->spectate_hint = $spectateHint;
             $record->save();
         }
@@ -110,7 +116,13 @@ class EditGame extends EditRecord
     {
         return [
             DeleteAction::make()
-                ->authorize('delete'),
+                ->authorize('delete')
+                ->before(function (DeleteAction $action, Game $record): void {
+                    if ($record->isInUse()) {
+                        Notification::make()->title(__('games.errors.in_use'))->danger()->send();
+                        $action->halt();
+                    }
+                }),
         ];
     }
 }

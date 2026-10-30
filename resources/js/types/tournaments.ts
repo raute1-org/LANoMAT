@@ -6,25 +6,71 @@
  */
 export type OwnershipHintStatus = 'owned' | 'not_owned' | 'unknown';
 
+/** The viewer's own active entry; `canWithdraw` mirrors TournamentPolicy::withdraw. */
+export interface TournamentMyEntry {
+    id: number;
+    status: 'registered' | 'checked_in';
+    canWithdraw: boolean;
+    /** False for a plain team member: entered, but nothing to act on. */
+    isOwner: boolean;
+}
+
+/** Ruling A: whether the viewer must register for the event before entering tournaments. */
+export interface TournamentRegistrationGate {
+    required: boolean;
+    open: boolean;
+    url: string;
+}
+
+/** Team picker for team tournaments (`teamSize > 1`); null on solo tournaments. */
+export interface TournamentTeamPicker {
+    teamSize: number;
+    /** The viewer's own teams; `eligible` = roster has exactly `teamSize` members. */
+    teams: {
+        id: number;
+        name: string;
+        tag: string;
+        memberCount: number;
+        eligible: boolean;
+    }[];
+    createUrl: string;
+}
+
 export interface TournamentSummary {
+    teamPicker: TournamentTeamPicker | null;
     id: number;
     name: string;
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
-    status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
+    status:
+        'draft' | 'announced' | 'enrollment' | 'check_in' | 'live' | 'finished';
     startsAt: string | null;
+    /** Non-withdrawn entries (people for solo, teams for team tournaments). */
+    entryCount: number;
+    maxEntries: number | null;
+    teamSize: number;
     /** Null when the tournament has no game attached. */
     gameName: string | null;
     /** Null when not signed in or the tournament has no game attached. */
     ownershipHint: OwnershipHintStatus | null;
+    myEntry: TournamentMyEntry | null;
 }
 
 export interface TournamentDetail {
     id: number;
     name: string;
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
-    status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
+    status:
+        'draft' | 'announced' | 'enrollment' | 'check_in' | 'live' | 'finished';
     event: { name: string; slug: string };
     winnerEntryId: number | null;
+    /** Champion's display name once the tournament is finished. */
+    winnerName: string | null;
+    startsAt: string;
+    maxEntries: number | null;
+    teamSize: number;
+    gameName: string | null;
+    /** Plain text; render with whitespace preserved, never as HTML. */
+    rules: string | null;
 }
 
 /**
@@ -116,4 +162,32 @@ export interface BracketMatchDto {
     /** Set once the match enters warmup (Task 11); null before/after. */
     warmupStartedAt: string | null;
     spectateHint: SpectateHintDto | null;
+}
+
+/**
+ * The viewer's own pending (unconfirmed) result claim for a match, from the
+ * viewer's perspective: `ownScore : opponentScore` — the same orientation as
+ * the report form ("Ergebnis (du)" : "Ergebnis (Gegner)"). Only ever sent to
+ * the two participants of the match.
+ */
+export interface PendingReportDto {
+    reportedByMe: boolean;
+    ownScore: number;
+    opponentScore: number;
+    reporterName: string | null;
+    opponentName: string | null;
+    reportedAt: string | null;
+}
+
+/** One row of the round-robin table (derived server-side by the pure standings calculator). */
+export interface TournamentStandingRow {
+    rank: number;
+    entryId: number;
+    name: string;
+    played: number;
+    wins: number;
+    losses: number;
+    pointsFor: number;
+    pointsAgainst: number;
+    scoreDifference: number;
 }
