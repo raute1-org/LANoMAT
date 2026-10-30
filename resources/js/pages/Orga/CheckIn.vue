@@ -187,9 +187,12 @@ onBeforeUnmount(() => {
                 labels.manual
             }}</label>
             <Input id="token" v-model="form.qr_token" type="text" />
-            <Button type="submit" :disabled="form.processing">{{
-                labels.submit
-            }}</Button>
+            <Button
+                type="submit"
+                variant="outline"
+                :disabled="form.processing"
+                >{{ labels.submit }}</Button
+            >
         </form>
     </PageContainer>
 </template>

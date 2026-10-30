@@ -1,6 +1,6 @@
 /**
  * Debounce for continuous QR scanning: a camera sees the same code in dozens
- * of consecutive frames, so a value is accepted at most once per cooldown,
+ * of consecutive frames, so a value is accepted again only after it was out of view for a cooldown,
  * and any value is ignored while another scan is still being processed.
  * Pure (the clock is injectable) so the rule is testable without a camera.
  */
@@ -12,7 +12,7 @@ export interface ScanDebouncer {
 }
 
 export function createScanDebouncer(
-    cooldownMs = 4000,
+    cooldownMs = 3000,
     now: () => number = () => Date.now(),
 ): ScanDebouncer {
     let lastValue: string | null = null;
@@ -25,19 +25,25 @@ export function createScanDebouncer(
                 return false;
             }
 
-            if (value === lastValue && now() - lastAt < cooldownMs) {
+            const at = now();
+
+            // The same code still in view keeps extending its own cooldown, so
+            // a ticket held steady is scanned once, not again every few
+            // seconds; it counts as new once it was out of frame for a while.
+            if (value === lastValue && at - lastAt < cooldownMs) {
+                lastAt = at;
+
                 return false;
             }
 
             lastValue = value;
-            lastAt = now();
+            lastAt = at;
             busy = true;
 
             return true;
         },
         release() {
             busy = false;
-            // The cooldown for the same value starts when processing ends.
             lastAt = now();
         },
     };
