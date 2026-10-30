@@ -9,6 +9,7 @@ use App\Modules\GameServers\Support\Cs2TelemetryMapper;
 use App\Modules\Infoscreen\Events\SceneOverride;
 use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -36,6 +37,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class MatchScoreUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly GameMatch $match,

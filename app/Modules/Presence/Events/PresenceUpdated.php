@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Presence\Events;
 
 use App\Modules\Infoscreen\Events\ScenesUpdated;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -28,6 +29,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class PresenceUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly int $eventId,

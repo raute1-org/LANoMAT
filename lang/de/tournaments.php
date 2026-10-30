@@ -53,6 +53,9 @@ return [
             'entry2' => 'Anmeldung 2',
             'score1' => 'Ergebnis 1',
             'score2' => 'Ergebnis 2',
+            'reported_score' => 'Gemeldet (Anm. 1 : Anm. 2)',
+            'reported_by' => 'Gemeldet von',
+            'reported_at' => 'Gemeldet am',
             'override' => 'Ergebnis überschreiben',
         ],
     ],
@@ -196,11 +199,17 @@ return [
         'dispute_action' => 'Anfechten',
         'score1' => 'Ergebnis (du)',
         'score2' => 'Ergebnis (Gegner)',
+        'pending_title' => 'Gemeldetes Ergebnis',
+        'own_label' => 'du',
+        'opponent_label' => 'Gegner',
+        'reported_by' => 'Gemeldet von :name',
+        'awaiting' => 'Warte auf Bestätigung durch :name',
     ],
 
     'warmup' => [
         'go_action' => 'Go!',
         'waiting' => 'Aufwärmen läuft …',
+        'went_live' => 'Das Match ist jetzt live.',
     ],
 
     'notifications' => [

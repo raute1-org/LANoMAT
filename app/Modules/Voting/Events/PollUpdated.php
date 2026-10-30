@@ -5,6 +5,7 @@ namespace App\Modules\Voting\Events;
 use App\Modules\Voting\Actions\CastVote;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Support\PollResults;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -26,6 +27,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class PollUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly Poll $poll,

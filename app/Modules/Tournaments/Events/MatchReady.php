@@ -5,6 +5,7 @@ namespace App\Modules\Tournaments\Events;
 use App\Modules\Tournaments\Actions\ConfirmMatchReport;
 use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -28,6 +29,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class MatchReady implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly GameMatch $match,

@@ -3,6 +3,7 @@
 namespace App\Modules\Infoscreen\Events;
 
 use App\Modules\Voting\Events\PollUpdated;
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
@@ -25,6 +26,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class SceneOverride implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     /**
      * @param  array{id?: int, type: string, durationSec: int, config: array<string, mixed>, data: array<string, mixed>}  $scene

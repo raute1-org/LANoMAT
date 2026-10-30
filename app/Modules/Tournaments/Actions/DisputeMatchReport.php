@@ -4,6 +4,7 @@ namespace App\Modules\Tournaments\Actions;
 
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
+use App\Modules\Tournaments\Events\MatchReportUpdated;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
@@ -46,6 +47,8 @@ class DisputeMatchReport
 
         $match->status = MatchStatus::Disputed;
         $match->save();
+
+        MatchReportUpdated::dispatch($match);
 
         return $report;
     }

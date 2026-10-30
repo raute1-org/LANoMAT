@@ -146,3 +146,18 @@ export interface BracketMatchDto {
     warmupStartedAt: string | null;
     spectateHint: SpectateHintDto | null;
 }
+
+/**
+ * The viewer's own pending (unconfirmed) result claim for a match, from the
+ * viewer's perspective: `ownScore : opponentScore` — the same orientation as
+ * the report form ("Ergebnis (du)" : "Ergebnis (Gegner)"). Only ever sent to
+ * the two participants of the match.
+ */
+export interface PendingReportDto {
+    reportedByMe: boolean;
+    ownScore: number;
+    opponentScore: number;
+    reporterName: string | null;
+    opponentName: string | null;
+    reportedAt: string | null;
+}

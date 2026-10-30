@@ -31,6 +31,7 @@ use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Tournaments\Support\EventRegistrationRequirement;
+use App\Modules\Tournaments\Support\PendingReportView;
 use App\Modules\Tournaments\Support\TeamPicker;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
@@ -141,6 +142,8 @@ class TournamentPageController extends Controller
             'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
             'teamPicker' => TeamPicker::for($tournament, TeamPicker::ownedTeams($user)),
             'myEntryId' => $myEntry?->id,
+            // The viewer's own pending result claims, "own : opponent" (F-S4-2).
+            'pendingReports' => (object) PendingReportView::forViewer($matches, $myEntry),
             'myEntry' => $this->myEntryState($user, $myEntry),
             'registration' => EventRegistrationRequirement::viewState($user, $event),
             'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry),
@@ -282,7 +285,10 @@ class TournamentPageController extends Controller
     public function confirm(ConfirmReportRequest $request, GameMatch $match, ConfirmMatchReport $action): RedirectResponse
     {
         $report = $this->pendingReportFor($match);
-        abort_if($report === null, 404);
+
+        if ($report === null) {
+            return $this->reportAlreadyHandled($request, $match);
+        }
 
         $this->authorize('confirm', $report);
 
@@ -309,7 +315,9 @@ class TournamentPageController extends Controller
     public function dispute(Request $request, GameMatch $match, DisputeMatchReport $action): RedirectResponse
     {
         $report = $this->pendingReportFor($match);
-        abort_if($report === null, 404);
+        if ($report === null) {
+            return $this->reportAlreadyHandled($request, $match);
+        }
 
         $this->authorize('dispute', $report);
 
@@ -327,6 +335,25 @@ class TournamentPageController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.report.disputed')]);
+
+        return back();
+    }
+
+    /**
+     * A stale second click (the report was already confirmed/disputed): a
+     * participant gets a friendly flash instead of a raw 404 page. A match
+     * that never had a report, or a non-participant, stays a 404.
+     */
+    private function reportAlreadyHandled(Request $request, GameMatch $match): RedirectResponse
+    {
+        $user = $this->authUser($request);
+
+        abort_unless(
+            $this->entryForMatch($match, $user) !== null && $match->reports()->exists(),
+            404,
+        );
+
+        Inertia::flash('toast', ['type' => 'info', 'message' => trans('tournaments.errors.report_not_pending')]);
 
         return back();
     }
@@ -351,6 +378,8 @@ class TournamentPageController extends Controller
 
             return back();
         }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('tournaments.warmup.went_live')]);
 
         return back();
     }

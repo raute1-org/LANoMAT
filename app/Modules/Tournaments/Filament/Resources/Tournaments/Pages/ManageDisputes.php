@@ -4,9 +4,11 @@ namespace App\Modules\Tournaments\Filament\Resources\Tournaments\Pages;
 
 use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Enums\ReportStatus;
 use App\Modules\Tournaments\Exceptions\StaleMatchException;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Modules\Tournaments\Models\MatchReport;
 use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -59,7 +61,9 @@ class ManageDisputes extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(fn (): Builder => GameMatch::query()->where('status', MatchStatus::Disputed->value))
+            ->query(fn (): Builder => GameMatch::query()
+                ->where('status', MatchStatus::Disputed->value)
+                ->with(['tournament', 'entry1', 'entry2']))
             ->columns([
                 TextColumn::make('tournament.name')
                     ->label(__('tournaments.admin.disputes.tournament')),
@@ -69,10 +73,24 @@ class ManageDisputes extends Page implements HasTable
                     ->label(__('tournaments.admin.disputes.entry1')),
                 TextColumn::make('entry2.display_name')
                     ->label(__('tournaments.admin.disputes.entry2')),
-                TextColumn::make('score1')
-                    ->label(__('tournaments.admin.disputes.score1')),
-                TextColumn::make('score2')
-                    ->label(__('tournaments.admin.disputes.score2')),
+                // The claimed result, entry-oriented ("Anmeldung 1 : Anmeldung 2")
+                // like the override form below — the match's own score columns
+                // stay empty until a result is confirmed or overridden.
+                TextColumn::make('reported_score')
+                    ->label(__('tournaments.admin.disputes.reported_score'))
+                    ->state(function (GameMatch $record): ?string {
+                        $report = self::disputedReport($record);
+
+                        return $report === null ? null : "{$report->score1} : {$report->score2}";
+                    })
+                    ->fontFamily('mono'),
+                TextColumn::make('reported_by')
+                    ->label(__('tournaments.admin.disputes.reported_by'))
+                    ->state(fn (GameMatch $record): ?string => self::disputedReport($record)?->reportedBy?->name),
+                TextColumn::make('reported_at')
+                    ->label(__('tournaments.admin.disputes.reported_at'))
+                    ->state(fn (GameMatch $record) => self::disputedReport($record)?->created_at)
+                    ->dateTime(),
             ])
             ->recordActions([
                 Action::make('override')
@@ -112,6 +130,15 @@ class ManageDisputes extends Page implements HasTable
                         }
                     }),
             ]);
+    }
+
+    private static function disputedReport(GameMatch $match): ?MatchReport
+    {
+        return $match->reports()
+            ->where('status', ReportStatus::Disputed->value)
+            ->with('reportedBy')
+            ->latest('id')
+            ->first();
     }
 
     public function content(Schema $schema): Schema

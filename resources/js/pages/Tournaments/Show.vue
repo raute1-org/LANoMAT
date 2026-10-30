@@ -11,6 +11,7 @@ import { index as tournamentsIndex } from '@/routes/tournaments';
 import type {
     BracketMatchDto,
     MatchVoiceLinks,
+    PendingReportDto,
     TournamentDetail,
     TournamentMyEntry,
     TournamentRegistrationGate,
@@ -21,6 +22,8 @@ const props = defineProps<{
     tournament: TournamentDetail;
     matches: BracketMatchDto[];
     myEntryId: number | null;
+    /** The viewer's pending result claims keyed by match id (participants only). */
+    pendingReports: Record<number, PendingReportDto>;
     myEntry: TournamentMyEntry | null;
     registration: TournamentRegistrationGate;
     teamPicker: TournamentTeamPicker | null;
@@ -170,6 +173,8 @@ const isNotStarted = computed(
                     :matches="matches"
                     :my-entry-id="myEntryId"
                     :can-go-live="canGoLive"
+                    :pending-reports="pendingReports"
+                    :tournament-finished="isFinished"
                     :match-status-labels="matchStatusLabels"
                     :bracket-state-labels="bracketStateLabels"
                     :report-labels="reportLabels"

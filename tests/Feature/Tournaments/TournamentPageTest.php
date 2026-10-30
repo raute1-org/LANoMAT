@@ -348,7 +348,7 @@ it('lets the opponent dispute a report', function () {
     expect($match->fresh()->status->value)->toBe('disputed');
 });
 
-it('404s confirming a report that has already been disputed', function () {
+it('refuses confirming a report that has already been disputed with a friendly redirect (Ruling G)', function () {
     $tournament = startEightEntrySingleElim();
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
@@ -365,15 +365,15 @@ it('404s confirming a report that has already been disputed', function () {
         ->assertRedirect();
 
     // pendingReportFor() must no longer resolve the (now Disputed) report,
-    // so confirm 404s instead of re-confirming a disputed report.
+    // so confirm is refused (friendly redirect, Ruling G) instead of re-confirming a disputed report.
     $this->actingAs($opponent)
         ->post("/matches/{$match->id}/confirm", ['lock_version' => $match->fresh()->lock_version])
-        ->assertNotFound();
+        ->assertRedirect();
 
     expect($match->fresh()->status->value)->toBe('disputed');
 });
 
-it('404s disputing a report on a match that already completed', function () {
+it('refuses disputing a report on a match that already completed with a friendly redirect (Ruling G)', function () {
     $tournament = startEightEntrySingleElim();
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
@@ -390,10 +390,10 @@ it('404s disputing a report on a match that already completed', function () {
         ->assertRedirect();
 
     // pendingReportFor() must no longer resolve the (now Confirmed) report,
-    // so dispute 404s instead of flipping a Completed match back to Disputed.
+    // so dispute is refused (friendly redirect, Ruling G) instead of flipping a Completed match back to Disputed.
     $this->actingAs($opponent)
         ->post("/matches/{$match->id}/dispute")
-        ->assertNotFound();
+        ->assertRedirect();
 
     expect($match->fresh()->status->value)->toBe('completed');
 });

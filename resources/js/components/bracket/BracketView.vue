@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import BracketConnector from '@/components/bracket/BracketConnector.vue';
 import BracketRound from '@/components/bracket/BracketRound.vue';
-import type { BracketMatchDto } from '@/types';
+import type { BracketMatchDto, PendingReportDto } from '@/types';
 
 const props = withDefaults(
     defineProps<{
@@ -21,6 +21,9 @@ const props = withDefaults(
         serverLabels?: Record<string, string>;
         serverLinkStatusLabels?: Record<string, string>;
         liveScoreLabels?: Record<string, string>;
+        /** The viewer's pending result claims keyed by match id (participants only). */
+        pendingReports?: Record<number, PendingReportDto>;
+        tournamentFinished?: boolean;
     }>(),
     {
         canGoLive: false,
@@ -29,6 +32,8 @@ const props = withDefaults(
         serverLabels: () => ({}),
         serverLinkStatusLabels: () => ({}),
         liveScoreLabels: () => ({}),
+        pendingReports: () => ({}),
+        tournamentFinished: false,
     },
 );
 
@@ -227,6 +232,8 @@ onUnmounted(() => {
                 :server-labels="serverLabels"
                 :server-link-status-labels="serverLinkStatusLabels"
                 :live-score-labels="liveScoreLabels"
+                :pending-reports="pendingReports"
+                :tournament-finished="tournamentFinished"
                 :register-card="registerCard"
             />
         </div>
