@@ -29,12 +29,16 @@ STAMP="$(date +%F_%H%M%S)"
 DB_FILE="db-$STAMP.sql.gz"
 ST_FILE="storage-$STAMP.tgz"
 
-# verify <file> <label> <exitcode>: valid gzip and not suspiciously small.
+# verify <file> <label> <exitcode> [min_bytes]: valid gzip and, when
+# min_bytes > 0, not suspiciously small. Defaults to MIN_BYTES; the storage
+# archive passes 0 because an empty or tiny uploads volume is a valid state.
 verify() {
-  local file=$1 label=$2 code=$3 size
+  local file=$1 label=$2 code=$3 min=${4:-$MIN_BYTES} size
   gzip -t "$file" 2>/dev/null || die "$code" "$label is not a valid gzip archive"
   size=$(stat -c %s "$file")
-  [ "$size" -gt "$MIN_BYTES" ] || die "$code" "$label is only $size bytes (<= $MIN_BYTES), treating as failed"
+  if [ "$min" -gt 0 ]; then
+    [ "$size" -gt "$min" ] || die "$code" "$label is only $size bytes (<= $min), treating as failed"
+  fi
   log "$label verified ($size bytes)"
 }
 
@@ -48,7 +52,8 @@ verify "$TMP/$DB_FILE" "database dump" 1
 log "Archiving storage volume $STORAGE_VOLUME"
 docker run --rm -v "$STORAGE_VOLUME":/data:ro alpine tar czf - -C /data . > "$TMP/$ST_FILE" \
   || die 2 "storage archive failed"
-verify "$TMP/$ST_FILE" "storage archive" 2
+verify "$TMP/$ST_FILE" "storage archive" 2 0
+tar tzf "$TMP/$ST_FILE" >/dev/null 2>&1 || die 2 "storage archive is not a readable tar"
 
 # Atomic publish: same filesystem (temp dir lives inside BACKUP_DIR).
 mv "$TMP/$DB_FILE" "$BACKUP_DIR/$DB_FILE"

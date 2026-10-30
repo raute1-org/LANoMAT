@@ -171,7 +171,9 @@ This runs `migrate --force` and promotes or creates that account as admin.
 `set -euo pipefail`, dumps Postgres (`pg_dump` via
 `docker compose --profile prod exec -T postgres`) and the storage volume
 (`lanomat_app_storage`) into a temp directory, verifies both archives
-(`gzip -t` and a minimum size of 1 KiB), then moves them atomically into
+(the database dump by `gzip -t` and a minimum size of 1 KiB; the storage
+archive by `gzip -t` plus a readable `tar tzf` listing, with no minimum size
+because an empty uploads volume is valid), then moves them atomically into
 `/var/backups/lanomat` (override with `BACKUP_DIR`). Files older than 14 days
 are deleted. A failed run exits non-zero (1 database, 2 storage, 3 setup),
 publishes nothing and leaves `.last-success` untouched. Output has UTC

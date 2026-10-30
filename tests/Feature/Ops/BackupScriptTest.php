@@ -15,7 +15,9 @@ function backupSandbox(): array
     File::ensureDirectoryExists("$root/backups");
 
     // `docker compose ...` = pg_dump stand-in, `docker run ...` = tar stand-in.
-    // FAKE_DB: ok|fail|tiny   FAKE_STORAGE: ok|fail
+    // FAKE_DB: ok|fail|tiny   FAKE_STORAGE: ok|fail|tiny|corrupt
+    // (tiny = a real but very small tar.gz, like a fresh volume with one
+    // .gitignore; corrupt = bytes that are not a gzip stream)
     File::put("$root/bin/docker", <<<'SH'
 #!/usr/bin/env bash
 case "$1" in
@@ -26,8 +28,20 @@ case "$1" in
       *) head -c 4096 /dev/urandom ;;
     esac ;;
   run)
-    [ "${FAKE_STORAGE:-ok}" = fail ] && exit 1
-    head -c 4096 /dev/urandom | gzip ;;
+    case "${FAKE_STORAGE:-ok}" in
+      fail) exit 1 ;;
+      corrupt) printf 'not a gzip stream' ;;
+      tiny)
+        d=$(mktemp -d)
+        printf '*\n!.gitignore\n' > "$d/.gitignore"
+        tar czf - -C "$d" .
+        rm -rf "$d" ;;
+      *)
+        d=$(mktemp -d)
+        head -c 4096 /dev/urandom > "$d/uploads.bin"
+        tar czf - -C "$d" .
+        rm -rf "$d" ;;
+    esac ;;
 esac
 SH);
     chmod("$root/bin/docker", 0755);
@@ -80,6 +94,31 @@ it('rejects a suspiciously tiny dump', function () {
     expect($result->exitCode())->toBe(1)
         ->and(file_exists("$dir/.last-success"))->toBeFalse()
         ->and(glob("$dir/db-*"))->toBe([]);
+
+    File::deleteDirectory($root);
+});
+
+it('accepts a tiny valid storage archive (fresh volume with only .gitignore)', function () {
+    [$root, $dir] = backupSandbox();
+
+    $result = runBackup($root, ['FAKE_STORAGE' => 'tiny']);
+
+    expect($result->exitCode())->toBe(0)
+        ->and(glob("$dir/storage-*.tgz"))->toHaveCount(1)
+        ->and(file_exists("$dir/.last-success"))->toBeTrue();
+
+    File::deleteDirectory($root);
+});
+
+it('rejects a corrupt storage archive with code 2 and publishes nothing', function () {
+    [$root, $dir] = backupSandbox();
+
+    $result = runBackup($root, ['FAKE_STORAGE' => 'corrupt']);
+
+    expect($result->exitCode())->toBe(2)
+        ->and(file_exists("$dir/.last-success"))->toBeFalse()
+        ->and(glob("$dir/db-*"))->toBe([])
+        ->and(glob("$dir/storage-*"))->toBe([]);
 
     File::deleteDirectory($root);
 });
