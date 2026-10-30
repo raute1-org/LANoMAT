@@ -6,6 +6,8 @@ use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use Filament\Actions\Action;
+use Filament\Enums\UserMenuPosition;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -32,6 +34,17 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->brandName('LANoMAT')
             ->brandLogo(fn () => view('filament.brand'))
+            ->brandLogoHeight('1.75rem')
+            // Same shell as the participant app: sidebar navigation (Filament's
+            // default), user menu pinned to the sidebar footer, collapsible on desktop.
+            ->userMenu(position: UserMenuPosition::Sidebar)
+            ->sidebarCollapsibleOnDesktop()
+            ->userMenuItems([
+                Action::make('back-to-app')
+                    ->label('Zur App')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->url('/'),
+            ])
             ->favicon(asset('favicon.svg'))
             // Signal-amber brand accent (docs/design.md "Signalpult"): the
             // light-mode primary `#a85a00` is passed as a single hex so
