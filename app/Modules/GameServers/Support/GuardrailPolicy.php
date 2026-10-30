@@ -77,6 +77,7 @@ final class GuardrailPolicy
         ServerLinkStatus::Pending,
         ServerLinkStatus::Provisioning,
         ServerLinkStatus::Ready,
+        ServerLinkStatus::NotResponding,
     ];
 
     /**

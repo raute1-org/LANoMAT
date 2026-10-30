@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Models;
 
 use App\Models\User;
+use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Casts\JoinInfoCast;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
+use Carbon\CarbonInterface;
 use Database\Factories\ServerLinkFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +29,13 @@ use Illuminate\Support\Str;
  * @property bool $manual
  * @property int|null $requested_by
  * @property string|null $telemetry_token
+ * @property int|null $event_id Set for event-level servers started from a preset.
+ * @property string|null $title
+ * @property string|null $preset_key
+ * @property array<string, mixed>|null $readiness Preset readiness/verification snapshot.
+ * @property array<string, mixed>|null $query_info Last A2S answer (see ServerInfo::toArray()).
+ * @property CarbonInterface|null $queried_at
+ * @property int $install_attempts
  */
 class ServerLink extends Model
 {
@@ -46,6 +55,9 @@ class ServerLink extends Model
         'tournament_id',
         'manual',
         'requested_by',
+        'event_id',
+        'title',
+        'preset_key',
     ];
 
     protected static function booted(): void
@@ -61,6 +73,10 @@ class ServerLink extends Model
             'join_info' => JoinInfoCast::class,
             'status' => ServerLinkStatus::class,
             'manual' => 'boolean',
+            'readiness' => 'array',
+            'query_info' => 'array',
+            'queried_at' => 'datetime',
+            'install_attempts' => 'integer',
         ];
     }
 
@@ -74,6 +90,12 @@ class ServerLink extends Model
     public function tournament(): BelongsTo
     {
         return $this->belongsTo(Tournament::class);
+    }
+
+    /** @return BelongsTo<Event, $this> */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(Event::class);
     }
 
     /** @return BelongsTo<User, $this> */

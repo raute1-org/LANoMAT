@@ -7,10 +7,13 @@ namespace App\Modules\GameServers\Jobs;
 use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Domain\PelicanServer;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerState;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\InstallVerifier;
+use App\Modules\GameServers\Support\ReadinessPlan;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -48,9 +51,12 @@ class PollServerStatusJob implements ShouldQueue
      * attempts is a 5-minute ceiling before giving up and surfacing manual
      * fallback.
      */
-    private const MAX_ATTEMPTS = 30;
+    private const int MAX_ATTEMPTS = 30;
 
-    private const DELAY_SECONDS = 10;
+    private const int DELAY_SECONDS = 10;
+
+    /** Reinstalls LANoMAT triggers after a failed install verification. */
+    private const int MAX_REINSTALLS = 1;
 
     public function __construct(
         public readonly int $serverLinkId,
@@ -75,15 +81,42 @@ class PollServerStatusJob implements ShouldQueue
             $link->pelican_server_identifier = $server->identifier;
         }
 
-        if ($server->state === ServerState::Running) {
-            $link->join_info = new JoinInfo(
-                address: $server->address,
-                port: $server->port,
-            );
-            $link->status = ServerLinkStatus::Ready;
-            $link->save();
+        $plan = $link->readiness ?? [];
 
-            ServerLinkUpdated::dispatch($link);
+        // The install is still running: wait.
+        if ($server->state === ServerState::Installing || $server->state === ServerState::Provisioning) {
+            $this->pollAgain($link, $plan);
+
+            return;
+        }
+
+        // Install verification (presets only): the panel's `status` can say installed after a
+        // failed SteamCMD run, so look for the marker path; retry the install once.
+        $marker = is_string($plan['install_marker'] ?? null) ? $plan['install_marker'] : '';
+
+        if ($marker !== '' && ! ($plan['install_verified'] ?? false)) {
+            $present = $server->state === ServerState::Failed
+                ? false
+                : InstallVerifier::markerPresent($client, (string) $link->pelican_server_identifier, $marker);
+
+            if ($present === null) {
+                $this->pollAgain($link, $plan);
+
+                return;
+            }
+
+            if ($present === false) {
+                $this->handleIncompleteInstall($client, $link, $plan);
+
+                return;
+            }
+
+            $plan['install_verified'] = true;
+            $link->readiness = $plan;
+        }
+
+        if ($server->state === ServerState::Running) {
+            $this->publishJoinInfo($link, $server, $plan);
 
             return;
         }
@@ -95,12 +128,82 @@ class PollServerStatusJob implements ShouldQueue
             return;
         }
 
-        if ($this->attempt >= self::MAX_ATTEMPTS) {
+        $this->pollAgain($link, $plan);
+    }
+
+    /**
+     * @param  array<string, mixed>  $plan
+     */
+    private function publishJoinInfo(ServerLink $link, PelicanServer $server, array $plan): void
+    {
+        $password = $link->join_info->password;
+        $link->join_info = new JoinInfo(
+            address: $server->address,
+            port: $server->port,
+            password: $password,
+            connectString: ReadinessPlan::renderConnect(
+                is_string($plan['connect_template'] ?? null) ? $plan['connect_template'] : null,
+                $server->address,
+                $server->port,
+                $password,
+            ),
+        );
+
+        if (($plan['type'] ?? null) === 'a2s' && $server->address !== null && $server->port !== null) {
+            // Running on the panel is not "ready": wait for the server to answer its query.
+            $link->save();
+
+            CheckServerReadinessJob::dispatch($link->id)->delay(now()->addSeconds(CheckServerReadinessJob::INTERVAL_SECONDS));
+
+            return;
+        }
+
+        $link->status = ServerLinkStatus::Ready;
+        $link->save();
+
+        ServerLinkUpdated::dispatch($link);
+    }
+
+    /**
+     * @param  array<string, mixed>  $plan
+     */
+    private function handleIncompleteInstall(PelicanClient $client, ServerLink $link, array $plan): void
+    {
+        if ($link->install_attempts < self::MAX_REINSTALLS) {
+            $client->reinstallServer((string) $link->pelican_server_id);
+            $link->install_attempts++;
+            $link->save();
+
+            $this->pollAgain($link, $plan);
+
+            return;
+        }
+
+        $link->status = ServerLinkStatus::InstallFailed;
+        $link->save();
+
+        ServerLinkUpdated::dispatch($link);
+    }
+
+    /**
+     * Re-dispatches itself (a fresh instance with `$attempt` incremented) until the
+     * polling window is used up, then gives up with Failed. Presets get a longer
+     * window (`services.pelican.install_timeout`): a Source game is several GB.
+     *
+     * @param  array<string, mixed>  $plan
+     */
+    private function pollAgain(ServerLink $link, array $plan): void
+    {
+        $max = $plan === [] ? self::MAX_ATTEMPTS : max(self::MAX_ATTEMPTS, intdiv((int) config('services.pelican.install_timeout', 900), self::DELAY_SECONDS));
+
+        if ($this->attempt >= $max) {
             $link->status = ServerLinkStatus::Failed;
             $link->save();
 
             return;
         }
+
+        $link->save();
 
         self::dispatch($this->serverLinkId, $this->attempt + 1)->delay(now()->addSeconds(self::DELAY_SECONDS));
     }
