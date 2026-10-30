@@ -37,7 +37,7 @@ final readonly class ArrivalForecast
     ) {}
 
     /**
-     * @param  list<CarbonImmutable>  $days  event days (start-of-day, app timezone)
+     * @param  list<CarbonImmutable>  $days  event days (start-of-day, display timezone)
      * @param  iterable<ArrivalPlan>  $plans  one per non-cancelled registration
      */
     public static function compute(array $days, iterable $plans, DateTimeInterface $now): self

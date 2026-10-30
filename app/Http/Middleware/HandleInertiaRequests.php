@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Registration\Enums\RegistrationAvailability;
+use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Http\Request;
@@ -43,6 +44,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'displayTimezone' => DisplayTimezone::name(),
             'modules' => fn () => array_map(
                 fn (Module $m) => $m->key(),
                 app(Modules::class)->enabledModules(),

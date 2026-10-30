@@ -123,9 +123,11 @@ use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
+use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Carbon\CarbonImmutable;
+use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -232,11 +234,21 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureDisplayTimezone();
         $this->configureUrls();
         $this->configureRouteParameterPatterns();
         $this->configureSocialite();
         $this->configureAuthorization();
         $this->configureEventListeners();
+    }
+
+    /**
+     * Storage stays UTC; Filament date-time pickers/columns read and write in
+     * the single display timezone (see config/lanomat.php).
+     */
+    private function configureDisplayTimezone(): void
+    {
+        FilamentTimezone::set(fn (): string => DisplayTimezone::name());
     }
 
     /**

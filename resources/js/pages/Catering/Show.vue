@@ -11,6 +11,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { formatInstant } from '@/lib/datetime';
 import {
     destroy as destroyItem,
     store as storeItem,
@@ -60,7 +61,7 @@ function formatEuro(cents: number): string {
 }
 
 function formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString('de-DE');
+    return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function menuOptionName(

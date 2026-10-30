@@ -12,6 +12,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { dayKey, formatInstant } from '@/lib/datetime';
 import { favorite, unfavorite } from '@/routes/schedule';
 import type { ScheduleItemDto } from '@/types';
 
@@ -42,14 +43,14 @@ function toggleFavorite(item: ScheduleItemDto) {
 }
 
 function formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString([], {
+    return formatInstant(iso, {
         hour: '2-digit',
         minute: '2-digit',
     });
 }
 
 function formatDay(iso: string): string {
-    return new Date(iso).toLocaleDateString([], {
+    return formatInstant(iso, {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
@@ -60,7 +61,7 @@ const groupedItems = computed(() => {
     const groups = new Map<string, { day: string; items: ScheduleItemDto[] }>();
 
     for (const item of props.items) {
-        const key = new Date(item.startsAt).toDateString();
+        const key = dayKey(item.startsAt);
 
         if (!groups.has(key)) {
             groups.set(key, { day: formatDay(item.startsAt), items: [] });

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useInitials } from '@/composables/useInitials';
+import { formatInstant } from '@/lib/datetime';
 import {
     register as eventsRegister,
     seating as eventsSeating,
@@ -37,29 +38,29 @@ const checkinForm = useForm({});
 const registerForm = useForm({ ticket_type: props.ticketType });
 const failed = ref(false);
 
-const timeFormat = new Intl.DateTimeFormat('de-DE', {
+const timeOptions: Intl.DateTimeFormatOptions = {
     hour: '2-digit',
     minute: '2-digit',
-});
-const dayFormat = new Intl.DateTimeFormat('de-DE', {
+};
+const dayOptions: Intl.DateTimeFormatOptions = {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
-});
+};
 
 const checkedInTime = computed(() =>
-    props.checkedInAt ? timeFormat.format(new Date(props.checkedInAt)) : '',
+    props.checkedInAt ? formatInstant(props.checkedInAt, timeOptions) : '',
 );
 const opensLabel = computed(() => {
     if (!props.opensAt) {
         return props.labels.not_open_unknown;
     }
 
-    const at = new Date(props.opensAt);
+    const at = props.opensAt;
 
     return props.labels.not_open.replace(
         ':time',
-        `${dayFormat.format(at)}, ${timeFormat.format(at)}`,
+        `${formatInstant(at, dayOptions)}, ${formatInstant(at, timeOptions)}`,
     );
 });
 const spotsLabel = computed(() =>

@@ -5,6 +5,7 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { useModules } from '@/composables/useModules';
+import { formatInstant } from '@/lib/datetime';
 import {
     index as eventsIndex,
     register as eventsRegister,
@@ -39,7 +40,7 @@ function formatPublishedAt(iso: string | null): string {
         return '';
     }
 
-    return new Date(iso).toLocaleString('de-DE', {
+    return formatInstant(iso, {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
@@ -54,9 +55,9 @@ const dateRange = computed(() => {
         dateStyle: 'medium',
         timeStyle: 'short',
     };
-    const start = new Date(props.event.startsAt).toLocaleString('de-DE', opts);
+    const start = formatInstant(props.event.startsAt, opts);
     const end = props.event.endsAt
-        ? new Date(props.event.endsAt).toLocaleString('de-DE', opts)
+        ? formatInstant(props.event.endsAt, opts)
         : null;
 
     return end ? `${start} – ${end}` : start;

@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { formatInstant } from '@/lib/datetime';
 import { destroy as destroyPost, store as storePost } from '@/routes/lfg';
 import type { LfgPostDto } from '@/types';
 
@@ -44,7 +45,7 @@ function remove(post: LfgPostDto) {
 }
 
 function formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString('de-DE');
+    return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
 }
 </script>
 

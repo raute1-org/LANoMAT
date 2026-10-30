@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatInstant } from '@/lib/datetime';
 import type { ScheduleItemDto } from '@/types';
 
 const props = defineProps<{
@@ -12,7 +13,7 @@ const props = defineProps<{
 }>();
 
 function formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString([], {
+    return formatInstant(iso, {
         hour: '2-digit',
         minute: '2-digit',
     });

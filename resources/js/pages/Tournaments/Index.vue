@@ -4,6 +4,7 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import TournamentEntryActions from '@/components/tournaments/TournamentEntryActions.vue';
 import { Badge } from '@/components/ui/badge';
+import { formatInstant } from '@/lib/datetime';
 import { show as showTournament } from '@/routes/tournaments';
 import type { TournamentRegistrationGate, TournamentSummary } from '@/types';
 
@@ -18,7 +19,9 @@ const props = defineProps<{
 }>();
 
 function formatDate(iso: string | null): string {
-    return iso ? new Date(iso).toLocaleString() : '';
+    return iso
+        ? formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' })
+        : '';
 }
 
 function isLive(tournament: TournamentSummary): boolean {

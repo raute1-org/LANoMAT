@@ -104,6 +104,10 @@ Empty (the default) means anyone with a Discord account can log in.
 - Sessions that are already active are not revoked when someone leaves the
   server. They are blocked at their next login.
 
+### Timezone
+
+Timestamps are stored in UTC (`app.timezone`, never change it on a live database). Everything a person reads or types uses one display zone, `APP_DISPLAY_TIMEZONE` (default `Europe/Berlin`, `config('lanomat.timezone')`): arrival days (`EventDays`), Filament date-time inputs/columns (`FilamentTimezone`), notification times, and the Vue pages (shared Inertia prop `displayTimezone`, formatter `resources/js/lib/datetime.ts`). Do not call `toLocaleString()` without `timeZone` in new UI; use `formatInstant()`.
+
 ## 4. Start the stack
 
 ```bash

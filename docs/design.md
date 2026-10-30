@@ -182,6 +182,8 @@ Backing props: `availability`/`freeSpots` (see above), `registration` (`Registra
 | `check_in` | checked in | badge "Eingecheckt" + "Abmelden" |
 | `live`/`finished`/`draft` | any | no entry actions (withdraw closes when the tournament starts) |
 
+**Dates and times:** always render instants through `resources/js/lib/datetime.ts` (`formatInstant`, `dayKey`), which formats in the one display timezone (`displayTimezone` shared prop, `APP_DISPLAY_TIMEZONE`, default Europe/Berlin) — never `toLocaleString()` on the browser zone. See [deploy-lan-raute1.md](deploy-lan-raute1.md#timezone).
+
 ### 7. New page checklist
 
 - [ ] Entry in `resources/js/lib/pageLayouts.ts` (guard test green).
