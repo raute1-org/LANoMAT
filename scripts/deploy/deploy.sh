@@ -14,6 +14,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 SERVICES=(traefik app queue scheduler reverb-prod postgres redis)
 
 echo "==> Pulling origin/main (fast-forward only)"
+OLD_HEAD="$(git rev-parse HEAD)"
 git pull --ff-only
 
 # --pull refreshes the moving base tags (FrankenPHP 1.13-php8.4, node:22-alpine)
@@ -21,6 +22,14 @@ git pull --ff-only
 echo "==> Building (pulling fresh base images) and starting: ${SERVICES[*]}"
 docker compose --profile prod build --pull "${SERVICES[@]}"
 docker compose --profile prod up -d "${SERVICES[@]}"
+
+# Traefik bind-mounts single config FILES. `git pull` replaces a changed file with a new inode,
+# but the running container keeps the old one, so `up -d` alone would silently keep serving the
+# OLD routing/headers config. Recreate Traefik when anything under docker/traefik changed.
+if ! git diff --quiet "$OLD_HEAD" HEAD -- docker/traefik compose.yml; then
+    echo "==> Traefik config or compose.yml changed: recreating traefik"
+    docker compose --profile prod up -d --force-recreate --no-deps traefik
+fi
 
 echo "==> Waiting for app to become healthy"
 for _ in $(seq 1 30); do
