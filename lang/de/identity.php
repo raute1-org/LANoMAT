@@ -10,6 +10,9 @@ return [
 
     'admin' => [
         'linked_accounts_title' => 'Verknüpfte Konten',
+        'model_label' => 'Verknüpfung',
+        'plural_model_label' => 'Verknüpfungen',
+        'empty' => 'Keine verknüpften Konten',
         'provider' => 'Anbieter',
         'nickname' => 'Nickname',
         'linked_at' => 'Verknüpft am',

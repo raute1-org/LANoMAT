@@ -84,6 +84,11 @@ return [
     'admin' => [
         'title' => 'Anmeldungen',
         'cancel' => 'Stornieren',
+        'cancel_heading' => 'Anmeldung von :name stornieren?',
+        'cancel_description' => 'Die Anmeldung von :name wird storniert und ein zugewiesener Sitzplatz wird frei.',
+        'model_label' => 'Anmeldung',
+        'plural_model_label' => 'Anmeldungen',
+        'empty' => 'Noch keine Anmeldungen',
         'participant' => 'Teilnehmer',
         'ticket' => 'Ticket',
         'status' => 'Status',

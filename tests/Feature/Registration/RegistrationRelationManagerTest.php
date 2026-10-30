@@ -65,3 +65,35 @@ it('exports registrations as csv for orga', function () {
         ->toContain('name,ticket_type,status,paid_at,checked_in_at')
         ->toContain('CSV Tester');
 });
+
+it('shows the ticket label, filters by status and names the participant in the cancel modal', function () {
+    $event = Event::factory()->registration()->create();
+    $active = EventRegistration::factory()->for($event)->for(User::factory()->create(['name' => 'Aktiv Anna']))->create(['ticket_type' => 'standard']);
+    $cancelled = EventRegistration::factory()->for($event)->for(User::factory()->create(['name' => 'Weg Willi']))->create(['status' => 'cancelled']);
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(RegistrationsRelationManager::class, ['ownerRecord' => $event, 'pageClass' => EditEvent::class])
+        ->assertSee('Standard')
+        ->assertDontSee('>standard<', false)
+        ->assertTableColumnExists('arrival_day')
+        ->filterTable('status', 'cancelled')
+        ->assertCanSeeTableRecords([$cancelled])
+        ->assertCanNotSeeTableRecords([$active]);
+
+    $component = Livewire::test(RegistrationsRelationManager::class, ['ownerRecord' => $event, 'pageClass' => EditEvent::class])
+        ->mountTableAction('cancel_registration', $active);
+
+    expect((string) $component->instance()->getMountedAction()?->getModalHeading())
+        ->toBe('Anmeldung von Aktiv Anna stornieren?');
+});
+
+it('shows a german empty state on the registrations manager', function () {
+    $event = Event::factory()->registration()->create();
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(RegistrationsRelationManager::class, ['ownerRecord' => $event, 'pageClass' => EditEvent::class])
+        ->assertSee('Noch keine Anmeldungen')
+        ->assertDontSee('Keine event registrations');
+});

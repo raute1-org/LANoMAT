@@ -61,6 +61,9 @@ class ManageDisputes extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->modelLabel(__('tournaments.admin.disputes.model_label'))
+            ->pluralModelLabel(__('tournaments.admin.disputes.plural_model_label'))
+            ->emptyStateHeading(__('tournaments.admin.disputes.empty'))
             ->query(fn (): Builder => GameMatch::query()
                 ->where('status', MatchStatus::Disputed->value)
                 ->with(['tournament', 'entry1', 'entry2']))

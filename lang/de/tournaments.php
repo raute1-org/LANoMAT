@@ -23,6 +23,9 @@ return [
     'admin' => [
         'entries' => [
             'title' => 'Anmeldungen',
+            'model_label' => 'Anmeldung',
+            'plural_model_label' => 'Anmeldungen',
+            'empty' => 'Noch keine Anmeldungen',
             'display_name' => 'Anzeigename',
             'team' => 'Team',
             'user' => 'Person',
@@ -47,6 +50,9 @@ return [
         ],
         'disputes' => [
             'title' => 'Strittige Matches',
+            'model_label' => 'Match',
+            'plural_model_label' => 'Matches',
+            'empty' => 'Keine strittigen Matches',
             'tournament' => 'Turnier',
             'round' => 'Runde',
             'entry1' => 'Anmeldung 1',

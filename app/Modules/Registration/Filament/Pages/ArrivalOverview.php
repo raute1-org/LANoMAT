@@ -108,6 +108,9 @@ class ArrivalOverview extends Page implements HasTable
                 ->where('event_id', $event->id)
                 ->where('status', '!=', RegistrationStatus::Cancelled->value))
             ->heading(__('registration.admin.title'))
+            ->modelLabel(__('registration.admin.model_label'))
+            ->pluralModelLabel(__('registration.admin.plural_model_label'))
+            ->emptyStateHeading(__('registration.admin.empty'))
             ->columns([
                 TextColumn::make('user.name')
                     ->label(__('registration.admin.participant'))
