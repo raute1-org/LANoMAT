@@ -2,7 +2,7 @@
 
 use App\Modules\Preflight\Checks\BackupFreshnessCheck;
 
-function backupMarker(?int $ageHours, string|null $content = null): string
+function backupMarker(?int $ageHours, ?string $content = null): string
 {
     $path = tempnam(sys_get_temp_dir(), 'marker');
     file_put_contents($path, $content ?? (string) (now()->getTimestamp() - ($ageHours * 3600)));
