@@ -767,7 +767,7 @@ Ergänzt [`docs/pre-lan-acceptance-checklist.md`](../../pre-lan-acceptance-check
 | 7 | Kamera-Scanner + Self-Check-in-QR auf echten Handys (iOS/Android, Licht, Druck) | Orga | offen |
 | 8 | Beamer-Infoscreen und OBS-Overlays auf echter Hardware (Distanz-Lesbarkeit, transparenter Hintergrund) | Orga | offen |
 | 9 | Backup: Off-Host-Kopie | Owner | Entscheidung: vorerst keine (Owner: keiner) — Risiko bewusst akzeptiert |
-| 10 | Restore-Übung auf Scratch-Host (Anleitung in Deploy-Runbook, Abschnitt 8) | Owner | offen |
+| 10 | Restore-Übung (`scripts/ops/restore-drill.sh`, Notfall-Handbuch `docs/ops/restore-runbook.md`; Deploy-Runbook Abschnitt 8) | Owner | erledigt 2026-10-30: echtes Backup auf dem Produktionsserver in Wegwerf-Postgres wiederhergestellt, Zeilenzahlen, Migrationen, Schema, Entschlüsselung mit `APP_KEY` und Uploads verifiziert (PASS, 12 s); vor der LAN und monatlich wiederholen |
 | 11 | Lasttest (Anmelde-Ansturm, Reverb-Verbindungen, Beamer) | Owner | offen (nicht gemacht) |
 | 12 | CSP: report-only über eine volle Probe laufen lassen, dann `enforce` oder bewusst report-only lassen | Owner | Entscheidung offen |
 | 13 | Offline-Login: Discord-Ausfall = kein Login (kein Offline-Login-QR gebaut) | Owner | Entscheidung: Risiko akzeptiert |
