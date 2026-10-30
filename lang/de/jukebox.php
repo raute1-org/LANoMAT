@@ -17,6 +17,7 @@ return [
         'empty_queue_invite' => 'Noch nichts in der Warteschlange — durchsuche die Bibliothek und leg den nächsten Track auf.',
         'nothing_playing' => 'Gerade läuft nichts. Füge einen Track hinzu, um die Jukebox zu starten.',
         'search_placeholder' => 'Track suchen …',
+        'music_unavailable' => 'Music Assistant ist gerade nicht erreichbar. Die Warteschlange bleibt erhalten, Musik läuft aber erst wieder, wenn die Verbindung steht.',
         'search_error' => 'Music Assistant ist gerade nicht erreichbar. Bitte versuche es später erneut.',
         'search_no_results' => 'Keine Treffer. Versuch es mit einem anderen Suchbegriff.',
         'search_hint' => 'Suche nach Titel oder Interpret.',

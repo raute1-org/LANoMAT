@@ -39,6 +39,7 @@ interface JukeboxLabels {
     nothing_playing: string;
     search_placeholder: string;
     search_error: string;
+    music_unavailable: string;
     search_no_results: string;
     search_hint: string;
     add: string;
@@ -63,6 +64,7 @@ const props = defineProps<{
     canParticipate: boolean;
     canModerate: boolean;
     labels: JukeboxLabels;
+    musicAvailable?: boolean;
 }>();
 
 // Live board: any queue/vote/skip mutation broadcasts a bare signal on the
@@ -203,6 +205,16 @@ function skipNow(): void {
         </div>
 
         <template v-else>
+            <!-- availability hint: calm, only once the deferred probe says no -->
+            <p
+                v-if="musicAvailable === false"
+                role="status"
+                class="mt-4 rounded-lg border border-warn/40 bg-warn/10 p-4 text-sm text-foreground"
+                data-test="music-unavailable"
+            >
+                {{ labels.music_unavailable }}
+            </p>
+
             <!-- non-checked-in notice: an invitation, not an apology -->
             <p
                 v-if="!canParticipate"
