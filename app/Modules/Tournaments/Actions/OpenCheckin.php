@@ -5,6 +5,7 @@ namespace App\Modules\Tournaments\Actions;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
+use Illuminate\Support\Facades\DB;
 
 class OpenCheckin
 {
@@ -13,13 +14,19 @@ class OpenCheckin
      */
     public function handle(Tournament $tournament): Tournament
     {
-        if ($tournament->status !== TournamentStatus::Enrollment) {
-            throw TournamentException::notInEnrollment();
-        }
+        return DB::transaction(function () use ($tournament): Tournament {
+            // Row lock like StartTournament, so a manual orga click racing the
+            // scheduler tick (or a start) cannot double-transition.
+            $tournament = Tournament::query()->whereKey($tournament->getKey())->lockForUpdate()->firstOrFail();
 
-        $tournament->status = TournamentStatus::CheckIn;
-        $tournament->save();
+            if ($tournament->status !== TournamentStatus::Enrollment) {
+                throw TournamentException::notInEnrollment();
+            }
 
-        return $tournament;
+            $tournament->status = TournamentStatus::CheckIn;
+            $tournament->save();
+
+            return $tournament;
+        });
     }
 }

@@ -14,4 +14,15 @@ enum TournamentStatus: string
     {
         return __('tournaments.status.'.$this->value);
     }
+
+    /** Filament badge color name for the admin status badge. */
+    public function color(): string
+    {
+        return match ($this) {
+            self::Draft, self::Finished => 'gray',
+            self::Enrollment => 'info',
+            self::CheckIn => 'warning',
+            self::Live => 'success',
+        };
+    }
 }

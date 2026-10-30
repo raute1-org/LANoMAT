@@ -6,7 +6,8 @@ use DomainException;
 
 class TournamentException extends DomainException
 {
-    private function __construct(string $message, public readonly string $translationKey)
+    /** @param array<string, string> $translationParams */
+    private function __construct(string $message, public readonly string $translationKey, public readonly array $translationParams = [])
     {
         parent::__construct($message);
     }
@@ -97,5 +98,30 @@ class TournamentException extends DomainException
     public static function withdrawalClosed(): self
     {
         return new self('Entries can only be withdrawn while enrollment or check-in is open.', 'tournaments.errors.withdrawal_closed');
+    }
+
+    public static function notDraft(): self
+    {
+        return new self('The tournament is not a draft.', 'tournaments.errors.not_draft');
+    }
+
+    /** @param list<string> $missingLabels */
+    public static function incompleteSetup(array $missingLabels): self
+    {
+        return new self(
+            'The tournament is missing required settings: '.implode(', ', $missingLabels).'.',
+            'tournaments.errors.incomplete_setup',
+            ['fields' => implode(', ', $missingLabels)],
+        );
+    }
+
+    public static function cannotReturnToDraft(): self
+    {
+        return new self('Only an enrollment or check-in phase without entries can return to draft.', 'tournaments.errors.cannot_return_to_draft');
+    }
+
+    public static function hasEntries(): self
+    {
+        return new self('The tournament already has entries.', 'tournaments.errors.has_entries');
     }
 }
