@@ -135,3 +135,14 @@ it('offers the next transition right after a transition without a reload', funct
         ->assertActionHidden('transition_announced')
         ->assertActionVisible('transition_registration');
 });
+
+it('renders admin dates in german order, not the US default', function () {
+    Event::factory()->registration()->create(['name' => 'Datum LAN', 'starts_at' => '2026-10-31 16:40:18']);
+
+    $this->actingAs(User::factory()->orga()->create())
+        ->get('/admin/events')
+        ->assertOk()
+        ->assertSee('31.10.2026 17:40')
+        ->assertDontSee('Oct 31, 2026')
+        ->assertDontSee('Okt 31, 2026');
+});

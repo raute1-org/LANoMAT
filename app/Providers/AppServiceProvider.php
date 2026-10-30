@@ -128,7 +128,10 @@ use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Carbon\CarbonImmutable;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentTimezone;
+use Filament\Tables\Table;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -250,6 +253,27 @@ class AppServiceProvider extends ServiceProvider
     private function configureDisplayTimezone(): void
     {
         FilamentTimezone::set(fn (): string => DisplayTimezone::name());
+
+        // German date order everywhere in the panel (31.10.2026 17:40) instead
+        // of Filament's US defaults ("Oct 31, 2026 17:40:18"); pickers use
+        // Filament's own (non-native) picker so the format is not left to the
+        // browser locale.
+        Table::configureUsing(fn (Table $table): Table => $table
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i')
+            ->defaultTimeDisplayFormat('H:i'));
+        Schema::configureUsing(fn (Schema $schema): Schema => $schema
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i')
+            ->defaultTimeDisplayFormat('H:i'));
+        DateTimePicker::configureUsing(fn (DateTimePicker $picker): DateTimePicker => $picker
+            ->native(false)
+            ->seconds(false)
+            ->firstDayOfWeek(1)
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i')
+            ->defaultDateTimeWithSecondsDisplayFormat('d.m.Y H:i:s')
+            ->defaultTimeDisplayFormat('H:i'));
     }
 
     /**
