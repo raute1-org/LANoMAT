@@ -10,6 +10,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+// The callback only exists for providers with configured credentials.
+beforeEach(function () {
+    config()->set('services.steam.client_secret', 'k');
+});
+
 it('links a Steam account for the authenticated user', function () {
     fakeLinkedAccounts()->willResolve(LinkedAccountProvider::Steam, new LinkedAccountData(
         provider_user_id: '76561198000000000', nickname: 'FraggerX',

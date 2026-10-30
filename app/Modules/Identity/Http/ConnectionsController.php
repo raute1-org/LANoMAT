@@ -32,22 +32,27 @@ class ConnectionsController
     use ResolvesAuthenticatedUser;
 
     /**
-     * Show the connections settings page: every linkable provider whose
-     * credentials are configured ({@see LinkedAccountConnectors::enabled()}),
-     * with its linked state. Never exposes the account's access/refresh
+     * Show the connections settings page: every linkable provider with its
+     * linked state and whether it can currently be linked
+     * ({@see LinkedAccountConnectors::isConfigured()}). Never exposes the account's access/refresh
      * tokens — only the display-safe fields the UI needs.
      */
     public function index(Request $request, LinkedAccountConnectors $connectors): Response
     {
         $user = $this->authUser($request);
 
+        // Every linkable provider is listed so an already-linked account can
+        // always be unlinked, even when its provider's credentials were later
+        // removed; an unconfigured provider is flagged `available: false` and
+        // can not be linked.
         $providers = array_map(
-            function (LinkedAccountProvider $provider) use ($user): array {
+            function (LinkedAccountProvider $provider) use ($user, $connectors): array {
                 $account = $user->linkedAccount($provider);
 
                 return [
                     'provider' => $provider->value,
                     'label' => $provider->label(),
+                    'available' => $connectors->isConfigured($provider),
                     'linked' => $account !== null,
                     'nickname' => $account?->nickname,
                     'needsReauth' => $account?->needsReauth() ?? false,
@@ -55,7 +60,7 @@ class ConnectionsController
                     'unlinkUrl' => route('connections.destroy', $provider->value),
                 ];
             },
-            $connectors->enabled(),
+            LinkedAccountProvider::linkable(),
         );
 
         return Inertia::render('settings/Connections', [
@@ -66,14 +71,14 @@ class ConnectionsController
 
     public function redirect(Request $request, string $provider, LinkedAccountConnectors $connectors): RedirectResponse
     {
-        $provider = $this->resolveProvider($provider);
+        $provider = $this->resolveConfiguredProvider($provider, $connectors);
 
         return redirect($connectors->for($provider)->redirectUrl());
     }
 
     public function callback(Request $request, string $provider, LinkedAccountConnectors $connectors, LinkAccount $linkAccount): RedirectResponse
     {
-        $provider = $this->resolveProvider($provider);
+        $provider = $this->resolveConfiguredProvider($provider, $connectors);
 
         $data = $connectors->for($provider)->resolveCallback();
 
@@ -100,6 +105,16 @@ class ConnectionsController
         $unlinkAccount->handle($user, $provider);
 
         return back();
+    }
+
+    /** Unconfigured providers 404 instead of redirecting to a broken provider login. */
+    private function resolveConfiguredProvider(string $provider, LinkedAccountConnectors $connectors): LinkedAccountProvider
+    {
+        $resolved = $this->resolveProvider($provider);
+
+        abort_unless($connectors->isConfigured($resolved), 404);
+
+        return $resolved;
     }
 
     private function resolveProvider(string $provider): LinkedAccountProvider
