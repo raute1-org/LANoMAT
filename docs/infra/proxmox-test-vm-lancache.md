@@ -549,7 +549,10 @@ hypervisor.
 The result is an ordered pipeline of idempotent steps (a `ProvisioningStep`
 interface with `apply`, `verify`, `rollback`) run by a single queued job, with a
 status row per step so the Filament host page can show progress and the existing
-preflight probes can reuse the `verify` parts. Nothing here is implemented yet.
+preflight probes can reuse the `verify` parts. This is implemented as the
+`Provisioning` module (plan `test-vm-lancache`), see
+[`../provisioning.md`](../provisioning.md); the reboot persistence check and the
+bare-metal path are not automated yet.
 
 ### Idempotency notes
 

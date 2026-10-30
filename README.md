@@ -367,7 +367,7 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 | Profile | Modules |
 |---|---|
 | `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight |
-| `full` | all 29 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Recap, Schedule, Stats, Voice, Voting) |
+| `full` | all 30 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting) |
 
 **Live deployment** of `lan.raute1.org` (core profile): runbook in
 [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) (DNS, `.env`, start command, first admin, test checklist, backups).

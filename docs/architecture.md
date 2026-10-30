@@ -66,12 +66,14 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | Hosts (optional) | M7 | Managed remote hosts (IP + SSH key) behind `RemoteExecutor` |
 | CustomServers (optional) | M7 | Custom Docker game servers on a managed host |
 | Lancache (optional) | M7 | LanCache bootstrap on a separate host |
+| Provisioning (optional) | post-M12 | Automated test-VM setup: `HypervisorClient` (Proxmox VE), `ProvisioningStep` runner with dry run, see [`provisioning.md`](provisioning.md) |
 
 Hard dependencies between optional modules (`Module::requires()`, enforced at boot):
 
 | Module | requires |
 |---|---|
 | CustomServers, Lancache | Hosts |
+| Provisioning | Hosts, Lancache |
 | Recap | Gallery, Jukebox, Voting, Presence |
 | News | Gallery |
 | Gallery | Files |
