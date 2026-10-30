@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <style>
+    .n { fill: #14181c; }
+    .a { fill: #a85a00; }
+    @media (prefers-color-scheme: dark) {
+      .n { fill: #f2f4f6; }
+      .a { fill: #ffb020; }
+    }
+  </style>
+  <g class="n">
+    <circle cx="4.5" cy="4.5" r="2.6"/>
+    <circle cx="4.5" cy="12" r="2.6"/>
+    <circle cx="4.5" cy="19.5" r="2.6"/>
+    <circle cx="12" cy="19.5" r="2.6"/>
+  </g>
+  <circle class="a" cx="19.5" cy="19.5" r="2.6"/>
+</svg>

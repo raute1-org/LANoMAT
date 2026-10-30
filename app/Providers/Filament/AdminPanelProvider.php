@@ -31,6 +31,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('LANoMAT')
+            ->brandLogo(fn () => view('filament.brand'))
+            ->favicon(asset('favicon.svg'))
             // Signal-amber brand accent (docs/design.md "Signalpult"): the
             // light-mode primary `#a85a00` is passed as a single hex so
             // Filament generates the full shade palette from it (Filament
