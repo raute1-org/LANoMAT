@@ -10,6 +10,9 @@ use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Testing\FakeLinkedAccounts;
 use App\Modules\Jukebox\Contracts\MusicClient;
 use App\Modules\Jukebox\Testing\FakeMusicClient;
+use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
+use App\Modules\Provisioning\Testing\FakeHypervisorClient;
+use App\Modules\Provisioning\Testing\FakeHypervisorClientFactory;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Testing\FakeVoiceClient;
@@ -48,6 +51,7 @@ pest()->extend(TestCase::class)
         'Unit/Lfg',
         'Unit/News',
         'Unit/Presence',
+        'Unit/Provisioning',
         'Unit/Recap',
         'Unit/Registration',
         'Unit/Schedule',
@@ -70,7 +74,7 @@ pest()->extend(TestCase::class)
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments', 'Feature/Provisioning', 'Unit/Provisioning');
 
 /*
 |--------------------------------------------------------------------------
@@ -179,6 +183,14 @@ function fakePelican(): FakePelicanClient
 {
     $fake = new FakePelicanClient;
     app()->instance(PelicanClient::class, $fake);
+
+    return $fake;
+}
+
+function fakeHypervisor(): FakeHypervisorClient
+{
+    $fake = new FakeHypervisorClient;
+    app()->instance(HypervisorClientFactory::class, new FakeHypervisorClientFactory($fake));
 
     return $fake;
 }
