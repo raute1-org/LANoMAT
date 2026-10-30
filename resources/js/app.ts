@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { layoutKindFor } from '@/lib/pageLayouts';
 import type { Auth } from '@/types/auth';
 
 // Reverb connection data comes from the server at runtime via the
@@ -33,33 +34,24 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    // Layout choice is table-driven (lib/pageLayouts.ts) and guarded by
+    // tests/Architecture/PageLayoutsTest.php — unknown pages throw, they never
+    // silently fall into a default shell.
     layout: (name, page) => {
-        switch (true) {
-            // Public profile (/users/{user}) is the one participant page that
-            // guests may still open: logged-in users get the full app shell,
-            // guests stay bare (the sidebar's NavUser assumes a non-null user).
-            case name.startsWith('Profile/'):
+        switch (layoutKindFor(name)) {
+            case 'bare':
+                return null;
+            case 'auth':
+                return AuthLayout;
+            case 'settings':
+                return [AppLayout, SettingsLayout];
+            // Public profile (/users/{user}) is the one participant page guests
+            // may still open: logged-in users get the app shell, guests stay
+            // bare (the sidebar's NavUser assumes a non-null user).
+            case 'profile':
                 return (page.props as { auth?: Auth }).auth?.user
                     ? AppLayout
                     : null;
-            // The public beamer screen renders a bare full-viewport shell —
-            // no app navigation/header, no toaster (it is unattended and
-            // never triggers flashes).
-            case name.startsWith('Screen/'):
-                return null;
-            // The guest landing is a bare, event-free shell (no sidebar).
-            case name === 'Welcome':
-                return null;
-            // Public, no-auth OBS browser-source overlays (bracket,
-            // scoreboard, ...) — bare full-viewport shell like Screen/, but
-            // with a transparent background (see OverlayFrame.vue) so OBS
-            // composites the page over gameplay footage.
-            case name.startsWith('Overlay/'):
-                return null;
-            case name.startsWith('auth/'):
-                return AuthLayout;
-            case name.startsWith('settings/'):
-                return [AppLayout, SettingsLayout];
             default:
                 return AppLayout;
         }

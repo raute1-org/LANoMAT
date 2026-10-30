@@ -93,6 +93,78 @@ Non-negotiable, unannounced:
 - images carry width/height (or `aspect-ratio`) + `loading="lazy"` off-screen → no layout shift;
 - "environmentally friendly" for software = lean: small bundles, few dependencies, fast loads, good a11y/contrast (AA), low data/energy use.
 
+## Page anatomy & layout rules (binding)
+
+### 1. Layout matrix
+
+The layout of every Inertia page is decided in **one table**: `resources/js/lib/pageLayouts.ts` (consumed by `layout:` in `resources/js/app.ts`). Unknown pages throw; `tests/Architecture/PageLayoutsTest.php` fails when a page under `resources/js/pages` has no entry or an entry matches no page. Add the entry in the same commit as the page.
+
+| Kind | Shell | Pages |
+|------|-------|-------|
+| `app` | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Dashboard`, `Event/*`, `Teams/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Recap/*`, `Gallery/*`, `Schedule/*`, … |
+| `settings` | `AppLayout` + `layouts/settings/Layout.vue` | `settings/*` |
+| `auth` | `AuthLayout` | `auth/*` |
+| `profile` | `AppLayout` if logged in, bare for guests | `Profile/Show` (`/users/{user}` stays publicly reachable) |
+| `bare` | none | `Welcome` (guest landing, no event data), `Screen/*` (beamer), `Overlay/*` (OBS) |
+
+Choosing for a new page: behind `auth` middleware → `app` (default answer). Reachable by guests → it must be guest-safe and `bare`/`profile`. Unattended or transparent surfaces → `bare`. There is no `PublicShell`; the `<Toaster/>` is mounted once, inside `AppSidebarLayout`, so flash toasts only work on `app`/`settings` pages.
+
+### 2. Page anatomy (`app` pages)
+
+- **Title:** one `<h1>` (`text-2xl font-semibold tracking-tight`; event hero pages may use `text-4xl`+) with an optional one-line `text-sm text-muted-foreground` description directly below. Settings subpages use `Heading` + a `sr-only` h1.
+- **Width & spacing:** content wrapper `mx-auto w-full max-w-{lg|3xl|5xl} px-4 py-8` (forms `lg`, reading/lists `3xl`, grids/dashboard/seating `5xl`; scanner pages stay narrow). Vertical rhythm from the Tailwind scale: `space-y-8` between sections, `gap-4` in grids.
+- **Primary action:** one primary (amber) `Button` per screen, next to the thing it acts on (card footer or under the title). Secondary actions use `variant="outline"`; destructive ones sit apart and confirm.
+- **Sections & cards:** a section is `<h2 class="text-lg font-semibold tracking-tight">` + content; group into a card (`rounded-md border border-border bg-card p-5`) only when the content is a self-contained unit. Hairline borders, no shadows beyond `shadow-sm`.
+- **Breadcrumbs / back links:** root sidebar pages need none. Settings and deep pages pass `defineOptions({ layout: { breadcrumbs: [...] } })`; detail pages link back to their list in-page.
+- **Status & hints:** state of the thing (event status, ticket, registration) goes directly under the title in a `rounded-md border bg-card p-4` hint row; live state uses `LiveIndicator`. Hints are calm text, actions are buttons.
+
+### 3. States (all four, every data surface)
+
+| State | Pattern | Component |
+|-------|---------|-----------|
+| empty | `rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground`, says what to do next | plain markup, copy in `lang/de/<area>.php` |
+| loading | skeletons mirroring the final layout, shown while `router` `start`…`finish` | `@/components/ui/skeleton` + router listeners (see `pages/Dashboard.vue`, `settings/Connections.vue`) |
+| error | `rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center text-destructive`, names the failure and the next step | `router.on('error')` flag |
+| normal | the content | — |
+
+### 4. Navigation
+
+- **Reachable:** every page is reachable from the sidebar (`components/AppSidebar.vue`) or a visible in-page link/CTA. No orphan pages. Cross-event items go in the "Allgemein" group, event-scoped items in the "Aktuelle LAN" group (shown when `currentEvent` exists); status-dependent items (e.g. "Anmeldung" only while `status === 'registration'`) are conditional entries.
+- **Contextual instead of sidebar:** detail pages, flows and one-off pages (ticket, a single tournament, team edit) are reached via links from their list or the Dashboard.
+- **Module gating:** frontend `useModules().has('<key>')` around nav items and links; backend routes via `$modules->routable(Module::X)`; backend cross-module calls via `Modules::enabled()`/events/contracts (architecture ratchet in `tests/Architecture`).
+- **Active state:** `NavMain` highlights by exact URL; set `prefix: true` on a `NavItem` whose detail pages live below it (e.g. `/teams/{id}`), or `isActive` to override (the "Aktuelle LAN" link yields to the event "Übersicht").
+
+### 5. Copy
+
+- German, sentence case, plain verbs; one name per action across button, toast and heading ("Anmelden" → "Angemeldet"). UI copy comes from `lang/de/*.php` via props, or inline German for static chrome; no English leftovers (also `aria-label`, placeholders, `<title>`).
+- Empty states invite ("Du bist noch in keinem Team. Gründe eins oder tritt einem bei."); errors say what failed and what to do, never apologise; no exclamation marks.
+
+### 6. Event status → what the user sees (`Event/Show.vue`, `Event/Seating.vue`, `Dashboard.vue`)
+
+| Status | Registered? | Event page | Seating page |
+|--------|-------------|-----------|--------------|
+| `announced` | no | hint "Die Anmeldung öffnet bald." (no button) | "Der Sitzplan öffnet mit der Anmeldung." |
+| `registration` | no | primary "Jetzt anmelden" | "Melde dich zuerst zum Event an …" + button "Zur Anmeldung" |
+| `registration` | yes | "Du bist angemeldet" + Ticket / Sitzplatz links | claim/release seat |
+| `live` | no | "Das Event läuft — die Anmeldung ist beendet." | "Die Anmeldung ist beendet …" |
+| `live` | yes | "Du bist angemeldet" (+ "eingecheckt") + links, `LiveIndicator` | claim/release seat |
+| `finished`/`archived` | any | "Dieses Event ist vorbei." + "Zum Rückblick" (recap module) | registration-closed hint |
+
+Backing props: `registration` (`Registration\Support\MyRegistration::summary`, never the QR payload) and `registrationState` (`upcoming|open|closed`).
+
+### 7. New page checklist
+
+- [ ] Entry in `resources/js/lib/pageLayouts.ts` (guard test green).
+- [ ] Route behind `auth` (or consciously public + guest-safe), module-gated if optional.
+- [ ] Authorization through a Policy; no client-supplied user IDs.
+- [ ] Reachable: sidebar entry, Dashboard/contextual link, or visible in-page CTA.
+- [ ] One `<h1>`, standard width wrapper, spacing from the scale.
+- [ ] Empty, loading, error and normal states implemented.
+- [ ] Only semantic tokens (no hex, no `<style>`); amber only for primary action/live.
+- [ ] Visible focus, `motion-reduce`, usable at 375px, AA contrast.
+- [ ] German copy, consistent action names, no English leftovers.
+- [ ] Pest feature test for new props/controller; `composer check` + `types:check`/`lint:check`/`format:check`/`build` green.
+
 ## Beamer (the loud surface)
 
 `/screen/{event}` is the exception to "quiet". Near-black canvas, huge type, the amber accent at full brightness, celebratory motion (winner confetti, tombola reveal) — but still disciplined: one focal thing per scene, legible at distance, high contrast. The winner/celebration colour aligns to `--live` amber (not an ad-hoc yellow).
