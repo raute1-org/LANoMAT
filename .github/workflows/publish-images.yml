@@ -63,6 +63,9 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          # Always re-pull the moving FrankenPHP base tag so a release image
+          # carries the newest PHP 8.4 patch (see docker/Dockerfile).
+          pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
