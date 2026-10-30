@@ -107,6 +107,16 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progre
     && php artisan route:clear \
     && php artisan view:clear
 
+# Public disk link (public/storage -> storage/app/public). storage/app is a
+# named volume at runtime (compose.yml `app_storage`); the link targets an
+# absolute path inside it, so it resolves once the volume is populated (Docker
+# copies the image's storage/app into a fresh volume on first mount). Remove
+# any host-side public/storage link first so `COPY . .` never ships a dangling
+# one.
+RUN rm -f public/storage \
+    && mkdir -p storage/app/public \
+    && php artisan storage:link
+
 # The official dunglas/frankenphp image runs as root by default (verified:
 # `docker run --rm dunglas/frankenphp:1.12.4-php8.4 whoami` -> root; it does
 # not drop privileges itself, unlike some of FrankenPHP's own advanced

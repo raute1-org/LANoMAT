@@ -99,6 +99,8 @@ services:
       dockerfile: docker/Dockerfile
     profiles: [prod]
     env_file: .env
+    volumes:
+      - app_storage:/app/storage/app
     # Loopback only: Traefik is the sole public entry point. Binding to all
     # interfaces would let clients bypass TLS and forge X-Forwarded-* headers
     # (trusted in bootstrap/app.php). Docker port publishing also bypasses ufw.
@@ -139,6 +141,8 @@ services:
     profiles: [prod]
     command: php artisan queue:work --tries=3 --max-time=3600
     env_file: .env
+    volumes:
+      - app_storage:/app/storage/app
     # Worker without an HTTP server: the image's curl /up HEALTHCHECK can
     # never pass here, so it would report `unhealthy` forever.
     healthcheck:
@@ -161,6 +165,8 @@ services:
     profiles: [prod]
     command: php artisan schedule:work
     env_file: .env
+    volumes:
+      - app_storage:/app/storage/app
     # No HTTP server — see the `queue` service.
     healthcheck:
       disable: true
@@ -183,6 +189,8 @@ services:
     profiles: [prod]
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     env_file: .env
+    volumes:
+      - app_storage:/app/storage/app
     # Loopback only, same reason as `app` above: public websocket traffic goes
     # through Traefik's `ws.` router.
     ports: ['127.0.0.1:8081:8080']
@@ -342,6 +350,9 @@ services:
 
 volumes:
   pgdata:
+  # User uploads (avatars, shared files, gallery photos): storage/app on the
+  # public/private disks. Survives image rebuilds. `down -v` deletes it.
+  app_storage:
   mumble_data:
   teamspeak_data:
   music_assistant_data:
