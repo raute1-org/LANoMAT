@@ -101,6 +101,13 @@ function remove(file: SharedFileDto) {
  * File size is machine data — rendered in `font-mono` per the design system
  * (mono is reserved for machine-readable values, not the filename itself).
  */
+function decimal(value: number): string {
+    return value.toLocaleString('de-DE', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    });
+}
+
 function formatSize(bytes: number): string {
     if (bytes < 1024) {
         return `${bytes} B`;
@@ -109,12 +116,12 @@ function formatSize(bytes: number): string {
     const kb = bytes / 1024;
 
     if (kb < 1024) {
-        return `${kb.toFixed(1)} KB`;
+        return `${decimal(kb)} KB`;
     }
 
     const mb = kb / 1024;
 
-    return `${mb.toFixed(1)} MB`;
+    return `${decimal(mb)} MB`;
 }
 
 function formatDateTime(iso: string): string {

@@ -8,7 +8,7 @@ use App\Modules\Infoscreen\Models\InfoscreenScene;
 it('has german labels for each scene type', function () {
     expect(SceneType::Bracket->label())->toBe('Turnierbaum')
         ->and(SceneType::UpcomingMatches->label())->toBe('Nächste Matches')
-        ->and(SceneType::Schedule->label())->toBe('Programm')
+        ->and(SceneType::Schedule->label())->toBe('Zeitplan')
         ->and(SceneType::Announcement->label())->toBe('Ansage')
         ->and(SceneType::Seatmap->label())->toBe('Sitzplan')
         ->and(SceneType::PaymentQr->label())->toBe('Bezahl-QR')

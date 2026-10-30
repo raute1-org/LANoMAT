@@ -60,7 +60,9 @@ class OrgaPinged extends Notification implements ShouldQueue
     {
         return __('infoscreen.orga_ping.body', [
             'name' => $this->caller->name,
-            'seat' => $this->seatLabel ?? __('infoscreen.orga_ping.no_seat'),
+            'seat' => $this->seatLabel !== null
+                ? __('infoscreen.orga_ping.seat', ['label' => $this->seatLabel])
+                : __('infoscreen.orga_ping.no_seat'),
             'words' => $this->words ?? __('infoscreen.orga_ping.no_words'),
         ]);
     }

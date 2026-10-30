@@ -3,13 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { LeaderboardRowDto } from '@/types';
 
@@ -103,10 +97,6 @@ function badgeLabel(badge: string): string {
 
             <!-- normal -->
             <Card v-else class="mt-8">
-                <CardHeader>
-                    <CardTitle>{{ labels.title }}</CardTitle>
-                    <CardDescription>{{ labels.subtitle }}</CardDescription>
-                </CardHeader>
                 <CardContent class="p-0">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
