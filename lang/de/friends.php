@@ -25,7 +25,7 @@ return [
         'description' => 'Anfragen, Freunde und Vorschläge auf einen Blick.',
 
         'incoming_title' => 'Anfragen',
-        'incoming_empty' => 'Keine offenen Anfragen — melden wir uns, sobald jemand dich adden will.',
+        'incoming_empty' => 'Keine offenen Anfragen — melden wir uns, sobald dir jemand eine Anfrage schickt.',
         'accept' => 'Annehmen',
         'decline' => 'Ablehnen',
 

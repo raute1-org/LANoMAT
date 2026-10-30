@@ -19,6 +19,7 @@ use App\Modules\Jukebox\Exceptions\JukeboxException;
 use App\Modules\Jukebox\Exceptions\MusicUnavailable;
 use App\Modules\Jukebox\Models\JukeboxItem;
 use App\Modules\Jukebox\Support\JukeboxQueue;
+use App\Modules\Jukebox\Support\MusicAvailability;
 use App\Modules\Jukebox\Support\SkipThreshold;
 use App\Modules\Jukebox\Support\TrackDto;
 use Illuminate\Http\JsonResponse;
@@ -45,7 +46,7 @@ class JukeboxController extends Controller
 {
     use ResolvesAuthenticatedUser;
 
-    public function index(Request $request, Event $event, JukeboxQueue $queue): Response
+    public function index(Request $request, Event $event, JukeboxQueue $queue, MusicAvailability $availability): Response
     {
         abort_unless($event->isPubliclyVisible(), 404);
 
@@ -62,6 +63,8 @@ class JukeboxController extends Controller
             'canParticipate' => $viewer !== null && Gate::forUser($viewer)->allows('jukebox.participate', $event),
             'canModerate' => $viewer !== null && Gate::forUser($viewer)->allows('jukebox.moderate', $event),
             'labels' => trans('jukebox.page'),
+            // Deferred: the probe may wait on a slow backend, which must never delay the first paint.
+            'musicAvailable' => Inertia::defer(fn (): bool => $availability->isAvailable()),
         ]);
     }
 

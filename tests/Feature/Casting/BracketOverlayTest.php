@@ -71,3 +71,14 @@ it('404s the bracket overlay for a tournament whose event is still draft', funct
     $this->get("/overlay/tournament/{$tournament->id}/bracket")
         ->assertNotFound();
 });
+
+it('flags the root html element so the document background can be transparent for OBS', function () {
+    $tournament = startPubliclyVisibleBracket();
+
+    $this->get(route('overlay.bracket', $tournament))
+        ->assertOk()
+        ->assertSee('class="overlay"', false);
+
+    // Regular pages never carry the flag.
+    $this->get('/')->assertDontSee('overlay', false);
+});

@@ -18,7 +18,10 @@ const props = defineProps<ToasterProps>()
       '--normal-border': 'var(--border)',
       '--border-radius': 'var(--radius)',
     }"
-    v-bind="props"
+    v-bind="{
+      ...props,
+      containerAriaLabel: props.containerAriaLabel ?? 'Benachrichtigungen',
+    }"
   >
     <template #success-icon>
       <CircleCheckIcon class="size-4" />

@@ -6,6 +6,7 @@ namespace App\Modules\Hosts\Filament\Resources\RemoteHosts\Schemas;
 
 use App\Modules\Events\Models\Event;
 use App\Modules\Hosts\Enums\HostRole;
+use App\Modules\Hosts\Rules\ValidHostAddress;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -24,7 +25,8 @@ class RemoteHostForm
                 TextInput::make('hostname')
                     ->label(__('hosts.fields.hostname'))
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->rule(new ValidHostAddress),
                 TextInput::make('ssh_port')
                     ->label(__('hosts.fields.ssh_port'))
                     ->required()

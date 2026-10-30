@@ -36,7 +36,7 @@ enum AdminNavigationGroup implements HasLabel
             self::Event => 'Event',
             self::AnmeldungUndSitzplan => 'Anmeldung & Sitzplan',
             self::TurniereUndTeams => 'Turniere & Teams',
-            self::Programm => 'Programm, Catering & Voting',
+            self::Programm => 'Zeitplan, Essen & Abstimmungen',
             self::Infoscreen => 'Infoscreen',
             self::Nutzer => 'Nutzer',
         };

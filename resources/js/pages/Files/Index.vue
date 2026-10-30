@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import FilePicker from '@/components/FilePicker.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,6 +102,13 @@ function remove(file: SharedFileDto) {
  * File size is machine data — rendered in `font-mono` per the design system
  * (mono is reserved for machine-readable values, not the filename itself).
  */
+function decimal(value: number): string {
+    return value.toLocaleString('de-DE', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    });
+}
+
 function formatSize(bytes: number): string {
     if (bytes < 1024) {
         return `${bytes} B`;
@@ -109,12 +117,12 @@ function formatSize(bytes: number): string {
     const kb = bytes / 1024;
 
     if (kb < 1024) {
-        return `${kb.toFixed(1)} KB`;
+        return `${decimal(kb)} KB`;
     }
 
     const mb = kb / 1024;
 
-    return `${mb.toFixed(1)} MB`;
+    return `${decimal(mb)} MB`;
 }
 
 function formatDateTime(iso: string): string {
@@ -163,10 +171,8 @@ function formatDateTime(iso: string): string {
                         <Label for="file-upload">{{
                             labels.upload_label
                         }}</Label>
-                        <input
+                        <FilePicker
                             id="file-upload"
-                            type="file"
-                            class="rounded-md border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                             required
                             @change="onFileChange"
                         />

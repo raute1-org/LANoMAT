@@ -6,6 +6,7 @@
  * amber CTA (docs/design.md: "amber is rationed").
  */
 import { useForm } from '@inertiajs/vue3';
+import FilePicker from '@/components/FilePicker.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -44,13 +45,12 @@ function submit(): void {
             <form class="space-y-4" @submit.prevent="submit">
                 <div class="grid gap-2">
                     <Label for="photo-upload">{{ labels.upload_label }}</Label>
-                    <input
+                    <FilePicker
                         id="photo-upload"
-                        type="file"
                         accept="image/*"
                         multiple
                         required
-                        class="rounded-md border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        button-label="Fotos auswählen"
                         @change="onFilesChange"
                     />
                     <p

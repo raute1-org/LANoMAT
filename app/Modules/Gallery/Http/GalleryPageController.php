@@ -28,6 +28,7 @@ use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 /**
  * The participant gallery page (`Gallery/Index`). Deliberately auth-gated —
@@ -57,7 +58,8 @@ class GalleryPageController extends Controller
             'photos' => $photos->map(fn (EventPhoto $photo): array => $this->photoDto($photo, $user))->all(),
             'canUpload' => $this->canUpload($event, $user),
             'labels' => trans('gallery.page'),
-            'canDownloadZip' => $this->isFinishedOrArchived($event),
+            'canDownloadZip' => $this->isFinishedOrArchived($event) && $query->approvedFor($event)->isNotEmpty(),
+            'photoCountLabel' => trans_choice('gallery.page.photo_count', $photos->count()),
         ]);
     }
 
@@ -137,16 +139,37 @@ class GalleryPageController extends Controller
      * Archived events only (the "when"); {@see EventPhotoPolicy::downloadZip}
      * is the "who" (any authenticated viewer of a public event).
      */
-    public function downloadZip(Request $request, Event $event, BuildEventPhotoZip $action): BinaryFileResponse
+    public function downloadZip(Request $request, Event $event, BuildEventPhotoZip $action, GalleryQuery $query): BinaryFileResponse|RedirectResponse
     {
         abort_unless($event->isPubliclyVisible(), 404);
         abort_unless($this->isFinishedOrArchived($event), 403);
 
         $this->authorize('downloadZip', [EventPhoto::class, $event]);
 
-        $path = $action->handle($event);
+        if ($query->approvedFor($event)->isEmpty()) {
+            return $this->zipUnavailable();
+        }
+
+        try {
+            $path = $action->handle($event);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->zipUnavailable();
+        }
+
+        if (! is_file($path)) {
+            return $this->zipUnavailable();
+        }
 
         return response()->download($path, "{$event->slug}-fotos.zip")->deleteFileAfterSend();
+    }
+
+    private function zipUnavailable(): RedirectResponse
+    {
+        Inertia::flash('toast', ['type' => 'error', 'message' => __('gallery.page.zip_unavailable')]);
+
+        return back();
     }
 
     private function isFinishedOrArchived(Event $event): bool

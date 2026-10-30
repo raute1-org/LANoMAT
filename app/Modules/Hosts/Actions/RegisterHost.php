@@ -6,6 +6,7 @@ namespace App\Modules\Hosts\Actions;
 
 use App\Models\User;
 use App\Modules\Hosts\Models\RemoteHost;
+use App\Modules\Hosts\Rules\ValidHostAddress;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use phpseclib3\Crypt\PublicKeyLoader;
@@ -32,6 +33,12 @@ class RegisterHost
     public function handle(array $data, string $privateKeyPem, User $actor): RemoteHost
     {
         Gate::forUser($actor)->authorize('create', RemoteHost::class);
+
+        if (! ValidHostAddress::isValid((string) ($data['hostname'] ?? ''))) {
+            throw ValidationException::withMessages([
+                'hostname' => __('hosts.errors.invalid_hostname'),
+            ]);
+        }
 
         if (! self::isParseablePrivateKey($privateKeyPem)) {
             throw ValidationException::withMessages([

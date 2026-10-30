@@ -8,6 +8,7 @@ use App\Modules\Infoscreen\Actions\TriggerCheckinOpen;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notification;
  * source of truth (`database` always lands); the Discord DM mirrors only
  * per the `checkin` category preference.
  */
-class CheckinOpened extends Notification
+class CheckinOpened extends Notification implements ShouldQueue
 {
     use Queueable;
 

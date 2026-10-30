@@ -6,6 +6,7 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Infoscreen\Actions\TriggerFoodReady;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -14,7 +15,7 @@ use Illuminate\Notifications\Notification;
  * Bell is the source of truth (`database` always lands); the Discord DM
  * mirrors only per the `catering` category preference.
  */
-class FoodOrderReady extends Notification
+class FoodOrderReady extends Notification implements ShouldQueue
 {
     use Queueable;
 

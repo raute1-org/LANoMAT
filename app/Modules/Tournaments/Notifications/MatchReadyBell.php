@@ -4,11 +4,11 @@ namespace App\Modules\Tournaments\Notifications;
 
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Discord\Support\MatchEmbed;
-use App\Modules\Tournaments\Listeners\NotifyRosterOnMatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -19,12 +19,10 @@ use Illuminate\Notifications\Notification;
  * `database`); the Discord DM is a mirror gated by the `match` category
  * preference (see {@see DiscordChannel}).
  *
- * Not a `ShouldQueue`: dispatched from
- * {@see NotifyRosterOnMatchReady}, which
- * is itself already a queued listener, so queuing again here would only add
- * latency without benefit.
+ * Queued (one job per recipient and channel) so a Discord outage can never
+ * stop the bell rows of the remaining roster members.
  */
-class MatchReadyBell extends Notification
+class MatchReadyBell extends Notification implements ShouldQueue
 {
     use Queueable;
 
