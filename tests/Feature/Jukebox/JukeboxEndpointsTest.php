@@ -39,7 +39,7 @@ it('renders the jukebox board for a public event without requiring auth', functi
     JukeboxItem::factory()->create(['event_id' => $event->id, 'status' => QueueItemStatus::Playing, 'title' => 'Now Playing Track']);
     JukeboxItem::factory()->create(['event_id' => $event->id, 'status' => QueueItemStatus::Queued, 'title' => 'Queued Track']);
 
-    $this->get("/events/{$event->slug}/jukebox")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Jukebox/Index')
@@ -54,7 +54,7 @@ it('renders the jukebox board for a public event without requiring auth', functi
 it('returns 404 for a draft event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/jukebox")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox")->assertNotFound();
 });
 
 it('reports canParticipate true only for a checked-in viewer', function () {
@@ -82,7 +82,7 @@ it('never leaks private data in the queue payload beyond public track fields and
     [$event, $user] = checkedInJukeboxUser();
     $item = JukeboxItem::factory()->create(['event_id' => $event->id, 'added_by' => $user->id, 'status' => QueueItemStatus::Queued]);
 
-    $response = $this->get("/events/{$event->slug}/jukebox");
+    $response = $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox");
 
     $queueEntry = $response->viewData('page')['props']['queue'][0];
 
@@ -120,7 +120,7 @@ it('reports skipThreshold and skipVotes for the currently playing item', functio
     $current = JukeboxItem::factory()->create(['event_id' => $event->id, 'status' => QueueItemStatus::Playing]);
     JukeboxSkipVote::factory()->create(['jukebox_item_id' => $current->id, 'user_id' => $user->id]);
 
-    $this->get("/events/{$event->slug}/jukebox")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox")
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('skipVotes', 1)
             ->has('skipThreshold')

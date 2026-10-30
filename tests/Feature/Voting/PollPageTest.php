@@ -16,7 +16,7 @@ it('renders the poll page with german labels and option counts for a public even
     $option = $poll->options->first();
     app(CastVote::class)->handle($poll, User::factory()->create(), $option);
 
-    $this->get("/polls/{$poll->id}")
+    $this->actingAs(User::factory()->create())->get("/polls/{$poll->id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Polls/Show')
@@ -31,14 +31,14 @@ it('returns 404 for a draft event', function () {
     $event = Event::factory()->draft()->create();
     $poll = Poll::factory()->for($event)->open()->withOptions(2)->create();
 
-    $this->get("/polls/{$poll->id}")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/polls/{$poll->id}")->assertNotFound();
 });
 
 it('lists the events polls on the index page', function () {
     $event = Event::factory()->registration()->create();
     Poll::factory()->for($event)->open()->withOptions(2)->create(['question' => 'Welches Spiel als nächstes?']);
 
-    $this->get("/events/{$event->slug}/polls")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/polls")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Polls/Index')

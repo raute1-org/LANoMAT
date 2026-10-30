@@ -61,6 +61,9 @@ createInertiaApp({
             // never triggers flashes).
             case name.startsWith('Screen/'):
                 return null;
+            // The guest landing is a bare, event-free shell (no sidebar).
+            case name === 'Welcome':
+                return null;
             // Public, no-auth OBS browser-source overlays (bracket,
             // scoreboard, ...) — bare full-viewport shell like Screen/, but
             // with a transparent background (see OverlayFrame.vue) so OBS

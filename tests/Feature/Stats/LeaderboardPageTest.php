@@ -20,7 +20,7 @@ it('renders the public leaderboard page with german labels and the top entrant\'
     $match = GameMatch::factory()->create(['tournament_id' => $tournament->id, 'entry1_id' => $entry->id, 'entry2_id' => $opponent->id]);
     $match->forceFill(['status' => MatchStatus::Completed, 'winner_entry_id' => $entry->id])->save();
 
-    $this->get('/stats/leaderboard')
+    $this->actingAs(User::factory()->create())->get('/stats/leaderboard')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Stats/Leaderboard')
@@ -29,14 +29,12 @@ it('renders the public leaderboard page with german labels and the top entrant\'
         );
 });
 
-it('is reachable without a logged-in user', function () {
-    expect(auth()->check())->toBeFalse();
-
-    $this->get('/stats/leaderboard')->assertOk();
+it('redirects guests to login', function () {
+    $this->get('/stats/leaderboard')->assertRedirect(route('login'));
 });
 
 it('renders an empty leaderboard without error when there are no completed matches', function () {
-    $this->get('/stats/leaderboard')
+    $this->actingAs(User::factory()->create())->get('/stats/leaderboard')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Stats/Leaderboard')

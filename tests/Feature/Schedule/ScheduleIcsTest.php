@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Schedule\Models\ScheduleItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,7 +14,7 @@ it('serves the public schedule as an ICS calendar', function () {
         'starts_at' => now()->addHour(),
     ]);
 
-    $response = $this->get("/events/{$event->slug}/schedule.ics")
+    $response = $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule.ics")
         ->assertOk();
 
     expect($response->headers->get('Content-Type'))->toContain('text/calendar');
@@ -27,6 +28,6 @@ it('serves the public schedule as an ICS calendar', function () {
 it('404s the schedule ICS export for a draft event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/schedule.ics")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule.ics")
         ->assertNotFound();
 });

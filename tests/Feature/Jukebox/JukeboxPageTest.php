@@ -71,10 +71,10 @@ it('renders a read-only board with canParticipate false for a non-checked-in vie
         );
 });
 
-it('renders a read-only board for an unauthenticated guest', function () {
+it('renders a read-only board for a user who is not checked in', function () {
     $event = Event::factory()->live()->create();
 
-    $this->get("/events/{$event->slug}/jukebox")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Jukebox/Index')
@@ -97,13 +97,13 @@ it('reports canModerate true for a helper', function () {
 it('returns 404 for a draft (not publicly visible) event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/jukebox")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox")->assertNotFound();
 });
 
 it('renders nowPlaying as null and an empty queue when nothing is queued', function () {
     $event = Event::factory()->live()->create();
 
-    $this->get("/events/{$event->slug}/jukebox")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/jukebox")
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('nowPlaying', null)
             ->has('queue', 0)

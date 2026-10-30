@@ -19,7 +19,7 @@ it('renders the seating map with seats and occupants', function () {
     $reg = EventRegistration::factory()->for($event)->for($occupant)->create();
     SeatAssignment::factory()->create(['seat_id' => $seat->id, 'registration_id' => $reg->id]);
 
-    $this->get("/events/{$event->slug}/seating")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/seating")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Event/Seating')
@@ -29,11 +29,11 @@ it('renders the seating map with seats and occupants', function () {
         );
 });
 
-it('is viewable without authentication (public wer-sitzt-wo view)', function () {
+it('does not let a user without a registration claim a seat', function () {
     $event = Event::factory()->live()->create();
     Seat::factory()->for($event)->create();
 
-    $this->get("/events/{$event->slug}/seating")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/seating")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('canClaim', false)
@@ -47,7 +47,7 @@ it('only shows seats belonging to the requested event', function () {
     Seat::factory()->for($event)->create(['label' => 'MINE']);
     Seat::factory()->for($otherEvent)->create(['label' => 'OTHER']);
 
-    $this->get("/events/{$event->slug}/seating")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/seating")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('seats', 1)
@@ -137,5 +137,5 @@ it('forbids releasing without a registration', function () {
 it('returns 404 for a draft event on the seating page', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/seating")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/seating")->assertNotFound();
 });

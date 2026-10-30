@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
 use App\Modules\GameServers\Models\ServerLink;
@@ -72,7 +73,7 @@ it('surfaces the live telemetry score on the tournament page with its German lab
 
     $match = $link->match()->first()->fresh();
 
-    $this->get("/tournaments/{$match->tournament_id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$match->tournament_id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')

@@ -40,7 +40,7 @@ it('renders the tournaments index for an event with german labels', function () 
     $event = Event::factory()->live()->create();
     Tournament::factory()->for($event)->enrollment()->create(['name' => 'Season Opener']);
 
-    $this->get("/events/{$event->slug}/tournaments")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/tournaments")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Index')
@@ -53,7 +53,7 @@ it('renders the tournaments index for an event with german labels', function () 
 it('renders the bracket for an 8-entry single-elimination tournament with 7 matches', function () {
     $tournament = startEightEntrySingleElim();
 
-    $this->get("/tournaments/{$tournament->id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Tournaments/Show')
@@ -189,7 +189,7 @@ it('404s on show for a tournament whose event is still draft', function () {
     $event = Event::factory()->draft()->create();
     $tournament = Tournament::factory()->for($event)->enrollment()->create();
 
-    $this->get("/tournaments/{$tournament->id}")
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
         ->assertNotFound();
 });
 

@@ -14,7 +14,7 @@ it('renders the catering page with german labels for a public event', function (
     $event = Event::factory()->registration()->create();
     FoodOrder::factory()->for($event)->open()->create();
 
-    $this->get("/events/{$event->slug}/catering")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/catering")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Catering/Show')
@@ -26,7 +26,7 @@ it('returns 404 for a draft event', function () {
     $event = Event::factory()->draft()->create();
     FoodOrder::factory()->for($event)->open()->create();
 
-    $this->get("/events/{$event->slug}/catering")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/catering")->assertNotFound();
 });
 
 it('hides a draft food order from the public catering page', function () {
@@ -34,7 +34,7 @@ it('hides a draft food order from the public catering page', function () {
     FoodOrder::factory()->for($event)->create(['title' => 'Geheime Draft-Bestellung']);
     $openOrder = FoodOrder::factory()->for($event)->open()->create(['title' => 'Pizza-Bestellung']);
 
-    $this->get("/events/{$event->slug}/catering")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/catering")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Catering/Show')

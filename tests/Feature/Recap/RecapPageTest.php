@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Registration\Models\EventRegistration;
@@ -16,13 +17,13 @@ uses(RefreshDatabase::class);
 it('404s the recap page for a live (not yet wrapped) event', function () {
     $event = Event::factory()->live()->create();
 
-    $this->get("/events/{$event->slug}/recap")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/recap")->assertNotFound();
 });
 
 it('404s the recap page for a draft event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/recap")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/recap")->assertNotFound();
 });
 
 it('renders the recap page for a finished event with the projection props', function () {
@@ -40,7 +41,7 @@ it('renders the recap page for a finished event with the projection props', func
 
     $photo = EventPhoto::factory()->for($event)->highlight()->create(['caption' => 'Finale']);
 
-    $this->get("/events/{$event->slug}/recap")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/recap")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Recap/Show')
@@ -59,13 +60,11 @@ it('renders the recap page for a finished event with the projection props', func
 it('renders the recap page for an archived event', function () {
     $event = Event::factory()->archived()->create();
 
-    $this->get("/events/{$event->slug}/recap")->assertOk();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/recap")->assertOk();
 });
 
-it('is reachable without a logged-in user', function () {
+it('redirects guests to login', function () {
     $event = Event::factory()->finished()->create();
 
-    expect(auth()->check())->toBeFalse();
-
-    $this->get("/events/{$event->slug}/recap")->assertOk();
+    $this->get("/events/{$event->slug}/recap")->assertRedirect(route('login'));
 });

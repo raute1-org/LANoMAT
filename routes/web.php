@@ -41,21 +41,10 @@ $modules = app(Modules::class);
 // ---- core (always) ----
 
 Route::get('/', [EventPageController::class, 'home'])->name('home');
-Route::get('/events', [EventPageController::class, 'archive'])->name('events.index');
-Route::get('/events/{event:slug}', [EventPageController::class, 'show'])->name('events.show');
 Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.show');
 
 Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
 Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
-
-// Public "who sits where" seat map — readable without authentication;
-// claiming/releasing a seat requires auth + an active registration (see below).
-Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');
-
-// Tournament index/bracket views are public (like the seating map) —
-// enrolling/checking in/reporting requires auth (see below).
-Route::get('/events/{event:slug}/tournaments', [TournamentPageController::class, 'index'])->name('tournaments.index');
-Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'])->name('tournaments.show');
 
 // Local-only demo login (guarded to 404 unless APP_ENV=local — see the
 // controller). Lets people explore a local clone without a Discord app.
@@ -63,6 +52,15 @@ Route::post('dev/login/{role}', DevLoginController::class)->name('dev.login');
 
 Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+
+    // Nobody who is not logged in may see ANY event data: the event list, the
+    // event page and every event-scoped participant page require login. Guests
+    // only get the event-free landing at `/` (EventPageController::home).
+    Route::get('/events', [EventPageController::class, 'archive'])->name('events.index');
+    Route::get('/events/{event:slug}', [EventPageController::class, 'show'])->name('events.show');
+    Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');
+    Route::get('/events/{event:slug}/tournaments', [TournamentPageController::class, 'index'])->name('tournaments.index');
+    Route::get('/tournaments/{tournament}', [TournamentPageController::class, 'show'])->name('tournaments.show');
 
     Route::get('/events/{event:slug}/register', [RegistrationController::class, 'show'])->name('events.register');
     Route::post('/events/{event:slug}/register', [RegistrationController::class, 'store'])->name('events.register.store');
@@ -105,17 +103,21 @@ Route::get('auth/discord/callback', [DiscordAuthController::class, 'callback']);
 // ---- optional modules (one block each; 404 when the module is off) ----
 
 if ($modules->routable(Module::Stats)) {
-    // Public cross-event leaderboard — aggregates completed matches/tournament
+    // Login-required cross-event leaderboard — aggregates completed matches/tournament
     // wins across every event (see LeaderboardQuery), so unlike the rest of the
     // participant UI it is not scoped under /events/{event:slug}.
-    Route::get('/stats/leaderboard', [StatsPageController::class, 'leaderboard'])->name('stats.leaderboard');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/stats/leaderboard', [StatsPageController::class, 'leaderboard'])->name('stats.leaderboard');
+    });
 }
 
 if ($modules->routable(Module::Schedule)) {
-    // Public programme/schedule page — same "public like seating/tournaments,
-    // no auth required" visibility rule as the rest of the participant UI.
-    Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
-    Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics'])->name('schedule.ics');
+    // Login-required programme/schedule page — same "login-required like seating/tournaments,
+    // login required" visibility rule as the rest of the participant UI.
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/schedule', [ScheduleController::class, 'show'])->name('schedule.index');
+        Route::get('/events/{event:slug}/schedule.ics', [ScheduleController::class, 'ics'])->name('schedule.ics');
+    });
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/schedule/{item}/favorite', [ScheduleController::class, 'favorite'])->name('schedule.favorite');
@@ -124,10 +126,12 @@ if ($modules->routable(Module::Schedule)) {
 }
 
 if ($modules->routable(Module::Catering)) {
-    // Public catering page — same "public like seating/tournaments/schedule, no
+    // Login-required catering page — same "login-required like seating/tournaments/schedule, no
     // auth required" visibility rule; placing/cancelling an item requires auth
     // (see below).
-    Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
+    });
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/food-orders/{foodOrder}/items', [CateringController::class, 'store'])->name('catering.items.store');
@@ -136,10 +140,12 @@ if ($modules->routable(Module::Catering)) {
 }
 
 if ($modules->routable(Module::Voting)) {
-    // Public polls pages — same "public like seating/tournaments/schedule/catering,
-    // no auth required" visibility rule; casting a vote requires auth (see below).
-    Route::get('/events/{event:slug}/polls', [PollPageController::class, 'index'])->name('polls.index');
-    Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.show');
+    // Login-required polls pages — same "login-required like seating/tournaments/schedule/catering,
+    // login required" visibility rule; casting a vote requires auth (see below).
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/polls', [PollPageController::class, 'index'])->name('polls.index');
+        Route::get('/polls/{poll}', [PollPageController::class, 'show'])->name('polls.show');
+    });
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/polls/{poll}/vote', [PollPageController::class, 'vote'])->name('polls.vote');
@@ -147,10 +153,12 @@ if ($modules->routable(Module::Voting)) {
 }
 
 if ($modules->routable(Module::Lfg)) {
-    // Public LFG board — same "public like seating/tournaments/schedule/catering/
-    // polls, no auth required" visibility rule; creating/deleting a post requires
+    // Login-required LFG board — same "login-required like seating/tournaments/schedule/catering/
+    // polls, login required" visibility rule; creating/deleting a post requires
     // auth (see below).
-    Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/lfg', [LfgController::class, 'index'])->name('lfg.index');
+    });
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
@@ -159,10 +167,12 @@ if ($modules->routable(Module::Lfg)) {
 }
 
 if ($modules->routable(Module::GameServers)) {
-    // Public server list — same "public like seating/tournaments/schedule/
-    // catering/polls/lfg, no auth required" visibility rule; lists the event's
+    // Login-required server list — same "login-required like seating/tournaments/schedule/
+    // catering/polls/lfg, login required" visibility rule; lists the event's
     // Ready game servers only (see ServerListProjection).
-    Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+    });
 
     // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs
     // round/score events here, authenticated by its own per-ServerLink bearer
@@ -174,11 +184,13 @@ if ($modules->routable(Module::GameServers)) {
 }
 
 if ($modules->routable(Module::Files)) {
-    // Public LAN file-sharing list — same "public like seating/tournaments/
-    // schedule/catering/polls/lfg, no auth required" visibility rule; shows only
+    // Login-required LAN file-sharing list — same "login-required like seating/tournaments/
+    // schedule/catering/polls/lfg, login required" visibility rule; shows only
     // approved files (+ the viewer's own pending ones); uploading/deleting
     // requires auth (see below). Files are approved by a helper/orga (Task 6).
-    Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->name('files.index');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/files', [FilePageController::class, 'index'])->name('files.index');
+    });
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
@@ -188,23 +200,27 @@ if ($modules->routable(Module::Files)) {
 }
 
 if ($modules->routable(Module::Presence)) {
-    // Public presence board — same "public like seating/tournaments/schedule/
-    // catering/polls/lfg/servers/files, no auth required" visibility rule; who is
+    // Login-required presence board — same "login-required like seating/tournaments/schedule/
+    // catering/polls/lfg/servers/files, login required" visibility rule; who is
     // checked in, where, and what's currently live (see PresenceProjection).
-    Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'show'])->name('presence.show');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/presence', [PresencePageController::class, 'show'])->name('presence.show');
+    });
 }
 
 if ($modules->routable(Module::Recap)) {
-    // Public post-LAN recap — same "no auth required" visibility rule as the
+    // Login-required post-LAN recap — same "login required" visibility rule as the
     // rest of the participant UI, further gated to Finished/Archived events
     // only (see RecapPageController); this is the between-LANs page anyone can
     // revisit after the event wraps.
-    Route::get('/events/{event:slug}/recap', [RecapPageController::class, 'show'])->name('recap.show');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/recap', [RecapPageController::class, 'show'])->name('recap.show');
+    });
 }
 
 if ($modules->routable(Module::Infoscreen)) {
-    // Public beamer screen — same "public like seating/tournaments/schedule/
-    // catering/polls/lfg, no auth required" visibility rule; renders with no
+    // Public beamer screen — deliberately stays no-auth (unattended beamer
+    // hardware cannot log in; it is not part of the login rule); renders with no
     // app navigation/layout (a bare full-viewport shell), see resources/js/app.ts.
     Route::get('/screen/{event:slug}', [ScreenController::class, 'show'])->name('screen.show');
 
@@ -265,7 +281,7 @@ if ($modules->routable(Module::Gallery)) {
         Route::get('/gallery/photos/{eventPhoto}/thumb', [PhotoController::class, 'thumb'])->name('gallery.photos.thumb');
 
         // The participant gallery page itself is also auth-gated (unlike the
-        // rest of the "public like seating/tournaments/..." participant UI)
+        // rest of the "login-required like seating/tournaments/..." participant UI)
         // because it renders <img> tags pointing at the two routes above; a
         // public index would show guests broken/401 images. See
         // GalleryPageController's class docblock.
@@ -277,11 +293,13 @@ if ($modules->routable(Module::Gallery)) {
 }
 
 if ($modules->routable(Module::Jukebox)) {
-    // Public jukebox board — same "public like seating/tournaments/schedule/
-    // catering/polls/lfg/servers/files/presence, no auth required" visibility
+    // Login-required jukebox board — same "login-required like seating/tournaments/schedule/
+    // catering/polls/lfg/servers/files/presence, login required" visibility
     // rule; queueing/voting/skipping/removing all require auth (see below) and
     // are further gated by JukeboxPolicy inside each action.
-    Route::get('/events/{event:slug}/jukebox', [JukeboxController::class, 'index'])->name('jukebox.index');
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/events/{event:slug}/jukebox', [JukeboxController::class, 'index'])->name('jukebox.index');
+    });
 
     Route::middleware(['auth'])->group(function () {
         Route::get('/events/{event:slug}/jukebox/search', [JukeboxController::class, 'search'])->name('jukebox.search');

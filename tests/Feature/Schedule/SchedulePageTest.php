@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Schedule\Models\ScheduleItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,7 +16,7 @@ it('renders the public schedule page with german labels and the item list', func
         'starts_at' => now()->addHour(),
     ]);
 
-    $this->get("/events/{$event->slug}/schedule")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Schedule/Index')
@@ -30,7 +31,7 @@ it('renders the public schedule page with german labels and the item list', func
 it('404s the schedule page for a draft event', function () {
     $event = Event::factory()->draft()->create();
 
-    $this->get("/events/{$event->slug}/schedule")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule")
         ->assertNotFound();
 });
 
@@ -54,7 +55,7 @@ it('computes now as the item whose interval contains the current time', function
         'starts_at' => now()->addHours(2),
     ]);
 
-    $this->get("/events/{$event->slug}/schedule")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Schedule/Index')
@@ -76,7 +77,7 @@ it('defaults an item without ends_at to a one hour window for the now computatio
         'ends_at' => null,
     ]);
 
-    $this->get("/events/{$event->slug}/schedule")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Schedule/Index')
@@ -102,7 +103,7 @@ it('surfaces the correct now/next pair via time travel', function () {
 
     $this->travelTo(Carbon::parse('2026-07-15 09:30:00'));
 
-    $this->get("/events/{$event->slug}/schedule")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/schedule")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Schedule/Index')

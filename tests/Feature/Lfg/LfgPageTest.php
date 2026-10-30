@@ -13,7 +13,7 @@ it('renders the lfg page with german labels and only active posts for a public e
     $activePost = LfgPost::factory()->for($event)->create(['title' => 'Suche Mitspieler für Ranked']);
     LfgPost::factory()->for($event)->expired()->create(['title' => 'Abgelaufene Anzeige']);
 
-    $this->get("/events/{$event->slug}/lfg")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/lfg")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Lfg/Index')
@@ -28,7 +28,7 @@ it('returns 404 for a draft event', function () {
     $event = Event::factory()->draft()->create();
     LfgPost::factory()->for($event)->create();
 
-    $this->get("/events/{$event->slug}/lfg")->assertNotFound();
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/lfg")->assertNotFound();
 });
 
 it('marks a post as mine when the viewer is its author', function () {
