@@ -15,6 +15,7 @@ use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Http\Requests\RegisterRequest;
 use App\Modules\Registration\Http\Requests\UpdateArrivalPlanRequest;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Policies\RegistrationPolicy;
 use App\Modules\Registration\Support\ArrivalPlanView;
 use App\Modules\Registration\Support\QrCode;
 use App\Modules\Registration\Support\TicketLabel;
@@ -48,11 +49,14 @@ class RegistrationController extends Controller
                 'status' => $registration->status->value,
                 'paid' => $registration->paid_at !== null,
                 'checkedIn' => $registration->checked_in_at !== null,
+                'canCancel' => RegistrationPolicy::cancelBlockedReason($registration) === null,
+                'cancelBlockedReason' => RegistrationPolicy::cancelBlockedReason($registration),
                 'qrSvg' => $qr->svg($registration->qr_token),
                 'arrival' => ArrivalPlanView::summary($registration, $user),
             ],
             'arrivalOptions' => ArrivalPlanView::options($event),
             'labels' => trans('registration.page'),
+            'cancelBlockedLabels' => trans('registration.cancel_blocked'),
             'arrivalLabels' => trans('registration.arrival'),
             'statusLabels' => trans('registration.status'),
         ]);
@@ -106,7 +110,12 @@ class RegistrationController extends Controller
         $registration = $this->activeRegistration($event, $this->authUser($request)->id);
 
         if ($registration !== null) {
-            $this->authorize('cancel', $registration);
+            if (! $this->authUser($request)->can('cancel', $registration)) {
+                Inertia::flash('toast', ['type' => 'error', 'message' => trans('registration.cancel_blocked.'.RegistrationPolicy::cancelBlockedReason($registration))]);
+
+                return back();
+            }
+
             $action->handle($registration);
         }
 

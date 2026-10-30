@@ -3,6 +3,7 @@
 namespace App\Modules\Registration\Filament\RelationManagers;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Actions\CancelRegistration;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
 use Filament\Actions\Action;
@@ -13,6 +14,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use LogicException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -52,6 +54,13 @@ class RegistrationsRelationManager extends RelationManager
                     ->state(fn (EventRegistration $record) => $record->checked_in_at !== null),
             ])
             ->recordActions([
+                Action::make('cancel_registration')
+                    ->label(__('registration.admin.cancel'))
+                    ->color('danger')
+                    ->authorize(fn (EventRegistration $record): bool => Gate::allows('cancel', $record))
+                    ->visible(fn (EventRegistration $record): bool => $record->status !== RegistrationStatus::Cancelled)
+                    ->requiresConfirmation()
+                    ->action(fn (EventRegistration $record) => app(CancelRegistration::class)->handle($record)),
                 Action::make('toggle_paid')
                     ->label(__('registration.admin.toggle_paid'))
                     ->action(function (EventRegistration $record): void {

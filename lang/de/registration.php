@@ -29,6 +29,11 @@ return [
         'free_spots' => 'Noch :count Plätze frei.',
     ],
 
+    'cancel_blocked' => [
+        'checked_in' => 'Du bist bereits eingecheckt — eine Stornierung ist nur noch über die Orga möglich.',
+        'event_over' => 'Dieses Event ist vorbei — eine Stornierung ist nicht mehr möglich.',
+    ],
+
     'arrival' => [
         'windows' => [
             'morning' => 'bis 12 Uhr',
@@ -78,6 +83,7 @@ return [
 
     'admin' => [
         'title' => 'Anmeldungen',
+        'cancel' => 'Stornieren',
         'participant' => 'Teilnehmer',
         'ticket' => 'Ticket',
         'status' => 'Status',
