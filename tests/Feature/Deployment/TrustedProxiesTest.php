@@ -45,15 +45,18 @@ it('forces https URLs in production even without proxy headers', function () {
     expect(url('/probe'))->toStartWith('https://');
 });
 
-it('leaves URLs as http outside production when no proxy headers are sent', function () {
-    $provider = new class($this->app) extends AppServiceProvider
-    {
-        public function applyUrlPolicy(): void
-        {
-            $this->configureUrls();
-        }
-    };
-    $provider->applyUrlPolicy();
-
-    expect(url('/probe'))->toStartWith('http://');
+it('ignores a client-supplied X-Forwarded-Prefix', function () {
+    $this->withServerVariables(['REMOTE_ADDR' => '172.18.0.5'])
+        ->withHeaders([
+            'X-Forwarded-Proto' => 'https',
+            'X-Forwarded-Host' => 'lan.example.test',
+            'X-Forwarded-Port' => '443',
+            'X-Forwarded-Prefix' => '/evil',
+        ])
+        ->getJson('/_test/proxy-probe')
+        ->assertOk()
+        ->assertExactJson([
+            'url' => 'https://lan.example.test/probe',
+            'secure' => true,
+        ]);
 });
