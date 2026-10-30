@@ -96,6 +96,14 @@ the voice servers.
 Check health: `docker compose --profile prod ps`. `app` should be `healthy`.
 `queue` and `scheduler` have no healthcheck by design.
 
+### Updating later
+
+On the host: `/opt/lanomat/scripts/deploy/deploy.sh` (or via
+`ssh root@lan.raute1.org /opt/lanomat/scripts/deploy/deploy.sh`). It pulls
+`origin/main` fast-forward only, rebuilds, recreates the core services,
+waits for `app` to be healthy and runs `migrate --force`. It never touches
+volumes or `.env`.
+
 ## 5. Migrate and create the admin
 
 ```bash
