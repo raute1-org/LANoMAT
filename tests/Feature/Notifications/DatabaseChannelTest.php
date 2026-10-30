@@ -39,14 +39,33 @@ it('stores the german labels in the notification payload', function () {
         ->and($data['body'])->toBe('Deine Anmeldung für Testlan 2026 ist bestätigt.');
 });
 
-it('omits unread notifications from a plain visit (Inertia::optional)', function () {
+it('shares the unread list and count on a plain visit', function () {
     $user = User::factory()->create();
     $user->notify(new RegistrationConfirmed('Testlan 2026'));
 
     $this->actingAs($user)
         ->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->missing('unreadNotifications'));
+            ->has('unreadNotifications', 1)
+            ->where('unreadNotificationCount', 1));
+});
+
+it('keeps the remaining unread notifications after marking one as read and redirecting', function () {
+    $user = User::factory()->create();
+    $user->notify(new RegistrationConfirmed('Eins'));
+    $user->notify(new RegistrationConfirmed('Zwei'));
+    $first = $user->unreadNotifications()->firstOrFail();
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('notifications.read', ['notification' => $first->id]))
+        ->assertRedirect('/dashboard');
+
+    $this->actingAs($user)
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('unreadNotifications', 1)
+            ->where('unreadNotificationCount', 1));
 });
 
 it('shares unread notifications as an inertia prop on partial reload', function () {
