@@ -11,6 +11,8 @@ export interface TournamentMyEntry {
     id: number;
     status: 'registered' | 'checked_in';
     canWithdraw: boolean;
+    /** False for a plain team member: entered, but nothing to act on. */
+    isOwner: boolean;
 }
 
 /** Ruling A: whether the viewer must register for the event before entering tournaments. */

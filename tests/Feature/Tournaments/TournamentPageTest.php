@@ -494,3 +494,26 @@ it('lists live and open tournaments before finished ones, with enrollment counts
             ->where('tournaments.1.teamSize', 1)
         );
 });
+
+it('shows a plain team member that their team is entered, without owner actions', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live()->create())->enrollment()->create(['team_size' => 2]);
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $member->id]);
+    TournamentEntry::factory()->team()->create(['tournament_id' => $tournament->id, 'team_id' => $team->id]);
+
+    $this->actingAs($member)->get("/tournaments/{$tournament->id}")
+        ->assertInertia(fn ($page) => $page
+            ->where('myEntry.status', 'registered')
+            ->where('myEntry.isOwner', false)
+            ->where('myEntry.canWithdraw', false));
+
+    $this->actingAs($member)->get("/events/{$tournament->event->slug}/tournaments")
+        ->assertInertia(fn ($page) => $page
+            ->where('tournaments.0.myEntry.isOwner', false));
+
+    $this->actingAs($owner)->get("/tournaments/{$tournament->id}")
+        ->assertInertia(fn ($page) => $page->where('myEntry.isOwner', true));
+});

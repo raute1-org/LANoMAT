@@ -90,6 +90,18 @@ class TournamentPageController extends Controller
             ->unique('tournament_id')
             ->keyBy('tournament_id');
 
+        // Plain team members own nothing, but still see that their team is
+        // entered (display only; no check-in/withdraw for them).
+        $rosteredEntries = $user === null ? collect() : TournamentEntry::query()
+            ->whereIn('tournament_id', $tournamentModels->modelKeys())
+            ->where('status', '!=', EntryStatus::Withdrawn->value)
+            ->rosteredBy($user)
+            ->with('team')
+            ->latest('id')
+            ->get()
+            ->unique('tournament_id')
+            ->keyBy('tournament_id');
+
         $ownedTeams = TeamPicker::ownedTeams($user);
 
         $tournaments = $tournamentModels
@@ -105,7 +117,7 @@ class TournamentPageController extends Controller
                 'entryCount' => (int) $tournament->getAttribute('active_entries_count'),
                 'maxEntries' => $tournament->max_entries,
                 'teamSize' => $tournament->team_size,
-                'myEntry' => $this->myEntryState($user, $myEntries->get($tournament->id)),
+                'myEntry' => $this->myEntryState($user, $myEntries->get($tournament->id) ?? $rosteredEntries->get($tournament->id)),
                 'gameName' => $tournament->game?->name,
                 // ADVISORY only — see GameOwnershipHint's docblock and
                 // OwnershipHintNeverBlocksTest: this never gates enrollment,
@@ -164,7 +176,7 @@ class TournamentPageController extends Controller
             'myEntryId' => $myEntry?->id,
             // The viewer's own pending result claims, "own : opponent" (F-S4-2).
             'pendingReports' => (object) PendingReportView::forViewer($matches, $myEntry),
-            'myEntry' => $this->myEntryState($user, $myEntry),
+            'myEntry' => $this->myEntryState($user, $myEntry ?? ($user === null ? null : $this->rosteredEntryFor($tournament, $user))),
             'registration' => EventRegistrationRequirement::viewState($user, $event),
             'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry),
             // Gates the match card's manual "Go" control (Task 11) —
@@ -433,7 +445,7 @@ class TournamentPageController extends Controller
     }
 
     /**
-     * @return array{id: int, status: string, canWithdraw: bool}|null
+     * @return array{id: int, status: string, canWithdraw: bool, isOwner: bool}|null
      */
     private function myEntryState(?User $user, ?TournamentEntry $entry): ?array
     {
@@ -445,6 +457,8 @@ class TournamentPageController extends Controller
             'id' => $entry->id,
             'status' => $entry->status->value,
             'canWithdraw' => $user->can('withdraw', $entry),
+            // False for a plain team member: shown as entered, nothing to act on.
+            'isOwner' => $entry->user_id === $user->id || $entry->team?->owner_id === $user->id,
         ];
     }
 
@@ -458,6 +472,18 @@ class TournamentPageController extends Controller
             ->where('tournament_id', $tournament->id)
             ->where('status', '!=', EntryStatus::Withdrawn->value)
             ->ownedBy($user)
+            ->latest('id')
+            ->first();
+    }
+
+    /** Display-only: the viewer's team's entry when they are a plain member. */
+    private function rosteredEntryFor(Tournament $tournament, User $user): ?TournamentEntry
+    {
+        return TournamentEntry::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', '!=', EntryStatus::Withdrawn->value)
+            ->rosteredBy($user)
+            ->with('team')
             ->latest('id')
             ->first();
     }

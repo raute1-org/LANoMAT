@@ -58,7 +58,9 @@ const mode = computed<
         return props.status === 'enrollment' ? 'enroll' : 'none';
     }
 
-    return props.status === 'check_in' && props.myEntry.status !== 'checked_in'
+    return props.status === 'check_in' &&
+        props.myEntry.isOwner &&
+        props.myEntry.status !== 'checked_in'
         ? 'checkin'
         : 'entered';
 });
