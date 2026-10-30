@@ -417,3 +417,58 @@ it('resolves the german tournaments index and show titles', function () {
     expect(__('tournaments.page.index_title'))->toBe('Turniere')
         ->and(__('tournaments.page.show_title'))->toBe('Turnier');
 });
+
+it('gives team tournaments a team picker with only the viewer-owned teams on the index', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 2]);
+    $owner = User::factory()->create();
+    $full = Team::factory()->create(['owner_id' => $owner->id, 'name' => 'Full Squad']);
+    TeamMember::factory()->create(['team_id' => $full->id, 'user_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $full->id]);
+    $short = Team::factory()->create(['owner_id' => $owner->id, 'name' => 'Short Squad']);
+    TeamMember::factory()->create(['team_id' => $short->id, 'user_id' => $owner->id]);
+    $foreign = Team::factory()->create(['name' => 'Foreign']);
+    TeamMember::factory()->create(['team_id' => $foreign->id, 'user_id' => $owner->id]);
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $owner->id]);
+
+    $this->actingAs($owner)->get("/events/{$tournament->event->slug}/tournaments")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tournaments.0.teamPicker.teamSize', 2)
+            ->has('tournaments.0.teamPicker.teams', 2)
+            ->where('tournaments.0.teamPicker.teams.0.name', 'Full Squad')
+            ->where('tournaments.0.teamPicker.teams.0.eligible', true)
+            ->where('tournaments.0.teamPicker.teams.1.eligible', false)
+            ->where('tournaments.0.teamPicker.createUrl', route('teams.index'))
+        );
+});
+
+it('has no team picker for solo tournaments and an empty one for users without a team', function () {
+    $solo = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 1]);
+    $teamT = Tournament::factory()->for($solo->event)->enrollment()->create(['team_size' => 3]);
+
+    $this->actingAs(User::factory()->create())->get("/events/{$solo->event->slug}/tournaments")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tournaments', fn ($list) => collect($list)->firstWhere('id', $solo->id)['teamPicker'] === null)
+            ->where('tournaments', fn ($list) => collect(collect($list)->firstWhere('id', $teamT->id)['teamPicker']['teams'])->isEmpty())
+        );
+});
+
+it('exposes the team picker on the tournament show page as well', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 2]);
+
+    $this->actingAs(User::factory()->create())->get("/tournaments/{$tournament->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('teamPicker.teamSize', 2)
+            ->has('teamPicker.teams', 0)
+        );
+});
+
+it('flashes an error instead of a 404 when a team tournament is enrolled without a team', function () {
+    $tournament = Tournament::factory()->for(Event::factory()->live())->enrollment()->create(['team_size' => 2]);
+    $user = User::factory()->create();
+    EventRegistration::factory()->create(['event_id' => $tournament->event_id, 'user_id' => $user->id]);
+
+    $this->actingAs($user)->post("/tournaments/{$tournament->id}/enroll")->assertRedirect();
+
+    expect(TournamentEntry::query()->where('tournament_id', $tournament->id)->exists())->toBeFalse();
+});

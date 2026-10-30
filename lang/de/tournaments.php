@@ -34,6 +34,16 @@ return [
         'actions' => [
             'start' => 'Turnier starten',
             'started' => 'Turnier gestartet.',
+            'open_enrollment' => 'Anmeldung öffnen',
+            'open_enrollment_description' => 'Das Turnier wird für Teilnehmende sichtbar anmeldbar. Vorher werden Spiel, Teilnehmerlimit, Beginn und Check-in-Fenster geprüft.',
+            'enrollment_opened' => 'Anmeldung geöffnet.',
+            'close_enrollment' => 'Anmeldung schließen',
+            'close_enrollment_description' => 'Das Turnier geht zurück in den Entwurf. Das ist nur möglich, solange es keine Anmeldungen gibt.',
+            'enrollment_closed' => 'Anmeldung geschlossen, das Turnier ist wieder ein Entwurf.',
+            'open_checkin' => 'Zur Check-in-Phase',
+            'open_checkin_description' => 'Beendet die Anmeldephase und öffnet den Check-in für die Angemeldeten.',
+            'checkin_opened' => 'Check-in-Phase gestartet.',
+            'next_steps' => 'Nächste Schritte',
         ],
         'disputes' => [
             'title' => 'Strittige Matches',
@@ -68,6 +78,13 @@ return [
         'checked_in' => 'Eingecheckt',
         'registration_required' => 'Melde dich zuerst zum Event an, um dich für Turniere anzumelden.',
         'register_now' => 'Zur Event-Anmeldung',
+        'team_pick_label' => 'Team wählen',
+        'team_pick_placeholder' => 'Team auswählen',
+        'team_pick_incomplete' => ':count von :size Mitgliedern',
+        'team_no_team' => 'Für dieses Turnier brauchst du ein eigenes Team mit :size Mitgliedern.',
+        'team_create' => 'Team erstellen',
+        'team_none_ready' => 'Keines deiner Teams hat genau :size Mitglieder.',
+        'enroll_team' => 'Mit Team anmelden',
         'registration_not_open' => 'Die Event-Anmeldung ist derzeit nicht geöffnet.',
     ],
 
@@ -117,6 +134,12 @@ return [
     ],
 
     'errors' => [
+        'checkin_window_order' => 'Check-in schließt (muss nach Check-in öffnet liegen)',
+        'team_required' => 'Wähle ein Team, mit dem du dich anmelden möchtest.',
+        'not_draft' => 'Nur ein Entwurf kann für Anmeldungen geöffnet werden.',
+        'incomplete_setup' => 'Vor dem Öffnen der Anmeldung fehlen noch: :fields.',
+        'cannot_return_to_draft' => 'Nur eine Anmelde- oder Check-in-Phase kann zum Entwurf zurückgesetzt werden.',
+        'has_entries' => 'Es gibt bereits Anmeldungen. Zurück zum Entwurf ist nur ohne Anmeldungen möglich.',
         'withdrawal_closed' => 'Zurückziehen ist nur während der Anmeldung oder des Check-ins möglich.',
         'registration_required' => 'Melde dich zuerst zum Event an.',
         'not_in_enrollment' => 'Das Turnier ist nicht für Anmeldungen geöffnet.',

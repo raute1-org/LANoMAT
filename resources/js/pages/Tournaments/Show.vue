@@ -14,6 +14,7 @@ import type {
     TournamentDetail,
     TournamentMyEntry,
     TournamentRegistrationGate,
+    TournamentTeamPicker,
 } from '@/types';
 
 const props = defineProps<{
@@ -22,6 +23,7 @@ const props = defineProps<{
     myEntryId: number | null;
     myEntry: TournamentMyEntry | null;
     registration: TournamentRegistrationGate;
+    teamPicker: TournamentTeamPicker | null;
     myMatchVoiceLinks: MatchVoiceLinks;
     /** True for a helper/orga viewer — gates the match card's manual "Go" control. */
     canGoLive: boolean;
@@ -149,6 +151,7 @@ const isNotStarted = computed(
                     :status="tournament.status"
                     :my-entry="myEntry"
                     :registration="registration"
+                    :team-picker="teamPicker"
                     :labels="labels"
                 />
             </div>

@@ -31,6 +31,7 @@ use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Tournaments\Support\EventRegistrationRequirement;
+use App\Modules\Tournaments\Support\TeamPicker;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
 use App\Modules\Voice\Support\VoiceJoinLink;
@@ -76,8 +77,11 @@ class TournamentPageController extends Controller
             ->unique('tournament_id')
             ->keyBy('tournament_id');
 
+        $ownedTeams = TeamPicker::ownedTeams($user);
+
         $tournaments = $tournamentModels
             ->map(fn (Tournament $tournament): array => [
+                'teamPicker' => TeamPicker::for($tournament, $ownedTeams),
                 'id' => $tournament->id,
                 'name' => $tournament->name,
                 'format' => $tournament->format->value,
@@ -135,6 +139,7 @@ class TournamentPageController extends Controller
                 'winnerEntryId' => $tournament->winner_entry_id,
             ],
             'matches' => $matches->map(fn (GameMatch $match): array => BracketMatchProjection::fromMatch($match))->all(),
+            'teamPicker' => TeamPicker::for($tournament, TeamPicker::ownedTeams($user)),
             'myEntryId' => $myEntry?->id,
             'myEntry' => $this->myEntryState($user, $myEntry),
             'registration' => EventRegistrationRequirement::viewState($user, $event),
@@ -177,8 +182,14 @@ class TournamentPageController extends Controller
 
         try {
             if ($tournament->team_size > 1) {
-                $teamId = $request->integer('team_id');
-                $team = Team::query()->findOrFail($teamId);
+                $team = Team::query()->find($request->integer('team_id'));
+
+                if ($team === null) {
+                    Inertia::flash('toast', ['type' => 'error', 'message' => trans('tournaments.errors.team_required')]);
+
+                    return back();
+                }
+
                 $this->authorize('update', $team);
                 $enrollTeam->handle($tournament, $team);
             } else {

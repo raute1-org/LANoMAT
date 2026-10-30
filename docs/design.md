@@ -182,6 +182,17 @@ Backing props: `availability`/`freeSpots` (see above), `registration` (`Registra
 | `check_in` | checked in | badge "Eingecheckt" + "Abmelden" |
 | `live`/`finished`/`draft` | any | no entry actions (withdraw closes when the tournament starts) |
 
+Team tournaments (`team_size > 1`) replace the one-click "Anmelden" with a team picker (shadcn `Select` of the viewer's own teams, `TeamPicker` read model) + "Mit Team anmelden"; teams whose roster is not exactly `team_size` are listed but disabled ("2 von 3 Mitgliedern"). A viewer without a team gets a hint plus "Team erstellen" (link to `/teams`). Solo tournaments stay one-click.
+
+**Admin lifecycle actions (Filament, orga only, `TournamentLifecycleActions`):** the status badge sits under the tournament title (`EditTournament::getSubheading`, `x-filament::badge`) and the next steps are header actions (also row actions on the list), each with a confirmation modal and conditioned on the status. A tournament is created as `draft` and is hidden from sign-up until orga acts:
+
+| Status | Admin actions shown |
+|---|---|
+| `draft` | "Anmeldung öffnen" (validates game, max. Anmeldungen, Check-in-Fenster; lists what is missing) |
+| `enrollment` | "Zur Check-in-Phase", "Turnier starten", and "Anmeldung schließen" (back to `draft`, only while there are no non-withdrawn entries) |
+| `check_in` | "Turnier starten", "Anmeldung schließen" (no entries only) |
+| `live`/`finished` | none (bracket/dispute tooling only) |
+
 **Dates and times:** always render instants through `resources/js/lib/datetime.ts` (`formatInstant`, `dayKey`), which formats in the one display timezone (`displayTimezone` shared prop, `APP_DISPLAY_TIMEZONE`, default Europe/Berlin) — never `toLocaleString()` on the browser zone. See [deploy-lan-raute1.md](deploy-lan-raute1.md#timezone).
 
 ### 7. New page checklist

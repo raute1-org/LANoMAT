@@ -102,6 +102,7 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
                         :status="tournament.status"
                         :my-entry="tournament.myEntry"
                         :registration="registration"
+                        :team-picker="tournament.teamPicker"
                         :labels="labels"
                     />
                     <!-- Advisory only — never blocks enroll() above. See GameOwnershipHint. -->

@@ -1,24 +1,42 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     checkin as checkinTournament,
     enroll as enrollTournament,
     withdraw as withdrawTournament,
 } from '@/routes/tournaments';
-import type { TournamentMyEntry, TournamentRegistrationGate } from '@/types';
+import type {
+    TournamentMyEntry,
+    TournamentRegistrationGate,
+    TournamentTeamPicker,
+} from '@/types';
 
 const props = defineProps<{
     tournamentId: number;
     status: 'draft' | 'enrollment' | 'check_in' | 'live' | 'finished';
     myEntry: TournamentMyEntry | null;
     registration: TournamentRegistrationGate;
+    teamPicker?: TournamentTeamPicker | null;
     labels: Record<string, string>;
 }>();
 
-const form = useForm({});
+const form = useForm<{ team_id: number | null }>({ team_id: null });
+
+const selectedTeam = ref<string>('');
+
+const readyTeams = computed(
+    () => props.teamPicker?.teams.filter((team) => team.eligible) ?? [],
+);
 
 /** What the viewer can do right now; one place so Index and Show never drift. */
 const mode = computed<
@@ -46,6 +64,11 @@ const mode = computed<
 });
 
 function enroll() {
+    // Solo tournaments post no team; team tournaments post the picked team.
+    form.transform((data) => ({
+        ...data,
+        team_id: props.teamPicker ? Number(selectedTeam.value) : null,
+    }));
     form.post(enrollTournament.url(props.tournamentId), {
         preserveScroll: true,
     });
@@ -81,13 +104,66 @@ function withdraw() {
                         : labels.entered
                 }}
             </Badge>
+            <Select
+                v-if="
+                    mode === 'enroll' &&
+                    teamPicker &&
+                    teamPicker.teams.length > 0
+                "
+                v-model="selectedTeam"
+            >
+                <SelectTrigger
+                    class="h-8 w-48"
+                    :aria-label="labels.team_pick_label"
+                >
+                    <SelectValue :placeholder="labels.team_pick_placeholder" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem
+                        v-for="team in teamPicker.teams"
+                        :key="team.id"
+                        :value="String(team.id)"
+                        :disabled="!team.eligible"
+                    >
+                        {{ team.name }}
+                        <span
+                            v-if="!team.eligible"
+                            class="text-xs text-muted-foreground"
+                        >
+                            ({{
+                                labels.team_pick_incomplete
+                                    .replace(':count', String(team.memberCount))
+                                    .replace(
+                                        ':size',
+                                        String(teamPicker.teamSize),
+                                    )
+                            }})
+                        </span>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
             <Button
-                v-if="mode === 'enroll'"
+                v-if="
+                    mode === 'enroll' &&
+                    (!teamPicker || teamPicker.teams.length > 0)
+                "
                 size="sm"
-                :disabled="form.processing"
+                :disabled="
+                    form.processing || (!!teamPicker && selectedTeam === '')
+                "
                 @click="enroll"
             >
-                {{ labels.enroll }}
+                {{ teamPicker ? labels.enroll_team : labels.enroll }}
+            </Button>
+            <Button
+                v-else-if="mode === 'enroll' && teamPicker"
+                as-child
+                size="sm"
+                variant="outline"
+            >
+                <Link :href="teamPicker.createUrl">{{
+                    labels.team_create
+                }}</Link>
             </Button>
             <Button
                 v-else-if="mode === 'checkin'"
@@ -115,6 +191,24 @@ function withdraw() {
                 <Link :href="registration.url">{{ labels.register_now }}</Link>
             </Button>
         </div>
+        <p
+            v-if="mode === 'enroll' && teamPicker"
+            class="max-w-56 text-right text-xs text-muted-foreground"
+        >
+            {{
+                teamPicker.teams.length === 0
+                    ? labels.team_no_team.replace(
+                          ':size',
+                          String(teamPicker.teamSize),
+                      )
+                    : readyTeams.length === 0
+                      ? labels.team_none_ready.replace(
+                            ':size',
+                            String(teamPicker.teamSize),
+                        )
+                      : ''
+            }}
+        </p>
         <p
             v-if="mode === 'register_first'"
             class="max-w-56 text-right text-xs text-muted-foreground"

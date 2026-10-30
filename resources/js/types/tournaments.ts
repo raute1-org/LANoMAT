@@ -20,7 +20,21 @@ export interface TournamentRegistrationGate {
     url: string;
 }
 
+/** Team picker for team tournaments (`teamSize > 1`); null on solo tournaments. */
+export interface TournamentTeamPicker {
+    teamSize: number;
+    /** The viewer's own teams; `eligible` = roster has exactly `teamSize` members. */
+    teams: {
+        id: number;
+        name: string;
+        memberCount: number;
+        eligible: boolean;
+    }[];
+    createUrl: string;
+}
+
 export interface TournamentSummary {
+    teamPicker: TournamentTeamPicker | null;
     id: number;
     name: string;
     format: 'single_elimination' | 'double_elimination' | 'round_robin';
