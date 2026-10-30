@@ -5,283 +5,272 @@
 # Contributors. See resources/pelican-eggs/README.md for the full notice and the
 # list of differences. Import it through `php artisan gameservers:import-eggs`.
 meta:
-  version: PLCN_v3
+    version: PLCN_v3
 exported_at: '2026-10-30T00:00:00+00:00'
 name: 'Garrys Mod (LANoMAT)'
 author: lanomat@example.invalid
 uuid: 7b079b4f-ab83-40ef-98fc-059b4a270688
 description: |-
-  Garrys Mod for LAN parties. Same game files and runtime as the stock egg, plus a server
-  hostname, an optional Steam Web API key for Workshop collections, optional extra launch
-  arguments and guarded optional arguments (nothing is passed for an empty value).
+    Garrys Mod for LAN parties. Same game files and runtime as the stock egg, plus a server
+    hostname, an optional Steam Web API key for Workshop collections, optional extra launch
+    arguments and guarded optional arguments (nothing is passed for an empty value).
 tags:
-  - source
-  - steamcmd
+    - source
+    - steamcmd
 features:
-  - gsl_token
-  - steam_disk_space
+    - gsl_token
+    - steam_disk_space
 docker_images:
-  Source: 'ghcr.io/pelican-eggs/games:source'
-file_denylist: {  }
+    Source: 'ghcr.io/pelican-eggs/games:source'
+file_denylist: {}
 startup_commands:
-  Default: './srcds_run -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 $( [ -n "$WORKSHOP_ID" ] && printf %s "+host_workshop_collection $WORKSHOP_ID" ) $( [ -n "$STEAM_WEB_API_KEY" ] && printf %s "-authkey $STEAM_WEB_API_KEY" ) +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} +hostname "{{SERVER_HOSTNAME}}" -strictportbind -norestart $( [ -n "$STEAM_ACC" ] && printf %s "+sv_setsteamaccount $STEAM_ACC" ) +maxplayers {{MAX_PLAYERS}} -tickrate {{TICKRATE}} $( [ "$LUA_REFRESH" == "1" ] || printf %s ''-disableluarefresh'' ) {{EXTRA_ARGS}}'
+    Default: './srcds_run -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 $( [ -n "$WORKSHOP_ID" ] && printf %s "+host_workshop_collection $WORKSHOP_ID" ) $( [ -n "$STEAM_WEB_API_KEY" ] && printf %s "-authkey $STEAM_WEB_API_KEY" ) +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} +hostname "{{SERVER_HOSTNAME}}" -strictportbind -norestart $( [ -n "$STEAM_ACC" ] && printf %s "+sv_setsteamaccount $STEAM_ACC" ) +maxplayers {{MAX_PLAYERS}} -tickrate {{TICKRATE}} $( [ "$LUA_REFRESH" == "1" ] || printf %s ''-disableluarefresh'' ) {{EXTRA_ARGS}}'
 config:
-  files: {  }
-  startup:
-    done: 'gameserver Steam ID'
-  logs: {  }
-  stop: quit
+    files: {}
+    startup:
+        done: 'gameserver Steam ID'
+    logs: {}
+    stop: quit
 scripts:
-  installation:
-    script: |-
-      #!/bin/bash
-      # steamcmd installation script (LANoMAT fork)
-      #
-      # Server Files: /mnt/server
-      #
-      # Differences to the stock script: SteamCMD is retried (a cold start often only fetches
-      # app info and ends with "Missing configuration"), and the install FAILS when the game
-      # directory is missing, so the panel no longer reports a broken install as successful.
-      # The default server.cfg carries no hostname: the hostname comes from the startup line.
+    installation:
+        script: |-
+            #!/bin/bash
+            # steamcmd installation script (LANoMAT fork)
+            #
+            # Server Files: /mnt/server
+            #
+            # Differences to the stock script: SteamCMD is retried (a cold start often only fetches
+            # app info and ends with "Missing configuration"), and the install FAILS when the game
+            # directory is missing, so the panel no longer reports a broken install as successful.
+            # The default server.cfg carries no hostname: the hostname comes from the startup line.
 
-      ## just in case someone removed the defaults.
-      if [ "${STEAM_USER}" == "" ]; then
-          echo -e "steam user is not set.\n"
-          echo -e "Using anonymous user.\n"
-          STEAM_USER=anonymous
-          STEAM_PASS=""
-          STEAM_AUTH=""
-      else
-          echo -e "user set to ${STEAM_USER}"
-      fi
+            ## just in case someone removed the defaults.
+            if [ "${STEAM_USER}" == "" ]; then
+                echo -e "steam user is not set.\n"
+                echo -e "Using anonymous user.\n"
+                STEAM_USER=anonymous
+                STEAM_PASS=""
+                STEAM_AUTH=""
+            else
+                echo -e "user set to ${STEAM_USER}"
+            fi
 
-      ## download and install steamcmd
-      cd /tmp
-      mkdir -p /mnt/server/steamcmd
-      curl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-      tar -xzvf steamcmd.tar.gz -C /mnt/server/steamcmd
-      mkdir -p /mnt/server/steamapps # Fix steamcmd disk write error when this folder is missing
-      cd /mnt/server/steamcmd
+            ## download and install steamcmd
+            cd /tmp
+            mkdir -p /mnt/server/steamcmd
+            curl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+            tar -xzvf steamcmd.tar.gz -C /mnt/server/steamcmd
+            mkdir -p /mnt/server/steamapps # Fix steamcmd disk write error when this folder is missing
+            cd /mnt/server/steamcmd
 
-      # SteamCMD fails otherwise for some reason, even running as root.
-      # This is changed at the end of the install process anyways.
-      chown -R root:root /mnt
-      export HOME=/mnt/server
+            # SteamCMD fails otherwise for some reason, even running as root.
+            # This is changed at the end of the install process anyways.
+            chown -R root:root /mnt
+            export HOME=/mnt/server
 
-      ## install game using steamcmd, retried up to three times
-      for attempt in 1 2 3; do
-          ./steamcmd.sh +force_install_dir /mnt/server +login ${STEAM_USER} ${STEAM_PASS} ${STEAM_AUTH} +app_update ${SRCDS_APPID} ${EXTRA_FLAGS} validate +quit
-          if [ -d /mnt/server/garrysmod ]; then
-              break
-          fi
-          echo "SteamCMD attempt ${attempt} did not install the game directory."
-      done
+            ## install game using steamcmd, retried up to three times
+            for attempt in 1 2 3; do
+                ./steamcmd.sh +force_install_dir /mnt/server +login ${STEAM_USER} ${STEAM_PASS} ${STEAM_AUTH} +app_update ${SRCDS_APPID} ${EXTRA_FLAGS} validate +quit
+                if [ -d /mnt/server/garrysmod ]; then
+                    break
+                fi
+                echo "SteamCMD attempt ${attempt} did not install the game directory."
+            done
 
-      if [ ! -d /mnt/server/garrysmod ]; then
-          echo "ERROR: garrysmod directory missing after 3 SteamCMD attempts, install failed."
-          exit 1
-      fi
+            if [ ! -d /mnt/server/garrysmod ]; then
+                echo "ERROR: garrysmod directory missing after 3 SteamCMD attempts, install failed."
+                exit 1
+            fi
 
-      ## set up 32 bit libraries
-      mkdir -p /mnt/server/.steam/sdk32
-      cp -v linux32/steamclient.so ../.steam/sdk32/steamclient.so
+            ## set up 32 bit libraries
+            mkdir -p /mnt/server/.steam/sdk32
+            cp -v linux32/steamclient.so ../.steam/sdk32/steamclient.so
 
-      ## set up 64 bit libraries
-      mkdir -p /mnt/server/.steam/sdk64
-      cp -v linux64/steamclient.so ../.steam/sdk64/steamclient.so
+            ## set up 64 bit libraries
+            mkdir -p /mnt/server/.steam/sdk64
+            cp -v linux64/steamclient.so ../.steam/sdk64/steamclient.so
 
-      # Creating needed default files for the game
-      mkdir -p /mnt/server/garrysmod/lua/autorun/server
-      cd /mnt/server/garrysmod/lua/autorun/server
-      echo '
-      -- Docs: https://wiki.garrysmod.com/page/resource/AddWorkshop
-      -- Place the ID of the workshop addon you want to be downloaded to people who join your server, not the collection ID
-      -- Use https://beta.configcreator.com/create/gmod/resources.lua to easily create a list based on your collection ID
+            # Creating needed default files for the game
+            mkdir -p /mnt/server/garrysmod/lua/autorun/server
+            cd /mnt/server/garrysmod/lua/autorun/server
+            echo '
+            -- Docs: https://wiki.garrysmod.com/page/resource/AddWorkshop
+            -- Place the ID of the workshop addon you want to be downloaded to people who join your server, not the collection ID
+            -- Use https://beta.configcreator.com/create/gmod/resources.lua to easily create a list based on your collection ID
 
-      resource.AddWorkshop( "" )
-      ' > workshop.lua
+            resource.AddWorkshop( "" )
+            ' > workshop.lua
 
-      mkdir -p /mnt/server/garrysmod/cfg
-      cd /mnt/server/garrysmod/cfg
-      echo '
-      // Please do not set RCon in here, use the startup parameters.
-      // The hostname is set by the startup line (SERVER_HOSTNAME), do not add one here:
-      // server.cfg is executed at map load and would override it.
+            mkdir -p /mnt/server/garrysmod/cfg
+            cd /mnt/server/garrysmod/cfg
+            echo '
+            // Please do not set RCon in here, use the startup parameters.
+            // The hostname is set by the startup line (SERVER_HOSTNAME), do not add one here:
+            // server.cfg is executed at map load and would override it.
 
-      sv_password		""
-      sv_loadingurl   ""
-      sv_downloadurl  ""
+            sv_password		""
+            sv_loadingurl   ""
+            sv_downloadurl  ""
 
-      // Steam Server List Settings
-      // sv_location "eu"
-      sv_region "255"
-      sv_lan "0"
-      sv_max_queries_sec_global "30000"
-      sv_max_queries_window "45"
-      sv_max_queries_sec "5"
+            // Steam Server List Settings
+            // sv_location "eu"
+            sv_region "255"
+            sv_lan "0"
+            sv_max_queries_sec_global "30000"
+            sv_max_queries_window "45"
+            sv_max_queries_sec "5"
 
-      // Server Limits
-      sbox_maxprops		100
-      sbox_maxragdolls	5
-      sbox_maxnpcs		10
-      sbox_maxballoons	10
-      sbox_maxeffects		10
-      sbox_maxdynamite	10
-      sbox_maxlamps		10
-      sbox_maxthrusters	10
-      sbox_maxwheels		10
-      sbox_maxhoverballs	10
-      sbox_maxvehicles	20
-      sbox_maxbuttons		10
-      sbox_maxsents		20
-      sbox_maxemitters	5
-      sbox_godmode		0
-      sbox_noclip		    0
+            // Server Limits
+            sbox_maxprops		100
+            sbox_maxragdolls	5
+            sbox_maxnpcs		10
+            sbox_maxballoons	10
+            sbox_maxeffects		10
+            sbox_maxdynamite	10
+            sbox_maxlamps		10
+            sbox_maxthrusters	10
+            sbox_maxwheels		10
+            sbox_maxhoverballs	10
+            sbox_maxvehicles	20
+            sbox_maxbuttons		10
+            sbox_maxsents		20
+            sbox_maxemitters	5
+            sbox_godmode		0
+            sbox_noclip		    0
 
-      // Network Settings - Please keep these set to default.
+            // Network Settings - Please keep these set to default.
 
-      sv_minrate		75000
-      sv_maxrate		0
-      gmod_physiterations	2
-      net_splitpacket_maxrate	45000
-      decalfrequency		12
+            sv_minrate		75000
+            sv_maxrate		0
+            gmod_physiterations	2
+            net_splitpacket_maxrate	45000
+            decalfrequency		12
 
-      // Execute Ban Files - Please do not edit
-      exec banned_ip.cfg
-      exec banned_user.cfg
+            // Execute Ban Files - Please do not edit
+            exec banned_ip.cfg
+            exec banned_user.cfg
 
-      // Add custom lines under here
-      ' > server.cfg
-    container: 'ghcr.io/pelican-eggs/installers:debian'
-    entrypoint: bash
+            // Add custom lines under here
+            ' > server.cfg
+        container: 'ghcr.io/pelican-eggs/installers:debian'
+        entrypoint: bash
 variables:
-  -
-    name: Gamemode
-    description: 'The gamemode folder name of your server (garrysmod/gamemodes/<name>).'
-    env_variable: GAMEMODE
-    default_value: sandbox
-    user_viewable: true
-    user_editable: true
-    rules:
-      - required
-      - string
-    sort: 5
-  -
-    name: 'Lua Refresh'
-    description: "0 = disable Lua refresh,\r\n1 = enable Lua refresh"
-    env_variable: LUA_REFRESH
-    default_value: 0
-    user_viewable: true
-    user_editable: true
-    rules:
-      - boolean
-    sort: 8
-  -
-    name: Map
-    description: 'The default map for the server.'
-    env_variable: SRCDS_MAP
-    default_value: gm_flatgrass
-    user_viewable: true
-    user_editable: true
-    rules:
-      - required
-      - string
-      - alpha_dash
-    sort: 1
-  -
-    name: 'Max Players'
-    description: 'The maximum amount of players allowed on your game server.'
-    env_variable: MAX_PLAYERS
-    default_value: 32
-    user_viewable: true
-    user_editable: true
-    rules:
-      - required
-      - integer
-      - 'max:128'
-    sort: 6
-  -
-    name: 'Source AppID'
-    description: 'Required for game to update on server restart. Do not modify this.'
-    env_variable: SRCDS_APPID
-    default_value: 4020
-    user_viewable: false
-    user_editable: false
-    rules:
-      - required
-      - string
-      - 'max:20'
-    sort: 3
-  -
-    name: 'Steam Account Token'
-    description: 'The Steam Account Token (GSLT) required for the server to be displayed publicly. Optional.'
-    env_variable: STEAM_ACC
-    default_value: ''
-    user_viewable: true
-    user_editable: true
-    rules:
-      - nullable
-      - string
-      - alpha_num
-      - 'size:32'
-    sort: 2
-  -
-    name: Tickrate
-    description: "The tickrate defines how fast the server will update each entity's location."
-    env_variable: TICKRATE
-    default_value: 22
-    user_viewable: true
-    user_editable: true
-    rules:
-      - required
-      - integer
-      - 'max:100'
-    sort: 7
-  -
-    name: 'Workshop ID'
-    description: 'The ID of your workshop collection (the numbers at the end of the URL). Optional.'
-    env_variable: WORKSHOP_ID
-    default_value: ''
-    user_viewable: true
-    user_editable: true
-    rules:
-      - nullable
-      - integer
-    sort: 4
-  -
-    name: 'Server Hostname'
-    description: 'The name shown in the server browser (sv_hostname).'
-    env_variable: SERVER_HOSTNAME
-    default_value: 'LANoMAT Server'
-    user_viewable: true
-    user_editable: true
-    rules:
-      - required
-      - string
-      - 'max:64'
-    sort: 9
-  -
-    name: 'Steam Web API Key'
-    description: 'Optional. Needed for downloading Workshop collections (-authkey). Hidden from server users.'
-    env_variable: STEAM_WEB_API_KEY
-    default_value: ''
-    user_viewable: false
-    user_editable: false
-    rules:
-      - nullable
-      - string
-      - alpha_num
-      - 'size:32'
-    sort: 10
-  -
-    name: 'Extra Startup Arguments'
-    description: 'Optional additional launch arguments appended to the startup command, e.g. "+sv_lan 1".'
-    env_variable: EXTRA_ARGS
-    default_value: ''
-    user_viewable: true
-    user_editable: true
-    rules:
-      - nullable
-      - string
-      - 'max:255'
-    sort: 11
+    - name: Gamemode
+      description: 'The gamemode folder name of your server (garrysmod/gamemodes/<name>).'
+      env_variable: GAMEMODE
+      default_value: sandbox
+      user_viewable: true
+      user_editable: true
+      rules:
+          - required
+          - string
+      sort: 5
+    - name: 'Lua Refresh'
+      description: "0 = disable Lua refresh,\r\n1 = enable Lua refresh"
+      env_variable: LUA_REFRESH
+      default_value: 0
+      user_viewable: true
+      user_editable: true
+      rules:
+          - boolean
+      sort: 8
+    - name: Map
+      description: 'The default map for the server.'
+      env_variable: SRCDS_MAP
+      default_value: gm_flatgrass
+      user_viewable: true
+      user_editable: true
+      rules:
+          - required
+          - string
+          - alpha_dash
+      sort: 1
+    - name: 'Max Players'
+      description: 'The maximum amount of players allowed on your game server.'
+      env_variable: MAX_PLAYERS
+      default_value: 32
+      user_viewable: true
+      user_editable: true
+      rules:
+          - required
+          - integer
+          - 'max:128'
+      sort: 6
+    - name: 'Source AppID'
+      description: 'Required for game to update on server restart. Do not modify this.'
+      env_variable: SRCDS_APPID
+      default_value: 4020
+      user_viewable: false
+      user_editable: false
+      rules:
+          - required
+          - string
+          - 'max:20'
+      sort: 3
+    - name: 'Steam Account Token'
+      description: 'The Steam Account Token (GSLT) required for the server to be displayed publicly. Optional.'
+      env_variable: STEAM_ACC
+      default_value: ''
+      user_viewable: true
+      user_editable: true
+      rules:
+          - nullable
+          - string
+          - alpha_num
+          - 'size:32'
+      sort: 2
+    - name: Tickrate
+      description: "The tickrate defines how fast the server will update each entity's location."
+      env_variable: TICKRATE
+      default_value: 22
+      user_viewable: true
+      user_editable: true
+      rules:
+          - required
+          - integer
+          - 'max:100'
+      sort: 7
+    - name: 'Workshop ID'
+      description: 'The ID of your workshop collection (the numbers at the end of the URL). Optional.'
+      env_variable: WORKSHOP_ID
+      default_value: ''
+      user_viewable: true
+      user_editable: true
+      rules:
+          - nullable
+          - integer
+      sort: 4
+    - name: 'Server Hostname'
+      description: 'The name shown in the server browser (sv_hostname).'
+      env_variable: SERVER_HOSTNAME
+      default_value: 'LANoMAT Server'
+      user_viewable: true
+      user_editable: true
+      rules:
+          - required
+          - string
+          - 'max:64'
+      sort: 9
+    - name: 'Steam Web API Key'
+      description: 'Optional. Needed for downloading Workshop collections (-authkey). Hidden from server users.'
+      env_variable: STEAM_WEB_API_KEY
+      default_value: ''
+      user_viewable: false
+      user_editable: false
+      rules:
+          - nullable
+          - string
+          - alpha_num
+          - 'size:32'
+      sort: 10
+    - name: 'Extra Startup Arguments'
+      description: 'Optional additional launch arguments appended to the startup command, e.g. "+sv_lan 1".'
+      env_variable: EXTRA_ARGS
+      default_value: ''
+      user_viewable: true
+      user_editable: true
+      rules:
+          - nullable
+          - string
+          - 'max:255'
+      sort: 11

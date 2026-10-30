@@ -6,6 +6,7 @@ namespace App\Modules\GameServers\Models;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Casts\JoinInfoCast;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -30,6 +31,7 @@ use Illuminate\Support\Str;
  * @property int|null $requested_by
  * @property string|null $telemetry_token
  * @property int|null $event_id Set for event-level servers started from a preset.
+ * @property int|null $game_id The preset's game (event-level servers have no tournament to take it from).
  * @property string|null $title
  * @property string|null $preset_key
  * @property array<string, mixed>|null $readiness Preset readiness/verification snapshot.
@@ -56,6 +58,7 @@ class ServerLink extends Model
         'manual',
         'requested_by',
         'event_id',
+        'game_id',
         'title',
         'preset_key',
     ];
@@ -96,6 +99,12 @@ class ServerLink extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    /** @return BelongsTo<Game, $this> */
+    public function game(): BelongsTo
+    {
+        return $this->belongsTo(Game::class);
     }
 
     /** @return BelongsTo<User, $this> */

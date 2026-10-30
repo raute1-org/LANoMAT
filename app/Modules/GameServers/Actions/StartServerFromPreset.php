@@ -51,6 +51,7 @@ final class StartServerFromPreset
 
         $link = new ServerLink([
             'event_id' => $event->id,
+            'game_id' => $game->id,
             'title' => $title,
             'preset_key' => $preset->key,
             'requested_by' => $requester->id,

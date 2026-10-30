@@ -79,6 +79,7 @@ it('has the placement fields fillable but not pelican_server_id, join_info, stat
         'manual',
         'requested_by',
         'event_id',
+        'game_id',
         'title',
         'preset_key',
     ]);

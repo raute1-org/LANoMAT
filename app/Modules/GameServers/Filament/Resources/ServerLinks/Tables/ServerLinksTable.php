@@ -28,6 +28,17 @@ class ServerLinksTable
                 TextColumn::make('match_or_tournament')
                     ->label(__('gameservers.fields.match_or_tournament'))
                     ->getStateUsing(fn (?ServerLink $record): string => $record !== null ? self::describeOwner($record) : '—'),
+                TextColumn::make('title')
+                    ->label(__('gameservers.fields.title'))
+                    ->description(fn (?ServerLink $record): ?string => $record?->preset_key)
+                    ->placeholder('—'),
+                TextColumn::make('players')
+                    ->label(__('gameservers.fields.players'))
+                    ->getStateUsing(fn (?ServerLink $record): ?string => $record !== null && is_array($record->query_info)
+                        ? ($record->query_info['players'] ?? 0).'/'.($record->query_info['max_players'] ?? 0)
+                        : null)
+                    ->fontFamily(FontFamily::Mono)
+                    ->placeholder('—'),
                 TextColumn::make('pelican_server_id')
                     ->label(__('gameservers.fields.pelican_server_id'))
                     ->fontFamily(FontFamily::Mono)
@@ -144,6 +155,10 @@ class ServerLinksTable
 
         if ($tournament !== null) {
             return $tournament->name;
+        }
+
+        if ($record->event !== null) {
+            return $record->event->name;
         }
 
         return '—';

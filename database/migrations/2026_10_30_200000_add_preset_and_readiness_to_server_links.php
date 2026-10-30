@@ -12,7 +12,8 @@ return new class extends Migration
             // Event-level servers (started from a preset by the orga) belong to an event
             // directly, not through a match or tournament. Null for match servers.
             $table->foreignId('event_id')->nullable()->after('tournament_id')->constrained()->cascadeOnDelete();
-            $table->string('title')->nullable()->after('event_id');
+            $table->foreignId('game_id')->nullable()->after('event_id')->constrained()->nullOnDelete();
+            $table->string('title')->nullable()->after('game_id');
             $table->string('preset_key')->nullable()->after('title');
             // Snapshot of the preset's readiness/verification settings at creation time, so a
             // later preset edit does not change a running server's checks.
@@ -30,6 +31,7 @@ return new class extends Migration
     {
         Schema::table('server_links', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('event_id');
+            $table->dropConstrainedForeignId('game_id');
             $table->dropColumn(['title', 'preset_key', 'readiness', 'query_info', 'queried_at', 'install_attempts']);
         });
     }

@@ -5,8 +5,8 @@ the game server presets without hand-editing eggs. The files are Pelican egg
 exports in `PLCN_v3` YAML. The panel matches an egg by its `uuid`, which is also
 how LANoMAT presets reference it (numeric egg ids differ per panel).
 
-| File | Egg | uuid |
-| ---- | --- | ---- |
+| File                      | Egg                  | uuid                                   |
+| ------------------------- | -------------------- | -------------------------------------- |
 | `lanomat-garrys-mod.yaml` | Garrys Mod (LANoMAT) | `7b079b4f-ab83-40ef-98fc-059b4a270688` |
 
 ## Import

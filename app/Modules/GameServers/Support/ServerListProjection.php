@@ -21,9 +21,11 @@ use App\Modules\Tournaments\Support\BracketMatchProjection;
  * ({@see ScenePayload}). Mirrors how ScheduleProjection/SeatProjection are
  * shared between a participant page and its scene.
  *
- * Only Ready links are surfaced: a Pending/Provisioning/Failed/Stopped
- * server has nothing joinable yet, so listing it would just be noise (same
- * "Ready only" rule the upcoming-matches scene applies to matches).
+ * Ready links are surfaced, plus NotResponding ones (so players see that the
+ * server is not answering instead of a silent gap) and event-level preset servers
+ * that are still starting. A Pending/Failed/Stopped server has nothing joinable,
+ * so listing it would just be noise (same "Ready only" spirit the
+ * upcoming-matches scene applies to matches).
  *
  * `estimate` (roadmap 6.7) carries the same RAM readout
  * {@see GuardrailPolicy} enforces server-side — shown here as a calm,
@@ -41,9 +43,14 @@ class ServerListProjection
     public static function forEvent(Event $event): array
     {
         $links = ServerLink::query()
-            ->where('status', ServerLinkStatus::Ready)
+            ->where(function ($query): void {
+                // Ready and NotResponding servers are always listed; a server the orga just
+                // started from a preset (event-level) is listed while it starts up.
+                $query->whereIn('status', [ServerLinkStatus::Ready, ServerLinkStatus::NotResponding])
+                    ->orWhere(fn ($q) => $q->whereNotNull('event_id')->where('status', ServerLinkStatus::Provisioning));
+            })
             ->where(function ($query) use ($event): void {
-                $query->whereHas(
+                $query->where('event_id', $event->id)->orWhereHas(
                     'match',
                     fn ($q) => $q->whereHas(
                         'tournament',
@@ -54,7 +61,7 @@ class ServerListProjection
                     fn ($q) => $q->where('event_id', $event->id),
                 );
             })
-            ->with(['match.tournament.game', 'tournament.game'])
+            ->with(['match.tournament.game', 'tournament.game', 'game'])
             ->orderBy('id')
             ->get();
 
@@ -67,18 +74,44 @@ class ServerListProjection
     private static function dto(ServerLink $link): array
     {
         $tournament = self::tournamentFor($link);
-        $game = $tournament?->game;
+        $game = $tournament !== null ? $tournament->game : $link->game;
 
         return [
             'id' => $link->id,
             'game' => $game?->name,
+            'title' => $link->title,
             'matchLabel' => self::matchLabel($link, $tournament),
             'address' => $link->join_info->address,
             'port' => $link->join_info->port,
             'connectString' => PelicanJoinLink::for($link->join_info),
+            'connectIsLink' => str_contains(PelicanJoinLink::for($link->join_info), '://'),
             'status' => $link->status->value,
+            'query' => self::queryFor($link),
             'estimate' => self::estimateFor($game),
             'installHint' => self::installHintFor($game),
+        ];
+    }
+
+    /**
+     * The last A2S answer (server name, map, players) or null when the server was never
+     * queried (no query check, or still starting).
+     *
+     * @return array{serverName: string, map: string, players: int, maxPlayers: int, checkedAt: string|null}|null
+     */
+    private static function queryFor(ServerLink $link): ?array
+    {
+        $info = $link->query_info;
+
+        if ($info === null || $info === []) {
+            return null;
+        }
+
+        return [
+            'serverName' => (string) ($info['name'] ?? ''),
+            'map' => (string) ($info['map'] ?? ''),
+            'players' => (int) ($info['players'] ?? 0),
+            'maxPlayers' => (int) ($info['max_players'] ?? 0),
+            'checkedAt' => $link->queried_at?->toIso8601String(),
         ];
     }
 
