@@ -41,6 +41,10 @@ return [
         'redirect' => env('DISCORD_REDIRECT_URI', env('APP_URL').'/auth/discord/callback'),
         'bot_token' => env('DISCORD_BOT_TOKEN'),
         'guild_id' => env('DISCORD_GUILD_ID'),
+        // Login gate: when set, only members of this guild may log in (checked on
+        // every login, admins exempt). Dedicated key on purpose: no fallback to
+        // DISCORD_GUILD_ID. Empty = no restriction.
+        'login_guild_id' => env('DISCORD_LOGIN_GUILD_ID'),
         'announce_channel_id' => env('DISCORD_ANNOUNCE_CHANNEL_ID'),
         'match_category_id' => env('DISCORD_MATCH_CATEGORY_ID'),
         'match_channel_cleanup_delay_minutes' => env('DISCORD_MATCH_CHANNEL_CLEANUP_DELAY_MINUTES', 30),

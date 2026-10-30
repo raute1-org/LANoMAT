@@ -56,6 +56,7 @@ QUEUE_CONNECTION=redis
 DISCORD_CLIENT_ID=...
 DISCORD_CLIENT_SECRET=...
 DISCORD_REDIRECT_URI=https://lan.raute1.org/auth/discord/callback
+DISCORD_LOGIN_GUILD_ID=<server ID, optional, see section 3a>
 
 STEAM_API_KEY=...
 STEAM_REDIRECT_URI=https://lan.raute1.org/settings/connections/steam/callback
@@ -81,6 +82,26 @@ Notes:
 - Compose reads `.env` for interpolation (`APP_DOMAIN`, `ACME_EMAIL`,
   `POSTGRES_*`), and the containers read it through `env_file`. Recreate
   containers after any change (`up -d`). `restart` does not re-read it.
+
+## 3a. Discord login gate (optional)
+
+Set `DISCORD_LOGIN_GUILD_ID` to restrict login to members of one Discord server.
+Empty (the default) means anyone with a Discord account can log in.
+
+- **Get the server ID:** in Discord, open *User Settings > Advanced* and enable
+  *Developer Mode*. Then right-click the server icon and choose *Copy Server ID*.
+- **No bot is needed for this check.** The app asks Discord, on the user's own
+  OAuth token, whether that user is a member of the server. This adds the
+  `guilds.members.read` scope to the login request. Nothing else changes in the
+  Discord application setup.
+- **Behaviour:** the check runs on every login. Users who are not members (or
+  whose Discord account is not in the server) get a message and no session. If
+  Discord cannot answer (outage, rate limit, timeout), login is denied with a
+  "try again" message. It never falls through to allowing the user in.
+- **Admins are exempt** (an existing user with role `admin`, matched by Discord
+  ID), so the operator cannot be locked out.
+- Sessions that are already active are not revoked when someone leaves the
+  server. They are blocked at their next login.
 
 ## 4. Start the stack
 
