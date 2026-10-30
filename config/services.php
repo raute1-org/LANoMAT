@@ -98,10 +98,27 @@ return [
     ],
 
     'pelican' => [
-        'panel_url' => env('PELICAN_PANEL_URL'),
+        // Panel base URL. `panel_url` is the original key (still read by the
+        // preflight probe and the panel deep-link); `url` is the same value
+        // under the name the rest of the config uses. Either env name works.
+        'url' => env('PELICAN_URL', env('PELICAN_PANEL_URL')),
+        'panel_url' => env('PELICAN_PANEL_URL', env('PELICAN_URL')),
+        // Application API key (`papp_...`) for /api/application/*, and a
+        // Client API key (`pacc_...`) of a NON-admin service user for
+        // /api/client/* (see docs/gameservers-pelican.md).
         'application_token' => env('PELICAN_APPLICATION_TOKEN'),
         'client_token' => env('PELICAN_CLIENT_TOKEN'),
-        'node_id' => env('PELICAN_NODE_ID'),
+        // Panel user id that owns the servers LANoMAT creates — must be the
+        // user whose client key is configured above.
+        'owner_user_id' => env('PELICAN_OWNER_USER_ID'),
+        // Node new servers are placed on (first free allocation is used).
+        // `PELICAN_NODE_ID` is the legacy name of the same setting.
+        'default_node_id' => env('PELICAN_DEFAULT_NODE_ID', env('PELICAN_NODE_ID')),
+        'timeout' => (int) env('PELICAN_TIMEOUT', 10),
+        'connect_timeout' => (int) env('PELICAN_CONNECT_TIMEOUT', 5),
+        // Fallback limits for servers whose preset does not set them.
+        'default_disk_mb' => (int) env('PELICAN_DEFAULT_DISK_MB', 5120),
+        'default_cpu_percent' => (int) env('PELICAN_DEFAULT_CPU_PERCENT', 0),
         // Resource guardrails (roadmap 6.7): hard caps enforced by
         // GuardrailPolicy in the provisioning Job/Action, not only the UI —
         // a misconfigured preset/upload must never be able to freeze the

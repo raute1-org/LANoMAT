@@ -16,19 +16,28 @@ use JsonException;
  * Catering's MenuOption and Infoscreen's SceneConfig): a preset is never
  * stored/edited as a loose string=>string map. `$extra` is an escape hatch
  * for provisioner-specific keys not yet promoted to a typed field — it is
- * reused as-is by the T9 preset work. See ServerConfigCast for the DB
+ * reused as-is by the T9 preset work. `memoryMb`/`diskMb`/`cpuPercent` and
+ * `environment` carry the Pelican resource limits and egg variables a real
+ * server needs (see GameServers' ServerSpecBuilder). See ServerConfigCast for the DB
  * jsonb <-> ServerConfig bridge.
  */
 final readonly class ServerConfig
 {
     /**
      * @param  array<string, scalar>  $extra
+     * @param  array<string, scalar>  $environment  Explicit Pelican egg variable
+     *                                              overrides (`ENV_NAME => value`); win over the
+     *                                              values derived from max_players/map/password.
      */
     public function __construct(
         public ?int $maxPlayers = null,
         public ?string $map = null,
         public ?string $password = null,
         public array $extra = [],
+        public ?int $memoryMb = null,
+        public ?int $diskMb = null,
+        public ?int $cpuPercent = null,
+        public array $environment = [],
     ) {}
 
     /**
@@ -41,6 +50,10 @@ final readonly class ServerConfig
             'map' => $this->map,
             'password' => $this->password,
             'extra' => $this->extra,
+            'memory_mb' => $this->memoryMb,
+            'disk_mb' => $this->diskMb,
+            'cpu_percent' => $this->cpuPercent,
+            'environment' => $this->environment,
         ];
 
         return array_filter(
@@ -56,12 +69,17 @@ final readonly class ServerConfig
     {
         $maxPlayers = $data['max_players'] ?? null;
         $extra = $data['extra'] ?? [];
+        $environment = $data['environment'] ?? [];
 
         return new self(
             maxPlayers: $maxPlayers !== null ? (int) $maxPlayers : null,
             map: $data['map'] ?? null,
             password: $data['password'] ?? null,
             extra: is_array($extra) ? $extra : [],
+            memoryMb: isset($data['memory_mb']) ? (int) $data['memory_mb'] : null,
+            diskMb: isset($data['disk_mb']) ? (int) $data['disk_mb'] : null,
+            cpuPercent: isset($data['cpu_percent']) ? (int) $data['cpu_percent'] : null,
+            environment: is_array($environment) ? $environment : [],
         );
     }
 

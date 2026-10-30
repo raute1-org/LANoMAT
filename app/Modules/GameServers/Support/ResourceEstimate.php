@@ -39,6 +39,13 @@ final class ResourceEstimate
      */
     public static function for(Game $game, array $config): int
     {
+        // An explicit memory limit is what actually gets sent to Pelican
+        // (ServerSpecBuilder), so the guardrail must judge that number — not
+        // the slot formula — or a preset could bypass max_ram_mb.
+        if (isset($config['memory_mb'])) {
+            return (int) $config['memory_mb'];
+        }
+
         $slots = self::slots($config);
 
         return self::BASE_MB + ($slots * self::PER_SLOT_MB);

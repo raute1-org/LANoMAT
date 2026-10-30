@@ -20,7 +20,8 @@ use Illuminate\Support\Str;
  * Links a match (or, for non-match provisioning, a tournament) to its
  * provisioned Pelican game server.
  *
- * @property string|null $pelican_server_id
+ * @property string|null $pelican_server_id Numeric Application API id (show/delete).
+ * @property string|null $pelican_server_identifier Short uuid the Client API (power/resources) uses.
  * @property JoinInfo $join_info
  * @property ServerLinkStatus $status
  * @property bool $manual

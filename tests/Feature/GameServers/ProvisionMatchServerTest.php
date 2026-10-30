@@ -2,6 +2,7 @@
 
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Domain\PelicanEgg;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerState;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
@@ -9,6 +10,7 @@ use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Jobs\ProvisionMatchServerJob;
 use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
@@ -17,6 +19,8 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
+
+beforeEach(fn () => config(['services.pelican.owner_user_id' => '1']));
 
 function readyMatchWithEggGame(): GameMatch
 {
@@ -59,6 +63,7 @@ it('does not dispatch ProvisionMatchServerJob when the game has no pelican egg i
 it('creates a ServerLink and calls createServer with the game config on the fake Pelican client', function () {
     Bus::fake([PollServerStatusJob::class]);
     $fake = fakePelican();
+    $fake->eggs['egg-42'] = new PelicanEgg('egg-42', 'CS2', ['MAX_PLAYERS' => '12', 'SRCDS_MAP' => 'de_mirage', 'SERVER_PASSWORD' => '', 'RCON_PASSWORD' => 'x']);
 
     $match = readyMatchWithEggGame();
 
@@ -72,7 +77,14 @@ it('creates a ServerLink and calls createServer with the game config on the fake
     $link = $match->serverLink;
     expect($link->status)->toBe(ServerLinkStatus::Provisioning)
         ->and($link->pelican_server_id)->not->toBeNull()
-        ->and($fake->created[0]['config'])->toMatchArray(['max_players' => 10, 'map' => 'de_dust2']);
+        ->and($link->pelican_server_identifier)->toBe(FakePelicanClient::identifierFor($link->pelican_server_id));
+
+    // The spec is built from the egg's defaults overlaid with the game config.
+    $spec = $fake->created[0]['spec'];
+    expect($spec->environment)->toBe(['MAX_PLAYERS' => '10', 'SRCDS_MAP' => 'de_dust2', 'SERVER_PASSWORD' => '', 'RCON_PASSWORD' => 'x'])
+        ->and($spec->ownerUserId)->toBe('1')
+        ->and($spec->name)->toContain('match-'.$match->id)
+        ->and($spec->limits->memory)->toBe(256 + 10 * 64);
 });
 
 it('dispatches a delayed PollServerStatusJob after creating the server', function () {

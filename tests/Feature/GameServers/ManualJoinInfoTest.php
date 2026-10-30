@@ -8,6 +8,7 @@ use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Tournaments\Models\GameMatch;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,7 +61,7 @@ it('forbids a participant from setting manual join info', function () {
 
 it('lets an orga deprovision a server, deleting it and marking the link Stopped', function () {
     $fake = fakePelican();
-    $created = $fake->createServer('egg-1', []);
+    $created = $fake->createServer(FakePelicanClient::makeSpec('egg-1'));
 
     $link = ServerLink::factory()->create([
         'pelican_server_id' => $created->id,

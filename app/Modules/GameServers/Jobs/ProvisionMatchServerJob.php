@@ -12,6 +12,7 @@ use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\EffectiveConfig;
 use App\Modules\GameServers\Support\GuardrailPolicy;
+use App\Modules\GameServers\Support\ServerSpecBuilder;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Voice\Jobs\ProvisionMatchVoiceJob;
@@ -25,8 +26,10 @@ use Throwable;
  * ({@see MatchReady}, via
  * {@see ProvisionMatchServerOnReady}):
  * creates a {@see ServerLink} row (status Provisioning), asks
- * {@see PelicanClient::createServer()} for a server using the tournament's
- * game `default_server_config`, stores the returned server id, and schedules
+ * {@see PelicanClient::createServer()} for a server built by
+ * {@see ServerSpecBuilder} from the tournament's game `default_server_config`
+ * (egg variables, limits, owner, node), stores the returned server id and
+ * Client-API identifier, and schedules
  * {@see PollServerStatusJob} to pick up the result once the panel finishes
  * installing it.
  *
@@ -134,7 +137,14 @@ class ProvisionMatchServerJob implements ShouldQueue
             // docblock for the exact "at most N besides this one" semantics.
             GuardrailPolicy::assertWithinLimits($claim['game'], $claim['config'], requester: null, excludingLinkId: $link->id);
 
-            $server = $client->createServer($claim['eggId'], $claim['config']);
+            $spec = (new ServerSpecBuilder($client))->build(
+                $claim['game'],
+                $claim['eggId'],
+                $claim['config'],
+                "lanomat-{$claim['game']->slug}-match-{$this->matchId}",
+            );
+
+            $server = $client->createServer($spec);
         } catch (Throwable $e) {
             $link->status = ServerLinkStatus::Failed;
             $link->save();
@@ -143,6 +153,7 @@ class ProvisionMatchServerJob implements ShouldQueue
         }
 
         $link->pelican_server_id = $server->id;
+        $link->pelican_server_identifier = $server->identifier;
         $link->save();
 
         PollServerStatusJob::dispatch($link->id)->delay(now()->addSeconds(10));
