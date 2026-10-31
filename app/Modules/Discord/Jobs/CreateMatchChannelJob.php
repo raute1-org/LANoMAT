@@ -2,24 +2,30 @@
 
 namespace App\Modules\Discord\Jobs;
 
+use App\Enums\Role;
+use App\Models\User;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Support\DiscordOutboxGuard;
+use App\Modules\Discord\Support\EventCategories;
 use App\Modules\Discord\Support\MatchEmbed;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Collection;
 use Throwable;
 
 /**
- * Creates the per-match Discord text channel once a match becomes playable
- * ({@see MatchReady}): a text channel under the configured match category,
- * permission overwrites granting both rosters access, and a welcome embed.
- * The channel id is persisted onto `matches.discord_channels` so
- * {@see CleanupMatchChannelJob} can tear it down later.
+ * Creates the Discord channels of a match once it becomes playable
+ * ({@see MatchReady}), in the category of the match's event
+ * ({@see EventCategories}): a private text channel for both rosters with a
+ * welcome embed, and a voice room for each team. The rooms are visible to
+ * everyone but only that team and the admins can join. The ids are persisted
+ * onto `matches.discord_channels` so {@see CleanupMatchChannelJob} can tear
+ * them down, or archive the text channel, later.
  *
  * Guarded by {@see DiscordOutboxGuard} so a re-fired `MatchReady` (e.g. a
- * replayed event) never creates a second channel for the same match.
+ * replayed event) never creates a second set of channels for the same match.
  */
 class CreateMatchChannelJob implements ShouldQueue
 {
@@ -36,9 +42,9 @@ class CreateMatchChannelJob implements ShouldQueue
         public readonly int $matchId,
     ) {}
 
-    public function handle(DiscordClient $client, DiscordOutboxGuard $guard): void
+    public function handle(DiscordClient $client, DiscordOutboxGuard $guard, EventCategories $categories): void
     {
-        $match = GameMatch::query()->with(['entry1', 'entry2', 'tournament'])->find($this->matchId);
+        $match = GameMatch::query()->with(['entry1', 'entry2', 'tournament.event'])->find($this->matchId);
 
         if ($match === null || $match->entry1 === null || $match->entry2 === null) {
             return;
@@ -47,11 +53,15 @@ class CreateMatchChannelJob implements ShouldQueue
         $guard->once(
             "match-{$match->id}-created",
             'match_channel_created',
-            function () use ($match, $client): void {
+            function () use ($match, $client, $categories): void {
                 $guildId = (string) config('services.discord.guild_id');
-                $parentId = config('services.discord.match_category_id');
+                $fixedCategory = config('services.discord.match_category_id');
 
-                $parentValue = is_string($parentId) && $parentId !== '' ? $parentId : null;
+                // A fixed category from the configuration wins; otherwise every event gets a
+                // category of its own (one text channel and one room per team are created here).
+                $parentValue = is_string($fixedCategory) && $fixedCategory !== ''
+                    ? $fixedCategory
+                    : ($match->tournament?->event === null ? null : $categories->liveFor($match->tournament->event, 3));
 
                 $channelId = $client->createChannel($guildId, "match-{$match->id}", $parentValue);
 
@@ -72,10 +82,10 @@ class CreateMatchChannelJob implements ShouldQueue
                 // deny the channel would still be visible to the whole guild.
                 // @everyone comes right after the bot: the channel is private
                 // before anything else can fail.
-                $overwritesFor = fn (string $rosterAllow): array => [
+                $overwritesFor = fn (string $rosterAllow, Collection $ids): array => [
                     ...($botId === null ? [] : [['id' => $botId, 'type' => 1, 'allow' => '1024', 'deny' => '0']]),
                     ['id' => $guildId, 'type' => 0, 'allow' => '0', 'deny' => '1024'],
-                    ...$rosterIds->map(fn (string $discordUserId): array => [
+                    ...$ids->map(fn (string $discordUserId): array => [
                         'id' => $discordUserId,
                         'type' => 1, // member overwrite
                         'allow' => $rosterAllow,
@@ -83,28 +93,52 @@ class CreateMatchChannelJob implements ShouldQueue
                     ])->all(),
                 ];
 
-                $voiceChannelId = null;
+                // A team's room is visible to everyone, but only its team and the admins may
+                // connect: @everyone keeps VIEW_CHANNEL and loses CONNECT.
+                $adminIds = User::query()
+                    ->where('role', Role::Admin->value)
+                    ->whereNotNull('discord_id')
+                    ->pluck('discord_id');
+
+                $roomOverwritesFor = fn ($entry): array => [
+                    ...($botId === null ? [] : [['id' => $botId, 'type' => 1, 'allow' => '1024', 'deny' => '0']]),
+                    ['id' => $guildId, 'type' => 0, 'allow' => (string) self::VIEW_CHANNEL, 'deny' => (string) self::CONNECT],
+                    ...array_map(
+                        fn (string $discordUserId): array => [
+                            'id' => $discordUserId,
+                            'type' => 1,
+                            'allow' => (string) (self::VIEW_CHANNEL | self::CONNECT | self::SPEAK),
+                            'deny' => '0',
+                        ],
+                        array_values(array_unique([...$entry->rosterDiscordIds(), ...$adminIds->all()])),
+                    ),
+                ];
+
+                $created = [];
+                $voiceChannelIds = [];
 
                 try {
-                    $client->upsertPermissionOverwrites($channelId, $overwritesFor((string) self::VIEW_CHANNEL));
+                    $created[] = $channelId;
+                    $client->upsertPermissionOverwrites($channelId, $overwritesFor((string) self::VIEW_CHANNEL, $rosterIds));
 
                     $embed = MatchEmbed::welcome($match);
                     $client->sendMessage($channelId, $embed['title'], [$embed]);
 
-                    // A private voice channel next to the text one, same roster.
-                    $voiceChannelId = $client->createChannel($guildId, "Match {$match->id}", $parentValue, voice: true);
-                    $client->upsertPermissionOverwrites($voiceChannelId, $overwritesFor((string) (self::VIEW_CHANNEL | self::CONNECT | self::SPEAK)));
+                    foreach (['entry1' => $match->entry1, 'entry2' => $match->entry2] as $key => $entry) {
+                        $roomId = $client->createChannel($guildId, "Match {$match->id} · {$entry->display_name}", $parentValue, voice: true);
+                        $created[] = $roomId;
+                        $voiceChannelIds[$key] = $roomId;
+                        $client->upsertPermissionOverwrites($roomId, $roomOverwritesFor($entry));
+                    }
                 } catch (Throwable $e) {
-                    $client->deleteChannel($channelId);
-
-                    if ($voiceChannelId !== null) {
-                        $client->deleteChannel($voiceChannelId);
+                    foreach ($created as $id) {
+                        $client->deleteChannel($id);
                     }
 
                     throw $e;
                 }
 
-                $match->update(['discord_channels' => ['text_channel_id' => $channelId, 'voice_channel_id' => $voiceChannelId]]);
+                $match->update(['discord_channels' => ['text_channel_id' => $channelId, 'voice_channel_ids' => $voiceChannelIds]]);
             },
         );
     }

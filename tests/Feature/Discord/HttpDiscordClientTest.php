@@ -153,3 +153,55 @@ it('creates a voice channel when asked to', function () {
     expect($id)->toBe('v1');
     Http::assertSent(fn ($r) => $r['type'] === 2 && $r['name'] === 'Match 7' && $r['parent_id'] === 'cat-1');
 });
+
+it('creates a category and returns its id', function () {
+    Http::fake(['discord.com/*' => Http::response(['id' => 'cat-9'], 201)]);
+
+    $id = (new HttpDiscordClient('test-token'))->createCategory('guild-1', 'LAN 2026');
+
+    expect($id)->toBe('cat-9');
+    Http::assertSent(fn ($r) => $r->url() === 'https://discord.com/api/v10/guilds/guild-1/channels'
+        && $r->method() === 'POST'
+        && $r['type'] === 4
+        && $r['name'] === 'LAN 2026'
+        && ! array_key_exists('parent_id', $r->data()));
+});
+
+it('moves a channel into a category', function () {
+    Http::fake(['discord.com/*' => Http::response(['id' => 'c1'], 200)]);
+
+    (new HttpDiscordClient('test-token'))->moveChannel('c1', 'cat-9');
+
+    Http::assertSent(fn ($r) => $r->url() === 'https://discord.com/api/v10/channels/c1'
+        && $r->method() === 'PATCH'
+        && $r['parent_id'] === 'cat-9');
+});
+
+it('takes a channel out of its category when no parent is given', function () {
+    Http::fake(['discord.com/*' => Http::response(['id' => 'c1'], 200)]);
+
+    (new HttpDiscordClient('test-token'))->moveChannel('c1', null);
+
+    Http::assertSent(fn ($r) => $r->method() === 'PATCH' && array_key_exists('parent_id', $r->data()) && $r['parent_id'] === null);
+});
+
+it('throws when moving a channel fails', function () {
+    Http::fake(['discord.com/*' => Http::response(['message' => 'Missing Access'], 403)]);
+
+    (new HttpDiscordClient('test-token'))->moveChannel('c1', 'cat-9');
+})->throws(RequestException::class);
+
+it('lists the channels of a guild with their category', function () {
+    Http::fake(['discord.com/*' => Http::response([
+        ['id' => '1', 'name' => 'LAN 2026', 'type' => 4, 'parent_id' => null],
+        ['id' => '2', 'name' => 'match-7', 'type' => 0, 'parent_id' => '1'],
+    ], 200)]);
+
+    $channels = (new HttpDiscordClient('test-token'))->listChannels('guild-1');
+
+    expect($channels)->toBe([
+        ['id' => '1', 'name' => 'LAN 2026', 'type' => 4, 'parentId' => null],
+        ['id' => '2', 'name' => 'match-7', 'type' => 0, 'parentId' => '1'],
+    ]);
+    Http::assertSent(fn ($r) => $r->url() === 'https://discord.com/api/v10/guilds/guild-1/channels' && $r->method() === 'GET');
+});

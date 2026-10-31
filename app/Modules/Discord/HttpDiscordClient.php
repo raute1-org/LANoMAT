@@ -39,6 +39,34 @@ class HttpDiscordClient implements DiscordClient
         $this->http()->delete("{$this->base}/channels/{$channelId}")->throw();
     }
 
+    public function createCategory(string $guildId, string $name): string
+    {
+        $response = $this->http()->post("{$this->base}/guilds/{$guildId}/channels", [
+            'name' => $name,
+            'type' => 4, // 4 = category
+        ])->throw();
+
+        return (string) $response->json('id');
+    }
+
+    public function moveChannel(string $channelId, ?string $parentId): void
+    {
+        // `parent_id` is sent even when null: that is how a channel leaves its category.
+        $this->http()->patch("{$this->base}/channels/{$channelId}", ['parent_id' => $parentId])->throw();
+    }
+
+    public function listChannels(string $guildId): array
+    {
+        $rows = $this->http()->get("{$this->base}/guilds/{$guildId}/channels")->throw()->json();
+
+        return array_values(array_map(fn (array $row): array => [
+            'id' => (string) $row['id'],
+            'name' => (string) ($row['name'] ?? ''),
+            'type' => (int) ($row['type'] ?? 0),
+            'parentId' => isset($row['parent_id']) ? (string) $row['parent_id'] : null,
+        ], is_array($rows) ? $rows : []));
+    }
+
     public function sendDm(string $userDiscordId, string $content): void
     {
         $channel = $this->http()

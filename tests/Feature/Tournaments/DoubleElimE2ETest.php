@@ -217,9 +217,11 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
         app(OverrideMatchResult::class)->handle($match, $s1, $s2);
         $decidedMatchIds[] = $match->id;
 
-        // The just-decided match's Discord channel must already be gone
-        // again (delayed cleanup ran inline on MatchCompleted).
-        $discord->assertChannelDeleted($discordChannel['id']);
+        // The just-decided match's text channel must already be filed in the archive
+        // category of the event (delayed cleanup ran inline on MatchCompleted).
+        $archived = collect($discord->channels)->firstWhere('id', $discordChannel['id']);
+        $archiveCategory = collect($discord->channels)->firstWhere('id', $archived['parentId']);
+        expect($archiveCategory['name'])->toStartWith('Archiv: ');
     }
 
     expect($guard)->toBeLessThan(100, 'Guard tripped — the tournament never reached Finished.');
@@ -240,11 +242,14 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
     $playedMatches = GameMatch::whereIn('id', $decidedMatchIds)->get();
     expect($playedMatches)->not->toBeEmpty();
 
-    // Discord: every match that had a channel (i.e. every match reached via
-    // progression) was deleted again as soon as it completed (asserted
-    // live, above) — none remain live by the end.
-    expect($discord->channels)->toBeEmpty('Expected every Discord match channel to have been cleaned up.');
-    // one text and one voice channel per match
+    // Discord: every match that had channels (i.e. every match reached via
+    // progression) had its two team rooms deleted as soon as it completed, and its
+    // text channel moved into the event's archive (asserted live, above). What is left
+    // are the archived text channels, one per match, plus the categories.
+    $remaining = collect($discord->channels)->where('category', false);
+    expect($remaining->where('voice', true))->toBeEmpty('Expected every Discord team room to have been cleaned up.');
+    expect($remaining)->toHaveCount($matchesWithLiveChannels);
+    // two team rooms per match, and no text channel is ever deleted
     expect($discord->deletedChannelIds)->toHaveCount($matchesWithLiveChannels * 2);
 
     foreach ($playedMatches as $match) {

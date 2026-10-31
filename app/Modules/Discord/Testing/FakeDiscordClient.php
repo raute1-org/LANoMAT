@@ -13,8 +13,11 @@ class FakeDiscordClient implements DiscordClient
     /** @var array<int, array{userDiscordId: string, content: string}> */
     public array $dms = [];
 
-    /** @var array<int, array{guildId: string, name: string, parentId: ?string, voice: bool, id: string}> */
+    /** @var array<int, array{guildId: string, name: string, parentId: ?string, voice: bool, id: string, category: bool}> */
     public array $channels = [];
+
+    /** @var array<int, array{channelId: string, parentId: ?string}> */
+    public array $moves = [];
 
     /** @var array<int, array{channelId: string, overwrites: array<int, mixed>}> */
     public array $overwrites = [];
@@ -32,9 +35,40 @@ class FakeDiscordClient implements DiscordClient
     public function createChannel(string $guildId, string $name, ?string $parentId = null, bool $voice = false): string
     {
         $id = 'fake-channel-'.(++$this->sequence);
-        $this->channels[] = compact('guildId', 'name', 'parentId', 'voice', 'id');
+        $category = false;
+        $this->channels[] = compact('guildId', 'name', 'parentId', 'voice', 'id', 'category');
 
         return $id;
+    }
+
+    public function createCategory(string $guildId, string $name): string
+    {
+        $id = 'fake-category-'.(++$this->sequence);
+        $parentId = null;
+        $voice = false;
+        $category = true;
+        $this->channels[] = compact('guildId', 'name', 'parentId', 'voice', 'id', 'category');
+
+        return $id;
+    }
+
+    public function moveChannel(string $channelId, ?string $parentId): void
+    {
+        $this->moves[] = compact('channelId', 'parentId');
+        $this->channels = array_map(
+            fn ($c) => $c['id'] === $channelId ? [...$c, 'parentId' => $parentId] : $c,
+            $this->channels,
+        );
+    }
+
+    public function listChannels(string $guildId): array
+    {
+        return array_values(array_map(fn ($c) => [
+            'id' => $c['id'],
+            'name' => $c['name'],
+            'type' => $c['category'] ? 4 : ($c['voice'] ? 2 : 0),
+            'parentId' => $c['parentId'],
+        ], array_filter($this->channels, fn ($c) => $c['guildId'] === $guildId)));
     }
 
     public function deleteChannel(string $channelId): void

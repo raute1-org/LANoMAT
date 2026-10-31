@@ -1,9 +1,12 @@
 <?php
 
+use App\Enums\Role;
 use App\Models\User;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Jobs\CleanupMatchChannelJob;
 use App\Modules\Discord\Jobs\CreateMatchChannelJob;
+use App\Modules\Discord\Models\DiscordVoiceState;
+use App\Modules\Discord\Support\EventCategories;
 use App\Modules\Discord\Testing\FakeDiscordClient;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Events\MatchCompleted;
@@ -87,15 +90,53 @@ it('creates a match text channel with roster overwrites and a welcome embed on M
 
     $this->fake->assertMessageSent($channel['id']);
 
-    $voice = collect($this->fake->channels)->firstWhere('name', "Match {$match->id}");
-    expect($voice['voice'])->toBeTrue();
+    $alpha = collect($this->fake->channels)->firstWhere('name', "Match {$match->id} · Team Alpha");
+    $bravo = collect($this->fake->channels)->firstWhere('name', "Match {$match->id} · Solo Bravo");
+    expect($alpha['voice'])->toBeTrue()->and($bravo['voice'])->toBeTrue();
     expect($channel['voice'])->toBeFalse();
-    expect($match->fresh()->discord_channels)->toBe(['text_channel_id' => $channel['id'], 'voice_channel_id' => $voice['id']]);
+    expect($match->fresh()->discord_channels)->toBe([
+        'text_channel_id' => $channel['id'],
+        'voice_channel_ids' => ['entry1' => $alpha['id'], 'entry2' => $bravo['id']],
+    ]);
 
-    // roster may connect and speak in the voice channel, @everyone may not even see it
-    $voiceOverwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', $voice['id'])['overwrites']);
-    expect($voiceOverwrites->firstWhere('id', '111111')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
-    expect($voiceOverwrites->firstWhere('id', 'guild-1')['deny'])->toBe('1024');
+    // Every team gets its own room, visible to all but joinable only by that team
+    // (and admins): @everyone may look but not connect, the team may connect and speak.
+    $alphaOverwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', $alpha['id'])['overwrites']);
+    expect($alphaOverwrites->firstWhere('id', 'guild-1'))->toMatchArray(['type' => 0, 'allow' => '1024', 'deny' => (string) (1 << 20)]);
+    expect($alphaOverwrites->firstWhere('id', '111111')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
+    expect($alphaOverwrites->pluck('id')->all())->not->toContain('222222');
+
+    $bravoOverwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', $bravo['id'])['overwrites']);
+    expect($bravoOverwrites->firstWhere('id', '222222')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
+    expect($bravoOverwrites->pluck('id')->all())->not->toContain('111111');
+});
+
+it('lets admins join every team room', function () {
+    User::factory()->create(['role' => Role::Admin, 'discord_id' => '999999']);
+    User::factory()->create(['role' => Role::Participant, 'discord_id' => '888888']);
+    $match = readyMatch();
+
+    event(new MatchReady($match));
+
+    foreach (["Match {$match->id} · Team Alpha", "Match {$match->id} · Solo Bravo"] as $name) {
+        $room = collect($this->fake->channels)->firstWhere('name', $name);
+        $overwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', $room['id'])['overwrites']);
+        expect($overwrites->firstWhere('id', '999999')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
+        expect($overwrites->pluck('id')->all())->not->toContain('888888');
+    }
+});
+
+it('puts the channels of a match into a category of the event when no fixed category is configured', function () {
+    config(['services.discord.match_category_id' => null]);
+    $match = readyMatch();
+
+    event(new MatchReady($match));
+
+    $category = collect($this->fake->channels)->firstWhere('category', true);
+    expect($category['name'])->toBe($match->tournament->event->name);
+    foreach (collect($this->fake->channels)->where('category', false) as $channel) {
+        expect($channel['parentId'])->toBe($category['id']);
+    }
 });
 
 it('is idempotent when MatchReady fires twice for the same match', function () {
@@ -104,7 +145,7 @@ it('is idempotent when MatchReady fires twice for the same match', function () {
     event(new MatchReady($match));
     event(new MatchReady($match));
 
-    expect(collect($this->fake->channels))->toHaveCount(2); // text + voice, once
+    expect(collect($this->fake->channels))->toHaveCount(3); // text + one room per team, once
 });
 
 it('resolves German copy for the welcome embed', function () {
@@ -167,20 +208,27 @@ it('does not announce the result twice when MatchCompleted fires twice for the s
     expect(collect($this->fake->messages))->toHaveCount(1);
 });
 
-it('deletes the channel and clears discord_channels when the cleanup job runs', function () {
+it('moves the finished match text channel into the archive of its event, read-only', function () {
     $match = readyMatch();
-    $match->update(['discord_channels' => ['text_channel_id' => 'fake-channel-to-delete']]);
-    $this->fake->channels[] = [
-        'guildId' => 'guild-1',
-        'name' => "match-{$match->id}",
-        'parentId' => 'category-1',
-        'id' => 'fake-channel-to-delete',
-    ];
+    $match->update(['discord_channels' => ['text_channel_id' => 'fake-channel-text']]);
+    $this->fake->channels[] = ['guildId' => 'guild-1', 'name' => "match-{$match->id}", 'parentId' => 'category-1', 'voice' => false, 'id' => 'fake-channel-text', 'category' => false];
 
-    (new CleanupMatchChannelJob($match->id))->handle($this->fake);
+    (new CleanupMatchChannelJob($match->id))->handle($this->fake, app(EventCategories::class));
 
-    $this->fake->assertChannelDeleted('fake-channel-to-delete');
+    $archive = collect($this->fake->channels)->firstWhere('name', 'Archiv: '.$match->tournament->event->name);
+    expect($archive)->not->toBeNull();
+    expect($this->fake->moves)->toBe([['channelId' => 'fake-channel-text', 'parentId' => $archive['id']]]);
+    expect($this->fake->deletedChannelIds)->toBe([]);
     expect($match->fresh()->discord_channels)->toBeNull();
+
+    // everyone may read the archive, nobody may write
+    $overwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', 'fake-channel-text')['overwrites']);
+    $everyone = $overwrites->firstWhere('id', 'guild-1');
+    expect($everyone['type'])->toBe(0);
+    expect((int) $everyone['allow'] & (1 << 10))->toBe(1 << 10); // VIEW_CHANNEL
+    expect((int) $everyone['allow'] & (1 << 16))->toBe(1 << 16); // READ_MESSAGE_HISTORY
+    expect((int) $everyone['deny'] & (1 << 11))->toBe(1 << 11); // SEND_MESSAGES
+    expect((int) $everyone['deny'] & (1 << 6))->toBe(1 << 6); // ADD_REACTIONS
 });
 
 it('does nothing when MatchReady fires for a match without both entries resolved', function () {
@@ -224,14 +272,64 @@ it('removes the channel again and keeps it private first when permissions fail',
     expect($match->fresh()->discord_channels)->toBeNull();
 });
 
-it('deletes the voice channel too when the cleanup job runs', function () {
+it('deletes empty team rooms at once and archives the text channel', function () {
+    Bus::fake([CleanupMatchChannelJob::class]);
     $match = readyMatch();
-    $match->update(['discord_channels' => ['text_channel_id' => 'text-1', 'voice_channel_id' => 'voice-1']]);
+    $match->update(['discord_channels' => ['text_channel_id' => 'text-1', 'voice_channel_ids' => ['entry1' => 'voice-1', 'entry2' => 'voice-2']]]);
 
-    dispatch_sync(new CleanupMatchChannelJob($match->id));
+    (new CleanupMatchChannelJob($match->id))->handle($this->fake, app(EventCategories::class));
 
-    $this->fake->assertChannelDeleted('text-1');
     $this->fake->assertChannelDeleted('voice-1');
+    $this->fake->assertChannelDeleted('voice-2');
+    expect($this->fake->deletedChannelIds)->not->toContain('text-1');
+    expect(collect($this->fake->moves)->pluck('channelId')->all())->toBe(['text-1']);
+    expect($match->fresh()->discord_channels)->toBeNull();
+    Bus::assertNotDispatched(CleanupMatchChannelJob::class);
+});
+
+it('still removes a voice room from a match created before every team had its own', function () {
+    $match = readyMatch();
+    $match->update(['discord_channels' => ['text_channel_id' => 'text-1', 'voice_channel_id' => 'voice-old']]);
+
+    (new CleanupMatchChannelJob($match->id))->handle($this->fake, app(EventCategories::class));
+
+    $this->fake->assertChannelDeleted('voice-old');
+    expect($match->fresh()->discord_channels)->toBeNull();
+});
+
+it('leaves a room alone while someone is in it and looks again later', function () {
+    config(['queue.default' => 'redis']); // a sync queue never re-queues
+    Bus::fake([CleanupMatchChannelJob::class]);
+    $match = readyMatch();
+    $match->update(['discord_channels' => ['text_channel_id' => 'text-1', 'voice_channel_ids' => ['entry1' => 'voice-1', 'entry2' => 'voice-2']]]);
+    DiscordVoiceState::query()->create(['discord_user_id' => '111111', 'channel_id' => 'voice-1']);
+
+    (new CleanupMatchChannelJob($match->id))->handle($this->fake, app(EventCategories::class));
+
+    // The empty room and the text channel are dealt with at once; the occupied one stays.
+    expect($this->fake->deletedChannelIds)->toBe(['voice-2']);
+    expect(collect($this->fake->moves)->pluck('channelId')->all())->toBe(['text-1']);
+    expect($match->fresh()->discord_channels)->toBe(['voice_channel_ids' => ['entry1' => 'voice-1']]);
+    Bus::assertDispatched(CleanupMatchChannelJob::class, fn (CleanupMatchChannelJob $job) => $job->matchId === $match->id && $job->delay !== null);
+
+    // Once the last person has left, the next run removes it and does not archive again.
+    DiscordVoiceState::query()->delete();
+    (new CleanupMatchChannelJob($match->id))->handle($this->fake, app(EventCategories::class));
+
+    expect($this->fake->deletedChannelIds)->toBe(['voice-2', 'voice-1']);
+    expect(collect($this->fake->moves))->toHaveCount(1);
+    expect($match->fresh()->discord_channels)->toBeNull();
+});
+
+it('does not re-queue itself on a sync queue where a delay would loop', function () {
+    Bus::fake([CleanupMatchChannelJob::class]);
+    $match = readyMatch();
+    $match->update(['discord_channels' => ['voice_channel_ids' => ['entry1' => 'voice-1']]]);
+    DiscordVoiceState::query()->create(['discord_user_id' => '111111', 'channel_id' => 'voice-1']);
+
+    (new CleanupMatchChannelJob($match->id))->handle($this->fake, app(EventCategories::class));
+
+    Bus::assertNotDispatched(CleanupMatchChannelJob::class);
 });
 
 it('removes both channels when the voice channel cannot be set up', function () {
@@ -254,5 +352,28 @@ it('removes both channels when the voice channel cannot be set up', function () 
 
     expect($failing->channels)->toBe([]);
     expect($failing->deletedChannelIds)->toHaveCount(2);
+    expect($match->fresh()->discord_channels)->toBeNull();
+});
+
+it('removes every channel it made when the second team room cannot be set up', function () {
+    $failing = new class extends FakeDiscordClient
+    {
+        public function upsertPermissionOverwrites(string $channelId, array $overwrites): void
+        {
+            if ($channelId === 'fake-channel-3') {
+                throw new RuntimeException('second room permissions failed');
+            }
+
+            parent::upsertPermissionOverwrites($channelId, $overwrites);
+        }
+    };
+    app()->instance(DiscordClient::class, $failing);
+
+    $match = readyMatch();
+
+    expect(fn () => dispatch_sync(new CreateMatchChannelJob($match->id)))->toThrow(RuntimeException::class);
+
+    expect($failing->channels)->toBe([]);
+    expect($failing->deletedChannelIds)->toHaveCount(3);
     expect($match->fresh()->discord_channels)->toBeNull();
 });
