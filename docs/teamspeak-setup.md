@@ -107,7 +107,13 @@ These feed `config('services.teamspeak.*')` (`config/services.php`), which
    address on the compose network — never open ServerQuery to `0.0.0.0/0` in
    production. On the shared Docker bridge network this is typically the
    compose subnet; pin it down further once real-verified against the
-   actual bridge CIDR in use.
+   actual bridge CIDR in use. Verified on a real server: with only
+   `127.0.0.1` in the file, a burst of calls (a match creates several
+   channels at once) made the server drop the sidecar's connections. Add the
+   Docker network's CIDR, restart the `teamspeak` container, and a burst of
+   eight create and delete calls then ran in well under a second. A dropped
+   connection used to leave the sidecar spinning at full CPU; it now answers
+   HTTP 502 instead.
 4. Anti-flood: repeated failed ServerQuery logins temporarily ban the
    caller's IP (ServerQuery `error id=3331`, mapped by the sidecar to an
    HTTP 502). If `TEAMSPEAK_QUERY_PASSWORD` is wrong while testing, expect a

@@ -240,7 +240,10 @@ class _ServerQueryConnection:
         while b"\n" not in self._buffer:
             chunk = self._socket.recv(4096)
             if not chunk:
-                break
+                # The server closed the connection (flood protection, restart).
+                # Breaking out here returned empty lines forever, so
+                # `_read_response` never saw an `error` line and spun at 100% CPU.
+                raise ConnectionError("ServerQuery connection closed by the server")
             self._buffer += chunk
         line, _, self._buffer = self._buffer.partition(b"\n")
         # TeamSpeak terminates lines with "\n\r" (not "\r\n"), so the "\r" of one
