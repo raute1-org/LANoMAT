@@ -4,7 +4,8 @@ Plan and checklist for moving the app from the cloud server to a server at the
 venue. The cloud server stays: it remains the public entry point, and it is the
 fallback.
 
-**Status.** The connection mechanism (TLS pass-through with the PROXY protocol,
+**Status.** The app stack itself was run on the test VM behind Traefik with a real DNS-01
+certificate (see "Verified on the test VM" below). The connection mechanism (TLS pass-through with the PROXY protocol,
 keeping the real client address) was rehearsed with two Traefik containers on one
 machine. The rest of this document is not run against real hosts: treat it as a
 checklist for the rehearsal and correct it with what you observe. All hostnames,
@@ -57,16 +58,27 @@ address, and a small HTTP echo service behind the venue router.
 | Client sends its own `X-Forwarded-For`, both paths | ignored and replaced with the real address                             |
 | Docker provider with only an `address` label       | logs "port is missing" on every refresh; add a `server.port` label too |
 
+## Verified on the test VM
+
+The prod stack (`traefik app queue scheduler reverb-prod postgres redis`) ran on the Proxmox test VM with the
+venue static file: a real Let's Encrypt certificate per router (DNS-01 through Cloudflare, no inbound port
+needed), the app and the Reverb websocket (HTTP 101 upgrade) reachable by name, seeded demo data. Port 443 was
+taken by the LanCache on that host, so the demo listened on 8443 through a `compose.override.yml`
+(`ports: !override`). Not covered: the venue DNS, the tunnel, the PROXY protocol path on this stack.
+
 ## Repository support
 
 - `compose.yml`, service `venue-entry`: carries only the labels, behind its own
   profile (`venue-entry`). It is **not** started by `deploy.sh`. Start it on
   `<CLOUD_SERVER>` at cut-over.
-- `compose.yml`, `traefik` service: the flag
-  `entrypoints.websecure.proxyprotocol.trustedips` from `PROXY_PROTOCOL_TRUSTED_IPS`.
-  The default is a loopback no-op, so existing deployments are unchanged.
+- `docker/traefik/traefik.venue.example.yml`: the static Traefik file for a host without a
+  public port 80: DNS-01 certificates and the PROXY protocol trusted address. Copy it to
+  `traefik.venue.yml`, edit the copy and set `TRAEFIK_STATIC_FILE` in `.env`. Traefik reads only
+  one static source: while a config file is mounted, command-line flags are ignored (verified
+  on v3.6), so these values cannot be passed as flags next to `traefik.yml`.
 - `.env` values: on `<CLOUD_SERVER>` set `VENUE_UPSTREAM=<WG_VENUE_ADDR>:443`; on
-  `<VENUE_SERVER>` set `PROXY_PROTOCOL_TRUSTED_IPS=<WG_APP_ADDR>/32`.
+  `<VENUE_SERVER>` set `TRAEFIK_STATIC_FILE` and put `<WG_APP_ADDR>/32` under
+  `entryPoints.websecure.proxyProtocol.trustedIPs` in that file.
 
 ## Step 1: prepare `<VENUE_SERVER>` (a week or more before the event)
 
@@ -78,7 +90,7 @@ address, and a small HTTP echo service behind the venue router.
 3. Tunnel: [wireguard-tunnel.md](wireguard-tunnel.md), variant "tunnel on the venue
    router". Allow `<WG_APP_ADDR>` to reach `<VENUE_SERVER_IP>:443` in the router's
    forward rules.
-4. `PROXY_PROTOCOL_TRUSTED_IPS=<WG_APP_ADDR>/32`, recreate Traefik.
+4. In the venue static file set `proxyProtocol.trustedIPs` to `<WG_APP_ADDR>/32`, recreate Traefik.
 5. Local DNS: the static wildcard entry for `<LAN_DOMAIN>` on the MikroTik.
 6. Bring the stack up and check it from a LAN client by name.
 
@@ -150,7 +162,7 @@ two phones, once with and once without Private DNS.
 | Tunnel down: the public site is unreachable  | The cloud entry has no fallback page; use rollback; monitor the tunnel in preflight |
 | `APP_KEY` differs after the move             | Copy it before the restore; the restore drill verifies decryption                   |
 | Two stacks write at the same time            | Stop the cloud app and queue before the final backup                                |
-| PROXY header from an untrusted source        | `trustedips` lists only `<WG_APP_ADDR>/32`; the default is loopback                 |
+| PROXY header from an untrusted source        | `trustedIPs` lists only `<WG_APP_ADDR>/32`; without it no header is trusted         |
 
 ## Alternatives considered
 

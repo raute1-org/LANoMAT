@@ -88,12 +88,9 @@ services:
       # interpolation) — passed as a CLI flag here instead, where
       # `${ACME_EMAIL}` is Compose's own substitution from `.env`.
       - '--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}'
-      # Venue behind a cloud entry point (docs/infra/app-at-the-venue.md): accept
-      # the PROXY protocol header only from the cloud Traefik's tunnel address, so
-      # the real client address survives the TLS pass-through. Connections without
-      # a header (LAN clients, the default) keep working. The default is a
-      # loopback no-op for every deployment that does not use this.
-      - '--entrypoints.websecure.proxyprotocol.trustedips=${PROXY_PROTOCOL_TRUSTED_IPS:-127.0.0.1/32}'
+      # NOTE: Traefik reads one static source. While traefik.yml is mounted, these
+      # flags (including the one above) are ignored; venue settings (DNS-01, the
+      # PROXY protocol trusted addresses) live in docker/traefik/traefik.venue.example.yml.
     env_file: .env
     ports:
       - '80:80'
@@ -103,7 +100,7 @@ services:
       - '127.0.0.1:8090:8080'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ${TRAEFIK_STATIC_FILE:-./docker/traefik/traefik.yml}:/etc/traefik/traefik.yml:ro
       - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - traefik_acme:/letsencrypt
 
