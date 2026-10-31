@@ -177,3 +177,9 @@ states, German copy in `lang/de/web_voice.php`.
   `microphone=(self)`.
 - Orga and helpers get **no** extra rights in this module: every moderation and visibility privilege is admin only, as
   in the brief. Say so if orga should moderate the rooms of their event.
+
+## Provisional defaults (to be confirmed by the owner)
+
+Only "moderation is admin only" is an owner decision. These are provisional defaults, not built around any further:
+general channels are installation-wide (not per event); archived match chat is deleted after 7 days; LiveKit
+webhooks (live occupancy in the list) are a follow-up, not part of this change.
