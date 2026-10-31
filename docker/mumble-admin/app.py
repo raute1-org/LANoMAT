@@ -10,8 +10,10 @@ purpose-built sidecar: it only implements what LANoMAT's `MumbleClient`
 interface, so it is never touched by the Laravel test suite.
 
 Talks to the Mumble server's Ice interface (`MUMBLE_CONFIG_ICE`, enabled in
-compose.yml) using the `Murmur` Ice module (stable Mumble 1.4.x slice, see
-docker/mumble-admin/Murmur.ice). Ice's Python binding has no portable
+compose.yml). Mumble 1.5 renamed the Ice module from `Murmur` to `MumbleServer`
+(the operations we use are unchanged), so both slices are bundled
+(docker/mumble-admin/MumbleServer.ice for 1.5.x, Murmur.ice for 1.4.x) and the
+module the server actually speaks is picked on first use. Ice's Python binding has no portable
 manylinux wheel, so this image installs the `python3-zeroc-ice` Ubuntu
 package (apt, universe) instead of a pip package — it matches the Ice ABI
 (3.7) the official `mumblevoip/mumble-server` image itself ships
@@ -41,8 +43,10 @@ ICE_PORT = os.environ.get("MUMBLE_ICE_PORT", "6502")
 ICE_SECRET = os.environ.get("MUMBLE_ICE_SECRET", "")
 ADMIN_TOKEN = os.environ.get("MUMBLE_ADMIN_TOKEN", ICE_SECRET)
 SERVER_ID = int(os.environ.get("MUMBLE_SERVER_ID", "1"))
-SLICE_FILE = os.environ.get("MUMBLE_ICE_SLICE", "/app/Murmur.ice")
-# Base Ice slice include dir (zeroc-ice-slice apt package): Murmur.ice's
+# Comma separated, tried in this order: the module name is part of the Ice type id, so a 1.5 server
+# only answers the `MumbleServer` module and a 1.4 server only the `Murmur` one.
+SLICE_FILES = [f for f in os.environ.get("MUMBLE_ICE_SLICES", "/app/MumbleServer.ice,/app/Murmur.ice").split(",") if f]
+# Base Ice slice include dir (zeroc-ice-slice apt package): the slices'
 # `#include <Ice/SliceChecksumDict.ice>` needs this on the include path.
 SLICE_INCLUDE_DIR = os.environ.get("MUMBLE_ICE_SLICE_INCLUDE_DIR", "/usr/share/ice/slice")
 
@@ -61,7 +65,8 @@ app = FastAPI(title="mumble-admin", description="Ice-REST sidecar for the Mumble
 bearer = HTTPBearer(auto_error=False)
 
 _ice_communicator: Optional["Ice.Communicator"] = None
-_murmur_module = None
+_ice_modules: list = []
+_active_module = None
 
 
 class ChannelIn(BaseModel):
@@ -94,26 +99,30 @@ def require_token(credentials: HTTPAuthorizationCredentials | None = Security(be
 def _map_ice_errors(func):
     """Translate Murmur/Ice exceptions into sane HTTP statuses.
 
-    Without this, `Murmur.InvalidChannelException` (e.g. deleting an
-    already-removed channel — routine once Tasks 20/21 land) or
-    `Murmur.InvalidSecretException` (Ice auth misconfigured on our side)
-    would propagate out of FastAPI as an unhandled 500 with a raw stack
-    trace. Applied to every endpoint (and `_get_server`, which all of them
-    call) so the mapping is consistent everywhere Ice is touched.
+    Without this, `InvalidChannelException` (e.g. deleting an already-removed
+    channel — routine once Tasks 20/21 land) or `InvalidSecretException` (Ice
+    auth misconfigured on our side) would propagate out of FastAPI as an
+    unhandled 500 with a raw stack trace. Applied to every endpoint (and
+    `_get_server`, which all of them call) so the mapping is consistent
+    everywhere Ice is touched. The exception classes of every loaded slice
+    module are caught: which module the server speaks is only known after the
+    first call.
     """
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        murmur = _load_murmur_module()
+        modules = _load_ice_modules()
+        invalid_channel = tuple(m.InvalidChannelException for m in modules)
+        invalid_secret = tuple(m.InvalidSecretException for m in modules)
         try:
             return func(*args, **kwargs)
         except HTTPException:
             # Already a deliberate HTTP response (e.g. require_token, or a
             # sane status raised inside `_get_server`) — pass through as-is.
             raise
-        except murmur.InvalidChannelException as exc:
+        except invalid_channel as exc:
             raise HTTPException(status_code=404, detail="unknown channel id") from exc
-        except murmur.InvalidSecretException as exc:
+        except invalid_secret as exc:
             # Ice-level auth failure between this sidecar and Murmur (wrong
             # MUMBLE_ICE_SECRET / icesecretwrite mismatch) — a server-side
             # misconfiguration, distinct from the client's bearer token
@@ -125,24 +134,36 @@ def _map_ice_errors(func):
     return wrapper
 
 
-def _load_murmur_module():
-    global _murmur_module
-    if _murmur_module is None:
-        Ice.loadSlice(f"-I{SLICE_INCLUDE_DIR} {SLICE_FILE}")
-        import Murmur  # type: ignore[import-not-found]  # noqa: PLC0415 (generated at runtime by loadSlice)
-
-        _murmur_module = Murmur
-    return _murmur_module
+def _load_ice_modules() -> list:
+    """Load every bundled slice once and return the generated Python modules."""
+    global _ice_modules
+    if not _ice_modules:
+        loaded = []
+        for slice_file in SLICE_FILES:
+            Ice.loadSlice(f"-I{SLICE_INCLUDE_DIR} {slice_file}")
+            name = "MumbleServer" if "MumbleServer" in slice_file else "Murmur"
+            # Generated at runtime by loadSlice, so it cannot be imported statically.
+            loaded.append(__import__(name))
+        _ice_modules = loaded
+    return _ice_modules
 
 
 def _get_server():
-    """Return a live proxy to the configured Murmur virtual server."""
-    global _ice_communicator
-    murmur = _load_murmur_module()
+    """Return a live proxy to the configured Mumble virtual server."""
+    global _ice_communicator, _active_module
+    modules = _load_ice_modules()
     if _ice_communicator is None:
         _ice_communicator = Ice.initialize(sys.argv)
     proxy = _ice_communicator.stringToProxy(f"Meta:tcp -h {ICE_HOST} -p {ICE_PORT}")
-    meta = murmur.MetaPrx.checkedCast(proxy)
+
+    meta = None
+    # The module that worked last time first; on a version change the other one is tried.
+    for module in sorted(modules, key=lambda m: m is not _active_module):
+        meta = module.MetaPrx.checkedCast(proxy)
+        if meta is not None:
+            _active_module = module
+            break
+
     if meta is None:
         raise HTTPException(status_code=502, detail="could not reach Mumble Ice Meta interface")
     context = {"secret": ICE_SECRET} if ICE_SECRET else {}

@@ -311,7 +311,7 @@ services:
   # compose network. icesecretwrite gates all Ice write calls.
   mumble:
     restart: unless-stopped
-    image: mumblevoip/mumble-server:v1.4.230
+    image: mumblevoip/mumble-server:v1.5.939
     environment:
       MUMBLE_CONFIG_ICE: 'tcp -h 0.0.0.0 -p 6502'
       MUMBLE_CONFIG_ICESECRETWRITE: ${MUMBLE_ICE_SECRET:-}

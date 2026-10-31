@@ -24,7 +24,7 @@ COPY requirements.txt .
 # same interpreter python3-zeroc-ice (an apt package) is registered against.
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
-COPY Murmur.ice app.py .
+COPY Murmur.ice MumbleServer.ice app.py .
 
 # Run the FastAPI process as a non-root user (defense in depth: this
 # sidecar holds the Mumble Ice admin secret). Created after the apt/pip
