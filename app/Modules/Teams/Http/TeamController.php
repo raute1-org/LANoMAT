@@ -3,8 +3,8 @@
 namespace App\Modules\Teams\Http;
 
 use App\Concerns\ResolvesAuthenticatedUser;
-use App\Models\User;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Teams\Actions\CreateTeam;
 use App\Modules\Teams\Actions\LeaveTeam;
 use App\Modules\Teams\Actions\RequestToJoin;
@@ -144,12 +144,11 @@ class TeamController extends Controller
     {
         $this->authorize('transfer', $team);
 
-        $data = $request->validate([
+        $request->validate([
             'user_id' => ['required', 'integer', Rule::notIn([$team->owner_id])],
         ]);
 
-        $newOwner = User::query()->find($data['user_id']);
-        abort_if($newOwner === null, 404);
+        $newOwner = User::query()->findOrFail($request->integer('user_id'));
 
         try {
             $action->handle($team, $newOwner);

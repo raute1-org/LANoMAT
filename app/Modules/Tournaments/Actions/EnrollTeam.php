@@ -57,7 +57,7 @@ class EnrollTeam
             // for another team entry of the tournament (F-R2A-5).
             $this->rosterGuard->assertNoSharedPlayers(
                 $tournament,
-                $team->members->pluck('user_id')->map(fn ($id): int => (int) $id)->all(),
+                $team->members->pluck('user_id')->map(fn ($id): int => (int) $id)->values()->all(),
             );
 
             $activeCount = TournamentEntry::query()

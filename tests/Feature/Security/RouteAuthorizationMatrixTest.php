@@ -557,7 +557,7 @@ function idorScenarios(): array
             },
         ],
         'team management by a non-owner' => [
-            'covers' => ['PATCH teams/{team}', 'GET teams/{team}/edit', 'POST teams/{team}/requests/{teamRequest}'],
+            'covers' => ['PATCH teams/{team}', 'GET teams/{team}/edit', 'POST teams/{team}/requests/{teamRequest}', 'POST teams/{team}/transfer'],
             'build' => function (User $a, User $b) {
                 $team = Team::factory()->create(['owner_id' => $a->id]);
                 $req = TeamJoinRequest::factory()->create(['team_id' => $team->id]);
@@ -566,6 +566,7 @@ function idorScenarios(): array
                     ['PATCH', "/teams/{$team->id}"],
                     ['GET', "/teams/{$team->id}/edit"],
                     ['POST', "/teams/{$team->id}/requests/{$req->id}"],
+                    ['POST', "/teams/{$team->id}/transfer"],
                 ];
             },
         ],

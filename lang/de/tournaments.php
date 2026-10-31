@@ -204,7 +204,7 @@ return [
         'unsupported_single_elimination_size' => 'Einfach-K.-o.-System wird nur für 2 bis 64 teilnehmende Anmeldungen unterstützt.',
         'checkin_window_closed_early' => 'Das Check-in-Fenster ist bereits abgelaufen. Passe zuerst „Check-in schließt“ im Turnier an.',
         'checkin_closes_after_opens' => 'Check-in schließt muss nach Check-in öffnet liegen.',
-        'match_not_ready' => 'Dieses Match ist noch nicht bereit, um gemeldet zu werden.',
+        'match_not_ready' => 'Dieses Match kann gerade nicht gemeldet werden: Es ist noch nicht spielbereit oder schon entschieden.',
         'match_already_reported' => 'Für dieses Match liegt bereits eine Meldung vor. Bestätige oder bestreite sie.',
         'match_not_decidable' => 'Dieses Match hat noch keine zwei Teilnehmer und kann nicht entschieden werden.',
         'result_locked' => 'Folge-Matches wurden bereits begonnen oder entschieden. Das Ergebnis kann nicht mehr geändert werden.',
@@ -283,7 +283,8 @@ return [
         'losses' => 'N',
         'points' => 'Punkte',
         'difference' => 'Diff.',
-        'tiebreak' => 'Bei Gleichstand zählen Siege, dann Punktdifferenz, dann der direkte Vergleich und die erzielten Punkte.',
+        'tiebreak' => 'Bei Gleichstand zählen Siege, dann der direkte Vergleich. Bleibt es gleich, teilen sich die Teilnehmer den Platz.',
+        'tie_pending' => 'Gleichstand – Orga entscheidet.',
     ],
 
     'warmup' => [

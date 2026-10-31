@@ -174,12 +174,8 @@ it('requires a reason in the decision form', function () {
 
 it('does not decide a round robin tie silently and lets the orga name the winner', function () {
     $tournament = decisionTournament(3, TournamentFormat::RoundRobin);
-    $matches = GameMatch::where('tournament_id', $tournament->id)->get();
     // perfect cycle: every entry wins exactly one match
-    foreach ($matches as $m) {
-        $cycleWinnerIsEntry1 = ($m->entry2_id - $m->entry1_id) === 1;
-        app(OverrideMatchResult::class)->handle($m, $cycleWinnerIsEntry1 ? 1 : 0, $cycleWinnerIsEntry1 ? 0 : 1, 'cycle');
-    }
+    playCycle($tournament);
 
     $tournament->refresh();
     expect($tournament->status)->toBe(TournamentStatus::Live)
@@ -241,3 +237,30 @@ it('refuses a second report with the existing report still the only one', functi
 
     expect(MatchReport::where('match_id', $match->id)->count())->toBe(1);
 });
+
+it('shows shared ranks and the tie hint copy for a tied round robin', function () {
+    $tournament = decisionTournament(3, TournamentFormat::RoundRobin);
+    playCycle($tournament);
+
+    $this->get("/tournaments/{$tournament->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('standings.0.rank', 1)->where('standings.1.rank', 1)->where('standings.2.rank', 1)
+            ->where('tournament.winnerEntryId', null)
+            ->where('standingsLabels.tie_pending', 'Gleichstand – Orga entscheidet.'));
+
+    Livewire::test(EditTournament::class, ['record' => $tournament->getRouteKey()])
+        ->assertActionVisible('setWinner');
+});
+
+/** Three entries a < b < c play a perfect cycle: a beats b, b beats c, c beats a. */
+function playCycle(Tournament $tournament): void
+{
+    [$a, $b, $c] = TournamentEntry::where('tournament_id', $tournament->id)->orderBy('id')->pluck('id')->all();
+    $beats = [$a => $b, $b => $c, $c => $a];
+
+    foreach (GameMatch::where('tournament_id', $tournament->id)->get() as $m) {
+        $entry1Wins = $beats[$m->entry1_id] === $m->entry2_id;
+        app(OverrideMatchResult::class)->handle($m, $entry1Wins ? 1 : 0, $entry1Wins ? 0 : 1, 'cycle');
+    }
+}

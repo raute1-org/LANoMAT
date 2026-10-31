@@ -53,7 +53,10 @@ const transferCandidates = computed(() =>
 const transferForm = useForm({ user_id: '' });
 
 function transfer() {
-    if (transferForm.user_id === '' || !confirm(props.labels.transfer_confirm)) {
+    if (
+        transferForm.user_id === '' ||
+        !confirm(props.labels.transfer_confirm)
+    ) {
         return;
     }
 

@@ -25,7 +25,7 @@ use Illuminate\Support\Collection;
 class TeamRosterGuard
 {
     /**
-     * @param  list<int>  $userIds
+     * @param  array<int, int>  $userIds
      */
     public function assertNoSharedPlayers(Tournament $tournament, array $userIds, ?int $exceptEntryId = null): void
     {
@@ -55,12 +55,12 @@ class TeamRosterGuard
             throw TournamentException::entryRosterInvalid();
         }
 
-        $userIds = $team->members->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+        $userIds = $team->members->pluck('user_id')->map(fn ($id): int => (int) $id)->values()->all();
 
         $this->assertNoSharedPlayers($tournament, $userIds, $entry->id);
 
         $entry->roster_snapshot = $team->members
-            ->map(fn ($member): array => ['user_id' => $member->user_id, 'name' => $member->user?->name ?? ''])
+            ->map(fn ($member): array => ['user_id' => $member->user_id, 'name' => ($member->user->name ?? '')])
             ->all();
         $entry->save();
     }
@@ -98,13 +98,13 @@ class TeamRosterGuard
         }
 
         $entry->roster_snapshot = $team->members
-            ->map(fn ($member): array => ['user_id' => $member->user_id, 'name' => $member->user?->name ?? ''])
+            ->map(fn ($member): array => ['user_id' => $member->user_id, 'name' => ($member->user->name ?? '')])
             ->all();
         $entry->save();
     }
 
     /**
-     * @param  list<int>  $userIds
+     * @param  array<int, int>  $userIds
      * @param  Collection<int, TournamentEntry>  $entries
      */
     private function assertDisjoint(array $userIds, Collection $entries): void
