@@ -28,9 +28,12 @@ use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Policies\EventPhotoPolicy;
+use App\Modules\Games\Contracts\EggCatalog;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
+use App\Modules\Games\Support\NullEggCatalog;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\GameServers\HttpPelicanClient;
@@ -40,6 +43,8 @@ use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
+use App\Modules\GameServers\Support\PelicanEggCatalog;
+use App\Modules\GameServers\Support\UdpServerQuery;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
@@ -85,6 +90,16 @@ use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
 use App\Modules\Preflight\Checks\StorageWritableCheck;
 use App\Modules\Preflight\Checks\TeamSpeakSidecarCheck;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
+use App\Modules\Provisioning\Contracts\HostKeyScanner;
+use App\Modules\Provisioning\Contracts\HostKeyTrust;
+use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
+use App\Modules\Provisioning\HypervisorClients;
+use App\Modules\Provisioning\Models\Hypervisor;
+use App\Modules\Provisioning\Models\ProvisioningRun;
+use App\Modules\Provisioning\Policies\HypervisorPolicy;
+use App\Modules\Provisioning\Policies\ProvisioningRunPolicy;
+use App\Modules\Provisioning\Support\CrossCheckHostKeyTrust;
+use App\Modules\Provisioning\Support\PhpseclibHostKeyScanner;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
@@ -177,10 +192,22 @@ class AppServiceProvider extends ServiceProvider
             (int) config('services.pelican.connect_timeout'),
         ));
 
+        // Games must not import GameServers, so the preset form asks the Games-owned
+        // EggCatalog contract; the panel-backed one is bound only while GameServers is on.
+        $this->app->scoped(EggCatalog::class, fn ($app): EggCatalog => $app->make(Modules::class)->enabled(Module::GameServers)
+            ? $app->make(PelicanEggCatalog::class)
+            : new NullEggCatalog);
+
+        $this->app->bind(ServerQuery::class, UdpServerQuery::class);
+
         $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(
             (int) config('services.hosts.connect_timeout'),
             (bool) config('services.hosts.strict_host_key'),
         ));
+
+        $this->app->bind(HypervisorClientFactory::class, HypervisorClients::class);
+        $this->app->bind(HostKeyScanner::class, PhpseclibHostKeyScanner::class);
+        $this->app->bind(HostKeyTrust::class, CrossCheckHostKeyTrust::class);
 
         $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
             (string) config('services.music_assistant.base_url'),
@@ -400,6 +427,11 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::Hosts)) {
             Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
+        }
+
+        if ($this->on(Module::Provisioning)) {
+            Gate::policy(Hypervisor::class, HypervisorPolicy::class);
+            Gate::policy(ProvisioningRun::class, ProvisioningRunPolicy::class);
         }
 
         if ($this->on(Module::CustomServers)) {

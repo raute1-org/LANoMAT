@@ -44,6 +44,7 @@ export type ModuleKey =
     | 'notifications'
     | 'preflight'
     | 'presence'
+    | 'provisioning'
     | 'recap'
     | 'registration'
     | 'schedule'

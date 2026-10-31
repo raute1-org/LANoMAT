@@ -2,6 +2,7 @@
 
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Domain\PelicanAllocation;
 use App\Modules\GameServers\Domain\PelicanEgg;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Support\GuardrailPolicy;
@@ -67,4 +68,55 @@ it('round-trips the new typed config fields through toArray/fromArray', function
     $config = new ServerConfig(maxPlayers: 8, memoryMb: 2048, diskMb: 4096, cpuPercent: 150, environment: ['A' => 'b']);
 
     expect(ServerConfig::fromArray($config->toArray()))->toEqual($config);
+});
+
+it('places the server on the planned allocations and gives extra ports their own variable', function () {
+    $fake = fakePelican();
+    $fake->eggs['4'] = new PelicanEgg('4', 'CS2', ['SERVER_PORT_X' => '', 'TV_PORT' => '27020']);
+    $game = Game::factory()->create();
+    $config = (new ServerConfig(maxPlayers: 10, extraPorts: ['TV_PORT']))->toArray();
+    $allocations = [new PelicanAllocation('11', '192.0.2.10', 27015), new PelicanAllocation('12', '192.0.2.10', 27016)];
+
+    $spec = (new ServerSpecBuilder($fake))->build($game, '4', $config, 'srv', allocations: $allocations);
+
+    expect($spec->allocationId)->toBe('11')
+        ->and($spec->additionalAllocationIds)->toBe(['12'])
+        ->and($spec->environment['TV_PORT'])->toBe('27016')
+        ->and($spec->limits->allocations)->toBe(2);
+});
+
+it('names the server through the hostname variable the egg declares, unless the preset sets one', function () {
+    $fake = fakePelican();
+    $fake->eggs['4'] = new PelicanEgg('4', 'GMod', ['SERVER_HOSTNAME' => 'LANoMAT Server']);
+    $game = Game::factory()->create();
+
+    $named = (new ServerSpecBuilder($fake))->build($game, '4', [], 'srv', displayName: 'Sommer-LAN TTT');
+    $fixed = (new ServerSpecBuilder($fake))->build($game, '4', (new ServerConfig(environment: ['SERVER_HOSTNAME' => 'Fixed']))->toArray(), 'srv', displayName: 'Ignored');
+
+    expect($named->environment['SERVER_HOSTNAME'])->toBe('Sommer-LAN TTT')
+        ->and($fixed->environment['SERVER_HOSTNAME'])->toBe('Fixed');
+});
+
+it('strips characters from a display name that could break the startup line', function () {
+    $fake = fakePelican();
+    $fake->eggs['4'] = new PelicanEgg('4', 'GMod', ['SERVER_HOSTNAME' => 'x']);
+
+    $spec = (new ServerSpecBuilder($fake))->build(Game::factory()->create(), '4', [], 'srv', displayName: 'My "LAN"; $(rm -rf) `x` \\ Server');
+
+    expect($spec->environment['SERVER_HOSTNAME'])->toBe('My LAN rm -rf x Server');
+});
+
+it('hands configured secrets to the egg only for presets that need them', function () {
+    config(['services.pelican.steam_web_api_key' => str_repeat('A', 32), 'services.pelican.gslt' => str_repeat('B', 32)]);
+    $fake = fakePelican();
+    $fake->eggs['4'] = new PelicanEgg('4', 'GMod', ['STEAM_WEB_API_KEY' => '', 'STEAM_ACC' => '']);
+    $game = Game::factory()->create();
+
+    $plain = (new ServerSpecBuilder($fake))->build($game, '4', [], 'srv');
+    $needy = (new ServerSpecBuilder($fake))->build($game, '4', [], 'srv', requires: ['authkey', 'gslt']);
+
+    expect($plain->environment['STEAM_WEB_API_KEY'])->toBe('')
+        ->and($plain->environment['STEAM_ACC'])->toBe('')
+        ->and($needy->environment['STEAM_WEB_API_KEY'])->toBe(str_repeat('A', 32))
+        ->and($needy->environment['STEAM_ACC'])->toBe(str_repeat('B', 32));
 });

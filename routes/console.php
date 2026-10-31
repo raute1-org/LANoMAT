@@ -18,6 +18,9 @@ if ($modules->enabled(Module::Discord)) {
     Schedule::command('lanomat:sweep-discord-outbox')->everyFiveMinutes();
 }
 Schedule::command('lanomat:tournament-tick')->everyMinute();
+if ($modules->enabled(Module::GameServers)) {
+    Schedule::command('gameservers:refresh-queries')->everyMinute();
+}
 if ($modules->enabled(Module::Lfg)) {
     Schedule::command('lanomat:prune-lfg')->everyFiveMinutes();
 }

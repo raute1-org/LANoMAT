@@ -38,4 +38,9 @@ class LancacheException extends DomainException
             'lancache.errors.not_a_lancache_host',
         );
     }
+
+    public static function commandFailed(): self
+    {
+        return new self('A LanCache stack command failed on the host.', 'lancache.errors.command_failed');
+    }
 }

@@ -26,6 +26,12 @@ class ServerLinkPolicy
         return $user->isOrga();
     }
 
+    /** Starting a new server from a preset (class-level: there is no record yet). */
+    public function start(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
     public function power(User $user, ServerLink $link): bool
     {
         return $user->isOrga();

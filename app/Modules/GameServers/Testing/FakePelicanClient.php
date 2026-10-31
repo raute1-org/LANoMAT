@@ -16,6 +16,7 @@ use App\Modules\GameServers\Domain\ServerStats;
 use App\Modules\GameServers\Enums\ServerState;
 use App\Modules\GameServers\Models\ServerLink;
 use PHPUnit\Framework\Assert;
+use Symfony\Component\Yaml\Yaml;
 
 class FakePelicanClient implements PelicanClient
 {
@@ -34,7 +35,7 @@ class FakePelicanClient implements PelicanClient
     /** @var list<PelicanAllocation> */
     public array $allocations = [];
 
-    /** @var array<string, PelicanEgg> keyed by egg id */
+    /** @var array<int|string, PelicanEgg> keyed by egg id (numeric strings become int keys) */
     public array $eggs = [];
 
     /**
@@ -45,6 +46,22 @@ class FakePelicanClient implements PelicanClient
      * @var array<int|string, PelicanServer>
      */
     private array $servers = [];
+
+    /** @var list<string> egg contents passed to importEgg() */
+    public array $importedEggs = [];
+
+    /** @var list<array{node: string, ip: string, ports: list<string>}> */
+    public array $createdAllocations = [];
+
+    /** @var list<string> numeric server ids that were reinstalled */
+    public array $reinstalled = [];
+
+    /** @var array<string, array<string, list<string>>> identifier => directory => entry names */
+    private array $files = [];
+
+    private ?\Throwable $failNextImportWith = null;
+
+    private ?\Throwable $failNextAllocationCreateWith = null;
 
     private int $sequence = 0;
 
@@ -59,6 +76,26 @@ class FakePelicanClient implements PelicanClient
     public function failNextCreateWith(\Throwable $e): void
     {
         $this->failNextCreateWith = $e;
+    }
+
+    public function failNextImportWith(\Throwable $e): void
+    {
+        $this->failNextImportWith = $e;
+    }
+
+    public function failNextAllocationCreateWith(\Throwable $e): void
+    {
+        $this->failNextAllocationCreateWith = $e;
+    }
+
+    /**
+     * Test helper: what `listFiles($identifier, $directory)` returns.
+     *
+     * @param  list<string>  $names
+     */
+    public function setFiles(string $identifier, string $directory, array $names): void
+    {
+        $this->files[$identifier][$directory] = $names;
     }
 
     /**
@@ -79,6 +116,7 @@ class FakePelicanClient implements PelicanClient
         }
 
         $id = (string) ++$this->sequence;
+        $allocation = $this->markAssigned($spec->allocationId);
 
         $server = new PelicanServer(
             id: $id,
@@ -86,11 +124,17 @@ class FakePelicanClient implements PelicanClient
             identifier: self::identifierFor($id),
             uuid: self::identifierFor($id).'-0000-4000-8000-000000000000',
             name: $spec->name,
+            address: $allocation?->address(),
+            port: $allocation?->port,
             nodeId: $spec->nodeId,
             allocationId: $spec->allocationId,
             limits: $spec->limits,
         );
         $this->servers[$id] = $server;
+
+        foreach ($spec->additionalAllocationIds as $additionalId) {
+            $this->markAssigned($additionalId);
+        }
 
         $this->created[] = ['id' => $id, 'eggId' => $spec->eggId, 'spec' => $spec];
 
@@ -184,6 +228,80 @@ class FakePelicanClient implements PelicanClient
     public function getEgg(string $eggId): PelicanEgg
     {
         return $this->eggs[$eggId] ?? new PelicanEgg($eggId, 'Fake egg');
+    }
+
+    public function importEgg(string $content): PelicanEgg
+    {
+        if ($this->failNextImportWith !== null) {
+            $e = $this->failNextImportWith;
+            $this->failNextImportWith = null;
+
+            throw $e;
+        }
+
+        $this->importedEggs[] = $content;
+        $parsed = Yaml::parse($content);
+        $uuid = (string) ($parsed['uuid'] ?? '');
+
+        foreach ($this->eggs as $existing) {
+            if ($existing->uuid === $uuid) {
+                return $existing;
+            }
+        }
+
+        $id = (string) (100 + count($this->importedEggs));
+        $variables = [];
+
+        foreach ($parsed['variables'] ?? [] as $variable) {
+            $variables[(string) $variable['env_variable']] = (string) ($variable['default_value'] ?? '');
+        }
+
+        return $this->eggs[$id] = new PelicanEgg($id, (string) ($parsed['name'] ?? ''), $variables, [], $uuid);
+    }
+
+    public function createAllocations(string $nodeId, string $ip, array $ports): void
+    {
+        if ($this->failNextAllocationCreateWith !== null) {
+            $e = $this->failNextAllocationCreateWith;
+            $this->failNextAllocationCreateWith = null;
+
+            throw $e;
+        }
+
+        $this->createdAllocations[] = ['node' => $nodeId, 'ip' => $ip, 'ports' => $ports];
+
+        foreach ($ports as $port) {
+            [$from, $to] = array_map('intval', array_pad(explode('-', $port, 2), 2, $port));
+
+            for ($p = $from; $p <= $to; $p++) {
+                $this->allocations[] = new PelicanAllocation((string) (1000 + count($this->allocations)), $ip, $p);
+            }
+        }
+    }
+
+    public function listFiles(string $identifier, string $directory = '/'): array
+    {
+        return $this->files[$identifier][$directory] ?? [];
+    }
+
+    public function reinstallServer(string $serverId): void
+    {
+        $this->reinstalled[] = $serverId;
+    }
+
+    private function markAssigned(?string $allocationId): ?PelicanAllocation
+    {
+        if ($allocationId === null) {
+            return null;
+        }
+
+        foreach ($this->allocations as $i => $allocation) {
+            if ($allocation->id === $allocationId) {
+                return $this->allocations[$i] = new PelicanAllocation($allocation->id, $allocation->ip, $allocation->port, $allocation->alias, true);
+            }
+        }
+
+        return null;
     }
 
     public function assertServerCreated(?string $eggId = null): void

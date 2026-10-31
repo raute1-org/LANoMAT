@@ -1,0 +1,64 @@
+{
+  "data": [
+    {
+      "active": 1,
+      "avail": 1106602627171,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "storage-thin-1",
+      "total": 3960639324160,
+      "type": "lvmthin",
+      "used": 2854036696989,
+      "used_fraction": 0.720599999999824
+    },
+    {
+      "active": 1,
+      "avail": 3966289051648,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "storage-thin-2",
+      "total": 3966289051648,
+      "type": "lvmthin",
+      "used": 0,
+      "used_fraction": 0
+    },
+    {
+      "active": 1,
+      "avail": 26201550848,
+      "content": "vztmpl,backup,iso",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local",
+      "total": 100861726720,
+      "type": "dir",
+      "used": 69489438720,
+      "used_fraction": 0.688957456706131
+    },
+    {
+      "active": 1,
+      "avail": 833428738435,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local-lvm",
+      "total": 853398257664,
+      "type": "lvmthin",
+      "used": 19969519229,
+      "used_fraction": 0.0233999999996044
+    },
+    {
+      "active": 1,
+      "avail": 4242368626688,
+      "content": "backup",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "storage-pbs",
+      "total": 7933420109824,
+      "type": "pbs",
+      "used": 3690929848320,
+      "used_fraction": 0.465238169317354
+    }
+  ]
+}

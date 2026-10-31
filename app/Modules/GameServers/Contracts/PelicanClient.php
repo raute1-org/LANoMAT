@@ -119,4 +119,41 @@ interface PelicanClient
      * @throws GameServerException
      */
     public function getEgg(string $eggId): PelicanEgg;
+
+    /**
+     * Imports (or updates, matched by the egg's uuid) an egg from its YAML or
+     * JSON content (Application API `POST /eggs/import`, needs write scope on
+     * eggs). Idempotent: re-importing the same uuid overwrites the egg.
+     *
+     * @throws GameServerException
+     */
+    public function importEgg(string $content): PelicanEgg;
+
+    /**
+     * Creates allocations for the given ports (single ports or `a-b` ranges)
+     * on the node's address (Application API, needs write scope on
+     * allocations; answers 204, so list again afterwards).
+     *
+     * @param  list<string>  $ports
+     *
+     * @throws GameServerException
+     */
+    public function createAllocations(string $nodeId, string $ip, array $ports): void;
+
+    /**
+     * Names of the entries of a server directory (Client API `files/list`).
+     *
+     * @return list<string>
+     *
+     * @throws GameServerException
+     */
+    public function listFiles(string $identifier, string $directory = '/'): array;
+
+    /**
+     * Reinstalls a server (Application API); the panel reports `installing`
+     * again afterwards.
+     *
+     * @throws GameServerException
+     */
+    public function reinstallServer(string $serverId): void;
 }

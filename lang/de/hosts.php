@@ -38,6 +38,7 @@ return [
         'invalid_private_key' => 'Der angegebene SSH-Private-Key ist leer oder ungültig formatiert.',
         'connect_failed' => 'Die Verbindung zum Remote-Host ist fehlgeschlagen.',
         'fingerprint_mismatch' => 'Der Host-Fingerprint stimmt nicht mit dem hinterlegten Fingerprint überein.',
+        'invalid_fingerprint' => 'Der Host-Fingerprint muss die Form SHA256:<base64> haben.',
         'command_failed' => 'Der Befehl konnte auf dem Remote-Host nicht ausgeführt werden.',
     ],
 ];

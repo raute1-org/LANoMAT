@@ -20,6 +20,7 @@ final readonly class ServerSpec
 {
     /**
      * @param  array<string, string|int|bool>  $environment
+     * @param  list<string>  $additionalAllocationIds  Extra allocations (e.g. a SourceTV port) beyond the default one.
      */
     public function __construct(
         public string $name,
@@ -30,5 +31,6 @@ final readonly class ServerSpec
         public ?string $allocationId = null,
         public ?string $nodeId = null,
         public bool $startOnCompletion = true,
+        public array $additionalAllocationIds = [],
     ) {}
 }

@@ -28,8 +28,10 @@ rules").
 
 Every runbook ends with a "What LANoMAT automation would need" section that maps
 its steps to existing modules and contracts (`Hosts`/`RemoteExecutor`,
-`Lancache`, `GameServers`/`PelicanClient`, a future `HypervisorClient`). None of
-it is implemented as a provisioning feature yet.
+`Lancache`, `GameServers`/`PelicanClient`, `HypervisorClient`). The Proxmox VM,
+base system, Docker, ingress firewall, LanCache and egress isolation runbook is
+implemented as the `Provisioning` module, see [`../provisioning.md`](../provisioning.md);
+WireGuard, Pelican and the game server steps are not.
 
 Related, older docs: [`../lancache-setup.md`](../lancache-setup.md) (LanCache
 host runbook used by `ApplyLancacheSetup`), [`../three-server-setup.md`](../three-server-setup.md).
