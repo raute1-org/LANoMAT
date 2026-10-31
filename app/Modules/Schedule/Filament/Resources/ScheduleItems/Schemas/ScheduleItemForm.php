@@ -42,7 +42,11 @@ class ScheduleItemForm
                     ->required()
                     ->disabled(fn (?ScheduleItem $record) => $record?->ref_type !== null),
                 DateTimePicker::make('ends_at')
-                    ->label(__('schedule.fields.ends_at')),
+                    ->label(__('schedule.fields.ends_at'))
+                    ->afterOrEqual('starts_at')
+                    ->validationMessages([
+                        'after_or_equal' => __('schedule.validation.ends_after_starts'),
+                    ]),
                 TextInput::make('location')
                     ->label(__('schedule.fields.location'))
                     ->maxLength(255),

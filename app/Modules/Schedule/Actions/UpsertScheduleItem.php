@@ -4,6 +4,7 @@ namespace App\Modules\Schedule\Actions;
 
 use App\Modules\Events\Models\Event;
 use App\Modules\Schedule\Models\ScheduleItem;
+use Illuminate\Validation\ValidationException;
 
 class UpsertScheduleItem
 {
@@ -19,6 +20,13 @@ class UpsertScheduleItem
         $item ??= new ScheduleItem;
 
         $item->fill($attributes);
+
+        if ($item->ends_at !== null && isset($item->starts_at) && $item->ends_at->lt($item->starts_at)) {
+            throw ValidationException::withMessages([
+                'ends_at' => __('schedule.validation.ends_after_starts'),
+            ]);
+        }
+
         $item->event()->associate($event);
         $item->save();
 

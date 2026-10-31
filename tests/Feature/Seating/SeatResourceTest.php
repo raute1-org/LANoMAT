@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Seating\Filament\Resources\Seats\Pages\CreateSeat;
 use App\Modules\Seating\Filament\Resources\Seats\Pages\EditSeat;
+use App\Modules\Seating\Filament\Resources\Seats\Pages\ListSeats;
 use App\Modules\Seating\Models\Seat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -77,3 +78,20 @@ it('rejects renaming a seat to a label already used in its event', function () {
         ->call('save')
         ->assertHasFormErrors(['label' => 'unique']);
 });
+
+it('rejects oversized grids and bad prefixes in the grid dialog', function (int $rows, int $cols, string $prefix, string $field) {
+    $event = Event::factory()->create();
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(ListSeats::class)
+        ->callAction('generate_grid', ['event_id' => $event->id, 'rows' => $rows, 'cols' => $cols, 'prefix' => $prefix])
+        ->assertHasActionErrors([$field]);
+
+    expect(Seat::query()->count())->toBe(0);
+})->with([
+    'too many rows' => [41, 10, 'A', 'rows'],
+    'too many cols' => [10, 61, 'A', 'cols'],
+    'too many seats' => [40, 40, 'A', 'cols'],
+    'prefix too long' => [2, 2, 'xxxxxxxxxxx', 'prefix'],
+    'blank prefix' => [2, 2, '   ', 'prefix'],
+]);

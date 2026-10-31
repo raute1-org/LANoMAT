@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\DB;
 
 class GenerateSeatGrid
 {
+    public const MAX_ROWS = 40;
+
+    public const MAX_COLS = 60;
+
+    public const MAX_SEATS = 1500;
+
+    public const MAX_PREFIX_LENGTH = 10;
+
     public function handle(Event $event, int $rows, int $cols, string $labelPrefix): int
     {
         // Wrapped in a transaction so a bulk grid generation is atomic: a

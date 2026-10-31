@@ -2,6 +2,7 @@
 
 namespace App\Modules\Schedule\Support;
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Schedule\Enums\ScheduleItemType;
 use App\Modules\Schedule\Models\ScheduleItem;
@@ -21,10 +22,17 @@ class ScheduleCalendar
 
     private const DEFAULT_HOURS = 1;
 
-    public static function for(Event $event): string
+    /**
+     * @param  User|null  $favoritesOf  Restrict the export to this user's favorites.
+     */
+    public static function for(Event $event, ?User $favoritesOf = null): string
     {
         $items = ScheduleItem::query()
             ->where('event_id', $event->id)
+            ->when($favoritesOf !== null, fn ($query) => $query->whereHas(
+                'favorites',
+                fn ($favorites) => $favorites->where('user_id', $favoritesOf?->id),
+            ))
             ->orderBy('starts_at')
             ->orderBy('sort')
             ->get();
@@ -50,9 +58,22 @@ class ScheduleCalendar
         return $item->starts_at->copy()->addHours($hours);
     }
 
+    public static function uid(ScheduleItem $item): string
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        return 'schedule-item-'.$item->id.'@'.(is_string($host) && $host !== '' ? $host : 'lanomat.local');
+    }
+
     private static function toCalendarEvent(ScheduleItem $item): CalendarEvent
     {
+        // Stable identity per item so re-importing or subscribing updates the
+        // existing calendar entry instead of duplicating it; SEQUENCE and
+        // DTSTAMP follow the last modification so clients apply changes.
         $event = CalendarEvent::create($item->title)
+            ->uniqueIdentifier(self::uid($item))
+            ->createdAt($item->updated_at ?? $item->starts_at)
+            ->sequence($item->updated_at?->getTimestamp() ?? 0)
             ->startsAt($item->starts_at)
             ->endsAt($item->ends_at ?? self::estimatedEnd($item));
 
