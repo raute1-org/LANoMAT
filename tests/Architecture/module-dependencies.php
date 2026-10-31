@@ -185,4 +185,7 @@ return [
         2 => 'Infoscreen',
         3 => 'Registration',
     ],
+    'WebVoice' => [
+        0 => 'Tournaments',
+    ],
 ];

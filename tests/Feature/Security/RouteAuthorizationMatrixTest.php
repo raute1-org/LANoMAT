@@ -85,7 +85,7 @@ const PUBLIC_ROUTES = [
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers',
-    'GET voice/setup', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
+    'GET voice/setup', 'GET talk', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',
     'GET settings/connections/{provider}/redirect', 'GET settings/connections/{provider}/callback',
@@ -124,6 +124,13 @@ const OPEN_OBJECT_ROUTES = [
     'GET voice/installers/{installer}/download' => 'published installers are for all users',
     'DELETE user/passkeys/{passkey}' => 'scoped to the caller\'s own passkeys (covered by passkey scenario)',
     'POST screen/{event}/control/{scene}' => 'role middleware',
+    'POST talk/channels/{channel}/token' => 'WebVoiceChannelPolicy join inside IssueJoinToken: roster or general only, tests/Feature/WebVoice/WebVoiceHttpTest',
+    'GET talk/channels/{channel}/messages' => 'WebVoiceChannelPolicy view inside ChannelMessages: roster or general only',
+    'POST talk/channels/{channel}/messages' => 'WebVoiceChannelPolicy post inside PostMessage, author is the caller',
+    'DELETE talk/messages/{message}' => 'moderate ability inside DeleteMessage: admin only',
+    'POST talk/channels/{channel}/participants/{user}/mute' => 'moderate ability inside MuteParticipant: admin only',
+    'DELETE talk/channels/{channel}/participants/{user}/mute' => 'moderate ability inside MuteParticipant: admin only',
+    'POST talk/channels/{channel}/participants/{user}/remove' => 'moderate ability inside RemoveParticipant: admin only',
 ];
 
 /** @return list<LaravelRoute> */

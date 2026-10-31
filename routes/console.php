@@ -35,6 +35,9 @@ if ($modules->enabled(Module::Jukebox)) {
     // see JukeboxTickCommand for the reconciliation logic.
     Schedule::command('lanomat:jukebox-tick')->everyMinute();
 }
+if ($modules->enabled(Module::WebVoice)) {
+    Schedule::command('webvoice:prune')->daily();
+}
 Schedule::command('lanomat:heartbeat')->everyMinute();
 Schedule::command('lanomat:health-watch')->everyFiveMinutes();
 Schedule::job(new RefreshExpiringTokensJob)->hourly();

@@ -53,4 +53,5 @@ export type ModuleKey =
     | 'teams'
     | 'tournaments'
     | 'voice'
-    | 'voting';
+    | 'voting'
+    | 'web_voice';

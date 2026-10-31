@@ -142,6 +142,13 @@ use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
+use App\Modules\WebVoice\Contracts\WebVoiceClient;
+use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnMatchCompleted;
+use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnTournamentCompleted;
+use App\Modules\WebVoice\Listeners\ProvisionWebVoiceChannelsOnMatchReady;
+use App\Modules\WebVoice\Models\WebVoiceChannel;
+use App\Modules\WebVoice\Policies\WebVoiceChannelPolicy;
+use App\Modules\WebVoice\Support\LiveKitClient;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -185,6 +192,14 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(VoiceProviders::class);
+
+        $this->app->bind(WebVoiceClient::class, fn () => new LiveKitClient(
+            (string) config('webvoice.api_url'),
+            (string) config('webvoice.api_key'),
+            (string) config('webvoice.api_secret'),
+            (int) config('webvoice.token_ttl'),
+            (int) config('webvoice.timeout'),
+        ));
 
         $this->app->bind(PelicanClient::class, fn () => new HttpPelicanClient(
             (string) (config('services.pelican.url') ?? config('services.pelican.panel_url')),
@@ -381,6 +396,7 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('csp-report', fn (Request $request) => Limit::perMinute(60)->by('csp-report|'.$request->ip()));
         RateLimiter::for('self-checkin', fn (Request $request) => Limit::perMinute(30)->by('self-checkin|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('web-voice-chat', fn (Request $request) => Limit::perSecond((int) config('webvoice.chat.rate_limit'), (int) config('webvoice.chat.rate_window'))->by('web-voice-chat|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
 
@@ -446,6 +462,10 @@ class AppServiceProvider extends ServiceProvider
             Gate::policy(VoiceClientInstaller::class, VoiceClientInstallerPolicy::class);
         }
 
+        if ($this->on(Module::WebVoice)) {
+            Gate::policy(WebVoiceChannel::class, WebVoiceChannelPolicy::class);
+        }
+
         if ($this->on(Module::Friends)) {
             Gate::policy(Friendship::class, FriendshipPolicy::class);
         }
@@ -501,6 +521,12 @@ class AppServiceProvider extends ServiceProvider
             Event::listen(TournamentStarted::class, ProvisionVoiceOnStart::class);
             Event::listen(MatchReady::class, ProvisionMatchVoiceOnReady::class);
             Event::listen(TournamentCompleted::class, CleanupVoiceOnCompleted::class);
+        }
+
+        if ($this->on(Module::WebVoice)) {
+            Event::listen(MatchReady::class, ProvisionWebVoiceChannelsOnMatchReady::class);
+            Event::listen(MatchCompleted::class, CloseWebVoiceChannelsOnMatchCompleted::class);
+            Event::listen(TournamentCompleted::class, CloseWebVoiceChannelsOnTournamentCompleted::class);
         }
 
         if ($this->on(Module::GameServers)) {
