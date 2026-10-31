@@ -21,6 +21,7 @@ const props = defineProps<{
     needsAudioUnlock: boolean;
     pushToTalk: boolean;
     pttHeld: boolean;
+    headsetMode: boolean;
     voiceReady: boolean;
     canModerate: boolean;
     labels: Record<string, string>;
@@ -31,6 +32,7 @@ const emit = defineEmits<{
     leave: [];
     toggleMic: [];
     setPushToTalk: [enabled: boolean];
+    setHeadsetMode: [enabled: boolean];
     pttDown: [];
     pttUp: [];
     unlockAudio: [];
@@ -224,6 +226,28 @@ onBeforeUnmount(() => {
                 </label>
             </div>
 
+            <label
+                class="mt-3 flex items-start gap-2 text-sm pointer-coarse:min-h-10"
+            >
+                <input
+                    type="checkbox"
+                    class="mt-0.5 size-4 shrink-0 rounded-sm border-input accent-primary focus-visible:ring-2 focus-visible:ring-ring"
+                    :checked="headsetMode"
+                    @change="
+                        emit(
+                            'setHeadsetMode',
+                            ($event.target as HTMLInputElement).checked,
+                        )
+                    "
+                />
+                <span>
+                    {{ labels.headset }}
+                    <span class="block text-xs text-muted-foreground">
+                        {{ labels.headset_hint }}
+                    </span>
+                </span>
+            </label>
+
             <h3 class="mt-6 text-sm font-medium text-muted-foreground">
                 {{ labels.participants }}
             </h3>
@@ -307,6 +331,9 @@ onBeforeUnmount(() => {
             >
                 {{ labels.participants_empty }}
             </p>
+            <div v-if="$slots.diagnostics" class="mt-6">
+                <slot name="diagnostics" />
+            </div>
         </template>
     </section>
 </template>

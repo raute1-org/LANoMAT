@@ -50,5 +50,11 @@ return [
         'echo_cancellation' => true,
         'noise_suppression' => true,
         'auto_gain_control' => true,
+        // Receiver jitter buffer target in ms (`RTCRtpReceiver.jitterBufferTarget`), applied where the
+        // browser supports it. null = leave the browser's adaptive default alone. See the "Measuring
+        // and tuning latency" section of docs/infra/livekit-web-voice.md before changing it.
+        'jitter_buffer_target_ms' => env('LIVEKIT_JITTER_BUFFER_TARGET_MS') !== null && env('LIVEKIT_JITTER_BUFFER_TARGET_MS') !== ''
+            ? (int) env('LIVEKIT_JITTER_BUFFER_TARGET_MS')
+            : null,
     ],
 ];

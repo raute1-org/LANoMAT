@@ -5,7 +5,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
 import ChannelChat from '@/components/webvoice/ChannelChat.vue';
 import ChannelList from '@/components/webvoice/ChannelList.vue';
+import ConnectionDiagnostics from '@/components/webvoice/ConnectionDiagnostics.vue';
+import LatencyTest from '@/components/webvoice/LatencyTest.vue';
 import VoiceRoomPanel from '@/components/webvoice/VoiceRoomPanel.vue';
+import { useConnectionStats } from '@/composables/useConnectionStats';
+import { useLatencyTest } from '@/composables/useLatencyTest';
 import { useWebVoiceRoom } from '@/composables/useWebVoiceRoom';
 import { webVoiceRequest, webVoiceUrls } from '@/lib/webVoiceHttp';
 import type { WebVoiceChannelDto, WebVoiceParticipantView } from '@/types';
@@ -14,12 +18,29 @@ const props = defineProps<{
     channels: WebVoiceChannelDto[];
     me: { id: number; name: string; identity: string };
     canModerate: boolean;
+    canMeasure: boolean;
     voiceReady: boolean;
     chat: { maxLength: number; history: number };
     labels: Record<string, string>;
 }>();
 
 const room = useWebVoiceRoom();
+
+// Orga and admin only: live connection numbers (polled only while the panel is open) and the
+// latency self-test. The jitter buffer choices are what the test can compare; '' = browser default.
+const diagnosticsOpen = ref(false);
+const diagnostics = useConnectionStats(room.room, diagnosticsOpen);
+const latencyTest = useLatencyTest();
+const jitterTarget = ref('');
+const jitterTargets = ['0', '10', '20', '40', '80'];
+
+function runLatencyTest(): void {
+    void latencyTest.run({
+        tuning: room.tuning.value,
+        jitterBufferTargetMs:
+            jitterTarget.value === '' ? null : Number(jitterTarget.value),
+    });
+}
 const selectedId = ref<number | null>(props.channels[0]?.id ?? null);
 
 const selected = computed<WebVoiceChannelDto | null>(
@@ -129,6 +150,7 @@ async function moderate(
                     :needs-audio-unlock="room.needsAudioUnlock.value"
                     :push-to-talk="room.pushToTalk.value"
                     :ptt-held="room.pttHeld.value"
+                    :headset-mode="room.tuning.value.headsetMode"
                     :voice-ready="voiceReady"
                     :can-moderate="canModerate"
                     :labels="labels"
@@ -136,11 +158,36 @@ async function moderate(
                     @leave="room.leave()"
                     @toggle-mic="room.toggleMic()"
                     @set-push-to-talk="(on) => room.setPushToTalk(on)"
+                    @set-headset-mode="(on) => room.setHeadsetMode(on)"
                     @ptt-down="room.pttDown()"
                     @ptt-up="room.pttUp()"
                     @unlock-audio="room.unlockAudio()"
                     @mute="(p) => moderate('mute', p)"
                     @remove="(p) => moderate('remove', p)"
+                >
+                    <template v-if="canMeasure" #diagnostics>
+                        <ConnectionDiagnostics
+                            v-model:open="diagnosticsOpen"
+                            :state="diagnostics.state.value"
+                            :send="diagnostics.send.value"
+                            :receive="diagnostics.receive.value"
+                            :labels="labels"
+                        />
+                    </template>
+                </VoiceRoomPanel>
+
+                <LatencyTest
+                    v-if="canMeasure"
+                    v-model:jitter-target="jitterTarget"
+                    :phase="latencyTest.phase.value"
+                    :failure="latencyTest.failure.value"
+                    :progress="latencyTest.progress.value"
+                    :result="latencyTest.result.value"
+                    :targets="jitterTargets"
+                    :voice-ready="voiceReady"
+                    :labels="labels"
+                    @run="runLatencyTest"
+                    @cancel="latencyTest.cancel()"
                 />
 
                 <ChannelChat

@@ -372,6 +372,7 @@ if ($modules->routable(Module::WebVoice)) {
     Route::middleware(['auth'])->prefix('talk')->name('webvoice.')->group(function () {
         Route::get('/', [WebVoiceController::class, 'index'])->name('index');
         Route::post('channels/{channel}/token', [WebVoiceController::class, 'token'])->middleware('throttle:30,1')->name('token');
+        Route::post('latency-test/token', [WebVoiceController::class, 'latencyTestToken'])->middleware('throttle:10,1')->name('latency-test.token');
         Route::get('channels/{channel}/messages', [WebVoiceController::class, 'messages'])->name('messages');
         Route::post('channels/{channel}/messages', [WebVoiceController::class, 'post'])->middleware('throttle:web-voice-chat')->name('messages.store');
         Route::delete('messages/{message}', [WebVoiceController::class, 'destroyMessage'])->name('messages.destroy');

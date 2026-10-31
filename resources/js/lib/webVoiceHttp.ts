@@ -51,6 +51,7 @@ export async function webVoiceRequest<T>(
 /** Paths of the web voice endpoints (routes/web.php, prefix `/talk`). */
 export const webVoiceUrls = {
     token: (channelId: number) => `/talk/channels/${channelId}/token`,
+    latencyTestToken: '/talk/latency-test/token',
     messages: (channelId: number) => `/talk/channels/${channelId}/messages`,
     message: (messageId: number) => `/talk/messages/${messageId}`,
     mute: (channelId: number, userId: number) =>

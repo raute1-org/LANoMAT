@@ -101,18 +101,44 @@ Voice is audio only, so the budget is capture (about 20 ms frame) + encode + net
 | TCP fallback | `rtc.tcp_port: 7881` only as last resort | TCP retransmission and head-of-line blocking add 100 ms and more; it is a fallback, not the default |
 | Signaling | WSS through Traefik, only at join / mute / reconnect | Never in the media path; its extra proxy hop costs nothing at runtime |
 | Codec | Opus, mono, 48 kHz, `AudioPresets.speech` = **24 kbps** max | Opus has the lowest algorithmic delay (5 ms look-ahead) of the WebRTC codecs; 24 kbps speech is transparent and keeps packets small (about 60 bytes per 20 ms frame) so they never queue behind each other |
-| Frame size (ptime) | **20 ms** (browser default) | Lower values only raise packet rate and overhead; livekit-client does not expose ptime. 10 ms is possible only by SDP munging, which was rejected as not worth the fragility |
+| Frame size (ptime) | **20 ms** (browser default) | Lower values only raise packet rate and overhead; `livekit-client` 2.23 has no packet-time option (checked in `track/options.d.ts`). 10 ms is possible only by SDP munging, which was rejected as not worth the fragility |
 | DTX | **on** | Silence is not sent: less load and fewer packets competing with speech; no added delay |
 | RED | **on** (default) | Redundant audio in the next packet hides single losses without a NACK round trip; no added delay, about 2x payload (still < 100 kbps per speaker) |
-| Capture processing | `echoCancellation`, `noiseSuppression`, `autoGainControl` **on**, `channelCount: 1` | Browsers run these on the 10 ms capture frames, not on a separate buffer. On laptops without headsets echo cancellation is needed or people cannot use open speakers. Switching them off saves a few ms at most and costs usability |
+| Capture processing | `echoCancellation`, `noiseSuppression`, `autoGainControl` **on**, `channelCount: 1` | Browsers run these on the 10 ms capture frames, not on a separate buffer. On laptops without headsets echo cancellation is needed or people cannot use open speakers. A per-user **Headset-Modus** switches them (and Chromium's voice isolation) off; it is opt-in and its benefit is not measurable by the self-test |
 | Mic start | Join first (listen only), microphone on demand; publish once, then **mute/unmute the same track** | Un-muting an existing track is instant (no renegotiation, no `getUserMedia`); push-to-talk uses this, so keydown to audio is one frame |
 | Subscriptions | `adaptiveStream` and `dynacast` off (audio only) | Both are video features; off avoids needless signaling |
-| Jitter buffer | browser default (adaptive, a few tens of ms on a LAN) | Not tunable from JS in a supported way; LiveKit's `playoutDelay` stays at its default |
+| Jitter buffer | browser default (adaptive; 11 to 32 ms mean measured on loopback) | `RTCRtpReceiver.jitterBufferTarget` is applied where supported when `LIVEKIT_JITTER_BUFFER_TARGET_MS` is set. It is unset: 0 to 20 ms was not measurably different from the default, only larger targets added delay. Server `room.playout_delay` stays off |
 | Host | `network_mode` bridge with published UDP is fine; `host` network is the lowest-overhead alternative (runbook) | NAT in the kernel costs microseconds; the userland proxy is not used for the published UDP range |
 
 Expected one-way mouth-to-ear on a wired LAN: about 40 to 70 ms (20 ms capture frame + 20 ms packetization already
-inside it, a few ms network and SFU, 20 to 40 ms adaptive jitter buffer and playout). **This was not measured** (no
-real LiveKit server or browser in this environment); the manual verification steps are in the runbook.
+inside it, a few ms network and SFU, 20 to 40 ms adaptive jitter buffer and playout). The first measurements
+(headless Chrome with fake devices, loopback to a local LiveKit container, **without** operating-system buffers) gave
+57 to 86 ms for browser, SFU and browser, so a real call with microphone and speaker will be higher than this estimate.
+The numbers still have to be repeated on the venue server with real devices; see "Measuring and tuning latency" below.
+
+## Measuring and tuning latency
+
+Added in the follow-up "web voice latency" change. The full procedure, the tables of what each value means, the
+measured numbers with their setup and the comparison against Mumble are in
+[`docs/infra/livekit-web-voice.md`](../../infra/livekit-web-voice.md#measuring-and-tuning-latency). Decisions:
+
+- **Three measurements**, so that nothing is tuned by guessing: a live *connection diagnostics* panel (selected candidate
+  pair type and protocol, round-trip time, jitter, jitter-buffer delay, loss, concealment, bitrate, codec), an in-page
+  *Latenztest*, and a recording with a third device for the real mouth-to-ear value.
+- **Diagnostics and Latenztest are orga and admin only** (policy ability `latencyTest`, flag `canMeasure` on `/talk`). The
+  parsing is pure TypeScript (`resources/js/lib/webVoiceStats.ts`, `webVoiceLatency.ts`) over plain stat objects. The
+  repository has no JS test runner, so the logic was exercised against real stats from headless Chrome through the UI; a
+  minimal runner (vitest) would be proportionate if more client logic follows and was not added silently.
+- **The Latenztest room is reserved, not a channel**: `<prefix>latency-u<user id>` (not numeric, so it cannot equal a
+  channel room), no `web_voice_channels` row (so no list, no Filament, no moderation), and two identities `u<id>-probe-tx`
+  (may publish) and `u<id>-probe-rx` (listen only), because the same identity twice would kick the first connection.
+  Tokens come from the existing `WebVoiceClient::issueToken`; the contract is unchanged.
+- **One clock, one worklet**: bursts are scheduled on the audio clock and detected in an AudioWorklet in the same
+  `AudioContext` with one-sample resolution; the worklet is a same-origin asset because worklets follow `script-src`.
+  The page and the docs state what the test excludes (OS buffers, capture processing, so no Headset-Modus measurement).
+- **Tuning is switchable and measured**: the jitter buffer target exists as a server setting but is unset (no evidence
+  for a low value); Headset-Modus is per user and opt-in; a 10 ms packet time is not offered by `livekit-client` 2.23 and
+  is not done by SDP rewriting.
 
 ## Text chat
 

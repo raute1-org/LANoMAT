@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\WebVoice\Actions\DeleteMessage;
 use App\Modules\WebVoice\Actions\IssueJoinToken;
+use App\Modules\WebVoice\Actions\IssueLatencyTestTokens;
 use App\Modules\WebVoice\Actions\MuteParticipant;
 use App\Modules\WebVoice\Actions\PostMessage;
 use App\Modules\WebVoice\Actions\RemoveParticipant;
@@ -38,6 +39,8 @@ class WebVoiceController extends Controller
             ])->values(),
             'me' => ['id' => $user->id, 'name' => $user->name, 'identity' => 'u'.$user->id],
             'canModerate' => $user->isOrga(),
+            // Connection diagnostics and the latency self-test (orga and admin).
+            'canMeasure' => $user->can('latencyTest', WebVoiceChannel::class),
             'voiceReady' => config('webvoice.url') !== null && config('webvoice.url') !== ''
                 && (string) config('webvoice.api_key') !== '' && (string) config('webvoice.api_secret') !== '',
             'chat' => [
@@ -52,6 +55,17 @@ class WebVoiceController extends Controller
     {
         try {
             return response()->json($issue->handle($this->user($request), $channel));
+        } catch (WebVoiceUnavailable $e) {
+            report($e);
+
+            return response()->json(['message' => __('web_voice.errors.unavailable')], 503);
+        }
+    }
+
+    public function latencyTestToken(Request $request, IssueLatencyTestTokens $issue): JsonResponse
+    {
+        try {
+            return response()->json($issue->handle($this->user($request)));
         } catch (WebVoiceUnavailable $e) {
             report($e);
 

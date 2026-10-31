@@ -5,7 +5,16 @@ import {
     webVoiceRequest,
     webVoiceUrls,
 } from '@/lib/webVoiceHttp';
+import {
+    applyJitterBufferTarget,
+    loadTuning,
+    roomOptions,
+    saveTuning,
+    captureDefaults,
+} from '@/lib/webVoiceRoomOptions';
+import type { VoiceTuning } from '@/lib/webVoiceRoomOptions';
 import type {
+    WebVoiceAudioConfig,
     WebVoiceParticipantView,
     WebVoiceRoomStatus,
     WebVoiceTokenResponse,
@@ -17,7 +26,10 @@ import type {
  *
  * Latency decisions live here (numbers come from `config/webvoice.php`, rationale in
  * docs/superpowers/specs/2026-10-31-web-voice-design.md):
- * - audio only, mono Opus speech preset with DTX + RED, no adaptive stream or dynacast;
+ * - audio only, mono Opus speech preset with DTX + RED, no adaptive stream or dynacast (the options
+ *   are built in `lib/webVoiceRoomOptions.ts`, shared with the latency self-test);
+ * - the receiver jitter buffer target comes from the server config (null = browser default);
+ * - "Headset-Modus" (a per-device choice kept in localStorage) turns the capture processing off;
  * - join first (listening), microphone on demand; the mic track is published once and then only
  *   muted/unmuted, so push-to-talk is instant (no renegotiation, no new getUserMedia).
  */
@@ -36,6 +48,9 @@ export function useWebVoiceRoom() {
     const pushToTalk = ref(false);
     const pttHeld = ref(false);
     const joinedChannelId = ref<number | null>(null);
+    const tuning = ref<VoiceTuning>(loadTuning());
+    /** Last audio config the server sent; needed to rebuild capture constraints when tuning changes. */
+    let audioConfig: WebVoiceAudioConfig | null = null;
 
     const room = shallowRef<Room | null>(null);
     let lk: LiveKit | null = null;
@@ -121,27 +136,15 @@ export function useWebVoiceRoom() {
             lk = lk ?? (await loadLiveKit());
             const { Room, RoomEvent, Track } = lk;
 
-            const next = new Room({
-                // Audio only: both are video features.
-                adaptiveStream: false,
-                dynacast: false,
-                audioCaptureDefaults: {
-                    echoCancellation: audio.echo_cancellation,
-                    noiseSuppression: audio.noise_suppression,
-                    autoGainControl: audio.auto_gain_control,
-                    channelCount: 1,
-                    // A hint only; browsers decide. Ask for the smallest capture buffer.
-                    latency: { ideal: 0.01 },
-                },
-                publishDefaults: {
-                    audioPreset: { maxBitrate: audio.bitrate },
-                    dtx: audio.dtx,
-                    red: audio.red,
-                },
-            });
+            audioConfig = audio;
+            const next = new Room(roomOptions(audio, tuning.value));
 
             next.on(RoomEvent.TrackSubscribed, (track) => {
                 if (track.kind === Track.Kind.Audio) {
+                    applyJitterBufferTarget(
+                        (track as { receiver?: RTCRtpReceiver }).receiver,
+                        audio.jitter_buffer_target_ms,
+                    );
                     const element = track.attach();
                     element.classList.add('hidden');
                     document.body.appendChild(element);
@@ -278,6 +281,40 @@ export function useWebVoiceRoom() {
         await setMic(false);
     }
 
+    /**
+     * Headset mode on or off. Before the first publish it only changes the capture defaults. With a
+     * published microphone the capture device is re-acquired once with the new constraints and put on
+     * the SAME sender (`restartTrack`: no renegotiation, no second publish), and a muted track stays
+     * muted, so push-to-talk keeps working. `applyConstraints` is not used: Chromium accepts it for
+     * echoCancellation / noiseSuppression / autoGainControl but does not change them on a live track
+     * (measured, see docs/infra/livekit-web-voice.md).
+     */
+    async function setHeadsetMode(enabled: boolean): Promise<void> {
+        tuning.value = { ...tuning.value, headsetMode: enabled };
+        saveTuning(tuning.value);
+
+        const current = room.value;
+
+        if (!current || !audioConfig) {
+            return;
+        }
+
+        const capture = captureDefaults(audioConfig, tuning.value);
+        current.options.audioCaptureDefaults = capture;
+
+        const publication = lk
+            ? current.localParticipant.getTrackPublication(
+                  lk.Track.Source.Microphone,
+              )
+            : undefined;
+
+        try {
+            await publication?.audioTrack?.restartTrack(capture);
+        } catch {
+            // Applies from the next join; the stored choice is already saved.
+        }
+    }
+
     async function unlockAudio(): Promise<void> {
         await room.value?.startAudio();
         needsAudioUnlock.value = !(room.value?.canPlaybackAudio ?? true);
@@ -299,11 +336,14 @@ export function useWebVoiceRoom() {
         pushToTalk,
         pttHeld,
         joinedChannelId,
+        room,
+        tuning,
         isConnected,
         join,
         leave,
         toggleMic,
         setPushToTalk,
+        setHeadsetMode,
         pttDown,
         pttUp,
         unlockAudio,
