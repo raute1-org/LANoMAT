@@ -104,6 +104,23 @@ services:
       - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - traefik_acme:/letsencrypt
 
+  # Exports the certificates Traefik obtained (acme.json) as plain PEM files into the
+  # `traefik_certs` volume and keeps them current when Traefik renews, so services that cannot use
+  # Traefik for TLS (Mumble) can serve the same trusted certificate. Off by default (own profile).
+  # docs/infra/local-service-tls.md
+  certs-export:
+    restart: unless-stopped
+    image: python:3.13-alpine
+    profiles: [venue-certs]
+    command: ['python', '/export-certs.py']
+    environment:
+      # Group that may read the private keys: Mumble's group id in its image.
+      CERTS_GID: ${CERTS_GID:-1000}
+    volumes:
+      - ./docker/traefik/export-certs.py:/export-certs.py:ro
+      - traefik_acme:/data:ro
+      - traefik_certs:/certs
+
   # Cloud entry point for an app that runs at the venue (docs/infra/app-at-the-venue.md).
   # Traefik passes TLS for APP_DOMAIN and its subdomains straight through (by SNI)
   # to this container, prefixing each connection with a PROXY protocol v2 header
@@ -300,6 +317,11 @@ services:
       MUMBLE_CONFIG_ICESECRETWRITE: ${MUMBLE_ICE_SECRET:-}
       MUMBLE_CONFIG_SERVERPASSWORD: ${MUMBLE_SERVER_PASSWORD:-}
       MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_ICE_SECRET:-}
+      # A trusted certificate instead of Mumble's self-signed one (docs/infra/local-service-tls.md):
+      # paths inside the container below /certs, filled by the `certs-dumper` service. Empty = the
+      # self-signed default, so existing installs are unchanged.
+      MUMBLE_CONFIG_SSLCERT: ${MUMBLE_SSL_CERT:-}
+      MUMBLE_CONFIG_SSLKEY: ${MUMBLE_SSL_KEY:-}
     # host ports 64738 (TCP+UDP): Mumble's own default, no local collision
     # observed; kept as-is. The Ice port (6502) is intentionally NOT
     # published to the host — only mumble-admin (same compose network)
@@ -307,6 +329,7 @@ services:
     ports: ['64738:64738', '64738:64738/udp']
     volumes:
       - mumble_data:/data
+      - traefik_certs:/certs:ro
 
   # Ice-REST sidecar (M3, Modul 12): translates the Mumble Ice interface
   # into the small REST surface `MumbleClient` (Task 20) needs. murmur-rest
@@ -455,3 +478,5 @@ volumes:
   teamspeak_data:
   music_assistant_data:
   traefik_acme:
+  # Certificates exported from Traefik's acme.json for services outside Traefik (see certs-dumper).
+  traefik_certs:

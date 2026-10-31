@@ -21,7 +21,9 @@ trait ProbesHttp
         }
 
         try {
-            Http::timeout(3)->get($configuredUrl);
+            // A redirect is an answer too. Not following it matters: the target may be a public
+            // name the app itself cannot reach (a service that now answers on an https name).
+            Http::timeout(3)->withoutRedirecting()->get($configuredUrl);
 
             return HealthResult::ok();
         } catch (Throwable $e) {
