@@ -18,6 +18,29 @@ tls:
 
 http:
   middlewares:
+    # Request-body caps (defence in depth with the app's LimitRequestBodySize
+    # middleware; numbers mirror config/lanomat.php `limits`, a Pest test
+    # keeps them in sync). `app` gets one default router (10 MiB) and three
+    # higher-priority routers for the upload paths only (see compose.yml).
+    # Requests are buffered (1 MiB in memory, the rest on disk) so an oversized
+    # body is refused with 413 even without a Content-Length header. The
+    # Reverb router deliberately has none of these.
+    body-limit-default:
+      buffering:
+        maxRequestBodyBytes: 10485760
+        memRequestBodyBytes: 1048576
+    body-limit-gallery:
+      buffering:
+        maxRequestBodyBytes: 104857600
+        memRequestBodyBytes: 1048576
+    body-limit-files:
+      buffering:
+        maxRequestBodyBytes: 220200960
+        memRequestBodyBytes: 1048576
+    body-limit-large:
+      buffering:
+        maxRequestBodyBytes: 1082130432
+        memRequestBodyBytes: 1048576
     secure-headers:
       headers:
         frameDeny: true

@@ -219,6 +219,40 @@ restrictive `Permissions-Policy` (camera only for the same origin, used by the
 check-in camera scanner; microphone, geolocation, payment and USB
 denied). The image sets `expose_php = 0`, so `X-Powered-By` is not sent.
 
+## Request size limits
+
+A request body is capped per route class, so one logged-in user cannot push
+multi-gigabyte bodies at an arbitrary route. Two layers enforce the same numbers
+(`config/lanomat.php`, key `limits`):
+
+| Route class | Cap | Paths |
+|---|---|---|
+| Everything else (default) | 10 MiB | all routes, including team logo updates (2 MB rule) |
+| Gallery upload | 100 MiB | `POST /events/{slug}/gallery` (25 MB per photo) |
+| Shared files | 210 MiB | `POST /events/{slug}/files` (200 MB file cap plus multipart overhead) |
+| Livewire temporary uploads | 1032 MiB | `POST /livewire-<hash>/upload-file` (every Filament FileUpload, e.g. voice installers, 1 GB rule) |
+
+1. Traefik (primary): `buffering` middlewares `body-limit-*` in
+   `docker/traefik/dynamic.yml`, attached through the `app` router (default) and
+   three higher-priority routers (`app-gallery`, `app-files`, `app-upload`) in
+   the `app` labels of `compose.yml`. Bodies are buffered (1 MiB in memory, the
+   rest on disk), so an oversized body is refused with 413 even when it declares
+   no `Content-Length`. The Reverb router is untouched.
+2. App (second layer for dev, tests and any path that bypasses Traefik):
+   `LimitRequestBodySize` checks the declared `Content-Length` and answers 413
+   with a German error page. It cannot bound a chunked body without a length;
+   that is Traefik's job.
+
+`docker/frankenphp/php.ini` keeps `upload_max_filesize`/`post_max_size` at 1G
+because PHP cannot vary them per route; they are only the global ceiling for the
+largest class. To change a cap, change `config/lanomat.php` and the matching
+`maxRequestBodyBytes` in `dynamic.yml` together (a Pest test fails when they
+drift). `deploy.sh` recreates Traefik when `docker/traefik` or `compose.yml`
+changes, so a deploy picks the new caps up.
+
+Team logos are additionally re-encoded without metadata (EXIF/GPS) and capped
+to 512 px on the longest edge (`config/teams.php`).
+
 ### Content Security Policy (report-only by default)
 
 The Laravel app sends the policy itself (`App\Http\Middleware\AddContentSecurityPolicy`,

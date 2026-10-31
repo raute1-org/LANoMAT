@@ -8,6 +8,7 @@ use App\Modules\Teams\Actions\CreateTeam;
 use App\Modules\Teams\Actions\LeaveTeam;
 use App\Modules\Teams\Actions\RequestToJoin;
 use App\Modules\Teams\Actions\RespondToJoinRequest;
+use App\Modules\Teams\Actions\StoreTeamLogo;
 use App\Modules\Teams\Enums\JoinRequestStatus;
 use App\Modules\Teams\Exceptions\TeamException;
 use App\Modules\Teams\Http\Requests\StoreTeamRequest;
@@ -18,7 +19,6 @@ use App\Modules\Teams\Models\TeamMember;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -89,7 +89,7 @@ class TeamController extends Controller
         ]);
     }
 
-    public function update(UpdateTeamRequest $request, Team $team): RedirectResponse
+    public function update(UpdateTeamRequest $request, Team $team, StoreTeamLogo $storeLogo): RedirectResponse
     {
         $this->authorize('update', $team);
 
@@ -100,15 +100,7 @@ class TeamController extends Controller
 
         $logo = $request->file('logo');
         if ($logo !== null) {
-            $oldLogoPath = $team->logo_path;
-
-            $path = $logo->store('team-logos', 'public');
-            abort_if($path === false, 500, 'Failed to store the uploaded logo.');
-            $team->logo_path = $path;
-
-            if ($oldLogoPath !== null) {
-                Storage::disk('public')->delete($oldLogoPath);
-            }
+            $storeLogo->handle($team, $logo);
         }
 
         $team->save();

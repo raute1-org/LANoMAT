@@ -36,6 +36,7 @@ it('renders german pages for every other error status', function (int $status, s
 
     $this->get("/_test/error/{$status}")->assertStatus($status)->assertSee($headline);
 })->with([
+    [413, 'Anfrage zu groß'],
     [419, 'Sitzung abgelaufen'],
     [429, 'Zu viele Anfragen'],
     [500, 'Etwas ist schiefgelaufen'],

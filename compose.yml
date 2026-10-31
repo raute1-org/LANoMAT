@@ -142,8 +142,32 @@ services:
       traefik.http.routers.app.entrypoints: 'websecure'
       traefik.http.routers.app.tls: 'true'
       traefik.http.routers.app.tls.certresolver: 'letsencrypt'
-      traefik.http.routers.app.middlewares: 'secure-headers@file'
+      traefik.http.routers.app.middlewares: 'secure-headers@file,body-limit-default@file'
       traefik.http.services.app.loadbalancer.server.port: '80'
+      # Upload paths only: same host/service, explicit higher priority and a
+      # larger body cap (docker/traefik/dynamic.yml, config/lanomat.php
+      # `limits`). `$$` is Compose's escape for a literal `$` in the regex.
+      traefik.http.routers.app-gallery.rule: 'Host(`${APP_DOMAIN}`) && Method(`POST`) && PathRegexp(`^/events/[^/]+/gallery$$`)'
+      traefik.http.routers.app-gallery.priority: '1000'
+      traefik.http.routers.app-gallery.entrypoints: 'websecure'
+      traefik.http.routers.app-gallery.tls: 'true'
+      traefik.http.routers.app-gallery.tls.certresolver: 'letsencrypt'
+      traefik.http.routers.app-gallery.middlewares: 'secure-headers@file,body-limit-gallery@file'
+      traefik.http.routers.app-gallery.service: 'app'
+      traefik.http.routers.app-files.rule: 'Host(`${APP_DOMAIN}`) && Method(`POST`) && PathRegexp(`^/events/[^/]+/files$$`)'
+      traefik.http.routers.app-files.priority: '1000'
+      traefik.http.routers.app-files.entrypoints: 'websecure'
+      traefik.http.routers.app-files.tls: 'true'
+      traefik.http.routers.app-files.tls.certresolver: 'letsencrypt'
+      traefik.http.routers.app-files.middlewares: 'secure-headers@file,body-limit-files@file'
+      traefik.http.routers.app-files.service: 'app'
+      traefik.http.routers.app-upload.rule: 'Host(`${APP_DOMAIN}`) && Method(`POST`) && PathRegexp(`^/livewire(-[0-9a-f]+)?/upload-file$$`)'
+      traefik.http.routers.app-upload.priority: '1000'
+      traefik.http.routers.app-upload.entrypoints: 'websecure'
+      traefik.http.routers.app-upload.tls: 'true'
+      traefik.http.routers.app-upload.tls.certresolver: 'letsencrypt'
+      traefik.http.routers.app-upload.middlewares: 'secure-headers@file,body-limit-large@file'
+      traefik.http.routers.app-upload.service: 'app'
 
   queue:
     restart: unless-stopped
