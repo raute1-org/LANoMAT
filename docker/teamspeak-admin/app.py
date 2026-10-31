@@ -37,6 +37,7 @@ relying on this in production (see docs/teamspeak-setup.md).
 
 from __future__ import annotations
 
+import functools
 import os
 import socket
 from contextlib import asynccontextmanager
@@ -242,7 +243,10 @@ class _ServerQueryConnection:
                 break
             self._buffer += chunk
         line, _, self._buffer = self._buffer.partition(b"\n")
-        return line.decode("utf-8", errors="replace").rstrip("\r")
+        # TeamSpeak terminates lines with "\n\r" (not "\r\n"), so the "\r" of one
+        # line is left at the START of the next; strip both ends or the `error`
+        # line is never recognised and every call runs into the socket timeout.
+        return line.decode("utf-8", errors="replace").strip("\r")
 
     def _read_response(self) -> list[dict[str, str]]:
         """Read lines until the `error` line that terminates every
@@ -271,6 +275,10 @@ class _ServerQueryConnection:
 
 
 def _map_query_errors(func):
+    # functools.wraps keeps the wrapped signature: without it FastAPI sees
+    # `(*args, **kwargs)` and demands `args`/`kwargs` query parameters, so every
+    # decorated route answered 422.
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
@@ -341,7 +349,13 @@ def create_channel(payload: ChannelIn, _: None = Depends(require_token)) -> Chan
         "cpid": payload.parent,
     }
     if payload.temporary:
-        params["channel_flag_temporary"] = True
+        # Semi-permanent, NOT `channel_flag_temporary`: a temporary channel is
+        # deleted as soon as it is empty, and LANoMAT creates tournament and
+        # match channels before anyone joins (and each call here is its own
+        # short query session), so a truly temporary channel vanished before
+        # the next call. LANoMAT's cleanup jobs delete these channels
+        # explicitly; semi-permanent ones survive until the server restarts.
+        params["channel_flag_semi_permanent"] = True
         params["channel_flag_permanent"] = False
     else:
         params["channel_flag_permanent"] = True

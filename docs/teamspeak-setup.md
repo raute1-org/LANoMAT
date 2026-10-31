@@ -162,3 +162,20 @@ Both providers implement the same `VoiceClient` interface
 (provisioning jobs, join links, Discord embeds) needs to know which backend
 it's talking to — see the M8 plan for how the mirrored-provisioning
 architecture uses this.
+
+## 6. Real verification (2026-10-31)
+
+The sidecar was run against a real `teamspeak` server for the first time (create, rename, delete a channel through
+`HttpTeamSpeakClient`). Three defects that no fake could show were fixed in `docker/teamspeak-admin/app.py`:
+
+1. **422 on every route.** `_map_query_errors` wrapped the handlers without `functools.wraps`, so FastAPI took
+   `(*args, **kwargs)` as required query parameters.
+2. **Every call ran into the socket timeout.** TeamSpeak ends lines with `\n\r`, so the `\r` stayed at the start of the
+   next line and the terminating `error` line was never recognised. Lines are now stripped on both ends.
+3. **Channels vanished before the next call.** `temporary=true` used `channel_flag_temporary`, which deletes an empty
+   channel at once. It now creates a *semi-permanent* channel (kept until the server restarts); LANoMAT's cleanup jobs
+   delete match and tournament channels explicitly.
+
+Operational note: add the sidecar's address to the server's `query_ip_allowlist.txt` (section 3), otherwise the server's
+flood protection throttles the sidecar. Still open: a scoped query login instead of `serveradmin`, and the real
+client join over UDP (needs a TeamSpeak client).
