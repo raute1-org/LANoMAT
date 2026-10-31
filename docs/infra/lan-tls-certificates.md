@@ -42,13 +42,41 @@ self-signed certificates).
 The wildcard name must resolve to `<VENUE_SERVER_IP>` **inside** the venue only. Do not create A records for it
 in the public zone (it would publish an internal address and is not needed for DNS-01).
 
-On the venue resolver (router, dnsmasq, Unbound, Pi-hole) map `*.<LAN_DOMAIN>` and `<LAN_DOMAIN>` to
-`<VENUE_SERVER_IP>`. With dnsmasq: `address=/<LAN_DOMAIN>/<VENUE_SERVER_IP>`.
+**The venue's name resolution chain.** Clients ask the LanCache DNS (`lancachenet/lancache-dns`, BIND9). It
+answers the cache domains itself and forwards **everything else** to `UPSTREAM_DNS`
+([proxmox-test-vm-lancache.md](proxmox-test-vm-lancache.md)). Do not try to add a zone to the LanCache DNS: its
+`named.conf` includes only the generated `cache.conf`, which is rebuilt on every start, so a hand-made zone is
+lost on the next image update. Put the record where the queries are forwarded to instead: the venue router.
 
-Common pitfall: many routers and resolvers drop answers that point a public name to a private address
-("DNS rebinding protection"). If names do not resolve, allow the domain explicitly (dnsmasq:
-`rebind-domain-ok=/<LAN_DOMAIN>/`) or use a resolver you control. Make sure LanCache's DNS (if used) forwards
-unknown names to the same resolver.
+**With a MikroTik as the venue router (the stack's LAN-only router behind the router with internet).** Point
+`UPSTREAM_DNS` of the LanCache DNS at the MikroTik's LAN address, let the MikroTik answer for the venue name, and
+let it forward the rest to its own upstream (the internet router). RouterOS has no DNS rebind protection, so the
+private answer is returned as is. In RouterOS 7:
+
+```routeros
+# let the router act as a DNS server for the LAN
+/ip dns set allow-remote-requests=yes servers=<INTERNET_ROUTER_IP>
+
+# one entry answers <LAN_DOMAIN> and every name below it
+/ip dns static add name=<LAN_DOMAIN> address=<VENUE_SERVER_IP> match-subdomain=yes comment="LANoMAT TLS names"
+```
+
+On RouterOS 6 (no `match-subdomain`) use a regular expression instead:
+`/ip dns static add regexp=".*\\.<LAN_DOMAIN>$" address=<VENUE_SERVER_IP>` plus a plain entry for the apex. The
+exact option names depend on the RouterOS version; check `/ip dns static add ?` on the router.
+
+Also check the router's input firewall: UDP and TCP 53 must be allowed from the LanCache host (it forwards to the
+router). DHCP hands out the LanCache DNS as the clients' resolver (`/ip dhcp-server network ... dns-server=`).
+The reverse layout also works (clients use the MikroTik, which forwards the cache domains to the LanCache DNS
+with `type=FWD` static entries); pick one and keep it.
+
+**If the upstream is a public resolver instead of a router you control** (the LANoMAT LanCache setup defaults
+`UPSTREAM_DNS` to a public address), the venue name cannot be answered anywhere. Run a small authoritative
+resolver and make it the `UPSTREAM_DNS`: for example CoreDNS with a `template` block for `<LAN_DOMAIN>` that
+answers `<VENUE_SERVER_IP>` and a catch-all `forward` to public resolvers. This variant is **untested** here.
+
+Check from a phone on the venue Wi-Fi that `app.<LAN_DOMAIN>` resolves to `<VENUE_SERVER_IP>` (and that
+`example.com` still resolves) before issuing certificates.
 
 ## Step 2: API token at the DNS provider
 
@@ -157,7 +185,7 @@ there. This also allows one resolver to serve domains that live at both provider
 
 ## Checklist
 
-- [ ] `<LAN_DOMAIN>` resolves to `<VENUE_SERVER_IP>` from a phone on the venue Wi-Fi (rebind protection checked)
+- [ ] `<LAN_DOMAIN>` resolves to `<VENUE_SERVER_IP>` from a phone on the venue Wi-Fi through the LanCache DNS and the router
 - [ ] Token created with the minimal scope, stored root-only, passed as a `*_FILE` variable
 - [ ] Staging certificate issued (log shows the DNS challenge), then production certificate issued
 - [ ] `openssl s_client` shows a Let's Encrypt issuer and the expected `notAfter` from the venue network
