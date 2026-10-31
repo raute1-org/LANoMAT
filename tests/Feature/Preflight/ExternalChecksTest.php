@@ -168,3 +168,18 @@ it('reports livekit ok when its http port answers and down when it does not', fu
     Http::fake(fn () => throw new ConnectionException('refused'));
     expect(app(LiveKitCheck::class)->run()->status->value)->toBe('down');
 });
+
+it('counts a redirect as a sign of life without following it to a name the host cannot reach', function () {
+    config(['services.pelican.panel_url' => 'http://panel.test:8080']);
+
+    // The panel answers with a redirect to its public https name. That the host answers at all is
+    // what a reachability probe wants; following the redirect would fail wherever the app cannot
+    // reach that name (a container on the very host that serves it).
+    Http::fake([
+        'panel.test:8080*' => Http::response('', 302, ['Location' => 'https://panel-public.test/login']),
+        'panel-public.test*' => fn () => throw new ConnectionException('unreachable from here'),
+    ]);
+
+    expect(app(PelicanCheck::class)->run()->status->value)->toBe('ok');
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'panel-public.test'));
+});

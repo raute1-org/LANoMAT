@@ -20,6 +20,7 @@ A throwaway Traefik with exactly the resolver of step 3 (token as `CF_DNS_API_TO
   log: normal while the TXT record propagates, not an error.
 - The token needed only _Zone / Zone / Read_ and _Zone / DNS / Edit_ on the one zone. No account id is needed.
 - No `_acme-challenge` TXT record was left in the zone afterwards.
+- The same recipe was then run against the **production** CA: one wildcard certificate for the apex and `*.<LAN_DOMAIN>`, valid 90 days. The staging lifetime below is a staging property.
 - The staging certificate's `notAfter` was about 64 days out, not 90. Read `notAfter` from the served certificate
   instead of relying on a fixed lifetime when you plan the issue date and the expiry check.
 
