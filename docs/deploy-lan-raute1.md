@@ -11,8 +11,8 @@ Background: [`docs/traefik-setup.md`](traefik-setup.md) (routing and TLS),
 ## 1. DNS and firewall
 
 - A records, both pointing at the server's public IPv4:
-    - `lan.raute1.org`
-    - `ws.lan.raute1.org` (Reverb websockets)
+  - `lan.raute1.org`
+  - `ws.lan.raute1.org` (Reverb websockets)
 - Open TCP **80** and **443** on the host. Port 80 is needed for the Let's
   Encrypt HTTP-01 challenge. Do not open 8000 or 8081: they are bound to
   loopback only.
@@ -89,8 +89,8 @@ Notes:
 Set `DISCORD_LOGIN_GUILD_ID` to restrict login to members of one Discord server.
 Empty (the default) means anyone with a Discord account can log in.
 
-- **Get the server ID:** in Discord, open _User Settings > Advanced_ and enable
-  _Developer Mode_. Then right-click the server icon and choose _Copy Server ID_.
+- **Get the server ID:** in Discord, open *User Settings > Advanced* and enable
+  *Developer Mode*. Then right-click the server icon and choose *Copy Server ID*.
 - **No bot is needed for this check.** The app asks Discord, on the user's own
   OAuth token, whether that user is a member of the server. This adds the
   `guilds.members.read` scope to the login request. Nothing else changes in the
@@ -300,11 +300,11 @@ A request body is capped per route class, so one logged-in user cannot push
 multi-gigabyte bodies at an arbitrary route. Two layers enforce the same numbers
 (`config/lanomat.php`, key `limits`):
 
-| Route class                | Cap      | Paths                                                                                             |
-| -------------------------- | -------- | ------------------------------------------------------------------------------------------------- |
-| Everything else (default)  | 10 MiB   | all routes, including team logo updates (2 MB rule)                                               |
-| Gallery upload             | 100 MiB  | `POST /events/{slug}/gallery` (25 MB per photo)                                                   |
-| Shared files               | 210 MiB  | `POST /events/{slug}/files` (200 MB file cap plus multipart overhead)                             |
+| Route class | Cap | Paths |
+|---|---|---|
+| Everything else (default) | 10 MiB | all routes, including team logo updates (2 MB rule) |
+| Gallery upload | 100 MiB | `POST /events/{slug}/gallery` (25 MB per photo) |
+| Shared files | 210 MiB | `POST /events/{slug}/files` (200 MB file cap plus multipart overhead) |
 | Livewire temporary uploads | 1032 MiB | `POST /livewire-<hash>/upload-file` (every Filament FileUpload, e.g. voice installers, 1 GB rule) |
 
 1. Traefik (primary): `buffering` middlewares `body-limit-*` in
@@ -339,11 +339,11 @@ The Laravel app sends the policy itself (`App\Http\Middleware\AddContentSecurity
 built by `App\Support\Security\ContentSecurityPolicy`), controlled by one env
 flag:
 
-| `CSP_MODE`              | Effect                                                               |
-| ----------------------- | -------------------------------------------------------------------- |
+| `CSP_MODE` | Effect |
+|---|---|
 | `report-only` (default) | sends `Content-Security-Policy-Report-Only`; nothing is ever blocked |
-| `enforce`               | sends the enforcing `Content-Security-Policy` header                 |
-| `off`                   | sends no CSP header                                                  |
+| `enforce` | sends the enforcing `Content-Security-Policy` header |
+| `off` | sends no CSP header |
 
 Any other value behaves like `report-only`. The change takes effect after
 `php artisan config:clear` (or a container restart with a cached config).
