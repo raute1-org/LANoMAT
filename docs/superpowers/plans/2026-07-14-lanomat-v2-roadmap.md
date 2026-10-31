@@ -771,7 +771,7 @@ Ergänzt [`docs/pre-lan-acceptance-checklist.md`](../../pre-lan-acceptance-check
 | 11 | Lasttest (Anmelde-Ansturm, Reverb-Verbindungen, Beamer) | Owner | offen (nicht gemacht) |
 | 12 | CSP: report-only über eine volle Probe laufen lassen, dann `enforce` oder bewusst report-only lassen | Owner | Entscheidung offen |
 | 13 | Offline-Login: Discord-Ausfall = kein Login (kein Offline-Login-QR gebaut) | Owner | Entscheidung: Risiko akzeptiert |
-| 14 | `npm audit`/Dependabot-Stand (#36, #37, #44 offen) und Abhängigkeits-Updates einplanen | Owner | offen (Status aus Repo nicht abgeleitet, vor der LAN prüfen) |
+| 14 | `npm audit`/Dependabot-Stand und Abhängigkeits-Updates | Owner | Sicherheitsupdates erledigt und deployt (composer/npm-Audit 0, PR #57). Die reinen Versions-Bumps (#36 docker, #58 composer 11 Updates, #59 npm 33 Updates) werden bewusst erst nach der LAN eingespielt, um kurz vorher keine unnötige Änderungsfläche aufzumachen |
 | 15 | WireGuard-Tunnel produktiv aktiv und überwacht (falls Venue-Host remote) | Owner | offen (Aktivstatus nicht belegt) |
 | 16 | Preflight (`lanomat:preflight`) komplett grün am Veranstaltungstag, Gateway-Bot-Prod-Prereqs (GUILD_MEMBERS-Intent, Interactions-URL leeren) | Owner | offen |
 | 17 | CI wieder einschalten (`gh workflow enable CI`), sharded CI (PR #47) einmal laufen lassen | Owner | offen |
