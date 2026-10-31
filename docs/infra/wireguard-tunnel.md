@@ -253,6 +253,150 @@ sudo rm /etc/systemd/system/docker.service.d/10-wg0.conf && sudo systemctl daemo
 6. Reverse-proxy or panel redirects to a LAN address (`APP_URL`) do not work from
    the app server; test with `curl -sI` and expect `302` or `200`.
 
+## Variant: the tunnel ends on the venue router (MikroTik)
+
+> **Not run yet.** Everything above was run for real against the test VM. This
+> section is written from the RouterOS 7 documentation and has not been applied
+> to a real router. Treat it as a checklist for the first rehearsal and correct
+> it with what you observe. The test setup stays on the VM tunnel until then.
+
+Instead of a tunnel per host, the venue router (a MikroTik that serves only the
+LAN and sits behind another router with the internet uplink) holds one tunnel
+for the whole LAN. The venue hosts (LanCache, game servers, voice, Music
+Assistant, the test VM) then need no WireGuard of their own.
+
+### Design
+
+- The router **initiates** the tunnel, exactly like the venue host above. The
+  uplink router needs no port forward, only outbound UDP to `<WG_PORT>`.
+- The app server stays the endpoint. Its peer changes from `<WG_VM_ADDR>/32` to
+  the router's tunnel address **plus** `<VENUE_CIDR>`, the LAN subnet behind the
+  router. `<VENUE_CIDR>` must not overlap `<WG_CIDR>`, the uplink network or any
+  other site.
+- Only the traffic the app needs crosses the tunnel. The router firewall lists
+  those ports explicitly (default drop), instead of opening the LAN.
+- Requires RouterOS 7 (built-in WireGuard). RouterOS 6 has no WireGuard.
+
+### Additional placeholders
+
+| Placeholder           | Meaning                                                              |
+| --------------------- | -------------------------------------------------------------------- |
+| `<VENUE_CIDR>`        | LAN subnet behind the router                                         |
+| `<WG_ROUTER_ADDR>`    | tunnel address of the router (second host of `<WG_CIDR>`)            |
+| `<ROUTER_PUBLIC_KEY>` | public key RouterOS generated for the tunnel interface               |
+| `<PANEL_HOST_IP>`     | LAN address of the host that runs the Pelican panel                  |
+| `<WG_IF>`             | name of the tunnel interface on the router (`wg-app` in the example) |
+
+### Step A: router
+
+The private key is generated on the router and never leaves it.
+
+```text
+/interface wireguard add name=wg-app mtu=1380
+/interface wireguard print                # copy public-key -> <ROUTER_PUBLIC_KEY>
+/ip address add address=<WG_ROUTER_ADDR>/24 interface=wg-app
+/interface wireguard peers add interface=wg-app \
+    public-key="<APP_PUBLIC_KEY>" preshared-key="<PSK>" \
+    endpoint-address=<APP_PUBLIC_IP> endpoint-port=<WG_PORT> \
+    allowed-address=<WG_CIDR> persistent-keepalive=25s
+```
+
+The connected `/24` route comes from the `ip address` line. `allowed-address`
+only filters which source and destination addresses the peer may carry.
+
+### Step B: app server
+
+Replace the venue-host peer in `/etc/wireguard/wg0.conf`:
+
+```ini
+[Peer]
+# venue router
+PublicKey = <ROUTER_PUBLIC_KEY>
+PresharedKey = <PSK>
+AllowedIPs = <WG_ROUTER_ADDR>/32, <VENUE_CIDR>
+```
+
+`wg-quick` installs a route for `<VENUE_CIDR>` through `wg0`. Containers reach the
+venue hosts as before; the source address seen in the LAN is `<WG_APP_ADDR>`
+(Docker masquerade), so keep it in the Pelican key's `allowed_ips`. Re-apply
+without dropping the tunnel: `wg syncconf wg0 <(wg-quick strip wg0)`.
+
+### Step C: router firewall
+
+The router needs **no** input rule for the tunnel (it dials out; replies are
+established). Add forward rules and clamp the MSS:
+
+```text
+/ip firewall filter
+add chain=forward in-interface=wg-app connection-state=established,related action=accept place-before=0
+add chain=forward in-interface=wg-app src-address=<WG_APP_ADDR> \
+    dst-address=<PANEL_HOST_IP> protocol=tcp dst-port=<PANEL_PORT> action=accept
+add chain=forward in-interface=wg-app action=drop
+/ip firewall mangle
+add chain=forward out-interface=wg-app protocol=tcp tcp-flags=syn \
+    action=change-mss new-mss=clamp-to-pmtu passthrough=yes
+```
+
+One accept line per service the app must reach (panel, Wings API, the voice
+sidecars, Music Assistant). Order matters: the final drop must stay last. If the
+existing masquerade rule is not limited to the uplink interface, restrict it
+(`out-interface-list=WAN`) so tunnel traffic is not translated.
+
+### Step D: return path
+
+A LAN host answers to `<WG_APP_ADDR>`. That only works if the host's default
+gateway is the router. A host with another gateway (for example the uplink
+router) sends the reply to the wrong place; the symptom is a handshake that
+works while TCP to that host hangs. Fix with the right gateway or a static route
+on that host.
+
+### Names and certificates
+
+The local name for `<LAN_DOMAIN>` is a static DNS entry on the same router, see
+[lan-tls-certificates.md](lan-tls-certificates.md). Certificates for it come from
+DNS-01 and do not depend on the tunnel.
+
+### What happens when the uplink is down
+
+The tunnel is down, so everything that depends on the cloud app stops: login,
+registration, check-in, tournament state. Services that run in the LAN keep
+working: LanCache, voice, the jukebox and local game servers. Decide before the
+event which functions must work offline; this is the main argument for what runs
+at the venue.
+
+### Verify (first rehearsal)
+
+```text
+/interface wireguard peers print detail   # last-handshake: seconds ago
+/ping <WG_APP_ADDR> src-address=<WG_ROUTER_ADDR> size=1352 do-not-fragment
+```
+
+```bash
+sudo wg show wg0                          # handshake on the app server
+ping -c3 <WG_ROUTER_ADDR>                 # from the app server
+curl -sI http://<PANEL_HOST_IP>:<PANEL_PORT>/    # from an app container: 200 or 302
+```
+
+Then: restart the router, unplug the uplink for a minute and plug it back in
+(the 25 s keepalive must restore the tunnel without action), and confirm that a
+host outside the allow list cannot be reached from the app server.
+
+### Rollback
+
+```text
+/interface wireguard peers remove [find interface=wg-app]
+/interface wireguard remove wg-app
+/ip firewall filter remove [find in-interface=wg-app]
+/ip firewall mangle remove [find out-interface=wg-app]
+```
+
+Restore the venue-host peer in the app server's `wg0.conf` and run `wg syncconf`.
+
+### Secrets on the router
+
+A RouterOS backup file (`/system backup`) contains the private key. Keep backups
+off shared drives, and do not paste `/export show-sensitive` output anywhere.
+
 ## Open questions
 
 - A second venue: one `/32` peer per venue and one `/24` per site, or one
