@@ -8,6 +8,7 @@ use App\Modules\Infoscreen\Domain\SceneConfig;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Enums\StatusLevel;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Registration\Models\EventRegistration;
@@ -113,7 +114,9 @@ it('fills data.now/data.next reflecting time-travel for a schedule scene', funct
 
     $payload = ScenePayload::for($scene);
 
-    expect($payload['data']['items'])->toHaveCount(3);
+    // Already-ended items are dropped from the beamer list.
+    expect($payload['data']['items'])->toHaveCount(2);
+    expect(collect($payload['data']['items'])->pluck('title')->all())->toBe(['Main Event', 'Awards']);
     expect($payload['data']['now']['title'])->toBe('Main Event');
     expect($payload['data']['next']['title'])->toBe('Awards');
 
@@ -255,4 +258,63 @@ it('eager-loads the bracket projection without N+1 queries per match', function 
     // A handful of fixed queries (matches + eager-loaded entries), not one
     // per match (7 matches would blow this past ~10 if N+1'd).
     expect($queryCount)->toBeLessThan(10);
+});
+
+it('projects no matches for a tournament of another event', function () {
+    $event = Event::factory()->live()->create();
+    $otherEvent = Event::factory()->live()->create();
+    $foreign = startEightEntrySingleElimForScene($otherEvent);
+
+    $bracket = InfoscreenScene::factory()->for($event)->bracket($foreign->id)->create();
+    $upcoming = InfoscreenScene::factory()->for($event)->create([
+        'type' => SceneType::UpcomingMatches,
+        'config' => new SceneConfig(tournamentId: $foreign->id),
+    ]);
+
+    expect(ScenePayload::for($bracket)['data']['matches'])->toBe([])
+        ->and(ScenePayload::for($upcoming)['data']['matches'])->toBe([]);
+});
+
+it('projects no matches for a draft tournament of the scene event', function () {
+    $event = Event::factory()->live()->create();
+    $draft = Tournament::factory()->for($event)->create(['status' => 'draft']);
+
+    $scene = InfoscreenScene::factory()->for($event)->bracket($draft->id)->create();
+
+    expect(ScenePayload::for($scene)['data']['matches'])->toBe([]);
+});
+
+it('caps the schedule items sent to the beamer', function () {
+    $event = Event::factory()->live()->create();
+    foreach (range(1, 20) as $i) {
+        ScheduleItem::factory()->for($event)->create(['starts_at' => now()->addMinutes($i * 90), 'ends_at' => null]);
+    }
+
+    $scene = InfoscreenScene::factory()->for($event)->schedule()->create();
+
+    expect(ScenePayload::for($scene)['data']['items'])->toHaveCount(12);
+});
+
+it('never exposes e-mail, discord id, user id or network data in the seatmap and tombola payloads', function () {
+    $event = Event::factory()->live()->create();
+    $user = User::factory()->create(['name' => 'Ada', 'email' => 'ada-secret@example.test', 'discord_id' => '424242424242']);
+    $registration = EventRegistration::factory()->for($event)->checkedIn()->create(['user_id' => $user->id]);
+    $seat = Seat::factory()->for($event)->create(['label' => 'A1', 'pos_x' => 0, 'pos_y' => 0]);
+    SeatAssignment::factory()->create(['seat_id' => $seat->id, 'registration_id' => $registration->id]);
+    $prize = TombolaPrize::factory()->for($event)->create();
+    TombolaDraw::unguard();
+    TombolaDraw::create(['event_id' => $event->id, 'tombola_prize_id' => $prize->id, 'registration_id' => $registration->id, 'drawn_at' => now()]);
+    TombolaDraw::reguard();
+
+    $json = json_encode([
+        ScenePayload::for(InfoscreenScene::factory()->for($event)->create(['type' => SceneType::Seatmap])),
+        ScenePayload::for(InfoscreenScene::factory()->for($event)->create(['type' => SceneType::Tombola])),
+    ], JSON_THROW_ON_ERROR);
+
+    // Display names are public by decision (R2 F-R2C-6); nothing else is.
+    expect($json)->toContain('Ada')
+        ->not->toContain('ada-secret')
+        ->not->toContain('424242424242')
+        ->not->toContain('"userId"')
+        ->not->toContain('"user_id"');
 });

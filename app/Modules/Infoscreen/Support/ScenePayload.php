@@ -20,10 +20,12 @@ use App\Modules\Jukebox\Support\JukeboxQueue;
 use App\Modules\Presence\Support\PresenceProjection;
 use App\Modules\Recap\Support\RecapProjection;
 use App\Modules\Registration\Support\QrCode;
+use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\SeatProjection;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Models\GameMatch;
+use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -71,6 +73,9 @@ use Illuminate\Support\Facades\Storage;
  */
 final class ScenePayload
 {
+    /** Upper bound of schedule rows sent to the beamer (the scene shows the first few). */
+    private const SCHEDULE_MAX_ITEMS = 12;
+
     /**
      * @return array{id: int, type: string, durationSec: int, config: array<string, mixed>, data: array<string, mixed>}
      */
@@ -113,7 +118,7 @@ final class ScenePayload
      */
     private static function bracketData(InfoscreenScene $scene): array
     {
-        $tournamentId = $scene->config->tournamentId;
+        $tournamentId = self::publicTournamentIdFor($scene);
 
         if ($tournamentId === null) {
             return ['matches' => []];
@@ -127,7 +132,7 @@ final class ScenePayload
      */
     private static function upcomingMatchesData(InfoscreenScene $scene): array
     {
-        $tournamentId = $scene->config->tournamentId;
+        $tournamentId = self::publicTournamentIdFor($scene);
 
         if ($tournamentId === null) {
             return ['matches' => []];
@@ -160,8 +165,17 @@ final class ScenePayload
         $items = ScheduleProjection::itemsFor($event);
         $now = Carbon::now();
 
+        // The beamer only needs what is running now or still to come: drop
+        // items that already ended (an item without an end counts as one
+        // hour, same rule as ScheduleProjection::currentItem) and cap the
+        // list so the scene never has to scroll.
+        $upcoming = $items
+            ->filter(fn (ScheduleItem $item): bool => ($item->ends_at ?? $item->starts_at->clone()->addHour())->greaterThan($now))
+            ->take(self::SCHEDULE_MAX_ITEMS)
+            ->values();
+
         return [
-            'items' => ScheduleProjection::itemDtos($items),
+            'items' => ScheduleProjection::itemDtos($upcoming),
             'now' => ScheduleProjection::currentItem($items, $now),
             'next' => ScheduleProjection::nextItem($items, $now),
         ];
@@ -448,6 +462,30 @@ final class ScenePayload
             ->all();
 
         return ['signals' => array_values($signals)];
+    }
+
+    /**
+     * The scene's configured tournament id, but only when that tournament
+     * belongs to the scene's own event and is visible to a guest (not a
+     * draft). The beamer is public, so a scene must never project a
+     * tournament of another event or a not-yet-public one, however the
+     * config got there.
+     */
+    private static function publicTournamentIdFor(InfoscreenScene $scene): ?int
+    {
+        $tournamentId = $scene->config->tournamentId;
+
+        if ($tournamentId === null) {
+            return null;
+        }
+
+        $allowed = Tournament::query()
+            ->whereKey($tournamentId)
+            ->where('event_id', $scene->event_id)
+            ->visibleTo(null)
+            ->exists();
+
+        return $allowed ? $tournamentId : null;
     }
 
     private static function eventFor(InfoscreenScene $scene): ?Event

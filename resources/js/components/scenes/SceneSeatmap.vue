@@ -10,7 +10,7 @@ const props = defineProps<{
 
 // Larger than the participant Seating.vue's CELL=64: this renders at beamer
 // distance, read-only, so bigger cells keep labels legible from across a room.
-const CELL = 96;
+const CELL = 128;
 
 const seats = computed<SeatDto[]>(() => props.data.seats ?? []);
 
@@ -57,7 +57,7 @@ function occupantLabel(seat: SeatDto): string {
             {{ labels.seatmap_empty }}
         </p>
 
-        <div v-else class="min-h-0 flex-1 overflow-auto">
+        <div v-else class="min-h-0 flex-1 overflow-hidden">
             <svg
                 :viewBox="`0 0 ${cols * CELL} ${rows * CELL}`"
                 class="h-full w-full"
@@ -83,8 +83,8 @@ function occupantLabel(seat: SeatDto): string {
                     />
                     <text
                         x="10"
-                        y="30"
-                        class="font-mono text-[16px] font-semibold tabular-nums"
+                        y="36"
+                        class="font-mono text-[24px] font-semibold tabular-nums"
                         fill="var(--foreground)"
                     >
                         {{ seat.label }}
@@ -92,9 +92,9 @@ function occupantLabel(seat: SeatDto): string {
                     <text
                         v-if="seat.occupant"
                         x="10"
-                        y="58"
+                        y="76"
                         clip-path="url(#scene-seat-clip)"
-                        class="text-[13px]"
+                        class="text-[21px]"
                         fill="var(--muted-foreground)"
                     >
                         {{ occupantLabel(seat) }}

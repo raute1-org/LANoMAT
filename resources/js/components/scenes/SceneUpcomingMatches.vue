@@ -1,11 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { BracketMatchDto } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     config: { headline?: string };
     data: { matches?: BracketMatchDto[] };
     labels: Record<string, string>;
 }>();
+
+// A fixed cap keeps every card at a beamer-legible size; the rest is a count.
+const MAX_MATCHES = 8;
+
+const shown = computed(() => (props.data.matches ?? []).slice(0, MAX_MATCHES));
+const hidden = computed(() =>
+    Math.max((props.data.matches ?? []).length - MAX_MATCHES, 0),
+);
 </script>
 
 <template>
@@ -21,16 +30,18 @@ defineProps<{
             {{ labels.upcoming_matches_empty }}
         </p>
 
-        <ul v-else class="grid flex-1 grid-cols-2 content-start gap-6">
+        <ul v-else class="grid grid-cols-2 content-start gap-6">
             <li
-                v-for="match in data.matches"
+                v-for="match in shown"
                 :key="match.id"
                 class="rounded-xl border border-border bg-card px-8 py-6"
             >
                 <p class="font-mono text-xl text-muted-foreground uppercase">
                     {{ labels.round.replace(':number', String(match.round)) }}
                 </p>
-                <p class="mt-2 text-3xl font-semibold text-foreground">
+                <p
+                    class="mt-2 text-3xl font-semibold break-words text-foreground"
+                >
                     {{ match.slot1 ?? labels.slot_tbd }}
                     <span class="text-muted-foreground">{{
                         labels.versus
@@ -39,5 +50,9 @@ defineProps<{
                 </p>
             </li>
         </ul>
+
+        <p v-if="hidden > 0" class="text-3xl text-muted-foreground">
+            {{ labels.more_count.replace(':count', String(hidden)) }}
+        </p>
     </div>
 </template>

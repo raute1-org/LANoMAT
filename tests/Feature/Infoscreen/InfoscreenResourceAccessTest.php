@@ -2,9 +2,11 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\CreateInfoscreenScene;
 use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\EditInfoscreenScene;
 use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\ListInfoscreenScenes;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -62,4 +64,33 @@ it('round-trips the announcement config through SceneConfigCast', function () {
 
     expect($fresh->config->headline)->toBe('Gleich geht es weiter')
         ->and($fresh->config->body)->toBe('Bitte Plätze einnehmen.');
+});
+
+it('validates the scene form: duration bounds, announcement length, public same-event tournament', function () {
+    $event = Event::factory()->create();
+    $other = Event::factory()->create();
+    $foreign = Tournament::factory()->for($other)->announced()->create();
+    $own = Tournament::factory()->for($event)->announced()->create();
+
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(CreateInfoscreenScene::class)
+        ->fillForm(['event_id' => $event->id, 'type' => 'announcement', 'duration_sec' => 301, 'headline' => 'Hi', 'body' => str_repeat('x', 281)])
+        ->call('create')
+        ->assertHasFormErrors(['duration_sec', 'body']);
+
+    Livewire::test(CreateInfoscreenScene::class)
+        ->fillForm(['event_id' => $event->id, 'type' => 'announcement', 'duration_sec' => 4])
+        ->call('create')
+        ->assertHasFormErrors(['duration_sec']);
+
+    Livewire::test(CreateInfoscreenScene::class)
+        ->fillForm(['event_id' => $event->id, 'type' => 'bracket', 'duration_sec' => 20, 'tournamentId' => $foreign->id])
+        ->call('create')
+        ->assertHasFormErrors(['tournamentId']);
+
+    Livewire::test(CreateInfoscreenScene::class)
+        ->fillForm(['event_id' => $event->id, 'type' => 'bracket', 'duration_sec' => 20, 'tournamentId' => $own->id])
+        ->call('create')
+        ->assertHasNoFormErrors();
 });
