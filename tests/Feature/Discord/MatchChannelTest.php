@@ -102,6 +102,9 @@ it('creates a match text channel with roster overwrites and a welcome embed on M
     // Every team gets its own room, visible to all but joinable only by that team
     // (and admins): @everyone may look but not connect, the team may connect and speak.
     $alphaOverwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', $alpha['id'])['overwrites']);
+    // The bot keeps CONNECT and SPEAK in the room: Discord only lets it hand out rights it holds
+    // itself, and @everyone losing CONNECT would otherwise take that away from it.
+    expect($alphaOverwrites->firstWhere('id', 'bot-1')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
     expect($alphaOverwrites->firstWhere('id', 'guild-1'))->toMatchArray(['type' => 0, 'allow' => '1024', 'deny' => (string) (1 << 20)]);
     expect($alphaOverwrites->firstWhere('id', '111111')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
     expect($alphaOverwrites->pluck('id')->all())->not->toContain('222222');
@@ -376,4 +379,35 @@ it('removes every channel it made when the second team room cannot be set up', f
     expect($failing->channels)->toBe([]);
     expect($failing->deletedChannelIds)->toHaveCount(3);
     expect($match->fresh()->discord_channels)->toBeNull();
+});
+
+it('keeps removing the other channels when one of them cannot be deleted while rolling back', function () {
+    $failing = new class extends FakeDiscordClient
+    {
+        public function upsertPermissionOverwrites(string $channelId, array $overwrites): void
+        {
+            if ($channelId === 'fake-channel-3') {
+                throw new RuntimeException('second room permissions failed');
+            }
+
+            parent::upsertPermissionOverwrites($channelId, $overwrites);
+        }
+
+        public function deleteChannel(string $channelId): void
+        {
+            if ($channelId === 'fake-channel-1') {
+                throw new RuntimeException('delete refused');
+            }
+
+            parent::deleteChannel($channelId);
+        }
+    };
+    app()->instance(DiscordClient::class, $failing);
+
+    $match = readyMatch();
+
+    // The error that started the rollback is the one that surfaces, not the failed delete.
+    expect(fn () => dispatch_sync(new CreateMatchChannelJob($match->id)))->toThrow(RuntimeException::class, 'second room permissions failed');
+
+    expect($failing->deletedChannelIds)->toBe(['fake-channel-2', 'fake-channel-3']);
 });

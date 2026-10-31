@@ -25,7 +25,7 @@ it('fires the callback exactly once for a given dedup key', function () {
         ->and(DiscordOutbox::where('dedup_key', 'dedup-1')->whereNotNull('sent_at')->exists())->toBeTrue();
 });
 
-it('does not treat a failed send as done, so a stale retry with the same dedup key actually resends', function () {
+it('does not treat a failed send as done, so an immediate retry with the same dedup key resends', function () {
     $guard = app(DiscordOutboxGuard::class);
     $calls = 0;
 
@@ -36,37 +36,44 @@ it('does not treat a failed send as done, so a stale retry with the same dedup k
         });
     })->toThrow(RuntimeException::class);
 
-    // The failed attempt's row survives (sweep support), but must not be
-    // marked sent — a row's mere existence must not make every future retry
-    // silently return false, permanently losing the send.
+    // The failed attempt's row survives (sweep support), but must not be marked sent.
     expect(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->whereNull('sent_at')->exists())->toBeTrue();
 
-    // The row is still fresh (just created moments ago), so it is
-    // indistinguishable from a live concurrent attempt -> must not be
-    // resent yet.
-    $immediateRetry = $guard->once('dedup-fails-once', 'kind', function () use (&$calls) {
+    // The attempt that failed is over, so its row is not an attempt in flight: the queue re-runs
+    // a failed job within a second, and that retry must send, not silently do nothing.
+    $retry = $guard->once('dedup-fails-once', 'kind', function () use (&$calls) {
         $calls++;
     });
 
-    expect($immediateRetry)->toBeFalse()
-        ->and($calls)->toBe(1);
+    expect($retry)->toBeTrue()
+        ->and($calls)->toBe(2)
+        ->and(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->count())->toBe(1)
+        ->and(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->whereNull('sent_at')->exists())->toBeFalse();
+});
 
-    // Once the row is older than the in-flight lease, it can no longer be a
-    // live concurrent attempt -> a genuine queue retry (e.g. the job being
-    // re-run after the queue's retry_after) must actually invoke the
-    // callback again, not silently no-op forever.
-    DiscordOutbox::where('dedup_key', 'dedup-fails-once')->update([
+it('does not resend over a fresh row that belongs to an attempt still in flight, only once it is stale', function () {
+    $guard = app(DiscordOutboxGuard::class);
+    $calls = 0;
+
+    // A row with no sent_at and no failure: another worker is inside its send right now.
+    DiscordOutbox::create(['kind' => 'kind', 'dedup_key' => 'dedup-in-flight']);
+
+    $whileInFlight = $guard->once('dedup-in-flight', 'kind', function () use (&$calls) {
+        $calls++;
+    });
+
+    expect($whileInFlight)->toBeFalse()->and($calls)->toBe(0);
+
+    // A worker that died mid-send leaves the row behind; past the lease it is abandoned.
+    DiscordOutbox::where('dedup_key', 'dedup-in-flight')->update([
         'updated_at' => now()->subSeconds(DiscordOutboxGuard::IN_FLIGHT_LEASE_SECONDS + 5),
     ]);
 
-    $staleRetry = $guard->once('dedup-fails-once', 'kind', function () use (&$calls) {
+    $afterLease = $guard->once('dedup-in-flight', 'kind', function () use (&$calls) {
         $calls++;
     });
 
-    expect($staleRetry)->toBeTrue()
-        ->and($calls)->toBe(2)
-        ->and(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->count())->toBe(1)
-        ->and(DiscordOutbox::where('dedup_key', 'dedup-fails-once')->whereNotNull('sent_at')->exists())->toBeTrue();
+    expect($afterLease)->toBeTrue()->and($calls)->toBe(1);
 });
 
 it('does not resend a fresh sent_at IS NULL row, since it may be a concurrent in-flight attempt', function () {
