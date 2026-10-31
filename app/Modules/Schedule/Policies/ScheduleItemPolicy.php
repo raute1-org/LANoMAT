@@ -37,13 +37,14 @@ class ScheduleItemPolicy
     }
 
     /**
-     * Any authenticated user may favorite any schedule item — favorites are
-     * a purely personal "remember this for me" marker, not a
-     * privilege-gated action.
+     * Any authenticated user may favorite an item of a publicly visible
+     * event — favorites are a purely personal "remember this for me" marker.
+     * Items of draft events stay invisible (even their existence), like the
+     * schedule page and ICS export.
      */
     public function favorite(User $user, ScheduleItem $item): bool
     {
-        return true;
+        return $item->event()->firstOrFail()->isPubliclyVisible();
     }
 
     /**

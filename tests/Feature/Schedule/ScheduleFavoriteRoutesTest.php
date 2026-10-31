@@ -10,7 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('favorites a schedule item via the authenticated route', function () {
-    $item = ScheduleItem::factory()->create();
+    $item = ScheduleItem::factory()->for(Event::factory()->live())->create();
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -24,7 +24,7 @@ it('favorites a schedule item via the authenticated route', function () {
 });
 
 it('requires authentication to favorite a schedule item', function () {
-    $item = ScheduleItem::factory()->create();
+    $item = ScheduleItem::factory()->for(Event::factory()->live())->create();
 
     $this->post("/schedule/{$item->id}/favorite")->assertRedirect('/login');
 
@@ -32,7 +32,7 @@ it('requires authentication to favorite a schedule item', function () {
 });
 
 it('unfavorites a schedule item via the authenticated route', function () {
-    $item = ScheduleItem::factory()->create();
+    $item = ScheduleItem::factory()->for(Event::factory()->live())->create();
     $user = User::factory()->create();
     app(FavoriteScheduleItem::class)->handle($item, $user);
 
@@ -44,7 +44,7 @@ it('unfavorites a schedule item via the authenticated route', function () {
 });
 
 it("only removes the acting user's own favorite, never another user's", function () {
-    $item = ScheduleItem::factory()->create();
+    $item = ScheduleItem::factory()->for(Event::factory()->live())->create();
     $owner = User::factory()->create();
     $intruder = User::factory()->create();
     app(FavoriteScheduleItem::class)->handle($item, $owner);
@@ -80,4 +80,13 @@ it('marks an item as not mine for a viewer without favorites', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('items.0.mine', false));
+});
+
+it('refuses to favorite an item of a draft event', function () {
+    $item = ScheduleItem::factory()->for(Event::factory()->draft())->create();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post("/schedule/{$item->id}/favorite")->assertForbidden();
+
+    expect(ScheduleItemFavorite::query()->count())->toBe(0);
 });

@@ -50,6 +50,7 @@ class ScheduleController extends Controller
             'now' => ScheduleProjection::currentItem($items, $now, $favoriteItemIds),
             'next' => ScheduleProjection::nextItem($items, $now, $favoriteItemIds),
             'labels' => trans('schedule.page'),
+            'hasFavorites' => $favoriteItemIds->isNotEmpty(),
         ]);
     }
 
@@ -85,11 +86,16 @@ class ScheduleController extends Controller
     /**
      * ICS export of the public programme, one VEVENT per schedule item.
      */
-    public function ics(Event $event): HttpResponse
+    public function ics(Request $request, Event $event): HttpResponse
     {
         abort_unless($event->isPubliclyVisible(), 404);
 
-        $ics = ScheduleCalendar::for($event);
+        // `?favorites=1` narrows the export to the caller's own favorites
+        // (the route is login-required, so there is always a user).
+        $ics = ScheduleCalendar::for(
+            $event,
+            $request->boolean('favorites') ? $this->authUser($request) : null,
+        );
 
         return response($ics, 200, [
             'Content-Type' => 'text/calendar; charset=utf-8',

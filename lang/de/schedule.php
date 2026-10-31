@@ -15,6 +15,9 @@ return [
         'location' => 'Ort',
         'sort' => 'Reihenfolge',
     ],
+    'validation' => [
+        'ends_after_starts' => 'Das Ende darf nicht vor dem Beginn liegen.',
+    ],
     'type' => [
         'custom' => 'Programmpunkt',
         'tournament' => 'Turnier',
@@ -28,6 +31,12 @@ return [
         'empty' => 'Noch kein Zeitplan',
         'favorite' => 'Merken',
         'unfavorite' => 'Nicht mehr merken',
+        'only_mine' => 'Nur meine Favoriten',
+        'all_items' => 'Alle Programmpunkte',
+        'no_favorites' => 'Du hast noch keine Programmpunkte gemerkt. Tippe auf den Stern, um einen Punkt zu merken.',
+        'add_to_calendar' => 'Zum Kalender hinzufügen (.ics)',
+        'add_favorites_to_calendar' => 'Nur Favoriten zum Kalender (.ics)',
+        'ends_next_day' => 'am Folgetag',
     ],
     'notify' => [
         'starting_soon' => [
@@ -39,6 +48,22 @@ return [
             'title' => 'Programmpunkt verschoben',
             'body' => ':title wurde auf :time Uhr verschoben.',
             'discord' => ':title wurde auf :time Uhr verschoben.',
+        ],
+        'modified' => [
+            'title' => 'Programmpunkt geändert',
+            'body' => ':title wurde geändert (:what). Beginn: :time Uhr.',
+            'discord' => ':title wurde geändert (:what). Beginn: :time Uhr.',
+        ],
+        'removed' => [
+            'title' => 'Programmpunkt entfällt',
+            'body' => ':title entfällt.',
+            'discord' => ':title entfällt.',
+        ],
+        'field' => [
+            'starts_at' => 'Beginn',
+            'ends_at' => 'Ende',
+            'title' => 'Titel',
+            'location' => 'Ort',
         ],
     ],
 ];

@@ -3,16 +3,15 @@
 namespace App\Modules\Schedule\Listeners;
 
 use App\Models\User;
-use App\Modules\Schedule\Contracts\ScheduleParticipantResolver;
-use App\Modules\Schedule\Events\ScheduleItemTimeChanged;
-use App\Modules\Schedule\Models\ScheduleItemFavorite;
+use App\Modules\Schedule\Events\ScheduleItemModified;
 use App\Modules\Schedule\Notifications\ScheduleItemChanged;
+use App\Modules\Schedule\Support\ScheduleAudience;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Notification;
 
 /**
  * Alarms everyone affected by a schedule item when its `starts_at` changes
- * (see {@see ScheduleItemTimeChanged}, dispatched from
+ * (see {@see ScheduleItemModified}, dispatched from
  * `ScheduleItem::booted()`): every favoriter, plus — for items derived from
  * another aggregate (today: a tournament) — every affected participant, via
  * {@see ScheduleParticipantResolver} (bound to
@@ -28,28 +27,17 @@ use Illuminate\Support\Facades\Notification;
  */
 class AlarmScheduleItemChanged implements ShouldQueue
 {
-    public function __construct(
-        private readonly ScheduleParticipantResolver $participantResolver,
-    ) {}
-
-    public function handle(ScheduleItemTimeChanged $event): void
+    public function handle(ScheduleItemModified $event): void
     {
-        $favoriterIds = ScheduleItemFavorite::query()
-            ->where('schedule_item_id', $event->scheduleItem->id)
-            ->pluck('user_id');
+        $userIds = $event->audienceUserIds ?? ScheduleAudience::userIds($event->scheduleItem);
 
-        $favoriters = $favoriterIds->isEmpty()
-            ? collect()
-            : User::query()->whereIn('id', $favoriterIds)->get();
-
-        $participants = $this->participantResolver->usersFor($event->scheduleItem);
-
-        $recipients = $favoriters->concat($participants)->unique('id');
-
-        if ($recipients->isEmpty()) {
+        if ($userIds === []) {
             return;
         }
 
-        Notification::send($recipients, new ScheduleItemChanged($event->scheduleItem));
+        Notification::send(
+            User::query()->whereIn('id', $userIds)->get(),
+            new ScheduleItemChanged($event->scheduleItem, $event->fields, $event->removed),
+        );
     }
 }
