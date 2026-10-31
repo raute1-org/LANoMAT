@@ -1,0 +1,34 @@
+# Routes for services that run next to the app but outside its compose project, so they get the
+# same trusted TLS as the app (docs/infra/local-service-tls.md). Copy to venue-services.yml, replace
+# the placeholders and mount it into /etc/traefik/dynamic/ (the venue static file reads that
+# directory).
+#
+# One wildcard certificate (DNS-01) covers every name below: only the first router asks for it, the
+# others just use it. Names resolve to the venue Traefik through the venue DNS.
+http:
+  routers:
+    music:
+      rule: Host(`music.<LAN_DOMAIN>`)
+      entryPoints: [websecure]
+      service: music
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: <LAN_DOMAIN>
+            sans: ['*.<LAN_DOMAIN>']
+    panel:
+      rule: Host(`panel.<LAN_DOMAIN>`)
+      entryPoints: [websecure]
+      service: panel
+      tls: {}
+  services:
+    # Music Assistant runs on the host network (port 8095); WebSockets pass through unchanged.
+    music:
+      loadBalancer:
+        servers:
+          - url: http://<SERVICE_HOST_IP>:8095
+    # The Pelican panel needs its APP_URL set to https://panel.<LAN_DOMAIN> (it redirects to it).
+    panel:
+      loadBalancer:
+        servers:
+          - url: http://<SERVICE_HOST_IP>:8080

@@ -68,7 +68,9 @@ services:
 ```
 
 `TRAEFIK_STATIC_FILE` points at a copy of `docker/traefik/traefik.venue.example.yml` with the PROXY protocol
-trusted address set to `<WG_APP_ADDR>/32` ([app-at-the-venue.md](app-at-the-venue.md)). Certificates come from the
+trusted address set to `<WG_APP_ADDR>/32` ([app-at-the-venue.md](app-at-the-venue.md)). Mount the dynamic files into
+`/etc/traefik/dynamic/` (the venue static file reads that directory), together with the routes for Music Assistant
+and the panel ([local-service-tls.md](local-service-tls.md)). Certificates come from the
 DNS-01 challenge ([lan-tls-certificates.md](lan-tls-certificates.md)), so no inbound port is needed for issuing.
 
 ## `.env` of the suite

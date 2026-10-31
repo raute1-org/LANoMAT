@@ -48,8 +48,12 @@ providers:
     exposedByDefault: false
     network: lanomat_default
 
+  # A directory instead of one file, so the standard rules (dynamic.yml) and the routes of this venue
+  # (venue-services.yml, from venue-services.example.yml) live side by side. Mount both files into
+  # /etc/traefik/dynamic/ (see docs/infra/local-service-tls.md).
   file:
-    filename: /etc/traefik/dynamic.yml
+    directory: /etc/traefik/dynamic
+    watch: true
 
 # Same resolver name as in traefik.yml, so the router labels in compose.yml work
 # unchanged. Change `provider` for another DNS provider (e.g. hetzner).
