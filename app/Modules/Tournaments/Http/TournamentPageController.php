@@ -190,7 +190,7 @@ class TournamentPageController extends Controller
             'pendingReports' => (object) PendingReportView::forViewer($matches, $myEntry),
             'myEntry' => $this->myEntryState($user, $myEntry ?? ($user === null ? null : $this->rosteredEntryFor($tournament, $user))),
             'registration' => EventRegistrationRequirement::viewState($user, $event),
-            'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry),
+            'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry, $user->name),
             // Gates the match card's manual "Go" control (Task 11) —
             // mirrors TournamentPolicy::goLive (helper-or-above) so the
             // button is only rendered for someone who could actually submit
@@ -621,9 +621,11 @@ class TournamentPageController extends Controller
      * consistently 0, which the UI already renders sensibly (no
      * LiveIndicator, plain "0").
      *
+     * The link carries the viewer's own name, so the voice client joins with it.
+     *
      * @return array<int, array{provider: string, label: string, url: string, isDefault: bool, occupants: int}>
      */
-    private function voiceLinksFor(GameMatch $match, TournamentEntry $myEntry): array
+    private function voiceLinksFor(GameMatch $match, TournamentEntry $myEntry, ?string $username = null): array
     {
         if (! app(Modules::class)->enabled(Module::Voice)) {
             return [];
@@ -657,7 +659,7 @@ class TournamentPageController extends Controller
             $links[] = [
                 'provider' => $provider->value,
                 'label' => $provider->label(),
-                'url' => VoiceJoinLink::for($provider, $myEntry->display_name),
+                'url' => VoiceJoinLink::for($provider, $myEntry->display_name, $username),
                 'isDefault' => $provider === $defaultProvider,
                 'occupants' => $occupancy[$provider->value][$channelId] ?? 0,
             ];

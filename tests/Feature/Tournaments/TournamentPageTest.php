@@ -173,6 +173,7 @@ it('exposes the viewer own mumble join link once their match has voice channels 
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
     $viewer = User::find($entry1->user_id);
+    $viewer->update(['name' => 'Max Mustermann']);
 
     $match->update(['voice_channels' => ['mumble' => ['entry1_channel_id' => 101, 'entry2_channel_id' => 102]]]);
 
@@ -183,7 +184,7 @@ it('exposes the viewer own mumble join link once their match has voice channels 
             ->component('Tournaments/Show')
             ->has('myMatchVoiceLinks', 1)
             ->where('myMatchVoiceLinks.0.provider', 'mumble')
-            ->where('myMatchVoiceLinks.0.url', 'mumble://voice.example.test:64738/'.$entry1->display_name)
+            ->where('myMatchVoiceLinks.0.url', 'mumble://Max%20Mustermann@voice.example.test:64738/'.$entry1->display_name)
             ->where('myMatchVoiceLinks.0.isDefault', true)
         );
 });

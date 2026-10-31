@@ -32,7 +32,7 @@ class VoiceSetupController extends Controller
     public function index(Request $request): Response
     {
         $providers = collect(VoiceProvider::active())
-            ->map(fn (VoiceProvider $provider): array => $this->providerDto($provider))
+            ->map(fn (VoiceProvider $provider): array => $this->providerDto($provider, $request->user()?->name))
             ->all();
 
         return Inertia::render('Voice/Setup', [
@@ -53,14 +53,14 @@ class VoiceSetupController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function providerDto(VoiceProvider $provider): array
+    private function providerDto(VoiceProvider $provider, ?string $username): array
     {
         return [
             'provider' => $provider->value,
             'label' => $provider->label(),
             'host' => (string) config("services.{$provider->value}.host"),
             'port' => (string) config("services.{$provider->value}.port"),
-            'joinLink' => VoiceJoinLink::for($provider, self::LOBBY_CHANNEL),
+            'joinLink' => VoiceJoinLink::for($provider, self::LOBBY_CHANNEL, $username),
             'password' => $this->serverPassword($provider),
             'installers' => $this->currentInstallers($provider),
         ];
