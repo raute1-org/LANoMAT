@@ -121,3 +121,12 @@ it('ignores a web voice url that is not a websocket origin', function () {
 
     expect($this->get('/login')->headers->get('Content-Security-Policy-Report-Only'))->not->toContain('voice.example.org');
 });
+
+it('allows the file host origin in connect-src only for resumable uploads, without path', function () {
+    config(['files.store' => 'local', 'files.tus.endpoint' => 'https://files.example.org:8443/upload/']);
+    expect($this->get('/login')->headers->get('Content-Security-Policy-Report-Only'))->not->toContain('files.example.org');
+
+    config(['files.store' => 'host']);
+    $policy = $this->get('/login')->headers->get('Content-Security-Policy-Report-Only');
+    expect($policy)->toContain('https://files.example.org:8443')->not->toContain('/upload/');
+});

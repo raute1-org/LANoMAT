@@ -64,6 +64,7 @@ const PUBLIC_ROUTES = [
     'GET gallery/public/photos/{eventPhoto}' => 'approved photos of publicly visible events only',
     'GET gallery/public/photos/{eventPhoto}/thumb' => 'approved photos of publicly visible events only',
     'POST internal/discord/gateway' => 'shared-secret middleware (VerifyGatewaySecret)',
+    'POST internal/files/tusd-hook' => 'shared-secret middleware (VerifyTusHookSecret)',
     'GET overlay/match/{match}/scoreboard' => 'OBS overlay, public data only',
     'GET overlay/tournament/{tournament}/bracket' => 'OBS overlay, public data only',
     'GET screen/{event}' => 'public beamer infoscreen, no PII',
@@ -456,7 +457,7 @@ it('refuses valid writes against a non-public event', function () {
 it('puts every state-changing route behind CSRF verification', function () {
     // Token/signature-authenticated machine endpoints and stateless (cookie-less) endpoints.
     $exempt = [
-        'api/discord/interactions', 'internal/discord/gateway', 'api/telemetry/cs2/{serverLink}',
+        'api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/{serverLink}',
         '_boost/browser-logs', 'csp-report', 'storage/{path}',
     ];
     $failures = [];

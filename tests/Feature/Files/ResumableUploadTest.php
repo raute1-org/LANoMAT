@@ -193,6 +193,26 @@ it('blocks the legacy form upload while resumable mode is on', function () {
     expect(SharedFile::query()->count())->toBe(0);
 });
 
+it('tells the page how to upload and counts reservations in the quota readout', function () {
+    resumable();
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    ticketFor($event, $user, 'game.zip', 10 * TUS_GB);
+
+    $this->actingAs($user)->get("/events/{$event->slug}/files")
+        ->assertInertia(fn ($page) => $page
+            ->component('Files/Index')
+            ->where('upload.mode', 'resumable')
+            ->where('upload.maxFileBytes', 100 * TUS_GB)
+            ->where('upload.ticketUrl', "/events/{$event->slug}/files/uploads")
+            ->where('quota.usedBytes', 10 * TUS_GB)
+            ->where('quota.capBytes', 100 * TUS_GB));
+
+    config(['files.store' => 'local']);
+    $this->actingAs($user)->get("/events/{$event->slug}/files")
+        ->assertInertia(fn ($page) => $page->where('upload.mode', 'form')->where('upload.ticketUrl', null));
+});
+
 // ------------------------------------------------------------------ hooks
 
 it('rejects hook calls without or with a wrong secret', function () {

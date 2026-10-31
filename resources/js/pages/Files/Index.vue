@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import FilePicker from '@/components/FilePicker.vue';
+import ResumableUploader from '@/components/files/ResumableUploader.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,15 +16,17 @@ import {
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
+import { formatBytes } from '@/lib/bytes';
 import { formatInstant } from '@/lib/datetime';
 import { destroy as destroyFile, store as storeFile } from '@/routes/files';
-import type { FileQuotaDto, SharedFileDto } from '@/types';
+import type { FileQuotaDto, FileUploadConfigDto, SharedFileDto } from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string };
     files: SharedFileDto[];
     labels: Record<string, string>;
     quota: FileQuotaDto | null;
+    upload: FileUploadConfigDto;
 }>();
 
 /**
@@ -60,37 +63,15 @@ function submit() {
     });
 }
 
+/** Refreshes the list and the quota after a resumable upload finished. */
+function refreshFiles(): void {
+    router.reload({ only: ['files', 'quota'] });
+}
+
 function remove(file: SharedFileDto) {
     useForm({}).delete(destroyFile.url({ sharedFile: file.id }), {
         preserveScroll: true,
     });
-}
-
-/**
- * File size is machine data — rendered in `font-mono` per the design system
- * (mono is reserved for machine-readable values, not the filename itself).
- */
-function decimal(value: number): string {
-    return value.toLocaleString('de-DE', {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-    });
-}
-
-function formatSize(bytes: number): string {
-    if (bytes < 1024) {
-        return `${bytes} B`;
-    }
-
-    const kb = bytes / 1024;
-
-    if (kb < 1024) {
-        return `${decimal(kb)} KB`;
-    }
-
-    const mb = kb / 1024;
-
-    return `${decimal(mb)} MB`;
 }
 
 function formatDateTime(iso: string): string {
@@ -114,8 +95,8 @@ function formatDateTime(iso: string): string {
                             class="font-mono tabular-nums"
                             :class="quotaIsNearCap && 'text-warn'"
                         >
-                            {{ formatSize(quota.usedBytes) }} /
-                            {{ formatSize(quota.capBytes) }}
+                            {{ formatBytes(quota.usedBytes) }} /
+                            {{ formatBytes(quota.capBytes) }}
                         </span>
                     </div>
                     <div
@@ -134,7 +115,14 @@ function formatDateTime(iso: string): string {
                 </div>
             </CardHeader>
             <CardContent>
-                <form class="space-y-4" @submit.prevent="submit">
+                <ResumableUploader
+                    v-if="upload.mode === 'resumable' && upload.ticketUrl"
+                    :ticket-url="upload.ticketUrl"
+                    :max-file-bytes="upload.maxFileBytes"
+                    :labels="labels"
+                    :on-finished="refreshFiles"
+                />
+                <form v-else class="space-y-4" @submit.prevent="submit">
                     <div class="grid gap-2">
                         <Label for="file-upload">{{
                             labels.upload_label
@@ -227,7 +215,7 @@ function formatDateTime(iso: string): string {
                         <span
                             class="font-mono text-sm text-muted-foreground tabular-nums"
                         >
-                            {{ formatSize(file.sizeBytes) }}
+                            {{ formatBytes(file.sizeBytes) }}
                         </span>
 
                         <div class="flex gap-2">
