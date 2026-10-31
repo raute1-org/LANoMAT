@@ -40,7 +40,10 @@ class WebVoiceController extends Controller
             'canModerate' => $user->isAdmin(),
             'voiceReady' => config('webvoice.url') !== null && config('webvoice.url') !== ''
                 && (string) config('webvoice.api_key') !== '' && (string) config('webvoice.api_secret') !== '',
-            'chat' => ['maxLength' => (int) config('webvoice.chat.max_length')],
+            'chat' => [
+                'maxLength' => (int) config('webvoice.chat.max_length'),
+                'history' => (int) config('webvoice.chat.history'),
+            ],
             'labels' => trans('web_voice.page'),
         ]);
     }

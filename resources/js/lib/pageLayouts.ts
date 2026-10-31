@@ -43,6 +43,7 @@ export const pageLayouts: Record<string, PageLayoutKind> = {
     'Teams/': 'app',
     'Tournaments/': 'app',
     'Voice/': 'app',
+    'WebVoice/': 'app',
 };
 
 export function layoutKindFor(name: string): PageLayoutKind {

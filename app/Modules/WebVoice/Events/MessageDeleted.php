@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\WebVoice\Events;
 
+use App\Support\Broadcasting\RetriesBroadcast;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 class MessageDeleted implements ShouldBroadcastNow
 {
     use Dispatchable;
+    use RetriesBroadcast;
 
     public function __construct(
         public readonly int $channelId,

@@ -77,6 +77,8 @@ return [
         'mic_denied' => 'Das Mikrofon wurde vom Browser blockiert. Erlaube den Zugriff in der Adressleiste.',
         'connection_lost' => 'Die Verbindung wurde getrennt.',
         'retry' => 'Erneut versuchen',
+        'audio_unlock' => 'Dein Browser hält die Wiedergabe an, bis du sie freigibst.',
+        'audio_unlock_action' => 'Ton aktivieren',
         'live_hint' => 'Live aktualisiert',
         'moderation' => 'Moderation',
         'archived' => 'Dieser Kanal wurde archiviert.',

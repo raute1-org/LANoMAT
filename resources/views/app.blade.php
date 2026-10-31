@@ -3,6 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        {{-- Echo reads this for /broadcasting/auth (private chat channels); without it the auth POST is a 419. --}}
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
