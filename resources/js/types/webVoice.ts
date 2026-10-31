@@ -12,6 +12,8 @@ export type WebVoiceAudioConfig = {
     echo_cancellation: boolean;
     noise_suppression: boolean;
     auto_gain_control: boolean;
+    /** Receiver jitter buffer target in ms; `null` = browser default (adaptive). */
+    jitter_buffer_target_ms: number | null;
 };
 
 export type WebVoiceTokenResponse = {
@@ -19,6 +21,14 @@ export type WebVoiceTokenResponse = {
     token: string;
     identity: string;
     muted: boolean;
+    audio: WebVoiceAudioConfig;
+};
+
+export type WebVoiceLatencyTokenResponse = {
+    url: string;
+    room: string;
+    sender: { token: string; identity: string };
+    receiver: { token: string; identity: string };
     audio: WebVoiceAudioConfig;
 };
 

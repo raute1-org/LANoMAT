@@ -92,6 +92,16 @@ it('never lists the test room as a channel', function () {
         ->and(app(VisibleChannels::class)->for($orga)->pluck('name')->all())->toBe(['Lobby']);
 });
 
+it('sends the jitter buffer target with the audio defaults, unset by default', function () {
+    $user = User::factory()->create(['role' => Role::Orga]);
+
+    $this->actingAs($user)->postJson('/talk/latency-test/token')->assertJsonPath('audio.jitter_buffer_target_ms', null);
+
+    config(['webvoice.audio.jitter_buffer_target_ms' => 40]);
+
+    $this->actingAs($user)->postJson('/talk/latency-test/token')->assertJsonPath('audio.jitter_buffer_target_ms', 40);
+});
+
 it('tells the page whether the viewer may measure', function (Role $role, bool $can) {
     $this->actingAs(User::factory()->create(['role' => $role]))->get('/talk')
         ->assertInertia(fn ($page) => $page->where('canMeasure', $can));
