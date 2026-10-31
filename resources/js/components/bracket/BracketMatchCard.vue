@@ -400,11 +400,11 @@ const hasLiveScore = computed(
             </Button>
         </form>
 
-        <div v-else-if="canRespond" class="mt-3 flex gap-2">
-            <Button size="sm" class="flex-1" @click="confirm">
+        <div v-else-if="canRespond" class="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" class="grow" @click="confirm">
                 {{ reportLabels.confirm_action }}
             </Button>
-            <Button size="sm" variant="outline" class="flex-1" @click="dispute">
+            <Button size="sm" variant="outline" class="grow" @click="dispute">
                 {{ reportLabels.dispute_action }}
             </Button>
         </div>
@@ -451,11 +451,11 @@ const hasLiveScore = computed(
                 >
                     {{ correctForm.errors.score1 ?? correctForm.errors.score2 }}
                 </p>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
                     <Button
                         type="submit"
                         size="sm"
-                        class="flex-1"
+                        class="grow"
                         :disabled="correctForm.processing"
                     >
                         {{ reportLabels.save_change_action }}
@@ -470,11 +470,11 @@ const hasLiveScore = computed(
                     </Button>
                 </div>
             </form>
-            <div v-else class="flex gap-2">
+            <div v-else class="flex flex-wrap gap-2">
                 <Button
                     size="sm"
                     variant="outline"
-                    class="flex-1"
+                    class="grow"
                     @click="startCorrection"
                 >
                     {{ reportLabels.change_action }}
@@ -482,7 +482,7 @@ const hasLiveScore = computed(
                 <Button
                     size="sm"
                     variant="ghost"
-                    class="flex-1"
+                    class="grow"
                     @click="withdrawPendingReport"
                 >
                     {{ reportLabels.withdraw_action }}
