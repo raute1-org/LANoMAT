@@ -43,6 +43,14 @@ class FoodOrderPolicy
     }
 
     /**
+     * The CSV export of an order's items (kitchen and cashier) is orga only.
+     */
+    public function export(User $user, FoodOrder $order): bool
+    {
+        return $user->isOrga();
+    }
+
+    /**
      * The one-click "Essen ist da" trigger (see TriggerFoodReady) is
      * helper-or-above, unlike the rest of this policy — helpers run the live
      * event but don't configure the order itself.

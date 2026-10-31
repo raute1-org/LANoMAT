@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import { reactive } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
@@ -22,16 +23,26 @@ defineProps<{
     event: { name: string; slug: string };
     orders: FoodOrderDto[];
     labels: Record<string, string>;
+    registration: { required: boolean; url: string };
 }>();
 
-const noteByOrder = new Map<number, string>();
+// Reactive, so clearing a note after a successful order also clears the input.
+const notes = reactive<Record<number, string>>({});
 
 function noteFor(orderId: number): string {
-    return noteByOrder.get(orderId) ?? '';
+    return notes[orderId] ?? '';
 }
 
 function setNoteFor(orderId: number, value: string): void {
-    noteByOrder.set(orderId, value);
+    notes[orderId] = value;
+}
+
+// The controller answers a refused order with a redirect and an error toast,
+// which Inertia still reports as success. Keep the note in that case.
+function wasRefused(flash: Record<string, unknown> | undefined): boolean {
+    const toast = flash?.toast as { type?: string } | undefined;
+
+    return toast?.type === 'error';
 }
 
 function order(order: FoodOrderDto, optionKey: string): void {
@@ -42,6 +53,11 @@ function order(order: FoodOrderDto, optionKey: string): void {
 
     form.post(storeItem.url({ foodOrder: order.id }), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            if (!wasRefused(page.flash)) {
+                delete notes[order.id];
+            }
+        },
     });
 }
 
@@ -84,6 +100,16 @@ function menuOptionName(
     <Head :title="`${labels.title} — ${event.name}`" />
 
     <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
+        <div
+            v-if="registration.required"
+            class="mt-8 flex flex-col gap-3 rounded-md border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+            <p class="text-sm">{{ labels.registration_required }}</p>
+            <Button as-child size="sm" class="shrink-0">
+                <a :href="registration.url">{{ labels.register_link }}</a>
+            </Button>
+        </div>
+
         <div
             v-if="orders.length === 0"
             class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
@@ -149,7 +175,10 @@ function menuOptionName(
                                 </div>
                                 <Button
                                     size="sm"
-                                    :disabled="!foodOrder.isOpen"
+                                    :disabled="
+                                        !foodOrder.isOpen ||
+                                        registration.required
+                                    "
                                     @click="order(foodOrder, option.key)"
                                 >
                                     {{ labels.order }}
@@ -157,8 +186,9 @@ function menuOptionName(
                             </li>
                         </ul>
                         <Input
-                            v-if="foodOrder.isOpen"
+                            v-if="foodOrder.isOpen && !registration.required"
                             class="mt-3"
+                            maxlength="200"
                             :placeholder="labels.note_placeholder"
                             :aria-label="labels.note_placeholder"
                             :model-value="noteFor(foodOrder.id)"

@@ -12,6 +12,7 @@ use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Events\Models\Event;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -47,6 +48,11 @@ class CateringController extends Controller
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'orders' => $orders->map(fn (FoodOrder $order): array => $this->orderDto($order, $userId))->all(),
             'labels' => trans('catering.page'),
+            'registration' => [
+                'required' => $request->user() !== null
+                    && ! FoodOrderRegistrationRequirement::satisfiedBy($request->user(), $event),
+                'url' => route('events.register', $event->slug),
+            ],
         ]);
     }
 
@@ -59,7 +65,7 @@ class CateringController extends Controller
         try {
             $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null);
         } catch (CateringException $exception) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey)]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey, $exception->parameters)]);
 
             return back();
         }
@@ -74,7 +80,7 @@ class CateringController extends Controller
         try {
             $action->handle($foodOrderItem);
         } catch (CateringException $exception) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey)]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey, $exception->parameters)]);
 
             return back();
         }

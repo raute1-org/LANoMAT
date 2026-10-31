@@ -34,7 +34,7 @@ it('round-trips the menu repeater through MenuCast as typed MenuOptions with int
     Livewire::test(EditFoodOrder::class, ['record' => $order->getRouteKey()])
         ->fillForm([
             'menu' => [
-                ['key' => 'pizza', 'name' => 'Pizza', 'price_cents' => 850],
+                ['key' => 'pizza', 'name' => 'Pizza', 'price_cents' => '8,50'],
             ],
         ])
         ->call('save')
