@@ -108,6 +108,81 @@ Empty (the default) means anyone with a Discord account can log in.
 
 Timestamps are stored in UTC (`app.timezone`, never change it on a live database). Everything a person reads or types uses one display zone, `APP_DISPLAY_TIMEZONE` (default `Europe/Berlin`, `config('lanomat.timezone')`): arrival days (`EventDays`), Filament date-time inputs/columns (`FilamentTimezone`), notification times, and the Vue pages (shared Inertia prop `displayTimezone`, formatter `resources/js/lib/datetime.ts`). Do not call `toLocaleString()` without `timeZone` in new UI; use `formatInstant()`.
 
+## 3b. Discord bot features (optional, checklist)
+
+The login gate in 3a needs no bot. Everything below does: announcements,
+reminders, per-match channels, DMs, slash commands and voice presence. All of it
+was exercised live against a Discord test server (bot, gateway sidecar,
+`/help`, announcement, 24 h reminder with de-duplication, match text and voice
+channel with cleanup, DM). It is **off in production** until the owner decides to
+switch it on. Placeholders only; never commit real values.
+
+**1. Decide what the bot may post on its own.** With the module on, the bot
+posts automatically: a "registration open" message and a 24 h and 1 h reminder
+in the announcement channel; a private text and voice channel per match (roster
+only); DMs to users for the notification categories they enabled; slash command
+answers. If any of that is unwanted, leave the matching setting empty: no
+`DISCORD_ANNOUNCE_CHANNEL_ID` means no announcements or reminders, no
+`DISCORD_MATCH_CATEGORY_ID` puts match channels at the top level.
+
+**2. Developer Portal.**
+
+- Bot tab: enable the _Server Members Intent_ (the gateway sidecar needs it).
+  The Message Content intent is not used.
+- Invite the bot to the real server with these permissions: View Channels,
+  Manage Channels, Manage Roles (for the per-match overwrites), Send Messages,
+  Embed Links, Connect.
+- Leave the _Interactions Endpoint URL_ **empty**. Slash commands arrive through
+  the gateway sidecar; the HTTP endpoint stays a dormant fallback.
+- The bot's own user id equals the Application ID.
+
+**3. `.env` on the server** (the token is a secret: write it into the file
+yourself, never into chat, commits or screenshots):
+
+```bash
+MODULE_DISCORD=true
+DISCORD_BOT_TOKEN=<bot token>
+DISCORD_GUILD_ID=<server ID>
+DISCORD_APPLICATION_ID=<application ID>   # required: match channels fail without it
+DISCORD_PUBLIC_KEY=<public key>           # only for the HTTP fallback
+DISCORD_ANNOUNCE_CHANNEL_ID=<channel ID>  # empty = no announcements or reminders
+DISCORD_MATCH_CATEGORY_ID=<category ID>   # optional
+DISCORD_GATEWAY_BRIDGE_SECRET=<random>    # e.g. openssl rand -hex 32
+DISCORD_GATEWAY_INGRESS_URL=http://app/internal/discord/gateway
+```
+
+**4. Start.** `deploy.sh` does not start the sidecar. Run the deploy as usual
+first (it recreates the app), then start exactly one gateway session:
+
+```bash
+cd /opt/lanomat && ./scripts/deploy/deploy.sh
+docker compose --profile prod up -d --build discord-gateway
+docker compose --profile prod exec app php artisan discord:register-commands
+```
+
+Global slash commands can take up to an hour to appear. Never run a second
+sidecar with the same token (for example a laptop test): Discord allows one
+session per token.
+
+**5. Verify on the real server before the event:**
+
+- [ ] Sidecar log says it is logged in; `lanomat:preflight` is green.
+- [ ] `/help` answers in the channel.
+- [ ] Join a voice channel: `/discord/voice` shows the count, with no names for
+      unlinked users.
+- [ ] Move a test event to _Registration_: exactly one announcement appears.
+- [ ] A test match creates `match-N` and `Match N`, visible only to its roster,
+      and both vanish after the match.
+- [ ] A DM reaches an enabled user; a user who blocks DMs from server members
+      does not break anything else.
+
+**Cautions.** The match channel is created once per match (outbox guard). If
+someone deletes it by hand, a repeated `MatchReady` does not recreate it. Users
+who left the server are skipped in the channel overwrites, they just cannot see
+it. Rollback: set `MODULE_DISCORD=false`, `docker compose --profile prod stop
+discord-gateway`, recreate the app (`up -d`), and reset the token in the portal
+if it was ever exposed.
+
 ## 4. Start the stack
 
 ```bash
