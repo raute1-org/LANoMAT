@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Infoscreen\Events\SceneOverride;
+use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,4 +65,23 @@ it('shows a translated tombola label on the helper control page', function () {
         ->component('Screen/Control')
         ->where('triggerLabels.tombola_draw_title', trans('infoscreen.triggers.tombola_draw_title'))
     );
+});
+
+it('answers a second draw request for the same prize with a German message and no second winner', function () {
+    EventFacade::fake([SceneOverride::class]);
+
+    $event = Event::factory()->live()->create();
+    $prize = TombolaPrize::factory()->for($event)->create();
+    EventRegistration::factory()->for($event)->count(3)->checkedIn()->create();
+
+    $helper = User::factory()->helper()->create();
+
+    $this->actingAs($helper)->post("/screen/{$event->slug}/control/tombola/{$prize->id}/draw")->assertRedirect();
+    $this->actingAs($helper)->post("/screen/{$event->slug}/control/tombola/{$prize->id}/draw")
+        ->assertRedirect()
+        ->assertSessionMissing('errors');
+
+    expect(TombolaDraw::query()->where('tombola_prize_id', $prize->id)->count())->toBe(1);
+    EventFacade::assertDispatchedTimes(SceneOverride::class, 1);
+    expect(__('infoscreen.errors.prize_already_drawn'))->toBe('Dieser Preis wurde bereits gezogen.');
 });

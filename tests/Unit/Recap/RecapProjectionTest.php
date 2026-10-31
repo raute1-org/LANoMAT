@@ -35,7 +35,9 @@ it('returns an empty board for an event with no activity', function () {
 it('counts participants, tournaments, matches played, and songs played', function () {
     $event = Event::factory()->create();
 
-    EventRegistration::factory()->for($event)->count(3)->create();
+    EventRegistration::factory()->for($event)->count(3)->checkedIn()->create();
+    // Registered but never checked in: not a participant of the LAN.
+    EventRegistration::factory()->for($event)->count(2)->create();
 
     $tournament = Tournament::factory()->for($event)->announced()->create();
     Tournament::factory()->for($event)->announced()->create();

@@ -44,4 +44,12 @@ class InfoscreenException extends DomainException
     {
         return new self('The orga ping message may be at most 40 characters long.', 'infoscreen.errors.orga_ping_words_too_long');
     }
+
+    /**
+     * Thrown by {@see DrawTombola} when the prize already has a winner.
+     */
+    public static function prizeAlreadyDrawn(): self
+    {
+        return new self('This prize has already been drawn.', 'infoscreen.errors.prize_already_drawn');
+    }
 }

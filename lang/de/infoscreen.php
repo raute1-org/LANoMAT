@@ -62,6 +62,8 @@ return [
 
     'errors' => [
         'no_eligible_entrants' => 'Es gibt aktuell keine ziehbaren Teilnehmenden mehr (niemand eingecheckt oder bereits alle gezogen).',
+        'prize_already_drawn' => 'Dieser Preis wurde bereits gezogen.',
+        'tournament_not_public' => 'Das Turnier gehört nicht zu diesem Event oder ist noch nicht öffentlich.',
         'orga_ping_too_many_words' => 'Bitte maximal drei Wörter angeben.',
         'orga_ping_words_too_long' => 'Bitte maximal 40 Zeichen angeben.',
     ],

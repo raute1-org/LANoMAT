@@ -31,7 +31,7 @@ final class RecapProjection
     public static function forEvent(Event $event): RecapBoard
     {
         return new RecapBoard(
-            participantCount: $event->registrations()->count(),
+            participantCount: $event->registrations()->whereNotNull('checked_in_at')->count(),
             tournamentCount: $event->tournaments()->visibleTo(null)->count(),
             matchesPlayed: self::matchesPlayedCount($event),
             songsPlayed: (new JukeboxStats)->playedCount($event),
