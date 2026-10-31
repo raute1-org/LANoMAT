@@ -15,8 +15,8 @@ use Throwable;
 /**
  * Creates temporary per-match team voice channels once a match becomes
  * playable ({@see MatchReady}) on **every active provider**
- * ({@see VoiceProviders}) — one channel per roster, named after the entry's
- * display name, mirrored identically across backends. `temporary: true` is
+ * ({@see VoiceProviders}) — one channel per roster, named "Match <id> · <entry
+ * display name>" like the Discord rooms, mirrored identically across backends. `temporary: true` is
  * passed for documentation/forward-compatibility, but per
  * {@see HttpMumbleClient::createChannel()} this currently
  * has no server-side effect, so {@see CleanupTournamentVoiceJob} MUST delete
@@ -53,9 +53,9 @@ class ProvisionMatchVoiceJob implements ShouldQueue
             $created = [];
 
             try {
-                $entry1Channel = $client->createChannel($match->entry1->display_name, null, true);
+                $entry1Channel = $client->createChannel("Match {$match->id} · {$match->entry1->display_name}", null, true);
                 $created[] = $entry1Channel->id;
-                $entry2Channel = $client->createChannel($match->entry2->display_name, null, true);
+                $entry2Channel = $client->createChannel("Match {$match->id} · {$match->entry2->display_name}", null, true);
                 $created[] = $entry2Channel->id;
             } catch (Throwable $e) {
                 // Take back what this provider already made, so a retry starts clean.
