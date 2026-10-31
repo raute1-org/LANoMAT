@@ -28,6 +28,7 @@ enum Module: string
     case Notifications = 'notifications';
     case Preflight = 'preflight';
     case Presence = 'presence';
+    case Provisioning = 'provisioning';
     case Recap = 'recap';
     case Registration = 'registration';
     case Schedule = 'schedule';
@@ -64,6 +65,7 @@ enum Module: string
     {
         return match ($this) {
             self::CustomServers, self::Lancache => [self::Hosts],
+            self::Provisioning => [self::Hosts, self::Lancache],
             self::Recap => [self::Gallery, self::Jukebox, self::Voting, self::Presence],
             self::News => [self::Gallery],
             self::Gallery => [self::Files],

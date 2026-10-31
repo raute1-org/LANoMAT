@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "cpu": 0.0304941847240966,
+      "disk": 69489434624,
+      "id": "node/node1",
+      "level": "",
+      "maxcpu": 64,
+      "maxdisk": 100861726720,
+      "maxmem": 134915981312,
+      "mem": 123788685312,
+      "node": "node1",
+      "ssl_fingerprint": "AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB",
+      "status": "online",
+      "type": "node",
+      "uptime": 682017
+    }
+  ]
+}

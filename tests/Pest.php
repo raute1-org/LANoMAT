@@ -11,6 +11,9 @@ use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Testing\FakeLinkedAccounts;
 use App\Modules\Jukebox\Contracts\MusicClient;
 use App\Modules\Jukebox\Testing\FakeMusicClient;
+use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
+use App\Modules\Provisioning\Testing\FakeHypervisorClient;
+use App\Modules\Provisioning\Testing\FakeHypervisorClientFactory;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Testing\FakeVoiceClient;
@@ -49,6 +52,7 @@ pest()->extend(TestCase::class)
         'Unit/Lfg',
         'Unit/News',
         'Unit/Presence',
+        'Unit/Provisioning',
         'Unit/Recap',
         'Unit/Registration',
         'Unit/Schedule',
@@ -67,11 +71,13 @@ pest()->extend(TestCase::class)
         'Unit/GameServers',
     );
 
+pest()->use(RefreshDatabase::class)->in('Feature/Provisioning');
+
 // Prevent stray HTTP requests in Discord/Voice tests to ensure all external
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments', 'Feature/Provisioning', 'Unit/Provisioning');
 
 /*
 |--------------------------------------------------------------------------
@@ -187,6 +193,14 @@ function fakePelican(): FakePelicanClient
 
     config(['services.pelican.default_node_id' => config('services.pelican.default_node_id') ?? '1']);
     app()->instance(PelicanClient::class, $fake);
+
+    return $fake;
+}
+
+function fakeHypervisor(): FakeHypervisorClient
+{
+    $fake = new FakeHypervisorClient;
+    app()->instance(HypervisorClientFactory::class, new FakeHypervisorClientFactory($fake));
 
     return $fake;
 }

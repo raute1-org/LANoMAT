@@ -90,6 +90,16 @@ use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
 use App\Modules\Preflight\Checks\StorageWritableCheck;
 use App\Modules\Preflight\Checks\TeamSpeakSidecarCheck;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
+use App\Modules\Provisioning\Contracts\HostKeyScanner;
+use App\Modules\Provisioning\Contracts\HostKeyTrust;
+use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
+use App\Modules\Provisioning\HypervisorClients;
+use App\Modules\Provisioning\Models\Hypervisor;
+use App\Modules\Provisioning\Models\ProvisioningRun;
+use App\Modules\Provisioning\Policies\HypervisorPolicy;
+use App\Modules\Provisioning\Policies\ProvisioningRunPolicy;
+use App\Modules\Provisioning\Support\CrossCheckHostKeyTrust;
+use App\Modules\Provisioning\Support\PhpseclibHostKeyScanner;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
@@ -194,6 +204,10 @@ class AppServiceProvider extends ServiceProvider
             (int) config('services.hosts.connect_timeout'),
             (bool) config('services.hosts.strict_host_key'),
         ));
+
+        $this->app->bind(HypervisorClientFactory::class, HypervisorClients::class);
+        $this->app->bind(HostKeyScanner::class, PhpseclibHostKeyScanner::class);
+        $this->app->bind(HostKeyTrust::class, CrossCheckHostKeyTrust::class);
 
         $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
             (string) config('services.music_assistant.base_url'),
@@ -413,6 +427,11 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::Hosts)) {
             Gate::policy(RemoteHost::class, RemoteHostPolicy::class);
+        }
+
+        if ($this->on(Module::Provisioning)) {
+            Gate::policy(Hypervisor::class, HypervisorPolicy::class);
+            Gate::policy(ProvisioningRun::class, ProvisioningRunPolicy::class);
         }
 
         if ($this->on(Module::CustomServers)) {
