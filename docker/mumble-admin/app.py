@@ -79,6 +79,7 @@ class ChannelOut(BaseModel):
     name: str
     parent: int
     temporary: bool
+    occupants: int = 0
 
 
 def require_token(credentials: HTTPAuthorizationCredentials | None = Security(bearer)) -> None:
@@ -156,8 +157,13 @@ def _get_server():
 def list_channels(_: None = Depends(require_token)) -> list[ChannelOut]:
     server, context = _get_server()
     channels = server.getChannels(context)
+    # Connected users per channel: the app waits for the last person to leave
+    # before it deletes a room, and shows the headcount on the live pages.
+    occupants: dict[int, int] = {}
+    for user in server.getUsers(context).values():
+        occupants[user.channel] = occupants.get(user.channel, 0) + 1
     return [
-        ChannelOut(id=c.id, name=c.name, parent=c.parent, temporary=c.temporary)
+        ChannelOut(id=c.id, name=c.name, parent=c.parent, temporary=c.temporary, occupants=occupants.get(c.id, 0))
         for c in channels.values()
     ]
 

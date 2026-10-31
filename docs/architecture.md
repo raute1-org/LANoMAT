@@ -172,6 +172,12 @@ compose service on the `prod` profile — exactly one Gateway session may exist 
   (`broadcastAs` `voice.updated`, empty payload, No-PII) on the public `discord-voice` channel
   — guild-wide, so deliberately not the per-event `event.{id}` channel. `GET discord/voice`
   (`VoicePresenceController`) is the public read endpoint consumers reload against.
+- **Voice rooms are removed only when empty.** The Mumble and TeamSpeak cleanup jobs
+  (`CleanupTournamentVoiceJob`, `CleanupEventServerVoiceJob`) delete a provider's rooms only
+  once nobody is in any of them or in a sub-channel (`OccupiedChannels`, fed by the `occupants`
+  count both admin sidecars report). While someone is still there the job re-queues itself
+  every two minutes; providers are handled independently, and a sync queue never re-queues
+  (a delay would loop). Discord match channels still go after a fixed delay.
 - **Member/message/reaction events** (`GuildMemberAdd`/`Remove`, `MessageCreate`,
   `MessageReactionAdd`/`Remove`) are forwarded the same way and surfaced as typed Laravel
   events for other modules to listen to.
