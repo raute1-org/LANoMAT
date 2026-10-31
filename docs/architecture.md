@@ -49,6 +49,7 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | LFG (optional) | M4 | Looking-for-group posts per event |
 | Discord (optional) | M2–M3 (cross-cutting) | REST client, Gateway sidecar ingress, Interactions endpoint (dormant fallback), channel orchestration |
 | Voice (Mumble) (optional) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
+| WebVoice (optional) | Web voice | Browser voice (self-hosted LiveKit SFU) and persisted text chat per channel, general + per-match team rooms, admin moderation; see `docs/infra/livekit-web-voice.md` |
 | Infoscreen (optional) | M5 | Fullscreen rotating scenes for the venue projector |
 | GameServers (optional) | M6 | Pelican Panel integration, match server provisioning |
 | Notifications (core) | M2 (cross-cutting) | `database` + `discord` notification channels |
@@ -135,6 +136,10 @@ discord_voice_states (id, discord_user_id UNIQUE, channel_id, channel_name NULLA
 event_photos         (id, event_id, uploaded_by, path, thumb_path, width, height, caption NULLABLE,
                       is_highlight, visibility[pending|approved|rejected], reviewed_by NULLABLE, reviewed_at NULLABLE)
 news_posts           (id, title, body, author_id NULLABLE, published_at NULLABLE)
+web_voice_channels   (id, kind[general|match], name, description NULLABLE, game_match_id NULLABLE, tournament_entry_id NULLABLE,
+                      archived_at NULLABLE, UNIQUE(game_match_id, tournament_entry_id))   -- plain references into Tournaments
+web_voice_channel_user (web_voice_channel_id, user_id, UNIQUE)   -- access list of a match room (roster snapshot)
+web_voice_messages   (id, web_voice_channel_id, user_id, body, created_at) · web_voice_mutes (web_voice_channel_id, user_id, muted_by NULLABLE)
 ```
 
 Key decisions (see design doc §7 for full rationale):

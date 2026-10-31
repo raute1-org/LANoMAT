@@ -69,8 +69,7 @@ No other module imports `WebVoice`; the Preflight probe is self-contained (confi
 Everything goes through `WebVoiceChannelPolicy` (`view`, `join`, `post`, `moderate`, `manage`); the admin result comes
 from the existing `Gate::before`. Archived channels are refused for everyone, admins included, inside the actions. The
 subject of every request is `auth()->user()`: the LiveKit identity is `u<user id>` derived server side, and no
-user id is ever read from the request except as the *target* of a moderation call (which is itself checked: it must
-be a participant the admin may moderate, and the action only passes the identity to the contract). Broadcast
+user id is ever read from the request except as the *target* of a moderation call (a moderation call is admin only, and the action only turns that id into the `u<id>` identity for the contract). Broadcast
 channel `web-voice.channel.{id}` (private) authorizes through the same `view` ability; the `web-voice.directory`
 channel carries an empty payload ("reload your list") and is open to any logged-in user.
 
@@ -139,9 +138,12 @@ older ones page with `?before=<id>`. Plain text only, no uploads.
 
 ## Admin UI
 
-Filament resource `WebVoiceChannelResource` (admin only): create / rename / archive / restore general channels; match
-channels are listed read-only. A "Live rooms" view shows occupancy from `WebVoiceClient::listParticipants()` and polls
-every 5 seconds, with a remove-participant action. Module-gated like every other resource.
+Filament resource `WebVoiceChannelResource` (admin only, `manage` ability; the policy's `viewAny` is true for everyone because
+it backs the participant page, so the resource overrides `canViewAny`): create / rename / archive / restore general
+channels; match channels are listed read-only. The table has a live "Anwesend" column from
+`WebVoiceClient::participants()` that polls every 10 seconds (an unreachable server shows a note instead of failing the
+page). Removing a participant, muting and deleting a message are done in the room on the participant page, where the admin
+sees who is talking; there is no separate remove action in Filament.
 
 ## Participant UI
 
@@ -163,3 +165,15 @@ states, German copy in `lang/de/web_voice.php`.
 - Roster changes after the room was created do not change who may enter it (snapshot, like `roster_snapshot`).
 - Production prerequisites (not done by this change): a `livekit` container, the UDP port open, a trusted certificate
   for the signaling name, `MODULE_WEB_VOICE=true`.
+
+## Notes from implementation
+
+- Realtime events use `ShouldBroadcastNow` and the repository's `RetriesBroadcast` trait (a repository test requires it on every
+  broadcast event); a Reverb outage is caught and reported, the saved message is never lost.
+- `/broadcasting/auth` needs a CSRF token. The app layout had no `csrf-token` meta tag (no page used a private channel before),
+  so one was added to `app.blade.php`. Known edge: after a logout and a new login in the same tab without a reload, Echo still
+  holds the old token and chat realtime auth fails until a reload (HTTP history and posting keep working).
+- The Traefik `Permissions-Policy` said `microphone=()`, which would have blocked `getUserMedia` everywhere. It is now
+  `microphone=(self)`.
+- Orga and helpers get **no** extra rights in this module: every moderation and visibility privilege is admin only, as
+  in the brief. Say so if orga should moderate the rooms of their event.

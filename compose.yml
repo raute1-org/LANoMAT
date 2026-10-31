@@ -418,6 +418,34 @@ services:
     volumes:
       - music_assistant_data:/data
 
+  # Web voice SFU (WebVoice module, docs/infra/livekit-web-voice.md). Own profile on purpose:
+  # NOT started by `docker compose up -d` (no `profiles` key would) and NOT by
+  # scripts/deploy/deploy.sh (it names its services and uses `--profile prod`), so existing
+  # deployments are unchanged. Start it with `docker compose --profile web-voice up -d livekit`
+  # after rendering docker/livekit/livekit.yaml (scripts/ops/render-livekit-config.sh).
+  # Latency: media goes straight to the host over ONE UDP port (7882, ICE/UDP mux), never through
+  # Traefik; only the signaling WebSocket (7880) is proxied (TLS, trusted certificate: the browser
+  # needs a secure context for the microphone). 7881/tcp is the last-resort fallback.
+  # Run it on the machine at the venue, not on a cloud server: every packet would otherwise
+  # take the internet round trip.
+  livekit:
+    restart: unless-stopped
+    image: livekit/livekit-server:v1.13.11
+    profiles: [web-voice]
+    command: ['--config', '/etc/livekit.yaml']
+    volumes:
+      - ./docker/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - '7882:7882/udp'
+      - '7881:7881'
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.livekit.rule: 'Host(`${LIVEKIT_DOMAIN:-livekit.example.invalid}`)'
+      traefik.http.routers.livekit.entrypoints: 'websecure'
+      traefik.http.routers.livekit.tls: 'true'
+      traefik.http.routers.livekit.tls.certresolver: 'letsencrypt'
+      traefik.http.services.livekit.loadbalancer.server.port: '7880'
+
 volumes:
   pgdata:
   # User uploads (avatars, shared files, gallery photos): storage/app on the

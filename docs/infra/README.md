@@ -17,6 +17,7 @@ rules").
 | [lan-tls-certificates.md](lan-tls-certificates.md)                 | Wildcard TLS certificate for venue-only names through Traefik and the DNS-01 challenge (Cloudflare or Hetzner DNS), staging first. |
 | [app-at-the-venue.md](app-at-the-venue.md)                         | Running the app at the venue behind the cloud server: TLS pass-through, cut-over, rollback, offline use.                           |
 | [test-suite-vm.md](test-suite-vm.md)                               | The full app (every module) on the test VM, wired to Pelican, LanCache, voice and Discord, reached through the cloud entry.        |
+| [livekit-web-voice.md](livekit-web-voice.md) | Self-hosted LiveKit SFU for the in-browser voice and text chat (`WebVoice` module): ports, latency settings, TLS, manual checklist. |
 
 ## Suggested reading order
 
