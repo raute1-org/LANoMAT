@@ -84,5 +84,8 @@ return [
         'totals' => 'Summen',
         'grand_total' => 'Gesamtsumme',
         'close_modal' => 'Schließen',
+        'option_counts' => 'Anzahl pro Option',
+        'option_count_line' => ':countx :name',
+        'export_csv' => 'CSV exportieren',
     ],
 ];
