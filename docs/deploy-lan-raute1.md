@@ -40,6 +40,7 @@ APP_DOMAIN=lan.raute1.org
 ACME_EMAIL=<mailbox for Let's Encrypt notices>
 MODULES_PROFILE=core
 LOG_LEVEL=warning
+APP_LOCALE=de                 # UI copy exists only in German; the code default is de as well
 
 # Inside the compose network, not 127.0.0.1
 DB_CONNECTION=pgsql
