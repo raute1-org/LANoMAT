@@ -35,6 +35,9 @@ an internet exposure. After 1.4.230 the server side got, among others:
   uses the module the server answers for, so it works with 1.4 and 1.5 (round trip tested against real servers of
   both versions).
 - **gRPC was removed** in 1.5. We never used it (the sidecar talks Ice).
+- **The image runs the server as uid/gid 10000** (the 1.4 image used 1000). A private key shared through a
+  group must therefore use group 10000 (`CERTS_GID`, see [local-service-tls.md](local-service-tls.md)); with the
+  old group the server exits at start ("Failed to read ... privatekey.key"). Found while upgrading the test VM.
 - **Environment variables** of the official image (`MUMBLE_CONFIG_*`, `MUMBLE_SUPERUSER_PASSWORD`) work unchanged
   in 1.5.939, including the empty values our `compose.yml` passes when no password or certificate is set.
 - **Opus is enforced by default** and the old codecs are gone: no change for us, the web voice and the

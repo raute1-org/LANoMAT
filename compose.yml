@@ -114,8 +114,9 @@ services:
     profiles: [venue-certs]
     command: ['python', '/export-certs.py']
     environment:
-      # Group that may read the private keys: Mumble's group id in its image.
-      CERTS_GID: ${CERTS_GID:-1000}
+      # Group that may read the private keys: the group the Mumble server runs as in its image
+      # (10000 in 1.5.x; the 1.4.x image used 1000). Change it together with the image tag.
+      CERTS_GID: ${CERTS_GID:-10000}
     volumes:
       - ./docker/traefik/export-certs.py:/export-certs.py:ro
       - traefik_acme:/data:ro
