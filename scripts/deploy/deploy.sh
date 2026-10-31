@@ -13,9 +13,19 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 SERVICES=(traefik app queue scheduler reverb-prod postgres redis)
 
+# The commit the running stack was last deployed from. Comparing against it (not against the
+# HEAD before our own `git pull`) keeps the Traefik check right even when someone pulled by hand
+# before running this script. Kept inside .git so it is never tracked.
+DEPLOYED_MARKER="$(git rev-parse --git-dir)/lanomat-deployed-head"
+
 echo "==> Pulling origin/main (fast-forward only)"
 OLD_HEAD="$(git rev-parse HEAD)"
 git pull --ff-only
+
+BASE_HEAD="$OLD_HEAD"
+if [ -f "$DEPLOYED_MARKER" ] && git cat-file -e "$(cat "$DEPLOYED_MARKER")^{commit}" 2>/dev/null; then
+    BASE_HEAD="$(cat "$DEPLOYED_MARKER")"
+fi
 
 # --pull refreshes the moving base tags (FrankenPHP 1.13-php8.4, node:22-alpine)
 # so every deploy ships the newest PHP/Node patch releases (security fixes).
@@ -25,8 +35,9 @@ docker compose --profile prod up -d "${SERVICES[@]}"
 
 # Traefik bind-mounts single config FILES. `git pull` replaces a changed file with a new inode,
 # but the running container keeps the old one, so `up -d` alone would silently keep serving the
-# OLD routing/headers config. Recreate Traefik when anything under docker/traefik changed.
-if ! git diff --quiet "$OLD_HEAD" HEAD -- docker/traefik compose.yml; then
+# OLD routing/headers config. Recreate Traefik when anything under docker/traefik changed since the
+# last deploy (a missing middleware makes Traefik drop the routers that use it: the site answers 404).
+if ! git diff --quiet "$BASE_HEAD" HEAD -- docker/traefik compose.yml; then
     echo "==> Traefik config or compose.yml changed: recreating traefik"
     docker compose --profile prod up -d --force-recreate --no-deps traefik
 fi
@@ -41,6 +52,8 @@ done
 
 echo "==> Running migrations"
 docker compose --profile prod exec -T app php artisan migrate --force
+
+git rev-parse HEAD > "$DEPLOYED_MARKER"
 
 echo "==> Done: $(git log --oneline -1)"
 docker compose --profile prod ps --format 'table {{.Service}}\t{{.Status}}'
