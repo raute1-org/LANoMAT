@@ -170,6 +170,27 @@ Chrome). Put a notice up: "turn off Private DNS and Private Relay on the Wi-Fi".
 Rehearsal: unplug the uplink, then test the site, a check-in and a live page from
 two phones, once with and once without Private DNS.
 
+## Planned venue server and switch
+
+Planned hardware: one server with 128 GB RAM, four 4 TB SSDs and one 2 TB SSD, and either 2x10G or 1x40G plus 2x1G
+network ports, behind a MikroTik CRS354. As far as I know that switch has 48x1G, 4x10G SFP+ and 2x40G QSFP+ ports
+on a small ARM CPU: check the datasheet of the exact model before relying on any of this.
+
+- **Link.** One 40G port (a QSFP+ DAC cable to a QSFP+ port of the switch), or the two 10G ports bonded to two SFP+
+  ports. Clients on the 48 gigabit ports are limited to 1G each, so one 10G link already carries a full house of
+  LanCache downloads. Keep one 1G port of the server as a separate management port.
+- **Keep heavy work off the switch.** The CRS line is a switch first: bridging and VLANs run in hardware, while
+  routing, NAT and WireGuard run on its small CPU and are slow. Terminate the WireGuard tunnel on the server (the
+  `<VENUE_SERVER>` variant in [wireguard-tunnel.md](wireguard-tunnel.md)), not on the switch, and use the switch for
+  DHCP, the static DNS entry and bridging only. The "tunnel on the venue router" variant stays valid for a router
+  that has the CPU for it; measure before choosing it on the CRS.
+- **Disks.** Four 4 TB SSDs fit the LanCache store, which is replaceable and does not need redundancy (a stripe is
+  fine, a lost cache just refills). The single 2 TB SSD would hold the database, uploads and `APP_KEY`: everything
+  irreplaceable. A single disk is a single point of failure, so the backup must leave the machine (the nightly
+  `scripts/ops/backup.sh` output copied to another host), and the restore drill needs a run on that copy.
+- **Memory.** 128 GB is far more than the stack needs; spare RAM goes to the page cache for LanCache and to the
+  game servers.
+
 ## Risks
 
 | Risk                                         | Mitigation                                                                          |
