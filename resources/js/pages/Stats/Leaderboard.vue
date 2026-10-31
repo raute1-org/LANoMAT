@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import type { LeaderboardRowDto } from '@/types';
 
 const props = defineProps<{
@@ -16,37 +16,7 @@ const props = defineProps<{
 // Inertia renders this page synchronously on first load, so "loading"/"error"
 // only apply to a subsequent client-driven navigation/refresh — same
 // router-lifecycle mirror as the Servers/Index page.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeError: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeError = router.on('error', onError);
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeError?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 
 function typeLabel(row: LeaderboardRowDto): string {
     return row.type === 'team'

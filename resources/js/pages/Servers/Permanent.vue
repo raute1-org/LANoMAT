@@ -12,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import type { GameServerDto } from '@/types';
 
 // Permanent servers run all year, independent of any LAN: one list for every
@@ -23,12 +24,7 @@ const props = defineProps<{
 
 // Inertia renders the first load synchronously, so "loading"/"error" only apply
 // to a later client-driven reload (see docs/design.md "States").
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeError: (() => void) | undefined;
+const { isNavigating, hasError } = usePageLoadState();
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
 function refreshServers() {
@@ -38,25 +34,12 @@ function refreshServers() {
 }
 
 onMounted(() => {
-    removeStart = router.on('start', () => {
-        hasError.value = false;
-        isNavigating.value = true;
-    });
-    removeFinish = router.on('finish', () => {
-        isNavigating.value = false;
-    });
-    removeError = router.on('error', () => {
-        hasError.value = true;
-    });
     // Status and players change without navigation: reload the list now and
     // then while the tab is visible.
     refreshTimer = setInterval(refreshServers, 30000);
 });
 
 onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeError?.();
     clearInterval(refreshTimer);
 });
 

@@ -12,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import type { GameServerDto } from '@/types';
 
 const props = defineProps<{
@@ -23,21 +24,7 @@ const props = defineProps<{
 // Inertia renders this page synchronously on first load, so "loading"/"error"
 // only apply to a subsequent client-driven navigation/refresh — mirrored via
 // router's global lifecycle events rather than invented polling.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
+const { isNavigating, hasError } = usePageLoadState();
 
 // Player counts and startup state change without any navigation: reload only the
 // server list now and then while the tab is visible (partial reload, no flash).
@@ -49,21 +36,11 @@ function refreshServers() {
     }
 }
 
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeError: (() => void) | undefined;
-
 onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeError = router.on('error', onError);
     refreshTimer = setInterval(refreshServers, 20000);
 });
 
 onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeError?.();
     clearInterval(refreshTimer);
 });
 

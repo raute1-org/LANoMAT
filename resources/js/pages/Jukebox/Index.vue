@@ -17,6 +17,7 @@ import SearchBox from '@/components/jukebox/SearchBox.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEventChannel } from '@/composables/useEventChannel';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import {
     add as addRoute,
     remove as removeRoute,
@@ -97,40 +98,7 @@ onUnmounted(() => {
     }
 });
 
-// Inertia renders this page synchronously on first load, so "loading"/
-// "error" only apply to a subsequent client-driven navigation/reload —
-// mirrors Presence/Index.vue.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeErrorListener: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeErrorListener = router.on('error', onError);
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeErrorListener?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 
 function addTrack(track: TrackSearchResultDto): void {
     router.post(

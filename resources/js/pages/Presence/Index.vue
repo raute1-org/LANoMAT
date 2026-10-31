@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEventChannel } from '@/composables/useEventChannel';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import { useResync } from '@/composables/useResync';
 import { show as tournamentsShow } from '@/routes/tournaments';
 import type { PresenceBoardDto } from '@/types';
@@ -85,37 +86,7 @@ function checkedInCountLabel(): string {
 // Inertia renders this page synchronously on first load, so "loading"/"error"
 // only apply to a subsequent client-driven navigation/refresh (mirrors
 // Servers/Index.vue) rather than invented polling.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeError: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeError = router.on('error', onError);
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeError?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 
 // Quiet client-side filter toggles — no server round-trip, the board is
 // already fully loaded.

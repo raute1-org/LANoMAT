@@ -7,14 +7,15 @@
  * Structure mirrors Jukebox/Index.vue and Files/Index.vue: a page title, an
  * upload Card visible only when `canUpload`, and all four states.
  */
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import PhotoGrid from '@/components/gallery/PhotoGrid.vue';
 import PhotoLightbox from '@/components/gallery/PhotoLightbox.vue';
 import PhotoUpload from '@/components/gallery/PhotoUpload.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import { destroy as destroyPhoto } from '@/routes/gallery';
 import type { GalleryPhotoDto } from '@/types';
 
@@ -44,40 +45,7 @@ function remove(photo: GalleryPhotoDto): void {
     });
 }
 
-// Inertia renders this page synchronously on first load, so "loading"/"error"
-// only apply to a subsequent client-driven navigation/refresh — same
-// router-lifecycle mirror as Jukebox/Index.vue and Files/Index.vue.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeErrorListener: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeErrorListener = router.on('error', onError);
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeErrorListener?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 </script>
 
 <template>
