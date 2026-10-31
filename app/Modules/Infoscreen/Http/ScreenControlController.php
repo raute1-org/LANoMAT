@@ -18,6 +18,7 @@ use App\Modules\Infoscreen\Http\Requests\SetStatusSignalRequest;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Models\StatusSignal;
 use App\Modules\Infoscreen\Models\TombolaPrize;
+use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,15 +41,27 @@ class ScreenControlController extends Controller
 
     public function index(Event $event): Response
     {
-        $scenes = InfoscreenScene::query()
+        $sceneModels = InfoscreenScene::query()
             ->where('event_id', $event->id)
             ->orderBy('sort')
             ->orderBy('id')
-            ->get()
+            ->get();
+
+        $tournamentNames = Tournament::query()
+            ->where('event_id', $event->id)
+            ->whereIn('id', $sceneModels->map(fn (InfoscreenScene $scene): ?int => $scene->config->tournamentId)->filter()->all())
+            ->pluck('name', 'id');
+
+        // `detail` tells scenes of the same type apart on the remote: the
+        // announcement headline or the tournament name.
+        $scenes = $sceneModels
             ->map(fn (InfoscreenScene $scene): array => [
                 'id' => $scene->id,
                 'type' => $scene->type->value,
                 'typeLabel' => $scene->type->label(),
+                'detail' => $scene->config->tournamentId !== null
+                    ? $tournamentNames->get($scene->config->tournamentId)
+                    : ($scene->config->headline !== null && $scene->config->headline !== '' ? $scene->config->headline : null),
                 'enabled' => $scene->enabled,
             ])
             ->all();

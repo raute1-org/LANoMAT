@@ -8,6 +8,7 @@ use App\Modules\Infoscreen\Domain\SceneConfig;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Enums\StatusLevel;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
+use App\Modules\Infoscreen\Models\TombolaDraw;
 use App\Modules\Infoscreen\Models\TombolaPrize;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Registration\Models\EventRegistration;
@@ -292,4 +293,28 @@ it('caps the schedule items sent to the beamer', function () {
     $scene = InfoscreenScene::factory()->for($event)->schedule()->create();
 
     expect(ScenePayload::for($scene)['data']['items'])->toHaveCount(12);
+});
+
+it('never exposes e-mail, discord id, user id or network data in the seatmap and tombola payloads', function () {
+    $event = Event::factory()->live()->create();
+    $user = User::factory()->create(['name' => 'Ada', 'email' => 'ada-secret@example.test', 'discord_id' => '424242424242']);
+    $registration = EventRegistration::factory()->for($event)->checkedIn()->create(['user_id' => $user->id]);
+    $seat = Seat::factory()->for($event)->create(['label' => 'A1', 'pos_x' => 0, 'pos_y' => 0]);
+    SeatAssignment::factory()->create(['seat_id' => $seat->id, 'registration_id' => $registration->id]);
+    $prize = TombolaPrize::factory()->for($event)->create();
+    TombolaDraw::unguard();
+    TombolaDraw::create(['event_id' => $event->id, 'tombola_prize_id' => $prize->id, 'registration_id' => $registration->id, 'drawn_at' => now()]);
+    TombolaDraw::reguard();
+
+    $json = json_encode([
+        ScenePayload::for(InfoscreenScene::factory()->for($event)->create(['type' => SceneType::Seatmap])),
+        ScenePayload::for(InfoscreenScene::factory()->for($event)->create(['type' => SceneType::Tombola])),
+    ], JSON_THROW_ON_ERROR);
+
+    // Display names are public by decision (R2 F-R2C-6); nothing else is.
+    expect($json)->toContain('Ada')
+        ->not->toContain('ada-secret')
+        ->not->toContain('424242424242')
+        ->not->toContain('"userId"')
+        ->not->toContain('"user_id"');
 });

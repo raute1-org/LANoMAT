@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { formatInstant } from '@/lib/datetime';
 import type { ScheduleItemDto } from '@/types';
 
@@ -6,8 +7,6 @@ const props = defineProps<{
     config: { headline?: string };
     data: {
         items?: ScheduleItemDto[];
-        now?: ScheduleItemDto | null;
-        next?: ScheduleItemDto | null;
     };
     labels: Record<string, string>;
 }>();
@@ -19,11 +18,54 @@ function formatTime(iso: string): string {
     });
 }
 
-const upcoming = () =>
-    (props.data.items ?? []).filter(
-        (item) =>
-            item.id !== props.data.now?.id && item.id !== props.data.next?.id,
-    );
+// The payload is a snapshot from page load / the last reload, but a beamer
+// runs for hours. Derive "now", "next" and the list from the items against a
+// ticking clock so the scene starts at the current programme point and past
+// items drop out on their own.
+const MAX_LIST_ROWS = 6;
+const clock = ref(Date.now());
+let clockTimer: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+    clockTimer = setInterval(() => {
+        clock.value = Date.now();
+    }, 30000);
+});
+
+onUnmounted(() => {
+    if (clockTimer !== null) {
+        clearInterval(clockTimer);
+    }
+});
+
+function endMs(item: ScheduleItemDto): number {
+    return item.endsAt
+        ? new Date(item.endsAt).getTime()
+        : new Date(item.startsAt).getTime() + 3600000;
+}
+
+const remaining = computed(() =>
+    (props.data.items ?? []).filter((item) => endMs(item) > clock.value),
+);
+const current = computed(
+    () =>
+        remaining.value.find(
+            (item) => new Date(item.startsAt).getTime() <= clock.value,
+        ) ?? null,
+);
+const next = computed(
+    () =>
+        remaining.value.find(
+            (item) => new Date(item.startsAt).getTime() > clock.value,
+        ) ?? null,
+);
+const later = computed(() =>
+    remaining.value.filter(
+        (item) => item.id !== current.value?.id && item.id !== next.value?.id,
+    ),
+);
+const listed = computed(() => later.value.slice(0, MAX_LIST_ROWS));
+const hiddenCount = computed(() => later.value.length - listed.value.length);
 </script>
 
 <template>
@@ -34,7 +76,7 @@ const upcoming = () =>
 
         <div class="grid grid-cols-2 gap-8">
             <div
-                v-if="data.now"
+                v-if="current"
                 class="rounded-xl border-2 border-live bg-card px-8 py-6"
             >
                 <p
@@ -43,20 +85,20 @@ const upcoming = () =>
                     {{ labels.schedule_now }}
                 </p>
                 <p class="mt-2 text-4xl font-semibold text-foreground">
-                    {{ data.now.title }}
+                    {{ current.title }}
                 </p>
                 <p
                     class="mt-2 font-mono text-2xl text-muted-foreground tabular-nums"
                 >
-                    {{ formatTime(data.now.startsAt) }}
-                    <template v-if="data.now.endsAt">
-                        – {{ formatTime(data.now.endsAt) }}
+                    {{ formatTime(current.startsAt) }}
+                    <template v-if="current.endsAt">
+                        – {{ formatTime(current.endsAt) }}
                     </template>
                 </p>
             </div>
 
             <div
-                v-if="data.next"
+                v-if="next"
                 class="rounded-xl border border-border bg-card/50 px-8 py-6"
             >
                 <p
@@ -65,26 +107,23 @@ const upcoming = () =>
                     {{ labels.schedule_next }}
                 </p>
                 <p class="mt-2 text-4xl font-semibold text-foreground">
-                    {{ data.next.title }}
+                    {{ next.title }}
                 </p>
                 <p
                     class="mt-2 font-mono text-2xl text-muted-foreground tabular-nums"
                 >
-                    {{ formatTime(data.next.startsAt) }}
+                    {{ formatTime(next.startsAt) }}
                 </p>
             </div>
         </div>
 
-        <p
-            v-if="!data.now && !data.next"
-            class="text-3xl text-muted-foreground"
-        >
+        <p v-if="!current && !next" class="text-3xl text-muted-foreground">
             {{ labels.schedule_empty }}
         </p>
 
-        <ul class="mt-4 flex-1 space-y-3 overflow-auto">
+        <ul class="mt-4 space-y-3">
             <li
-                v-for="item in upcoming()"
+                v-for="item in listed"
                 :key="item.id"
                 class="flex items-baseline gap-4 text-2xl text-muted-foreground"
             >
@@ -94,5 +133,9 @@ const upcoming = () =>
                 <span>{{ item.title }}</span>
             </li>
         </ul>
+
+        <p v-if="hiddenCount > 0" class="text-2xl text-muted-foreground">
+            {{ labels.more_count.replace(':count', String(hiddenCount)) }}
+        </p>
     </div>
 </template>

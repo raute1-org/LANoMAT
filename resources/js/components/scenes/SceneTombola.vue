@@ -15,14 +15,13 @@ type DrawResult = {
 
 // Two shapes reach this component: the rotation-configured scene's
 // `{ prizes, lastDraw }` (ScenePayload::tombolaData), and the reveal-moment
-// SceneOverride's `{ prize, winner }` (DrawTombola). Both are normalized
-// into the same `reveal` shape below so a single template covers both —
-// a live draw pushes the reveal directly, and a viewer tuning in mid-rotation
-// still sees the most recent winner via `lastDraw`.
+// SceneOverride's `{ prize, winner }` (DrawTombola). Only the override is a
+// reveal: it is time-boxed by the rotation composable. The rotation scene
+// always shows the prize board (every drawn prize lists its winner), so an
+// old winner never replaces the board for the rest of the evening.
 const props = defineProps<{
     data: {
         prizes?: Prize[];
-        lastDraw?: DrawResult | null;
         prize?: { id: number; title: string };
         winner?: { registrationId: number; name: string };
     };
@@ -34,7 +33,7 @@ const reveal = computed<DrawResult | null>(() => {
         return { prize: props.data.prize, winner: props.data.winner };
     }
 
-    return props.data.lastDraw ?? null;
+    return null;
 });
 
 const prizes = computed<Prize[]>(() => props.data.prizes ?? []);
@@ -76,7 +75,11 @@ const prizes = computed<Prize[]>(() => props.data.prizes ?? []);
             {{ labels.tombola_empty }}
         </p>
 
-        <ul v-else class="flex-1 space-y-4 overflow-auto">
+        <ul
+            v-else
+            class="grid flex-1 content-start gap-4 overflow-hidden"
+            :class="prizes.length > 5 ? 'grid-cols-2' : 'grid-cols-1'"
+        >
             <li
                 v-for="prize in prizes"
                 :key="prize.id"
