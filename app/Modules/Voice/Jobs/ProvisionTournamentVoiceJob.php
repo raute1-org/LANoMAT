@@ -10,6 +10,7 @@ use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Voice\VoiceProviders;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Throwable;
 
 /**
  * Provisions the voice channel tree for a tournament once it goes live
@@ -55,23 +56,41 @@ class ProvisionTournamentVoiceJob implements ShouldQueue
                 continue;
             }
 
-            $tournamentChannel = $client->createChannel("🏆 {$tournament->name}");
+            $created = [];
 
-            $teamChannelIds = [];
+            try {
+                $tournamentChannel = $client->createChannel("🏆 {$tournament->name}");
+                $created[] = $tournamentChannel->id;
 
-            foreach ($entries as $entry) {
-                $teamChannel = $client->createChannel($entry->display_name, $tournamentChannel->id);
-                $teamChannelIds[] = $teamChannel->id;
+                $teamChannelIds = [];
+
+                foreach ($entries as $entry) {
+                    $teamChannel = $client->createChannel($entry->display_name, $tournamentChannel->id);
+                    $created[] = $teamChannel->id;
+                    $teamChannelIds[] = $teamChannel->id;
+                }
+            } catch (Throwable $e) {
+                // Take back the half-built tree of this provider, so a retry starts clean.
+                foreach (array_reverse($created) as $channelId) {
+                    try {
+                        $client->deleteChannel($channelId);
+                    } catch (Throwable $deleteFailure) {
+                        report($deleteFailure);
+                    }
+                }
+
+                throw $e;
             }
 
             $voice[$value] = [
                 'tournament_channel_id' => $tournamentChannel->id,
                 'team_channel_ids' => $teamChannelIds,
             ];
+
+            // Stored as soon as this provider is done: if a later provider fails, a retry
+            // must not build this tree a second time (it would be left behind).
+            $settings['voice'] = $voice;
+            $tournament->update(['settings' => $settings]);
         }
-
-        $settings['voice'] = $voice;
-
-        $tournament->update(['settings' => $settings]);
     }
 }
