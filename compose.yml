@@ -88,6 +88,12 @@ services:
       # interpolation) — passed as a CLI flag here instead, where
       # `${ACME_EMAIL}` is Compose's own substitution from `.env`.
       - '--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}'
+      # Venue behind a cloud entry point (docs/infra/app-at-the-venue.md): accept
+      # the PROXY protocol header only from the cloud Traefik's tunnel address, so
+      # the real client address survives the TLS pass-through. Connections without
+      # a header (LAN clients, the default) keep working. The default is a
+      # loopback no-op for every deployment that does not use this.
+      - '--entrypoints.websecure.proxyprotocol.trustedips=${PROXY_PROTOCOL_TRUSTED_IPS:-127.0.0.1/32}'
     env_file: .env
     ports:
       - '80:80'
@@ -100,6 +106,29 @@ services:
       - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - traefik_acme:/letsencrypt
+
+  # Cloud entry point for an app that runs at the venue (docs/infra/app-at-the-venue.md).
+  # Carries only labels: Traefik reads them and passes TLS for APP_DOMAIN and its
+  # subdomains straight through to the venue's Traefik over the WireGuard tunnel,
+  # prefixing each connection with a PROXY protocol v2 header (real client address).
+  # Off by default (own profile, not started by deploy.sh); start it on the cloud
+  # server only at cut-over, after stopping that server's own app stack.
+  venue-entry:
+    restart: unless-stopped
+    image: alpine:3.20
+    command: ['sleep', 'infinity']
+    profiles: [venue-entry]
+    labels:
+      traefik.enable: 'true'
+      traefik.tcp.routers.venue.rule: 'HostSNI(`${APP_DOMAIN}`) || HostSNI(`*.${APP_DOMAIN}`)'
+      traefik.tcp.routers.venue.entrypoints: 'websecure'
+      traefik.tcp.routers.venue.tls.passthrough: 'true'
+      traefik.tcp.routers.venue.service: 'venue'
+      traefik.tcp.services.venue.loadbalancer.server.address: '${VENUE_UPSTREAM:-venue.invalid:443}'
+      # The docker provider wants a port label even when an address is given
+      # (without it every refresh logs "port is missing").
+      traefik.tcp.services.venue.loadbalancer.server.port: '443'
+      traefik.tcp.services.venue.loadbalancer.proxyprotocol.version: '2'
 
   app:
     restart: unless-stopped
