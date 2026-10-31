@@ -100,6 +100,12 @@ onUnmounted(() => {
                                 {{ provider.host }}:{{ provider.port }}
                             </span>
                         </CardDescription>
+                        <CardDescription v-if="provider.password">
+                            {{ labels.server_password }}:
+                            <span class="font-mono tabular-nums select-all">
+                                {{ provider.password }}
+                            </span>
+                        </CardDescription>
                     </CardHeader>
 
                     <CardContent class="space-y-6">

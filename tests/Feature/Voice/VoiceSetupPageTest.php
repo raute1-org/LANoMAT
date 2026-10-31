@@ -58,3 +58,31 @@ it('shows an empty installer state when no current installer exists for a platfo
             ->where('providers.0.installers', [])
         );
 });
+
+it('passes the Mumble server password to participants and nothing for providers without one', function () {
+    config([
+        'services.voice.providers' => ['mumble', 'teamspeak'],
+        'services.mumble.server_password' => 'join-secret',
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get('/voice/setup')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('providers.0.provider', VoiceProvider::Mumble->value)
+            ->where('providers.0.password', 'join-secret')
+            ->where('providers.1.provider', VoiceProvider::TeamSpeak->value)
+            ->where('providers.1.password', null)
+        );
+});
+
+it('sends no password when the Mumble server has none', function () {
+    config(['services.mumble.server_password' => '']);
+
+    $this->actingAs(User::factory()->create())
+        ->get('/voice/setup')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('providers.0.password', null)
+        );
+});
