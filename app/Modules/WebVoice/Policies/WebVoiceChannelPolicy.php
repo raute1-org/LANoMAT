@@ -15,6 +15,7 @@ use App\Modules\WebVoice\Models\WebVoiceChannel;
  * - a match channel to the roster snapshot taken when the room was made, and to orga (and admins),
  * - an archived channel to nobody (the actions refuse it for admins and orga too),
  * - moderation (delete a message, mute, remove) and seeing live rooms to orga and admins,
+ * - the in-app latency self-test (a reserved probe room, never a channel) to orga and admins,
  * - creating, renaming and archiving general channels to admins only.
  * Helpers and participants are normal users.
  */
@@ -54,6 +55,12 @@ class WebVoiceChannelPolicy
 
     /** See the live rooms in the admin panel. Orga and admin. */
     public function viewLive(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
+    /** Run the latency self-test and read the connection diagnostics. Orga and admin. */
+    public function latencyTest(User $user): bool
     {
         return $user->isOrga();
     }
