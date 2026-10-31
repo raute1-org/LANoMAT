@@ -138,8 +138,9 @@ it('creates temporary per-match team channels on every active provider and store
     foreach (['mumble', 'teamspeak'] as $provider) {
         $fake = $fakes[$provider];
 
-        $channel1 = collect($fake->channels)->firstWhere('name', 'Team Alpha');
-        $channel2 = collect($fake->channels)->firstWhere('name', 'Team Bravo');
+        // Named like the Discord rooms, so a match room is told apart from the tournament's team room.
+        $channel1 = collect($fake->channels)->firstWhere('name', "Match {$match->id} · {$entry1->display_name}");
+        $channel2 = collect($fake->channels)->firstWhere('name', "Match {$match->id} · {$entry2->display_name}");
 
         expect($channel1)->not->toBeNull();
         expect($channel2)->not->toBeNull();

@@ -44,7 +44,7 @@ it('keeps the rooms of a provider that finished when another provider fails, and
 it('removes the first room again when the second room of a provider cannot be created', function () {
     $fakes = fakeVoice(['mumble']);
     $match = matchWithTwoEntries();
-    $fakes['mumble']->failCreateWhen = fn (string $name) => $name === 'Bob';
+    $fakes['mumble']->failCreateWhen = fn (string $name) => str_ends_with($name, ' · Bob');
 
     expect(fn () => (new ProvisionMatchVoiceJob($match->id))->handle(app(VoiceProviders::class)))->toThrow(RuntimeException::class);
 

@@ -167,8 +167,8 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
         $round1Channel = collect($discord->channels)->firstWhere('name', "match-{$round1Match->id}");
         expect($round1Channel)->not->toBeNull("Expected round-1 match {$round1Match->id} to already have a Discord channel right after StartTournament.");
 
-        $mumble->assertChannelCreated($round1Match->entry1->display_name);
-        $mumble->assertChannelCreated($round1Match->entry2->display_name);
+        $mumble->assertChannelCreated("Match {$round1Match->id} · {$round1Match->entry1->display_name}");
+        $mumble->assertChannelCreated("Match {$round1Match->id} · {$round1Match->entry2->display_name}");
     }
 
     $this->actingAs($orga);
@@ -209,8 +209,8 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
         // have a Discord channel and Mumble voice channels by the time it is
         // picked up here.
         expect($discordChannel)->not->toBeNull("Expected match {$match->id} to have a Discord channel while Ready.");
-        $mumble->assertChannelCreated($match->entry1->display_name);
-        $mumble->assertChannelCreated($match->entry2->display_name);
+        $mumble->assertChannelCreated("Match {$match->id} · {$match->entry1->display_name}");
+        $mumble->assertChannelCreated("Match {$match->id} · {$match->entry2->display_name}");
         $matchesWithLiveChannels++;
 
         [$s1, $s2] = $match->entry1_id < $match->entry2_id ? [2, 0] : [0, 2];
