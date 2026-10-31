@@ -10,6 +10,7 @@ use App\Modules\Files\Actions\RejectSharedFile;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\Files\Support\RemoteHostFileStore;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Support\Enums\FontFamily;
@@ -45,11 +46,24 @@ class SharedFilesTable
                         FileVisibility::Rejected => 'danger',
                     })
                     ->formatStateUsing(fn (FileVisibility $state): string => $state->label()),
+                TextColumn::make('disk')
+                    ->label(__('files.fields.storage'))
+                    ->badge()
+                    ->color(fn (string $state): string => $state === RemoteHostFileStore::KEY ? 'info' : 'gray')
+                    ->formatStateUsing(fn (string $state): string => $state === RemoteHostFileStore::KEY
+                        ? __('files.storage.filehost')
+                        : __('files.storage.local')),
                 TextColumn::make('download')
                     ->label(__('files.page.download'))
                     ->state(__('files.page.download'))
                     ->color('primary')
-                    ->url(fn (SharedFile $record): string => route('files.download', $record), shouldOpenInNewTab: true),
+                    // A rejected file's bytes are gone from the store; there is nothing to open.
+                    ->url(
+                        fn (SharedFile $record): ?string => $record->visibility === FileVisibility::Rejected
+                            ? null
+                            : route('files.download', $record),
+                        shouldOpenInNewTab: true,
+                    ),
             ])
             ->recordActions([
                 Action::make('approve')
@@ -58,7 +72,7 @@ class SharedFilesTable
                     ->color('success')
                     ->authorize('approve')
                     ->requiresConfirmation()
-                    ->visible(fn (SharedFile $record): bool => $record->visibility !== FileVisibility::Approved)
+                    ->visible(fn (SharedFile $record): bool => $record->visibility === FileVisibility::Pending)
                     ->action(function (SharedFile $record): void {
                         try {
                             app(ApproveSharedFile::class)->handle($record, self::actor());
@@ -75,7 +89,7 @@ class SharedFilesTable
                     ->color('danger')
                     ->authorize('reject')
                     ->requiresConfirmation()
-                    ->visible(fn (SharedFile $record): bool => $record->visibility !== FileVisibility::Rejected)
+                    ->visible(fn (SharedFile $record): bool => $record->visibility === FileVisibility::Pending)
                     ->action(function (SharedFile $record): void {
                         try {
                             app(RejectSharedFile::class)->handle($record, self::actor());

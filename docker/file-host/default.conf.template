@@ -1,0 +1,94 @@
+# LANoMAT file host: serves shared files to LAN clients. Rendered by the
+# official nginx image's envsubst step (only variables matching
+# NGINX_ENVSUBST_FILTER=^FILES_ are substituted; nginx's own $variables are
+# left alone). Runbook: docs/infra/file-host.md
+#
+# This file is included inside the http {} block of the stock nginx.conf.
+
+# Access log WITHOUT the query string: $uri has no arguments, so the signature
+# (md5=...) and the download name never reach the log. Never use $request or
+# $request_uri in a log format here.
+log_format files_nosig '$remote_addr [$time_local] "$request_method $uri" '
+                       '$status $body_bytes_sent rt=$request_time "$http_user_agent"';
+
+# Concurrent connections per client address. Generous on purpose (browsers open
+# up to 6, download managers 16+); this stops a runaway client, it does not
+# throttle LAN speed. There is deliberately NO limit_rate anywhere.
+limit_conn_zone $binary_remote_addr zone=files_per_client:10m;
+
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /certs/fullchain.pem;
+    ssl_certificate_key /certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:files_tls:10m;
+    ssl_session_tickets off;
+
+    access_log /var/log/nginx/files.access.log files_nosig;
+    # The error log CAN contain the full request line (including md5/expires)
+    # when a file is missing. The link is dead after its TTL; keep this log
+    # local and root-readable.
+    error_log  /var/log/nginx/files.error.log warn;
+
+    server_tokens off;
+
+    # Big-file delivery. sendfile keeps the bytes in the kernel (page cache to
+    # socket); tcp_nopush fills packets before sending, which is what you want
+    # for bulk transfers. LAN parties download the SAME few files from many
+    # clients, so the page cache is an asset: do not enable directio by default.
+    sendfile           on;
+    sendfile_max_chunk 1m;     # one fast client cannot monopolise a worker
+    tcp_nopush         on;
+    tcp_nodelay        on;
+    aio                threads;
+    # directio 64m;            # only if the file set far exceeds RAM and cold
+    #                          # reads stall other connections: files at least
+    #                          # this large then bypass the page cache and are
+    #                          # read through the thread pool (aio threads).
+    output_buffers     2 1m;
+
+    # Anything that is not a signed download link is refused.
+    location / {
+        return 404;
+    }
+
+    location /dl/ {
+        alias /data/;
+        autoindex off;
+
+        limit_except GET HEAD { deny all; }
+        limit_conn files_per_client 32;
+        limit_conn_status 429;
+
+        # --- signature check -------------------------------------------------
+        # Link: /dl/<path>?expires=<unix>&md5=<base64url>&n=<percent-encoded name>
+        # The hash covers expiry + decoded path + download name + the secret:
+        #   base64url(md5("<expires><uri>|<n> <secret>"))
+        # A link without an expiry would never expire, so refuse it explicitly.
+        if ($arg_expires = "") { return 403; }
+        if ($arg_n = "")       { return 403; }
+
+        secure_link     $arg_md5,$arg_expires;
+        secure_link_md5 "$secure_link_expires$uri|$arg_n ${FILES_HOST_SECRET}";
+
+        if ($secure_link = "")  { return 403; }   # missing or wrong signature
+        if ($secure_link = "0") { return 410; }   # valid signature, expired
+
+        # --- the response is always an opaque attachment ---------------------
+        # Every type is served as an octet stream and may never be rendered or
+        # sniffed by a browser. $arg_n is signed and was percent-encoded by the
+        # app (rawurlencode), so it cannot carry quotes, CR or LF.
+        types { }
+        default_type application/octet-stream;
+        add_header Content-Disposition "attachment; filename=\"download\"; filename*=UTF-8''$arg_n" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+        add_header Cache-Control "private, no-store" always;
+        add_header Referrer-Policy "no-referrer" always;
+        # Range requests (resume, download managers) are handled by nginx for
+        # static files: Accept-Ranges, 206 and If-Range work out of the box.
+    }
+}

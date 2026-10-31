@@ -70,17 +70,97 @@ class SshRemoteExecutor implements RemoteExecutor
 
     public function upload(RemoteHost $host, string $contents, string $remotePath): void
     {
-        $sftp = new SFTP($host->hostname, $host->ssh_port, $this->connectTimeout);
-
-        // Pre-login ordering: read + pin-check the host key BEFORE login().
-        $this->assertFingerprintPinned($host, $this->fingerprintOf($sftp));
-        $this->login($sftp, $host);
+        $sftp = $this->connectSftp($host);
 
         $ok = $sftp->put($remotePath, $contents, SFTP::SOURCE_STRING);
 
         if ($ok === false) {
             throw RemoteExecutionException::commandFailed();
         }
+    }
+
+    public function uploadFile(RemoteHost $host, string $localPath, string $remotePath): void
+    {
+        // A multi-GB transfer encrypts in PHP and easily outlasts the default
+        // max_execution_time; a timeout would also skip the .part cleanup below.
+        set_time_limit(0);
+
+        $sftp = $this->connectSftp($host);
+        $partPath = $remotePath.'.part';
+
+        try {
+            $directory = dirname($remotePath);
+
+            if ($directory !== '.' && $directory !== '/') {
+                // Idempotent: an existing directory (or a concurrent upload that created it first) is fine.
+                $sftp->mkdir($directory, -1, true);
+
+                if (! $sftp->is_dir($directory)) {
+                    throw RemoteExecutionException::commandFailed();
+                }
+            }
+
+            // SOURCE_LOCAL_FILE streams from the path in chunks (no full read into memory).
+            if ($sftp->put($partPath, $localPath, SFTP::SOURCE_LOCAL_FILE) === false) {
+                throw RemoteExecutionException::commandFailed();
+            }
+
+            // SFTP rename does not overwrite on every server; paths are unique per upload.
+            if ($sftp->rename($partPath, $remotePath) === false) {
+                throw RemoteExecutionException::commandFailed();
+            }
+        } catch (Throwable $exception) {
+            // Never leave a half-written file behind; best effort, the original error wins.
+            try {
+                $sftp->delete($partPath, false);
+            } catch (Throwable) {
+            }
+
+            throw $exception instanceof RemoteExecutionException ? $exception : RemoteExecutionException::commandFailed();
+        }
+    }
+
+    public function deleteFile(RemoteHost $host, string $remotePath): void
+    {
+        $sftp = $this->connectSftp($host);
+
+        try {
+            if ($sftp->file_exists($remotePath) && $sftp->delete($remotePath, false) === false) {
+                throw RemoteExecutionException::commandFailed();
+            }
+        } catch (RemoteExecutionException $exception) {
+            throw $exception;
+        } catch (Throwable) {
+            throw RemoteExecutionException::commandFailed();
+        }
+    }
+
+    public function fileExists(RemoteHost $host, string $remotePath): bool
+    {
+        $sftp = $this->connectSftp($host);
+
+        try {
+            return $sftp->file_exists($remotePath);
+        } catch (Throwable) {
+            throw RemoteExecutionException::commandFailed();
+        }
+    }
+
+    private function connectSftp(RemoteHost $host): SFTP
+    {
+        try {
+            $sftp = new SFTP($host->hostname, $host->ssh_port, $this->connectTimeout);
+
+            // Pre-login ordering: read + pin-check the host key BEFORE login().
+            $this->assertFingerprintPinned($host, $this->fingerprintOf($sftp));
+            $this->login($sftp, $host);
+        } catch (RemoteExecutionException $exception) {
+            throw $exception;
+        } catch (Throwable) {
+            throw RemoteExecutionException::connectFailed();
+        }
+
+        return $sftp;
     }
 
     public function probe(RemoteHost $host): HostProbe

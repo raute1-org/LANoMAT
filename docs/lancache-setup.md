@@ -176,3 +176,5 @@ the custom-Docker escape hatch, 7.4) — it only accelerates how *clients*
 download the *game* itself. A Pelican-hosted or custom-Docker game server
 still benefits indirectly (players patch/update faster before joining), but
 LanCache does not sit in the server-hosting path at all.
+
+The same machine can also serve the LAN's shared files (the `Files` module) from its SSD storage through a separate nginx on port 8443: see [`infra/file-host.md`](infra/file-host.md).

@@ -4,18 +4,29 @@ namespace App\Modules\Files\Actions;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Files\Contracts\FileStore;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\Files\Support\FileStores;
+use App\Modules\Files\Support\UploadTypeGuard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UploadSharedFile
 {
+    public function __construct(private readonly FileStores $stores) {}
+
     /**
-     * Stores an uploaded file to the private `local` disk under
-     * `event-{id}/…` and creates the row with `visibility = Pending`.
+     * Hands an uploaded file to the configured {@see FileStore} (the local
+     * disk, or the LanCache file host over SFTP) under `event-{id}/<uuid>` and
+     * creates the row with `visibility = Pending`. The row remembers the store
+     * in `disk`. Either both exist afterwards or neither does: a store failure
+     * throws before any row is written, a failure after the file landed (row
+     * insert, commit) removes the file again.
      *
      * The event and actor are always taken from the trusted arguments, never
      * from request input — a client-supplied `user_id` cannot make the
@@ -34,7 +45,28 @@ class UploadSharedFile
     {
         $this->validateFile($file);
 
-        return DB::transaction(function () use ($event, $actor, $file): SharedFile {
+        $store = $this->stores->default();
+        $path = 'event-'.$event->id.'/'.Str::uuid();
+        $stored = false;
+
+        try {
+            return $this->persist($event, $actor, $file, $store, $path, $stored);
+        } catch (Throwable $exception) {
+            if ($stored) {
+                // No file without a row: undo the store write, the original error wins.
+                try {
+                    $store->delete($path);
+                } catch (Throwable) {
+                }
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function persist(Event $event, User $actor, UploadedFile $file, FileStore $store, string $path, bool &$stored): SharedFile
+    {
+        return DB::transaction(function () use ($event, $actor, $file, $store, $path, &$stored): SharedFile {
             // Serializes concurrent uploads from the same user against the
             // same event, even when the user has zero prior files (and thus
             // no rows for `lockForUpdate()` to lock below).
@@ -63,8 +95,14 @@ class UploadSharedFile
                 throw FileException::quotaExceeded();
             }
 
-            $path = $file->store('event-'.$event->id, 'local');
-            abort_if($path === false, 500, 'Failed to store the uploaded file.');
+            $localPath = $file->getRealPath();
+
+            if ($localPath === false) {
+                throw FileException::unreadable();
+            }
+
+            $store->put($localPath, $path);
+            $stored = true;
 
             $sharedFile = new SharedFile([
                 'event_id' => $event->id,
@@ -74,10 +112,11 @@ class UploadSharedFile
 
             $sharedFile->forceFill([
                 'user_id' => $actor->id,
-                'disk' => 'local',
+                'disk' => $store->key(),
                 'path' => $path,
                 'size_bytes' => $sizeBytes,
-                'mime' => $file->getMimeType(),
+                // The sniffed type, not the client's claim.
+                'mime' => UploadTypeGuard::fromConfig()->sniffMime($file) ?? 'application/octet-stream',
                 'visibility' => FileVisibility::Pending,
             ]);
             $sharedFile->save();
@@ -97,12 +136,9 @@ class UploadSharedFile
             ]);
         }
 
-        $allowedMimes = config('files.allowed_mimes');
-        $mime = $file->getMimeType();
-
-        if (! is_array($allowedMimes) || ! in_array($mime, $allowedMimes, true)) {
+        if (UploadTypeGuard::fromConfig()->isBlocked($file)) {
             throw ValidationException::withMessages([
-                'file' => trans('files.errors.invalid_mime'),
+                'file' => trans('files.errors.blocked_type'),
             ]);
         }
     }

@@ -365,6 +365,13 @@ below the tags is merged to `main` untagged:
   beamer slideshow), public recap page & scene, news block, pre-LAN countdown, and
   the MVP-of-the-night vote.
 
+**Shared files** now accept every type except those a browser could execute from
+our origin (HTML, SVG, JavaScript); executables stay behind the moderation gate
+and are always delivered as `nosniff` attachments. Files can optionally live only
+on the LanCache host: the app forwards uploads over SFTP and answers downloads with
+a redirect to a short-lived signed link served by a small nginx there
+(`FILES_STORE=host`, see [`docs/infra/file-host.md`](docs/infra/file-host.md)).
+
 **Post-roadmap robustness** (hardening toward the real LAN, merged to `main`,
 untagged): a consolidated [pre-LAN acceptance checklist](docs/pre-lan-acceptance-checklist.md),
 the **Preflight Ampel** (`php artisan lanomat:preflight` traffic-light health

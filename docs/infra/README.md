@@ -19,6 +19,7 @@ rules").
 | [test-suite-vm.md](test-suite-vm.md)                               | The full app (every module) on the test VM, wired to Pelican, LanCache, voice and Discord, reached through the cloud entry.         |
 | [local-service-tls.md](local-service-tls.md)                       | Trusted TLS for Music Assistant, the Pelican panel and Mumble below the venue domain, with one wildcard certificate.                |
 | [livekit-web-voice.md](livekit-web-voice.md)                       | Self-hosted LiveKit SFU for the in-browser voice and text chat (`WebVoice` module): ports, latency settings, TLS, manual checklist. |
+| [file-host.md](file-host.md)                                       | Shared files stored on and served from the LanCache host: chrooted SFTP account, nginx with signed expiring links, TLS, checklist.  |
 
 ## Suggested reading order
 

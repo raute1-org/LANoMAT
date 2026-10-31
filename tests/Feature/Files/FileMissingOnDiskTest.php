@@ -24,7 +24,11 @@ it('still streams the file when it is there', function () {
     $file = SharedFile::factory()->for($event)->approved()->create();
     Storage::disk('local')->put($file->path, 'file contents');
 
-    $this->actingAs(User::factory()->create())
-        ->get("/files/{$file->id}/download")
-        ->assertOk();
+    $response = $this->actingAs(User::factory()->create())->get("/files/{$file->id}/download");
+
+    // Always an opaque attachment, never rendered or sniffed by the browser.
+    $response->assertOk();
+    expect($response->headers->get('X-Content-Type-Options'))->toBe('nosniff')
+        ->and($response->headers->get('Content-Type'))->toBe('application/octet-stream')
+        ->and($response->headers->get('Content-Disposition'))->toStartWith('attachment');
 });

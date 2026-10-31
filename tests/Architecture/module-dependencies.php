@@ -32,6 +32,7 @@ return [
     ],
     'Files' => [
         0 => 'Events',
+        1 => 'Hosts',
     ],
     'Friends' => [
         0 => 'Identity',

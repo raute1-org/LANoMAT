@@ -1,0 +1,53 @@
+# LANoMAT file host: a small nginx on the LanCache machine that serves shared
+# files through signed links. Standalone project, NOT part of the app's
+# compose.yml and not started by anything by default. Do not reuse LanCache's
+# own nginx: it owns ports 80/443 on its address.
+#
+#   cd <FILES_DIR>                      # e.g. /srv/lanomat-files/compose
+#   cp <repo>/docker/file-host/{compose.yml,default.conf.template} .
+#   install -m 600 /dev/null .env       # then fill FILES_HOST_SECRET (below)
+#   docker compose up -d
+#
+# .env (root-only, never committed):
+#   FILES_HOST_SECRET=<FILES_HOST_SECRET>     # openssl rand -hex 32, same value as the app
+#   FILES_BIND_IP=<LANCACHE_HOST>             # the address to listen on (not 0.0.0.0)
+#
+# Runbook and verification checklist: docs/infra/file-host.md
+services:
+  file-host:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Only substitute FILES_* variables in the template (leave nginx's $vars alone).
+      NGINX_ENVSUBST_FILTER: ^FILES_
+    ports:
+      # 8443, not 443: LanCache's nginx owns 80/443 on <LANCACHE_HOST>.
+      - '${FILES_BIND_IP}:8443:8443/tcp'
+    volumes:
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # The SFTP account writes here; nginx only ever reads.
+      - <FILES_ROOT>/data:/data:ro
+      # fullchain.pem + privkey.pem of the wildcard certificate for <LAN_DOMAIN>.
+      - <FILES_ROOT>/certs:/certs:ro
+      - ./logs:/var/log/nginx
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+      - /etc/nginx/conf.d
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # An unsigned request must be refused: proves nginx is up AND the check is active.
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -S --no-check-certificate -O /dev/null https://127.0.0.1:8443/dl/x 2>&1 | grep -q " 403"',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3

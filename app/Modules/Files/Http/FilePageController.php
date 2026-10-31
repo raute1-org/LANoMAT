@@ -10,13 +10,13 @@ use App\Modules\Files\Actions\UploadSharedFile;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\Files\Support\FileStores;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class FilePageController extends Controller
 {
@@ -88,21 +88,31 @@ class FilePageController extends Controller
         return back();
     }
 
-    public function download(Request $request, SharedFile $sharedFile): StreamedResponse
+    /**
+     * The app never streams the bytes of a file-host file: after the policy
+     * allowed it the store answers with a redirect to a short-lived signed URL
+     * (or, for the local store, an attachment stream).
+     */
+    public function download(Request $request, SharedFile $sharedFile, FileStores $stores): SymfonyResponse
     {
         $this->authorize('download', $sharedFile);
 
-        // A row whose file is gone from the disk is a missing resource, not a server error.
-        abort_unless(Storage::disk($sharedFile->disk)->exists($sharedFile->path), 404);
-
-        return Storage::disk($sharedFile->disk)->download($sharedFile->path, $sharedFile->original_name);
+        try {
+            return $stores->for($sharedFile->disk)->download($sharedFile->path, $sharedFile->original_name);
+        } catch (FileException) {
+            abort(503, trans('files.errors.store_unavailable'));
+        }
     }
 
     public function destroy(Request $request, SharedFile $sharedFile, DeleteSharedFile $action): RedirectResponse
     {
         $this->authorize('delete', $sharedFile);
 
-        $action->handle($sharedFile);
+        try {
+            $action->handle($sharedFile);
+        } catch (FileException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey)]);
+        }
 
         return back();
     }
