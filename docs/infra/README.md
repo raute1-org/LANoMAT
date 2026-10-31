@@ -15,6 +15,7 @@ rules").
 | [pelican-panel-wings.md](pelican-panel-wings.md)                   | Pelican Panel (Docker) and Wings (systemd) on the venue host, LanCache DNS for game containers, `PelicanClient` contract check.    |
 | [custom-game-servers-gmod-ttt.md](custom-game-servers-gmod-ttt.md) | Garry's Mod (TTT) on Pelican, SteamCMD through the LanCache, custom content, CS2 GunGame analysis, game server preset model.       |
 | [lan-tls-certificates.md](lan-tls-certificates.md)                 | Wildcard TLS certificate for venue-only names through Traefik and the DNS-01 challenge (Cloudflare or Hetzner DNS), staging first. |
+| [cloudflare-tunnel-migration.md](cloudflare-tunnel-migration.md)   | Plan for moving the app to the venue behind a Cloudflare Tunnel, cut-over, rollback and alternatives (untested).                   |
 
 ## Suggested reading order
 
