@@ -36,6 +36,7 @@ use App\Modules\Teams\Http\TeamController;
 use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Voice\Http\VoiceSetupController;
 use App\Modules\Voting\Http\PollPageController;
+use App\Modules\WebVoice\Http\WebVoiceController;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Support\Facades\Route;
@@ -351,6 +352,21 @@ if ($modules->routable(Module::Voice)) {
         // voice providers are an installation-wide concern, not per-event.
         Route::get('/voice/setup', [VoiceSetupController::class, 'index'])->name('voice.setup');
         Route::get('/voice/installers/{installer}/download', [VoiceSetupController::class, 'download'])->name('voice.installers.download');
+    });
+}
+
+if ($modules->routable(Module::WebVoice)) {
+    // Browser voice + text chat. Not event-scoped (general channels are installation-wide);
+    // every endpoint authorizes through WebVoiceChannelPolicy inside its action.
+    Route::middleware(['auth'])->prefix('talk')->name('webvoice.')->group(function () {
+        Route::get('/', [WebVoiceController::class, 'index'])->name('index');
+        Route::post('channels/{channel}/token', [WebVoiceController::class, 'token'])->middleware('throttle:30,1')->name('token');
+        Route::get('channels/{channel}/messages', [WebVoiceController::class, 'messages'])->name('messages');
+        Route::post('channels/{channel}/messages', [WebVoiceController::class, 'post'])->middleware('throttle:web-voice-chat')->name('messages.store');
+        Route::delete('messages/{message}', [WebVoiceController::class, 'destroyMessage'])->name('messages.destroy');
+        Route::post('channels/{channel}/participants/{user}/mute', [WebVoiceController::class, 'mute'])->name('participants.mute');
+        Route::delete('channels/{channel}/participants/{user}/mute', [WebVoiceController::class, 'unmute'])->name('participants.unmute');
+        Route::post('channels/{channel}/participants/{user}/remove', [WebVoiceController::class, 'remove'])->name('participants.remove');
     });
 }
 

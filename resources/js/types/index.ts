@@ -21,6 +21,7 @@ export * from './teams';
 export * from './tournaments';
 export * from './ui';
 export * from './voice';
+export * from './webVoice';
 export * from './voting';
 
 export type ModuleKey =
@@ -53,4 +54,5 @@ export type ModuleKey =
     | 'teams'
     | 'tournaments'
     | 'voice'
-    | 'voting';
+    | 'voting'
+    | 'web_voice';

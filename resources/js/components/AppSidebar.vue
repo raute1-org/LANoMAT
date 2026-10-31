@@ -10,6 +10,7 @@ import {
     UtensilsCrossed,
     Vote,
     Image,
+    Headphones,
     Mic,
     PartyPopper,
     Swords,
@@ -64,6 +65,7 @@ import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
 import { setup as voiceSetup } from '@/routes/voice';
+import { index as webVoiceIndex } from '@/routes/webvoice';
 import type { NavItem } from '@/types';
 import type { EventSummary } from '@/types/events';
 
@@ -100,6 +102,9 @@ const generalItems = computed<NavItem[]>(() => [
         : []),
     ...(has('voice')
         ? [{ title: 'Voice einrichten', href: voiceSetup(), icon: Mic }]
+        : []),
+    ...(has('web_voice')
+        ? [{ title: 'Sprachchat', href: webVoiceIndex(), icon: Headphones }]
         : []),
 ]);
 

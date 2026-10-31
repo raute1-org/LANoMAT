@@ -341,6 +341,7 @@ Committed output (captured against the local production stack —
 `m10-presence` and `friends`), plus the cross-cutting Friends system. Everything
 below the tags is merged to `main` untagged:
 
+- **Web voice chat** — optional `WebVoice` module (`MODULE_WEB_VOICE`): voice in the browser through a self-hosted LiveKit server (opt-in compose profile `web-voice`, runbook `docs/infra/livekit-web-voice.md`) plus a persisted text chat per channel over Reverb. General channels are admin-managed, match rooms follow the tournament lifecycle (one room per team, visible only to its roster; admin and orga see and moderate everything, only admins manage the general channels). Tested against a fake server; real-server and microphone verification is still open (checklist in the runbook).
 - **Self check-in & walk-ins** — on-site QR (`/checkin/{token}`, rotatable in the admin panel) lets participants check themselves in; registration stays open while the event is live as long as spots remain (see `docs/self-checkin.md`).
 - **Arrival planning** — participants optionally state arrival and departure (day + time window) when registering or later; orga get an "Anreise-Übersicht" (expected arrivals, people on site over time, peak, actual vs expected) on the event in the admin panel (see `docs/arrival-planning.md`).
 - **M0–M3** — fundament; events & identity; registration, QR-ticket check-in,
@@ -392,7 +393,7 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 | Profile          | Modules                                                                                                                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight                                                                                                                    |
-| `full`           | all 30 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting) |
+| `full`           | all 31 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting, WebVoice) |
 
 **Live deployment** of `lan.raute1.org` (core profile): runbook in
 [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) (DNS, `.env`, start command, first admin, test checklist, backups).

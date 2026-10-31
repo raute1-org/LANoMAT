@@ -43,6 +43,7 @@ class AddContentSecurityPolicy
             formActionHosts: array_values(array_filter((array) config('security.csp.form_action_hosts'), is_string(...))),
             reportPath: (string) config('security.csp.report_path', '/csp-report'),
             viteDevOrigin: $this->viteDevOrigin(),
+            webVoiceConnectSource: ContentSecurityPolicy::webVoiceSource(config('webvoice.url')),
         );
 
         $response = $next($request);

@@ -1,0 +1,36 @@
+# LiveKit server configuration template for the WebVoice module.
+# Placeholders only. Render with scripts/ops/render-livekit-config.sh, which writes
+# docker/livekit/livekit.yaml (gitignored, contains the API secret).
+# Runbook: docs/infra/livekit-web-voice.md. Keys checked against the official
+# config-sample.yaml and the self-hosting docs; check them again against the image tag in compose.yml.
+
+# Signaling / HTTP API. Not published to the host: Traefik proxies it as wss://, and the
+# app container reaches the API at http://livekit:7880 over the compose network.
+port: 7880
+log_level: info
+
+rtc:
+  # All media on ONE UDP port (ICE/UDP mux). With this set, port_range_start/end are not used.
+  # One port keeps the firewall rule and the container publishing trivial.
+  udp_port: 7882
+  # Last-resort fallback for clients that cannot use UDP. TCP adds retransmission delay,
+  # so it must not be the normal path.
+  tcp_port: 7881
+  # LAN deployment: advertise the host's address as the ICE host candidate. STUN-based
+  # discovery (use_external_ip) is for cloud hosts behind a 1:1 NAT and is off on purpose.
+  use_external_ip: false
+  node_ip: ${LIVEKIT_NODE_IP}
+
+# No TURN: on a LAN every client reaches the host candidate directly, and a relay would only add a hop.
+turn:
+  enabled: false
+
+keys:
+  # <LIVEKIT_API_KEY>: <LIVEKIT_API_SECRET>
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+
+room:
+  # Rooms are created by the first join (WebVoice never pre-creates them) and dropped when empty.
+  auto_create: true
+  empty_timeout: 60
+  departure_timeout: 20

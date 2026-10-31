@@ -38,6 +38,7 @@ enum Module: string
     case Tournaments = 'tournaments';
     case Voice = 'voice';
     case Voting = 'voting';
+    case WebVoice = 'web_voice';
 
     public function key(): string
     {

@@ -44,7 +44,7 @@ it('boots with one optional module on top of core', function (Module $module) {
         'jukebox' => 'jukebox.index', 'gallery' => 'gallery.index', 'voice' => 'voice.setup', 'friends' => 'friends.index',
         'schedule' => 'schedule.index', 'catering' => 'catering.show', 'voting' => 'polls.index', 'lfg' => 'lfg.index',
         'game_servers' => 'servers.index', 'files' => 'files.index', 'presence' => 'presence.show', 'recap' => 'recap.show',
-        'infoscreen' => 'screen.show', 'casting' => 'overlay.bracket', 'discord' => 'discord.voice', 'stats' => 'stats.leaderboard',
+        'infoscreen' => 'screen.show', 'casting' => 'overlay.bracket', 'discord' => 'discord.voice', 'stats' => 'stats.leaderboard', 'web_voice' => 'webvoice.index',
     ];
 
     if (isset($routeByModule[$module->key()])) {

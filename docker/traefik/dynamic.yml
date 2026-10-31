@@ -51,10 +51,12 @@ http:
         stsPreload: true
         stsSeconds: 31536000
         referrerPolicy: strict-origin-when-cross-origin
-        # camera=(self) stays allowed for future in-browser QR scanning at
-        # check-in (no getUserMedia use in resources/js yet); everything else
-        # sensitive is denied.
-        permissionsPolicy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
+        # camera=(self) stays allowed for in-browser QR scanning at check-in and
+        # microphone=(self) for the web voice chat (getUserMedia on the app origin
+        # only, never for embedded third-party frames); everything else sensitive
+        # is denied. `microphone=()` here would make the browser refuse the
+        # microphone with no useful error.
+        permissionsPolicy: camera=(self), microphone=(self), geolocation=(), payment=(), usb=()
         # Content-Security-Policy is deliberately NOT set: Filament/Livewire/
         # Alpine and the Inertia/Vite app need inline scripts/styles and
         # Reverb websockets, so a CSP needs an owner decision and a
