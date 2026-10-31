@@ -23,11 +23,36 @@ GID = int(os.environ.get("CERTS_GID", "1000"))
 INTERVAL = int(os.environ.get("CERTS_INTERVAL_SECONDS", "30"))
 
 
+def apply_attributes(path: str, mode: int) -> bool:
+    """Make mode and group what they should be; True if something had to change."""
+    info = os.stat(path)
+    changed = False
+
+    if (info.st_mode & 0o777) != mode:
+        os.chmod(path, mode)
+        changed = True
+
+    if info.st_gid != GID:
+        try:
+            os.chown(path, -1, GID)
+            changed = True
+        except PermissionError:
+            pass
+
+    return changed
+
+
 def write_if_changed(path: str, data: bytes, mode: int) -> bool:
+    """Write the file when its content changed, and keep its mode and group right either way.
+
+    The group matters: a service reads the private key through it, and the group of a
+    service's image can change between its versions (Mumble's image runs as 1000 in
+    1.4 and as 10000 in 1.5), so unchanged content must still get the new group.
+    """
     try:
         with open(path, "rb") as handle:
             if handle.read() == data:
-                return False
+                return apply_attributes(path, mode)
     except FileNotFoundError:
         pass
 
@@ -36,7 +61,7 @@ def write_if_changed(path: str, data: bytes, mode: int) -> bool:
         handle.write(data)
     os.chmod(tmp, mode)
     try:
-        os.chown(tmp, 0, GID)
+        os.chown(tmp, -1, GID)
     except PermissionError:
         pass
     os.replace(tmp, path)

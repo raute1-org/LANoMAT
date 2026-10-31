@@ -64,11 +64,14 @@ certificate below a volume that Mumble mounts read-only:
 ```text
 /certs/<name>/certificate.crt              certificate with its chain
 /certs/wildcard.<LAN_DOMAIN>/certificate.crt   the wildcard certificate (an asterisk in a name would be a trap)
-/certs/<dir>/privatekey.key                private key, mode 0640, group CERTS_GID (Mumble's group, 1000)
+/certs/<dir>/privatekey.key                private key, mode 0640, group CERTS_GID (Mumble's group, 10000)
 ```
 
 It checks every 30 seconds and rewrites a file only when its content changed, so a renewal reaches the files by
-itself. Then in `.env`:
+itself; mode and group are corrected on every pass, so changing `CERTS_GID` takes effect without touching the volume.
+The group must be the one the Mumble server runs as in its image: **10000 in 1.5.x, 1000 in the old 1.4.x image**. With
+the wrong one Mumble stops at start with "Failed to read .../privatekey.key" (seen when moving the test server from
+1.4.230 to 1.5.939). Then in `.env`:
 
 ```bash
 MUMBLE_SSL_CERT=/certs/wildcard.<LAN_DOMAIN>/certificate.crt
