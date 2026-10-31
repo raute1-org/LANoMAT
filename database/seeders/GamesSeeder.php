@@ -53,6 +53,7 @@ class GamesSeeder extends Seeder
         $this->addPreset('garrys-mod', $this->ttt());
         $this->addPreset('garrys-mod', $this->propHunt());
         $this->addPreset('counter-strike-2', $this->cs2GunGame());
+        $this->addPreset('minecraft', $this->minecraftPaper());
     }
 
     private function addPreset(string $slug, ServerPreset $preset): void
@@ -144,6 +145,31 @@ class GamesSeeder extends Seeder
             eggName: 'Counter-Strike 2',
             enabled: false,
             requires: ['content', 'gslt'],
+        );
+    }
+
+    /**
+     * Minecraft on the panel's stock Paper egg (matched by name; the numeric id and uuid differ
+     * per panel). Meant for a permanent server: status and players come from the Minecraft Server
+     * List Ping, players join with a plain `address:port` (no Steam link).
+     */
+    private function minecraftPaper(): ServerPreset
+    {
+        return new ServerPreset(
+            key: 'paper',
+            name: 'Minecraft (Paper)',
+            description: 'Minecraft Java Edition auf Paper. Die Version lässt sich beim Anlegen festlegen (leer = Standard des Eggs). Das Egg kennt keine EULA-Variable: die EULA einmalig im Pelican-Panel akzeptieren, sonst beendet sich der Server direkt nach dem Start. Spieler tragen die angezeigte Adresse im Spiel ein.',
+            config: new ServerConfig(
+                maxPlayers: 20,
+                memoryMb: 3072,
+                diskMb: 10240,
+                cpuPercent: 200,
+                overridable: ['MINECRAFT_VERSION'],
+                readinessType: 'minecraft',
+                connectTemplate: '{ip}:{port}',
+                contentType: 'none',
+            ),
+            eggName: 'Paper',
         );
     }
 }

@@ -189,6 +189,7 @@ class GameForm
                         ->options([
                             'none' => __('games.fields.readiness_none'),
                             'a2s' => __('games.fields.readiness_a2s'),
+                            'minecraft' => __('games.fields.readiness_minecraft'),
                         ])
                         ->default('none')
                         ->live()

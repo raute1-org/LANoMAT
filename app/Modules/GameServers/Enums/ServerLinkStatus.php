@@ -21,6 +21,8 @@ enum ServerLinkStatus: string
     case NotResponding = 'not_responding';
     /** The install finished without the preset's marker path and a reinstall did not fix it. */
     case InstallFailed = 'install_failed';
+    /** A permanent server that is switched off or unreachable (never used by match/event servers). */
+    case Offline = 'offline';
 
     public function label(): string
     {

@@ -104,6 +104,23 @@ class GameServerException extends DomainException
         );
     }
 
+    /** A permanent server that is only registered (external) has nothing to control. */
+    public static function notControllable(): self
+    {
+        return new self('This permanent server is external and cannot be controlled.', 'gameservers.permanent.errors.external_not_controllable');
+    }
+
+    /** The Docker host is unreachable, or the Custom Servers module is off. */
+    public static function dockerUnavailable(string $detail = ''): self
+    {
+        return new self("Docker host unavailable. {$detail}", 'gameservers.permanent.errors.docker_unavailable');
+    }
+
+    public static function permanentInputInvalid(string $translationKey): self
+    {
+        return new self("Invalid permanent server input ({$translationKey}).", $translationKey);
+    }
+
     public static function noNodeConfigured(): self
     {
         return new self(

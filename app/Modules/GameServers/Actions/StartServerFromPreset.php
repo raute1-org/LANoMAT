@@ -6,7 +6,6 @@ namespace App\Modules\GameServers\Actions;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
-use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -14,6 +13,7 @@ use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\PresetAvailability;
+use App\Modules\GameServers\Support\PresetOverrides;
 use App\Modules\GameServers\Support\ReadinessPlan;
 use Illuminate\Support\Facades\Gate;
 use Throwable;
@@ -46,7 +46,7 @@ final class StartServerFromPreset
 
         PresetAvailability::assertAvailable($preset);
 
-        $config = $this->configWithOverrides($preset, $overrides);
+        $config = PresetOverrides::apply($preset, $overrides);
         $title = $title !== null && trim($title) !== '' ? trim($title) : "{$event->name} {$preset->name}";
 
         $link = new ServerLink([
@@ -84,31 +84,5 @@ final class StartServerFromPreset
         PollServerStatusJob::dispatch($link->id)->delay(now()->addSeconds(10));
 
         return $link;
-    }
-
-    /**
-     * @param  array<string, string>  $overrides
-     * @return array<string, mixed>
-     *
-     * @throws GameServerException when an override targets a key the preset keeps fixed
-     */
-    private function configWithOverrides(ServerPreset $preset, array $overrides): array
-    {
-        $config = $preset->config->toArray();
-        $environment = is_array($config['environment'] ?? null) ? $config['environment'] : [];
-
-        foreach ($overrides as $key => $value) {
-            if (! in_array((string) $key, $preset->config->overridable, true)) {
-                throw GameServerException::overrideNotAllowed((string) $key);
-            }
-
-            $environment[(string) $key] = $value;
-        }
-
-        if ($environment !== []) {
-            $config['environment'] = $environment;
-        }
-
-        return $config;
     }
 }

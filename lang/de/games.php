@@ -64,6 +64,7 @@ return [
         'readiness_type_help' => 'Source-Abfrage (A2S) erkennt, wann der Server wirklich Spieler annimmt. Ohne Prüfung gilt der Server als bereit, sobald er läuft.',
         'readiness_none' => 'Keine (bereit, sobald er läuft)',
         'readiness_a2s' => 'Source-Abfrage (A2S)',
+        'readiness_minecraft' => 'Minecraft-Abfrage (Server List Ping, nur Status und Spielerzahl)',
         'readiness_game' => 'Spielname enthält',
         'readiness_game_help' => 'Optional, z. B. Trouble in Terrorist Town. Antwortet der Server mit einem anderen Spiel, gilt er als nicht bereit.',
         'readiness_folder' => 'Spielordner',

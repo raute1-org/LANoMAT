@@ -69,6 +69,35 @@ class ServerListProjection
     }
 
     /**
+     * The permanent servers for the participant page (all sources, same wire shape as the event
+     * list). Unlike the event list they are shown even while offline or not responding, because
+     * "is it up?" is the point; only a server still being created, or one whose creation failed,
+     * is left out.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function forPermanent(): array
+    {
+        $links = ServerLink::query()
+            ->permanent()
+            ->whereIn('status', [
+                ServerLinkStatus::Ready,
+                ServerLinkStatus::NotResponding,
+                ServerLinkStatus::Offline,
+                ServerLinkStatus::Provisioning,
+            ])
+            ->with('game')
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get();
+
+        return array_values($links->map(fn (ServerLink $link): array => self::dto($link) + [
+            'description' => $link->description,
+            'source' => $link->source->value,
+        ])->all());
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private static function dto(ServerLink $link): array
@@ -87,7 +116,7 @@ class ServerListProjection
             'connectIsLink' => str_contains(PelicanJoinLink::for($link->join_info), '://'),
             'status' => $link->status->value,
             'query' => self::queryFor($link),
-            'estimate' => self::estimateFor($game),
+            'estimate' => $link->permanent ? null : self::estimateFor($game),
             'installHint' => self::installHintFor($game),
         ];
     }
@@ -102,7 +131,8 @@ class ServerListProjection
     {
         $info = $link->query_info;
 
-        if ($info === null || $info === []) {
+        // A switched-off server has no players, whatever it answered last.
+        if ($link->status === ServerLinkStatus::Offline || $info === null || $info === []) {
             return null;
         }
 

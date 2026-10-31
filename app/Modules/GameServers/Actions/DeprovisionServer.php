@@ -25,7 +25,8 @@ class DeprovisionServer
 {
     public function handle(ServerLink $link): void
     {
-        if ($link->status === ServerLinkStatus::Stopped) {
+        // Permanent servers are removed through DeletePermanentServer only.
+        if ($link->permanent || $link->status === ServerLinkStatus::Stopped) {
             return;
         }
 

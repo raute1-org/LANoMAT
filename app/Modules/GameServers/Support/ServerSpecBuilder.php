@@ -66,10 +66,11 @@ final class ServerSpecBuilder
      * @param  string|null  $displayName  Human name for the server browser, sent through the
      *                                    egg's hostname variable unless the config sets it.
      * @param  list<string>  $requires  Preset requirements whose secrets are handed to the egg.
+     * @param  string|null  $nodeId  Node to place the server on; null = `services.pelican.default_node_id`.
      *
      * @throws GameServerException
      */
-    public function build(Game $game, string $eggId, array $config, string $name, array $allocations = [], ?string $displayName = null, array $requires = []): ServerSpec
+    public function build(Game $game, string $eggId, array $config, string $name, array $allocations = [], ?string $displayName = null, array $requires = [], ?string $nodeId = null): ServerSpec
     {
         $owner = config('services.pelican.owner_user_id');
 
@@ -142,7 +143,7 @@ final class ServerSpecBuilder
             allocations: $allocations === [] ? null : count($allocations),
         );
 
-        $nodeId = config('services.pelican.default_node_id');
+        $nodeId ??= config('services.pelican.default_node_id');
 
         return new ServerSpec(
             name: $name,

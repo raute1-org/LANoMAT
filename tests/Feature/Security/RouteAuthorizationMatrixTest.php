@@ -84,7 +84,7 @@ const PUBLIC_ROUTES = [
  */
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
-    'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams',
+    'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers',
     'GET voice/setup', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',

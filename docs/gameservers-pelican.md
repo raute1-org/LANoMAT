@@ -102,6 +102,87 @@ The orga starts a server with the server links page action "Server aus Preset st
 readiness snapshot), only overridable keys may be changed, authorization through
 `ServerLinkPolicy::start`.
 
+## Permanent servers
+
+Servers that run all year, independent of any event, match or tournament (a Minecraft
+server, a UT2004 InstaGib server). They are rows in `server_links` with `permanent = true`
+and no `event_id`/`match_id`/`tournament_id`, so nothing cascades from an event, and no
+lifecycle listener touches them (`CleanupServersOnCompleted` never sees them; the
+cleanup job and `DeprovisionServer` refuse a permanent link even when aimed at it directly).
+Event deletion and tournament end leave them alone; tests prove it
+(`tests/Feature/PermanentServers/PermanentServerIsolationTest.php`).
+
+**Visibility.** The page `/servers` ("Dauerserver", sidebar group "Allgemein", behind the
+`game_servers` module toggle) lists them for every logged-in user, always: name, game,
+`address:port` with a copy button, status (`LiveIndicator`), players online when the
+protocol has them, the game's join link and "So kommst du ran" hint, and the admin's free
+text. There is no public page. Offline and not-responding servers are listed (that is the
+point); failed or still-pending ones are not.
+
+**Management** is admin-only (`ServerLinkPolicy::managePermanent`) in the admin panel
+under "Dauerserver" (`PermanentServerResource`, kept apart from the match/event "Spielserver"
+resource). The three sources decide what LANoMAT may do:
+
+| Source | What it is | Create | Start / stop / restart | Delete |
+|--------|-----------|--------|------------------------|--------|
+| `pelican` | Pelican server from a game preset | preset + **chosen node** (per server, from `listNodes()`; empty = default node) | through the panel | deletes the server on the panel, data included |
+| `docker` | container definition of the Custom Servers module on a managed remote host | pick the container, enter address and port | `docker start/stop/restart` over the remote executor; a missing container is created with `docker run`; the container is never removed by stop | removes the entry only, the container keeps running |
+| `external` | any server, registered by game, name, address and port | no credentials | none (no buttons) | removes the entry only |
+
+The Docker source depends on the Custom Servers and Hosts modules; it is hidden when
+`MODULE_CUSTOM_SERVERS` is off (`Modules::enabled` guards, baseline entries in
+`tests/Architecture/module-dependencies.php`).
+
+**Node choice (Pelican).** `CreatePermanentServer::pelican()` validates the node against
+`listNodes()` (unknown or maintenance nodes are refused) and passes it through
+`ProvisionGameServer` and `ServerSpecBuilder`, so allocation planning and the create request
+use the same node. Free allocations still come from the global port pool
+(`PELICAN_PORT_POOL`, default `27015-27050`) of that node: **a node that hosts permanent
+servers needs free allocations inside the pool** (or `PELICAN_CREATE_ALLOCATIONS` with a
+key that may write allocations). A Minecraft server therefore listens on a pool port, not
+on 25565, unless the pool contains it.
+
+**Caps.** Permanent servers do not count against `max_running_servers` or the per-user cap
+(they must not eat the LAN's budget); the per-instance RAM and slot caps still apply.
+
+**Status refresh.** `gameservers:refresh-permanent` runs every minute (module-gated,
+`withoutOverlapping`) over the few permanent servers, one after the other, each isolated: an
+unreachable panel, Docker host or game server is "unknown" and never fails the run. Per
+server it asks (1) whether it is switched on (panel state / `docker inspect` / unknown for
+external) and (2) whether it answers its query. Result: `Ready` (with players), `NotResponding`
+(on but silent) or `Offline` (a new status used only by permanent servers; `Stopped` keeps
+meaning "deleted" for match servers). A single missed answer does not flip a server that
+answered within three minutes. `gameservers:refresh-queries` skips permanent servers.
+
+**Query protocols** (`query_protocol`): `a2s` (Source A2S_INFO, existing) and `minecraft`
+(Server List Ping over TCP, `MinecraftQuery` contract with `TcpMinecraftQuery` and
+`FakeMinecraftQuery`; the packet code in `MinecraftPing` is pure and tested with crafted bytes).
+Without a protocol there is no probe: the server is assumed up (external) or follows the
+power state (Pelican/Docker), and shows no players. A Source server gets the `steam://connect`
+link; every other game a plain `address:port`.
+
+**Minecraft preset.** `GamesSeeder` ships `Minecraft (Paper)` for the panel's stock Paper
+egg, referenced by name (`Paper`; the uuid is panel-specific, so it is not guessed).
+`readiness_type: minecraft`, join template `{ip}:{port}`, `MINECRAFT_VERSION` overridable.
+Caveats, from the live contract check: the egg has no EULA variable, so accept the EULA once
+in the panel or the server stops right after starting; the egg's required variables
+(`BUILD_NUMBER`, `SERVER_JARFILE`, ...) come from its own defaults. The `MINECRAFT_VERSION`
+variable name is taken from the common Paper egg and has not been checked against this
+panel's egg; leave the field empty to use the egg default.
+
+**UT2004 InstaGib: follow-up, not built.** No UT2004 egg exists, and its availability and
+legality (game files, the retail/Steam copy, redistribution of server files) must be checked
+by a human first; LANoMAT neither ships nor fetches game files. Once an egg is imported
+(`resources/pelican-eggs/` + `gameservers:import-eggs`) or a Docker image is chosen, nothing
+else in the feature is game-specific. The preset or the external registration needs: the egg
+by name or uuid; the game port (UT2004 default 7777/UDP, plus the query port 7778 and the
+GameSpy port 7787) as allocations, with the A2S/UT query port; `readiness_type`/`query_protocol`
+(UT2004 speaks the older UT query protocol, not A2S, so a status probe needs a further
+`QueryProtocol` case and query class, or it runs without a probe); an install marker path for
+install verification; the connect format (a plain `address:port`, UT2004 has no `steam://`
+link); the InstaGib mutator in the preset's environment; and a `Game` row with an
+install hint pointing at where players get the game.
+
 ## Eggs
 
 LANoMAT ships its own Garrys Mod egg fork in `resources/pelican-eggs/` (hostname

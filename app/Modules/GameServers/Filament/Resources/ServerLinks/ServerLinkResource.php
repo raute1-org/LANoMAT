@@ -15,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 /**
@@ -58,6 +59,12 @@ class ServerLinkResource extends Resource
     public static function table(Table $table): Table
     {
         return ServerLinksTable::configure($table);
+    }
+
+    /** Permanent servers have their own resource and are never listed (or bulk-deleted) here. */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('permanent', false);
     }
 
     public static function getPages(): array

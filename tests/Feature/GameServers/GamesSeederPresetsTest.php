@@ -38,6 +38,19 @@ it('keeps Prop Hunt locked until a Steam Web API key is configured', function ()
         ->and(PresetAvailability::reasons($preset))->toBe(['requires_content']);
 });
 
+it('seeds a startable Minecraft Paper preset with a plain join address and the Minecraft query', function () {
+    $preset = Game::query()->where('slug', 'minecraft')->firstOrFail()->findPreset('paper');
+
+    expect($preset)->not->toBeNull()
+        ->and($preset->eggName)->toBe('Paper')
+        ->and($preset->eggUuid)->toBeNull()
+        ->and($preset->config->readinessType)->toBe('minecraft')
+        ->and($preset->config->usesA2sReadiness())->toBeFalse()
+        ->and($preset->config->connectTemplate)->toBe('{ip}:{port}')
+        ->and($preset->config->overridable)->toBe(['MINECRAFT_VERSION'])
+        ->and(PresetAvailability::isAvailable($preset))->toBeTrue();
+});
+
 it('ships CS2 GunGame as a disabled, explained stub', function () {
     $preset = Game::query()->where('slug', 'counter-strike-2')->firstOrFail()->findPreset('cs2-gungame');
 

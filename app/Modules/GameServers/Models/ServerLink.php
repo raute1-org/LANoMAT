@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Models;
 
 use App\Models\User;
+use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Casts\JoinInfoCast;
 use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Enums\QueryProtocol;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
+use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use Carbon\CarbonInterface;
 use Database\Factories\ServerLinkFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,6 +37,12 @@ use Illuminate\Support\Str;
  * @property int|null $event_id Set for event-level servers started from a preset.
  * @property int|null $game_id The preset's game (event-level servers have no tournament to take it from).
  * @property string|null $title
+ * @property string|null $description
+ * @property bool $permanent Runs all year, independent of any event/match/tournament.
+ * @property ServerSource $source
+ * @property string|null $pelican_node_id
+ * @property int|null $custom_server_id
+ * @property QueryProtocol|null $query_protocol
  * @property string|null $preset_key
  * @property array<string, mixed>|null $readiness Preset readiness/verification snapshot.
  * @property array<string, mixed>|null $query_info Last A2S answer (see ServerInfo::toArray()).
@@ -52,6 +62,8 @@ class ServerLink extends Model
     // telemetry_token is likewise never client-fillable — it is lazily
     // generated in booted() below, the bearer credential a CS2 game server
     // presents to MatchTelemetryController (Task 12).
+    // permanent/source/pelican_node_id/custom_server_id/query_protocol are written
+    // only by CreatePermanentServer, never client-fillable.
     protected $fillable = [
         'match_id',
         'tournament_id',
@@ -60,6 +72,7 @@ class ServerLink extends Model
         'event_id',
         'game_id',
         'title',
+        'description',
         'preset_key',
     ];
 
@@ -76,11 +89,42 @@ class ServerLink extends Model
             'join_info' => JoinInfoCast::class,
             'status' => ServerLinkStatus::class,
             'manual' => 'boolean',
+            'permanent' => 'boolean',
+            'source' => ServerSource::class,
+            'query_protocol' => QueryProtocol::class,
             'readiness' => 'array',
             'query_info' => 'array',
             'queried_at' => 'datetime',
             'install_attempts' => 'integer',
         ];
+    }
+
+    /**
+     * Permanent servers only (see the `permanent` column).
+     *
+     * @param  Builder<ServerLink>  $query
+     * @return Builder<ServerLink>
+     */
+    public function scopePermanent(Builder $query): Builder
+    {
+        return $query->where('permanent', true);
+    }
+
+    /**
+     * Match- and event-level servers only.
+     *
+     * @param  Builder<ServerLink>  $query
+     * @return Builder<ServerLink>
+     */
+    public function scopeNotPermanent(Builder $query): Builder
+    {
+        return $query->where('permanent', false);
+    }
+
+    /** @return BelongsTo<CustomServer, $this> */
+    public function customServer(): BelongsTo
+    {
+        return $this->belongsTo(CustomServer::class);
     }
 
     /** @return BelongsTo<GameMatch, $this> */
