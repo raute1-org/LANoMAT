@@ -29,7 +29,7 @@ return [
         'menu' => 'Menü',
         'menu_key' => 'Schlüssel',
         'menu_name' => 'Bezeichnung',
-        'menu_price_cents' => 'Preis (Cent)',
+        'menu_price' => 'Preis (EUR)',
         'menu_add' => 'Option hinzufügen',
     ],
 
@@ -56,6 +56,13 @@ return [
             'title' => 'Essen ist da',
             'body' => 'Das Essen für „:order“ ist da – komm vorbei!',
         ],
+    ],
+
+    'validation' => [
+        'price_format' => 'Bitte einen Preis in Euro eingeben, z. B. 8,50.',
+        'price_max' => 'Der Preis darf höchstens :max € betragen.',
+        'menu_key_duplicate' => 'Zwei Menü-Positionen haben denselben Schlüssel.',
+        'no_nul_bytes' => 'Ungültige Zeichen im Text.',
     ],
 
     'admin' => [
