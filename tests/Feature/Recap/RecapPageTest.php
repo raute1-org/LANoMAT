@@ -29,7 +29,7 @@ it('404s the recap page for a draft event', function () {
 it('renders the recap page for a finished event with the projection props', function () {
     $event = Event::factory()->finished()->create();
 
-    EventRegistration::factory()->for($event)->count(2)->create();
+    EventRegistration::factory()->for($event)->count(2)->checkedIn()->create();
 
     $winnerEntry = TournamentEntry::factory()->create(['display_name' => 'Team Rocket']);
     $tournament = Tournament::factory()->for($event)->create([

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catering\Filament\Resources\FoodOrders\RelationManagers;
 
+use App\Modules\Catering\Actions\ExportFoodOrderItemsCsv;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\CostSplit;
@@ -13,8 +14,11 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use LogicException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ItemsRelationManager extends RelationManager
 {
@@ -61,7 +65,39 @@ class ItemsRelationManager extends RelationManager
                     ->modalContent(fn (): HtmlString => $this->renderTotals())
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel(__('catering.admin.close_modal')),
+                Action::make('export')
+                    ->label(__('catering.admin.export_csv'))
+                    ->authorize(fn () => $this->canExport())
+                    ->action(fn (): StreamedResponse => $this->exportCsv()),
             ]);
+    }
+
+    private function canExport(): bool
+    {
+        $order = $this->getOwnerRecord();
+
+        return $order instanceof FoodOrder && Gate::allows('export', $order);
+    }
+
+    private function exportCsv(): StreamedResponse
+    {
+        $order = $this->getOwnerRecord();
+
+        if (! $order instanceof FoodOrder) {
+            throw new LogicException('ItemsRelationManager must be attached to a FoodOrder record.');
+        }
+
+        Gate::authorize('export', $order);
+
+        $csv = app(ExportFoodOrderItemsCsv::class)->handle($order);
+
+        return response()->streamDownload(
+            function () use ($csv): void {
+                echo $csv;
+            },
+            Str::slug($order->title).'.csv',
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
     }
 
     private function renderTotals(): HtmlString
@@ -78,11 +114,19 @@ class ItemsRelationManager extends RelationManager
             ->map(fn (array $row) => sprintf(
                 '<tr><td class="fi-ta-cell px-3 py-2">%s</td><td class="fi-ta-cell px-3 py-2 text-right">%s</td></tr>',
                 e($row['name']),
-                e(number_format($row['totalCents'] / 100, 2)).' €',
+                e($this->formatEuro($row['totalCents'])),
             ))
             ->implode('');
 
-        $grandTotal = number_format($split['grandTotalCents'] / 100, 2);
+        $optionRows = collect($split['byOption'])
+            ->map(fn (array $row) => sprintf(
+                '<tr><td class="fi-ta-cell px-3 py-2">%s</td><td class="fi-ta-cell px-3 py-2 text-right">%s</td></tr>',
+                e(__('catering.admin.option_count_line', ['count' => $row['count'], 'name' => $row['name']])),
+                e($this->formatEuro($row['totalCents'])),
+            ))
+            ->implode('');
+
+        $grandTotal = $this->formatEuro($split['grandTotalCents']);
 
         return new HtmlString(<<<HTML
             <div class="fi-ta-ctn overflow-x-auto">
@@ -99,12 +143,28 @@ class ItemsRelationManager extends RelationManager
                     <tfoot>
                         <tr>
                             <td class="fi-ta-cell px-3 py-2 font-bold">{$this->totalsGrandLabel()}</td>
-                            <td class="fi-ta-cell px-3 py-2 text-right font-bold">{$grandTotal} €</td>
+                            <td class="fi-ta-cell px-3 py-2 text-right font-bold">{$grandTotal}</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
+            <h3 class="mt-6 text-sm font-semibold">{$this->optionCountsLabel()}</h3>
+            <div class="fi-ta-ctn mt-2 overflow-x-auto">
+                <table class="fi-ta-table w-full text-sm">
+                    <tbody>
+                        {$optionRows}
+                    </tbody>
+                </table>
+            </div>
             HTML);
+    }
+
+    /**
+     * German format: decimal comma, point as thousands separator, e.g. "1.000,00 €".
+     */
+    private function formatEuro(int $cents): string
+    {
+        return number_format($cents / 100, 2, ',', '.').' €';
     }
 
     private function totalsHeaderLabel(): string
@@ -120,5 +180,10 @@ class ItemsRelationManager extends RelationManager
     private function totalsGrandLabel(): string
     {
         return e(__('catering.admin.grand_total'));
+    }
+
+    private function optionCountsLabel(): string
+    {
+        return e(__('catering.admin.option_counts'));
     }
 }

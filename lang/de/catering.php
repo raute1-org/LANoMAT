@@ -11,6 +11,8 @@ return [
         'not_open' => 'Die Bestellung ist derzeit nicht geöffnet.',
         'unknown_option' => 'Die gewählte Option ist nicht Teil dieser Bestellung.',
         'invalid_transition' => 'Ungültiger Statuswechsel.',
+        'registration_required' => 'Bestätige zuerst deine Anmeldung',
+        'item_limit' => 'Du hast das Limit von :limit Essens-Positionen erreicht.',
     ],
 
     'resource' => [
@@ -27,7 +29,7 @@ return [
         'menu' => 'Menü',
         'menu_key' => 'Schlüssel',
         'menu_name' => 'Bezeichnung',
-        'menu_price_cents' => 'Preis (Cent)',
+        'menu_price' => 'Preis (EUR)',
         'menu_add' => 'Option hinzufügen',
     ],
 
@@ -45,6 +47,8 @@ return [
         'my_order_empty' => 'Du hast noch nichts bestellt.',
         'cancel' => 'Stornieren',
         'my_total' => 'Meine Summe',
+        'registration_required' => 'Bestätige zuerst deine Anmeldung zum Event, dann kannst du Essen bestellen.',
+        'register_link' => 'Zur Anmeldung',
     ],
 
     'notifications' => [
@@ -52,6 +56,13 @@ return [
             'title' => 'Essen ist da',
             'body' => 'Das Essen für „:order“ ist da – komm vorbei!',
         ],
+    ],
+
+    'validation' => [
+        'price_format' => 'Bitte einen Preis in Euro eingeben, z. B. 8,50.',
+        'price_max' => 'Der Preis darf höchstens :max € betragen.',
+        'menu_key_duplicate' => 'Zwei Menü-Positionen haben denselben Schlüssel.',
+        'no_nul_bytes' => 'Ungültige Zeichen im Text.',
     ],
 
     'admin' => [
@@ -73,5 +84,8 @@ return [
         'totals' => 'Summen',
         'grand_total' => 'Gesamtsumme',
         'close_modal' => 'Schließen',
+        'option_counts' => 'Anzahl pro Option',
+        'option_count_line' => ':countx :name',
+        'export_csv' => 'CSV exportieren',
     ],
 ];

@@ -51,12 +51,16 @@ it('does not run delivery inside the request for check-in-open and food-ready', 
     $helper = User::factory()->helper()->create();
     EventRegistration::factory()->for($event)->count(3)->create(['status' => RegistrationStatus::Confirmed]);
     $order = FoodOrder::factory()->for($event)->open()->create();
-    FoodOrderItem::factory()->for($order)->for(User::factory()->create())->create();
+    $buyer = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($buyer)->create();
+    FoodOrderItem::factory()->for($order)->for($buyer)->create();
 
     $this->actingAs($helper)->post(route('screen.control.trigger.checkin-open', $event))->assertRedirect();
     $this->actingAs($helper)->post(route('screen.control.trigger.food-ready', [$event, $order]))->assertRedirect();
 
-    Queue::assertPushed(SendQueuedNotifications::class, 3 * 2 + 1 * 2);
+    // Check-in opens for all four confirmed registrations (three plus the buyer), two channels each,
+    // plus the food-ready message for the one confirmed buyer, two channels.
+    Queue::assertPushed(SendQueuedNotifications::class, 4 * 2 + 1 * 2);
 });
 
 it('still writes the bell for every recipient when the Discord channel is dead', function () {

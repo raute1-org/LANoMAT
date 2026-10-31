@@ -62,6 +62,8 @@ return [
 
     'errors' => [
         'no_eligible_entrants' => 'Es gibt aktuell keine ziehbaren Teilnehmenden mehr (niemand eingecheckt oder bereits alle gezogen).',
+        'prize_already_drawn' => 'Dieser Preis wurde bereits gezogen.',
+        'tournament_not_public' => 'Das Turnier gehört nicht zu diesem Event oder ist noch nicht öffentlich.',
         'orga_ping_too_many_words' => 'Bitte maximal drei Wörter angeben.',
         'orga_ping_words_too_long' => 'Bitte maximal 40 Zeichen angeben.',
     ],
@@ -106,11 +108,13 @@ return [
         'food_ready_empty' => 'Es gibt aktuell keine offene Essensbestellung.',
         'checkin_open_title' => 'Check-in öffnet',
         'checkin_open_button' => 'Check-in öffnet',
+        'checkin_open_confirm' => 'Alle Angemeldeten werden benachrichtigt (Glocke und Discord). Jetzt senden?',
         'checkin_open_sent' => 'Alle bestätigten Teilnehmenden wurden benachrichtigt.',
         'tombola_draw_title' => 'Tombola ziehen',
         'tombola_draw_button' => 'Nächsten Preis ziehen',
         'tombola_draw_sent' => 'Der Gewinner wird jetzt auf dem Beamer gezogen.',
         'tombola_draw_empty' => 'Es sind aktuell keine Preise mehr zu ziehen.',
+        'tombola_draw_locked' => 'Die Ziehung läuft gerade auf dem Beamer. Die nächste ist in ca. 20 Sekunden möglich.',
     ],
 
     'screen' => [
@@ -200,6 +204,10 @@ return [
 
         // ScenePresence (M10 Task 10.4) — the beamer "wer ist da / spielt
         // gerade / freie Slots" board, reusing the M10 PresenceProjection.
+        'more_count' => '+:count weitere',
+        'bracket_empty' => 'Für diese Ansicht ist noch kein Turnier ausgewählt.',
+        'bracket_hidden' => 'Frühe Runden ausgeblendet',
+        'bracket_page' => 'Ansicht :current von :total',
         'presence_title' => 'Präsenz',
         'presence_checked_in_label' => 'Eingecheckt',
         'presence_live_matches_heading' => 'Läuft gerade',

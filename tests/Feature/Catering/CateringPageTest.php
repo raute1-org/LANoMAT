@@ -5,6 +5,7 @@ use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 
@@ -52,6 +53,7 @@ it('places an item for the authenticated user at the menu price within the windo
         ],
     ]);
     $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create();
 
     $this->actingAs($user)
         ->post("/food-orders/{$order->id}/items", [

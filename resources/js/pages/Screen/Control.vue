@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { reactive } from 'vue';
+import { onUnmounted, reactive, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ type Scene = {
     id: number;
     type: string;
     typeLabel: string;
+    detail: string | null;
     enabled: boolean;
 };
 
@@ -59,35 +60,68 @@ const statusMessages = reactive<Record<string, string>>(
     ),
 );
 
+// One in-flight request at a time for the one-shot triggers: a double click
+// (or a second helper tapping a stale page) must not fire twice.
+const busy = ref(false);
+// A tombola reveal holds the stage for ~20 s; the next draw stays locked
+// until it has been shown, so it never steps on the previous winner.
+const TOMBOLA_REVEAL_LOCK_MS = 20000;
+const tombolaLocked = ref(false);
+let tombolaLockTimer: ReturnType<typeof setTimeout> | null = null;
+
+onUnmounted(() => {
+    if (tombolaLockTimer !== null) {
+        clearTimeout(tombolaLockTimer);
+    }
+});
+
+const triggerOptions = {
+    preserveScroll: true,
+    onStart: () => {
+        busy.value = true;
+    },
+    onFinish: () => {
+        busy.value = false;
+    },
+};
+
 function showNow(scene: Scene) {
     useForm({}).post(
         showScene.url({ event: props.event.slug, scene: scene.id }),
-        {
-            preserveScroll: true,
-        },
+        triggerOptions,
     );
 }
 
 function triggerFoodReady(order: FoodOrder) {
     useForm({}).post(
         foodReady.url({ event: props.event.slug, foodOrder: order.id }),
-        {
-            preserveScroll: true,
-        },
+        triggerOptions,
     );
 }
 
 function triggerCheckinOpen() {
-    useForm({}).post(checkinOpen.url({ event: props.event.slug }), {
-        preserveScroll: true,
-    });
+    // Notifies every registrant (bell + Discord DM): ask once.
+    if (!window.confirm(props.triggerLabels.checkin_open_confirm)) {
+        return;
+    }
+
+    useForm({}).post(
+        checkinOpen.url({ event: props.event.slug }),
+        triggerOptions,
+    );
 }
 
 function drawTombolaPrize(prize: TombolaPrize) {
     useForm({}).post(
         drawTombola.url({ event: props.event.slug, tombolaPrize: prize.id }),
         {
-            preserveScroll: true,
+            ...triggerOptions,
+            onSuccess: () => {
+                tombolaLocked.value = true;
+                tombolaLockTimer = setTimeout(() => {
+                    tombolaLocked.value = false;
+                }, TOMBOLA_REVEAL_LOCK_MS);
+            },
         },
     );
 }
@@ -149,7 +183,11 @@ function levelBadgeVariant(
                         }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Button size="sm" @click="triggerCheckinOpen">
+                        <Button
+                            size="sm"
+                            :disabled="busy"
+                            @click="triggerCheckinOpen"
+                        >
                             {{ triggerLabels.checkin_open_button }}
                         </Button>
                     </CardContent>
@@ -173,6 +211,7 @@ function levelBadgeVariant(
                                 v-for="order in foodOrders"
                                 :key="order.id"
                                 size="sm"
+                                :disabled="busy"
                                 @click="triggerFoodReady(order)"
                             >
                                 {{ triggerLabels.food_ready_button }}:
@@ -200,12 +239,20 @@ function levelBadgeVariant(
                                 v-for="prize in tombolaPrizes"
                                 :key="prize.id"
                                 size="sm"
+                                :disabled="busy || tombolaLocked"
                                 @click="drawTombolaPrize(prize)"
                             >
                                 {{ triggerLabels.tombola_draw_button }}:
                                 {{ prize.title }}
                             </Button>
                         </div>
+                        <p
+                            v-if="tombolaLocked"
+                            class="mt-2 text-sm text-muted-foreground"
+                            role="status"
+                        >
+                            {{ triggerLabels.tombola_draw_locked }}
+                        </p>
                     </CardContent>
                 </Card>
             </div>
@@ -281,7 +328,15 @@ function levelBadgeVariant(
             <Card v-for="scene in scenes" :key="scene.id">
                 <CardHeader>
                     <div class="flex items-center justify-between gap-4">
-                        <CardTitle>{{ scene.typeLabel }}</CardTitle>
+                        <CardTitle>
+                            {{ scene.typeLabel
+                            }}<span
+                                v-if="scene.detail"
+                                class="font-normal text-muted-foreground"
+                            >
+                                · {{ scene.detail }}</span
+                            >
+                        </CardTitle>
                         <Badge :variant="scene.enabled ? 'default' : 'outline'">
                             {{
                                 scene.enabled ? labels.enabled : labels.disabled
@@ -291,7 +346,7 @@ function levelBadgeVariant(
                 </CardHeader>
 
                 <CardContent>
-                    <Button size="sm" @click="showNow(scene)">
+                    <Button size="sm" :disabled="busy" @click="showNow(scene)">
                         {{ labels.show_now }}
                     </Button>
                 </CardContent>
