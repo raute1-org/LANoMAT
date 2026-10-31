@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\GameServers\Actions\SetManualJoinInfo;
 use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Enums\EntryStatus;
+use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -43,9 +44,34 @@ class TournamentPolicy
         return $this->manage($user, $tournament);
     }
 
+    /**
+     * A running or finished tournament is never deleted (it would erase every
+     * match and result); an orga can only remove one that has not started.
+     */
     public function delete(User $user, Tournament $tournament): bool
     {
-        return $this->manage($user, $tournament);
+        return $this->manage($user, $tournament)
+            && ! in_array($tournament->status, [TournamentStatus::Live, TournamentStatus::Finished], true);
+    }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
+    /**
+     * Orga decides a match directly (walkover, dispute, correction of a
+     * confirmed result): any state with two entrants, i.e. not `Pending`.
+     */
+    public function decideMatch(User $user, GameMatch $match): bool
+    {
+        $tournament = Tournament::query()->find($match->tournament_id);
+
+        return $tournament !== null
+            && $this->manage($user, $tournament)
+            && $match->status !== MatchStatus::Pending
+            && $match->entry1_id !== null
+            && $match->entry2_id !== null;
     }
 
     /**

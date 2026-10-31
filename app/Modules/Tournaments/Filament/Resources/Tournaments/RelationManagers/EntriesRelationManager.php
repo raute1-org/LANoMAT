@@ -5,6 +5,7 @@ namespace App\Modules\Tournaments\Filament\Resources\Tournaments\RelationManager
 use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Actions\WithdrawEntry;
 use App\Modules\Tournaments\Enums\EntryStatus;
+use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use Filament\Actions\Action;
@@ -81,7 +82,11 @@ class EntriesRelationManager extends RelationManager
                     // the admin action is orga-only, authorized via the
                     // owning tournament's manage() ability.
                     ->authorize(fn (TournamentEntry $record): bool => Gate::allows('manage', $record->tournament))
-                    ->visible(fn (TournamentEntry $record) => $record->status !== EntryStatus::Withdrawn)
+                    // Withdrawing only exists while enrollment/check-in is open
+                    // (WithdrawEntry refuses afterwards), so don't offer a
+                    // button that can only fail in a live or finished tournament.
+                    ->visible(fn (TournamentEntry $record) => $record->status !== EntryStatus::Withdrawn
+                        && in_array($record->tournament?->status, [TournamentStatus::Enrollment, TournamentStatus::CheckIn], true))
                     ->requiresConfirmation()
                     ->action(function (TournamentEntry $record): void {
                         try {

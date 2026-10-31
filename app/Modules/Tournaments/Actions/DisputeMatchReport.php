@@ -10,6 +10,7 @@ use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\EntryOwner;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The opponent disputes a submitted report instead of confirming it — e.g.
@@ -26,29 +27,35 @@ class DisputeMatchReport
 {
     public function handle(MatchReport $report, TournamentEntry $disputer): MatchReport
     {
-        $match = GameMatch::query()->findOrFail($report->match_id);
+        DB::transaction(function () use ($report, $disputer): void {
+            // Same lock order as ConfirmMatchReport: match row first, then
+            // re-read the report, so confirm and dispute at the same instant
+            // serialize and the loser sees a resolved report (F-R2A-4).
+            $match = GameMatch::query()->whereKey($report->match_id)->lockForUpdate()->firstOrFail();
+            $report->refresh();
 
-        $this->assertIsOpponent($match, $report, $disputer);
+            $this->assertIsOpponent($match, $report, $disputer);
 
-        // A report that is no longer Pending cannot be disputed again — most
-        // importantly, a match that has already progressed past Reported
-        // (e.g. Completed, via a confirm or orga override) must not be
-        // flipped back to Disputed after the fact.
-        if ($report->status !== ReportStatus::Pending) {
-            throw TournamentException::reportNotPending();
-        }
+            // A report that is no longer Pending cannot be disputed again —
+            // most importantly, a match that has already progressed past
+            // Reported (e.g. Completed, via a confirm or orga override) must
+            // not be flipped back to Disputed after the fact.
+            if ($report->status !== ReportStatus::Pending) {
+                throw TournamentException::reportNotPending();
+            }
 
-        if ($match->status !== MatchStatus::Reported) {
-            throw TournamentException::matchNotDisputable();
-        }
+            if ($match->status !== MatchStatus::Reported) {
+                throw TournamentException::matchNotDisputable();
+            }
 
-        $report->status = ReportStatus::Disputed;
-        $report->save();
+            $report->status = ReportStatus::Disputed;
+            $report->save();
 
-        $match->status = MatchStatus::Disputed;
-        $match->save();
+            $match->status = MatchStatus::Disputed;
+            $match->save();
+        });
 
-        MatchReportUpdated::dispatch($match);
+        MatchReportUpdated::dispatch(GameMatch::query()->findOrFail($report->match_id));
 
         return $report;
     }

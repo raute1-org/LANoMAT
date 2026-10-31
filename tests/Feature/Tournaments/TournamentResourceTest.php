@@ -87,6 +87,7 @@ it('overrides a disputed match result from the dispute queue', function () {
         ->callAction(TestAction::make('override')->table($match), data: [
             'score1' => 2,
             'score2' => 1,
+            'reason' => 'Opponent never showed up',
         ]);
 
     $match->refresh();

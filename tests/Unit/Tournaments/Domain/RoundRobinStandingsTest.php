@@ -35,8 +35,8 @@ it('ranks by wins first', function () {
         ->and($rows[3]->losses)->toBe(3);
 });
 
-it('breaks a wins tie by score difference', function () {
-    // 3 entries, cycle: 1 beats 2 (5:0), 2 beats 3 (1:0), 3 beats 1 (1:0) -> all 1 win.
+it('does not use score difference: a three-way cycle on wins shares rank 1', function () {
+    // 1 beats 2 (5:0), 2 beats 3 (1:0), 3 beats 1 (1:0) -> all 1 win, circular head-to-head.
     $plan = playRoundRobin([1, 2, 3], function (int $a, int $b): array {
         return match ([min($a, $b), max($a, $b)]) {
             [1, 2] => $a === 1 ? [5, 0] : [0, 5],
@@ -47,50 +47,83 @@ it('breaks a wins tie by score difference', function () {
 
     $rows = RoundRobinStandings::fromPlan($plan);
 
-    // diffs: 1 = +5-1 = +4, 2 = -5+1 = -4, 3 = -1+1 = 0
-    expect(array_map(fn ($r) => $r->entryId, $rows))->toBe([1, 3, 2])
-        ->and($rows[0]->scoreDifference)->toBe(4)
-        ->and($rows[0]->pointsFor)->toBe(5)
-        ->and($rows[0]->pointsAgainst)->toBe(1);
+    expect(array_map(fn ($r) => $r->rank, $rows))->toBe([1, 1, 1])
+        // listed by ascending entry id, which carries no meaning
+        ->and(array_map(fn ($r) => $r->entryId, $rows))->toBe([1, 2, 3])
+        ->and(RoundRobinStandings::leaders($plan))->toBe([1, 2, 3])
+        ->and($rows[0]->scoreDifference)->toBe(4);
 });
 
-it('breaks a two-way tie on wins and difference by the head-to-head result', function () {
-    // 4 entries. 1 and 2 end level on wins (2) and difference (0): 2 beat 1 directly.
+it('breaks a two-way tie on wins by the head-to-head result', function () {
+    // 1 and 2 end level on wins (2): 2 beat 1 directly. 3 and 4 level on 1 win: 4 beat 3.
     $plan = playRoundRobin([1, 2, 3, 4], function (int $a, int $b): array {
-        $key = min($a, $b).'-'.max($a, $b);
-        $win = match ($key) {
+        $win = match (min($a, $b).'-'.max($a, $b)) {
             '1-2' => 2, '1-3' => 1, '1-4' => 1,
             '2-3' => 3, '2-4' => 2, '3-4' => 4,
-            default => throw new RuntimeException($key),
+            default => throw new RuntimeException('unexpected pairing'),
         };
 
-        // every result 1:0 -> difference equals wins - losses
         return $win === $a ? [1, 0] : [0, 1];
     });
-    // wins: 1 -> {3,4} = 2; 2 -> {1,4} = 2; 3 -> {2} = 1; 4 -> {3} = 1. diff 1 and 2 are equal (+1).
 
     $rows = RoundRobinStandings::fromPlan($plan);
 
-    expect(array_map(fn ($r) => $r->entryId, $rows)[0])->toBe(2) // head to head beats entry id order
-        ->and(array_map(fn ($r) => $r->entryId, $rows)[1])->toBe(1);
+    expect(array_map(fn ($r) => $r->entryId, $rows))->toBe([2, 1, 4, 3])
+        ->and(array_map(fn ($r) => $r->rank, $rows))->toBe([1, 2, 3, 4])
+        ->and(RoundRobinStandings::leaders($plan))->toBe([2]);
 });
 
-it('falls back to points scored and finally to the lowest entry id', function () {
-    // everybody beats nobody consistently: all 1:1-ish impossible (no draws) -> 2 entries, one match.
-    $plan = playRoundRobin([7, 9], fn (int $a, int $b): array => [3, 1]);
-    $rows = RoundRobinStandings::fromPlan($plan);
-    expect($rows[0]->entryId)->toBe($plan->matches()[1]->slot1->entryId());
+it('resolves a three-way tie on wins through the mini table among the three', function () {
+    // 5 entries. 1, 2, 3 all end on 3 wins; among themselves 1 beats 2 and 3, 2 beats 3.
+    $plan = playRoundRobin([1, 2, 3, 4, 5], function (int $a, int $b): array {
+        $pair = [min($a, $b), max($a, $b)];
+        $win = match ($pair) {
+            [1, 2] => 1, [1, 3] => 1, [2, 3] => 2,
+            [1, 4] => 4, [1, 5] => 5,
+            [2, 4] => 2, [2, 5] => 2,
+            [3, 4] => 3, [3, 5] => 3,
+            [4, 5] => 5,
+        };
 
-    // 3-way perfect cycle with identical scores: wins, diff, points all equal -> entry id ascending, same rank.
+        return $win === $a ? [1, 0] : [0, 1];
+    });
+    // wins: 1 -> {2,3} = 2; 2 -> {3,4,5} = 3; 3 -> {4,5} = 2; 4 -> {1} = 1; 5 -> {1,4} = 2.
+    $rows = RoundRobinStandings::fromPlan($plan);
+
+    expect($rows[0]->entryId)->toBe(2)
+        ->and(RoundRobinStandings::leaders($plan))->toBe([2]);
+});
+
+it('shares the rank of every group that stays level after the head-to-head', function () {
+    // 4 entries: 1 beats everyone; 2, 3, 4 form a cycle 2>3>4>2 -> they share rank 2.
+    $plan = playRoundRobin([1, 2, 3, 4], function (int $a, int $b): array {
+        $win = match (min($a, $b).'-'.max($a, $b)) {
+            '1-2', '1-3', '1-4' => 1,
+            '2-3' => 2, '3-4' => 3, '2-4' => 4,
+        };
+
+        return $win === $a ? [1, 0] : [0, 1];
+    });
+
+    $rows = RoundRobinStandings::fromPlan($plan);
+
+    expect(array_map(fn ($r) => $r->entryId, $rows))->toBe([1, 2, 3, 4])
+        ->and(array_map(fn ($r) => $r->rank, $rows))->toBe([1, 2, 2, 2])
+        ->and(RoundRobinStandings::leaders($plan))->toBe([1]);
+});
+
+it('never lets the lowest entry id win a tie silently', function () {
     $cycle = playRoundRobin([1, 2, 3], function (int $a, int $b): array {
         $beats = [1 => 2, 2 => 3, 3 => 1];
 
         return $beats[$a] === $b ? [1, 0] : [0, 1];
     });
-    $rows = RoundRobinStandings::fromPlan($cycle);
 
-    expect(array_map(fn ($r) => $r->entryId, $rows))->toBe([1, 2, 3])
-        ->and(array_map(fn ($r) => $r->rank, $rows))->toBe([1, 1, 1]);
+    expect(RoundRobinStandings::leaders($cycle))->toHaveCount(3);
+
+    // a single match between two entries still has a clear leader
+    $plan = playRoundRobin([7, 9], fn (int $a, int $b): array => [3, 1]);
+    expect(RoundRobinStandings::leaders($plan))->toHaveCount(1);
 });
 
 it('only counts decided matches and lists entries without a result', function () {

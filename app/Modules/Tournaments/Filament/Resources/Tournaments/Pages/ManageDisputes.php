@@ -2,18 +2,13 @@
 
 namespace App\Modules\Tournaments\Filament\Resources\Tournaments\Pages;
 
-use App\Modules\Tournaments\Actions\OverrideMatchResult;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\ReportStatus;
-use App\Modules\Tournaments\Exceptions\StaleMatchException;
-use App\Modules\Tournaments\Exceptions\TournamentException;
+use App\Modules\Tournaments\Filament\Support\MatchDecisionAction;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
-use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Schema;
@@ -96,42 +91,7 @@ class ManageDisputes extends Page implements HasTable
                     ->dateTime(),
             ])
             ->recordActions([
-                Action::make('override')
-                    ->label(__('tournaments.admin.disputes.override'))
-                    ->authorize(fn (GameMatch $record): bool => auth()->user()?->can('manage', $record->tournament) ?? false)
-                    ->requiresConfirmation()
-                    ->schema([
-                        TextInput::make('score1')
-                            ->label(__('tournaments.admin.disputes.score1'))
-                            ->required()
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(9999),
-                        TextInput::make('score2')
-                            ->label(__('tournaments.admin.disputes.score2'))
-                            ->required()
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(9999)
-                            // A match cannot end in a tie (see
-                            // BracketProgressor::apply()'s "no draws" domain
-                            // rule) — reject it here so the orga override
-                            // form never submits one in the first place.
-                            ->different('score1')
-                            ->validationMessages([
-                                'different' => __('tournaments.errors.tied_score'),
-                            ]),
-                    ])
-                    ->action(function (GameMatch $record, array $data): void {
-                        try {
-                            app(OverrideMatchResult::class)->handle($record, (int) $data['score1'], (int) $data['score2']);
-                        } catch (TournamentException|StaleMatchException $exception) {
-                            Notification::make()
-                                ->title(__($exception->translationKey))
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                MatchDecisionAction::make('override', 'tournaments.admin.disputes.override'),
             ]);
     }
 
