@@ -6,6 +6,7 @@ use App\Modules\Discord\Models\DiscordOutbox;
 use Closure;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class DiscordOutboxGuard
 {
@@ -108,7 +109,19 @@ class DiscordOutboxGuard
             // reusing the existing row.
         }
 
-        $send();
+        try {
+            $send();
+        } catch (Throwable $e) {
+            // This attempt is over, so its row is no longer "in flight". Backdate it past the
+            // lease: the queue re-runs a failed job within a second, and that retry would
+            // otherwise find a fresh row, assume a concurrent attempt and silently do nothing,
+            // losing the send for good.
+            DiscordOutbox::where('dedup_key', $dedupKey)
+                ->whereNull('sent_at')
+                ->update(['updated_at' => now()->subSeconds(self::IN_FLIGHT_LEASE_SECONDS + 1)]);
+
+            throw $e;
+        }
 
         DiscordOutbox::where('dedup_key', $dedupKey)->update(['sent_at' => now()]);
 

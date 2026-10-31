@@ -100,8 +100,11 @@ class CreateMatchChannelJob implements ShouldQueue
                     ->whereNotNull('discord_id')
                     ->pluck('discord_id');
 
+                // The bot also keeps CONNECT and SPEAK here: Discord only lets it hand out rights
+                // it holds itself, and without its own allow the @everyone deny would take
+                // CONNECT from it before the team members are granted theirs.
                 $roomOverwritesFor = fn ($entry): array => [
-                    ...($botId === null ? [] : [['id' => $botId, 'type' => 1, 'allow' => '1024', 'deny' => '0']]),
+                    ...($botId === null ? [] : [['id' => $botId, 'type' => 1, 'allow' => (string) (self::VIEW_CHANNEL | self::CONNECT | self::SPEAK), 'deny' => '0']]),
                     ['id' => $guildId, 'type' => 0, 'allow' => (string) self::VIEW_CHANNEL, 'deny' => (string) self::CONNECT],
                     ...array_map(
                         fn (string $discordUserId): array => [
@@ -131,8 +134,14 @@ class CreateMatchChannelJob implements ShouldQueue
                         $client->upsertPermissionOverwrites($roomId, $roomOverwritesFor($entry));
                     }
                 } catch (Throwable $e) {
+                    // Remove everything made so far, and keep going if one delete fails: the
+                    // error that surfaces must be the one that started the rollback.
                     foreach ($created as $id) {
-                        $client->deleteChannel($id);
+                        try {
+                            $client->deleteChannel($id);
+                        } catch (Throwable $deleteFailure) {
+                            report($deleteFailure);
+                        }
                     }
 
                     throw $e;
