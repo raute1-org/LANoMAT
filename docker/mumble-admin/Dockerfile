@@ -4,7 +4,7 @@
 # prebuilt `python3-zeroc-ice` apt package (universe, Ice 3.7.10) that
 # matches the Ice ABI baked into the official `mumblevoip/mumble-server`
 # image (`libzeroc-ice3.7t64`), so we install it via apt instead of pip.
-FROM ubuntu:24.04
+FROM ubuntu:25.10
 
 ARG DEBIAN_FRONTEND=noninteractive
 
