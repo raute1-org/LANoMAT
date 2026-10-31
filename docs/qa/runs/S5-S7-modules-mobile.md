@@ -1,6 +1,6 @@
 # QA run: S5 (other modules, full profile) + S7 (responsive and accessibility) + extras
 
-Branch under test: current `main` plus a docs commit. Profile `MODULES_PROFILE=full`, local, throwaway DB `lanomat_qa` (dropped at the end). Env via shell overrides: `CACHE_STORE=file QUEUE_CONNECTION=database BROADCAST_CONNECTION=reverb SESSION_DRIVER=file`, Reverb on the host :8081, `artisan serve` (4 workers) :8000, `queue:work --tries=1`. All Discord/Mumble credentials were blanked via shell overrides after the first minutes (see Environment note). Browser: Chrome, `localhost:8000` = participant, `127.0.0.1:8000` = admin. 390px / 640px / 320px checks done with same-origin iframes of the live pages; HTTP-level checks with curl cookie jars. A third-party Chrome extension in the browser injects content and made a few form interactions (focusing a text field, then clicking) unusable ("Cannot access a chrome-extension:// URL"); this is environment, not the app.
+Round 4. Branch under test: `main` at the time. Profile `MODULES_PROFILE=full`, local, throwaway database (dropped afterwards), shell-variable overrides for cache/queue/broadcast, Reverb and the queue worker on the host. 390/640/320 px checks used same-origin iframes of the live pages; HTTP-level checks used cookie jars. Status of every finding below: fixed in PR #50 (see `../findings.md`).
 
 ## Counts
 
@@ -9,9 +9,9 @@ Branch under test: current `main` plus a docs commit. Profile `MODULES_PROFILE=f
 - Extras: (1) navigation/page sweep of 26 participant pages + beamer, (2) Filament sweep of 49 full-profile pages (list/create/edit): all HTTP 200, German, no raw keys, dates `d.m.Y H:i` Berlin, Admin badge + "Zur App" on every page, no page overflow; (3) mobile 390px; (4) a11y basics; (5) regression of self check-in, camera scanner (UI), arrival plan form, tournament pages.
 - Findings: 12 (0 Critical, 4 Important, 8 Minor).
 
-## Environment note (not an app defect)
+## Environment lesson
 
-The dev `.env` contains real Discord credentials. The first `lanomat:send-schedule-reminders` run therefore reached the real Discord API once (HTTP 400 "Invalid Recipient(s)" for a fake recipient id; nothing was delivered). From then on `DISCORD_*` and `MUMBLE_*` secrets were overridden to empty in the QA shell. Recommendation: the local QA recipe in `test-plan.md` should export `DISCORD_BOT_TOKEN= DISCORD_GUILD_ID= DISCORD_ANNOUNCE_CHANNEL_ID= DISCORD_MATCH_CATEGORY_ID= DISCORD_CLIENT_ID= DISCORD_CLIENT_SECRET=` before any scheduler/notification test.
+The developer `.env` contained real Discord credentials, so the first `lanomat:send-schedule-reminders` run reached the real Discord API once (HTTP 400 for a fake recipient; nothing was delivered). From then on every `DISCORD_*` / `MUMBLE_*` secret was blanked in the QA shell. This is the origin of the secret-blanking rule in [`../README.md`](../README.md) and the test plan recipe: always blank all external secrets before running anything that can send.
 
 ## Findings
 
@@ -120,13 +120,10 @@ Extra a11y/zoom: 200% (640px viewport) and 400% (320px) reflow on 12 pages: no p
 
 No `securitypolicyviolation` events on the beamer (25 s of scene cycling), on SPA navigation across dashboard, seating, gallery (private image route), jukebox, presence, friends, teams, schedule, nor on the poll realtime page. The header carries `Reporting-Endpoints: csp-endpoint="/csp-report"`; the endpoint works (a hand-posted report is logged to `storage/logs/csp-*.log` with 204), but deliberate violations produced in the browser (inline script, external image) were seen by the page listener and never arrived in the log within about 10 minutes (browser reporting delay, extension or localhost behaviour unknown) — delivery of real browser reports is therefore unverified, see Q-S7-1.
 
-## New open questions
+## Open questions raised
 
-- **Q-S5-1 (file allowlist).** `config/files.php` allows `application/octet-stream` and `text/plain`, so executables with a neutral MIME can be shared (after moderation). Recommended default: keep, because LAN parties exchange mods/installers and every upload passes the moderation gate; add the extension denylist only if orga asks.
-- **Q-S5-2 (nav for secondary modules).** Where should Essen, Abstimmungen, Mitspieler finden, Dateien and Spielserver live? Recommended default: one sidebar group "Mehr" under the current event, each entry gated by its module toggle.
-- **Q-S5-3 (Discord failures in the request path).** Should staff notifications with a Discord mirror always be queued? Recommended default: yes, make `OrgaPinged`, `CheckinOpened`, `FoodOrderReady` `ShouldQueue` so Discord outages never reach the user.
-- **Q-S7-1 (CSP reports).** Can someone confirm on the production host that browser CSP reports arrive in the `csp` log channel? Recommended default: check once after deploy with a deliberate violation via DevTools; if nothing arrives, add `report-to` group header `Report-To` fallback.
+Q-S5-1 to Q-S5-3 are answered and Q-S7-1 (browser CSP report delivery) is still open; see [`../open-questions.md`](../open-questions.md).
 
-## Environment changes made and removed
+## Environment
 
-DB `lanomat_qa` created, seeded (QA seed plus extra factory data) and dropped at the end; processes started by this run (`artisan serve` :8000 and temporary :8002 servers, `reverb:start` :8081, `queue:work`) stopped; temp files under `/tmp/qaj`, `/tmp/qalogs`, `/tmp/qa-*` deleted; the extra log files `storage/logs/csp-*.log` created by the run and the QA records in `storage/app/private` (uploaded test file/photo, installer placeholder, zip temp) were removed. The pre-existing Chrome tab 1873207112 (not created by this run) was navigated while testing and left on a QA page; the tab created by this run was closed.
+The throwaway database was dropped and every process started by the run was stopped; temporary files and uploaded test artefacts were removed. No production system was touched.

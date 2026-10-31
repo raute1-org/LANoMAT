@@ -94,7 +94,8 @@ class PelicanCheckCommand extends Command
 
     private function lifecycle(PelicanClient $client, ?string $nodeId): void
     {
-        $eggId = (string) $this->option('egg');
+        $egg = $this->option('egg');
+        $eggId = is_string($egg) ? $egg : '';
         $owner = (string) ($this->option('owner') ?: config('services.pelican.owner_user_id'));
         $wait = (int) $this->option('wait');
         $autoStart = (bool) $this->option('start-on-completion');
