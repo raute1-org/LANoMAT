@@ -37,7 +37,7 @@ class AlarmScheduleItemChanged implements ShouldQueue
 
         Notification::send(
             User::query()->whereIn('id', $userIds)->get(),
-            new ScheduleItemChanged($event->scheduleItem, $event->fields, $event->removed),
+            new ScheduleItemChanged($event->scheduleItem->title, $event->scheduleItem->starts_at, $event->fields, $event->removed),
         );
     }
 }

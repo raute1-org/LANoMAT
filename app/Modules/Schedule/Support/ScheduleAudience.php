@@ -24,6 +24,9 @@ class ScheduleAudience
 
         $participantIds = app(ScheduleParticipantResolver::class)->usersFor($item)->pluck('id');
 
-        return $favoriterIds->concat($participantIds)->unique()->values()->map(fn ($id): int => (int) $id)->all();
+        return array_values($favoriterIds->concat($participantIds)
+            ->unique()
+            ->map(fn ($id): int => (int) $id)
+            ->all());
     }
 }

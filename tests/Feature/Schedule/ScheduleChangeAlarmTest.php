@@ -172,3 +172,15 @@ it('alarms only favoriters for a non-tournament (custom) schedule item', functio
     Notification::assertSentTo($favoriter, ScheduleItemChanged::class);
     Notification::assertNotSentTo($stranger, ScheduleItemChanged::class);
 });
+
+it('delivers the removal alarm for real even though the item row is already gone', function () {
+    fakeDiscord();
+    $item = ScheduleItem::factory()->create(['title' => 'Opening']);
+    $user = User::factory()->create();
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $item->delete();
+
+    expect($user->notifications()->count())->toBe(1)
+        ->and($user->notifications()->first()->data['body'])->toContain('Opening');
+});

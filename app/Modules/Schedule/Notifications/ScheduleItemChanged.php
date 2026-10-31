@@ -5,8 +5,8 @@ namespace App\Modules\Schedule\Notifications;
 use App\Models\User;
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Notifications\Support\NotificationPreferences;
-use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Support\ScheduleTime;
+use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -23,10 +23,15 @@ class ScheduleItemChanged extends Notification implements ShouldQueue
     public string $category = 'schedule';
 
     /**
+     * Carries plain values instead of the model: a removed item is gone by
+     * the time the queued notification is restored, which would otherwise
+     * fail with a missing-model error and drop the alarm.
+     *
      * @param  list<string>  $fields  Changed attribute names (see ScheduleItem::ALARM_FIELDS).
      */
     public function __construct(
-        public readonly ScheduleItem $scheduleItem,
+        public readonly string $itemTitle,
+        public readonly CarbonInterface $startsAt,
         public readonly array $fields = ['starts_at'],
         public readonly bool $removed = false,
     ) {}
@@ -37,8 +42,8 @@ class ScheduleItemChanged extends Notification implements ShouldQueue
     private function text(string $bodySuffix = ''): array
     {
         $params = [
-            'title' => $this->scheduleItem->title,
-            'time' => ScheduleTime::when($this->scheduleItem->starts_at),
+            'title' => $this->itemTitle,
+            'time' => ScheduleTime::when($this->startsAt),
         ];
 
         if ($this->removed) {
