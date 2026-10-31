@@ -33,6 +33,11 @@ class CleanupMatchChannelJob implements ShouldQueue
 
         $client->deleteChannel($channelId);
 
+        $voiceChannelId = $match->discord_channels['voice_channel_id'] ?? null;
+        if (is_string($voiceChannelId) && $voiceChannelId !== '') {
+            $client->deleteChannel($voiceChannelId);
+        }
+
         $match->update(['discord_channels' => null]);
     }
 }

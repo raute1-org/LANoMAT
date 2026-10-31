@@ -87,7 +87,15 @@ it('creates a match text channel with roster overwrites and a welcome embed on M
 
     $this->fake->assertMessageSent($channel['id']);
 
-    expect($match->fresh()->discord_channels)->toBe(['text_channel_id' => $channel['id']]);
+    $voice = collect($this->fake->channels)->firstWhere('name', "Match {$match->id}");
+    expect($voice['voice'])->toBeTrue();
+    expect($channel['voice'])->toBeFalse();
+    expect($match->fresh()->discord_channels)->toBe(['text_channel_id' => $channel['id'], 'voice_channel_id' => $voice['id']]);
+
+    // roster may connect and speak in the voice channel, @everyone may not even see it
+    $voiceOverwrites = collect(collect($this->fake->overwrites)->firstWhere('channelId', $voice['id'])['overwrites']);
+    expect($voiceOverwrites->firstWhere('id', '111111')['allow'])->toBe((string) (1024 | (1 << 20) | (1 << 21)));
+    expect($voiceOverwrites->firstWhere('id', 'guild-1')['deny'])->toBe('1024');
 });
 
 it('is idempotent when MatchReady fires twice for the same match', function () {
@@ -96,7 +104,7 @@ it('is idempotent when MatchReady fires twice for the same match', function () {
     event(new MatchReady($match));
     event(new MatchReady($match));
 
-    expect(collect($this->fake->channels))->toHaveCount(1);
+    expect(collect($this->fake->channels))->toHaveCount(2); // text + voice, once
 });
 
 it('resolves German copy for the welcome embed', function () {
@@ -213,5 +221,38 @@ it('removes the channel again and keeps it private first when permissions fail',
     expect($failing->order)->toBe(['bot-1', 'guild-1', '111111', '222222']);
     expect($failing->channels)->toBe([]);
     expect($failing->deletedChannelIds)->toHaveCount(1);
+    expect($match->fresh()->discord_channels)->toBeNull();
+});
+
+it('deletes the voice channel too when the cleanup job runs', function () {
+    $match = readyMatch();
+    $match->update(['discord_channels' => ['text_channel_id' => 'text-1', 'voice_channel_id' => 'voice-1']]);
+
+    dispatch_sync(new CleanupMatchChannelJob($match->id));
+
+    $this->fake->assertChannelDeleted('text-1');
+    $this->fake->assertChannelDeleted('voice-1');
+});
+
+it('removes both channels when the voice channel cannot be set up', function () {
+    $failing = new class extends FakeDiscordClient
+    {
+        public function upsertPermissionOverwrites(string $channelId, array $overwrites): void
+        {
+            if (str_starts_with($channelId, 'fake-channel-2')) {
+                throw new RuntimeException('voice permissions failed');
+            }
+
+            parent::upsertPermissionOverwrites($channelId, $overwrites);
+        }
+    };
+    app()->instance(DiscordClient::class, $failing);
+
+    $match = readyMatch();
+
+    expect(fn () => dispatch_sync(new CreateMatchChannelJob($match->id)))->toThrow(RuntimeException::class);
+
+    expect($failing->channels)->toBe([]);
+    expect($failing->deletedChannelIds)->toHaveCount(2);
     expect($match->fresh()->discord_channels)->toBeNull();
 });
