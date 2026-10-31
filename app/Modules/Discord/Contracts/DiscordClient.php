@@ -9,7 +9,10 @@ interface DiscordClient
      */
     public function sendMessage(string $channelId, string $content, array $embeds = []): void;
 
-    public function createChannel(string $guildId, string $name, ?string $parentId = null): string;
+    /**
+     * Creates a text channel, or a voice channel when `$voice` is true.
+     */
+    public function createChannel(string $guildId, string $name, ?string $parentId = null, bool $voice = false): string;
 
     public function deleteChannel(string $channelId): void;
 

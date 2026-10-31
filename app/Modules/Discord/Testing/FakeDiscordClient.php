@@ -13,7 +13,7 @@ class FakeDiscordClient implements DiscordClient
     /** @var array<int, array{userDiscordId: string, content: string}> */
     public array $dms = [];
 
-    /** @var array<int, array{guildId: string, name: string, parentId: ?string, id: string}> */
+    /** @var array<int, array{guildId: string, name: string, parentId: ?string, voice: bool, id: string}> */
     public array $channels = [];
 
     /** @var array<int, array{channelId: string, overwrites: array<int, mixed>}> */
@@ -29,10 +29,10 @@ class FakeDiscordClient implements DiscordClient
         $this->messages[] = compact('channelId', 'content', 'embeds');
     }
 
-    public function createChannel(string $guildId, string $name, ?string $parentId = null): string
+    public function createChannel(string $guildId, string $name, ?string $parentId = null, bool $voice = false): string
     {
         $id = 'fake-channel-'.(++$this->sequence);
-        $this->channels[] = compact('guildId', 'name', 'parentId', 'id');
+        $this->channels[] = compact('guildId', 'name', 'parentId', 'voice', 'id');
 
         return $id;
     }

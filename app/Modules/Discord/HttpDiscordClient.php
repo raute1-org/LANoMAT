@@ -23,11 +23,11 @@ class HttpDiscordClient implements DiscordClient
         ]))->throw();
     }
 
-    public function createChannel(string $guildId, string $name, ?string $parentId = null): string
+    public function createChannel(string $guildId, string $name, ?string $parentId = null, bool $voice = false): string
     {
         $response = $this->http()->post("{$this->base}/guilds/{$guildId}/channels", $this->withoutNulls([
             'name' => $name,
-            'type' => 0, // text
+            'type' => $voice ? 2 : 0, // 2 = voice, 0 = text
             'parent_id' => $parentId,
         ]))->throw();
 

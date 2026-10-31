@@ -244,7 +244,8 @@ it('runs a full 8-player double-elim to exactly one champion with all channels c
     // progression) was deleted again as soon as it completed (asserted
     // live, above) — none remain live by the end.
     expect($discord->channels)->toBeEmpty('Expected every Discord match channel to have been cleaned up.');
-    expect($discord->deletedChannelIds)->toHaveCount($matchesWithLiveChannels);
+    // one text and one voice channel per match
+    expect($discord->deletedChannelIds)->toHaveCount($matchesWithLiveChannels * 2);
 
     foreach ($playedMatches as $match) {
         expect($match->fresh()->discord_channels)->toBeNull();

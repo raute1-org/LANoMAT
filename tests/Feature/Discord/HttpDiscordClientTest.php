@@ -144,3 +144,12 @@ it('still throws for unknown overwrite on a role', function () {
         ['id' => 'role1', 'type' => 0, 'allow' => '0', 'deny' => '0'],
     ]);
 })->throws(RequestException::class);
+
+it('creates a voice channel when asked to', function () {
+    Http::fake(['discord.com/*' => Http::response(['id' => 'v1'], 201)]);
+
+    $id = (new HttpDiscordClient('test-token'))->createChannel('guild-1', 'Match 7', 'cat-1', voice: true);
+
+    expect($id)->toBe('v1');
+    Http::assertSent(fn ($r) => $r['type'] === 2 && $r['name'] === 'Match 7' && $r['parent_id'] === 'cat-1');
+});
