@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import FilePicker from '@/components/FilePicker.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatInstant } from '@/lib/datetime';
 import { destroy as destroyFile, store as storeFile } from '@/routes/files';
 import type { FileQuotaDto, SharedFileDto } from '@/types';
@@ -40,40 +41,7 @@ const quotaRatio = computed(() => {
 
 const quotaIsNearCap = computed(() => quotaRatio.value >= 0.9);
 
-// Inertia renders this page synchronously on first load, so "loading"/"error"
-// only apply to a subsequent client-driven navigation/refresh — same
-// router-lifecycle mirror as the Stats/Leaderboard and Servers/Index pages.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeErrorListener: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeErrorListener = router.on('error', onError);
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeErrorListener?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 
 const form = useForm<{ file: File | null }>({
     file: null,

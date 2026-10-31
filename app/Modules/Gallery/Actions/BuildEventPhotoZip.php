@@ -6,6 +6,7 @@ namespace App\Modules\Gallery\Actions;
 
 use App\Modules\Events\Models\Event;
 use App\Modules\Gallery\Support\GalleryQuery;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -43,8 +44,11 @@ class BuildEventPhotoZip
         foreach ($photos as $photo) {
             $contents = Storage::disk('local')->get($photo->path);
 
+            // One photo gone from the disk must not spoil the download of all the others.
             if ($contents === null) {
-                throw new RuntimeException("Photo not found on disk at [{$photo->path}].");
+                Log::warning("Gallery zip skipped a photo that is missing on disk at [{$photo->path}].");
+
+                continue;
             }
 
             $zip->addFromString('photo-'.$number.'.jpg', $contents);

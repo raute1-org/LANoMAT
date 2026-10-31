@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import ConnectionCard from '@/components/settings/ConnectionCard.vue';
 import type { ConnectionProvider } from '@/components/settings/ConnectionCard.vue';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import { edit } from '@/routes/connections';
 
 const props = defineProps<{
@@ -23,40 +23,7 @@ defineOptions({
     },
 });
 
-// Inertia renders this page synchronously on first load, so "loading"/"error"
-// only apply to a subsequent client-driven navigation/refresh (e.g. after
-// unlinking) — same router-lifecycle mirror as Voice/Setup.vue.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-function onStart() {
-    hasError.value = false;
-    isNavigating.value = true;
-}
-
-function onFinish() {
-    isNavigating.value = false;
-}
-
-function onError() {
-    hasError.value = true;
-}
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeErrorListener: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', onStart);
-    removeFinish = router.on('finish', onFinish);
-    removeErrorListener = router.on('error', onError);
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeErrorListener?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 </script>
 
 <template>

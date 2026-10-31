@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatInstant } from '@/lib/datetime';
 import { dashboard } from '@/routes';
 import { edit as editConnections } from '@/routes/connections';
@@ -56,31 +57,7 @@ defineOptions({
 // Inertia renders this page synchronously on first load, so "loading"/"error"
 // only apply to a later client-driven refresh — same router-lifecycle mirror
 // as settings/Connections.vue.
-const isNavigating = ref(false);
-const hasError = ref(false);
-
-let removeStart: (() => void) | undefined;
-let removeFinish: (() => void) | undefined;
-let removeError: (() => void) | undefined;
-
-onMounted(() => {
-    removeStart = router.on('start', () => {
-        hasError.value = false;
-        isNavigating.value = true;
-    });
-    removeFinish = router.on('finish', () => {
-        isNavigating.value = false;
-    });
-    removeError = router.on('error', () => {
-        hasError.value = true;
-    });
-});
-
-onUnmounted(() => {
-    removeStart?.();
-    removeFinish?.();
-    removeError?.();
-});
+const { isNavigating, hasError } = usePageLoadState();
 
 const dateRange = computed(() => {
     if (!props.event?.startsAt) {

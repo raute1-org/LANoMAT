@@ -92,6 +92,9 @@ class FilePageController extends Controller
     {
         $this->authorize('download', $sharedFile);
 
+        // A row whose file is gone from the disk is a missing resource, not a server error.
+        abort_unless(Storage::disk($sharedFile->disk)->exists($sharedFile->path), 404);
+
         return Storage::disk($sharedFile->disk)->download($sharedFile->path, $sharedFile->original_name);
     }
 

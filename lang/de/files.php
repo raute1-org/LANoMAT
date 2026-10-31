@@ -29,7 +29,7 @@ return [
     'errors' => [
         'quota_exceeded' => 'Dein Upload-Kontingent für dieses Event ist ausgeschöpft.',
         'too_large' => 'Die Datei überschreitet die maximal erlaubte Größe.',
-        'invalid_mime' => 'Dieser Dateityp ist nicht erlaubt.',
+        'invalid_mime' => 'Dieser Dateityp ist nicht erlaubt. Erlaubt sind Archive (ZIP, 7z, RAR, TAR, GZ) sowie JSON-, Text- und XML-Dateien. Bilder gehören in die Galerie.',
         'unreadable' => 'Die Datei konnte nicht gelesen werden.',
     ],
 
