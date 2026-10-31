@@ -18,6 +18,14 @@ class FakeVoiceClient implements VoiceClient
     /** @var array<int, int> */
     public array $deletedChannelIds = [];
 
+    /**
+     * Test hook: when set and it returns true for a channel name, creating that channel
+     * fails, to exercise what the provisioning jobs do when a provider breaks half way.
+     *
+     * @var (\Closure(string): bool)|null
+     */
+    public ?\Closure $failCreateWhen = null;
+
     private int $sequence = 0;
 
     public function __construct(private readonly VoiceProvider $provider = VoiceProvider::Mumble) {}
@@ -29,6 +37,10 @@ class FakeVoiceClient implements VoiceClient
 
     public function createChannel(string $name, ?int $parentId = null, bool $temporary = false): VoiceChannel
     {
+        if ($this->failCreateWhen !== null && ($this->failCreateWhen)($name)) {
+            throw new \RuntimeException("Creating voice channel '{$name}' failed.");
+        }
+
         $channel = new VoiceChannel(++$this->sequence, $name, $parentId, $temporary);
         $this->channels[$channel->id] = $channel;
 

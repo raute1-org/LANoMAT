@@ -10,6 +10,7 @@ use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\VoiceProviders;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Throwable;
 
 /**
  * Creates temporary per-match team voice channels once a match becomes
@@ -49,15 +50,34 @@ class ProvisionMatchVoiceJob implements ShouldQueue
                 continue;
             }
 
-            $entry1Channel = $client->createChannel($match->entry1->display_name, null, true);
-            $entry2Channel = $client->createChannel($match->entry2->display_name, null, true);
+            $created = [];
+
+            try {
+                $entry1Channel = $client->createChannel($match->entry1->display_name, null, true);
+                $created[] = $entry1Channel->id;
+                $entry2Channel = $client->createChannel($match->entry2->display_name, null, true);
+                $created[] = $entry2Channel->id;
+            } catch (Throwable $e) {
+                // Take back what this provider already made, so a retry starts clean.
+                foreach ($created as $channelId) {
+                    try {
+                        $client->deleteChannel($channelId);
+                    } catch (Throwable $deleteFailure) {
+                        report($deleteFailure);
+                    }
+                }
+
+                throw $e;
+            }
 
             $voiceChannels[$value] = [
                 'entry1_channel_id' => $entry1Channel->id,
                 'entry2_channel_id' => $entry2Channel->id,
             ];
-        }
 
-        $match->update(['voice_channels' => $voiceChannels]);
+            // Stored as soon as this provider is done: if a later provider fails, a retry
+            // must not create these rooms a second time (they would be left behind).
+            $match->update(['voice_channels' => $voiceChannels]);
+        }
     }
 }
