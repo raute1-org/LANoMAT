@@ -248,7 +248,12 @@ because PHP cannot vary them per route; they are only the global ceiling for the
 largest class. To change a cap, change `config/lanomat.php` and the matching
 `maxRequestBodyBytes` in `dynamic.yml` together (a Pest test fails when they
 drift). `deploy.sh` recreates Traefik when `docker/traefik` or `compose.yml`
-changes, so a deploy picks the new caps up.
+changes since the last deploy (it remembers the deployed commit in
+`.git/lanomat-deployed-head`), so a deploy picks the new caps up. Always run
+`deploy.sh` itself; do not `git pull` first. A new middleware in `dynamic.yml` that the
+running Traefik does not know makes it drop every router using it, and the site
+answers 404 until Traefik is recreated
+(`docker compose --profile prod up -d --force-recreate --no-deps traefik`).
 
 Team logos are additionally re-encoded without metadata (EXIF/GPS) and capped
 to 512 px on the longest edge (`config/teams.php`).
