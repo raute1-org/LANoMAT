@@ -371,6 +371,13 @@ and are always delivered as `nosniff` attachments. Files can optionally live onl
 on the LanCache host: the app forwards uploads over SFTP and answers downloads with
 a redirect to a short-lived signed link served by a small nginx there
 (`FILES_STORE=host`, see [`docs/infra/file-host.md`](docs/infra/file-host.md)).
+With the file host plus `FILES_TUS_URL`, participants can upload whole games (about
+15 GB per file, up to 50 GB; 100 GB per person and event, both provisional and set
+by `FILES_MAX_FILE_GB` / `FILES_PER_USER_QUOTA_MB`) as **resumable chunked uploads**
+over the tus protocol, straight from the browser to `tusd` on the file host. The app
+only issues a single-use ticket (it reserves the quota) and answers tusd's HTTP hooks;
+the bytes never pass through it. A closed tab or lost connection resumes where it
+stopped, and every file still waits for orga approval.
 
 **Post-roadmap robustness** (hardening toward the real LAN, merged to `main`,
 untagged): a consolidated [pre-LAN acceptance checklist](docs/pre-lan-acceptance-checklist.md),

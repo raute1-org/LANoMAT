@@ -5,12 +5,14 @@ Participants share files at a LAN (mods, maps, installers, ISOs). The `Files` mo
 download from there:
 
 ```text
-upload    browser ──► app (checks, moderation row) ──SFTP, host key pinned──► LanCache host  /data/event-<id>/<uuid>
+upload    browser ──► app (ticket: rules, quota) ; browser ──tus, chunked, resumable──► tusd on the LanCache host
 download  browser ──► app (policy check) ──302 + signed link──► browser ──HTTPS──► nginx on the LanCache host
 ```
 
-The app never streams the bytes of a file-host file and keeps no copy: it receives the upload, forwards it over
-SFTP through a managed `RemoteHost` (Hosts module), and deletes its temporary upload. After
+The app never streams the bytes of a file-host file and keeps no copy. With the resumable upload path below
+(`FILES_TUS_URL` set) it never even receives them: the browser sends them to `tusd` on the file host. On the legacy
+path it receives the form upload, forwards it over SFTP through a managed `RemoteHost` (Hosts module) and deletes
+its temporary upload. After
 `SharedFilePolicy::download` allows a download, `FilePageController::download` answers with a redirect to a
 short-lived signed URL. nginx does the rest (sendfile, `Range`/resume).
 
@@ -30,6 +32,9 @@ The repository is public: every address, name, key and secret below is a placeho
 | `<FILES_HOST_SECRET>` | shared signing secret, `openssl rand -hex 32`, root-only on both sides                              |
 | `<FILES_SFTP_USER>`   | the restricted SFTP account, e.g. `lanomat-files`                                                   |
 | `<HOST_ID>`           | id of the registered host in LANoMAT (admin, Hosts)                                                 |
+| `<TUS_HOOK_SECRET>`   | secret nginx adds to tusd's hook calls, `openssl rand -hex 32`, root-only on both sides             |
+| `<APP_HOST>`          | the app's public host name, e.g. `app.<LAN_DOMAIN>`: where nginx relays the hooks to                |
+| `<FILES_UID>`         | numeric uid of `<FILES_SFTP_USER>` (`id -u`)                                                        |
 
 ## What was verified
 
@@ -63,6 +68,7 @@ install -d -m 755 <FILES_ROOT>              # chroot root: owned by root, not wr
 install -d -m 755 <FILES_ROOT>/certs
 useradd --system --shell /usr/sbin/nologin --home-dir <FILES_ROOT> <FILES_SFTP_USER>
 install -d -o <FILES_SFTP_USER> -g <FILES_SFTP_USER> -m 755 <FILES_ROOT>/data
+install -d -m 755 <FILES_ROOT>/guard       # flag file of the free-space guard (resumable uploads)
 ```
 
 `data/` is where the uploads land (`/data/event-<id>/<uuid>`, the original name is never part of the path). It is
@@ -95,7 +101,7 @@ Match User <FILES_SFTP_USER>
 - `sshd -t && systemctl reload ssh`. Keep the `ufw`/DOCKER-USER rules from the base runbook: port 22 stays LAN or
   tunnel only.
 
-Interrupted uploads leave `*.part` files (they are renamed on success only). Sweep them daily:
+Interrupted legacy (SFTP) uploads leave `*.part` files (renamed on success only). Sweep them daily:
 
 ```bash
 find <FILES_ROOT>/data -name '*.part' -mmin +1440 -delete     # e.g. /etc/cron.daily/lanomat-files-parts
@@ -188,21 +194,173 @@ signature = base64url( md5( "<expires><uri>|<n> <FILES_HOST_SECRET>" ) )     # n
 - **The error log can contain the full request line** (including the signature) when a file is missing. The link
   is dead after its TTL; keep `files.error.log` root-readable and local.
 
-## Upload size
+## Upload size (legacy form upload)
 
-`FILES_MAX_UPLOAD_MB` (default 200) and `FILES_PER_USER_QUOTA_MB` (default 500) stay the app's caps. To allow
-bigger files (an ISO), raise all of these together, or the upload dies at the first layer that is smaller:
+This section only applies to the legacy path (`FILES_STORE=local`, or `host` without `FILES_TUS_URL`).
+`FILES_MAX_UPLOAD_MB` (default 200) is its cap. To allow bigger files through the app, raise all of these
+together, or the upload dies at the first layer that is smaller: `FILES_MAX_UPLOAD_MB` and `LIMIT_BODY_FILES_MB`
+(`config/lanomat.php`), the Traefik `body-limit-files` middleware (`docker/traefik/dynamic.yml`, kept in sync by a
+Pest test), PHP `upload_max_filesize` / `post_max_size` (`docker/frankenphp/php.ini`, 1G today) and the request
+time. **Anything beyond about a gigabyte belongs on the resumable path below**, which has none of these limits.
 
-- `FILES_MAX_UPLOAD_MB` and `LIMIT_BODY_FILES_MB` (`config/lanomat.php`, multipart overhead on top);
-- the Traefik `body-limit-files` buffering middleware (`docker/traefik/dynamic.yml`; a Pest test keeps it in sync
-  with `config/lanomat.php`);
-- PHP `upload_max_filesize` / `post_max_size` (`docker/frankenphp/php.ini`, 1G today, so 1 GB is the ceiling
-  without changing the image);
-- the time the browser and any proxy allow for the request: the upload to the app and the SFTP forward to the host
-  both happen inside the request.
+## Resumable uploads (tus): whole games, around 15 GB per file
 
-The SFTP forward runs with no execution-time limit and streams from the temporary upload file, so memory use
-stays flat for large files.
+The form upload through PHP and Traefik cannot carry 15 GB and cannot resume. With `FILES_STORE=host` **and**
+`FILES_TUS_URL` set, **all** uploads (mods and maps as well as games) take one path: the
+[tus protocol](https://tus.io) straight from the browser to the official
+[`tusd`](https://github.com/tus/tusd) server on the file host. The legacy form upload stays only for
+`FILES_STORE=local` (and while `FILES_TUS_URL` is unset), and is refused while the resumable path is active, so
+there is exactly one code path per mode.
+
+```text
+ 1 browser ─POST /events/<slug>/files/uploads─► app: policy, size, type, quota reserved, single-use ticket
+ 2 browser ─tus POST (ticket in metadata)─► nginx :8443/upload/ ─► tusd ─pre-create hook─► nginx :8081 relay
+                                              (adds the secret header) ─► app /internal/files/tusd-hook
+                                      app: consume ticket, choose upload id + final path ─► ChangeFileInfo
+ 3 browser ─tus PATCH, 64 MiB chunks─► nginx (no buffering) ─► tusd ─► /data/event-<id>/<uuid>   (the app never sees bytes)
+ 4 tusd ─post-finish hook─► app: size == declared size, extension re-check, pending SharedFile, reservation completed
+   tusd ─post-terminate hook─► app: reservation released
+ 5 scheduler ─lanomat:sweep-file-uploads─► deletes leftovers of abandoned uploads over SFTP, frees the quota
+```
+
+### Decisions and why
+
+| Decision                                                    | Reason                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tusd writes **directly to the final path**, no staging move | The app chooses the id and the path (`ChangeFileInfo.ID` / `Storage.Path` = `<data>/event-<id>/<uuid>`) in the pre-create hook, so there is no 15 GB copy or rename at the end (we have no shell on the host anyway, only SFTP). A partial file can never be served: it has no `shared_files` row, so no link is ever signed for it. |
+| tusd's small `.info` files go to `<FILES_ROOT>/data/_tus/`  | Keeps the served `event-<id>/` directories free of metadata. `_tus` is inside the SFTP-writable tree, so the sweep can delete them over SFTP. nginx serves only signed `/dl/` links that the app signs for known rows, so nothing there is reachable.                                                                           |
+| The ticket is an opaque random token, stored only as sha256 | Single use (cleared at pre-create), 10 minutes by default (`FILES_TUS_TICKET_TTL_SECONDS`), bound through its reservation row to user, event, exact file name and declared size. A self-contained signed token would need the same row for single use and quota anyway; random plus hash is simpler and cannot be forged.        |
+| Quota is **reserved at ticket time**                        | Under the same per-(event, user) advisory lock as the legacy upload. Open reservations count; parallel uploads cannot exceed the quota. Asking again for the same file (a reload) rotates the ticket on the same reservation and does not reserve twice.                                                                         |
+| Hook auth through an nginx relay                            | tusd can forward client headers to a hook but cannot add a static secret, and a secret in the hook URL is forbidden. nginx listens on :8081 inside the compose network only, adds `X-Tusd-Hook-Secret`, and forwards to the app. The app compares in constant time and refuses everything when no strong secret is configured. |
+| Chunk size 64 MiB (`FILES_TUS_CHUNK_MB`)                    | A failed chunk costs at most this much re-sent data (tusd keeps the bytes of an interrupted request anyway and `HEAD` reports the real offset). 15 GB is about 240 requests. Bigger chunks risk proxy timeouts and long progress gaps, smaller ones multiply round trips. The browser slices the file from disk, memory stays small. |
+| tusd `-disable-download`, `-expose-metrics=false`           | Otherwise anyone who knows an upload id could download a not yet approved file straight from tusd.                                                                                                                                                                                                                             |
+| Checksum extension not used                                 | tusd 2.8 does not advertise it (`creation, creation-with-upload, termination, concatenation, creation-defer-length`). Integrity relies on TCP/TLS, tusd's offset accounting and the final size check.                                                                                                                          |
+| tusd has no expiry for file storage                         | The expiration extension is not offered for the file store, so abandoned uploads are cleaned by the app's sweep.                                                                                                                                                                                                               |
+
+### Limits (honest)
+
+- **Content is not sniffed.** The app cannot read the bytes on another machine. At ticket time and again in
+  `post-finish` it checks the extension of the declared name and the client-claimed type against the blocklist, and
+  it checks that tusd's received size equals the declared size. It stores `application/octet-stream`. What protects
+  the origin is as before: every download is an opaque `nosniff` attachment with a sandbox CSP, and every file waits
+  for orga approval.
+- **No per-chunk authentication.** After pre-create, tusd authorises `HEAD`/`PATCH`/`DELETE` by knowing the upload id
+  (a random UUID chosen by the app). That is the tus model; it is what lets a reloaded tab resume without a new
+  ticket.
+- **`post-finish` is asynchronous.** If the app is down when tusd reports the finished file, tusd retries 5 times
+  (2 s apart). After that the file exists without a row; the sweep removes it once the reservation expires
+  (`FILES_TUS_UPLOAD_TTL_HOURS`, 24 h) and the user uploads again. Keep the app up during uploads.
+- A reservation counts against the quota for at most `FILES_TUS_UPLOAD_TTL_HOURS` after the upload started, and for
+  the ticket lifetime before that. A finished file whose reservation already expired is still accepted.
+
+### Limits and defaults (provisional, to be confirmed by the owner)
+
+| Setting                      | Default | Where else it must match                                                              |
+| ---------------------------- | ------- | ------------------------------------------------------------------------------------- |
+| `FILES_MAX_FILE_GB`          | 50      | `FILES_MAX_FILE_BYTES` in the file host's `.env` (tusd `-max-size`) = GB × 1073741824 |
+| `FILES_PER_USER_QUOTA_MB`    | 102400  | disk sizing below; the page shows used and cap                                        |
+| `FILES_TUS_UPLOAD_TTL_HOURS` | 24      | how long a half-finished upload may sit before the sweep deletes it                   |
+
+The upload area shows the per-file maximum, and the quota readout counts files plus open reservations, from the same
+settings.
+
+### Disk layout, sizing and the free-space guard
+
+```text
+<FILES_ROOT>/data/event-<id>/<uuid>     finished and partial files (tusd and the SFTP account write, nginx reads)
+<FILES_ROOT>/data/_tus/<uuid>.info      tusd metadata (a few hundred bytes each)
+<FILES_ROOT>/guard/disk-full            flag, present while free space is low
+```
+
+- Size the disk for `FILES_PER_USER_QUOTA_MB` × expected uploaders (not everyone fills their quota) plus headroom
+  for partial uploads. At 100 GB per person, 20 heavy uploaders are 2 TB.
+- **Free-space guard:** tusd does not look at free space. `docker/file-host/disk-guard.sh` (cron, every minute) sets
+  `<FILES_ROOT>/guard/disk-full` when less than `MIN_FREE_GB` is left. While it exists nginx answers every **new**
+  upload (`POST`) with `507` and the UI says there is no room; running uploads continue.
+
+  ```bash
+  install -m 755 docker/file-host/disk-guard.sh /usr/local/bin/lanomat-files-disk-guard
+  echo '* * * * * root /usr/local/bin/lanomat-files-disk-guard <FILES_ROOT> 200' > /etc/cron.d/lanomat-files-disk-guard
+  ```
+
+- `.info` files of finished uploads stay (so a `HEAD` after a reload still says "complete"). Sweep old ones daily:
+  `find <FILES_ROOT>/data/_tus -name '*.info' -mtime +30 -delete`.
+- **Permissions:** tusd runs as `<FILES_UID>:101`. The uid is the SFTP account's, so what tusd writes can be deleted
+  over SFTP (reject, delete, sweep). Group 101 is the `nginx` group of the nginx image: tusd creates directories
+  with mode `0754`, which nginx's workers can only enter through that group (checked locally: with another group
+  they would not be able to read the files).
+
+### Network path and firewall
+
+- Browser to `https://files.<LAN_DOMAIN>:8443/upload/` (nginx, TLS from the wildcard certificate), then to tusd in
+  the compose network. tusd has **no published port**.
+- **tusd to the hook relay:** `http://file-host:8081/hook` inside the compose network. Port 8081 is not published;
+  nothing outside the compose network can reach it, and the public listener answers 404 for `/hook`.
+- **nginx to the app:** `FILES_APP_HOOK_URL` (`https://<APP_HOST>/internal/files/tusd-hook`), TLS verified with the
+  system CA bundle (the public wildcard certificate works). The app's Traefik must let this path through from
+  `<LANCACHE_HOST>`; you may restrict it to that address there. The shared secret is the authentication, the
+  source address is defence in depth. Hook bodies carry the original file name, nothing secret.
+- Firewall on `<LANCACHE_HOST>`: LAN clients to 8443/tcp only, as before; port 22 stays LAN or tunnel only.
+- The browser's CSP `connect-src` gains the file host origin automatically (derived from `FILES_TUS_URL`).
+- **CORS** is answered by tusd, not nginx (`-cors-allow-origin`, a regex): set `FILES_TUS_CORS_ORIGIN` to
+  `^https://<LAN_DOMAIN_REGEX>$` (the app's origin, dots escaped). Any other origin gets no CORS headers.
+
+### nginx settings for multi-hour transfers
+
+`location /upload/` in `docker/file-host/default.conf.template`: `proxy_request_buffering off` and
+`proxy_buffering off` (bytes stream straight to tusd instead of being spooled to disk first),
+`client_max_body_size 0` (only for this location; tusd enforces `-max-size`, the app the ticket),
+`client_body_timeout 300s` (between reads: a stalled client is dropped after 5 minutes and resumes with a new
+request), `proxy_send_timeout` and `proxy_read_timeout` 3600 s. The timeouts apply between reads and writes, not to
+the whole upload, so an upload of any length works as long as data keeps flowing.
+
+### Setup
+
+1. Steps 1 to 5 above, plus the `guard` directory, the guard cron and the `_tus` sweep cron.
+2. In the file host's `.env` add `FILES_TUS_HOOK_SECRET`, `FILES_APP_HOOK_URL`, `FILES_MAX_FILE_BYTES`,
+   `FILES_TUS_CORS_ORIGIN` and `FILES_UID` (see the header of `docker/file-host/compose.yml`); `docker compose up -d`
+   starts nginx and `tusproject/tusd:v2.8`.
+3. In the app's `.env`: `FILES_TUS_URL=https://files.<LAN_DOMAIN>:8443/upload/`, the same `FILES_TUS_HOOK_SECRET`,
+   `FILES_MAX_FILE_GB` equal to the file host's limit, and `FILES_STORE=host` as before.
+4. The scheduler runs `lanomat:sweep-file-uploads` every 10 minutes (Files module enabled). It is idempotent; a file
+   host that cannot be reached just leaves the work for the next run.
+
+### What was verified (resumable path)
+
+Locally against real containers (`tusproject/tusd:v2.8`, `nginx:1.27-alpine`, self-signed certificate), a real
+Laravel app container and `tus-js-client` 4.3.1 in Node as the client:
+
+- 1.5 GB random file, upload aborted at 600 MB, resumed from the stored upload URL: finished, SHA-256 identical,
+  pending `SharedFile` created by the `post-finish` hook through the nginx relay.
+- 6 GB file with nginx restarted mid-transfer (connections killed): the client retried, `HEAD` returned the
+  retained offset, the upload completed, `cmp` identical, row created.
+- Download of a tusd-written file through the signed link: `200` and `206`.
+- Rejected with the right codes: a ticket for another size or name (`ticket_mismatch`), a replayed and an unknown
+  ticket (`ticket_invalid`), an expired ticket (`ticket_expired`), no ticket (`403`), 60 GB declared (`413`, tusd
+  `-max-size`), a CORS preflight from a foreign origin (`403`), `GET` of an upload (`405`), `/hook` on the public
+  port (`404`), the disk-guard flag (`507` on `POST` only).
+- `DELETE` (terminate) removes both the data file at the custom path and the `.info` file.
+- Neither a ticket nor the secret appears in the app log or the nginx access log.
+
+**Not verified:** a real 15 GB transfer, real SSD and NIC throughput, the LanCache host, a real browser (the Vue
+uploader was type-checked and linted, not driven by a browser), phones, SFTP deletes by the sweep against the real
+chrooted account (the app side is tested against a fake), the venue Traefik path for the hook.
+
+### Manual verification (on the real machines)
+
+- [ ] `docker compose up -d`: both containers `healthy`; `docker compose logs tusd` shows the hook URL and the enabled events
+- [ ] As a participant, upload a small `.zip` on the Files page: progress runs, the file shows "Wartet auf Freigabe" and exists in `<FILES_ROOT>/data/event-<id>/`
+- [ ] **Resume after killing the connection:** start a multi-GB upload, pull the network cable or `docker compose restart file-host` mid-way: the page says "Verbindung unterbrochen", then continues by itself; the checksum of the stored file matches
+- [ ] **Browser restart mid-upload:** close the browser during a big upload, reopen the page, select the same file: it continues at the earlier percentage ("Nach Unterbrechung fortgesetzt")
+- [ ] **About 15 GB game** from a LAN client: note the sustained MB/s (expected: close to the link speed), the app server stays idle, the final size equals the source, orga sees it pending and can approve it
+- [ ] **Expired ticket:** request a ticket (browser devtools), wait past `FILES_TUS_TICKET_TTL_SECONDS`, start the upload: clear German error, no stuck quota
+- [ ] **Over quota:** with 100 GB used or reserved, a further file is refused before any byte is sent
+- [ ] **Two parallel uploads** from one user: both run; their sizes together cannot exceed the quota
+- [ ] **Abandoned upload:** start an upload, close the tab, wait past `FILES_TUS_UPLOAD_TTL_HOURS` (set it to 1 for the test) and run `php artisan lanomat:sweep-file-uploads`: partial file and `.info` are gone, the quota readout drops
+- [ ] **Cancel** in the UI: partial file and `.info` disappear at once
+- [ ] **Disk guard:** `touch <FILES_ROOT>/guard/disk-full`: a new upload says there is no room, a running one continues; remove the file
+- [ ] `.html` and `.svg` are refused before upload; an `.exe` uploads and stays pending
+- [ ] `POST https://files.<LAN_DOMAIN>:8443/hook` answers 404; `POST https://<APP_HOST>/internal/files/tusd-hook` without the secret answers 401
 
 ## Failure behaviour
 

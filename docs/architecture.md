@@ -63,7 +63,7 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | Preflight (core) | M-Robustness | Health-check registry, `lanomat:preflight` traffic light, Filament tile |
 | Presence (optional) | M10 | Who is online/playing/free per event (projection, beamer scene) |
 | Casting (optional) | M10 | Stream links and no-auth OBS overlays |
-| Files (optional) | M7 | Moderated LAN file-sharing with quota. Any type except browser-executable ones (HTML, SVG, JS); bytes live behind a `FileStore` contract: the private local disk (default) or the LanCache host (SFTP via `Hosts`, nginx download through a signed redirect), see [`infra/file-host.md`](infra/file-host.md) |
+| Files (optional) | M7 | Moderated LAN file-sharing with quota. Any type except browser-executable ones (HTML, SVG, JS); bytes live behind a `FileStore` contract: the private local disk (default) or the LanCache host (SFTP via `Hosts`, nginx download through a signed redirect), see [`infra/file-host.md`](infra/file-host.md). With `FILES_STORE=host` + `FILES_TUS_URL` every upload is a resumable tus upload from the browser to `tusd` on the file host (control plane in the app: `IssueUploadTicket` reserves quota in `file_upload_reservations`; `AuthorizeTusUpload`, `FinalizeTusUpload` and `ReleaseUploadReservation` answer tusd's hooks at `internal/files/tusd-hook`; `lanomat:sweep-file-uploads` cleans abandoned uploads); the legacy form upload remains for `FILES_STORE=local` |
 | Hosts (optional) | M7 | Managed remote hosts (IP + SSH key) behind `RemoteExecutor` |
 | CustomServers (optional) | M7 | Custom Docker game servers on a managed host |
 | Lancache (optional) | M7 | LanCache bootstrap on a separate host |
