@@ -51,7 +51,7 @@ Alles im **Discord Developer Portal**: <https://discord.com/developers/applicati
 3. Danach:
    - **Guild-ID** kopieren (Rechtsklick auf den Server → *ID kopieren*) → `DISCORD_GUILD_ID`.
    - Einen **Ankündigungs-Channel** anlegen/wählen → dessen ID kopieren → `DISCORD_ANNOUNCE_CHANNEL_ID`.
-   - Optional eine **Kategorie** für Match-Channels anlegen → ID → `DISCORD_MATCH_CATEGORY_ID`.
+   - `DISCORD_MATCH_CATEGORY_ID` leer lassen: jedes Event bekommt automatisch eine eigene Kategorie (und ein Archiv). Nur setzen, um alle Match-Channels in eine feste Kategorie zu zwingen.
 
 > **Interactions-Endpoint** (Slash-Commands) setzt du in **Teil D2**, erst wenn der App-Container läuft und öffentlich erreichbar ist — Discord verifiziert die URL beim Speichern per PING und die App muss antworten.
 
@@ -167,7 +167,7 @@ cloudflared tunnel --url http://localhost:8000     # oder: ngrok http 8000
 
 ### D3. Announcements & Match-Channels
 1. Im Panel (`/admin`) ein Event auf **Registrierung offen** schalten → im `DISCORD_ANNOUNCE_CHANNEL_ID`-Channel erscheint die Ankündigung (und in der Glocke).
-2. Ein kleines Turnier starten (oder ein Match auf „ready") → der Bot legt den Match-Text-Channel an (Kategorie `DISCORD_MATCH_CATEGORY_ID`), räumt ihn nach Abschluss verzögert wieder auf.
+2. Ein kleines Turnier starten (oder ein Match auf „ready") → der Bot legt in der Kategorie des Events den Match-Text-Channel und pro Team einen Voice-Raum an. Nach Abschluss und Wartezeit löscht er leere Räume (belegte erst, wenn alle draußen sind) und verschiebt den Text-Channel schreibgeschützt ins Archiv des Events.
 
 ### D4. Realtime / Queue / Scheduler
 1. **Reverb:** eine Live-Abstimmung (`/events/{slug}/polls`) in zwei Browser-Tabs öffnen, in einem abstimmen → der andere aktualisiert sich live (WebSocket über `wss://DEINE-PUBLIC-URL`). Klappt das nicht: `REVERB_ALLOWED_ORIGINS`/`REVERB_HOST`/`REVERB_SCHEME` prüfen.

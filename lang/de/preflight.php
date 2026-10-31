@@ -19,6 +19,7 @@ return [
     ],
     'messages' => [
         'not_configured' => 'Nicht konfiguriert.',
+        'gateway_not_connected' => 'Der Bot ist nicht mit Discord verbunden (HTTP :status).',
         'storage_mismatch' => 'Schreibprobe stimmte nicht überein.',
         'failed_jobs' => ':count fehlgeschlagene(r) Job(s).',
         'stale' => 'Kein aktuelles Lebenszeichen.',

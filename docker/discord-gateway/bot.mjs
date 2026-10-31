@@ -3,6 +3,7 @@
 // Pure transport: holds the connection, sets presence, forwards every event
 // to the Laravel ingress. No domain logic, no DB. discord.js handles
 // heartbeat/resume/reconnect/rate-limits (Discord's own recommendation).
+import { createServer } from 'node:http';
 import { Client, Events, GatewayIntentBits, ActivityType } from 'discord.js';
 
 const {
@@ -12,6 +13,7 @@ const {
   DISCORD_PRESENCE_STATUS = 'online',
   DISCORD_PRESENCE_ACTIVITY_TYPE = 'Watching',
   DISCORD_PRESENCE_ACTIVITY_NAME = 'LANoMAT',
+  DISCORD_GATEWAY_HEALTH_PORT = '3000',
 } = process.env;
 
 if (!DISCORD_BOT_TOKEN || !DISCORD_GATEWAY_BRIDGE_SECRET) {
@@ -93,5 +95,18 @@ client.on(Events.MessageCreate, (msg) => {
 });
 client.on(Events.MessageReactionAdd, (r, u) => postToIngress('reaction', { message_id: r.message.id, channel_id: r.message.channelId, user_id: u.id, emoji: r.emoji.name, added: true }));
 client.on(Events.MessageReactionRemove, (r, u) => postToIngress('reaction', { message_id: r.message.id, channel_id: r.message.channelId, user_id: u.id, emoji: r.emoji.name, added: false }));
+
+// Health for the app's preflight: 200 only while the Gateway connection is up, 503 otherwise
+// (a process that runs but is cut off from Discord must not look healthy).
+createServer((req, res) => {
+  if (req.url !== '/healthz') {
+    res.writeHead(404).end();
+
+    return;
+  }
+
+  const ready = client.isReady();
+  res.writeHead(ready ? 200 : 503, { 'Content-Type': 'text/plain' }).end(ready ? 'ok' : 'not connected');
+}).listen(Number(DISCORD_GATEWAY_HEALTH_PORT));
 
 client.login(DISCORD_BOT_TOKEN);

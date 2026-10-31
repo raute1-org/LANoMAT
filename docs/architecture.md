@@ -179,6 +179,15 @@ compose service on the `prod` profile — exactly one Gateway session may exist 
   the `occupants` count both admin sidecars report). The job looks again every two minutes until
   the last person has left. Rooms and providers are handled independently, and a sync queue never
   re-queues (a delay would loop). Discord match channels still go after a fixed delay.
+- **Discord match channels live in per-event categories.** `EventCategories` finds or creates the
+  category of an event for its running match channels, and a second one, "Archiv: <event>", for
+  finished ones (`discord_event_categories`; numbered follow-ups at Discord's limit of 50 channels
+  per category, and a category deleted on the server is created again). A match gets a private text
+  channel and, per team, a voice room that is visible to everyone but joinable only by that team and
+  the admins. `CleanupMatchChannelJob` runs after a delay: it deletes empty rooms, waits for the
+  ones with people in them (Gateway voice states) and moves the text channel into the archive,
+  read-only, instead of deleting it. The Gateway sidecar's `/healthz` answers 200 only while it is
+  connected to Discord, and the preflight check treats anything else as down.
 - **Member/message/reaction events** (`GuildMemberAdd`/`Remove`, `MessageCreate`,
   `MessageReactionAdd`/`Remove`) are forwarded the same way and surfaced as typed Laravel
   events for other modules to listen to.

@@ -140,3 +140,15 @@ it('reports music assistant down when configured but unreachable', function () {
     Http::fake(fn () => throw new ConnectionException('refused'));
     expect(app(MusicAssistantCheck::class)->run()->status->value)->toBe('down');
 });
+
+it('reports discord gateway sidecar down while the bot is not connected to Discord', function () {
+    config(['services.discord.gateway_health_url' => 'https://gateway.test/healthz']);
+
+    // The sidecar process answers, but with 503 until the Gateway connection is up.
+    Http::fake(['gateway.test/*' => Http::response('connecting', 503)]);
+
+    $result = app(DiscordGatewaySidecarCheck::class)->run();
+
+    expect($result->status->value)->toBe('down');
+    expect($result->message)->toContain('503');
+});

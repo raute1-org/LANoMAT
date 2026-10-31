@@ -120,11 +120,18 @@ switch it on. Placeholders only; never commit real values.
 
 **1. Decide what the bot may post on its own.** With the module on, the bot
 posts automatically: a "registration open" message and a 24 h and 1 h reminder
-in the announcement channel; a private text and voice channel per match (roster
-only); DMs to users for the notification categories they enabled; slash command
-answers. If any of that is unwanted, leave the matching setting empty: no
-`DISCORD_ANNOUNCE_CHANNEL_ID` means no announcements or reminders, no
-`DISCORD_MATCH_CATEGORY_ID` puts match channels at the top level.
+in the announcement channel; per match a private text channel (roster only) and
+a voice room for each team, visible to everyone but joinable only by that team
+and the admins; DMs to users for the notification categories they enabled; slash
+command answers. Every event gets a Discord category of its own for its match
+channels. A while after a match, its text channel moves into the category
+"Archiv: <event>" and turns read-only, so the history of every LAN stays on the
+server; the team rooms are deleted once nobody is in them. Discord holds 50
+channels per category, so a busy event gets numbered follow-up categories. If
+any of that is unwanted, leave the matching setting empty: no
+`DISCORD_ANNOUNCE_CHANNEL_ID` means no announcements or reminders. Setting
+`DISCORD_MATCH_CATEGORY_ID` forces all match channels into that one category
+instead of one per event (the archive stays per event).
 
 **2. Developer Portal.**
 
@@ -147,7 +154,7 @@ DISCORD_GUILD_ID=<server ID>
 DISCORD_APPLICATION_ID=<application ID>   # required: match channels fail without it
 DISCORD_PUBLIC_KEY=<public key>           # only for the HTTP fallback
 DISCORD_ANNOUNCE_CHANNEL_ID=<channel ID>  # empty = no announcements or reminders
-DISCORD_MATCH_CATEGORY_ID=<category ID>   # optional
+DISCORD_MATCH_CATEGORY_ID=                # empty = one category per event (recommended)
 DISCORD_GATEWAY_BRIDGE_SECRET=<random>    # e.g. openssl rand -hex 32
 DISCORD_GATEWAY_INGRESS_URL=http://app/internal/discord/gateway
 ```
