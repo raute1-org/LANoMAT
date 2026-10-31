@@ -5,8 +5,23 @@ services being reachable from the internet, and without installing a CA on every
 certificate for a name that only resolves inside the venue, obtained through the ACME **DNS-01** challenge
 with the DNS provider's API. Addresses, names and tokens are placeholders.
 
-> **Status:** written from the current Traefik and lego documentation. It has **not** been run against the
-> real DNS zones yet; run the staging step (step 4) before relying on it, and tick the checklist at the end.
+> **Status:** the **Cloudflare** path was run against a real zone with the Let's Encrypt **staging** CA
+> (Traefik v3.6, which bundles lego v5.3.1), see "Verified" below. The **Hetzner** path, the production CA and
+> the venue DNS (step 1) have **not** been run yet; tick the checklist at the end as you go.
+
+## Verified (Cloudflare, staging CA)
+
+A throwaway Traefik with exactly the resolver of step 3 (token as `CF_DNS_API_TOKEN_FILE`, public `resolvers`,
+`keyType: EC256`, `main` plus wildcard `sans`) was run twice against a throwaway name below a real Cloudflare zone:
+
+- One certificate with the apex and the wildcard as SANs was issued; the served chain was the "(STAGING)" CA and
+  an EC key. A sub-name (`x.<LAN_DOMAIN>`) got the same certificate.
+- Both challenges took about 20 seconds each, with `Validation retrying ... status=pending` lines in the debug
+  log: normal while the TXT record propagates, not an error.
+- The token needed only _Zone / Zone / Read_ and _Zone / DNS / Edit_ on the one zone. No account id is needed.
+- No `_acme-challenge` TXT record was left in the zone afterwards.
+- The staging certificate's `notAfter` was about 64 days out, not 90. Read `notAfter` from the served certificate
+  instead of relying on a fixed lifetime when you plan the issue date and the expiry check.
 
 ## Why this approach
 
@@ -18,8 +33,8 @@ with the DNS provider's API. Addresses, names and tokens are placeholders.
 | HTTP-01 on a public name (as `lan.<…>`) | yes                                | yes, the host must be reachable          | the public app server only                                 |
 
 DNS-01 proves control of a name by a TXT record, so the server never has to be reachable from outside. The
-certificate is valid 90 days: issue it a few days before the event while the host has internet, and it lasts
-the whole weekend.
+certificate is valid for a limited time (see `notAfter`; about 90 days in production): issue it a few days before
+the event while the host has internet, and it lasts the whole weekend.
 
 Things that need a trusted certificate in a browser: the app itself, anything the app page embeds or calls
 (an `https` page cannot open `http` or `ws` endpoints, "mixed content"), the Music Assistant web UI, the
@@ -186,8 +201,9 @@ there. This also allows one resolver to serve domains that live at both provider
 ## Checklist
 
 - [ ] `<LAN_DOMAIN>` resolves to `<VENUE_SERVER_IP>` from a phone on the venue Wi-Fi through the LanCache DNS and the router
-- [ ] Token created with the minimal scope, stored root-only, passed as a `*_FILE` variable
-- [ ] Staging certificate issued (log shows the DNS challenge), then production certificate issued
+- [x] Token created with the minimal scope, stored root-only, passed as a `*_FILE` variable (Cloudflare, verified)
+- [x] Staging certificate issued (log shows the DNS challenge) (Cloudflare, verified)
+- [ ] Production certificate issued
 - [ ] `openssl s_client` shows a Let's Encrypt issuer and the expected `notAfter` from the venue network
 - [ ] A phone with a clean profile opens `https://app.<LAN_DOMAIN>` without a warning
 - [ ] Certificate valid at least until the end of the event, backup of `acme-lan.json` handled
