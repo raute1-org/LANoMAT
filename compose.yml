@@ -105,15 +105,19 @@ services:
       - traefik_acme:/letsencrypt
 
   # Cloud entry point for an app that runs at the venue (docs/infra/app-at-the-venue.md).
-  # Carries only labels: Traefik reads them and passes TLS for APP_DOMAIN and its
-  # subdomains straight through to the venue's Traefik over the WireGuard tunnel,
-  # prefixing each connection with a PROXY protocol v2 header (real client address).
+  # Traefik passes TLS for APP_DOMAIN and its subdomains straight through (by SNI)
+  # to this container, prefixing each connection with a PROXY protocol v2 header
+  # (real client address). socat forwards the bytes unchanged to the venue's
+  # Traefik over the WireGuard tunnel. A forwarder is needed because the Docker
+  # provider always targets the container's own address: it ignores a
+  # `server.address` label as soon as a `server.port` label is present, and errors
+  # without the port label.
   # Off by default (own profile, not started by deploy.sh); start it on the cloud
   # server only at cut-over, after stopping that server's own app stack.
   venue-entry:
     restart: unless-stopped
-    image: alpine:3.20
-    command: ['sleep', 'infinity']
+    image: alpine/socat
+    command: ['TCP-LISTEN:443,fork,reuseaddr', 'TCP:${VENUE_UPSTREAM:-venue.invalid:443}']
     profiles: [venue-entry]
     labels:
       traefik.enable: 'true'
@@ -121,9 +125,6 @@ services:
       traefik.tcp.routers.venue.entrypoints: 'websecure'
       traefik.tcp.routers.venue.tls.passthrough: 'true'
       traefik.tcp.routers.venue.service: 'venue'
-      traefik.tcp.services.venue.loadbalancer.server.address: '${VENUE_UPSTREAM:-venue.invalid:443}'
-      # The docker provider wants a port label even when an address is given
-      # (without it every refresh logs "port is missing").
       traefik.tcp.services.venue.loadbalancer.server.port: '443'
       traefik.tcp.services.venue.loadbalancer.proxyprotocol.version: '2'
 

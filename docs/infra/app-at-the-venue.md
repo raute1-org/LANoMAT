@@ -51,12 +51,12 @@ router (`HostSNI`, `tls.passthrough`) and a TCP service with
 `entryPoints.websecure.proxyProtocol.trustedIPs` set to the cloud container's
 address, and a small HTTP echo service behind the venue router.
 
-| Check                                              | Result                                                                 |
-| -------------------------------------------------- | ---------------------------------------------------------------------- |
-| Public path, address seen by the backend           | the real client address (not the cloud Traefik's)                      |
-| LAN client straight to the venue, no PROXY header  | works, real address seen                                               |
-| Client sends its own `X-Forwarded-For`, both paths | ignored and replaced with the real address                             |
-| Docker provider with only an `address` label       | logs "port is missing" on every refresh; add a `server.port` label too |
+| Check                                              | Result                                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Public path, address seen by the backend           | the real client address (not the cloud Traefik's)                             |
+| LAN client straight to the venue, no PROXY header  | works, real address seen                                                      |
+| Client sends its own `X-Forwarded-For`, both paths | ignored and replaced with the real address                                    |
+| Docker provider TCP service with `server.address`  | the address is ignored: Traefik dials the container's own address (see below) |
 
 ## Verified on the test VM
 
@@ -66,9 +66,26 @@ needed), the app and the Reverb websocket (HTTP 101 upgrade) reachable by name, 
 taken by the LanCache on that host, so the demo listened on 8443 through a `compose.override.yml`
 (`ports: !override`). Not covered: the venue DNS, the tunnel, the PROXY protocol path on this stack.
 
+## Verified through the real tunnel
+
+With the app on the test VM and the cloud server's own Traefik (production, untouched except for one extra
+label-only router for the test name), a request from outside through the cloud server arrived with:
+
+| Check                                          | Result                                                                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------- |
+| TLS by SNI through the cloud Traefik and WG    | the venue certificate is served, the app answers 200, websocket 101                   |
+| Client address at the venue Traefik            | the real public address of the client, not the cloud server's                         |
+| LAN client straight to the venue, no header    | works                                                                                 |
+| Production site during the test                | unchanged (200 before and after the extra router)                                     |
+| `server.address` label on a Docker TCP service | ignored; Traefik dials the container address, so a forwarder is needed                |
+| `proxyprotocol.version` on the TCP service     | works; Traefik v3.6 logs it as deprecated in favour of `ServersTransport` (not tried) |
+
+The first attempt used `server.address` and failed with "connection refused" to the container's own address.
+The `socat` forwarder passes the PROXY header and the TLS bytes through unchanged.
+
 ## Repository support
 
-- `compose.yml`, service `venue-entry`: carries only the labels, behind its own
+- `compose.yml`, service `venue-entry`: a `socat` forwarder that carries the labels, behind its own
   profile (`venue-entry`). It is **not** started by `deploy.sh`. Start it on
   `<CLOUD_SERVER>` at cut-over.
 - `docker/traefik/traefik.venue.example.yml`: the static Traefik file for a host without a
