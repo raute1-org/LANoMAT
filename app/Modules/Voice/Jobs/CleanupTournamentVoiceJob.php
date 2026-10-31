@@ -34,9 +34,10 @@ use Illuminate\Foundation\Queue\Queueable;
  * so nothing here may rely on Murmur's temporary-channel garbage collection.
  * Clears the stored ids afterwards so this job is naturally idempotent.
  *
- * Nothing is deleted while someone is still in one of a provider's channels (or in a
- * sub-channel of one): the job checks again every {@see self::RECHECK_AFTER_MINUTES}
- * minutes until the last person has left. Providers are handled independently.
+ * Empty rooms are deleted at once. A room with someone in it, or in one of its
+ * sub-channels, is left alone so nobody is moved out of a conversation, and the job
+ * checks again every {@see self::RECHECK_AFTER_MINUTES} minutes until the last person
+ * has left. Providers are handled independently.
  */
 class CleanupTournamentVoiceJob implements ShouldQueue
 {
@@ -95,37 +96,51 @@ class CleanupTournamentVoiceJob implements ShouldQueue
             }
         }
 
-        // A provider is cleaned up as a whole, and only once nobody is left in any of its
-        // channels: removing a room moves people out of it. A provider that still has people
-        // in it keeps its stored ids, and this job looks again later.
-        $cleaned = [];
+        // Empty rooms go at once. A room with someone in it, or above someone, stays and keeps its
+        // stored id: removing it would move people out mid-conversation, so this job looks again
+        // later. Providers are handled independently.
+        $deleted = [];
         $waiting = false;
 
         foreach ($idsByProvider as $value => $ids) {
             $ids = array_values(array_unique($ids));
             $client = $providers->for(VoiceProvider::from((string) $value));
+            $retained = OccupiedChannels::retained($client, $ids);
 
-            if (OccupiedChannels::anyOccupied($client, $ids)) {
-                $waiting = true;
+            foreach ($ids as $channelId) {
+                if (in_array($channelId, $retained, true)) {
+                    $waiting = true;
 
+                    continue;
+                }
+
+                $client->deleteChannel($channelId);
+                $deleted[$value][$channelId] = true;
+            }
+        }
+
+        // Forget what was deleted, and keys of a provider that no longer exists.
+        $remaining = [];
+
+        foreach ($settings['voice'] ?? [] as $value => $subtree) {
+            if (VoiceProvider::tryFrom((string) $value) === null) {
                 continue;
             }
 
-            foreach ($ids as $channelId) {
-                $client->deleteChannel($channelId);
+            $gone = $deleted[$value] ?? [];
+            $teams = array_values(array_filter(
+                $subtree['team_channel_ids'] ?? [],
+                fn ($id): bool => ! isset($gone[$id]),
+            ));
+            $root = $subtree['tournament_channel_id'] ?? null;
+            $root = $root !== null && ! isset($gone[$root]) ? $root : null;
+
+            if ($teams === [] && $root === null) {
+                continue;
             }
 
-            $cleaned[$value] = true;
+            $remaining[$value] = ['team_channel_ids' => $teams] + ($root !== null ? ['tournament_channel_id' => $root] : []);
         }
-
-        // Forget what was cleaned up, and keys of a provider that no longer exists.
-        /** @var array<string, mixed> $stored */
-        $stored = $settings['voice'] ?? [];
-        $remaining = array_filter(
-            $stored,
-            fn ($subtree, $value) => VoiceProvider::tryFrom((string) $value) !== null && ! isset($cleaned[$value]),
-            ARRAY_FILTER_USE_BOTH,
-        );
 
         if ($remaining === []) {
             unset($settings['voice']);
@@ -138,9 +153,26 @@ class CleanupTournamentVoiceJob implements ShouldQueue
         }
 
         foreach ($matches as $match) {
-            $kept = collect($match->voice_channels ?? [])
-                ->filter(fn ($subtree, $value) => VoiceProvider::tryFrom((string) $value) !== null && ! isset($cleaned[$value]))
-                ->all();
+            $kept = [];
+
+            foreach ($match->voice_channels ?? [] as $value => $subtree) {
+                if (VoiceProvider::tryFrom((string) $value) === null) {
+                    continue;
+                }
+
+                $gone = $deleted[$value] ?? [];
+                $channels = array_filter(
+                    $subtree,
+                    fn ($id, $key): bool => in_array($key, ['entry1_channel_id', 'entry2_channel_id', 'server_channel_id'], true)
+                        && $id !== null
+                        && ! isset($gone[$id]),
+                    ARRAY_FILTER_USE_BOTH,
+                );
+
+                if ($channels !== []) {
+                    $kept[$value] = $channels;
+                }
+            }
 
             $match->update(['voice_channels' => $kept === [] ? null : $kept]);
         }

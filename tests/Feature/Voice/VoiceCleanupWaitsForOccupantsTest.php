@@ -6,6 +6,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Tournaments\Events\TournamentStarted;
+use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Voice\Jobs\CleanupEventServerVoiceJob;
@@ -42,14 +43,19 @@ it('keeps a tournament voice tree while someone is in a team channel and checks 
     $fakes = fakeVoice(['mumble']);
     $tournament = startedTournamentWithVoice();
     $teamChannel = $tournament->settings['voice']['mumble']['team_channel_ids'][0];
+    $otherTeam = $tournament->settings['voice']['mumble']['team_channel_ids'][1];
+    $root = $tournament->settings['voice']['mumble']['tournament_channel_id'];
     $fakes['mumble']->setOccupants($teamChannel, 1);
     Bus::fake([CleanupTournamentVoiceJob::class]);
     useDelayingQueue();
 
     (new CleanupTournamentVoiceJob($tournament->id))->handle(app(VoiceProviders::class));
 
-    expect($fakes['mumble']->channels)->toHaveKey($teamChannel);
-    expect($tournament->fresh()->settings['voice']['mumble']['team_channel_ids'])->toContain($teamChannel);
+    // The room with people in it stays, together with the channel above it; the empty room goes at once.
+    expect($fakes['mumble']->channels)->toHaveKey($teamChannel)->toHaveKey($root)->not->toHaveKey($otherTeam);
+    $voice = $tournament->fresh()->settings['voice']['mumble'];
+    expect($voice['team_channel_ids'])->toBe([$teamChannel]);
+    expect($voice['tournament_channel_id'])->toBe($root);
     Bus::assertDispatched(
         CleanupTournamentVoiceJob::class,
         fn (CleanupTournamentVoiceJob $job) => $job->tournamentId === $tournament->id && $job->delay !== null,
@@ -84,6 +90,28 @@ it('treats a person in a sub-channel as being in the tournament channel', functi
     (new CleanupTournamentVoiceJob($tournament->id))->handle(app(VoiceProviders::class));
 
     expect($fakes['mumble']->channels)->toHaveKey($root);
+    foreach ($tournament->settings['voice']['mumble']['team_channel_ids'] as $emptyTeam) {
+        expect($fakes['mumble']->channels)->not->toHaveKey($emptyTeam);
+    }
+    Bus::assertDispatched(CleanupTournamentVoiceJob::class);
+});
+
+it('removes an empty match room at once and keeps the one with people in it', function () {
+    $fakes = fakeVoice(['mumble']);
+    $tournament = startedTournamentWithVoice();
+    $occupied = $fakes['mumble']->createChannel('Team Alpha');
+    $empty = $fakes['mumble']->createChannel('Team Bravo');
+    $match = GameMatch::factory()->for($tournament)->create([
+        'voice_channels' => ['mumble' => ['entry1_channel_id' => $occupied->id, 'entry2_channel_id' => $empty->id]],
+    ]);
+    $fakes['mumble']->setOccupants($occupied->id, 3);
+    Bus::fake([CleanupTournamentVoiceJob::class]);
+    useDelayingQueue();
+
+    (new CleanupTournamentVoiceJob($tournament->id))->handle(app(VoiceProviders::class));
+
+    expect($fakes['mumble']->channels)->toHaveKey($occupied->id)->not->toHaveKey($empty->id);
+    expect($match->fresh()->voice_channels)->toBe(['mumble' => ['entry1_channel_id' => $occupied->id]]);
     Bus::assertDispatched(CleanupTournamentVoiceJob::class);
 });
 
