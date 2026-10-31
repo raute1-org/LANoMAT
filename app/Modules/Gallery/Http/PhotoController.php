@@ -32,28 +32,38 @@ class PhotoController extends Controller
     {
         $this->authorize('view', $eventPhoto);
 
-        return Storage::disk('local')->response($eventPhoto->path);
+        return $this->serve($eventPhoto->path);
     }
 
     public function thumb(Request $request, EventPhoto $eventPhoto): StreamedResponse
     {
         $this->authorize('view', $eventPhoto);
 
-        return Storage::disk('local')->response($eventPhoto->thumb_path);
+        return $this->serve($eventPhoto->thumb_path);
     }
 
     public function publicShow(EventPhoto $eventPhoto): StreamedResponse
     {
         $this->assertPubliclyServable($eventPhoto);
 
-        return Storage::disk('local')->response($eventPhoto->path);
+        return $this->serve($eventPhoto->path);
     }
 
     public function publicThumb(EventPhoto $eventPhoto): StreamedResponse
     {
         $this->assertPubliclyServable($eventPhoto);
 
-        return Storage::disk('local')->response($eventPhoto->thumb_path);
+        return $this->serve($eventPhoto->thumb_path);
+    }
+
+    /**
+     * A row whose file is gone from the disk is a missing resource, not a server error.
+     */
+    private function serve(string $path): StreamedResponse
+    {
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path);
     }
 
     private function assertPubliclyServable(EventPhoto $eventPhoto): void
