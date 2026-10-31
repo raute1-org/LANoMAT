@@ -35,4 +35,9 @@ class TeamException extends DomainException
     {
         return new self('This join request is no longer valid.', 'teams.errors.stale_request');
     }
+
+    public static function requestAlreadyAnswered(): self
+    {
+        return new self('This join request has already been answered.', 'teams.errors.request_already_answered');
+    }
 }

@@ -17,6 +17,16 @@ class RespondToJoinRequest
     {
         try {
             $answered = DB::transaction(function () use ($request, $accept): TeamJoinRequest {
+                // Re-read under a row lock: a request is answered once. A
+                // second answer (double click, second tab) would otherwise
+                // flip an accepted request to declined while the user stays
+                // a member (F-R2A-9).
+                $request = TeamJoinRequest::query()->whereKey($request->getKey())->lockForUpdate()->firstOrFail();
+
+                if ($request->status !== JoinRequestStatus::Pending) {
+                    throw TeamException::requestAlreadyAnswered();
+                }
+
                 if ($accept) {
                     $team = Team::query()->findOrFail($request->team_id);
                     $member = $team->members()->where('user_id', $request->user_id)->first();

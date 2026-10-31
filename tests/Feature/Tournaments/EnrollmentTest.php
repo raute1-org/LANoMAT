@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
+use App\Modules\Tournaments\Actions\CheckInEntry;
 use App\Modules\Tournaments\Actions\EnrollSolo;
 use App\Modules\Tournaments\Actions\EnrollTeam;
 use App\Modules\Tournaments\Actions\WithdrawEntry;
@@ -157,4 +158,47 @@ it('resolves a German translation for the full-tournament error', function () {
     app()->setLocale('de');
     expect(__(TournamentException::full()->translationKey))
         ->toBe('Das Turnier ist ausgebucht.');
+});
+
+// F-R2A-5
+it('refuses a team whose member already plays for another team entry of the tournament', function () {
+    $tournament = Tournament::factory()->enrollment()->create(['team_size' => 2]);
+    $u1 = User::factory()->create();
+    $u2 = User::factory()->create();
+    $u3 = User::factory()->create();
+    $teamA = Team::factory()->create();
+    $teamB = Team::factory()->create();
+    foreach ([$u1, $u2] as $u) {
+        TeamMember::factory()->create(['team_id' => $teamA->id, 'user_id' => $u->id]);
+    }
+    foreach ([$u2, $u3] as $u) {
+        TeamMember::factory()->create(['team_id' => $teamB->id, 'user_id' => $u->id]);
+    }
+
+    app(EnrollTeam::class)->handle($tournament, $teamA);
+
+    expect(fn () => app(EnrollTeam::class)->handle($tournament, $teamB))
+        ->toThrow(TournamentException::class);
+
+    // a withdrawn entry frees the person again
+    TournamentEntry::query()->where('team_id', $teamA->id)->update(['status' => EntryStatus::Withdrawn->value]);
+    expect(app(EnrollTeam::class)->handle($tournament, $teamB)->team_id)->toBe($teamB->id);
+});
+
+// F-R2A-6
+it('re-validates a team entry at check-in and refuses a team that lost a member', function () {
+    $tournament = Tournament::factory()->enrollment()->create(['team_size' => 2]);
+    $team = Team::factory()->create();
+    $members = [User::factory()->create(), User::factory()->create()];
+    foreach ($members as $u) {
+        TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $u->id]);
+    }
+    $entry = app(EnrollTeam::class)->handle($tournament, $team);
+    $tournament->forceFill(['status' => TournamentStatus::CheckIn])->save();
+
+    TeamMember::query()->where('team_id', $team->id)->where('user_id', $members[1]->id)->delete();
+
+    expect(fn () => app(CheckInEntry::class)->handle($entry->fresh()))
+        ->toThrow(TournamentException::class);
+    expect($entry->fresh()->status)->toBe(EntryStatus::Registered);
 });

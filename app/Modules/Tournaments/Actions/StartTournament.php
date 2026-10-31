@@ -15,6 +15,7 @@ use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketPersister;
+use App\Modules\Tournaments\Support\TeamRosterGuard;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -48,6 +49,7 @@ class StartTournament
         private readonly BracketPersister $persister,
         private readonly ShuffleSoloIntoTeams $shuffleSoloIntoTeams,
         private readonly SeedEntries $seedEntries,
+        private readonly TeamRosterGuard $rosterGuard,
     ) {}
 
     public function handle(Tournament $tournament): Tournament
@@ -67,6 +69,9 @@ class StartTournament
             }
 
             $entries = $this->participatingEntries($tournament);
+
+            // Team rosters may have changed since enrollment (F-R2A-5/6).
+            $this->rosterGuard->revalidateAll($tournament, $entries);
 
             if ($tournament->settings['auto_team'] ?? false) {
                 $entries = $this->shuffleSoloIntoTeams->handle($tournament, $entries);

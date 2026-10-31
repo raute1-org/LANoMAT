@@ -154,3 +154,47 @@ it('transfers ownership to a member', function () {
         ->and($team->members()->where('user_id', $member->id)->first()->role)->toBe(TeamRole::Owner)
         ->and($team->members()->where('user_id', $owner->id)->first()->role)->toBe(TeamRole::Member);
 });
+
+it('refuses to answer a join request a second time', function () {
+    $team = Team::factory()->create();
+    $user = User::factory()->create();
+    $req = app(RequestToJoin::class)->handle($user, $team);
+    app(RespondToJoinRequest::class)->handle($req, accept: true);
+
+    expect(fn () => app(RespondToJoinRequest::class)->handle($req->fresh(), accept: false))
+        ->toThrow(TeamException::class);
+
+    expect($req->fresh()->status)->toBe(JoinRequestStatus::Accepted)
+        ->and($team->members()->where('user_id', $user->id)->exists())->toBeTrue();
+});
+
+it('lets only the owner transfer the captaincy through the route', function () {
+    $owner = User::factory()->create();
+    $mate = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Alpha', 'ALP');
+    $m = $team->members()->make(['user_id' => $mate->id]);
+    $m->role = TeamRole::Member;
+    $m->save();
+
+    $this->actingAs($mate)->post("/teams/{$team->id}/transfer", ['user_id' => $mate->id])->assertForbidden();
+    $this->actingAs($owner)->post("/teams/{$team->id}/transfer", ['user_id' => $owner->id])->assertSessionHasErrors('user_id');
+    $this->actingAs($owner)->post("/teams/{$team->id}/transfer", ['user_id' => User::factory()->create()->id])->assertRedirect();
+    expect($team->fresh()->owner_id)->toBe($owner->id);
+
+    $this->actingAs($owner)->post("/teams/{$team->id}/transfer", ['user_id' => $mate->id])->assertRedirect();
+
+    expect($team->fresh()->owner_id)->toBe($mate->id);
+    // the former owner can now leave
+    app(LeaveTeam::class)->handle($owner, $team->fresh());
+    expect($team->members()->where('user_id', $owner->id)->exists())->toBeFalse();
+});
+
+it('exposes the transfer control to the owner only', function () {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Alpha', 'ALP');
+
+    $this->actingAs($owner)->get("/teams/{$team->id}/edit")
+        ->assertInertia(fn ($page) => $page->where('canTransfer', true));
+    $this->actingAs(User::factory()->orga()->create())->get("/teams/{$team->id}/edit")
+        ->assertInertia(fn ($page) => $page->where('canTransfer', false));
+});

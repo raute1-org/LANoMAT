@@ -7,10 +7,15 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Support\TeamRosterGuard;
 use Illuminate\Support\Carbon;
 
 class CheckInEntry
 {
+    public function __construct(
+        private readonly TeamRosterGuard $rosterGuard,
+    ) {}
+
     public function handle(TournamentEntry $entry): TournamentEntry
     {
         // A Withdrawn entry must never be checked in again — without this
@@ -31,6 +36,10 @@ class CheckInEntry
         if (! self::windowIsOpen($tournament)) {
             throw TournamentException::checkinClosed();
         }
+
+        // The team may have changed since it enrolled (F-R2A-6): re-check the
+        // current roster before the entry counts as checked in.
+        $this->rosterGuard->revalidate($tournament, $entry);
 
         $entry->status = EntryStatus::CheckedIn;
         $entry->checked_in_at = Carbon::now();

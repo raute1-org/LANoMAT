@@ -210,6 +210,7 @@ return [
         'result_locked' => 'Folge-Matches wurden bereits begonnen oder entschieden. Das Ergebnis kann nicht mehr geändert werden.',
         'player_in_multiple_entries' => 'Mindestens ein Spieler dieses Teams ist bereits mit einem anderen Team in diesem Turnier angemeldet.',
         'winner_not_decidable' => 'Der Sieger kann nur unter den punktgleichen Erstplatzierten einer komplett gespielten Jeder-gegen-jeden-Runde bestimmt werden.',
+        'entry_roster_invalid' => 'Ein angemeldetes Team hat nicht mehr die geforderte Kadergröße. Fülle das Team wieder auf oder ziehe die Anmeldung zurück.',
         'tournament_running' => 'Ein laufendes oder beendetes Turnier kann nicht gelöscht werden.',
         'match_not_in_warmup' => 'Dieses Match ist nicht in der Aufwärmphase.',
         'stale_match' => 'Das Ergebnis wurde inzwischen geändert. Seite neu geladen.',

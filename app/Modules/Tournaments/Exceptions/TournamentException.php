@@ -189,4 +189,9 @@ class TournamentException extends DomainException
     {
         return new self('The winner can only be chosen among tied leaders of a completed round robin.', 'tournaments.errors.winner_not_decidable');
     }
+
+    public static function entryRosterInvalid(): self
+    {
+        return new self('A team entry no longer has the required roster size.', 'tournaments.errors.entry_roster_invalid');
+    }
 }
