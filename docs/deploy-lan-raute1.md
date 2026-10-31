@@ -298,9 +298,9 @@ one yourself.
 
 Traefik's `secure-headers` middleware (`docker/traefik/dynamic.yml`) sets HSTS,
 frame deny, nosniff, `Referrer-Policy: strict-origin-when-cross-origin` and a
-restrictive `Permissions-Policy` (camera only for the same origin, used by the
-check-in camera scanner; microphone, geolocation, payment and USB
-denied). The image sets `expose_php = 0`, so `X-Powered-By` is not sent.
+restrictive `Permissions-Policy` (camera and microphone only for the same
+origin, used by the check-in camera scanner and the web voice chat; geolocation,
+payment and USB denied). The image sets `expose_php = 0`, so `X-Powered-By` is not sent.
 
 ## Request size limits
 

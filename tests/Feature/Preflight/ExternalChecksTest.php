@@ -2,6 +2,7 @@
 
 use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
+use App\Modules\Preflight\Checks\LiveKitCheck;
 use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
 use App\Modules\Preflight\Checks\PelicanCheck;
@@ -151,4 +152,19 @@ it('reports discord gateway sidecar down while the bot is not connected to Disco
 
     expect($result->status->value)->toBe('down');
     expect($result->message)->toContain('503');
+});
+
+it('skips the livekit check until web voice has an api key', function () {
+    config(['webvoice.api_key' => null]);
+    expect(app(LiveKitCheck::class)->run()->status->value)->toBe('skipped');
+});
+
+it('reports livekit ok when its http port answers and down when it does not', function () {
+    config(['webvoice.api_key' => 'k', 'webvoice.api_url' => 'http://livekit.test:7880']);
+
+    Http::fake(['livekit.test:7880*' => Http::response('OK', 200)]);
+    expect(app(LiveKitCheck::class)->run()->status->value)->toBe('ok');
+
+    Http::fake(fn () => throw new ConnectionException('refused'));
+    expect(app(LiveKitCheck::class)->run()->status->value)->toBe('down');
 });

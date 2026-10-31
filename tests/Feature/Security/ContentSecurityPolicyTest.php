@@ -107,3 +107,17 @@ it('is sent on authenticated participant pages too', function () {
     $this->actingAs(User::factory()->create())->get('/dashboard')
         ->assertHeader('Content-Security-Policy-Report-Only');
 });
+
+it('allows the web voice signaling origin in connect-src only when one is configured', function () {
+    config(['webvoice.url' => null]);
+    expect($this->get('/login')->headers->get('Content-Security-Policy-Report-Only'))->not->toContain('voice.example.org');
+
+    config(['webvoice.url' => 'wss://voice.example.org']);
+    expect($this->get('/login')->headers->get('Content-Security-Policy-Report-Only'))->toContain('connect-src')->toContain('wss://voice.example.org');
+});
+
+it('ignores a web voice url that is not a websocket origin', function () {
+    config(['webvoice.url' => 'https://voice.example.org']);
+
+    expect($this->get('/login')->headers->get('Content-Security-Policy-Report-Only'))->not->toContain('voice.example.org');
+});

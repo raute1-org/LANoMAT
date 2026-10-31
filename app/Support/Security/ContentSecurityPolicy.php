@@ -39,6 +39,7 @@ final class ContentSecurityPolicy
         private readonly array $formActionHosts = [],
         private readonly string $reportPath = '/csp-report',
         private readonly ?string $viteDevOrigin = null,
+        private readonly ?string $webVoiceConnectSource = null,
     ) {}
 
     public function header(): string
@@ -54,6 +55,10 @@ final class ContentSecurityPolicy
 
         if ($this->reverbConnectSource !== null) {
             $connect[] = $this->reverbConnectSource;
+        }
+
+        if ($this->webVoiceConnectSource !== null) {
+            $connect[] = $this->webVoiceConnectSource;
         }
 
         if ($this->viteDevOrigin !== null) {
@@ -87,6 +92,25 @@ final class ContentSecurityPolicy
     public function reportingEndpoints(): string
     {
         return self::REPORT_GROUP.'="'.$this->reportPath.'"';
+    }
+
+    /**
+     * Browser-facing signaling origin of the web voice SFU (`wss://voice.example.org`), for connect-src.
+     * Only a wss:// or ws:// URL yields a source; WebRTC media itself (UDP) is not governed by CSP.
+     */
+    public static function webVoiceSource(mixed $url): ?string
+    {
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ! isset($parts['host']) || ! in_array($parts['scheme'] ?? '', ['wss', 'ws'], true)) {
+            return null;
+        }
+
+        return $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
     }
 
     /** Browser-facing WebSocket origin of the Reverb server, e.g. `wss://lan.example.org:443`. */

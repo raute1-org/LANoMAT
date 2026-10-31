@@ -12,6 +12,7 @@ return [
         'discord_api' => 'Discord-API',
         'discord_gateway' => 'Discord-Gateway-Bot',
         'mumble' => 'Mumble',
+        'livekit' => 'Web-Sprachchat (LiveKit)',
         'teamspeak' => 'TeamSpeak',
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
