@@ -11,6 +11,8 @@ use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
+use App\Modules\Files\Support\ResumableUploads;
+use App\Modules\Files\Support\UploadQuota;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,6 +63,7 @@ class FilePageController extends Controller
             'files' => $files->map(fn (SharedFile $file): array => $this->fileDto($file, $userId))->all(),
             'labels' => trans('files.page'),
             'quota' => $this->quotaDto($event, $userId),
+            'upload' => $this->uploadDto($event),
         ]);
     }
 
@@ -69,6 +72,13 @@ class FilePageController extends Controller
         abort_unless($event->isPubliclyVisible(), 404);
 
         $this->authorize('create', SharedFile::class);
+
+        if (ResumableUploads::enabled()) {
+            // One code path with the file host: the bytes never pass through the app.
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans(FileException::useResumableUpload()->translationKey)]);
+
+            return back();
+        }
 
         $request->validate([
             'file' => ['required', 'file'],
@@ -118,9 +128,9 @@ class FilePageController extends Controller
     }
 
     /**
-     * The viewer's own used bytes (across every visibility, so a pending
-     * upload already counts against the same quota UploadSharedFile
-     * enforces) plus the configured per-event cap, so the participant page
+     * The viewer's own used bytes (across every visibility plus open
+     * resumable-upload reservations, so a pending or running upload already
+     * counts against the same quota UploadSharedFile enforces) plus the configured per-event cap, so the participant page
      * can render a "used / cap" readout. Null for guests — there is nothing
      * to upload against without an account.
      *
@@ -132,14 +142,32 @@ class FilePageController extends Controller
             return null;
         }
 
-        $usedBytes = SharedFile::query()
-            ->where('event_id', $event->id)
-            ->where('user_id', $userId)
-            ->sum('size_bytes');
+        return [
+            'usedBytes' => UploadQuota::usedBytes($event->id, $userId),
+            'capBytes' => UploadQuota::capBytes(),
+        ];
+    }
+
+    /**
+     * How the page uploads: `resumable` (tus straight to the file host, with
+     * the per-file limit) or `form` (legacy post through the app).
+     *
+     * @return array{mode: string, maxFileBytes: int, ticketUrl: string|null}
+     */
+    private function uploadDto(Event $event): array
+    {
+        if (ResumableUploads::enabled()) {
+            return [
+                'mode' => 'resumable',
+                'maxFileBytes' => UploadQuota::maxFileBytes(),
+                'ticketUrl' => route('files.uploads.ticket', ['event' => $event->slug], false),
+            ];
+        }
 
         return [
-            'usedBytes' => (int) $usedBytes,
-            'capBytes' => (int) config('files.per_user_quota_mb') * 1024 * 1024,
+            'mode' => 'form',
+            'maxFileBytes' => (int) config('files.max_upload_mb') * 1024 * 1024,
+            'ticketUrl' => null,
         ];
     }
 

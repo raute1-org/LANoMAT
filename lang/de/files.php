@@ -39,6 +39,8 @@ return [
         'store_unavailable' => 'Der Dateiserver ist gerade nicht erreichbar. Bitte versuche es in ein paar Minuten noch einmal.',
         'not_approvable' => 'Eine abgelehnte Datei wurde vom Server entfernt und kann nicht mehr freigegeben werden. Bitte lade sie neu hoch.',
         'unreadable' => 'Die Datei konnte nicht gelesen werden.',
+        'uploads_unavailable' => 'Der Upload ist gerade nicht verfügbar. Bitte wende dich an das Orga-Team.',
+        'use_resumable_upload' => 'Bitte lade die Datei über die Upload-Fläche auf dieser Seite hoch.',
     ],
 
     'page' => [

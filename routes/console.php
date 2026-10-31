@@ -35,6 +35,10 @@ if ($modules->enabled(Module::Jukebox)) {
     // see JukeboxTickCommand for the reconciliation logic.
     Schedule::command('lanomat:jukebox-tick')->everyMinute();
 }
+if ($modules->enabled(Module::Files)) {
+    // Releases the quota and deletes leftovers of resumable uploads nobody finished.
+    Schedule::command('lanomat:sweep-file-uploads')->everyTenMinutes()->withoutOverlapping();
+}
 if ($modules->enabled(Module::WebVoice)) {
     Schedule::command('webvoice:prune')->daily();
 }
