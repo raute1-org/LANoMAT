@@ -7,6 +7,7 @@ use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Domain\SpectateHint;
 use App\Modules\Games\Filament\Resources\Games\GameResource;
+use App\Modules\Games\Filament\Resources\Games\PresetFormMapper;
 use App\Modules\Games\Filament\Resources\Games\Schemas\GameForm;
 use App\Modules\Games\Models\Game;
 use Filament\Actions\DeleteAction;
@@ -42,13 +43,7 @@ class EditGame extends EditRecord
 
         if (is_array($presets)) {
             $data['server_presets'] = array_map(
-                static fn (ServerPreset $preset): array => [
-                    'key' => $preset->key,
-                    'name' => $preset->name,
-                    'max_players' => $preset->config->maxPlayers,
-                    'map' => $preset->config->map,
-                    'password' => $preset->config->password,
-                ],
+                static fn (ServerPreset $preset): array => PresetFormMapper::toForm($preset),
                 $presets,
             );
         }

@@ -18,10 +18,25 @@ namespace App\Modules\Games\Domain;
  */
 final readonly class ServerPreset
 {
+    /**
+     * @param  string|null  $eggUuid  Stable egg identity (numeric ids differ per panel); the
+     *                                provisioning side resolves it through the panel's egg list.
+     * @param  string|null  $eggName  Fallback match when no egg with that uuid is on the panel.
+     * @param  bool  $enabled  Orga switch; a disabled preset cannot be started.
+     * @param  list<string>  $requires  What the preset needs before it can run: `authkey`
+     *                                  (Steam Web API key), `gslt` (Game Server Login Token),
+     *                                  `content` (a content bundle). Secrets live in the
+     *                                  environment config, never in the preset.
+     */
     public function __construct(
         public string $key,
         public string $name,
         public ServerConfig $config,
+        public ?string $description = null,
+        public ?string $eggUuid = null,
+        public ?string $eggName = null,
+        public bool $enabled = true,
+        public array $requires = [],
     ) {}
 
     /**
@@ -33,6 +48,11 @@ final readonly class ServerPreset
             'key' => $this->key,
             'name' => $this->name,
             'config' => $this->config->toArray(),
+            'description' => $this->description,
+            'egg_uuid' => $this->eggUuid,
+            'egg_name' => $this->eggName,
+            'enabled' => $this->enabled,
+            'requires' => $this->requires,
         ];
     }
 
@@ -42,11 +62,22 @@ final readonly class ServerPreset
     public static function fromArray(array $data): self
     {
         $config = $data['config'] ?? [];
+        $requires = $data['requires'] ?? [];
 
         return new self(
             key: (string) ($data['key'] ?? ''),
             name: (string) ($data['name'] ?? ''),
             config: is_array($config) ? ServerConfig::fromArray($config) : new ServerConfig,
+            description: self::nullableString($data['description'] ?? null),
+            eggUuid: self::nullableString($data['egg_uuid'] ?? null),
+            eggName: self::nullableString($data['egg_name'] ?? null),
+            enabled: (bool) ($data['enabled'] ?? true),
+            requires: is_array($requires) ? array_values(array_map(static fn (mixed $r): string => (string) $r, array_filter($requires, 'is_scalar'))) : [],
         );
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        return is_scalar($value) && (string) $value !== '' ? (string) $value : null;
     }
 }

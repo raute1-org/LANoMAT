@@ -17,6 +17,10 @@ enum ServerLinkStatus: string
     case Ready = 'ready';
     case Failed = 'failed';
     case Stopped = 'stopped';
+    /** The server runs on the panel but does not answer its query within the preset's timeout. */
+    case NotResponding = 'not_responding';
+    /** The install finished without the preset's marker path and a reinstall did not fix it. */
+    case InstallFailed = 'install_failed';
 
     public function label(): string
     {

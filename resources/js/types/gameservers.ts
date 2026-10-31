@@ -26,10 +26,18 @@ export interface GameInstallHintDto {
 /**
  * The wire shape produced by `ServerListProjection::forEvent()` — shared by
  * the public server list page (`Servers/Index`) and the infoscreen's
- * Servers scene (`SceneServers.vue`). Only Ready servers are ever produced
- * (see the projection's doc), but `status` still carries the full lifecycle
+ * Servers scene (`SceneServers.vue`). Ready servers, not-responding ones and
+ * event-level servers that are still starting are produced (see the projection's doc), but `status` still carries the full lifecycle
  * value so both surfaces can drive the same `LiveIndicator` mapping.
  */
+export interface GameServerQueryDto {
+    serverName: string;
+    map: string;
+    players: number;
+    maxPlayers: number;
+    checkedAt: string | null;
+}
+
 export interface GameServerDto {
     id: number;
     game: string | null;
@@ -37,7 +45,20 @@ export interface GameServerDto {
     address: string | null;
     port: number | null;
     connectString: string;
-    status: 'pending' | 'provisioning' | 'ready' | 'failed' | 'stopped';
+    status:
+        | 'pending'
+        | 'provisioning'
+        | 'ready'
+        | 'failed'
+        | 'stopped'
+        | 'not_responding'
+        | 'install_failed';
+    /** Orga-chosen name of an event-level preset server, null for match servers. */
+    title?: string | null;
+    /** False when the connect string is a plain address:port (no URL scheme). */
+    connectIsLink?: boolean;
+    /** Last server query answer (name, map, players); null when never queried. */
+    query?: GameServerQueryDto | null;
     slotsUsed?: number;
     slotsMax?: number;
     estimate: GameServerResourceEstimate | null;

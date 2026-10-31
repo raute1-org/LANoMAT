@@ -44,6 +44,10 @@ and stop them and nothing else.
 | `PELICAN_TIMEOUT`, `PELICAN_CONNECT_TIMEOUT` | Seconds, default 10 and 5 |
 | `PELICAN_DEFAULT_DISK_MB`, `PELICAN_DEFAULT_CPU_PERCENT` | Limits for presets that set none (5120 / 0) |
 | `PELICAN_MAX_RAM_MB`, `PELICAN_MAX_SLOTS`, `PELICAN_MAX_SERVERS_PER_USER`, `PELICAN_MAX_RUNNING_SERVERS` | Guardrails (unchanged) |
+| `PELICAN_PORT_POOL` | Ports servers may get, list and `from-to` ranges, default `27015-27050` |
+| `PELICAN_CREATE_ALLOCATIONS`, `PELICAN_ALLOCATION_IP` | Optional: create missing pool allocations through the Application API (needs write scope on allocations), default off |
+| `PELICAN_STEAM_WEB_API_KEY`, `PELICAN_GSLT` | Secrets for presets that require them; never stored in a preset |
+| `PELICAN_READINESS_TIMEOUT`, `PELICAN_INSTALL_TIMEOUT` | Seconds a server may take to answer its query (180) and to install (900) |
 
 Migration note: `PELICAN_PANEL_URL`, `PELICAN_APPLICATION_TOKEN`, `PELICAN_CLIENT_TOKEN`
 and `PELICAN_NODE_ID` keep working. New: `PELICAN_OWNER_USER_ID` is **required** for
@@ -69,9 +73,67 @@ Pelican refuses a server without `name`, `user`, `egg`, `environment`, `limits`
 - **owner** — `PELICAN_OWNER_USER_ID`.
 
 `memory_mb`, `disk_mb`, `cpu_percent` and `environment` live in the game's
-`default_server_config` / preset JSON (`ServerConfig`). They are not yet editable in
-the Filament form; set them through the config upload ("Upload" mode of the default
-config) or a seeder.
+`default_server_config` / preset JSON (`ServerConfig`) and are edited in the game form
+(see "Presets" below) or through the config upload.
+
+## Presets
+
+A game carries a list of presets (`games.server_presets`, typed `ServerPreset`). A
+preset is: an **egg reference** (uuid plus fallback name, resolved against the panel's
+`listEggs()`; the numeric id is never stored), an `enabled` switch and `requires`
+(`authkey`, `gslt`, `content`), and a `ServerConfig` with limits (`memory_mb`, `disk_mb`,
+`cpu_percent`), the `environment` map plus the `overridable` key list, `extra_ports`
+(egg variables that get a second pool port, e.g. `TV_PORT`), readiness (`a2s` with
+expected game title, folder and timeout), a `connect_template` (`{ip}`, `{port}`,
+`{password}`), a content bundle (`workshop` collection id or `upload` URL) and an
+`install_marker` path. Secrets are not part of a preset: `PresetAvailability` locks a
+preset whose required key or token is missing from `services.pelican.*`, and the
+builder hands the key (`STEAM_WEB_API_KEY`) or token (`STEAM_ACC`/`STEAM_GSLT`) to the
+egg only for presets that require it. The Filament game form edits all of this (egg
+select from a cached `EggCatalog`, text input when the panel is unreachable).
+
+Seeded examples (`GamesSeeder`, never overwriting edited presets): **TTT** (LANoMAT
+egg, gamemode `terrortown`, 16 slots, A2S check), **Prop Hunt (Workshop)** (locked
+until a Steam Web API key and a collection exist) and **CS2 GunGame** (disabled stub:
+needs Metamod/CounterStrikeSharp content and a GSLT).
+
+The orga starts a server with the server links page action "Server aus Preset starten"
+(`StartServerFromPreset`): event-level `ServerLink` (`event_id`, `game_id`, `preset_key`,
+readiness snapshot), only overridable keys may be changed, authorization through
+`ServerLinkPolicy::start`.
+
+## Eggs
+
+LANoMAT ships its own Garrys Mod egg fork in `resources/pelican-eggs/` (hostname
+variable, hidden optional Steam Web API key, extra arguments, guarded optional startup
+arguments, install script that fails when `garrysmod/` is missing). `php artisan
+gameservers:import-eggs` imports it idempotently through `POST /api/application/eggs/import`
+(upsert by uuid, needs write scope on eggs). With a read-only key it prints the manual
+steps (admin area > Eggs > Import from file) and verifies by uuid; `--check` only verifies.
+
+## Port pool
+
+Servers only get a free panel allocation whose port lies in `PELICAN_PORT_POOL`, lowest
+first: one for the server plus one per `extra_ports` entry (sent as
+`allocation.additional`, the port goes into the named egg variable). An exhausted pool is
+the typed `noFreeAllocation` error (German message). With `PELICAN_CREATE_ALLOCATIONS=true`
+the planner first creates the missing pool ports (`POST /nodes/{id}/allocations`, 204);
+a key without that scope gets 403 and the error stays `noFreeAllocation`. Creation is
+never required.
+
+## Install verification and readiness
+
+Pelican reports a SteamCMD run that ended with "Missing configuration" as installed.
+For presets with an `install_marker` the poll job lists the server's files after the
+install and, when the marker is missing (or the panel reports `install_failed`),
+reinstalls once (`POST /servers/{id}/reinstall`); a second miss ends in the status
+`install_failed` ("Installation unvollständig"). A file-list error (server locked) is no
+verdict and polls again. Once the panel says `running`, presets with an `a2s` check stay
+`provisioning` until `CheckServerReadinessJob` gets a matching UDP A2S_INFO answer
+(`ServerQuery` contract, `UdpServerQuery`, fake in tests): then the link is `ready` with
+server name, map and players; silence for the preset's timeout makes it `not_responding`.
+`gameservers:refresh-queries` (every minute) refreshes players, recovers a
+`not_responding` server and flags a ready one that was silent for three minutes.
 
 ## Provisioning flow and states
 

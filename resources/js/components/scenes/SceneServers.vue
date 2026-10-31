@@ -19,6 +19,8 @@ const liveVariant: Record<GameServerDto['status'], 'ok' | 'warn' | 'down'> = {
     pending: 'warn',
     failed: 'down',
     stopped: 'down',
+    not_responding: 'warn',
+    install_failed: 'down',
 };
 
 function servers(): GameServerDto[] {

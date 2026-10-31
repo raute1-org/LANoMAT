@@ -189,6 +189,9 @@ return [
         'servers_empty' => 'Aktuell sind keine Spielserver bereit.',
         'servers_address_label' => 'Adresse',
         'servers_port_label' => 'Port',
+        'status_ready' => 'Bereit',
+        'status_provisioning' => 'Startet',
+        'status_not_responding' => 'Antwortet nicht',
 
         // SceneScoreboard (Task 12) — the CS2 live-stats scoreboard moment.
         'scoreboard_title' => 'Live-Scoreboard',

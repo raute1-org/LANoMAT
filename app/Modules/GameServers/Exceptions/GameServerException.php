@@ -172,6 +172,36 @@ class GameServerException extends DomainException
         );
     }
 
+    /** The preset's egg is not on the panel (not imported yet). */
+    public static function eggNotImported(string $egg): self
+    {
+        return new self(
+            "The Pelican egg [{$egg}] is not imported on the panel. Run gameservers:import-eggs.",
+            'gameservers.errors.egg_not_imported',
+        );
+    }
+
+    /**
+     * The preset cannot be started: `disabled`, `requires_authkey`, `requires_gslt` or
+     * `requires_content` (see PresetAvailability).
+     */
+    public static function presetUnavailable(string $reason): self
+    {
+        return new self(
+            "The server preset cannot be started ({$reason}).",
+            "gameservers.errors.preset_unavailable_{$reason}",
+        );
+    }
+
+    /** The orga tried to change an environment key the preset does not allow to override. */
+    public static function overrideNotAllowed(string $key): self
+    {
+        return new self(
+            "The environment key [{$key}] may not be overridden for this preset.",
+            'gameservers.errors.override_not_allowed',
+        );
+    }
+
     /**
      * Thrown by {@see GuardrailPolicy::assertWithinLimits()} when the
      * resolved config's estimated RAM exceeds `services.pelican.max_ram_mb`.

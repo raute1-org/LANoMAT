@@ -3,6 +3,7 @@
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Domain\PelicanAllocation;
 use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Testing\FakeRemoteExecutor;
@@ -178,6 +179,13 @@ function fakeLinkedAccounts(array $providers = [LinkedAccountProvider::Steam, Li
 function fakePelican(): FakePelicanClient
 {
     $fake = new FakePelicanClient;
+
+    // A few free allocations inside the default port pool, so provisioning has somewhere to go.
+    foreach (range(27015, 27020) as $i => $port) {
+        $fake->allocations[] = new PelicanAllocation((string) ($i + 1), '192.0.2.10', $port);
+    }
+
+    config(['services.pelican.default_node_id' => config('services.pelican.default_node_id') ?? '1']);
     app()->instance(PelicanClient::class, $fake);
 
     return $fake;
