@@ -6,6 +6,7 @@ namespace App\Modules\GameServers\Actions;
 
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
+use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\GameServers\Jobs\CleanupServerJob;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Voice\Jobs\CleanupTournamentVoiceJob;
@@ -34,5 +35,8 @@ class DeprovisionServer
 
         $link->status = ServerLinkStatus::Stopped;
         $link->save();
+
+        // Announce the stop so other modules (voice channels, ...) can clean up.
+        ServerLinkUpdated::dispatch($link);
     }
 }
