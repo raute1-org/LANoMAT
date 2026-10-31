@@ -44,7 +44,7 @@ it('encodes hostile file names so they cannot inject headers or query parameters
 
     $url = $signer->url('event-1/x', "evil\r\nSet-Cookie: a=b&md5=1.zip", 1);
 
-    expect($url)->not->toContain("\r")->not->toContain("\n")->not->toContain(' ')
+    expect(preg_match('/[\r\n ]/', $url))->toBe(0)
         ->and(substr_count($url, '&md5='))->toBe(1);
 });
 

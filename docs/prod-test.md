@@ -208,7 +208,7 @@ Details/Hintergrund: [`docs/lancache-setup.md`](lancache-setup.md). **Wichtig:**
 
 1. Als Teilnehmer `/events/{slug}/files` öffnen → Datei hochladen (Formular postet auf `files.store`). Solange sie nicht freigegeben ist, siehst nur du selbst sie in der Liste (Status „ausstehend").
 2. Als Helfer/Orga im Panel die ausstehende Datei freigeben (Moderations-Gate) → sie erscheint jetzt für alle Teilnehmer der Veranstaltung in `/events/{slug}/files` und ist über `files.download` herunterladbar.
-3. **Quota/Größe testen:** eine Datei über `FILES_MAX_UPLOAD_MB` (Default 200 MB, siehe `config/files.php`) hochladen → wird abgelehnt; wiederholt hochladen bis `FILES_PER_USER_QUOTA_MB` (Default 500 MB) je Event überschritten ist → weitere Uploads werden abgelehnt, bestehende bleiben bestehen.
+3. **Quota/Größe testen:** eine Datei über `FILES_MAX_UPLOAD_MB` (Default 200 MB, siehe `config/files.php`) hochladen → wird abgelehnt (ebenso `.html`/`.svg`/`.js`; `.exe`/`.zip` werden angenommen und bleiben bis zur Freigabe wartend); wiederholt hochladen bis `FILES_PER_USER_QUOTA_MB` (Default 500 MB) je Event überschritten ist → weitere Uploads werden abgelehnt, bestehende bleiben bestehen.
 
 ### D8. Custom-Docker-Server (M7 Task 3/4, roadmap 7.4)
 

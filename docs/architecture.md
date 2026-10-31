@@ -63,7 +63,7 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | Preflight (core) | M-Robustness | Health-check registry, `lanomat:preflight` traffic light, Filament tile |
 | Presence (optional) | M10 | Who is online/playing/free per event (projection, beamer scene) |
 | Casting (optional) | M10 | Stream links and no-auth OBS overlays |
-| Files (optional) | M7 | Moderated LAN file-sharing on a private disk with quota |
+| Files (optional) | M7 | Moderated LAN file-sharing with quota. Any type except browser-executable ones (HTML, SVG, JS); bytes live behind a `FileStore` contract: the private local disk (default) or the LanCache host (SFTP via `Hosts`, nginx download through a signed redirect), see [`infra/file-host.md`](infra/file-host.md) |
 | Hosts (optional) | M7 | Managed remote hosts (IP + SSH key) behind `RemoteExecutor` |
 | CustomServers (optional) | M7 | Custom Docker game servers on a managed host |
 | Lancache (optional) | M7 | LanCache bootstrap on a separate host |

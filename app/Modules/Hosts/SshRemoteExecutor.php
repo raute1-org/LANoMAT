@@ -81,14 +81,21 @@ class SshRemoteExecutor implements RemoteExecutor
 
     public function uploadFile(RemoteHost $host, string $localPath, string $remotePath): void
     {
+        // A multi-GB transfer encrypts in PHP and easily outlasts the default
+        // max_execution_time; a timeout would also skip the .part cleanup below.
+        set_time_limit(0);
+
         $sftp = $this->connectSftp($host);
         $partPath = $remotePath.'.part';
 
         try {
             $directory = dirname($remotePath);
 
-            if ($directory !== '.' && $directory !== '/' && ! $sftp->is_dir($directory)) {
-                if (! $sftp->mkdir($directory, -1, true) && ! $sftp->is_dir($directory)) {
+            if ($directory !== '.' && $directory !== '/') {
+                // Idempotent: an existing directory (or a concurrent upload that created it first) is fine.
+                $sftp->mkdir($directory, -1, true);
+
+                if (! $sftp->is_dir($directory)) {
                     throw RemoteExecutionException::commandFailed();
                 }
             }
