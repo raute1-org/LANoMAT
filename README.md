@@ -354,6 +354,12 @@ below the tags is merged to `main` untagged:
   pipeline); multi-provider voice (Mumble + TeamSpeak).
 - **M9–M11** — account linking (Steam/Twitch) & the Friends system; presence +
   casting/OBS overlays; the LAN-radio jukebox (Music Assistant).
+- **Permanent game servers** — servers that run all year, independent of events
+  (e.g. a Minecraft server): a Pelican server from a preset on a chosen node, a
+  Docker container on a managed host, or an external server that is only listed.
+  Visible to every logged-in user at `/servers` (status, players, join address),
+  managed by admins in the admin panel, never touched by event or tournament
+  lifecycles (see `docs/gameservers-pelican.md`, "Permanent servers").
 - **M12** — post-/pre-LAN content: moderated photo gallery (EXIF-strip, zip,
   beamer slideshow), public recap page & scene, news block, pre-LAN countdown, and
   the MVP-of-the-night vote.

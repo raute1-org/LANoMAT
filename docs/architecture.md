@@ -126,7 +126,10 @@ food_order_items     (id, food_order_id, user_id, selection JSONB, price_cents, 
 polls                (id, event_id, question, type, opens_at, closes_at) + poll_options + poll_votes(UNIQUE(poll_id,user_id))
 lfg_posts            (id, event_id, user_id, game_id, title, description, players_needed, skill_level, expires_at, status)
 infoscreen_scenes    (id, event_id, type, config JSONB, duration_sec, sort, enabled)
-server_links         (id, match_id NULLABLE, tournament_id NULLABLE, pelican_server_id, pelican_server_identifier, join_info JSONB, status)
+server_links         (id, match_id NULLABLE, tournament_id NULLABLE, event_id NULLABLE, pelican_server_id, pelican_server_identifier, join_info JSONB, status,
+                      permanent bool, source[pelican|docker|external], pelican_node_id NULLABLE, custom_server_id NULLABLE FK,
+                      query_protocol[a2s|minecraft] NULLABLE, title, description)
+                      -- permanent servers: permanent=true, no event/match/tournament, nothing cascades from events
 notifications        (Laravel standard) · discord_outbox (id, kind, dedup_key UNIQUE, sent_at)
 discord_voice_states (id, discord_user_id UNIQUE, channel_id, channel_name NULLABLE, user_id NULLABLE FK)
 event_photos         (id, event_id, uploaded_by, path, thumb_path, width, height, caption NULLABLE,

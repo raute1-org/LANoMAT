@@ -107,7 +107,7 @@ class ListServerLinks extends ListRecords
     /**
      * @return array<int, string>
      */
-    private static function gamesWithPresets(): array
+    public static function gamesWithPresets(): array
     {
         return Game::query()->orderBy('name')->get()
             ->filter(fn (Game $game): bool => $game->server_presets !== [])
@@ -118,7 +118,7 @@ class ListServerLinks extends ListRecords
     /**
      * @return array<string, string>
      */
-    private static function presetOptions(mixed $gameId): array
+    public static function presetOptions(mixed $gameId): array
     {
         $game = is_numeric($gameId) ? Game::query()->whereKey((int) $gameId)->first() : null;
         $options = [];
@@ -130,7 +130,7 @@ class ListServerLinks extends ListRecords
         return $options;
     }
 
-    private static function presetLocked(mixed $gameId, string $key): bool
+    public static function presetLocked(mixed $gameId, string $key): bool
     {
         $game = is_numeric($gameId) ? Game::query()->whereKey((int) $gameId)->first() : null;
         $preset = $game?->findPreset($key);
@@ -139,7 +139,7 @@ class ListServerLinks extends ListRecords
     }
 
     /** The preset's description, plus why it is locked when it is. */
-    private static function presetNote(mixed $gameId, mixed $presetKey): string
+    public static function presetNote(mixed $gameId, mixed $presetKey): string
     {
         $game = is_numeric($gameId) ? Game::query()->whereKey((int) $gameId)->first() : null;
         $preset = is_string($presetKey) ? $game?->findPreset($presetKey) : null;
@@ -157,7 +157,7 @@ class ListServerLinks extends ListRecords
      *
      * @return list<TextInput>
      */
-    private static function overrideFields(mixed $gameId, mixed $presetKey): array
+    public static function overrideFields(mixed $gameId, mixed $presetKey): array
     {
         $game = is_numeric($gameId) ? Game::query()->whereKey((int) $gameId)->first() : null;
         $preset = is_string($presetKey) ? $game?->findPreset($presetKey) : null;
@@ -181,7 +181,7 @@ class ListServerLinks extends ListRecords
      * @param  array<string, mixed>  $submitted
      * @return array<string, string>
      */
-    private static function changedOverrides(Game $game, string $presetKey, array $submitted): array
+    public static function changedOverrides(Game $game, string $presetKey, array $submitted): array
     {
         $preset = $game->findPreset($presetKey);
         $changed = [];
