@@ -52,7 +52,8 @@ export interface GameServerDto {
         | 'failed'
         | 'stopped'
         | 'not_responding'
-        | 'install_failed';
+        | 'install_failed'
+        | 'offline';
     /** Orga-chosen name of an event-level preset server, null for match servers. */
     title?: string | null;
     /** False when the connect string is a plain address:port (no URL scheme). */
@@ -61,6 +62,8 @@ export interface GameServerDto {
     query?: GameServerQueryDto | null;
     slotsUsed?: number;
     slotsMax?: number;
+    /** Permanent servers only: free text from the admin (how to join, rules). */
+    description?: string | null;
     estimate: GameServerResourceEstimate | null;
     installHint: GameInstallHintDto | null;
 }

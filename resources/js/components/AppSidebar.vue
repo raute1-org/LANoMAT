@@ -56,7 +56,10 @@ import { index as pollsIndex } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import { index as scheduleIndex } from '@/routes/schedule';
 import { control as screenControl } from '@/routes/screen';
-import { index as serversIndex } from '@/routes/servers';
+import {
+    index as serversIndex,
+    permanent as serversPermanent,
+} from '@/routes/servers';
 import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -91,6 +94,9 @@ const generalItems = computed<NavItem[]>(() => [
         : []),
     ...(has('friends')
         ? [{ title: 'Freunde', href: friendsIndex(), icon: UserPlus }]
+        : []),
+    ...(has('game_servers')
+        ? [{ title: 'Dauerserver', href: serversPermanent(), icon: Server }]
         : []),
     ...(has('voice')
         ? [{ title: 'Voice einrichten', href: voiceSetup(), icon: Mic }]

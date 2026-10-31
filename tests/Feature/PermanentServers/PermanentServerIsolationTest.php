@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameServers\Actions\DeprovisionServer;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -60,7 +61,7 @@ it('is not torn down even when a cleanup job or deprovision is aimed at it direc
 it('is not listed on any event\'s server page', function () {
     $event = Event::factory()->live()->create();
 
-    $this->actingAs(App\Models\User::factory()->create())->get("/events/{$event->slug}/servers")
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/servers")
         ->assertOk()
         ->assertInertia(fn ($page) => $page->has('servers', 0));
 });

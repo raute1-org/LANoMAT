@@ -2,6 +2,7 @@
 
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
+use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\QueryProtocol;
@@ -9,11 +10,17 @@ use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\GameServers\Enums\ServerState;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\DockerServerControl;
+use App\Modules\GameServers\Support\PermanentServerRefresher;
 use App\Modules\GameServers\Testing\FakeMinecraftQuery;
+use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\GameServers\Testing\FakeServerQuery;
+use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Domain\CommandResult;
 use App\Modules\Hosts\Exceptions\RemoteExecutionException;
 use App\Modules\Hosts\Models\RemoteHost;
+use App\Modules\Hosts\Testing\FakeRemoteExecutor;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -95,7 +102,7 @@ it('assumes a server without a query protocol is ready', function () {
 });
 
 it('reads a Pelican server\'s power state: stopped is offline, running and silent is not responding', function () {
-    $server = $this->pelican->createServer(\App\Modules\GameServers\Testing\FakePelicanClient::makeSpec());
+    $server = $this->pelican->createServer(FakePelicanClient::makeSpec());
     $link = permanentLink(ServerSource::Pelican, ['pelican_server_id' => $server->id]);
 
     $this->pelican->setState($server->id, ServerState::Stopped);
@@ -113,7 +120,7 @@ it('reads a Pelican server\'s power state: stopped is offline, running and silen
 });
 
 it('leaves a Pelican server alone while it installs, and survives an unknown panel server', function () {
-    $server = $this->pelican->createServer(\App\Modules\GameServers\Testing\FakePelicanClient::makeSpec());
+    $server = $this->pelican->createServer(FakePelicanClient::makeSpec());
     $installing = permanentLink(ServerSource::Pelican, ['pelican_server_id' => $server->id, 'status' => ServerLinkStatus::Provisioning]);
     $gone = permanentLink(ServerSource::Pelican, ['pelican_server_id' => '999', 'status' => ServerLinkStatus::Offline]);
     $this->mc->willAnswer(FakeMinecraftQuery::serverInfo());
@@ -150,7 +157,7 @@ it('treats a missing container as offline and an unreachable host as unknown', f
     expect($link->refresh()->status)->toBe(ServerLinkStatus::Offline);
 
     // Host cannot be reached: nothing is known about the container, the game server's own answer decides.
-    app()->instance(\App\Modules\Hosts\Contracts\RemoteExecutor::class, new class extends \App\Modules\Hosts\Testing\FakeRemoteExecutor
+    app()->instance(RemoteExecutor::class, new class extends FakeRemoteExecutor
     {
         public function run(RemoteHost $host, string $command): CommandResult
         {
@@ -167,7 +174,7 @@ it('keeps going when refreshing one server throws', function () {
     $first = permanentLink(ServerSource::External, ['title' => 'A', 'status' => ServerLinkStatus::Offline]);
     $second = permanentLink(ServerSource::External, ['title' => 'B', 'status' => ServerLinkStatus::Offline]);
 
-    app()->instance(\App\Modules\GameServers\Support\PermanentServerRefresher::class, new class(app(\App\Modules\GameServers\Contracts\PelicanClient::class), $this->a2s, new FakeMinecraftQuery(FakeMinecraftQuery::serverInfo()), app(\App\Modules\GameServers\Support\DockerServerControl::class)) extends \App\Modules\GameServers\Support\PermanentServerRefresher
+    app()->instance(PermanentServerRefresher::class, new class(app(PelicanClient::class), $this->a2s, new FakeMinecraftQuery(FakeMinecraftQuery::serverInfo()), app(DockerServerControl::class)) extends PermanentServerRefresher
     {
         public function refresh(ServerLink $link): void
         {
@@ -186,7 +193,7 @@ it('keeps going when refreshing one server throws', function () {
 });
 
 it('is scheduled every minute without overlapping, behind the module toggle', function () {
-    $events = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+    $events = collect(app(Schedule::class)->events())
         ->filter(fn ($e) => str_contains($e->command, 'gameservers:refresh-permanent'));
 
     expect($events)->toHaveCount(1)

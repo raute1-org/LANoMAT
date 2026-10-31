@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Models;
 
 use App\Models\User;
+use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Casts\JoinInfoCast;
 use App\Modules\GameServers\Domain\JoinInfo;
-use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\GameServers\Enums\QueryProtocol;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;

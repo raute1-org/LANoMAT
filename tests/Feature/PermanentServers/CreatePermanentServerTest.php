@@ -1,11 +1,14 @@
 <?php
 
+use App\Enums\Role;
 use App\Models\User;
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\Games\Domain\ServerConfig;
 use App\Modules\Games\Domain\ServerPreset;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Actions\CreatePermanentServer;
+use App\Modules\GameServers\Contracts\MinecraftQuery;
+use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Domain\PelicanEgg;
 use App\Modules\GameServers\Domain\PelicanNode;
 use App\Modules\GameServers\Enums\QueryProtocol;
@@ -14,6 +17,7 @@ use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Jobs\PollServerStatusJob;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\GuardrailPolicy;
 use App\Modules\GameServers\Testing\FakeMinecraftQuery;
 use App\Modules\GameServers\Testing\FakeServerQuery;
 use App\Modules\Hosts\Models\RemoteHost;
@@ -40,8 +44,8 @@ beforeEach(function () {
     ];
     $this->admin = User::factory()->admin()->create();
     $this->minecraftQuery = new FakeMinecraftQuery;
-    app()->instance(\App\Modules\GameServers\Contracts\MinecraftQuery::class, $this->minecraftQuery);
-    app()->instance(\App\Modules\GameServers\Contracts\ServerQuery::class, new FakeServerQuery);
+    app()->instance(MinecraftQuery::class, $this->minecraftQuery);
+    app()->instance(ServerQuery::class, new FakeServerQuery);
 });
 
 function minecraftGame(): Game
@@ -118,7 +122,7 @@ it('does not count against the LAN server caps, nor do the caps count permanent 
 
     expect(ServerLink::query()->permanent()->count())->toBe(2);
 
-    \App\Modules\GameServers\Support\GuardrailPolicy::assertWithinLimits($game, [], $this->admin);
+    GuardrailPolicy::assertWithinLimits($game, [], $this->admin);
     expect(true)->toBeTrue();
 });
 
@@ -187,7 +191,7 @@ it('registers a Docker server with its container definition', function () {
 });
 
 it('refuses to create anything for anyone but an admin', function (string $role) {
-    $user = User::factory()->state(['role' => \App\Enums\Role::from($role)])->create();
+    $user = User::factory()->state(['role' => Role::from($role)])->create();
 
     expect(fn () => app(CreatePermanentServer::class)->external($user, minecraftGame(), 'X', null, '203.0.113.20', 25565, null))
         ->toThrow(AuthorizationException::class);

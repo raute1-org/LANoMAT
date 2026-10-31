@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Role;
 use App\Models\User;
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\GameServers\Actions\DeletePermanentServer;
@@ -109,7 +110,7 @@ it('only removes the entry of a Docker or external server, the server keeps runn
 })->with([ServerSource::Docker, ServerSource::External]);
 
 it('refuses power and delete for everyone but an admin', function (string $role) {
-    $user = User::factory()->state(['role' => App\Enums\Role::from($role)])->create();
+    $user = User::factory()->state(['role' => Role::from($role)])->create();
     $link = ServerLink::factory()->permanent(ServerSource::Docker)->create();
 
     expect(fn () => app(PowerPermanentServer::class)->handle($user, $link, PowerAction::Stop))->toThrow(AuthorizationException::class)

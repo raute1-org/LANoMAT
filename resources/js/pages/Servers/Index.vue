@@ -75,6 +75,7 @@ const liveVariant: Record<GameServerDto['status'], 'ok' | 'warn' | 'down'> = {
     stopped: 'down',
     not_responding: 'warn',
     install_failed: 'down',
+    offline: 'down',
 };
 
 function statusLabel(status: GameServerDto['status']): string {
