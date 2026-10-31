@@ -130,6 +130,7 @@ use App\Modules\Tournaments\Policies\TournamentPolicy;
 use App\Modules\Tournaments\Support\TournamentScheduleParticipantResolver;
 use App\Modules\Voice\Contracts\VoiceClient;
 use App\Modules\Voice\HttpMumbleClient;
+use App\Modules\Voice\Listeners\CleanupServerVoiceOnStopped;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
 use App\Modules\Voice\Listeners\ProvisionMatchVoiceOnReady;
 use App\Modules\Voice\Listeners\ProvisionServerVoiceOnReady;
@@ -511,6 +512,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::Voice)) {
             Event::listen(ServerLinkUpdated::class, ProvisionServerVoiceOnReady::class);
+            Event::listen(ServerLinkUpdated::class, CleanupServerVoiceOnStopped::class);
         }
 
         if ($this->on(Module::Schedule)) {
