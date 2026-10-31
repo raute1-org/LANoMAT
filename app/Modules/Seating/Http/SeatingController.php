@@ -40,11 +40,15 @@ class SeatingController extends Controller
             ->whereHas('assignment', fn ($q) => $q->where('registration_id', $myRegistration->id))
             ->value('id');
 
+        $claimState = $this->claimState($event, $myRegistration);
+
         return Inertia::render('Event/Seating', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'seats' => $seats,
             'mySeatId' => $mySeatId,
-            'canClaim' => $myRegistration !== null,
+            'canClaim' => $claimState === 'ok',
+            // Why the viewer cannot claim (beyond the registration window): see claimState().
+            'claimState' => $claimState,
             // Why the viewer cannot claim: registration not open yet vs. open vs. over.
             'registrationState' => RegistrationAvailability::for($event)->value,
             'canPing' => $user !== null,
@@ -80,9 +84,28 @@ class SeatingController extends Controller
 
         $this->authorize('claim-seat', $registration);
 
+        if (ClaimSeat::eventIsOver($event)) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans(SeatException::eventOver()->translationKey)]);
+
+            return back();
+        }
+
         $action->handle($registration);
 
         return back();
+    }
+
+    /**
+     * @return 'ok'|'no_registration'|'pending'|'event_over'
+     */
+    private function claimState(Event $event, ?EventRegistration $registration): string
+    {
+        return match (true) {
+            ClaimSeat::eventIsOver($event) => 'event_over',
+            $registration === null => 'no_registration',
+            $registration->status !== RegistrationStatus::Confirmed => 'pending',
+            default => 'ok',
+        };
     }
 
     private function requireRegistration(Request $request, Event $event): EventRegistration
