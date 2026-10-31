@@ -61,8 +61,25 @@ class VoiceSetupController extends Controller
             'host' => (string) config("services.{$provider->value}.host"),
             'port' => (string) config("services.{$provider->value}.port"),
             'joinLink' => VoiceJoinLink::for($provider, self::LOBBY_CHANNEL),
+            'password' => $this->serverPassword($provider),
             'installers' => $this->currentInstallers($provider),
         ];
+    }
+
+    /**
+     * The join password of the voice server, for the authenticated participant
+     * who needs it to connect. Only Mumble has one configured; TeamSpeak
+     * and an unset or empty value yield null.
+     */
+    private function serverPassword(VoiceProvider $provider): ?string
+    {
+        if ($provider !== VoiceProvider::Mumble) {
+            return null;
+        }
+
+        $password = config('services.mumble.server_password');
+
+        return is_string($password) && $password !== '' ? $password : null;
     }
 
     /**

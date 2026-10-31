@@ -15,6 +15,7 @@ return [
         'connect' => 'Verbinden',
         'installer_missing' => 'Dieser Installer ist gerade nicht verfügbar. Bitte sag der Orga Bescheid.',
         'server_address' => 'Serveradresse',
+        'server_password' => 'Serverpasswort',
         'installers_heading' => 'Client herunterladen',
         'installers_empty' => 'Für diese Plattform ist noch kein Installer hinterlegt — frag die Orga oder lade den offiziellen Client direkt beim Anbieter herunter.',
         'download' => 'Herunterladen',

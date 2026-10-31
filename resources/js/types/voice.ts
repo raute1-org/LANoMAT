@@ -20,5 +20,7 @@ export interface VoiceProviderSetupDto {
     host: string;
     port: string;
     joinLink: string;
+    /** Join password of the server, null when the provider has none. */
+    password: string | null;
     installers: VoiceInstallerDto[];
 }
