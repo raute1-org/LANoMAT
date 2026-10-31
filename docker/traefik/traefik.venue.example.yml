@@ -1,0 +1,70 @@
+# Static Traefik configuration for a deployment WITHOUT a public port 80 (the app
+# at the venue, or a test host): certificates come from the ACME DNS-01
+# challenge instead of HTTP-01. Everything else equals traefik.yml.
+#
+# Traefik reads ONE static source: when a config file is mounted, command-line
+# flags and environment variables are ignored (verified on v3.6). That is why
+# these values live here and not in compose.yml, and why the file has no
+# ${VAR} interpolation: copy it, edit the copy, and point compose at it with
+# TRAEFIK_STATIC_FILE in .env.
+#
+#   cp docker/traefik/traefik.venue.example.yml docker/traefik/traefik.venue.yml
+#   TRAEFIK_STATIC_FILE=./docker/traefik/traefik.venue.yml
+#
+# The DNS provider token is passed to the container as <PROVIDER_VAR>_FILE (for
+# Cloudflare: CF_DNS_API_TOKEN_FILE), see docs/infra/lan-tls-certificates.md.
+
+entryPoints:
+  web:
+    address: ':80'
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+
+  websecure:
+    address: ':443'
+    http:
+      tls: {}
+    # Behind a cloud entry point that passes TLS through (docs/infra/app-at-the-venue.md):
+    # accept the PROXY protocol header only from the tunnel address of that
+    # entry point. Connections without a header (LAN clients) keep working.
+    # Uncomment and replace the placeholder with the real tunnel address.
+    # proxyProtocol:
+    #   trustedIPs:
+    #     - '<WG_APP_ADDR>/32'
+
+  traefik:
+    address: ':8080'
+
+api:
+  dashboard: true
+  insecure: true
+
+providers:
+  docker:
+    endpoint: 'unix:///var/run/docker.sock'
+    exposedByDefault: false
+    network: lanomat_default
+
+  file:
+    filename: /etc/traefik/dynamic.yml
+
+# Same resolver name as in traefik.yml, so the router labels in compose.yml work
+# unchanged. Change `provider` for another DNS provider (e.g. hetzner).
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /letsencrypt/acme.json
+      keyType: EC256
+      dnsChallenge:
+        provider: cloudflare
+        # Ask PUBLIC resolvers for the challenge record: a venue resolver
+        # answers the name locally and would never see the TXT record.
+        resolvers:
+          - 1.1.1.1:53
+          - 8.8.8.8:53
+
+log:
+  level: INFO
