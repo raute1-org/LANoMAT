@@ -140,6 +140,8 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 | error | `rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center text-destructive`, names the failure and the next step | `router.on('error')` flag |
 | normal | the content | — |
 
+**Spielserver page (`Servers/Index`).** One card per server; the `LiveIndicator` maps `ready` to ok, `provisioning` and `not_responding` to warn (a calm hint sentence under the title explains what is going on, no alarm styling), `failed`/`install_failed` to down (never listed to participants). Players and map come from the last server query and are mono data; a connect string without a URL scheme (a plain `address:port`) is shown as a copyable mono value instead of a dead button. The list reloads partially every 20 s while the tab is visible.
+
 ### 4. Navigation
 
 - **Reachable:** every page is reachable from the sidebar (`components/AppSidebar.vue`) or a visible in-page link/CTA. No orphan pages. Cross-event items go in the "Allgemein" group, event-scoped items in the "Aktuelle LAN" group (shown when `currentEvent` exists); secondary event modules with a user-facing index (Essensbestellung, Abstimmungen, Mitspieler finden, Dateien, Spielserver) live in the "Mehr" group right below it, each gated by `useModules().has(...)`, and are mirrored as buttons on the event overview (`Event/Show`); staff get "Check-in" and "Infoscreen-Steuerung" in the event group; status-dependent items (e.g. "Anmeldung" only while `status === 'registration'`) are conditional entries.

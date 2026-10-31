@@ -60,7 +60,9 @@ it('declares every variable the startup line references and guards the optional 
     expect($startup)->toContain('[ -n "$STEAM_WEB_API_KEY" ]')
         ->and($startup)->toContain('[ -n "$STEAM_ACC" ]')
         ->and($startup)->toContain('[ -n "$WORKSHOP_ID" ]')
-        ->and($startup)->toContain('+hostname "{{SERVER_HOSTNAME}}"');
+        ->and($startup)->toContain('"$SERVER_HOSTNAME"')
+        ->and($startup)->toContain('+exec lanomat_hostname.cfg')
+        ->and($startup)->not->toContain('+hostname');
 });
 
 it('fails the install when the game directory is missing and sets no hostname in server.cfg', function () {

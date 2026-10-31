@@ -4,6 +4,9 @@
 # licensed under the MIT License, Copyright (c) 2024 Michael Parker and
 # Contributors. See resources/pelican-eggs/README.md for the full notice and the
 # list of differences. Import it through `php artisan gameservers:import-eggs`.
+#
+# The hostname is written to cfg/lanomat_hostname.cfg and exec'd at startup: srcds_run
+# splits a quoted `+hostname "a b"` argument, which cut every name at its first space.
 meta:
     version: PLCN_v3
 exported_at: '2026-10-30T00:00:00+00:00'
@@ -24,7 +27,7 @@ docker_images:
     Source: 'ghcr.io/pelican-eggs/games:source'
 file_denylist: {}
 startup_commands:
-    Default: './srcds_run -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 $( [ -n "$WORKSHOP_ID" ] && printf %s "+host_workshop_collection $WORKSHOP_ID" ) $( [ -n "$STEAM_WEB_API_KEY" ] && printf %s "-authkey $STEAM_WEB_API_KEY" ) +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} +hostname "{{SERVER_HOSTNAME}}" -strictportbind -norestart $( [ -n "$STEAM_ACC" ] && printf %s "+sv_setsteamaccount $STEAM_ACC" ) +maxplayers {{MAX_PLAYERS}} -tickrate {{TICKRATE}} $( [ "$LUA_REFRESH" == "1" ] || printf %s ''-disableluarefresh'' ) {{EXTRA_ARGS}}'
+    Default: './srcds_run -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 $( [ -n "$WORKSHOP_ID" ] && printf %s "+host_workshop_collection $WORKSHOP_ID" ) $( [ -n "$STEAM_WEB_API_KEY" ] && printf %s "-authkey $STEAM_WEB_API_KEY" ) +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} $( printf ''hostname "%s"\n'' "$SERVER_HOSTNAME" > garrysmod/cfg/lanomat_hostname.cfg ) +exec lanomat_hostname.cfg -strictportbind -norestart $( [ -n "$STEAM_ACC" ] && printf %s "+sv_setsteamaccount $STEAM_ACC" ) +maxplayers {{MAX_PLAYERS}} -tickrate {{TICKRATE}} $( [ "$LUA_REFRESH" == "1" ] || printf %s ''-disableluarefresh'' ) {{EXTRA_ARGS}}'
 config:
     files: {}
     startup:
@@ -105,7 +108,7 @@ scripts:
             cd /mnt/server/garrysmod/cfg
             echo '
             // Please do not set RCon in here, use the startup parameters.
-            // The hostname is set by the startup line (SERVER_HOSTNAME), do not add one here:
+            // The hostname is written by the startup line from SERVER_HOSTNAME (lanomat_hostname.cfg), do not add one here:
             // server.cfg is executed at map load and would override it.
 
             sv_password		""

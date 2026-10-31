@@ -32,8 +32,8 @@ cannot overwrite it with the upstream version.
 
 Differences to upstream:
 
-- New variables: `SERVER_HOSTNAME` (the server browser name, passed as
-  `+hostname`), `STEAM_WEB_API_KEY` (optional, `-authkey` for Workshop
+- New variables: `SERVER_HOSTNAME` (the server browser name, written to
+  `cfg/lanomat_hostname.cfg`, exec'd at startup because `srcds_run` splits a quoted `+hostname "a b"` argument), `STEAM_WEB_API_KEY` (optional, `-authkey` for Workshop
   collections, hidden from server users and not editable by them) and
   `EXTRA_ARGS` (optional extra launch arguments). The name `HOSTNAME` is avoided
   on purpose: Docker sets it in every container and Pelican reserves it.
