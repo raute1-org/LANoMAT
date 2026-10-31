@@ -4,7 +4,8 @@ namespace App\Modules\Schedule\Models;
 
 use App\Modules\Events\Models\Event;
 use App\Modules\Schedule\Enums\ScheduleItemType;
-use App\Modules\Schedule\Events\ScheduleItemTimeChanged;
+use App\Modules\Schedule\Events\ScheduleItemModified;
+use App\Modules\Schedule\Support\ScheduleAudience;
 use Database\Factories\ScheduleItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -71,10 +72,17 @@ class ScheduleItem extends Model
     }
 
     /**
-     * Dispatch {@see ScheduleItemTimeChanged} only when `starts_at` actually
-     * changed — never for unrelated attribute churn (e.g. `title`),
-     * mirroring the `Tournament::booted()` guard so favoriters are alarmed
-     * exactly once per real reschedule.
+     * Attributes attendees care about: a change to any of them alarms
+     * favoriters (once per save, bundled), and a `starts_at` change also
+     * re-arms the start reminder.
+     */
+    private const ALARM_FIELDS = ['starts_at', 'ends_at', 'title', 'location'];
+
+    /**
+     * Dispatch {@see ScheduleItemModified} once per save when an alarm field
+     * actually changed — never for unrelated attribute churn (e.g. `sort`,
+     * `description`) — and once on deletion, with the audience resolved
+     * before the favorites cascade away.
      *
      * `wasChanged()` is already false on a fresh `create()` (there is no
      * "previous" value to differ from), so no separate
@@ -82,13 +90,31 @@ class ScheduleItem extends Model
      * added, since `wasRecentlyCreated` stays `true` for the lifetime of
      * the in-memory instance and would wrongly suppress a later `update()`
      * call on that same instance within the same request.
+     *
+     * A moved start also clears `reminded_at` of every favorite so the
+     * "starting soon" reminder is scheduled again for the new time; the
+     * reminder command still stamps it right after sending, so an item is
+     * never reminded twice for the same start.
      */
     protected static function booted(): void
     {
         static::saved(function (ScheduleItem $item): void {
             if ($item->wasChanged('starts_at')) {
-                ScheduleItemTimeChanged::dispatch($item);
+                $item->favorites()->update(['reminded_at' => null]);
             }
+
+            $fields = array_values(array_filter(
+                self::ALARM_FIELDS,
+                fn (string $field): bool => $item->wasChanged($field),
+            ));
+
+            if ($fields !== []) {
+                ScheduleItemModified::dispatch($item, $fields);
+            }
+        });
+
+        static::deleting(function (ScheduleItem $item): void {
+            ScheduleItemModified::dispatch($item, [], true, ScheduleAudience::userIds($item));
         });
     }
 }

@@ -8,6 +8,7 @@ use App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Pages\ListInfoscr
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Infoscreen\Policies\InfoscreenScenePolicy;
 use App\Modules\Infoscreen\Support\ScenePayload;
+use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event as EventFacade;
 use Livewire\Livewire;
@@ -143,4 +144,17 @@ it('allows an orga via InfoscreenScenePolicy::showNow', function () {
     $allowed = (new InfoscreenScenePolicy)->showNow(User::factory()->orga()->create(), $scene);
 
     expect($allowed)->toBeTrue();
+});
+
+it('labels scenes on the control page with headline or tournament name so same-type scenes differ', function () {
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->announced()->create(['name' => 'Quake Cup']);
+    InfoscreenScene::factory()->for($event)->bracket($tournament->id)->create();
+    InfoscreenScene::factory()->for($event)->announcement()->create();
+
+    $this->actingAs(User::factory()->helper()->create())
+        ->get("/screen/{$event->slug}/control")
+        ->assertInertia(fn ($page) => $page
+            ->where('scenes.0.detail', 'Quake Cup')
+        );
 });

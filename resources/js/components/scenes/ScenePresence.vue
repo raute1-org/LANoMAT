@@ -12,12 +12,22 @@ const props = defineProps<{
     labels: Record<string, string>;
 }>();
 
+// Fixed caps instead of scrolling lists (nobody scrolls a beamer): the rest
+// is summarised as "+N weitere".
+const MAX_ROWS = 5;
+
 function liveMatches(): LiveMatchPresenceDto[] {
-    return props.data.liveMatches ?? [];
+    return (props.data.liveMatches ?? []).slice(0, MAX_ROWS);
 }
 
 function freeSlots(): FreeSlotDto[] {
-    return props.data.freeSlots ?? [];
+    return (props.data.freeSlots ?? []).slice(0, MAX_ROWS);
+}
+
+function moreLabel(total: number): string | null {
+    return total > MAX_ROWS
+        ? props.labels.more_count.replace(':count', String(total - MAX_ROWS))
+        : null;
 }
 
 function openSpotsLabel(slot: FreeSlotDto): string {
@@ -36,7 +46,7 @@ function openSpotsLabel(slot: FreeSlotDto): string {
     <div class="flex h-full w-full flex-col gap-8 px-16 py-12">
         <div class="flex flex-wrap items-baseline justify-between gap-8">
             <h1
-                class="min-w-0 truncate text-5xl font-bold tracking-tight text-foreground"
+                class="min-w-0 text-5xl font-bold tracking-tight text-foreground"
             >
                 {{ config.headline ?? labels.presence_title }}
             </h1>
@@ -63,13 +73,13 @@ function openSpotsLabel(slot: FreeSlotDto): string {
                 </h2>
 
                 <p
-                    v-if="liveMatches().length === 0"
+                    v-if="(data.liveMatches ?? []).length === 0"
                     class="text-3xl text-muted-foreground"
                 >
                     {{ labels.presence_live_matches_empty }}
                 </p>
 
-                <ul v-else class="flex-1 space-y-4 overflow-auto">
+                <ul v-else class="space-y-4">
                     <li
                         v-for="match in liveMatches()"
                         :key="match.matchId"
@@ -77,7 +87,7 @@ function openSpotsLabel(slot: FreeSlotDto): string {
                     >
                         <div class="flex items-center justify-between gap-6">
                             <p
-                                class="min-w-0 truncate text-3xl font-semibold text-foreground"
+                                class="min-w-0 text-3xl font-semibold break-words text-foreground"
                             >
                                 {{ match.label }}
                             </p>
@@ -88,12 +98,18 @@ function openSpotsLabel(slot: FreeSlotDto): string {
                         </div>
                         <p
                             v-if="match.game"
-                            class="mt-1 truncate text-xl text-muted-foreground"
+                            class="mt-1 text-xl text-muted-foreground"
                         >
                             {{ match.game }}
                         </p>
                     </li>
                 </ul>
+                <p
+                    v-if="moreLabel((data.liveMatches ?? []).length)"
+                    class="text-2xl text-muted-foreground"
+                >
+                    {{ moreLabel((data.liveMatches ?? []).length) }}
+                </p>
             </section>
 
             <section class="flex min-h-0 flex-col gap-4">
@@ -104,13 +120,13 @@ function openSpotsLabel(slot: FreeSlotDto): string {
                 </h2>
 
                 <p
-                    v-if="freeSlots().length === 0"
+                    v-if="(data.freeSlots ?? []).length === 0"
                     class="text-3xl text-muted-foreground"
                 >
                     {{ labels.presence_free_slots_empty }}
                 </p>
 
-                <ul v-else class="flex-1 space-y-4 overflow-auto">
+                <ul v-else class="space-y-4">
                     <li
                         v-for="slot in freeSlots()"
                         :key="slot.tournamentId"
@@ -118,13 +134,13 @@ function openSpotsLabel(slot: FreeSlotDto): string {
                     >
                         <div class="min-w-0">
                             <p
-                                class="truncate text-3xl font-semibold text-foreground"
+                                class="text-3xl font-semibold break-words text-foreground"
                             >
                                 {{ slot.name }}
                             </p>
                             <p
                                 v-if="slot.game"
-                                class="mt-1 truncate text-xl text-muted-foreground"
+                                class="mt-1 text-xl text-muted-foreground"
                             >
                                 {{ slot.game }}
                             </p>
@@ -136,6 +152,12 @@ function openSpotsLabel(slot: FreeSlotDto): string {
                         </p>
                     </li>
                 </ul>
+                <p
+                    v-if="moreLabel((data.freeSlots ?? []).length)"
+                    class="text-2xl text-muted-foreground"
+                >
+                    {{ moreLabel((data.freeSlots ?? []).length) }}
+                </p>
             </section>
         </div>
     </div>

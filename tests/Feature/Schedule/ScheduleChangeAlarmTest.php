@@ -2,7 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Schedule\Actions\FavoriteScheduleItem;
-use App\Modules\Schedule\Events\ScheduleItemTimeChanged;
+use App\Modules\Schedule\Events\ScheduleItemModified;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Notifications\ScheduleItemChanged;
 use App\Modules\Tournaments\Models\Tournament;
@@ -13,22 +13,22 @@ use Illuminate\Support\Facades\Notification;
 
 uses(RefreshDatabase::class);
 
-it('dispatches ScheduleItemTimeChanged when starts_at changes', function () {
-    Event::fake([ScheduleItemTimeChanged::class]);
+it('dispatches ScheduleItemModified when starts_at changes', function () {
+    Event::fake([ScheduleItemModified::class]);
 
     $item = ScheduleItem::factory()->create(['starts_at' => now()->addHour()]);
     $item->update(['starts_at' => now()->addHours(2)]);
 
-    Event::assertDispatched(ScheduleItemTimeChanged::class, fn ($event) => $event->scheduleItem->is($item));
+    Event::assertDispatched(ScheduleItemModified::class, fn ($event) => $event->scheduleItem->is($item));
 });
 
-it('does not dispatch ScheduleItemTimeChanged when only the title changes', function () {
-    Event::fake([ScheduleItemTimeChanged::class]);
+it('does not dispatch ScheduleItemModified when only unrelated attributes change', function () {
+    Event::fake([ScheduleItemModified::class]);
 
     $item = ScheduleItem::factory()->create(['starts_at' => now()->addHour()]);
-    $item->update(['title' => 'New Title']);
+    $item->update(['sort' => 5, 'description' => 'More text']);
 
-    Event::assertNotDispatched(ScheduleItemTimeChanged::class);
+    Event::assertNotDispatched(ScheduleItemModified::class);
 });
 
 it('notifies favoriters with ScheduleItemChanged when the listener handles the time change', function () {
@@ -43,16 +43,58 @@ it('notifies favoriters with ScheduleItemChanged when the listener handles the t
     Notification::assertSentTo($user, ScheduleItemChanged::class);
 });
 
-it('does not notify favoriters when only the title changes', function () {
+it('does not notify favoriters when only unrelated attributes change', function () {
     Notification::fake();
 
     $item = ScheduleItem::factory()->create(['starts_at' => now()->addHour()]);
     $user = User::factory()->create();
     app(FavoriteScheduleItem::class)->handle($item, $user);
 
-    $item->update(['title' => 'New Title']);
+    $item->update(['sort' => 3]);
 
     Notification::assertNotSentTo($user, ScheduleItemChanged::class);
+});
+
+it('sends one bundled alarm for several changed fields in a single save', function () {
+    Notification::fake();
+
+    $item = ScheduleItem::factory()->create(['starts_at' => now()->addHour(), 'title' => 'Old', 'location' => 'Hall A']);
+    $user = User::factory()->create();
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $item->update(['title' => 'New', 'location' => 'Hall B', 'ends_at' => now()->addHours(4)]);
+
+    Notification::assertSentToTimes($user, ScheduleItemChanged::class, 1);
+});
+
+it('alarms favoriters when the item is deleted', function () {
+    fakeDiscord();
+
+    $item = ScheduleItem::factory()->create(['title' => 'Karaoke', 'starts_at' => now()->addHour()]);
+    $user = User::factory()->create();
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $item->delete();
+
+    $data = $user->unreadNotifications()->firstOrFail()->data;
+    expect($data['title'])->toBe('Programmpunkt entfällt')
+        ->and($data['body'])->toContain('Karaoke');
+});
+
+it('names the day when an item moves to another day', function () {
+    fakeDiscord();
+
+    $item = ScheduleItem::factory()->create(['title' => 'Finale', 'starts_at' => now()->addHour()]);
+    $user = User::factory()->create();
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $newStart = now()->addDays(2)->setTime(21, 0);
+    $item->update(['starts_at' => $newStart]);
+
+    $body = $user->unreadNotifications()->firstOrFail()->data['body'];
+    $local = $newStart->copy()->setTimezone(config('lanomat.timezone'));
+    expect($body)->toContain($local->format('d.m.'))
+        ->and($body)->toContain($local->format('H:i'));
 });
 
 it('stores the german title and body in the change-alarm notification payload', function () {
@@ -129,4 +171,16 @@ it('alarms only favoriters for a non-tournament (custom) schedule item', functio
 
     Notification::assertSentTo($favoriter, ScheduleItemChanged::class);
     Notification::assertNotSentTo($stranger, ScheduleItemChanged::class);
+});
+
+it('delivers the removal alarm for real even though the item row is already gone', function () {
+    fakeDiscord();
+    $item = ScheduleItem::factory()->create(['title' => 'Opening']);
+    $user = User::factory()->create();
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $item->delete();
+
+    expect($user->notifications()->count())->toBe(1)
+        ->and($user->notifications()->first()->data['body'])->toContain('Opening');
 });

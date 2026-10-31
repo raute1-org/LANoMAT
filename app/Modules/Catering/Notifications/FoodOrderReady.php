@@ -2,7 +2,9 @@
 
 namespace App\Modules\Catering\Notifications;
 
+use App\Models\User;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Discord\Channels\DiscordChannel;
 use App\Modules\Infoscreen\Actions\TriggerFoodReady;
 use Illuminate\Bus\Queueable;
@@ -32,6 +34,14 @@ class FoodOrderReady extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
+        // Q-2: only buyers with a confirmed event registration get the message.
+        // Everyone else gets no channel at all (no bell, no Discord DM).
+        $event = $this->order->event;
+
+        if (! $notifiable instanceof User || $event === null || ! FoodOrderRegistrationRequirement::satisfiedBy($notifiable, $event)) {
+            return [];
+        }
+
         return ['database', DiscordChannel::class];
     }
 

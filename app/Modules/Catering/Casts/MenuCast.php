@@ -61,9 +61,15 @@ class MenuCast implements CastsAttributes
         $normalized = [];
 
         foreach ($options as $option) {
-            $normalized[] = $option instanceof MenuOption
-                ? $option->toArray()
-                : MenuOption::fromArray($option)->toArray();
+            $menuOption = $option instanceof MenuOption ? $option : MenuOption::fromArray($option);
+
+            // The form enforces the bounds too; this keeps any other writer from
+            // storing a price the int4 column or the order UI cannot represent.
+            if ($menuOption->priceCents < 0 || $menuOption->priceCents > MenuOption::MAX_PRICE_CENTS) {
+                throw new InvalidArgumentException("Menu price of [{$menuOption->key}] is out of bounds.");
+            }
+
+            $normalized[] = $menuOption->toArray();
         }
 
         return json_encode($normalized, JSON_THROW_ON_ERROR);

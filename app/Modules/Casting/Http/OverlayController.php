@@ -50,6 +50,7 @@ class OverlayController extends Controller
                 'reportLabels' => trans('tournaments.report'),
                 'bracketLabels' => trans('tournaments.page'),
                 'liveScoreLabels' => trans('gameservers.live_score'),
+                'fitLabels' => trans('overlay.bracket_fit'),
             ],
         ]);
     }

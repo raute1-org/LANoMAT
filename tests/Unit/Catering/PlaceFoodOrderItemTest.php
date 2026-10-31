@@ -7,10 +7,12 @@ use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Registration\Models\EventRegistration;
 
 it('places a food order item within the open window, copying the price from the menu', function () {
     $order = FoodOrder::factory()->open()->create();
     $user = User::factory()->create();
+    EventRegistration::factory()->for($order->event)->for($user)->create();
 
     $item = (new PlaceFoodOrderItem)->handle($order, $user, 'pizza_salami', 'no onions');
 
@@ -77,6 +79,7 @@ it('never trusts a client-supplied price, always copying price_cents from the re
         ],
     ]);
     $user = User::factory()->create();
+    EventRegistration::factory()->for($order->event)->for($user)->create();
 
     // The Action signature doesn't even accept a price argument, but this
     // guards against a future regression: verify the persisted price always

@@ -15,6 +15,7 @@ const props = defineProps<{
         reportLabels: Record<string, string>;
         bracketLabels: Record<string, string>;
         liveScoreLabels: Record<string, string>;
+        fitLabels: Record<string, string>;
     };
 }>();
 
@@ -34,6 +35,10 @@ useTournamentChannel(props.tournament.id);
              there is no "my entry" to highlight and no report/confirm/Go
              control can ever be actionable here. -->
         <BracketView
+            fit
+            class="h-screen w-screen"
+            :page-seconds="10"
+            :fit-labels="labels.fitLabels"
             :matches="matches"
             :my-entry-id="null"
             :can-go-live="false"

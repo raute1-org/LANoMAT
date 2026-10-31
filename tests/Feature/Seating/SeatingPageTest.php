@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Seating\Actions\ClaimSeat;
+use App\Modules\Seating\Exceptions\SeatException;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -155,3 +156,56 @@ it('tells the page whether registration is open, upcoming or closed', function (
     'live' => ['live', 'open'],
     'finished' => ['finished', 'closed'],
 ]);
+
+it('blocks pending registrations from claiming a seat and tells the page why', function () {
+    $event = Event::factory()->live()->create();
+    $seat = Seat::factory()->for($event)->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->pending()->create();
+
+    $this->actingAs($user)
+        ->post("/events/{$event->slug}/seating/{$seat->id}")
+        ->assertRedirect();
+
+    expect(SeatAssignment::where('seat_id', $seat->id)->exists())->toBeFalse();
+
+    $this->actingAs($user)
+        ->get("/events/{$event->slug}/seating")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('canClaim', false)
+            ->where('claimState', 'pending')
+            ->where('labels.confirm_registration_first', 'Bestätige zuerst deine Anmeldung.'));
+});
+
+it('blocks claiming and releasing on a finished event', function () {
+    $event = Event::factory()->finished()->create();
+    $seat = Seat::factory()->for($event)->create();
+    $other = Seat::factory()->for($event)->create();
+    $user = User::factory()->create();
+    $reg = EventRegistration::factory()->for($event)->for($user)->create();
+    SeatAssignment::factory()->create(['seat_id' => $other->id, 'registration_id' => $reg->id]);
+
+    $this->actingAs($user)->post("/events/{$event->slug}/seating/{$seat->id}")->assertRedirect();
+    $this->actingAs($user)->delete("/events/{$event->slug}/seating")->assertRedirect();
+
+    expect(SeatAssignment::where('seat_id', $seat->id)->exists())->toBeFalse()
+        ->and(SeatAssignment::where('seat_id', $other->id)->exists())->toBeTrue();
+
+    $this->actingAs($user)
+        ->get("/events/{$event->slug}/seating")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('canClaim', false)
+            ->where('claimState', 'event_over'));
+});
+
+it('rejects the action for pending registrations and finished events', function () {
+    $pending = EventRegistration::factory()->for(Event::factory()->live())->pending()->create();
+    $seat = Seat::factory()->for($pending->event)->create();
+    expect(fn () => app(ClaimSeat::class)->handle($seat, $pending))
+        ->toThrow(SeatException::class);
+
+    $over = EventRegistration::factory()->for(Event::factory()->finished())->create();
+    $seat2 = Seat::factory()->for($over->event)->create();
+    expect(fn () => app(ClaimSeat::class)->handle($seat2, $over))
+        ->toThrow(SeatException::class);
+});

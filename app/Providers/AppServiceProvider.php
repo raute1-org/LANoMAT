@@ -104,7 +104,7 @@ use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
 use App\Modules\Schedule\Contracts\ScheduleParticipantResolver;
-use App\Modules\Schedule\Events\ScheduleItemTimeChanged;
+use App\Modules\Schedule\Events\ScheduleItemModified;
 use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
 use App\Modules\Schedule\Listeners\SyncScheduleOnTournamentSaved;
 use App\Modules\Schedule\Models\ScheduleItem;
@@ -515,7 +515,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::Schedule)) {
             Event::listen(TournamentSaved::class, SyncScheduleOnTournamentSaved::class);
-            Event::listen(ScheduleItemTimeChanged::class, AlarmScheduleItemChanged::class);
+            Event::listen(ScheduleItemModified::class, AlarmScheduleItemChanged::class);
         }
 
         // AnnounceLfgPost injects DiscordClient directly, so it also needs Discord.

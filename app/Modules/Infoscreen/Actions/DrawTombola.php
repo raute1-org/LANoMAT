@@ -41,6 +41,12 @@ class DrawTombola
         return DB::transaction(function () use ($event, $prize): TombolaDraw {
             $event = Event::query()->whereKey($event->getKey())->lockForUpdate()->firstOrFail();
 
+            // One draw per prize. Checked under the event row lock above, so a
+            // double click or a concurrent second request sees the first draw.
+            if (TombolaDraw::query()->where('tombola_prize_id', $prize->id)->exists()) {
+                throw InfoscreenException::prizeAlreadyDrawn();
+            }
+
             $alreadyDrawnRegistrationIds = TombolaDraw::query()
                 ->where('event_id', $event->id)
                 ->pluck('registration_id');

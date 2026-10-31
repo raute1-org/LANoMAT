@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\Schedule\Actions\FavoriteScheduleItem;
 use App\Modules\Schedule\Models\ScheduleItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -119,4 +120,18 @@ it('resolves the german schedule page labels', function () {
         ->and(__('schedule.page.now'))->toBe('Jetzt')
         ->and(__('schedule.page.next'))->toBe('Gleich')
         ->and(__('schedule.page.empty'))->toBe('Noch kein Zeitplan');
+});
+
+it('tells the page whether the viewer has favorites (drives the favorites-only calendar link)', function () {
+    $event = Event::factory()->live()->create();
+    $item = ScheduleItem::factory()->for($event)->create();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get("/events/{$event->slug}/schedule")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('hasFavorites', false));
+
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $this->actingAs($user)->get("/events/{$event->slug}/schedule")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('hasFavorites', true));
 });

@@ -5,12 +5,14 @@ namespace App\Modules\Seating\Filament\Resources\Seats\Pages;
 use App\Modules\Events\Models\Event;
 use App\Modules\Seating\Actions\GenerateSeatGrid;
 use App\Modules\Seating\Filament\Resources\Seats\SeatResource;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Utilities\Get;
 
 class ListSeats extends ListRecords
 {
@@ -30,16 +32,25 @@ class ListSeats extends ListRecords
                         ->label(__('seating.grid.rows'))
                         ->numeric()
                         ->required()
-                        ->minValue(1),
+                        ->minValue(1)
+                        ->maxValue(GenerateSeatGrid::MAX_ROWS),
                     TextInput::make('cols')
                         ->label(__('seating.grid.cols'))
                         ->numeric()
                         ->required()
-                        ->minValue(1),
+                        ->minValue(1)
+                        ->maxValue(GenerateSeatGrid::MAX_COLS)
+                        ->rule(fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            if ((int) $get('rows') * (int) $value > GenerateSeatGrid::MAX_SEATS) {
+                                $fail(__('seating.grid.too_many', ['max' => GenerateSeatGrid::MAX_SEATS]));
+                            }
+                        }),
                     TextInput::make('prefix')
                         ->label(__('seating.grid.prefix'))
                         ->default('A')
-                        ->required(),
+                        ->required()
+                        ->maxLength(GenerateSeatGrid::MAX_PREFIX_LENGTH)
+                        ->dehydrateStateUsing(fn (?string $state): string => trim((string) $state)),
                 ])
                 ->action(function (array $data): void {
                     $event = Event::query()->findOrFail((int) $data['event_id']);

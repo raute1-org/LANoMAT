@@ -81,3 +81,21 @@ it('stores the german title and body in the reminder notification payload', func
         ->and($data['title'])->not->toBeEmpty()
         ->and($data['body'])->toContain('Opening Ceremony');
 });
+
+it('re-arms the start reminder when the item is moved and still reminds only once per start', function () {
+    Notification::fake();
+
+    $item = ScheduleItem::factory()->create(['starts_at' => now()->addMinutes(10)]);
+    $user = User::factory()->create();
+    app(FavoriteScheduleItem::class)->handle($item, $user);
+
+    $this->artisan('lanomat:send-schedule-reminders')->assertSuccessful();
+    $this->artisan('lanomat:send-schedule-reminders')->assertSuccessful();
+    Notification::assertSentToTimes($user, ScheduleItemStartingSoon::class, 1);
+
+    $item->update(['starts_at' => now()->addMinutes(12)]);
+
+    $this->artisan('lanomat:send-schedule-reminders')->assertSuccessful();
+    $this->artisan('lanomat:send-schedule-reminders')->assertSuccessful();
+    Notification::assertSentToTimes($user, ScheduleItemStartingSoon::class, 2);
+});

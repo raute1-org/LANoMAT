@@ -44,6 +44,9 @@ return [
         // Livewire temporary uploads (every Filament FileUpload, incl. voice
         // installers): livewire.temporary_file_upload.rules max 1 GB plus overhead.
         'large_mb' => (int) env('LIMIT_BODY_LARGE_MB', 1032),
+        // Food items one user may hold on OPEN food orders of one event
+        // (counted across all of them; F-R2B-13). Not a body size.
+        'food_items_per_user' => (int) env('LIMIT_FOOD_ITEMS_PER_USER', 10),
         'routes' => [
             'gallery.store' => 'gallery_mb',
             'files.store' => 'files_mb',

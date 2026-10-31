@@ -14,6 +14,9 @@ use InvalidArgumentException;
  */
 final readonly class MenuOption
 {
+    /** Upper bound for one menu price: 1000,00 EUR (well inside the int4 column). */
+    public const MAX_PRICE_CENTS = 100_000;
+
     public function __construct(
         public string $key,
         public string $name,

@@ -20,4 +20,14 @@ class SeatException extends DomainException
     {
         return new self('This seat is already taken.', 'seating.errors.taken');
     }
+
+    public static function registrationNotConfirmed(): self
+    {
+        return new self('Only a confirmed registration may choose a seat.', 'seating.errors.registration_not_confirmed');
+    }
+
+    public static function eventOver(): self
+    {
+        return new self('Seats cannot be changed once the event is over.', 'seating.errors.event_over');
+    }
 }

@@ -167,6 +167,7 @@ return [
 
     'attributes' => [
         'name' => 'Der Name',
+        'words' => 'Die Kurznachricht',
         'email' => 'Die E-Mail-Adresse',
         'password' => 'Das Passwort',
         'bio' => 'Die Bio',
