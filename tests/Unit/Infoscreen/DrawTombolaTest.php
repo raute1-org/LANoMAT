@@ -125,3 +125,20 @@ it('dispatches a SceneOverride carrying the prize and winner', function () {
             && $dispatched->scene['data']['winner']['registrationId'] === $registration->id;
     });
 });
+
+it('refuses to draw the same prize twice and keeps the first winner', function () {
+    EventFacade::fake([SceneOverride::class]);
+
+    $event = Event::factory()->live()->create();
+    $prize = TombolaPrize::factory()->for($event)->create();
+    EventRegistration::factory()->for($event)->count(3)->checkedIn()->create();
+
+    $first = app(DrawTombola::class)->handle($event, $prize);
+
+    expect(fn () => app(DrawTombola::class)->handle($event, $prize))
+        ->toThrow(InfoscreenException::class);
+
+    expect(TombolaDraw::query()->where('tombola_prize_id', $prize->id)->count())->toBe(1)
+        ->and(TombolaDraw::query()->where('tombola_prize_id', $prize->id)->value('registration_id'))->toBe($first->registration_id);
+    EventFacade::assertDispatchedTimes(SceneOverride::class, 1);
+});

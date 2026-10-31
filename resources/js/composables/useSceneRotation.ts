@@ -1,4 +1,4 @@
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import type { ComputedRef } from 'vue';
 import type { ScenePayloadDto } from '@/types';
 
@@ -80,12 +80,50 @@ export function useSceneRotation(
         const durationMs = Math.max(active.durationSec, 1) * 1000;
 
         rotationTimer = setTimeout(() => {
-            index.value = (index.value + 1) % list.length;
+            // Read the list again: it may have been replaced (scenes added,
+            // removed or reordered by a reload) while this timer was armed.
+            const latest = scenesRef.value;
+
+            index.value =
+                latest.length === 0 ? 0 : (index.value + 1) % latest.length;
             scheduleNext();
         }, durationMs);
     }
 
     scheduleNext();
+
+    // The scene list is replaced by Inertia partial reloads (`scenes.updated`,
+    // jukebox/gallery pushes). Only a structural change (ids, order or
+    // durations) re-arms the rotation: payload-only refreshes must not restart
+    // the current scene's clock, or a chatty jukebox would freeze the rotation.
+    // Going from 0 to n scenes starts the rotation; the current scene is kept
+    // on screen when it still exists, otherwise the index is clamped.
+    watch(
+        () =>
+            scenesRef.value
+                .map((scene) => `${scene.id}:${scene.durationSec}`)
+                .join(','),
+        (_signature, previous) => {
+            const list = scenesRef.value;
+            const previousIds = previous === '' ? [] : previous.split(',');
+            const currentId =
+                previousIds[
+                    index.value % Math.max(previousIds.length, 1)
+                ]?.split(':')[0];
+            const keptAt = list.findIndex(
+                (scene) => String(scene.id) === currentId,
+            );
+
+            index.value =
+                keptAt >= 0
+                    ? keptAt
+                    : Math.min(index.value, Math.max(list.length - 1, 0));
+
+            if (overrideScene.value === null) {
+                scheduleNext();
+            }
+        },
+    );
 
     const current = computed<ScenePayloadDto>(() => {
         if (overrideScene.value !== null) {

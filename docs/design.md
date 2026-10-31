@@ -252,6 +252,14 @@ Single definition: `App\Support\Brand\ShellParity`. Canonical logo geometry: `pu
 
 `/screen/{event}` is the exception to "quiet". Near-black canvas, huge type, the amber accent at full brightness, celebratory motion (winner confetti, tombola reveal) — but still disciplined: one focal thing per scene, legible at distance, high contrast. The winner/celebration colour aligns to `--live` amber (not an ad-hoc yellow).
 
+### Beamer legibility floor and bracket fitting
+
+Nobody scrolls a beamer: no scene may rely on scrolling or silent clipping. Lists have a fixed cap with a "+N weitere" line (upcoming matches 8, presence 5 per column, schedule 6 rows after now/next); announcement text is limited to 280 characters (headline clamps to 3 lines, body to 6); scene duration is 5 to 300 s.
+
+Bracket scenes and the OBS bracket overlay use `BracketView` in `fit` mode: the bracket is scaled with a CSS transform to its box (small brackets scale up to 2.5x, there are no scrollbars; the overlay keeps its transparent background). The legibility floor is scale 1.15 at 1920x1080 (names about 16 px, status labels about 14 px; proportionally less on smaller viewports). A bracket that cannot fit at the floor (64 players, double elimination 16 and up) is not shrunk into illegibility: rounds with too many matches are left out (always the early ones, announced by "Frühe Runden ausgeblendet"), the remaining rounds are split into windows that rotate every 10 s ("Ansicht 1 von 2"), and the window holding the round currently being played starts. Reason: a beamer is read from several metres, a complete but unreadable tree conveys less than the decisive rounds.
+
+The tombola reveal is time-boxed (the 20 s override); the rotation scene always shows the prize board. The public beamer shows display names of seated participants and tombola winners (product decision); e-mail, Discord id, user ids and network data never appear in HTML, props or broadcasts.
+
 ## Rams' ten principles → how they land here
 
 1. **Innovativ** — uses the live web platform deliberately (Reverb live state, Inertia), not novelty for its own sake.

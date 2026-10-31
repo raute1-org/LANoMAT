@@ -15,8 +15,21 @@ defineProps<{
             {{ config.headline ?? labels.bracket_title }}
         </h1>
 
-        <div class="min-h-0 flex-1 overflow-auto">
+        <p
+            v-if="(data.matches ?? []).length === 0"
+            class="text-3xl text-muted-foreground"
+        >
+            {{ labels.bracket_empty }}
+        </p>
+
+        <div v-else class="min-h-0 flex-1">
             <BracketView
+                fit
+                :page-seconds="10"
+                :fit-labels="{
+                    hidden: labels.bracket_hidden,
+                    page: labels.bracket_page,
+                }"
                 :matches="data.matches ?? []"
                 :my-entry-id="null"
                 :match-status-labels="{

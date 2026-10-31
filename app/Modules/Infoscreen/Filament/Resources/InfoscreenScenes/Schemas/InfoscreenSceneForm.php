@@ -4,6 +4,7 @@ namespace App\Modules\Infoscreen\Filament\Resources\InfoscreenScenes\Schemas;
 
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Tournaments\Models\Tournament;
+use Closure;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -46,7 +47,9 @@ class InfoscreenSceneForm
                     ->required()
                     ->numeric()
                     ->integer()
-                    ->minValue(3),
+                    ->minValue(5)
+                    ->maxValue(300)
+                    ->suffix('s'),
 
                 // Per-type config fields. `config` itself is not fillable
                 // (see InfoscreenScene::$fillable), so these flat keys are
@@ -61,16 +64,35 @@ class InfoscreenSceneForm
                     ], true)),
                 Textarea::make('body')
                     ->label(__('infoscreen.fields.body'))
+                    ->maxLength(280)
+                    ->rows(4)
                     ->visible(fn (Get $get): bool => in_array($get('type'), [
                         SceneType::Announcement->value,
                         SceneType::Status->value,
                     ], true)),
                 Select::make('tournamentId')
                     ->label(__('infoscreen.fields.tournament'))
-                    ->options(fn (): array => Tournament::query()
+                    // Only tournaments of the chosen event that a guest may
+                    // see: the beamer is public (ScenePayload re-checks).
+                    ->options(fn (Get $get): array => Tournament::query()
+                        ->where('event_id', $get('event_id'))
+                        ->visibleTo(null)
                         ->orderBy('name')
                         ->pluck('name', 'id')
                         ->all())
+                    ->rules([
+                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            $valid = $value === null || Tournament::query()
+                                ->whereKey($value)
+                                ->where('event_id', $get('event_id'))
+                                ->visibleTo(null)
+                                ->exists();
+
+                            if (! $valid) {
+                                $fail(__('infoscreen.errors.tournament_not_public'));
+                            }
+                        },
+                    ])
                     ->searchable()
                     ->visible(fn (Get $get): bool => in_array($get('type'), [
                         SceneType::Bracket->value,
