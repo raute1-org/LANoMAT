@@ -118,16 +118,83 @@ it('returns 404 for an upload posted to a draft events files endpoint and create
     expect(SharedFile::query()->count())->toBe(0);
 });
 
-it('rejects a disallowed mime type with a validation error', function () {
+it('accepts executables and installers, keeping them pending until orga approves', function (string $name, string $mime) {
     $event = Event::factory()->registration()->create();
     $uploader = User::factory()->create();
 
-    $file = UploadedFile::fake()->create('script.exe', 10, 'application/x-msdownload');
+    $file = UploadedFile::fake()->create($name, 10, $mime);
 
-    $response = $this->actingAs($uploader)->post("/events/{$event->slug}/files", [
-        'file' => $file,
-    ]);
+    $this->actingAs($uploader)->post("/events/{$event->slug}/files", ['file' => $file])
+        ->assertSessionDoesntHaveErrors();
+
+    $shared = SharedFile::query()->firstOrFail();
+    expect($shared->visibility)->toBe(FileVisibility::Pending)
+        ->and($shared->original_name)->toBe($name);
+    Storage::disk('local')->assertExists($shared->path);
+})->with([
+    'exe' => ['script.exe', 'application/x-msdownload'],
+    'msi' => ['setup.msi', 'application/x-msi'],
+    'iso' => ['game.iso', 'application/x-iso9660-image'],
+    'zip' => ['maps.zip', 'application/zip'],
+    'png' => ['screenshot.png', 'image/png'],
+    'no extension' => ['README', 'application/octet-stream'],
+]);
+
+it('refuses types a browser could execute from our origin, whatever the client claims', function (string $name, string $mime) {
+    $event = Event::factory()->registration()->create();
+    $uploader = User::factory()->create();
+
+    $file = UploadedFile::fake()->create($name, 10, $mime);
+
+    $response = $this->actingAs($uploader)->post("/events/{$event->slug}/files", ['file' => $file]);
 
     $response->assertSessionHasErrors('file');
     expect(SharedFile::query()->count())->toBe(0);
+})->with([
+    'html' => ['page.html', 'text/html'],
+    'htm uppercase' => ['PAGE.HTM', 'application/octet-stream'],
+    'xhtml' => ['page.xhtml', 'application/xhtml+xml'],
+    'svg' => ['logo.svg', 'image/svg+xml'],
+    'js' => ['app.js', 'text/javascript'],
+    'mjs' => ['app.mjs', 'application/octet-stream'],
+    'trailing dot' => ['evil.html.', 'application/octet-stream'],
+    'trailing space' => ['evil.svg ', 'application/octet-stream'],
+    'zip name but html mime' => ['harmless.zip', 'text/html'],
+]);
+
+it('refuses a file whose content is HTML even when it is named like an archive', function () {
+    $event = Event::factory()->registration()->create();
+    $uploader = User::factory()->create();
+
+    $file = UploadedFile::fake()->createWithContent('harmless.zip', '<!DOCTYPE html><html><body><script>alert(1)</script></body></html>');
+
+    $this->actingAs($uploader)->post("/events/{$event->slug}/files", ['file' => $file])
+        ->assertSessionHasErrors('file');
+
+    expect(SharedFile::query()->count())->toBe(0);
+});
+
+it('refuses a file whose content is SVG even when it is named like a text file', function () {
+    $event = Event::factory()->registration()->create();
+    $uploader = User::factory()->create();
+
+    $file = UploadedFile::fake()->createWithContent('notes.txt', '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+
+    $this->actingAs($uploader)->post("/events/{$event->slug}/files", ['file' => $file])
+        ->assertSessionHasErrors('file');
+});
+
+it('stores the sniffed mime type, not the one the client sent', function () {
+    $event = Event::factory()->registration()->create();
+    $uploader = User::factory()->create();
+
+    $file = UploadedFile::fake()->createWithContent('thing.bin', "PK\x03\x04".str_repeat("\0", 64));
+
+    $this->actingAs($uploader)->post("/events/{$event->slug}/files", ['file' => $file]);
+
+    expect(SharedFile::query()->firstOrFail()->mime)->toBe('application/zip');
+});
+
+it('states in German which types are refused', function () {
+    expect(trans('files.errors.blocked_type'))->toContain('HTML')->toContain('.exe');
 });

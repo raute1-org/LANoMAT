@@ -24,6 +24,7 @@ use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Policies\SharedFilePolicy;
+use App\Modules\Files\Support\FileStores;
 use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
@@ -224,6 +225,8 @@ class AppServiceProvider extends ServiceProvider
             (int) config('services.hosts.connect_timeout'),
             (bool) config('services.hosts.strict_host_key'),
         ));
+
+        $this->app->singleton(FileStores::class);
 
         $this->app->bind(HypervisorClientFactory::class, HypervisorClients::class);
         $this->app->bind(HostKeyScanner::class, PhpseclibHostKeyScanner::class);

@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
-    ->in('Feature', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/Tournaments/Domain');
+    ->in('Feature', 'Unit/Files', 'Unit/Identity', 'Unit/Discord', 'Unit/Voice', 'Unit/Tournaments/Domain');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)

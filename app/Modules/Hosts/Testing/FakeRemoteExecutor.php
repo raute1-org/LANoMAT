@@ -7,6 +7,7 @@ namespace App\Modules\Hosts\Testing;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Domain\CommandResult;
 use App\Modules\Hosts\Domain\HostProbe;
+use App\Modules\Hosts\Exceptions\RemoteExecutionException;
 use App\Modules\Hosts\Models\RemoteHost;
 use PHPUnit\Framework\Assert;
 
@@ -26,6 +27,23 @@ class FakeRemoteExecutor implements RemoteExecutor
      * @var array<string, CommandResult>
      */
     public array $results = [];
+
+    /**
+     * Local files streamed via {@see uploadFile()}, recorded with their bytes
+     * (tests use small files) so assertions can compare content.
+     *
+     * @var array<int, array{host_id: int, local_path: string, contents: string, remote_path: string}>
+     */
+    public array $fileUploads = [];
+
+    /** @var array<int, array{host_id: int, remote_path: string}> */
+    public array $deletes = [];
+
+    /** @var array<string, true> remote paths currently "on" the fake host, keyed by host id and path */
+    public array $remoteFiles = [];
+
+    /** When set, every SFTP file operation throws it (simulates an unreachable host). */
+    public ?RemoteExecutionException $failWith = null;
 
     public HostProbe $nextProbe;
 
@@ -64,6 +82,50 @@ class FakeRemoteExecutor implements RemoteExecutor
     public function probe(RemoteHost $host): HostProbe
     {
         return $this->nextProbe;
+    }
+
+    public function uploadFile(RemoteHost $host, string $localPath, string $remotePath): void
+    {
+        $this->failIfConfigured();
+
+        $this->fileUploads[] = [
+            'host_id' => $host->id,
+            'local_path' => $localPath,
+            'contents' => (string) file_get_contents($localPath),
+            'remote_path' => $remotePath,
+        ];
+        $this->remoteFiles[$host->id.':'.$remotePath] = true;
+    }
+
+    public function deleteFile(RemoteHost $host, string $remotePath): void
+    {
+        $this->failIfConfigured();
+
+        $this->deletes[] = ['host_id' => $host->id, 'remote_path' => $remotePath];
+        unset($this->remoteFiles[$host->id.':'.$remotePath]);
+    }
+
+    public function fileExists(RemoteHost $host, string $remotePath): bool
+    {
+        $this->failIfConfigured();
+
+        return isset($this->remoteFiles[$host->id.':'.$remotePath]);
+    }
+
+    public function assertFileUploaded(string $remotePath): void
+    {
+        $match = collect($this->fileUploads)->contains(
+            fn (array $u) => $u['remote_path'] === $remotePath
+        );
+
+        Assert::assertTrue($match, "No file upload to [{$remotePath}] was recorded.");
+    }
+
+    private function failIfConfigured(): void
+    {
+        if ($this->failWith !== null) {
+            throw $this->failWith;
+        }
     }
 
     public function assertRan(string $commandSubstring): void

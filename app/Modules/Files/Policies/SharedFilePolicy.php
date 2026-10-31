@@ -25,9 +25,19 @@ class SharedFilePolicy
             || $user->isOrga();
     }
 
+    /**
+     * Stricter than view(): only an approved file is downloadable by
+     * participants. A pending file is downloadable by its uploader and by orga
+     * (who must inspect it before approving); a rejected file never is: its
+     * bytes are removed from the store on rejection.
+     */
     public function download(User $user, SharedFile $file): bool
     {
-        return $this->view($user, $file);
+        return match ($file->visibility) {
+            FileVisibility::Approved => true,
+            FileVisibility::Pending => $file->user_id === $user->id || $user->isOrga(),
+            FileVisibility::Rejected => false,
+        };
     }
 
     public function delete(User $user, SharedFile $file): bool

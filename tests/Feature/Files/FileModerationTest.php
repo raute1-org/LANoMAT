@@ -98,8 +98,8 @@ it('lets a helper reject a pending file, hiding it from other participants but k
             })
         );
 
-    // Uploader still sees their own rejected file (SharedFilePolicy::view).
-    $this->actingAs($uploader)
-        ->get("/files/{$file->id}/download")
-        ->assertOk();
+    // A rejected file is gone from the store and can no longer be downloaded by anyone.
+    Storage::disk('local')->assertMissing($file->path);
+    $this->actingAs($uploader)->get("/files/{$file->id}/download")->assertForbidden();
+    $this->actingAs(User::factory()->orga()->create())->get("/files/{$file->id}/download")->assertForbidden();
 });
