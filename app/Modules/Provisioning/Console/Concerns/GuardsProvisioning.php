@@ -27,6 +27,27 @@ trait GuardsProvisioning
         return false;
     }
 
+    /**
+     * A declared argument as a string; Symfony hands out a wider type than the
+     * signature guarantees, so check instead of cast.
+     */
+    private function stringArgument(string $name): string
+    {
+        $value = $this->argument($name);
+
+        return is_string($value) ? $value : '';
+    }
+
+    /**
+     * An option as a non-empty string, or null when it was not given.
+     */
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
     private function actor(mixed $id): ?User
     {
         $user = is_numeric($id) ? User::query()->find((int) $id) : null;

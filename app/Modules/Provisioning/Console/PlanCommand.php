@@ -33,8 +33,8 @@ class PlanCommand extends Command
             return self::FAILURE;
         }
 
-        $data = $this->readConfig($this->option('config'));
-        $name = $this->option('hypervisor');
+        $data = $this->readConfig($this->stringOption('config'));
+        $name = $this->stringOption('hypervisor');
         $hypervisor = is_string($name) ? $this->findHypervisor($name) : null;
 
         if ($data === null || (is_string($name) && $hypervisor === null)) {
@@ -42,7 +42,7 @@ class PlanCommand extends Command
         }
 
         try {
-            $plan = $plans->get((string) $this->argument('plan'));
+            $plan = $plans->get($this->stringArgument('plan'));
             $context = new ProvisioningContext(TestVmConfig::fromArray($data), $hypervisor, null, dryRun: true);
             $descriptions = $runner->describe($plan, $context);
         } catch (ProvisioningException $e) {

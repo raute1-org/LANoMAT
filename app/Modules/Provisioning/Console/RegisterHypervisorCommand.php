@@ -36,11 +36,11 @@ class RegisterHypervisorCommand extends Command
 
         try {
             $hypervisor = $register->handle([
-                'name' => (string) $this->argument('name'),
-                'base_url' => (string) $this->argument('base_url'),
-                'node' => (string) $this->option('node'),
-                'token_id' => (string) $this->argument('token_id'),
-                'tls_pin' => $this->option('tls-pin') ?: null,
+                'name' => $this->stringArgument('name'),
+                'base_url' => $this->stringArgument('base_url'),
+                'node' => $this->stringOption('node') ?? 'pve',
+                'token_id' => $this->stringArgument('token_id'),
+                'tls_pin' => $this->stringOption('tls-pin'),
                 'jump_host_id' => is_numeric($this->option('jump-host')) ? (int) $this->option('jump-host') : null,
             ], $secret, $actor);
         } catch (ValidationException $e) {

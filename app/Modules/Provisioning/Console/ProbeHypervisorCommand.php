@@ -25,7 +25,7 @@ class ProbeHypervisorCommand extends Command
             return self::FAILURE;
         }
 
-        $hypervisor = $this->findHypervisor((string) $this->argument('hypervisor'));
+        $hypervisor = $this->findHypervisor($this->stringArgument('hypervisor'));
 
         if ($hypervisor === null) {
             return self::FAILURE;

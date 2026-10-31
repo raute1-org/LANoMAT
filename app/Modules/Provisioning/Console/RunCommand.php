@@ -46,12 +46,12 @@ class RunCommand extends Command
             return self::FAILURE;
         }
 
-        $data = $this->readConfig($this->option('config'));
-        $hypervisor = $this->findHypervisor(is_string($this->option('hypervisor')) ? $this->option('hypervisor') : null);
+        $data = $this->readConfig($this->stringOption('config'));
+        $hypervisor = $this->findHypervisor($this->stringOption('hypervisor'));
         $actor = $this->actor($this->option('as'));
 
         if ($data === null || $hypervisor === null || $actor === null) {
-            if ($hypervisor === null && $this->option('hypervisor') === null) {
+            if ($hypervisor === null && $this->stringOption('hypervisor') === null) {
                 $this->error(__('provisioning.console.hypervisor_required'));
             }
 
@@ -59,7 +59,7 @@ class RunCommand extends Command
         }
 
         try {
-            $run = $start->handle((string) $this->argument('plan'), $data, $hypervisor, $actor, new RunOptions(rollbackAll: (bool) $this->option('rollback')), dispatch: ! $this->option('sync'));
+            $run = $start->handle($this->stringArgument('plan'), $data, $hypervisor, $actor, new RunOptions(rollbackAll: (bool) $this->option('rollback')), dispatch: ! $this->option('sync'));
 
             if (! $this->option('sync')) {
                 $this->info(__('provisioning.console.run_queued', ['id' => $run->id]));
