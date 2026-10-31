@@ -30,7 +30,7 @@ class TournamentForm
             return [Text::make(__('tournaments.standings.empty'))];
         }
 
-        return array_map(
+        $lines = array_map(
             fn (array $row): Text => Text::make(sprintf(
                 '%d. %s: %d %s, %d %s, %d:%d (%+d)',
                 $row['rank'],
@@ -45,6 +45,14 @@ class TournamentForm
             )),
             $rows,
         );
+
+        $leaders = array_filter($rows, fn (array $row): bool => $row['rank'] === 1);
+
+        if ($record->status === TournamentStatus::Live && count($leaders) > 1 && collect($rows)->every(fn (array $row): bool => $row['played'] === count($rows) - 1)) {
+            $lines[] = Text::make(__('tournaments.standings.tie_pending'));
+        }
+
+        return $lines;
     }
 
     public static function configure(Schema $schema): Schema
@@ -75,10 +83,15 @@ class TournamentForm
                     ->label(__('tournaments.fields.team_size'))
                     ->required()
                     ->numeric()
-                    ->minValue(1),
+                    ->integer()
+                    ->minValue(1)
+                    ->maxValue(32),
                 TextInput::make('max_entries')
                     ->label(__('tournaments.fields.max_entries'))
-                    ->numeric(),
+                    ->numeric()
+                    ->integer()
+                    ->minValue(2)
+                    ->maxValue(1024),
                 DateTimePicker::make('starts_at')
                     ->label(__('tournaments.fields.starts_at'))
                     ->required(),

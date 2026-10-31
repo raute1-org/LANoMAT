@@ -9,11 +9,16 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
+use App\Modules\Tournaments\Support\TeamRosterGuard;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
 class EnrollTeam
 {
+    public function __construct(
+        private readonly TeamRosterGuard $rosterGuard,
+    ) {}
+
     public function handle(Tournament $tournament, Team $team): TournamentEntry
     {
         if ($tournament->status !== TournamentStatus::Enrollment) {
@@ -47,6 +52,13 @@ class EnrollTeam
             if ($alreadyEnrolled) {
                 throw TournamentException::alreadyEnrolled();
             }
+
+            // One entry per person: nobody of this roster may already play
+            // for another team entry of the tournament (F-R2A-5).
+            $this->rosterGuard->assertNoSharedPlayers(
+                $tournament,
+                $team->members->pluck('user_id')->map(fn ($id): int => (int) $id)->values()->all(),
+            );
 
             $activeCount = TournamentEntry::query()
                 ->where('tournament_id', $tournament->id)

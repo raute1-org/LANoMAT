@@ -218,6 +218,8 @@ class TournamentPageController extends Controller
 
     public function enroll(Request $request, Tournament $tournament, EnrollSolo $enrollSolo, EnrollTeam $enrollTeam): RedirectResponse
     {
+        $this->abortUnlessVisible($request, $tournament);
+
         $user = $this->authUser($request);
 
         if ($tournament->status === TournamentStatus::Enrollment && ! EventRegistrationRequirement::satisfiedBy($user, $tournament)) {
@@ -256,6 +258,8 @@ class TournamentPageController extends Controller
 
     public function checkin(Request $request, Tournament $tournament, CheckInEntry $action): RedirectResponse
     {
+        $this->abortUnlessVisible($request, $tournament);
+
         $user = $this->authUser($request);
         $entry = $this->entryFor($tournament, $user);
 
@@ -284,6 +288,8 @@ class TournamentPageController extends Controller
 
     public function withdraw(Request $request, Tournament $tournament, WithdrawEntry $action): RedirectResponse
     {
+        $this->abortUnlessVisible($request, $tournament);
+
         $entry = $this->entryFor($tournament, $this->authUser($request));
 
         abort_if($entry === null, 404);
@@ -445,6 +451,16 @@ class TournamentPageController extends Controller
      * participant gets a friendly flash instead of a raw 404 page. A match
      * that never had a report, or a non-participant, stays a 404.
      */
+    /**
+     * Same visibility rule as the page: a tournament the user may not see
+     * answers 404 on every write route too, never 403 (which would confirm a
+     * hidden draft exists).
+     */
+    private function abortUnlessVisible(Request $request, Tournament $tournament): void
+    {
+        abort_unless($tournament->isVisibleTo($request->user()), 404);
+    }
+
     private function reportAlreadyHandled(Request $request, GameMatch $match): RedirectResponse
     {
         $user = $this->authUser($request);

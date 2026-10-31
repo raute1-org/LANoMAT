@@ -45,7 +45,11 @@ class ConfirmMatchReport
     public function handle(MatchReport $report, TournamentEntry $confirmer, int $lockVersion): GameMatch
     {
         return DB::transaction(function () use ($report, $confirmer, $lockVersion): GameMatch {
-            $match = GameMatch::query()->findOrFail($report->match_id);
+            // Lock the match row first and re-read the report under it, so a
+            // concurrent dispute/withdraw cannot slip in between the state
+            // check and the write (F-R2A-4).
+            $match = GameMatch::query()->whereKey($report->match_id)->lockForUpdate()->firstOrFail();
+            $report->refresh();
 
             $this->assertIsOpponent($match, $report, $confirmer);
 
@@ -53,7 +57,7 @@ class ConfirmMatchReport
             // Disputed and routed to the orga queue) must not be confirmed a
             // second time — most importantly, a Disputed report must not be
             // silently confirmed out from under the dispute.
-            if ($report->status !== ReportStatus::Pending) {
+            if ($report->status !== ReportStatus::Pending || $match->status !== MatchStatus::Reported) {
                 throw TournamentException::reportNotPending();
             }
 

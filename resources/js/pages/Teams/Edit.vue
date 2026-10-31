@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import FilePicker from '@/components/FilePicker.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
@@ -9,12 +10,14 @@ import {
     leave as leaveTeam,
     respond as respondToRequest,
     show as showTeam,
+    transfer as transferTeam,
     update as updateTeam,
 } from '@/routes/teams';
 import type { TeamEditDetail } from '@/types';
 
 const props = defineProps<{
     team: TeamEditDetail;
+    canTransfer: boolean;
     labels: Record<string, string>;
 }>();
 
@@ -41,6 +44,26 @@ function respond(requestId: number, accept: boolean) {
         respondToRequest.url({ team: props.team.id, teamRequest: requestId }),
         { preserveScroll: true },
     );
+}
+
+const transferCandidates = computed(() =>
+    props.team.members.filter((member) => member.role !== 'owner'),
+);
+
+const transferForm = useForm({ user_id: '' });
+
+function transfer() {
+    if (
+        transferForm.user_id === '' ||
+        !confirm(props.labels.transfer_confirm)
+    ) {
+        return;
+    }
+
+    transferForm.post(transferTeam.url(props.team.id), {
+        preserveScroll: true,
+        onSuccess: () => transferForm.reset(),
+    });
 }
 
 function leave() {
@@ -166,7 +189,62 @@ function leave() {
                     </span>
                 </li>
             </ul>
-            <Button class="mt-4" variant="destructive" @click="leave">
+
+            <form
+                v-if="canTransfer"
+                class="mt-6 grid gap-2"
+                data-test="transfer-form"
+                @submit.prevent="transfer"
+            >
+                <Label for="transfer-user">{{ labels.transfer }}</Label>
+                <p class="text-sm text-muted-foreground">
+                    {{
+                        transferCandidates.length === 0
+                            ? labels.transfer_no_members
+                            : labels.transfer_help
+                    }}
+                </p>
+                <div
+                    v-if="transferCandidates.length > 0"
+                    class="flex flex-wrap items-center gap-2"
+                >
+                    <select
+                        id="transfer-user"
+                        v-model="transferForm.user_id"
+                        class="h-10 min-w-48 rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        :aria-label="labels.transfer_select"
+                    >
+                        <option value="" disabled>
+                            {{ labels.transfer_select_placeholder }}
+                        </option>
+                        <option
+                            v-for="member in transferCandidates"
+                            :key="member.id"
+                            :value="String(member.user.id)"
+                        >
+                            {{ member.user.name }}
+                        </option>
+                    </select>
+                    <Button
+                        type="submit"
+                        variant="outline"
+                        :disabled="
+                            transferForm.processing ||
+                            transferForm.user_id === ''
+                        "
+                    >
+                        {{ labels.transfer }}
+                    </Button>
+                </div>
+                <p
+                    v-if="transferForm.errors.user_id"
+                    class="text-sm text-destructive"
+                >
+                    {{ transferForm.errors.user_id }}
+                </p>
+            </form>
+
+            <Button class="mt-6" variant="destructive" @click="leave">
                 {{ labels.leave }}
             </Button>
         </section>

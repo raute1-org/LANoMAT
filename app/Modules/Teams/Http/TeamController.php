@@ -4,11 +4,13 @@ namespace App\Modules\Teams\Http;
 
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Teams\Actions\CreateTeam;
 use App\Modules\Teams\Actions\LeaveTeam;
 use App\Modules\Teams\Actions\RequestToJoin;
 use App\Modules\Teams\Actions\RespondToJoinRequest;
 use App\Modules\Teams\Actions\StoreTeamLogo;
+use App\Modules\Teams\Actions\TransferOwnership;
 use App\Modules\Teams\Enums\JoinRequestStatus;
 use App\Modules\Teams\Exceptions\TeamException;
 use App\Modules\Teams\Http\Requests\StoreTeamRequest;
@@ -19,6 +21,7 @@ use App\Modules\Teams\Models\TeamMember;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -85,6 +88,7 @@ class TeamController extends Controller
                     ];
                 })->all(),
             ],
+            'canTransfer' => $request->user()?->can('transfer', $team) ?? false,
             'labels' => trans('teams.page'),
         ]);
     }
@@ -127,7 +131,34 @@ class TeamController extends Controller
 
         abort_unless($teamRequest->team_id === $team->id, 404);
 
-        $action->handle($teamRequest, (bool) $request->boolean('accept'));
+        try {
+            $action->handle($teamRequest, (bool) $request->boolean('accept'));
+        } catch (TeamException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+        }
+
+        return back();
+    }
+
+    public function transfer(Request $request, Team $team, TransferOwnership $action): RedirectResponse
+    {
+        $this->authorize('transfer', $team);
+
+        $request->validate([
+            'user_id' => ['required', 'integer', Rule::notIn([$team->owner_id])],
+        ]);
+
+        $newOwner = User::query()->findOrFail($request->integer('user_id'));
+
+        try {
+            $action->handle($team, $newOwner);
+        } catch (TeamException $e) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans($e->translationKey)]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('teams.page.transferred')]);
 
         return back();
     }

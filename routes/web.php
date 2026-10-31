@@ -94,6 +94,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
     Route::post('/teams/{team}/join', [TeamController::class, 'join'])->name('teams.join');
     Route::post('/teams/{team}/requests/{teamRequest}', [TeamController::class, 'respond'])->name('teams.respond');
+    Route::post('/teams/{team}/transfer', [TeamController::class, 'transfer'])->name('teams.transfer');
     Route::delete('/teams/{team}/leave', [TeamController::class, 'leave'])->name('teams.leave');
 });
 

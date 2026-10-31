@@ -262,6 +262,7 @@ const isNotStarted = computed(
                     :rows="standings"
                     :my-entry-id="myEntryId"
                     :labels="standingsLabels"
+                    :winner-decided="tournament.winnerEntryId !== null"
                 />
             </div>
 

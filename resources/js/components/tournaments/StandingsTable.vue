@@ -1,11 +1,23 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { TournamentStandingRow } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     rows: TournamentStandingRow[];
     myEntryId: number | null;
     labels: Record<string, string>;
+    winnerDecided: boolean;
 }>();
+
+// Everyone has played everyone and several entries still share rank 1: the
+// orga names the winner (no silent tiebreak by entry id).
+const tiedForFirst = computed(
+    () =>
+        !props.winnerDecided &&
+        props.rows.length > 1 &&
+        props.rows.every((row) => row.played === props.rows.length - 1) &&
+        props.rows.filter((row) => row.rank === 1).length > 1,
+);
 </script>
 
 <template>
@@ -115,6 +127,13 @@ defineProps<{
                 </tbody>
             </table>
         </div>
+        <p
+            v-if="tiedForFirst"
+            class="mt-2 text-sm font-medium text-foreground"
+            role="status"
+        >
+            {{ labels.tie_pending }}
+        </p>
         <p v-if="rows.length > 0" class="mt-2 text-xs text-muted-foreground">
             {{ labels.tiebreak }}
         </p>

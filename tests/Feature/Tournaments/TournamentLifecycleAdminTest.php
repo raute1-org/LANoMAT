@@ -181,10 +181,10 @@ it('walks the full lifecycle: admin creates a draft, opens enrollment, participa
     $tournament = Tournament::query()->where('name', 'Lifecycle Cup')->firstOrFail();
     expect($tournament->status)->toBe(TournamentStatus::Draft);
 
-    // Draft: participant cannot enroll.
+    // Draft: invisible to participants, so enrolling answers 404 (not 403).
     $player = User::factory()->create();
     EventRegistration::factory()->create(['event_id' => $event->id, 'user_id' => $player->id]);
-    $this->actingAs($player)->post("/tournaments/{$tournament->id}/enroll")->assertForbidden();
+    $this->actingAs($player)->post("/tournaments/{$tournament->id}/enroll")->assertNotFound();
 
     $this->actingAs($orga);
     Livewire::test(EditTournament::class, ['record' => $tournament->getRouteKey()])->callAction('openEnrollment');

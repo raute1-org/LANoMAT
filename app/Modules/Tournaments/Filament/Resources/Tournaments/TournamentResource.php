@@ -6,6 +6,7 @@ use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\CreateTournamen
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\EditTournament;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ListTournaments;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\RelationManagers\EntriesRelationManager;
+use App\Modules\Tournaments\Filament\Resources\Tournaments\RelationManagers\MatchesRelationManager;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Schemas\TournamentForm;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Tables\TournamentsTable;
 use App\Modules\Tournaments\Models\Tournament;
@@ -51,6 +52,7 @@ class TournamentResource extends Resource
     {
         return [
             EntriesRelationManager::class,
+            MatchesRelationManager::class,
         ];
     }
 

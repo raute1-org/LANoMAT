@@ -10,6 +10,7 @@ use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\EntryOwner;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A participant reports the result of their match. Only allowed while the
@@ -27,29 +28,43 @@ class SubmitMatchReport
 {
     public function handle(GameMatch $match, TournamentEntry $reporter, int $ownScore, int $opponentScore): MatchReport
     {
-        if ($match->status !== MatchStatus::Ready) {
-            throw TournamentException::matchNotReady();
-        }
+        $report = DB::transaction(function () use ($match, $reporter, $ownScore, $opponentScore): MatchReport {
+            // Row lock + state check inside the transaction: two participants
+            // submitting at the same instant serialize here, so only the
+            // first creates a report; the second sees `Reported` and is told
+            // to confirm or dispute the existing claim (F-R2A-3).
+            $locked = GameMatch::query()->whereKey($match->id)->lockForUpdate()->firstOrFail();
 
-        $reporterIsEntry1 = $reporter->id === $match->entry1_id;
+            if ($locked->status === MatchStatus::Reported) {
+                throw TournamentException::matchAlreadyReported();
+            }
 
-        if (! $reporterIsEntry1 && $reporter->id !== $match->entry2_id) {
-            throw TournamentException::notAParticipant();
-        }
+            if ($locked->status !== MatchStatus::Ready) {
+                throw TournamentException::matchNotReady();
+            }
 
-        $report = new MatchReport([
-            'match_id' => $match->id,
-            'reported_by' => EntryOwner::userId($reporter),
-            'score1' => $reporterIsEntry1 ? $ownScore : $opponentScore,
-            'score2' => $reporterIsEntry1 ? $opponentScore : $ownScore,
-        ]);
-        $report->status = ReportStatus::Pending;
-        $report->save();
+            $reporterIsEntry1 = $reporter->id === $locked->entry1_id;
 
-        $match->status = MatchStatus::Reported;
-        $match->save();
+            if (! $reporterIsEntry1 && $reporter->id !== $locked->entry2_id) {
+                throw TournamentException::notAParticipant();
+            }
 
-        MatchReportUpdated::dispatch($match);
+            $report = new MatchReport([
+                'match_id' => $locked->id,
+                'reported_by' => EntryOwner::userId($reporter),
+                'score1' => $reporterIsEntry1 ? $ownScore : $opponentScore,
+                'score2' => $reporterIsEntry1 ? $opponentScore : $ownScore,
+            ]);
+            $report->status = ReportStatus::Pending;
+            $report->save();
+
+            $locked->status = MatchStatus::Reported;
+            $locked->save();
+
+            return $report;
+        });
+
+        MatchReportUpdated::dispatch($match->refresh());
 
         return $report;
     }

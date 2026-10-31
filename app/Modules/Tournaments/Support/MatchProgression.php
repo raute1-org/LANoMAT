@@ -14,6 +14,7 @@ use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentCompleted;
+use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Support\Collection;
@@ -82,6 +83,99 @@ class MatchProgression
         }
 
         $this->detectCompletion($tournament, $plan);
+    }
+
+    /**
+     * Rewrites the result of an already COMPLETED match (orga correction of a
+     * confirmed result or a walkover decided in error).
+     *
+     * Same winner: only the scores change, nothing downstream moves. Changed
+     * winner: the old winner/loser are swapped for the new ones in the
+     * follow-up slots, which is only safe while every follow-up match is
+     * still `Pending` (one slot waiting). As soon as a follow-up match has
+     * both entrants (its channels/notifications went out), was played, or was
+     * auto-advanced, the correction is refused with
+     * {@see TournamentException::resultLocked()} and nothing is written. A
+     * grand-final-1 winner flip is always refused: it would arm or discard the
+     * reset match and reopen/close the tournament.
+     *
+     * Single elimination final / grand-final reset: the champion follows the
+     * corrected result. Round robin: the champion is recomputed from the
+     * standings.
+     */
+    public function revise(Tournament $tournament, GameMatch $match, int $score1, int $score2): void
+    {
+        $oldWinner = $match->winner_entry_id;
+        $oldLoser = $oldWinner === $match->entry1_id ? $match->entry2_id : $match->entry1_id;
+        $newWinner = $score1 > $score2 ? $match->entry1_id : $match->entry2_id;
+        $newLoser = $newWinner === $match->entry1_id ? $match->entry2_id : $match->entry1_id;
+        $flipped = $oldWinner !== $newWinner;
+
+        /** @var list<array{0: GameMatch, 1: int, 2: int|null}> $swaps */
+        $swaps = [];
+
+        if ($flipped && $tournament->format !== TournamentFormat::RoundRobin) {
+            if ($match->bracket === Bracket::Finals->value && $match->next_match_id !== null) {
+                throw TournamentException::resultLocked();
+            }
+
+            foreach ([[$match->next_match_id, $match->next_slot, $newWinner], [$match->loser_match_id, $match->loser_slot, $newLoser]] as [$targetId, $slot, $to]) {
+                if ($targetId === null || $slot === null) {
+                    continue;
+                }
+
+                $target = GameMatch::query()->whereKey($targetId)->lockForUpdate()->firstOrFail();
+
+                if ($target->status !== MatchStatus::Pending || $target->reports()->exists()) {
+                    throw TournamentException::resultLocked();
+                }
+
+                $swaps[] = [$target, $slot, $to];
+            }
+        }
+
+        $match->score1 = $score1;
+        $match->score2 = $score2;
+        $match->winner_entry_id = $newWinner;
+        $match->lock_version++;
+        $match->save();
+
+        foreach ($swaps as [$target, $slot, $to]) {
+            $target->forceFill(['entry'.$slot.'_id' => $to])->save();
+        }
+
+        if (! $flipped) {
+            return;
+        }
+
+        if ($tournament->format === TournamentFormat::RoundRobin) {
+            $plan = $this->reconstruct(GameMatch::query()->where('tournament_id', $tournament->id)->get()->keyBy('id'));
+
+            if ($tournament->status !== TournamentStatus::Finished) {
+                // Live with a tie that this correction may have resolved.
+                $this->completeRoundRobin($tournament, $plan);
+
+                return;
+            }
+
+            $leaders = RoundRobinStandings::leaders($plan);
+
+            if (count($leaders) === 1) {
+                $tournament->winner_entry_id = $leaders[0];
+                $tournament->save();
+            } elseif (! in_array($tournament->winner_entry_id, $leaders, true)) {
+                // A tie the orga's earlier choice does not resolve: refuse
+                // (the surrounding transaction rolls the correction back).
+                throw TournamentException::resultLocked();
+            }
+
+            return;
+        }
+
+        if ($tournament->status === TournamentStatus::Finished && $match->next_match_id === null) {
+            $tournament->winner_entry_id = $newWinner;
+            $tournament->save();
+        }
     }
 
     /**
@@ -263,13 +357,16 @@ class MatchProgression
             return;
         }
 
-        $leader = RoundRobinStandings::fromPlan($plan)[0] ?? null;
+        $leaders = RoundRobinStandings::leaders($plan);
 
-        if ($leader === null) {
+        // A tie for first place is not decided automatically: the tournament
+        // stays live with every match played, the standings show
+        // "Gleichstand" and the orga names the winner (SetTournamentWinner).
+        if (count($leaders) !== 1) {
             return;
         }
 
-        $tournament->winner_entry_id = $leader->entryId;
+        $tournament->winner_entry_id = $leaders[0];
         $tournament->status = TournamentStatus::Finished;
         $tournament->save();
 

@@ -210,12 +210,15 @@ it('creates an entry on POST enroll while the tournament is in enrollment', func
 });
 
 it('rejects enroll outside the enrollment window', function () {
-    $tournament = Tournament::factory()->create(); // draft
     $user = User::factory()->create();
 
-    $this->actingAs($user)
-        ->post("/tournaments/{$tournament->id}/enroll")
-        ->assertForbidden();
+    // A draft is invisible to participants: 404, like the page itself.
+    $draft = Tournament::factory()->create();
+    $this->actingAs($user)->post("/tournaments/{$draft->id}/enroll")->assertNotFound();
+
+    // A visible tournament outside the enrollment window is forbidden.
+    $live = Tournament::factory()->live()->create();
+    $this->actingAs($user)->post("/tournaments/{$live->id}/enroll")->assertForbidden();
 });
 
 it('lets a team owner enroll their team into a team tournament', function () {

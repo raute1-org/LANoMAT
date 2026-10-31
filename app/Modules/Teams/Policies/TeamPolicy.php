@@ -21,4 +21,10 @@ class TeamPolicy
     {
         return $this->update($user, $team);
     }
+
+    /** Handing the captaincy over is the current owner's decision alone. */
+    public function transfer(User $user, Team $team): bool
+    {
+        return $team->owner_id === $user->id;
+    }
 }

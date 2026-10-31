@@ -159,4 +159,39 @@ class TournamentException extends DomainException
     {
         return new self('The tournament already has entries.', 'tournaments.errors.has_entries');
     }
+
+    public static function matchAlreadyReported(): self
+    {
+        return new self('This match already has a pending report.', 'tournaments.errors.match_already_reported');
+    }
+
+    public static function matchNotDecidable(): self
+    {
+        return new self('This match has no two entrants yet and cannot be decided.', 'tournaments.errors.match_not_decidable');
+    }
+
+    public static function resultLocked(): self
+    {
+        return new self('Follow-up matches already started or were decided; this result can no longer be changed.', 'tournaments.errors.result_locked');
+    }
+
+    public static function playerInMultipleEntries(): self
+    {
+        return new self('A player of this team is already in another entry of this tournament.', 'tournaments.errors.player_in_multiple_entries');
+    }
+
+    public static function tournamentRunning(): self
+    {
+        return new self('A running or finished tournament cannot be deleted.', 'tournaments.errors.tournament_running');
+    }
+
+    public static function winnerNotDecidable(): self
+    {
+        return new self('The winner can only be chosen among tied leaders of a completed round robin.', 'tournaments.errors.winner_not_decidable');
+    }
+
+    public static function entryRosterInvalid(): self
+    {
+        return new self('A team entry no longer has the required roster size.', 'tournaments.errors.entry_roster_invalid');
+    }
 }
