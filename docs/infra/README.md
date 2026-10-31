@@ -8,12 +8,13 @@ This repository is public: every real address, hostname, key and account is a
 placeholder (see [CONTRIBUTING.md](../../CONTRIBUTING.md), "Public repository
 rules").
 
-| Document                                                           | Topic                                                                                                                           |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| [proxmox-test-vm-lancache.md](proxmox-test-vm-lancache.md)         | Debian 13 VM on Proxmox VE, hardened, Docker, LanCache, egress isolation, plus the automation map.                              |
-| [wireguard-tunnel.md](wireguard-tunnel.md)                         | Point-to-point WireGuard tunnel between the app server and a venue host behind NAT, firewall and boot-order details.            |
-| [pelican-panel-wings.md](pelican-panel-wings.md)                   | Pelican Panel (Docker) and Wings (systemd) on the venue host, LanCache DNS for game containers, `PelicanClient` contract check. |
-| [custom-game-servers-gmod-ttt.md](custom-game-servers-gmod-ttt.md) | Garry's Mod (TTT) on Pelican, SteamCMD through the LanCache, custom content, CS2 GunGame analysis, game server preset model.    |
+| Document                                                           | Topic                                                                                                                              |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [proxmox-test-vm-lancache.md](proxmox-test-vm-lancache.md)         | Debian 13 VM on Proxmox VE, hardened, Docker, LanCache, egress isolation, plus the automation map.                                 |
+| [wireguard-tunnel.md](wireguard-tunnel.md)                         | Point-to-point WireGuard tunnel between the app server and a venue host behind NAT, firewall and boot-order details.               |
+| [pelican-panel-wings.md](pelican-panel-wings.md)                   | Pelican Panel (Docker) and Wings (systemd) on the venue host, LanCache DNS for game containers, `PelicanClient` contract check.    |
+| [custom-game-servers-gmod-ttt.md](custom-game-servers-gmod-ttt.md) | Garry's Mod (TTT) on Pelican, SteamCMD through the LanCache, custom content, CS2 GunGame analysis, game server preset model.       |
+| [lan-tls-certificates.md](lan-tls-certificates.md)                 | Wildcard TLS certificate for venue-only names through Traefik and the DNS-01 challenge (Cloudflare or Hetzner DNS), staging first. |
 
 ## Suggested reading order
 
