@@ -8,6 +8,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LimitRequestBodySize;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
 use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
+use App\Modules\Files\Http\Middleware\VerifyTusHookSecret;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         __DIR__.'/../app/Modules/Discord/Console',
+        __DIR__.'/../app/Modules/Files/Console',
         __DIR__.'/../app/Modules/GameServers/Console',
         __DIR__.'/../app/Modules/Jukebox/Console',
         __DIR__.'/../app/Modules/Lfg/Console',
@@ -70,6 +72,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureRole::class,
             'discord.signature' => VerifyDiscordSignature::class,
             'discord.gateway' => VerifyGatewaySecret::class,
+            'files.tusd' => VerifyTusHookSecret::class,
         ]);
 
         // Discord signs the raw body itself (see VerifyDiscordSignature); it
@@ -79,8 +82,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // its own shared secret instead (see VerifyGatewaySecret). The CS2
         // telemetry webhook is likewise called by a game server (no session,
         // no CSRF token) and authenticates via its own per-server bearer
-        // token instead (see MatchTelemetryController).
-        $middleware->validateCsrfTokens(except: ['api/discord/interactions', 'internal/discord/gateway', 'api/telemetry/cs2/*']);
+        // token instead (see MatchTelemetryController). The tusd upload hooks are
+        // relayed by the file host's nginx with a shared secret (VerifyTusHookSecret).
+        $middleware->validateCsrfTokens(except: ['api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -50,9 +50,49 @@ server {
     #                          # read through the thread pool (aio threads).
     output_buffers     2 1m;
 
-    # Anything that is not a signed download link is refused.
+    # Anything that is not a signed download link or the upload path is refused.
     location / {
         return 404;
+    }
+
+    # --- resumable uploads (tus) --------------------------------------------
+    # The browser talks tus to this path; nginx forwards to tusd in the compose
+    # network. The bytes never touch the app server. CORS is answered by tusd
+    # (-cors-allow-origin), so no add_header here (it would duplicate headers).
+    location /upload/ {
+        # Free-space guard: while the guard script has flagged the disk as
+        # nearly full, no NEW upload may start (POST); running ones continue.
+        set $upload_guard "";
+        if ($request_method = POST) { set $upload_guard "P"; }
+        if (-f /guard/disk-full)    { set $upload_guard "${upload_guard}F"; }
+        if ($upload_guard = "PF")   { return 507; }
+
+        proxy_pass http://tusd:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $http_host;
+
+        # Streaming, not buffering: a 64 MiB chunk (or a whole file from a
+        # client without chunking) must flow straight to tusd. Without these
+        # nginx would spool every request body to /tmp (read-only here) and
+        # tusd would only see the bytes at the end.
+        client_max_body_size   0;
+        proxy_request_buffering off;
+        proxy_buffering        off;
+
+        # Timeouts that fit multi-hour transfers: these apply BETWEEN reads and
+        # writes, not to a whole upload. A stalled client is dropped after 5
+        # minutes and resumes with a new request; tusd keeps what it received.
+        client_body_timeout 300s;
+        proxy_send_timeout  3600s;
+        proxy_read_timeout  3600s;
+        send_timeout        300s;
+
+        # Nothing about an upload is cacheable.
+        add_header Cache-Control "no-store" always;
     }
 
     location /dl/ {
@@ -90,5 +130,49 @@ server {
         add_header Referrer-Policy "no-referrer" always;
         # Range requests (resume, download managers) are handled by nginx for
         # static files: Accept-Ranges, 206 and If-Range work out of the box.
+    }
+}
+
+# --- tusd hook relay (compose network only) ----------------------------------
+# tusd can forward client headers to its hook endpoint but cannot add a static
+# secret. This listener is NOT published: only tusd (same compose network) can
+# reach it. It relays the hook call to the app and adds the shared secret as a
+# header, so the secret is never in a URL and never leaves this machine except
+# inside the TLS connection to the app. Clients on :8443 cannot reach /hook.
+server {
+    listen 8081;
+    server_name _;
+
+    access_log off;   # hook bodies and the secret never reach a log
+    error_log  /var/log/nginx/files.error.log warn;
+    server_tokens off;
+
+    # Resolve the app host at request time, not at start: a venue DNS hiccup
+    # must not keep the file host from starting. 127.0.0.11 is Docker's resolver.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    location = /hook {
+        limit_except POST { deny all; }
+
+        set $app_hook "${FILES_APP_HOOK_URL}";
+        proxy_pass $app_hook;
+
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+
+        # Overwrites anything a client could have put there.
+        proxy_set_header X-Tusd-Hook-Secret "${FILES_TUS_HOOK_SECRET}";
+        proxy_set_header Content-Type "application/json";
+        proxy_set_header Accept "application/json";
+
+        proxy_connect_timeout 5s;
+        proxy_send_timeout    30s;
+        proxy_read_timeout    30s;
+    }
+
+    location / {
+        return 404;
     }
 }

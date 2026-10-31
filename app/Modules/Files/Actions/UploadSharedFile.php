@@ -9,6 +9,7 @@ use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
+use App\Modules\Files\Support\UploadQuota;
 use App\Modules\Files\Support\UploadTypeGuard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,10 @@ class UploadSharedFile
                 ->get('size_bytes')
                 ->sum('size_bytes');
 
-            $quotaBytes = (int) config('files.per_user_quota_mb') * 1024 * 1024;
+            // Open resumable-upload reservations hold quota too.
+            $existingBytes += UploadQuota::reservedBytes($event->id, $actor->id);
+
+            $quotaBytes = UploadQuota::capBytes();
             $sizeBytes = $file->getSize();
 
             if ($sizeBytes === false) {

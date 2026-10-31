@@ -400,6 +400,7 @@ class AppServiceProvider extends ServiceProvider
     protected function configureAuthorization(): void
     {
         RateLimiter::for('csp-report', fn (Request $request) => Limit::perMinute(60)->by('csp-report|'.$request->ip()));
+        RateLimiter::for('file-upload-tickets', fn (Request $request) => Limit::perMinute(max(1, (int) config('files.tus.tickets_per_minute')))->by('file-upload-tickets|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('self-checkin', fn (Request $request) => Limit::perMinute(30)->by('self-checkin|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('web-voice-chat', fn (Request $request) => Limit::perSecond((int) config('webvoice.chat.rate_limit'), (int) config('webvoice.chat.rate_window'))->by('web-voice-chat|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 

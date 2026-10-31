@@ -1,18 +1,24 @@
-# LANoMAT file host: a small nginx on the LanCache machine that serves shared
-# files through signed links. Standalone project, NOT part of the app's
-# compose.yml and not started by anything by default. Do not reuse LanCache's
-# own nginx: it owns ports 80/443 on its address.
+# LANoMAT file host: nginx (signed downloads, upload proxy, hook relay) and
+# tusd (resumable uploads) on the LanCache machine. Standalone project, NOT
+# part of the app's compose.yml and not started by anything by default. Do not
+# reuse LanCache's own nginx: it owns ports 80/443 on its address.
 #
 #   cd <FILES_DIR>                      # e.g. /srv/lanomat-files/compose
 #   cp <repo>/docker/file-host/{compose.yml,default.conf.template} .
-#   install -m 600 /dev/null .env       # then fill FILES_HOST_SECRET (below)
+#   install -m 600 /dev/null .env       # then fill the values below
 #   docker compose up -d
 #
 # .env (root-only, never committed):
-#   FILES_HOST_SECRET=<FILES_HOST_SECRET>     # openssl rand -hex 32, same value as the app
+#   FILES_HOST_SECRET=<FILES_HOST_SECRET>     # openssl rand -hex 32, same value as the app (download links)
+#   FILES_TUS_HOOK_SECRET=<TUS_HOOK_SECRET>   # openssl rand -hex 32, same value as the app (FILES_TUS_HOOK_SECRET)
+#   FILES_APP_HOOK_URL=https://<APP_HOST>/internal/files/tusd-hook   # where nginx relays tusd's hooks to
 #   FILES_BIND_IP=<LANCACHE_HOST>             # the address to listen on (not 0.0.0.0)
+#   FILES_MAX_FILE_BYTES=53687091200          # 50 GiB: FILES_MAX_FILE_GB * 1073741824, keep equal to the app
+#   FILES_TUS_CORS_ORIGIN=^https://<LAN_DOMAIN_REGEX>$   # origin of the app page, regex-escaped dots
+#   FILES_UID=<UID>                           # numeric uid of <FILES_SFTP_USER> (id -u): tusd must write
+#                                             # files that the SFTP account can delete
 #
-# Runbook and verification checklist: docs/infra/file-host.md
+# Runbook, sizing and verification checklist: docs/infra/file-host.md
 services:
   file-host:
     image: nginx:1.27-alpine
@@ -23,11 +29,14 @@ services:
       NGINX_ENVSUBST_FILTER: ^FILES_
     ports:
       # 8443, not 443: LanCache's nginx owns 80/443 on <LANCACHE_HOST>.
+      # The hook relay (port 8081) is deliberately NOT published: only tusd reaches it.
       - '${FILES_BIND_IP}:8443:8443/tcp'
     volumes:
       - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
-      # The SFTP account writes here; nginx only ever reads.
+      # nginx only ever reads the files; tusd and the SFTP account write them.
       - <FILES_ROOT>/data:/data:ro
+      # Flag file written by the free-space guard (docker/file-host/disk-guard.sh).
+      - <FILES_ROOT>/guard:/guard:ro
       # fullchain.pem + privkey.pem of the wildcard certificate for <LAN_DOMAIN>.
       - <FILES_ROOT>/certs:/certs:ro
       - ./logs:/var/log/nginx
@@ -48,6 +57,52 @@ services:
           'CMD-SHELL',
           'wget -q -S --no-check-certificate -O /dev/null https://127.0.0.1:8443/dl/x 2>&1 | grep -q " 403"',
         ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  tusd:
+    # Official tus reference server (https://github.com/tus/tusd). Pinned minor; check the release notes before bumping.
+    image: tusproject/tusd:v2.8
+    restart: unless-stopped
+    env_file: .env
+    # uid of the SFTP account, so what tusd writes can be deleted over SFTP (reject, delete, sweep).
+    # gid 101 is the `nginx` group of the nginx image: tusd creates directories with mode 0754, which
+    # nginx's workers (user nginx, not owner, not "other") could not enter without that group.
+    user: '${FILES_UID}:101'
+    # No published port: the public path is nginx (/upload/), which also handles TLS and CORS-safe timeouts.
+    expose: ['8080']
+    command:
+      # tusd's small .info files go to a staging directory; the data itself is written straight to its final
+      # path (event-<id>/<uuid>) that the app chooses in the pre-create hook, so no 15 GB move/copy at the end.
+      - -upload-dir=/data/_tus
+      - -base-path=/upload/
+      - -behind-proxy
+      # Same limit as FILES_MAX_FILE_GB in the app. The app enforces it per ticket as well.
+      - -max-size=${FILES_MAX_FILE_BYTES}
+      # tusd cannot send an auth header on hook calls: nginx's internal relay on :8081 adds the secret.
+      - -hooks-http=http://file-host:8081/hook
+      - -hooks-enabled-events=pre-create,post-finish,post-terminate
+      - -hooks-http-retry=5
+      - -hooks-http-backoff=2s
+      # Without this, anyone who knows an upload id could download the (not yet approved) file from tusd.
+      - -disable-download
+      - -expose-metrics=false
+      # tusd answers CORS itself; only the app's own origin may upload from a browser.
+      - -cors-allow-origin=${FILES_TUS_CORS_ORIGIN}
+    volumes:
+      - <FILES_ROOT>/data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - file-host
+    healthcheck:
+      # A plain GET on the base path answers 405 while tusd is serving (downloads are disabled).
+      test: ['CMD-SHELL', 'wget -S -O /dev/null http://127.0.0.1:8080/upload/ 2>&1 | grep -q "405"']
       interval: 30s
       timeout: 5s
       retries: 3

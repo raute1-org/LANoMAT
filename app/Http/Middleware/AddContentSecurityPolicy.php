@@ -44,6 +44,7 @@ class AddContentSecurityPolicy
             reportPath: (string) config('security.csp.report_path', '/csp-report'),
             viteDevOrigin: $this->viteDevOrigin(),
             webVoiceConnectSource: ContentSecurityPolicy::webVoiceSource(config('webvoice.url')),
+            fileHostConnectSource: ContentSecurityPolicy::fileHostSource(config('files.store') === 'host' ? config('files.tus.endpoint') : null),
         );
 
         $response = $next($request);

@@ -16,3 +16,14 @@ export interface FileQuotaDto {
     usedBytes: number;
     capBytes: number;
 }
+
+/**
+ * How the Files page uploads (see FilePageController::uploadDto): `resumable`
+ * sends chunks straight to the file host with a ticket from `ticketUrl`,
+ * `form` is the legacy post through the app.
+ */
+export interface FileUploadConfigDto {
+    mode: 'resumable' | 'form';
+    maxFileBytes: number;
+    ticketUrl: string | null;
+}

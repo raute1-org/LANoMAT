@@ -9,6 +9,8 @@ use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Discord\Http\VoicePresenceController;
 use App\Modules\Events\Http\EventPageController;
 use App\Modules\Files\Http\FilePageController;
+use App\Modules\Files\Http\TusHookController;
+use App\Modules\Files\Http\UploadTicketController;
 use App\Modules\Friends\Http\FriendsController;
 use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
@@ -214,9 +216,18 @@ if ($modules->routable(Module::Files)) {
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/events/{event:slug}/files', [FilePageController::class, 'store'])->name('files.store');
+        // Resumable big-file upload, step 1: a single-use ticket for one file (see docs/infra/file-host.md).
+        Route::post('/events/{event:slug}/files/uploads', UploadTicketController::class)
+            ->middleware('throttle:file-upload-tickets')
+            ->name('files.uploads.ticket');
         Route::get('/files/{sharedFile}/download', [FilePageController::class, 'download'])->name('files.download');
         Route::delete('/files/{sharedFile}', [FilePageController::class, 'destroy'])->name('files.destroy');
     });
+
+    // tusd's HTTP hooks, relayed by the file host's nginx (shared secret header, no session).
+    Route::post('internal/files/tusd-hook', TusHookController::class)
+        ->middleware('files.tusd')
+        ->name('files.tusd.hook');
 }
 
 if ($modules->routable(Module::Presence)) {

@@ -40,6 +40,7 @@ final class ContentSecurityPolicy
         private readonly string $reportPath = '/csp-report',
         private readonly ?string $viteDevOrigin = null,
         private readonly ?string $webVoiceConnectSource = null,
+        private readonly ?string $fileHostConnectSource = null,
     ) {}
 
     public function header(): string
@@ -59,6 +60,10 @@ final class ContentSecurityPolicy
 
         if ($this->webVoiceConnectSource !== null) {
             $connect[] = $this->webVoiceConnectSource;
+        }
+
+        if ($this->fileHostConnectSource !== null) {
+            $connect[] = $this->fileHostConnectSource;
         }
 
         if ($this->viteDevOrigin !== null) {
@@ -107,6 +112,25 @@ final class ContentSecurityPolicy
         $parts = parse_url($url);
 
         if (! is_array($parts) || ! isset($parts['host']) || ! in_array($parts['scheme'] ?? '', ['wss', 'ws'], true)) {
+            return null;
+        }
+
+        return $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+    }
+
+    /**
+     * Origin of the file host's tusd endpoint (`https://files.example.org:8443`) for connect-src: the
+     * browser sends resumable uploads there directly. Only an http(s) URL yields a source.
+     */
+    public static function fileHostSource(mixed $url): ?string
+    {
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ! isset($parts['host']) || ! in_array($parts['scheme'] ?? '', ['https', 'http'], true)) {
             return null;
         }
 
