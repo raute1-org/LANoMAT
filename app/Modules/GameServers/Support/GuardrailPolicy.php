@@ -82,6 +82,7 @@ final class GuardrailPolicy
 
     /**
      * @param  array<string, mixed>  $config
+     * @param  bool  $countAgainstCaps  False for permanent servers: only the per-instance RAM/slot caps apply.
      * @param  int|null  $excludingLinkId  Exclude this {@see ServerLink} id
      *                                     from the global running-server
      *                                     count — for the automatic path,
@@ -91,7 +92,7 @@ final class GuardrailPolicy
      *
      * @throws GameServerException
      */
-    public static function assertWithinLimits(?Game $game, array $config, ?User $requester, ?int $excludingLinkId = null): void
+    public static function assertWithinLimits(?Game $game, array $config, ?User $requester, ?int $excludingLinkId = null, bool $countAgainstCaps = true): void
     {
         $caps = config('services.pelican');
 
@@ -117,10 +118,11 @@ final class GuardrailPolicy
         // mirroring how an absent cap is treated elsewhere in this class.
         $maxRunningServers = $caps['max_running_servers'];
 
-        if ($maxRunningServers !== null) {
+        if ($countAgainstCaps && $maxRunningServers !== null) {
             $maxRunningServers = (int) $maxRunningServers;
 
-            $runningQuery = ServerLink::query()->whereIn('status', self::RUNNING_STATUSES);
+            // Permanent servers live on their own budget: they never use up the LAN's running cap.
+            $runningQuery = ServerLink::query()->notPermanent()->whereIn('status', self::RUNNING_STATUSES);
 
             if ($excludingLinkId !== null) {
                 $runningQuery->whereKeyNot($excludingLinkId);
@@ -131,13 +133,14 @@ final class GuardrailPolicy
             }
         }
 
-        if ($requester === null) {
+        if ($requester === null || ! $countAgainstCaps) {
             return;
         }
 
         $maxServersPerUser = (int) $caps['max_servers_per_user'];
 
         $runningCount = ServerLink::query()
+            ->notPermanent()
             ->where('requested_by', $requester->id)
             ->whereIn('status', self::RUNNING_STATUSES)
             ->count();

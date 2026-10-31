@@ -20,6 +20,8 @@ if ($modules->enabled(Module::Discord)) {
 Schedule::command('lanomat:tournament-tick')->everyMinute();
 if ($modules->enabled(Module::GameServers)) {
     Schedule::command('gameservers:refresh-queries')->everyMinute();
+    // Permanent servers (any source) are probed by their own command, never by the match/event one.
+    Schedule::command('gameservers:refresh-permanent')->everyMinute()->withoutOverlapping();
 }
 if ($modules->enabled(Module::Lfg)) {
     Schedule::command('lanomat:prune-lfg')->everyFiveMinutes();

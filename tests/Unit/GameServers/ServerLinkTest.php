@@ -81,6 +81,7 @@ it('has the placement fields fillable but not pelican_server_id, join_info, stat
         'event_id',
         'game_id',
         'title',
+        'description',
         'preset_key',
     ]);
 });

@@ -28,16 +28,18 @@ final class ProvisionGameServer
 
     /**
      * @param  array<string, mixed>  $config  The effective config (`ServerConfig::toArray()` shape).
+     * @param  string|null  $nodeId  The node to place the server on; null = `services.pelican.default_node_id`.
+     * @param  bool  $permanent  Permanent servers do not count against the running/per-user caps (per-instance RAM/slot caps still apply).
      *
      * @throws GameServerException {@see GameServerException::noFreeAllocation()} when the port pool is exhausted
      */
-    public function handle(Game $game, array $config, string $name, ?ServerPreset $preset = null, ?string $displayName = null, ?User $requester = null, ?int $excludingLinkId = null): PelicanServer
+    public function handle(Game $game, array $config, string $name, ?ServerPreset $preset = null, ?string $displayName = null, ?User $requester = null, ?int $excludingLinkId = null, ?string $nodeId = null, bool $permanent = false): PelicanServer
     {
-        GuardrailPolicy::assertWithinLimits($game, $config, $requester, $excludingLinkId);
+        GuardrailPolicy::assertWithinLimits($game, $config, $requester, $excludingLinkId, countAgainstCaps: ! $permanent);
 
         $eggId = (new EggResolver($this->client))->resolve($game, $preset);
 
-        $nodeId = config('services.pelican.default_node_id');
+        $nodeId ??= config('services.pelican.default_node_id');
 
         if ($nodeId === null || $nodeId === '') {
             throw GameServerException::noNodeConfigured();
@@ -54,6 +56,7 @@ final class ProvisionGameServer
             allocations: $allocations,
             displayName: $displayName,
             requires: $preset !== null ? self::secretRequirements($preset) : [],
+            nodeId: (string) $nodeId,
         );
 
         return $this->client->createServer($spec);

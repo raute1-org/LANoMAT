@@ -15,7 +15,8 @@ use Illuminate\Console\Command;
  * every minute): a Ready server that answers gets updated info, a
  * NotResponding one that answers again recovers to Ready, and a Ready one that
  * has been silent for more than three minutes (since its last answer) is marked
- * NotResponding. A single missed query never flips the status.
+ * NotResponding. A single missed query never flips the status. Permanent servers are
+ * not handled here (see `RefreshPermanentServersCommand`).
  */
 class RefreshQueriesCommand extends Command
 {
@@ -28,6 +29,7 @@ class RefreshQueriesCommand extends Command
     public function handle(ServerQuery $query): int
     {
         $links = ServerLink::query()
+            ->notPermanent()
             ->whereIn('status', [ServerLinkStatus::Ready, ServerLinkStatus::NotResponding])
             ->whereNotNull('readiness')
             ->get()

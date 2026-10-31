@@ -14,6 +14,7 @@ use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
+use App\Modules\GameServers\Http\PermanentServerPageController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
 use App\Modules\Infoscreen\Http\OrgaPingController;
@@ -188,6 +189,8 @@ if ($modules->routable(Module::GameServers)) {
     // Ready game servers only (see ServerListProjection).
     Route::middleware(['auth'])->group(function () {
         Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+        // Permanent servers: all year, independent of events, every logged-in user.
+        Route::get('/servers', [PermanentServerPageController::class, 'index'])->name('servers.permanent');
     });
 
     // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs
