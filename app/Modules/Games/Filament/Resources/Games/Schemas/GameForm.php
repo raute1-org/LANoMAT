@@ -2,12 +2,21 @@
 
 namespace App\Modules\Games\Filament\Resources\Games\Schemas;
 
+use App\Modules\Games\Contracts\EggCatalog;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use Closure;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
@@ -22,6 +31,223 @@ class GameForm
     public static function gameServersEnabled(): bool
     {
         return app(Modules::class)->enabled(Module::GameServers);
+    }
+
+    /**
+     * The panel's eggs for the preset egg select, or null when the catalog is
+     * not available (the form then shows a plain uuid text input).
+     *
+     * @return array<string, string>|null
+     */
+    private static function eggOptions(): ?array
+    {
+        return app(EggCatalog::class)->options();
+    }
+
+    /**
+     * One server preset: egg reference, limits, environment (with a per-key
+     * "orga may override" flag), extra ports, readiness check, connect template
+     * and content bundle. Secrets (Steam Web API key, GSLT) are deliberately not
+     * fields: they come from the environment config and are only declared here as
+     * a requirement.
+     *
+     * @return list<Component>
+     */
+    private static function presetSchema(): array
+    {
+        $maxRam = fn (): int => (int) config('services.pelican.max_ram_mb');
+
+        return [
+            TextInput::make('key')
+                ->label(__('games.fields.preset_key'))
+                ->helperText(__('games.fields.preset_key_help'))
+                ->required()
+                ->alphaDash()
+                ->maxLength(255),
+            TextInput::make('name')
+                ->label(__('games.fields.preset_name'))
+                ->required()
+                ->maxLength(255),
+            Textarea::make('description')
+                ->label(__('games.fields.preset_description'))
+                ->helperText(__('games.fields.preset_description_help'))
+                ->rows(2)
+                ->maxLength(1000)
+                ->columnSpanFull(),
+            Toggle::make('enabled')
+                ->label(__('games.fields.preset_enabled'))
+                ->helperText(__('games.fields.preset_enabled_help'))
+                ->default(true),
+            CheckboxList::make('requires')
+                ->label(__('games.fields.preset_requires'))
+                ->helperText(__('games.fields.preset_requires_help'))
+                ->options([
+                    'authkey' => __('games.fields.requires_authkey'),
+                    'gslt' => __('games.fields.requires_gslt'),
+                    'content' => __('games.fields.requires_content'),
+                ]),
+
+            Fieldset::make(__('games.fields.group_egg'))
+                ->schema([
+                    Select::make('egg_uuid')
+                        ->label(__('games.fields.egg_uuid'))
+                        ->helperText(__('games.fields.egg_uuid_select_help'))
+                        ->options(fn (): array => self::eggOptions() ?? [])
+                        ->searchable()
+                        ->visible(fn (): bool => self::eggOptions() !== null),
+                    TextInput::make('egg_uuid_manual')
+                        ->label(__('games.fields.egg_uuid'))
+                        ->helperText(__('games.fields.egg_uuid_text_help'))
+                        ->maxLength(64)
+                        ->visible(fn (): bool => self::eggOptions() === null),
+                    TextInput::make('egg_name')
+                        ->label(__('games.fields.egg_name'))
+                        ->helperText(__('games.fields.egg_name_help'))
+                        ->maxLength(255),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
+
+            Fieldset::make(__('games.fields.group_resources'))
+                ->schema([
+                    TextInput::make('max_players')
+                        ->label(__('games.fields.max_players'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1),
+                    TextInput::make('map')
+                        ->label(__('games.fields.map'))
+                        ->maxLength(255),
+                    TextInput::make('password')
+                        ->label(__('games.fields.password'))
+                        ->maxLength(255),
+                    TextInput::make('memory_mb')
+                        ->label(__('games.fields.memory_mb'))
+                        ->helperText(fn (): string => __('games.fields.memory_mb_help', ['max' => $maxRam()]))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(128)
+                        ->suffix('MB')
+                        ->rules([
+                            fn (): Closure => function (string $attribute, mixed $value, Closure $fail) use ($maxRam): void {
+                                if (is_numeric($value) && (int) $value > $maxRam()) {
+                                    $fail(__('gameservers.errors.ram_cap_exceeded').' ('.__('games.fields.memory_mb_max', ['max' => $maxRam()]).')');
+                                }
+                            },
+                        ]),
+                    TextInput::make('disk_mb')
+                        ->label(__('games.fields.disk_mb'))
+                        ->helperText(__('games.fields.disk_mb_help'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(256)
+                        ->suffix('MB'),
+                    TextInput::make('cpu_percent')
+                        ->label(__('games.fields.cpu_percent'))
+                        ->helperText(__('games.fields.cpu_percent_help'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(0)
+                        ->suffix('%'),
+                ])
+                ->columns(3)
+                ->columnSpanFull(),
+
+            Repeater::make('environment')
+                ->label(__('games.fields.environment'))
+                ->helperText(__('games.fields.environment_help'))
+                ->schema([
+                    TextInput::make('key')
+                        ->label(__('games.fields.env_key'))
+                        ->required()
+                        ->regex('/^[A-Z][A-Z0-9_]*$/')
+                        ->validationMessages(['regex' => __('games.fields.env_key_invalid')])
+                        ->maxLength(255),
+                    TextInput::make('value')
+                        ->label(__('games.fields.env_value'))
+                        ->maxLength(1000),
+                    Toggle::make('overridable')
+                        ->label(__('games.fields.env_overridable'))
+                        ->helperText(__('games.fields.env_overridable_help'))
+                        ->inline(false),
+                ])
+                ->columns(3)
+                ->addActionLabel(__('games.fields.env_add'))
+                ->reorderable(false)
+                ->defaultItems(0)
+                ->columnSpanFull(),
+
+            Fieldset::make(__('games.fields.group_network'))
+                ->schema([
+                    TagsInput::make('extra_ports')
+                        ->label(__('games.fields.extra_ports'))
+                        ->helperText(__('games.fields.extra_ports_help'))
+                        ->placeholder('TV_PORT'),
+                    Select::make('readiness_type')
+                        ->label(__('games.fields.readiness_type'))
+                        ->helperText(__('games.fields.readiness_type_help'))
+                        ->options([
+                            'none' => __('games.fields.readiness_none'),
+                            'a2s' => __('games.fields.readiness_a2s'),
+                        ])
+                        ->default('none')
+                        ->live()
+                        ->selectablePlaceholder(false),
+                    TextInput::make('readiness_game')
+                        ->label(__('games.fields.readiness_game'))
+                        ->helperText(__('games.fields.readiness_game_help'))
+                        ->maxLength(255)
+                        ->visible(fn (Get $get): bool => $get('readiness_type') === 'a2s'),
+                    TextInput::make('readiness_folder')
+                        ->label(__('games.fields.readiness_folder'))
+                        ->helperText(__('games.fields.readiness_folder_help'))
+                        ->maxLength(255)
+                        ->visible(fn (Get $get): bool => $get('readiness_type') === 'a2s'),
+                    TextInput::make('readiness_timeout')
+                        ->label(__('games.fields.readiness_timeout'))
+                        ->helperText(__('games.fields.readiness_timeout_help'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(30)
+                        ->maxValue(1800)
+                        ->suffix('s')
+                        ->visible(fn (Get $get): bool => $get('readiness_type') === 'a2s'),
+                    TextInput::make('connect_template')
+                        ->label(__('games.fields.connect_template'))
+                        ->helperText(__('games.fields.connect_template_help'))
+                        ->maxLength(255)
+                        ->placeholder('steam://connect/{ip}:{port}')
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
+
+            Fieldset::make(__('games.fields.group_content'))
+                ->schema([
+                    Select::make('content_type')
+                        ->label(__('games.fields.content_type'))
+                        ->options([
+                            'none' => __('games.fields.content_none'),
+                            'workshop' => __('games.fields.content_workshop'),
+                            'upload' => __('games.fields.content_upload'),
+                        ])
+                        ->default('none')
+                        ->live()
+                        ->selectablePlaceholder(false),
+                    TextInput::make('content_ref')
+                        ->label(fn (Get $get): string => $get('content_type') === 'upload' ? __('games.fields.content_ref_upload') : __('games.fields.content_ref_workshop'))
+                        ->helperText(__('games.fields.content_ref_help'))
+                        ->maxLength(500)
+                        ->visible(fn (Get $get): bool => in_array($get('content_type'), ['workshop', 'upload'], true)),
+                    TextInput::make('install_marker')
+                        ->label(__('games.fields.install_marker'))
+                        ->helperText(__('games.fields.install_marker_help'))
+                        ->maxLength(255)
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
+        ];
     }
 
     public static function configure(Schema $schema): Schema
@@ -120,32 +346,15 @@ class GameForm
                 // FoodOrderForm.
                 Repeater::make('server_presets')
                     ->label(__('games.fields.server_presets'))
-                    ->schema([
-                        TextInput::make('key')
-                            ->label(__('games.fields.preset_key'))
-                            ->required()
-                            ->maxLength(255),
-                        TextInput::make('name')
-                            ->label(__('games.fields.preset_name'))
-                            ->required()
-                            ->maxLength(255),
-                        TextInput::make('max_players')
-                            ->label(__('games.fields.max_players'))
-                            ->numeric()
-                            ->integer()
-                            ->minValue(1),
-                        TextInput::make('map')
-                            ->label(__('games.fields.map'))
-                            ->maxLength(255),
-                        TextInput::make('password')
-                            ->label(__('games.fields.password'))
-                            ->maxLength(255),
-                    ])
-                    ->columns(3)
+                    ->helperText(__('games.fields.server_presets_help'))
+                    ->schema(self::presetSchema())
+                    ->columns(2)
                     ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
                     ->addActionLabel(__('games.fields.preset_add'))
+                    ->collapsible()
                     ->reorderable(false)
                     ->defaultItems(0)
+                    ->columnSpanFull()
                     ->visible(self::gameServersEnabled(...)),
 
                 // Typed install_hint fields ("So kommst du ran", roadmap

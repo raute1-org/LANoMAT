@@ -446,12 +446,17 @@ server uses it.
 
 ## What LANoMAT automation would need
 
+> Status: the egg fork, preset model, port pool, install verifier and A2S readiness
+> described below are implemented, see [../gameservers-pelican.md](../gameservers-pelican.md)
+> ("Presets", "Eggs", "Port pool", "Install verification and readiness"). Still open:
+> the file bundle applier and the post-update patch step.
+
 Maps to: `GameServers\Contracts\PelicanClient` (create, get, list, power,
 resources, delete, nodes, allocations, eggs; see
 [../gameservers-pelican.md](../gameservers-pelican.md)), `Hosts\Contracts\RemoteExecutor`
 (host-level work such as the `gameinfo.gi` patch or log reads), the `Lancache`
 module (the venue's cache is the reason container DNS matters), and the existing
-`Games` module's server config. Nothing below is implemented yet.
+`Games` module's server config. The table lists what was needed; see the status note above for what exists.
 
 | Need                           | Becomes                                                                                                                                 |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |

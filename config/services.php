@@ -134,6 +134,25 @@ return [
         'max_running_servers' => env('PELICAN_MAX_RUNNING_SERVERS') !== null
             ? (int) env('PELICAN_MAX_RUNNING_SERVERS')
             : null,
+        // Ports LANoMAT may hand to game servers: a comma separated list of ports and
+        // `from-to` ranges. Servers only ever get a free panel allocation inside it.
+        'port_pool' => env('PELICAN_PORT_POOL', '27015-27050'),
+        // Optional: create missing pool allocations through the Application API when
+        // the pool runs dry. Needs a key with write scope on allocations (a plain key
+        // gets 403 and provisioning then reports "no free allocation"). Never required.
+        'create_allocations' => (bool) env('PELICAN_CREATE_ALLOCATIONS', false),
+        // Address for created allocations; defaults to the address of the node's
+        // existing allocations.
+        'allocation_ip' => env('PELICAN_ALLOCATION_IP'),
+        // Secrets handed to presets as hidden egg variables, never stored in a preset:
+        // Steam Web API key (-authkey, Workshop collections) and one Game Server Login
+        // Token (a GSLT is valid for one server at a time).
+        'steam_web_api_key' => env('PELICAN_STEAM_WEB_API_KEY'),
+        'gslt' => env('PELICAN_GSLT'),
+        // Seconds to wait for a started server to answer its A2S query (presets can override).
+        'readiness_timeout' => (int) env('PELICAN_READINESS_TIMEOUT', 180),
+        // Seconds a preset server may take to install (and reinstall once) before it counts as failed.
+        'install_timeout' => (int) env('PELICAN_INSTALL_TIMEOUT', 900),
     ],
 
     'hosts' => [

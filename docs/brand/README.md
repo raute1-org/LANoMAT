@@ -36,8 +36,8 @@ The tables in `visual.md` copy values at time of writing; if they disagree with 
 | Voice (German UI, Discord, notifications) | ready, with two noted inconsistencies |
 | Surfaces: web app, beamer, overlay | ready |
 | Surfaces: admin panel (Filament), emails | partial |
-| Logo | GAP: mark is the stock Laravel starter-kit glyph, no LANoMAT-specific logo, no usage rules |
-| Favicon / apple-touch icon | GAP: SVG recoloured amber, ICO + PNG are stock Laravel red |
+| Logo | ready: node-L mark (five nodes, amber tip) with geometry and usage rules in [`docs/logo.md`](../logo.md); GAP: no standalone wordmark/lockup file |
+| Favicon / apple-touch icon | ready: `favicon.svg`, `favicon.ico` and `apple-touch-icon.png` all carry the new mark |
 | OG / social image, print | GAP: nothing exists |
 
 Full list of open questions: [sources.md](sources.md#open-gaps-and-questions-for-the-owner).

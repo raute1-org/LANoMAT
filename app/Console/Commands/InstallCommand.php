@@ -20,7 +20,8 @@ class InstallCommand extends Command
 
         if (is_string($discordId) && $discordId !== '') {
             $user = User::firstOrNew(['discord_id' => $discordId]);
-            $user->name ??= (string) $this->option('admin-name');
+            $adminName = $this->option('admin-name');
+            $user->name ??= is_string($adminName) ? $adminName : '';
             $user->role = Role::Admin;
             $user->save();
 

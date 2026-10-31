@@ -39,6 +39,16 @@ function onError() {
     hasError.value = true;
 }
 
+// Player counts and startup state change without any navigation: reload only the
+// server list now and then while the tab is visible (partial reload, no flash).
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+
+function refreshServers() {
+    if (document.visibilityState === 'visible' && !isNavigating.value) {
+        router.reload({ only: ['servers'] });
+    }
+}
+
 let removeStart: (() => void) | undefined;
 let removeFinish: (() => void) | undefined;
 let removeError: (() => void) | undefined;
@@ -47,12 +57,14 @@ onMounted(() => {
     removeStart = router.on('start', onStart);
     removeFinish = router.on('finish', onFinish);
     removeError = router.on('error', onError);
+    refreshTimer = setInterval(refreshServers, 20000);
 });
 
 onUnmounted(() => {
     removeStart?.();
     removeFinish?.();
     removeError?.();
+    clearInterval(refreshTimer);
 });
 
 const liveVariant: Record<GameServerDto['status'], 'ok' | 'warn' | 'down'> = {
@@ -61,6 +73,8 @@ const liveVariant: Record<GameServerDto['status'], 'ok' | 'warn' | 'down'> = {
     pending: 'warn',
     failed: 'down',
     stopped: 'down',
+    not_responding: 'warn',
+    install_failed: 'down',
 };
 
 function statusLabel(status: GameServerDto['status']): string {
@@ -125,7 +139,7 @@ async function copyHint(serverId: number, text: string) {
                     <CardHeader>
                         <div class="flex items-center justify-between gap-4">
                             <CardTitle>{{
-                                server.game ?? labels.title
+                                server.title ?? server.game ?? labels.title
                             }}</CardTitle>
                             <LiveIndicator
                                 :variant="liveVariant[server.status]"
@@ -133,8 +147,13 @@ async function copyHint(serverId: number, text: string) {
                                 :label="statusLabel(server.status)"
                             />
                         </div>
-                        <CardDescription v-if="server.matchLabel">
-                            {{ server.matchLabel }}
+                        <CardDescription
+                            v-if="
+                                server.matchLabel ||
+                                (server.title && server.game)
+                            "
+                        >
+                            {{ server.matchLabel ?? server.game }}
                         </CardDescription>
                     </CardHeader>
 
@@ -156,6 +175,24 @@ async function copyHint(serverId: number, text: string) {
                                 </dt>
                                 <dd class="font-mono tabular-nums">
                                     {{ server.port }}
+                                </dd>
+                            </div>
+                            <div v-if="server.query">
+                                <dt class="text-muted-foreground">
+                                    {{ labels.players_label }}
+                                </dt>
+                                <dd class="font-mono tabular-nums">
+                                    {{ server.query.players }}/{{
+                                        server.query.maxPlayers
+                                    }}
+                                </dd>
+                            </div>
+                            <div v-if="server.query?.map">
+                                <dt class="text-muted-foreground">
+                                    {{ labels.map_label }}
+                                </dt>
+                                <dd class="font-mono">
+                                    {{ server.query.map }}
                                 </dd>
                             </div>
                             <div
@@ -191,15 +228,37 @@ async function copyHint(serverId: number, text: string) {
                             </div>
                         </dl>
 
+                        <p
+                            v-if="server.status === 'not_responding'"
+                            class="rounded-md border border-warn/40 bg-warn/10 p-3 text-sm text-foreground"
+                        >
+                            {{ labels.not_responding_hint }}
+                        </p>
+                        <p
+                            v-else-if="server.status === 'provisioning'"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ labels.starting_hint }}
+                        </p>
+
                         <div
                             v-if="server.connectString"
                             class="flex flex-wrap items-center gap-2"
                         >
-                            <Button as-child size="sm">
+                            <Button
+                                v-if="server.connectIsLink"
+                                as-child
+                                size="sm"
+                            >
                                 <a :href="server.connectString">{{
                                     labels.connect
                                 }}</a>
                             </Button>
+                            <code
+                                v-else
+                                class="rounded-md bg-muted px-2 py-1 font-mono text-sm"
+                                >{{ server.connectString }}</code
+                            >
                             <Button
                                 type="button"
                                 size="sm"

@@ -205,7 +205,7 @@ Restore, in short:
 2. Database: `gunzip -c db-<stamp>.sql.gz | docker compose --profile prod exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` into an empty database (drop and recreate it first).
 3. Uploads: `docker run --rm -v lanomat_app_storage:/data -v /var/backups/lanomat:/backup:ro alpine tar xzf /backup/storage-<stamp>.tgz -C /data`
 4. Start the services again and run `php artisan lanomat:preflight`.
-5. Test a restore on a scratch host before you need it.
+5. Test a restore before you need it: `scripts/ops/restore-drill.sh` restores the newest backup into a throwaway Postgres on the server itself (read-only against production, no data leaves the host) and verifies it. The full emergency procedure (rollback, DB restore, uploads, server loss, what is not backed up, `APP_KEY` warning) is in [`docs/ops/restore-runbook.md`](ops/restore-runbook.md).
 
 The backups must be copied off the host regularly. A backup that stays on the
 same disk does not count. The repo does not set up an off-host target; choose

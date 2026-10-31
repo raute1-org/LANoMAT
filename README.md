@@ -18,6 +18,19 @@ for the full design rationale.
 - Node 22
 - Docker (for the local Postgres/Redis stack)
 
+Environment variables added since M12 (all documented in `.env.example`; see
+[`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) for production values):
+
+| Variable | Purpose |
+|---|---|
+| `DISCORD_LOGIN_GUILD_ID` | optional: only members of this Discord server may log in (admins exempt, fail-closed, no bot needed) |
+| `APP_DISPLAY_TIMEZONE` | display/input time zone (default `Europe/Berlin`); storage stays UTC |
+| `CACHE_LIMITER_STORE` | cache store for rate limiters (`database`, so a Redis outage does not 500 requests) |
+| `CSP_MODE` | `report-only` (default), `enforce` or `off` for the Content-Security-Policy |
+| `BACKUP_MARKER_PATH` | marker file written by `scripts/ops/backup.sh`, read by the Preflight backup check |
+| `PELICAN_PANEL_URL`, `PELICAN_APPLICATION_TOKEN`, `PELICAN_CLIENT_TOKEN`, `PELICAN_OWNER_USER_ID`, `PELICAN_DEFAULT_NODE_ID` | Pelican API (two token types, non-admin owner user; `PELICAN_URL`/`PELICAN_NODE_ID` still accepted as aliases); see [`docs/gameservers-pelican.md`](docs/gameservers-pelican.md) |
+| `STEAM_API_KEY`, `STEAM_REDIRECT_URI`, `STEAM_ALLOWED_HOSTS`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_REDIRECT_URI` | optional account linking (M9) |
+
 ## Setup
 
 1. **Start the dev stack** (Postgres 16 + Redis 7):
@@ -324,8 +337,9 @@ Committed output (captured against the local production stack —
 
 ## Project state
 
-**All roadmap phases (M0–M12) are complete and tagged**, plus the cross-cutting
-Friends system:
+**All roadmap phases (M0–M13) are complete and tagged** (`m0`–`m13`, plus
+`m10-presence` and `friends`), plus the cross-cutting Friends system. Everything
+below the tags is merged to `main` untagged:
 
 - **Self check-in & walk-ins** — on-site QR (`/checkin/{token}`, rotatable in the admin panel) lets participants check themselves in; registration stays open while the event is live as long as spots remain (see `docs/self-checkin.md`).
 - **Arrival planning** — participants optionally state arrival and departure (day + time window) when registering or later; orga get an "Anreise-Übersicht" (expected arrivals, people on site over time, peak, actual vs expected) on the event in the admin panel (see `docs/arrival-planning.md`).
@@ -377,10 +391,28 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 **Live deployment** of `lan.raute1.org` (core profile): runbook in
 [`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) (DNS, `.env`, start command, first admin, test checklist, backups).
 
-**What remains** is real-infra verification (working through the acceptance
-checklist against real Discord/Pelican/Mumble/TeamSpeak/Music-Assistant/hosts) and
-a small robustness backlog (backup + rehearsed restore, offline login-QR, a release
-watcher). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
+**Since the roadmap phases** (production deployment and QA, PRs #17–#52): first
+live deployment on the `core` profile, Discord guild login gate, login required
+for event pages, unified app shell with layout rules and a shell-parity guard,
+Europe/Berlin display time zone, German error pages, new logo mark and brand docs,
+tournament status "Angekündigt" with admin lifecycle actions and withdraw/correct
+for reports, a four-round QA programme (decisions in [`docs/qa/rulings.md`](docs/qa/rulings.md)),
+a nightly backup script with a Preflight freshness check, security headers plus a
+report-only CSP, a public-repository safety guard (gitleaks + `check-public-safe.sh`),
+and a `PelicanClient` rebuilt against the real Pelican API (`gameservers:pelican-check`).
+Public-safe infrastructure runbooks live in [`docs/infra/`](docs/infra/README.md).
+The CI workflow is currently disabled manually; the gates run locally, and a sharded
+CI is prepared in draft PR #47.
+
+**In progress, not on `main`:** game server presets with a Garry's Mod egg
+(`feat/gameserver-presets-egg`) and a `Provisioning` module
+(`feat/provisioning-core`) exist only as local branches; there is no PR yet.
+
+**What remains** is real-infra verification before the LAN: the "PRE-LAN-CHECKLISTE"
+in the roadmap (real Pelican/Wings and LanCache on the venue server, Mumble/TeamSpeak/
+Music Assistant, Discord guild gate with a real non-member, Steam/Twitch linking,
+camera scan on real phones, beamer and OBS overlays, restore drill, load test, CSP
+`enforce` decision) and a small backlog (offline login-QR, a release watcher). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
 [`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
 for the full phase roadmap.
 

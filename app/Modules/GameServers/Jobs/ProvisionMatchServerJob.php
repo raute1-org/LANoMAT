@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Jobs;
 
 use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Actions\ProvisionGameServer;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Exceptions\GameServerException;
@@ -126,25 +127,17 @@ class ProvisionMatchServerJob implements ShouldQueue
         $link = $claim['link'];
 
         try {
-            // Enforced here, before the external call: a guardrail breach
-            // must mean no server is ever created (see this job's docblock
-            // and GuardrailPolicy's). No interactive requester exists for
-            // this automatic path, so the per-user cap is skipped (null) —
-            // but the RAM/slot caps AND the global running-server cap still
-            // apply unconditionally, which is what gives this path teeth.
-            // The just-claimed $link (already saved as Provisioning above)
-            // is excluded from the global count — see GuardrailPolicy's
-            // docblock for the exact "at most N besides this one" semantics.
-            GuardrailPolicy::assertWithinLimits($claim['game'], $claim['config'], requester: null, excludingLinkId: $link->id);
-
-            $spec = (new ServerSpecBuilder($client))->build(
+            // Guardrails (a breach means no server is ever created; no interactive
+            // requester here, so only the RAM/slot caps and the global running-server
+            // cap apply, the just-claimed $link excluded from its own count — see
+            // GuardrailPolicy's docblock), the egg, one free port-pool allocation and
+            // the server itself all live in ProvisionGameServer.
+            $server = (new ProvisionGameServer($client))->handle(
                 $claim['game'],
-                $claim['eggId'],
                 $claim['config'],
                 "lanomat-{$claim['game']->slug}-match-{$this->matchId}",
+                excludingLinkId: $link->id,
             );
-
-            $server = $client->createServer($spec);
         } catch (Throwable $e) {
             $link->status = ServerLinkStatus::Failed;
             $link->save();
