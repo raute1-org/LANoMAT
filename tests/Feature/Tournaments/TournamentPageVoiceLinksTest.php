@@ -42,6 +42,7 @@ it('lists every provider present in voice_channels, marking the config default a
     $match = GameMatch::where('tournament_id', $tournament->id)->where('round', 1)->orderBy('position')->first();
     $entry1 = TournamentEntry::find($match->entry1_id);
     $viewer = User::find($entry1->user_id);
+    $viewer->update(['name' => 'Max Mustermann']);
 
     $match->update(['voice_channels' => [
         'mumble' => ['entry1_channel_id' => 101, 'entry2_channel_id' => 102],
@@ -56,7 +57,7 @@ it('lists every provider present in voice_channels, marking the config default a
             ->has('myMatchVoiceLinks', 2)
             ->where('myMatchVoiceLinks.0.provider', 'mumble')
             ->where('myMatchVoiceLinks.0.label', 'Mumble')
-            ->where('myMatchVoiceLinks.0.url', 'mumble://voice.example.test:64738/'.$entry1->display_name)
+            ->where('myMatchVoiceLinks.0.url', 'mumble://Max%20Mustermann@voice.example.test:64738/'.$entry1->display_name)
             ->where('myMatchVoiceLinks.0.isDefault', true)
             // Occupancy (issue #13): the fake's channel 101 was never
             // seeded via setOccupants(), so it reports 0 — proving the
@@ -65,7 +66,7 @@ it('lists every provider present in voice_channels, marking the config default a
             ->where('myMatchVoiceLinks.0.occupants', 0)
             ->where('myMatchVoiceLinks.1.provider', 'teamspeak')
             ->where('myMatchVoiceLinks.1.label', 'TeamSpeak')
-            ->where('myMatchVoiceLinks.1.url', 'ts3server://ts.example.test?port=9987&channel='.rawurlencode($entry1->display_name))
+            ->where('myMatchVoiceLinks.1.url', 'ts3server://ts.example.test?port=9987&nickname=Max%20Mustermann&channel='.rawurlencode($entry1->display_name))
             ->where('myMatchVoiceLinks.1.isDefault', false)
             ->where('myMatchVoiceLinks.1.occupants', 0)
         );

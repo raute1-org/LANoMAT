@@ -16,11 +16,16 @@ use App\Modules\Voice\Domain\VoiceProvider;
  */
 class VoiceJoinLink
 {
-    public static function for(VoiceProvider $provider, string $channelName): string
+    /**
+     * `$username` is the name the person should join with (the name LANoMAT knows from
+     * Discord), so they do not have to type one. Leave it out for a link that is shared with
+     * several people, like the one in a Discord message.
+     */
+    public static function for(VoiceProvider $provider, string $channelName, ?string $username = null): string
     {
         return match ($provider) {
-            VoiceProvider::Mumble => self::mumbleLink($channelName),
-            VoiceProvider::TeamSpeak => self::teamSpeakLink($channelName),
+            VoiceProvider::Mumble => self::mumbleLink($channelName, $username),
+            VoiceProvider::TeamSpeak => self::teamSpeakLink($channelName, $username),
         };
     }
 
@@ -29,19 +34,43 @@ class VoiceJoinLink
         return $teamChoice ?? VoiceProvider::from((string) config('services.voice.default_provider'));
     }
 
-    private static function mumbleLink(string $channelName): string
+    private static function mumbleLink(string $channelName, ?string $username): string
     {
         $host = (string) config('services.mumble.host');
         $port = (string) config('services.mumble.port');
+        $name = self::cleanName($username, 1);
 
-        return "mumble://{$host}:{$port}/{$channelName}";
+        // mumble://[username@]host[:port]/channel — the client fills the name in itself.
+        $auth = $name === null ? '' : rawurlencode($name).'@';
+
+        return "mumble://{$auth}{$host}:{$port}/{$channelName}";
     }
 
-    private static function teamSpeakLink(string $channelName): string
+    private static function teamSpeakLink(string $channelName, ?string $username): string
     {
         $host = (string) config('services.teamspeak.host');
         $port = (string) config('services.teamspeak.port');
+        $name = self::cleanName($username, 3); // TeamSpeak nicknames need at least 3 characters
 
-        return "ts3server://{$host}?port={$port}&channel=".rawurlencode($channelName);
+        $nickname = $name === null ? '' : '&nickname='.rawurlencode($name);
+
+        return "ts3server://{$host}?port={$port}{$nickname}&channel=".rawurlencode($channelName);
+    }
+
+    /**
+     * A name the voice servers accept: letters (umlauts included), digits, spaces and a few
+     * separators, cut to 30 characters (TeamSpeak's limit). Anything else, such as markup or
+     * URL characters, is dropped. Null when nothing usable is left.
+     */
+    private static function cleanName(?string $username, int $minLength): ?string
+    {
+        if ($username === null) {
+            return null;
+        }
+
+        $name = trim((string) preg_replace('/[^\p{L}\p{N} _.@|()\[\]-]/u', '', $username));
+        $name = trim(mb_substr($name, 0, 30));
+
+        return mb_strlen($name) >= $minLength ? $name : null;
     }
 }
