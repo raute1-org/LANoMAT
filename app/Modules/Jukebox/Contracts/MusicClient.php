@@ -23,9 +23,10 @@ interface MusicClient
     public function search(string $query, int $limit = 20): array;
 
     /**
-     * Make the configured player's upcoming queue equal this ordered list of
-     * track URIs. This is the single operation LANoMAT uses to reflect its
-     * vote order — enqueuing and reordering are the backend's concern.
+     * Make the configured player's queue match this ordered list: the first
+     * entry is the track that should be playing now (left untouched when it
+     * already plays, started when nothing plays), the rest is the vote-ordered
+     * upcoming queue. Enqueuing and reordering are the backend's concern.
      *
      * @param  array<int, string>  $orderedUris
      */
