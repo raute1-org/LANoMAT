@@ -8,6 +8,7 @@ return [
         0 => 'Discord',
         1 => 'Events',
         2 => 'Infoscreen',
+        3 => 'Registration',
     ],
     'CustomServers' => [
         0 => 'Events',

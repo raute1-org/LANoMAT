@@ -11,6 +11,8 @@ return [
         'not_open' => 'Die Bestellung ist derzeit nicht geöffnet.',
         'unknown_option' => 'Die gewählte Option ist nicht Teil dieser Bestellung.',
         'invalid_transition' => 'Ungültiger Statuswechsel.',
+        'registration_required' => 'Bestätige zuerst deine Anmeldung',
+        'item_limit' => 'Du hast das Limit von :limit Essens-Positionen erreicht.',
     ],
 
     'resource' => [
@@ -45,6 +47,8 @@ return [
         'my_order_empty' => 'Du hast noch nichts bestellt.',
         'cancel' => 'Stornieren',
         'my_total' => 'Meine Summe',
+        'registration_required' => 'Bestätige zuerst deine Anmeldung zum Event, dann kannst du Essen bestellen.',
+        'register_link' => 'Zur Anmeldung',
     ],
 
     'notifications' => [

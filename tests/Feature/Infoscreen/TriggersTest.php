@@ -27,6 +27,9 @@ it('notifies exactly the order buyers with FoodOrderReady and pushes the beamer 
     $buyer1 = User::factory()->create();
     $buyer2 = User::factory()->create();
     $stranger = User::factory()->create();
+    // Q-2: only buyers with a confirmed registration are notified.
+    EventRegistration::factory()->for($event)->for($buyer1)->create();
+    EventRegistration::factory()->for($event)->for($buyer2)->create();
 
     FoodOrderItem::factory()->for($order)->for($buyer1)->create();
     FoodOrderItem::factory()->for($order)->for($buyer2)->create();
@@ -110,6 +113,7 @@ it('sends the food-ready trigger and pushes the beamer via the real route as a h
     $event = Event::factory()->live()->create();
     $order = FoodOrder::factory()->for($event)->open()->create();
     $buyer = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($buyer)->create();
     FoodOrderItem::factory()->for($order)->for($buyer)->create();
 
     $this->actingAs(User::factory()->helper()->create())
