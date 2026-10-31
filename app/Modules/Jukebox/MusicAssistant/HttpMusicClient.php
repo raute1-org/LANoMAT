@@ -21,13 +21,15 @@ use Throwable;
  * `player_queues/move_item`, `player_queues/queue_command`) used by its
  * WS clients.
  *
- * DEFERRED VERIFICATION POINT: the exact REST envelope — whether the command
- * name is a body field (as implemented here: `{'command': ..., 'args': ...}`)
- * or a path segment, and the precise response shape for each command — is
- * not publicly documented and must be confirmed against a running server's
- * `:8095/api-docs` (see roadmap M11 "Mode A" deferred items). Every command
- * is funneled through the single {@see self::command()} helper so that
- * real-infra tuning of the wire format only ever touches one place.
+ * VERIFIED against Music Assistant 2.10.9 (2026-10-31): the envelope is
+ * `POST {base}/api` with `{'command': ..., 'args': ...}`; the command and
+ * argument names come from the server's own `/api-docs/commands.json`
+ * (`music/search` takes `search_query` and answers with results grouped by
+ * media type; the queue commands are `player_queues/get_active_queue`,
+ * `play_media`, `next`, `pause`, `resume`, `delete_item`). Every command goes
+ * through {@see self::command()}, so a future wire change touches one place.
+ * A web player's id changes with every browser connection; configure a
+ * stable player (Snapcast, Chromecast, ...) for a real event.
  */
 class HttpMusicClient implements MusicClient, PlaybackControl
 {
@@ -40,12 +42,15 @@ class HttpMusicClient implements MusicClient, PlaybackControl
     public function search(string $query, int $limit = 20): array
     {
         $payload = $this->command('music/search', [
-            'query' => $query,
+            'search_query' => $query,
+            'media_types' => ['track'],
             'limit' => $limit,
         ]);
 
+        // Music Assistant groups results by media type; only tracks are playable
+        // jukebox entries.
         /** @var array<int, array<string, mixed>> $rows */
-        $rows = is_array($payload['result'] ?? null) ? $payload['result'] : [];
+        $rows = is_array($payload['tracks'] ?? null) ? $payload['tracks'] : [];
 
         return array_map(fn (array $row) => $this->toTrack($row), $rows);
     }
@@ -56,45 +61,36 @@ class HttpMusicClient implements MusicClient, PlaybackControl
             return;
         }
 
-        // Best-effort mapping: play the first URI (replacing the queue),
-        // then append the rest and reorder them into place. Music
-        // Assistant's queue-management primitives are enqueue/reorder, not
-        // "replace with this exact ordered list" — see the class docblock.
-        $first = $orderedUris[0];
-        $rest = array_slice($orderedUris, 1);
+        $queue = $this->activeQueue();
+        $playingUri = $this->currentUri($queue);
 
+        if ($playingUri !== null && $playingUri === $orderedUris[0]) {
+            // The first entry is the track that is playing right now: leave it
+            // alone (replacing the queue would restart it) and make only the
+            // upcoming part match.
+            $this->replaceUpcoming(array_slice($orderedUris, 1), $queue);
+
+            return;
+        }
+
+        // Nothing (or something else) is playing: start from this list.
         $this->command('player_queues/play_media', [
             'queue_id' => $this->playerId,
-            'media' => $first,
+            'media' => $orderedUris,
+            'option' => 'replace',
         ]);
-
-        foreach ($rest as $position => $uri) {
-            $this->command('player_queues/play_media', [
-                'queue_id' => $this->playerId,
-                'media' => $uri,
-                'option' => 'add',
-            ]);
-
-            $this->command('player_queues/move_item', [
-                'queue_id' => $this->playerId,
-                'queue_item_id' => $uri,
-                'pos_shift' => 0,
-                'pos_target' => $position + 1,
-            ]);
-        }
     }
 
     public function nowPlaying(): ?NowPlayingDto
     {
-        $payload = $this->command('player_queues/items', [
-            'queue_id' => $this->playerId,
-        ]);
+        $queue = $this->activeQueue();
 
-        /** @var array<string, mixed> $result */
-        $result = is_array($payload['result'] ?? null) ? $payload['result'] : [];
+        if (! $this->holdsTrack($queue)) {
+            return null;
+        }
 
         /** @var array<string, mixed>|null $currentItem */
-        $currentItem = $result['current_item'] ?? null;
+        $currentItem = is_array($queue['current_item'] ?? null) ? $queue['current_item'] : null;
 
         if ($currentItem === null) {
             return null;
@@ -108,33 +104,111 @@ class HttpMusicClient implements MusicClient, PlaybackControl
             title: (string) ($mediaItem['name'] ?? ''),
             artist: $this->firstArtistName($mediaItem),
             durationSeconds: isset($mediaItem['duration']) ? (int) $mediaItem['duration'] : null,
-            positionSeconds: (int) ($currentItem['elapsed_time'] ?? 0),
-            isPlaying: ($result['state'] ?? null) === 'playing',
+            positionSeconds: (int) floor((float) ($queue['elapsed_time'] ?? 0)),
+            isPlaying: ($queue['state'] ?? null) === 'playing',
         );
     }
 
     public function skip(): void
     {
-        $this->command('player_queues/queue_command', [
-            'queue_id' => $this->playerId,
-            'command' => 'next',
-        ]);
+        $this->command('player_queues/next', ['queue_id' => $this->playerId]);
     }
 
     public function pause(): void
     {
-        $this->command('player_queues/queue_command', [
-            'queue_id' => $this->playerId,
-            'command' => 'pause',
-        ]);
+        $this->command('player_queues/pause', ['queue_id' => $this->playerId]);
     }
 
     public function resume(): void
     {
-        $this->command('player_queues/queue_command', [
-            'queue_id' => $this->playerId,
-            'command' => 'play',
-        ]);
+        $this->command('player_queues/resume', ['queue_id' => $this->playerId]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function activeQueue(): array
+    {
+        return $this->command('player_queues/get_active_queue', ['player_id' => $this->playerId]);
+    }
+
+    /**
+     * Whether the queue is currently holding a track (playing or paused), as
+     * opposed to having finished or never started.
+     *
+     * Music Assistant reports a PAUSED web/Sendspin player as `idle` (checked
+     * against a real server), exactly like a queue whose last track ended. The
+     * two differ in `elapsed_time`: a pause keeps the position, a finished
+     * queue resets it to 0. Treating every `idle` queue as "nothing playing"
+     * would make the jukebox tick think a paused track had ended and skip it.
+     *
+     * @param  array<string, mixed>  $queue
+     */
+    private function holdsTrack(array $queue): bool
+    {
+        if (! is_array($queue['current_item'] ?? null)) {
+            return false;
+        }
+
+        $state = $queue['state'] ?? 'idle';
+
+        if (in_array($state, ['playing', 'paused'], true)) {
+            return true;
+        }
+
+        return $state === 'idle' && (float) ($queue['elapsed_time'] ?? 0) > 0;
+    }
+
+    /**
+     * @param  array<string, mixed>  $queue
+     */
+    private function currentUri(array $queue): ?string
+    {
+        if (! $this->holdsTrack($queue)) {
+            return null;
+        }
+
+        $item = is_array($queue['current_item'] ?? null) ? $queue['current_item'] : [];
+        $media = is_array($item['media_item'] ?? null) ? $item['media_item'] : [];
+        $uri = $media['uri'] ?? null;
+
+        return is_string($uri) && $uri !== '' ? $uri : null;
+    }
+
+    /**
+     * Replace everything after the current item with $uris, in order.
+     *
+     * @param  array<int, string>  $uris
+     * @param  array<string, mixed>  $queue
+     */
+    private function replaceUpcoming(array $uris, array $queue): void
+    {
+        if ($uris !== []) {
+            $this->command('player_queues/play_media', [
+                'queue_id' => $this->playerId,
+                'media' => $uris,
+                'option' => 'replace_next',
+            ]);
+
+            return;
+        }
+
+        // `replace_next` with nothing cannot clear the tail, so delete the
+        // upcoming items one by one (highest index first keeps indexes valid).
+        $currentIndex = (int) ($queue['current_index'] ?? 0);
+        $items = $this->command('player_queues/items', ['queue_id' => $this->playerId]);
+
+        $upcoming = array_values(array_filter(
+            $items,
+            fn ($item) => is_array($item) && (int) ($item['sort_index'] ?? 0) > $currentIndex,
+        ));
+
+        foreach (array_reverse($upcoming) as $item) {
+            $this->command('player_queues/delete_item', [
+                'queue_id' => $this->playerId,
+                'item_id_or_index' => (string) ($item['queue_item_id'] ?? ''),
+            ]);
+        }
     }
 
     /**
@@ -184,7 +258,7 @@ class HttpMusicClient implements MusicClient, PlaybackControl
             title: (string) ($row['name'] ?? ''),
             artist: $this->firstArtistName($row),
             durationSeconds: isset($row['duration']) ? (int) $row['duration'] : null,
-            imageUrl: isset($row['image']) ? (string) $row['image'] : null,
+            imageUrl: is_string($row['image'] ?? null) ? $row['image'] : null,
         );
     }
 

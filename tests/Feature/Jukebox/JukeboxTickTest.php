@@ -43,11 +43,11 @@ it('promotes the next queued item once Music Assistant reports the current one f
     expect($playing->refresh()->played_at)->not->toBeNull();
     expect($next->refresh()->status)->toBe(QueueItemStatus::Playing);
     expect($afterNext->refresh()->status)->toBe(QueueItemStatus::Queued);
-    // The synced queue mirrors what's still *upcoming* (queued) after the
-    // promotion — the promoted item is now playing, not queued, so it is no
-    // longer part of the upcoming list synced to Music Assistant, while the
-    // still-queued item after it is.
-    expect($fake->syncedQueue())->toBe(['ma://track/after-next']);
+    // What Music Assistant gets is the track that must play now (the promoted
+    // one) followed by the still-queued ones. Sending only the upcoming list
+    // would never start the promoted track (found when the client ran against
+    // a real Music Assistant).
+    expect($fake->syncedQueue())->toBe(['ma://track/next', 'ma://track/after-next']);
     EventFacade::assertDispatched(JukeboxUpdated::class, fn (JukeboxUpdated $e) => $e->eventId === $event->id);
 });
 
@@ -129,3 +129,15 @@ it('does not throw when Music Assistant is unavailable during the tick', functio
 
     EventFacade::assertNotDispatched(JukeboxUpdated::class);
 })->throwsNoExceptions();
+
+it('hands a lone queued item to Music Assistant when it is promoted', function () {
+    $fake = fakeMusic();
+    $event = Event::factory()->live()->create();
+
+    JukeboxItem::factory()->create(['event_id' => $event->id, 'status' => QueueItemStatus::Queued, 'uri' => 'ma://track/only']);
+    $fake->willReturnNowPlaying(null);
+
+    $this->artisan('lanomat:jukebox-tick')->assertExitCode(0);
+
+    expect($fake->syncedQueue())->toBe(['ma://track/only']);
+});

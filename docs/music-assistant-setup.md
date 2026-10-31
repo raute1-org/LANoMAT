@@ -125,42 +125,29 @@ from when resolving the `MusicClient` contract.
 > itself is an app-config change, tracked as a real-infra follow-up
 > alongside the rest of this document's verification checklist.
 
-## 5. The "sync-implies-play" coupling — verify at real-infra time
+## 5. Real verification (Music Assistant 2.10.9, 2026-10-31)
 
-`JukeboxTickCommand` (`lanomat:jukebox-tick`, scheduled `everyMinute`)
-polls `nowPlaying()` and, when it detects the tracked `Playing` item has
-finished, promotes the next queued item and calls `syncQueue()` again.
-This design assumes MA's `player_queues/play_media` command **starts
-playback** as a side effect of enqueuing the first URI — i.e. that
-"syncing the queue" and "playing the next track" are the same MA call.
-This is a reasonable reading of the documented command shape, but is
-**not yet confirmed against a running server**. Before relying on this in
-production:
+`HttpMusicClient` was run against a real server with a Sendspin web player and five local test tracks. Three
+assumptions of the first version were wrong and are fixed (the REST envelope `POST /api` with `{command, args}` was right):
 
-- [ ] Start a real MA server + a configured player, call `syncQueue()`
-      with a fresh ordered list of URIs via `HttpMusicClient`, and confirm
-      the player **actually starts audio playback** of the first URI
-      (not just enqueues it silently).
-- [ ] If MA does *not* auto-play on `play_media`, `HttpMusicClient::syncQueue()`
-      (or `JukeboxTickCommand`) needs an explicit follow-up "play"/"resume"
-      command (`player_queues/queue_command` with `command: play`, already
-      used by `HttpMusicClient::resume()`) added to the promotion path.
-- [ ] Confirm `player_queues/move_item`'s parameters (`pos_shift`/
-      `pos_target`) reorder items the way `HttpMusicClient::syncQueue()`
-      assumes — the exact reorder/remove command shapes were not listed on
-      MA's public overview page and need confirming against
-      `:8095/api-docs` on a live instance.
-- [ ] Confirm the exact JSON-RPC envelope (`{"command": ..., "args": ...}`
-      as body fields, vs. a path-segment style) matches what
-      `HttpMusicClient::command()` sends — this is the single place in the
-      codebase that would need adjusting if the real wire format differs.
-- [ ] Confirm `player_queues/items`' response shape (`current_item`,
-      `media_item`, `elapsed_time`, `state`) matches what
-      `HttpMusicClient::nowPlaying()` parses.
-- [ ] Decide whether the `everyMinute` polling cadence feels responsive
-      enough in practice, or whether a shorter interval (or a future push
-      path, if MA's WebSocket API proves worth a small sidecar — the same
-      shape of decision M3 made for Mumble) is warranted.
+| Was | Is |
+|---|---|
+| `music/search` with `query`, result in `result` | argument `search_query`; results are grouped by media type (`tracks`, `radio`, ...) |
+| `player_queues/queue_command` (skip/pause/resume) | the command does not exist; use `player_queues/next`, `pause`, `resume` |
+| `player_queues/items` returns an object with `current_item`; `move_item` with a URI and `pos_target` | `items` is a list; the current track and the playback state come from `player_queues/get_active_queue`; reordering is done with `play_media` (`replace`, `replace_next`) and `delete_item` |
+
+Behaviour learned on the wire:
+
+- `play_media` with `option: replace` **starts playback** of the first item (no extra play call is needed).
+- A **paused** web player reports `state: idle` with the position kept, a **finished** queue reports `state: idle` with
+  `elapsed_time: 0`. The client tells them apart by the position; otherwise the jukebox tick would skip a paused track.
+- `syncQueue()` now receives the track that should play *now* first, then the vote-ordered upcoming ones. When that
+  track already plays it is left alone (only the upcoming part is replaced); otherwise the list is started. The first
+  version sent only the upcoming list, so a promoted track never reached the player.
+- A web player gets a **new id with every browser connection** and disappears when the page closes or the phone locks
+  (`PlayerUnavailableError` -> HTTP 500 -> `MusicUnavailable`, which the app logs and survives). Use a stable player
+  (Snapcast, Chromecast, Squeezelite) for a real event.
+- Not verified: Snapcast/Chromecast players, crossfade, and more than one concurrent event.
 
 ## 6. Fallback: go-librespot + Spotify Web API (documented, NOT the default)
 

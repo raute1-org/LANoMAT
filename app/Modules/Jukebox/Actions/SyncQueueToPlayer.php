@@ -32,7 +32,15 @@ class SyncQueueToPlayer
 
     public function handle(Event $event): void
     {
+        // The track that should be playing right now comes first, then the
+        // vote-ordered upcoming ones: the client leaves a matching playing
+        // track alone and starts the list when nothing plays.
         $uris = $this->queue->upcoming($event)->pluck('uri')->all();
+        $current = $this->queue->current($event);
+
+        if ($current !== null) {
+            array_unshift($uris, $current->uri);
+        }
 
         try {
             $this->musicClient->syncQueue($uris);
