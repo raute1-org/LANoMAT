@@ -42,8 +42,11 @@ it('shows an admin every live channel and no archived one', function () {
     expect(visibleNames($this->admin))->toBe(['Lobby', 'Team A', 'Team B']);
 });
 
-it('does not widen visibility for orga staff', function () {
-    expect(visibleNames($this->orga))->toBe(['Lobby']);
+it('shows orga every live channel too, but gives helpers no extra view', function () {
+    expect(visibleNames($this->orga))->toBe(['Lobby', 'Team A', 'Team B']);
+
+    $helper = User::factory()->create(['role' => Role::Helper]);
+    expect(visibleNames($helper))->toBe(['Lobby']);
 });
 
 it('agrees between the list query and the policy for every viewer and channel', function () {
@@ -68,13 +71,19 @@ it('agrees between the list query and the policy for every viewer and channel', 
     }
 });
 
-it('lets only admins moderate or manage', function () {
-    foreach ([$this->ada, $this->orga, $this->outsider] as $user) {
+it('splits the abilities: orga and admin moderate, only admin manages channels', function () {
+    $helper = User::factory()->create(['role' => Role::Helper]);
+
+    foreach ([$this->ada, $helper, $this->outsider] as $user) {
         expect(Gate::forUser($user)->allows('moderate', $this->lobby))->toBeFalse()
+            ->and(Gate::forUser($user)->allows('viewLive', WebVoiceChannel::class))->toBeFalse()
             ->and(Gate::forUser($user)->allows('manage', WebVoiceChannel::class))->toBeFalse();
     }
 
-    expect(Gate::forUser($this->admin)->allows('moderate', $this->teamB))->toBeTrue()
+    expect(Gate::forUser($this->orga)->allows('moderate', $this->teamB))->toBeTrue()
+        ->and(Gate::forUser($this->orga)->allows('viewLive', WebVoiceChannel::class))->toBeTrue()
+        ->and(Gate::forUser($this->orga)->allows('manage', WebVoiceChannel::class))->toBeFalse()
+        ->and(Gate::forUser($this->admin)->allows('moderate', $this->teamB))->toBeTrue()
         ->and(Gate::forUser($this->admin)->allows('manage', WebVoiceChannel::class))->toBeTrue();
 });
 

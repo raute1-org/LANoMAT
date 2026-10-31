@@ -17,6 +17,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class WebVoiceChannelsTable
 {
@@ -49,17 +50,17 @@ class WebVoiceChannelsTable
             ->poll('10s')
             ->recordActions([
                 EditAction::make()
-                    ->authorize(fn (WebVoiceChannel $record): bool => $record->isGeneral()),
+                    ->authorize(fn (WebVoiceChannel $record): bool => $record->isGeneral() && Gate::allows('manage', WebVoiceChannel::class)),
                 Action::make('archive')
                     ->label(__('web_voice.resource.archive'))
                     ->icon('heroicon-o-archive-box')
-                    ->visible(fn (WebVoiceChannel $record): bool => ! $record->isArchived())
+                    ->visible(fn (WebVoiceChannel $record): bool => ! $record->isArchived() && Gate::allows('manage', WebVoiceChannel::class))
                     ->requiresConfirmation()
                     ->action(fn (WebVoiceChannel $record) => app(SetChannelArchived::class)->handle(self::admin(), $record, true)),
                 Action::make('restore')
                     ->label(__('web_voice.resource.restore'))
                     ->icon('heroicon-o-arrow-uturn-left')
-                    ->visible(fn (WebVoiceChannel $record): bool => $record->isArchived())
+                    ->visible(fn (WebVoiceChannel $record): bool => $record->isArchived() && Gate::allows('manage', WebVoiceChannel::class))
                     ->action(fn (WebVoiceChannel $record) => app(SetChannelArchived::class)->handle(self::admin(), $record, false)),
             ]);
     }

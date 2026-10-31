@@ -34,6 +34,8 @@ beforeEach(function () {
     $this->ada = User::factory()->create(['name' => 'Ada']);
     $this->bob = User::factory()->create(['name' => 'Bob']);
     $this->admin = User::factory()->create(['role' => Role::Admin]);
+    $this->orga = User::factory()->create(['role' => Role::Orga]);
+    $this->helper = User::factory()->create(['role' => Role::Helper]);
 
     $this->teamA->members()->attach($this->ada);
     $this->teamB->members()->attach($this->bob);
@@ -258,4 +260,31 @@ it('answers 503 when removing while the server is down', function () {
     $this->fake->unavailable = true;
 
     $this->actingAs($this->admin)->postJson("/talk/channels/{$this->lobby->id}/participants/{$this->bob->id}/remove")->assertStatus(503);
+});
+
+/* ---- orga and helper -------------------------------------------------- */
+
+it('gives orga the same view and moderation as an admin, and helpers none', function () {
+    $this->actingAs($this->orga)->get('/talk')
+        ->assertInertia(fn ($page) => $page->has('channels', 3)->where('canModerate', true));
+    $this->actingAs($this->helper)->get('/talk')
+        ->assertInertia(fn ($page) => $page->has('channels', 1)->where('canModerate', false));
+
+    $this->actingAs($this->orga)->postJson("/talk/channels/{$this->teamB->id}/token")->assertOk();
+    $this->actingAs($this->helper)->postJson("/talk/channels/{$this->teamB->id}/token")->assertForbidden();
+
+    $this->actingAs($this->orga)->postJson("/talk/channels/{$this->lobby->id}/participants/{$this->ada->id}/mute")->assertOk();
+    $this->actingAs($this->orga)->postJson("/talk/channels/{$this->lobby->id}/participants/{$this->ada->id}/remove")->assertOk();
+    $this->actingAs($this->helper)->postJson("/talk/channels/{$this->lobby->id}/participants/{$this->ada->id}/remove")->assertForbidden();
+
+    $message = new WebVoiceMessage;
+    $message->forceFill(['web_voice_channel_id' => $this->lobby->id, 'user_id' => $this->ada->id, 'body' => 'x'])->save();
+    $this->actingAs($this->helper)->deleteJson("/talk/messages/{$message->id}")->assertForbidden();
+    $this->actingAs($this->orga)->deleteJson("/talk/messages/{$message->id}")->assertOk();
+});
+
+it('still refuses an archived channel for orga', function () {
+    $this->lobby->forceFill(['archived_at' => now()])->save();
+
+    $this->actingAs($this->orga)->postJson("/talk/channels/{$this->lobby->id}/token")->assertStatus(403);
 });

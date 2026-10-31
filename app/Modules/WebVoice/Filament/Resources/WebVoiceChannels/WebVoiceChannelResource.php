@@ -51,10 +51,11 @@ class WebVoiceChannelResource extends Resource
     }
 
     // The policy's viewAny is true for every user (it backs the participant page), so the panel
-    // resource asks the admin-only `manage` ability instead.
+    // resource asks `viewLive` (orga and admin: the list shows who is in which room) and keeps
+    // create/edit/archive on the admin-only `manage` ability.
     public static function canViewAny(): bool
     {
-        return Gate::allows('manage', WebVoiceChannel::class);
+        return Gate::allows('viewLive', WebVoiceChannel::class);
     }
 
     public static function canCreate(): bool

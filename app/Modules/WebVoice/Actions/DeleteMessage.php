@@ -10,7 +10,7 @@ use App\Modules\WebVoice\Models\WebVoiceMessage;
 use App\Modules\WebVoice\Support\BroadcastsSafely;
 use Illuminate\Support\Facades\Gate;
 
-/** Moderation: removes one message for everybody. Admin only (policy `moderate`). */
+/** Moderation: removes one message for everybody. Orga and admin (policy `moderate`). */
 class DeleteMessage
 {
     use BroadcastsSafely;

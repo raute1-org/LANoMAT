@@ -37,7 +37,7 @@ class WebVoiceController extends Controller
                 'kind' => $channel->kind->value,
             ])->values(),
             'me' => ['id' => $user->id, 'name' => $user->name, 'identity' => 'u'.$user->id],
-            'canModerate' => $user->isAdmin(),
+            'canModerate' => $user->isOrga(),
             'voiceReady' => config('webvoice.url') !== null && config('webvoice.url') !== ''
                 && (string) config('webvoice.api_key') !== '' && (string) config('webvoice.api_secret') !== '',
             'chat' => [

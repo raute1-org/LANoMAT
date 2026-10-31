@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 /**
  * Read model: the channels one viewer may see. It must agree with
  * {@see WebVoiceChannelPolicy::view()} (a test pins the two
- * together): an admin sees every live channel, everybody else the general channels plus the
+ * together): an admin or orga sees every live channel, everybody else the general channels plus the
  * match channels whose roster snapshot contains them. Archived channels are never listed.
  */
 class VisibleChannels
@@ -38,7 +38,7 @@ class VisibleChannels
     {
         $query = WebVoiceChannel::query()->whereNull('archived_at');
 
-        if ($viewer->isAdmin()) {
+        if ($viewer->isOrga()) {
             return $query;
         }
 

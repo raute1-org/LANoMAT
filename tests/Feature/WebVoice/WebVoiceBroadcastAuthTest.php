@@ -75,3 +75,11 @@ it('lets a logged-in user into the directory ping channel, which carries no payl
     voiceChannelAuth($this, 'private-web-voice.directory')->assertOk();
     expect((new ChannelsChanged)->broadcastWith())->toBe([]);
 });
+
+it('authorizes orga for every live match room, helpers only for their own', function () {
+    $orga = User::factory()->create(['role' => Role::Orga]);
+    $helper = User::factory()->create(['role' => Role::Helper]);
+
+    voiceChannelAuth($this->actingAs($orga), "private-web-voice.channel.{$this->teamB->id}")->assertOk();
+    voiceChannelAuth($this->actingAs($helper), "private-web-voice.channel.{$this->teamB->id}")->assertForbidden();
+});

@@ -8,13 +8,15 @@ use App\Models\User;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
 
 /**
- * Who may do what with a channel. Admins pass everything through the app-wide
- * `Gate::before`, so what is written here is the rule for everybody else:
+ * Who may do what with a channel. Admins pass everything through the app-wide `Gate::before`; the
+ * rules below are written out so that orga are covered too (roles are global, there is no per-event orga):
  *
  * - a general channel is open to every logged-in user,
- * - a match channel only to the roster snapshot taken when the room was made,
- * - an archived channel to nobody (the actions refuse it for admins too),
- * - moderation and channel management to admins only, which means: never through this class.
+ * - a match channel to the roster snapshot taken when the room was made, and to orga (and admins),
+ * - an archived channel to nobody (the actions refuse it for admins and orga too),
+ * - moderation (delete a message, mute, remove) and seeing live rooms to orga and admins,
+ * - creating, renaming and archiving general channels to admins only.
+ * Helpers and participants are normal users.
  */
 class WebVoiceChannelPolicy
 {
@@ -30,6 +32,7 @@ class WebVoiceChannelPolicy
         }
 
         return $channel->isGeneral()
+            || $user->isOrga()
             || $channel->members()->whereKey($user->getKey())->exists();
     }
 
@@ -43,15 +46,21 @@ class WebVoiceChannelPolicy
         return $this->view($user, $channel);
     }
 
-    /** Delete a message, mute or remove a participant. Admin only (via Gate::before). */
+    /** Delete a message, mute or remove a participant. Orga and admin. */
     public function moderate(User $user, WebVoiceChannel $channel): bool
     {
-        return false;
+        return $user->isOrga();
     }
 
-    /** Create, rename, archive general channels. Admin only (via Gate::before). */
+    /** See the live rooms in the admin panel. Orga and admin. */
+    public function viewLive(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
+    /** Create, rename, archive and restore general channels. Admin only. */
     public function manage(User $user): bool
     {
-        return false;
+        return $user->isAdmin();
     }
 }

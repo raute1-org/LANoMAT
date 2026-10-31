@@ -143,8 +143,8 @@ skipped until `LIVEKIT_API_KEY` is set. Whether media actually flows is the manu
       over `udp` (not `tcp`, not `relay`), and the round trip time is a few milliseconds.
 - [ ] Measure mouth-to-ear: record both ends (speak a click, record both devices with a third phone) and note the
       delay. Write the number down in the PR/issue; the design target is under 100 ms.
-- [ ] A team member of a ready match sees their team room in the list and **not** the opponent's; the admin sees both;
-      a third participant sees neither.
+- [ ] A team member of a ready match sees their team room in the list and **not** the opponent's; admin and orga see both;
+      a third participant sees neither; an orga account sees both and can moderate, a helper account behaves like a participant.
 - [ ] Admin in a room: mute a participant (their microphone button turns off and stays disabled, also after
       re-joining), remove a participant (disconnected), delete a chat message (disappears for everybody).
 - [ ] Text chat: a message from one device shows on the other within a second; 501 characters is refused; sending

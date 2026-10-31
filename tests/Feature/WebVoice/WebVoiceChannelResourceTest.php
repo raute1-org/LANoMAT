@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Modules\WebVoice\Actions\SetChannelArchived;
 use App\Modules\WebVoice\Contracts\WebVoiceClient;
 use App\Modules\WebVoice\Domain\ChannelKind;
 use App\Modules\WebVoice\Filament\Resources\WebVoiceChannels\Pages\CreateWebVoiceChannel;
 use App\Modules\WebVoice\Filament\Resources\WebVoiceChannels\Pages\ListWebVoiceChannels;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
 use App\Modules\WebVoice\Testing\FakeWebVoiceClient;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -20,11 +22,27 @@ beforeEach(function () {
     $this->app->instance(WebVoiceClient::class, $this->fake);
 });
 
-it('closes the channel admin to participants, helpers and orga', function (Role $role) {
+it('closes the channel list to participants and helpers', function (Role $role) {
     $this->actingAs(User::factory()->create(['role' => $role]))
         ->get('/admin/web-voice-channels')
         ->assertForbidden();
-})->with([Role::Participant, Role::Helper, Role::Orga]);
+})->with([Role::Participant, Role::Helper]);
+
+it('lets orga see the live rooms but not create, edit, archive or restore', function () {
+    $channel = WebVoiceChannel::factory()->create(['name' => 'Lobby']);
+    $this->actingAs(User::factory()->create(['role' => Role::Orga]));
+
+    $this->get('/admin/web-voice-channels')->assertOk()->assertSee('Lobby');
+    $this->get('/admin/web-voice-channels/create')->assertForbidden();
+    $this->get("/admin/web-voice-channels/{$channel->id}/edit")->assertForbidden();
+
+    Livewire::test(ListWebVoiceChannels::class)
+        ->assertTableActionHidden('archive', $channel)
+        ->assertTableActionHidden('restore', $channel);
+
+    expect(fn () => app(SetChannelArchived::class)->handle(auth()->user(), $channel, true))
+        ->toThrow(AuthorizationException::class);
+});
 
 it('lets an admin list the channels with live occupancy', function () {
     $lobby = WebVoiceChannel::factory()->create(['name' => 'Lobby']);

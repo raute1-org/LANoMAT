@@ -57,19 +57,20 @@ No other module imports `WebVoice`; the Preflight probe is self-contained (confi
 
 ## Authorization matrix
 
-| Actor                                   | See channel in list | Join voice | Read / post text | Delete message | Mute / remove | Manage general channels |
-| --------------------------------------- | ------------------- | ---------- | ---------------- | -------------- | ------------- | ----------------------- |
-| Guest (not logged in)                   | no (route needs `auth`) | no     | no               | no             | no            | no                      |
-| Participant, general channel            | yes                 | yes        | yes              | own never      | no            | no                      |
-| Participant on the roster of that entry | its match room only | yes        | yes              | no             | no            | no                      |
-| Participant of the opposing entry       | **not** that room   | no         | no               | no             | no            | no                      |
-| Orga / Helper                           | as participant      | as participant | as participant | no          | no            | no                      |
-| Admin                                   | everything          | everything | everything       | yes            | yes           | yes                     |
+| Actor                                    | See channel in list     | Join voice     | Read / post text | Delete message | Mute / remove | Manage general channels |
+| ---------------------------------------- | ----------------------- | -------------- | ---------------- | -------------- | ------------- | ----------------------- |
+| Guest (not logged in)                    | no (route needs `auth`) | no             | no               | no             | no            | no                      |
+| Participant / Helper, general channel    | yes                     | yes            | yes              | no             | no            | no                      |
+| Participant / Helper on that roster      | its match room only     | yes            | yes              | no             | no            | no                      |
+| Participant / Helper of the opposing team| **not** that room       | no             | no               | no             | no            | no                      |
+| Orga                                     | everything live         | everything     | everything       | yes            | yes           | no (view only in Filament) |
+| Admin                                    | everything live         | everything     | everything       | yes            | yes           | yes                     |
 
-Everything goes through `WebVoiceChannelPolicy` (`view`, `join`, `post`, `moderate`, `manage`); the admin result comes
-from the existing `Gate::before`. Archived channels are refused for everyone, admins included, inside the actions. The
+Roles are global in this app (no per-event orga), so "orga sees all channels" is the consistent reading. Owner decision.
+
+Everything goes through `WebVoiceChannelPolicy` (`view`, `join`, `post`, `moderate`, `viewLive`, `manage`): `view`/`join`/`post` include orga, `moderate` and `viewLive` are orga and admin (`isOrga()` covers both), `manage` is `isAdmin()`; admins also pass the existing `Gate::before`. Archived channels are refused for everyone, admins included, inside the actions. The
 subject of every request is `auth()->user()`: the LiveKit identity is `u<user id>` derived server side, and no
-user id is ever read from the request except as the *target* of a moderation call (a moderation call is admin only, and the action only turns that id into the `u<id>` identity for the contract). Broadcast
+user id is ever read from the request except as the *target* of a moderation call (a moderation call is orga and admin only, and the action only turns that id into the `u<id>` identity for the contract). Broadcast
 channel `web-voice.channel.{id}` (private) authorizes through the same `view` ability; the `web-voice.directory`
 channel carries an empty payload ("reload your list") and is open to any logged-in user.
 
@@ -138,7 +139,7 @@ older ones page with `?before=<id>`. Plain text only, no uploads.
 
 ## Admin UI
 
-Filament resource `WebVoiceChannelResource` (admin only, `manage` ability; the policy's `viewAny` is true for everyone because
+Filament resource `WebVoiceChannelResource` (list for orga and admin through `viewLive`, create/edit/archive/restore admin only through `manage`; the policy's `viewAny` is true for everyone because
 it backs the participant page, so the resource overrides `canViewAny`): create / rename / archive / restore general
 channels; match channels are listed read-only. The table has a live "Anwesend" column from
 `WebVoiceClient::participants()` that polls every 10 seconds (an unreachable server shows a note instead of failing the
@@ -175,11 +176,9 @@ states, German copy in `lang/de/web_voice.php`.
   holds the old token and chat realtime auth fails until a reload (HTTP history and posting keep working).
 - The Traefik `Permissions-Policy` said `microphone=()`, which would have blocked `getUserMedia` everywhere. It is now
   `microphone=(self)`.
-- Orga and helpers get **no** extra rights in this module: every moderation and visibility privilege is admin only, as
-  in the brief. Say so if orga should moderate the rooms of their event.
+- Orga see and moderate every room like admins (owner decision); only admins create, rename, archive and restore general channels. Helpers are normal users.
 
-## Provisional defaults (to be confirmed by the owner)
+## Owner decisions
 
-Only "moderation is admin only" is an owner decision. These are provisional defaults, not built around any further:
-general channels are installation-wide (not per event); archived match chat is deleted after 7 days; LiveKit
-webhooks (live occupancy in the list) are a follow-up, not part of this change.
+Moderation and visibility for admin and orga, channel management admin only; general channels installation-wide; archived
+match chat deleted after 7 days. LiveKit webhooks (live occupancy in the list) are a follow-up, not part of this change.
