@@ -34,7 +34,8 @@ class CleanupServerJob implements ShouldQueue
     {
         $link = ServerLink::query()->find($this->serverLinkId);
 
-        if ($link === null || $link->status === ServerLinkStatus::Stopped) {
+        // A permanent server is never torn down by a lifecycle job, whoever dispatched it.
+        if ($link === null || $link->permanent || $link->status === ServerLinkStatus::Stopped) {
             return;
         }
 

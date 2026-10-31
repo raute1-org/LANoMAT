@@ -13,8 +13,8 @@ use App\Modules\GameServers\Enums\QueryProtocol;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\GameServers\Enums\ServerState;
-use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Models\ServerLink;
+use Throwable;
 
 /**
  * Takes one status reading of a permanent server and writes the result onto its
@@ -32,7 +32,7 @@ use App\Modules\GameServers\Models\ServerLink;
  * treated as "unknown", not as a failure. Match/event servers are not handled
  * here (see `RefreshQueriesCommand`).
  */
-final class PermanentServerRefresher
+class PermanentServerRefresher
 {
     private const int SILENT_AFTER_MINUTES = 3;
 
@@ -139,7 +139,8 @@ final class PermanentServerRefresher
 
         try {
             return $this->client->getServer($link->pelican_server_id);
-        } catch (GameServerException) {
+        } catch (Throwable) {
+            // An unreachable or confused panel is "unknown", never a failed run.
             return null;
         }
     }
