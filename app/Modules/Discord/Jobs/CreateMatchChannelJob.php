@@ -9,6 +9,7 @@ use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Models\GameMatch;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Throwable;
 
 /**
  * Creates the per-match Discord text channel once a match becomes playable
@@ -72,12 +73,28 @@ class CreateMatchChannelJob implements ShouldQueue
                     'deny' => '1024', // VIEW_CHANNEL
                 ];
 
-                $overwrites = [...$rosterOverwrites, $everyoneOverwrite];
+                // The bot must keep its own access: once @everyone is denied the
+                // bot loses the channel too (403 Missing Access on the next call),
+                // so its allow goes first. The bot's user id is its application id.
+                $botId = config('services.discord.application_id') ?: config('services.discord.client_id');
+                $botOverwrites = is_string($botId) && $botId !== ''
+                    ? [['id' => $botId, 'type' => 1, 'allow' => '3072', 'deny' => '0']] // VIEW_CHANNEL | SEND_MESSAGES
+                    : [];
 
-                $client->upsertPermissionOverwrites($channelId, $overwrites);
+                // Then @everyone: the channel is private before anything else can
+                // fail, and a half-configured channel is removed again.
+                $overwrites = [...$botOverwrites, $everyoneOverwrite, ...$rosterOverwrites];
 
-                $embed = MatchEmbed::welcome($match);
-                $client->sendMessage($channelId, $embed['title'], [$embed]);
+                try {
+                    $client->upsertPermissionOverwrites($channelId, $overwrites);
+
+                    $embed = MatchEmbed::welcome($match);
+                    $client->sendMessage($channelId, $embed['title'], [$embed]);
+                } catch (Throwable $e) {
+                    $client->deleteChannel($channelId);
+
+                    throw $e;
+                }
 
                 $match->update(['discord_channels' => ['text_channel_id' => $channelId]]);
             },

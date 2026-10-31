@@ -51,10 +51,19 @@ class HttpDiscordClient implements DiscordClient
     public function upsertPermissionOverwrites(string $channelId, array $overwrites): void
     {
         foreach ($overwrites as $overwrite) {
-            $this->http()->put(
+            $response = $this->http()->put(
                 "{$this->base}/channels/{$channelId}/permissions/{$overwrite['id']}",
                 $overwrite,
-            )->throw();
+            );
+
+            // Discord answers 10009 "Unknown Overwrite" when a member overwrite
+            // names someone who is not (or no longer) in the guild. That member
+            // simply cannot see the channel; it must not fail the whole channel.
+            if (($overwrite['type'] ?? null) === 1 && $response->json('code') === 10009) {
+                continue;
+            }
+
+            $response->throw();
         }
     }
 

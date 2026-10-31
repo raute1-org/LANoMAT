@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Jobs\CleanupMatchChannelJob;
+use App\Modules\Discord\Jobs\CreateMatchChannelJob;
 use App\Modules\Discord\Testing\FakeDiscordClient;
 use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Events\MatchCompleted;
@@ -21,6 +22,7 @@ beforeEach(function () {
     config([
         'services.discord.guild_id' => 'guild-1',
         'services.discord.match_category_id' => 'category-1',
+        'services.discord.application_id' => 'bot-1',
     ]);
 
     // MatchReady also triggers Task 21's voice-channel provisioning
@@ -74,9 +76,9 @@ it('creates a match text channel with roster overwrites and a welcome embed on M
 
     $overwrites = collect($overwriteEntry['overwrites']);
     $overwrittenUserIds = $overwrites->pluck('id')->all();
-    expect($overwrittenUserIds)->toContain('111111', '222222', 'guild-1');
-    // the two roster-member allows, plus one @everyone deny
-    expect($overwrittenUserIds)->toHaveCount(3); // the no-discord roster member is skipped
+    expect($overwrittenUserIds)->toContain('111111', '222222', 'guild-1', 'bot-1');
+    // the bot's own allow, the two roster-member allows, plus one @everyone deny
+    expect($overwrittenUserIds)->toHaveCount(4); // the no-discord roster member is skipped
 
     $everyoneOverwrite = $overwrites->firstWhere('id', 'guild-1');
     expect($everyoneOverwrite['type'])->toBe(0); // role overwrite
@@ -186,5 +188,30 @@ it('does nothing when MatchReady fires for a match without both entries resolved
     event(new MatchReady($match));
 
     expect(collect($this->fake->channels))->toBeEmpty();
+    expect($match->fresh()->discord_channels)->toBeNull();
+});
+
+it('removes the channel again and keeps it private first when permissions fail', function () {
+    $failing = new class extends FakeDiscordClient
+    {
+        /** @var array<int, string> */
+        public array $order = [];
+
+        public function upsertPermissionOverwrites(string $channelId, array $overwrites): void
+        {
+            $this->order = array_column($overwrites, 'id');
+
+            throw new RuntimeException('discord down');
+        }
+    };
+    app()->instance(DiscordClient::class, $failing);
+
+    $match = readyMatch();
+
+    expect(fn () => dispatch_sync(new CreateMatchChannelJob($match->id)))->toThrow(RuntimeException::class);
+
+    expect($failing->order)->toBe(['bot-1', 'guild-1', '111111', '222222']);
+    expect($failing->channels)->toBe([]);
+    expect($failing->deletedChannelIds)->toHaveCount(1);
     expect($match->fresh()->discord_channels)->toBeNull();
 });

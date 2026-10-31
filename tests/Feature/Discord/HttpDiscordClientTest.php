@@ -122,3 +122,25 @@ it('throws when a permission overwrite fails', function () {
         ['id' => 'role1', 'type' => 0, 'allow' => '0', 'deny' => '0'],
     ]);
 })->throws(RequestException::class);
+
+it('skips a member overwrite for someone who is not in the guild', function () {
+    Http::fake([
+        'discord.com/api/v10/channels/chan-1/permissions/gone' => Http::response(['message' => 'Unknown Overwrite', 'code' => 10009], 404),
+        'discord.com/*' => Http::response([], 204),
+    ]);
+
+    (new HttpDiscordClient('test-token'))->upsertPermissionOverwrites('chan-1', [
+        ['id' => 'gone', 'type' => 1, 'allow' => '1024', 'deny' => '0'],
+        ['id' => 'here', 'type' => 1, 'allow' => '1024', 'deny' => '0'],
+    ]);
+
+    Http::assertSentCount(2);
+});
+
+it('still throws for unknown overwrite on a role', function () {
+    Http::fake(['discord.com/*' => Http::response(['message' => 'Unknown Overwrite', 'code' => 10009], 404)]);
+
+    (new HttpDiscordClient('test-token'))->upsertPermissionOverwrites('chan-1', [
+        ['id' => 'role1', 'type' => 0, 'allow' => '0', 'deny' => '0'],
+    ]);
+})->throws(RequestException::class);
