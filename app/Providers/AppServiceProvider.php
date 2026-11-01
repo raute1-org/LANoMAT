@@ -124,6 +124,7 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
 use App\Modules\RoomAudio\Contracts\ReceiverClient;
 use App\Modules\RoomAudio\HttpReceiverClient;
+use App\Modules\RoomAudio\Policies\RoomAudioPolicy;
 use App\Modules\Schedule\Contracts\ScheduleParticipantResolver;
 use App\Modules\Schedule\Events\ScheduleItemModified;
 use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
@@ -582,6 +583,10 @@ class AppServiceProvider extends ServiceProvider
         if ($this->on(Module::Jukebox)) {
             Gate::define('jukebox.participate', [JukeboxPolicy::class, 'participate']);
             Gate::define('jukebox.moderate', [JukeboxPolicy::class, 'moderate']);
+        }
+
+        if ($this->on(Module::RoomAudio)) {
+            Gate::define('room-audio.control', [RoomAudioPolicy::class, 'control']);
         }
     }
 

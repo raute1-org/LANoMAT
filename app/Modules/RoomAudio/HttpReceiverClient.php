@@ -39,10 +39,11 @@ class HttpReceiverClient implements ReceiverClient
             return ReceiverState::unreachable();
         }
 
-        /** @var array<string, mixed> $payload */
-        $payload = $response->json() ?? [];
+        $payload = $response->json();
 
-        return ReceiverState::fromArray($payload);
+        return is_array($payload)
+            ? ReceiverState::fromArray($payload)
+            : ReceiverState::unreachable();
     }
 
     public function setPower(bool $on): void

@@ -221,3 +221,11 @@ it('retries state() on a transient failure before giving up', function () {
 
     Http::assertSentCount(2);
 });
+
+it('returns an unreachable state when the sidecar answers 200 with a non-object JSON body', function () {
+    Http::fake([
+        'denon-admin.test/state' => Http::response('"not an object"', 200, ['Content-Type' => 'application/json']),
+    ]);
+
+    expect(receiverClient()->state())->toEqual(ReceiverState::unreachable());
+});
