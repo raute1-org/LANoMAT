@@ -11,8 +11,8 @@ use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Dispatched by {@see GoLive} the moment a `Warmup` match is flipped back to
- * `Ready` (live-ish) by an orga/helper's "Go" action — the beamer's "gong"
+ * Dispatched by {@see GoLive} the moment a `Warmup` match is flipped to
+ * `Live` by an orga/helper's "Go" action — the beamer's "gong"
  * moment. `App\Modules\Infoscreen\Listeners\GongOnMatchLive` reacts to this
  * to push a synthetic `gong` scene onto the event's beamer via
  * `SceneOverride`.

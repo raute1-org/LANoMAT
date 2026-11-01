@@ -140,7 +140,7 @@ final class ScenePayload
 
         $matches = GameMatch::query()
             ->where('tournament_id', $tournamentId)
-            ->where('status', MatchStatus::Ready->value)
+            ->whereIn('status', [MatchStatus::Ready->value, MatchStatus::Live->value])
             ->with(['entry1', 'entry2'])
             ->orderBy('round')
             ->orderBy('position')

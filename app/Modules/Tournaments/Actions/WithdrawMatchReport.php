@@ -64,11 +64,16 @@ class WithdrawMatchReport
             throw TournamentException::reportNotPending();
         }
 
+        // A match that was warmed up (`warmup_started_at` is stamped once and
+        // never cleared) can only have reached Reported through Live, so the
+        // withdrawal puts it back where it was.
+        $restored = $match->warmup_started_at !== null ? MatchStatus::Live : MatchStatus::Ready;
+
         $affected = GameMatch::query()
             ->whereKey($match->id)
             ->where('lock_version', $lockVersion)
             ->update([
-                'status' => MatchStatus::Ready->value,
+                'status' => $restored->value,
                 'lock_version' => $lockVersion + 1,
             ]);
 

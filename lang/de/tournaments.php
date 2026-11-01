@@ -161,6 +161,7 @@ return [
         'pending' => 'Ausstehend',
         'ready' => 'Bereit',
         'warmup' => 'Aufwärmen',
+        'live' => 'Läuft',
         'reported' => 'Gemeldet',
         'disputed' => 'Strittig',
         'completed' => 'Abgeschlossen',

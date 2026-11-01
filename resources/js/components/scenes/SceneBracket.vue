@@ -36,6 +36,7 @@ defineProps<{
                     pending: labels.match_status_pending,
                     ready: labels.match_status_ready,
                     warmup: labels.match_status_warmup,
+                    live: labels.match_status_live,
                     reported: labels.match_status_reported,
                     disputed: labels.match_status_disputed,
                     completed: labels.match_status_completed,

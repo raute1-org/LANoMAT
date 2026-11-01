@@ -39,7 +39,7 @@ class SubmitMatchReport
                 throw TournamentException::matchAlreadyReported();
             }
 
-            if ($locked->status !== MatchStatus::Ready) {
+            if ($locked->status !== MatchStatus::Ready && $locked->status !== MatchStatus::Live) {
                 throw TournamentException::matchNotReady();
             }
 

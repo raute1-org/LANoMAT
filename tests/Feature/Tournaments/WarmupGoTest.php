@@ -11,6 +11,7 @@ use App\Modules\Infoscreen\Events\SceneOverride;
 use App\Modules\Tournaments\Actions\EnterWarmup;
 use App\Modules\Tournaments\Actions\GoLive;
 use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\MatchWentLive;
 use App\Modules\Tournaments\Exceptions\TournamentException;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -47,8 +48,8 @@ it('lets a helper GoLive on a warmup match, dispatching MatchWentLive and a gong
 
     $result = (new GoLive)->handle($match, $helper);
 
-    expect($result->status)->toBe(MatchStatus::Ready)
-        ->and($match->fresh()->status)->toBe(MatchStatus::Ready);
+    expect($result->status)->toBe(MatchStatus::Live)
+        ->and($match->fresh()->status)->toBe(MatchStatus::Live);
 
     Event::assertDispatched(MatchWentLive::class, fn (MatchWentLive $event) => $event->match->id === $match->id);
 });
@@ -60,7 +61,7 @@ it('lets an orga GoLive on a warmup match', function () {
 
     $result = (new GoLive)->handle($match, $orga);
 
-    expect($result->status)->toBe(MatchStatus::Ready);
+    expect($result->status)->toBe(MatchStatus::Live);
 });
 
 it('forbids a participant from triggering GoLive', function () {
@@ -129,10 +130,10 @@ it('does not yank a live match back into Warmup when a post-go-live ServerLinkUp
     expect($match->fresh()->status)->toBe(MatchStatus::Warmup)
         ->and($match->fresh()->warmup_started_at)->not->toBeNull();
 
-    // Helper triggers GoLive: match is now live (status flips back to Ready).
+    // Helper triggers GoLive: match is now live (status becomes Live).
     $live = (new GoLive)->handle($match->fresh(), $helper);
 
-    expect($live->status)->toBe(MatchStatus::Ready);
+    expect($live->status)->toBe(MatchStatus::Live);
 
     $warmupStartedAt = $live->warmup_started_at;
 
@@ -142,7 +143,7 @@ it('does not yank a live match back into Warmup when a post-go-live ServerLinkUp
 
     $afterward = $match->fresh();
 
-    expect($afterward->status)->toBe(MatchStatus::Ready)
+    expect($afterward->status)->toBe(MatchStatus::Live)
         ->and($afterward->status)->not->toBe(MatchStatus::Warmup)
         ->and($afterward->warmup_started_at)->toEqual($warmupStartedAt);
 });
@@ -164,4 +165,36 @@ it('does nothing on server-ready when the match is not currently Ready', functio
 it('exposes the German match_status label for the new Warmup case', function () {
     expect(MatchStatus::Warmup->label())->toBe(__('tournaments.match_status.warmup'))
         ->and(__('tournaments.match_status.warmup'))->toBe('Aufwärmen');
+});
+
+it('exposes the German match_status label for the Live case', function () {
+    expect(MatchStatus::Live->label())->toBe('Läuft')
+        ->and(MatchStatus::Live->value)->toBe('live');
+});
+
+it('refuses GoLive on a Ready match and on an already Live match', function (MatchStatus $status) {
+    $helper = User::factory()->create(['role' => Role::Helper]);
+    $match = GameMatch::factory()->for(Tournament::factory()->create())->create(['status' => $status]);
+
+    expect(fn () => (new GoLive)->handle($match, $helper))->toThrow(TournamentException::class);
+    expect($match->fresh()->status)->toBe($status);
+})->with([MatchStatus::Ready, MatchStatus::Live]);
+
+it('refuses to enter Warmup from Live', function () {
+    $match = GameMatch::factory()->create(['status' => MatchStatus::Live]);
+
+    expect(fn () => (new EnterWarmup)->handle($match))->toThrow(TournamentException::class);
+    expect($match->fresh()->status)->toBe(MatchStatus::Live);
+});
+
+it('does not re-fire MatchReady when a match goes Live', function () {
+    Event::fake([MatchReady::class, MatchWentLive::class]);
+
+    $helper = User::factory()->create(['role' => Role::Helper]);
+    $match = GameMatch::factory()->for(Tournament::factory()->create())->create(['status' => MatchStatus::Warmup]);
+
+    (new GoLive)->handle($match, $helper);
+
+    Event::assertNotDispatched(MatchReady::class);
+    Event::assertDispatched(MatchWentLive::class);
 });

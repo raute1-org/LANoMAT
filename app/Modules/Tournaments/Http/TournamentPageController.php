@@ -470,7 +470,7 @@ class TournamentPageController extends Controller
             404,
         );
 
-        $withdrawn = $match->status === MatchStatus::Ready
+        $withdrawn = ($match->status === MatchStatus::Ready || $match->status === MatchStatus::Live)
             && $match->reports()->where('status', ReportStatus::Withdrawn->value)->exists();
 
         Inertia::flash('toast', ['type' => 'info', 'message' => trans($withdrawn ? 'tournaments.errors.report_withdrawn' : 'tournaments.errors.report_not_pending')]);
@@ -526,7 +526,7 @@ class TournamentPageController extends Controller
         );
 
         $active = $mine->first(
-            fn (GameMatch $match): bool => in_array($match->status, [MatchStatus::Ready, MatchStatus::Reported, MatchStatus::Disputed], true),
+            fn (GameMatch $match): bool => in_array($match->status, [MatchStatus::Ready, MatchStatus::Live, MatchStatus::Reported, MatchStatus::Disputed], true),
         );
 
         return $active ?? $mine->last();

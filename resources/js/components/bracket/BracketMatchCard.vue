@@ -61,7 +61,9 @@ const correctForm = useForm({ score1: 0, score2: 0, lock_version: 0 });
 const isCorrecting = ref(false);
 
 const canReport = computed(
-    () => props.isParticipant && props.match.status === 'ready',
+    () =>
+        props.isParticipant &&
+        (props.match.status === 'ready' || props.match.status === 'live'),
 );
 const canRespond = computed(
     () =>
@@ -213,18 +215,18 @@ function statusVariant(
 }
 
 const isLive = computed(
-    () => props.match.status === 'ready' || props.match.status === 'reported',
+    () => props.match.status === 'live' || props.match.status === 'reported',
 );
 const isWarmup = computed(() => props.match.status === 'warmup');
 
 // A CS2 telemetry live score (Task 12, roadmap 6.9) writes score1/score2
-// while the match is still `ready` (in progress) — before any report is
+// while the match is `live` (in progress) — before any report is
 // submitted. This is the calm-register cue that the numbers already shown
 // below are live and updating, not the final reported result (which only
-// ever appears once `status` moves past `ready`).
+// ever appears once `status` moves past `live`).
 const hasLiveScore = computed(
     () =>
-        props.match.status === 'ready' &&
+        props.match.status === 'live' &&
         (props.match.score1 !== null || props.match.score2 !== null),
 );
 </script>
