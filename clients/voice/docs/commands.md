@@ -32,50 +32,50 @@ Every command that can fail rejects with one shape:
 
 ```json
 {
-  "kind": "validation",
-  "message": "Du hast schon abgestimmt.",
-  "retryable": false,
-  "code": "already_voted",
-  "retry_after_secs": null,
-  "fields": { "option_id": ["..."] }
+    "kind": "validation",
+    "message": "Du hast schon abgestimmt.",
+    "retryable": false,
+    "code": "already_voted",
+    "retry_after_secs": null,
+    "fields": { "option_id": ["..."] }
 }
 ```
 
 `kind`, `message` and `retryable` are always present; `code`, `retry_after_secs` and `fields` only
 when there is something to say (the key is then absent).
 
-| `kind`         | Meaning                                                                                  | `retryable` | What the UI does                                                                       |
-| -------------- | ---------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------- |
-| `auth`         | token rejected (revoked or expired) or not connected (HTTP 401). `auth-expired` is sent. | no          | go to "Verbinden"                                                                      |
-| `forbidden`    | the server refuses this action (403)                                                     | no          | show `message`                                                                         |
-| `not_found`    | unknown or not visible (404); also a module that is switched off                         | no          | show `message`, refresh the list                                                       |
-| `conflict`     | the object changed (409, stale `lock_version`); `code` e.g. `tournaments.errors.stale_match` | no      | reload, then let the person retry                                                      |
-| `gone`         | not there any more (410, archived room)                                                  | no          | show `message`                                                                         |
-| `validation`   | a rule or input error (422); `message` is the server's German text, `code` its stable code (`already_voted`, `not_open`, `item_limit`, `quota_exceeded`, `tournaments.errors.checkin_closed`, ...), `fields` the input errors | no | show `message`; mark `fields` |
-| `rate_limited` | too many requests (429); `retry_after_secs` when the server says                         | yes         | calm hint, retry after the delay                                                       |
-| `unavailable`  | the server cannot do it right now (503)                                                  | yes         | "Erneut versuchen"                                                                     |
-| `server`       | any other server error; `retryable` is true for 5xx                                      | 5xx only    | "Erneut versuchen" when retryable                                                      |
-| `network`      | server unreachable, timeout, or an answer that is not LANoMAT                            | yes (not for a bad answer) | offline state, keep trying in the background            |
-| `transfer`     | a file transfer failed; `code` is `ticket_expired`, `too_large`, `blocked_type`, `quota_exceeded`, `uploads_unavailable`, `host_full`, `upload_lost`, `link_expired`, `empty_file`, `network`, `forbidden` | `network`, `upload_lost`, `link_expired` | show `message`; offer "Erneut" when retryable |
-| `local`        | a local problem (files, audio device, no URL handler, no clipboard)                      | no          | show `message`                                                                         |
-| `usage`        | bad input (an invalid address or file, a refused link)                                   | no          | show `message`                                                                         |
-| `denied`, `expired` | the connect flow only (pairing refused / code expired)                              | no          | see `connect_poll`                                                                     |
+| `kind`              | Meaning                                                                                                                                                                                                                       | `retryable`                              | What the UI does                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------- |
+| `auth`              | token rejected (revoked or expired) or not connected (HTTP 401). `auth-expired` is sent.                                                                                                                                      | no                                       | go to "Verbinden"                             |
+| `forbidden`         | the server refuses this action (403)                                                                                                                                                                                          | no                                       | show `message`                                |
+| `not_found`         | unknown or not visible (404); also a module that is switched off                                                                                                                                                              | no                                       | show `message`, refresh the list              |
+| `conflict`          | the object changed (409, stale `lock_version`); `code` e.g. `tournaments.errors.stale_match`                                                                                                                                  | no                                       | reload, then let the person retry             |
+| `gone`              | not there any more (410, archived room)                                                                                                                                                                                       | no                                       | show `message`                                |
+| `validation`        | a rule or input error (422); `message` is the server's German text, `code` its stable code (`already_voted`, `not_open`, `item_limit`, `quota_exceeded`, `tournaments.errors.checkin_closed`, ...), `fields` the input errors | no                                       | show `message`; mark `fields`                 |
+| `rate_limited`      | too many requests (429); `retry_after_secs` when the server says                                                                                                                                                              | yes                                      | calm hint, retry after the delay              |
+| `unavailable`       | the server cannot do it right now (503)                                                                                                                                                                                       | yes                                      | "Erneut versuchen"                            |
+| `server`            | any other server error; `retryable` is true for 5xx                                                                                                                                                                           | 5xx only                                 | "Erneut versuchen" when retryable             |
+| `network`           | server unreachable, timeout, or an answer that is not LANoMAT                                                                                                                                                                 | yes (not for a bad answer)               | offline state, keep trying in the background  |
+| `transfer`          | a file transfer failed; `code` is `ticket_expired`, `too_large`, `blocked_type`, `quota_exceeded`, `uploads_unavailable`, `host_full`, `upload_lost`, `link_expired`, `empty_file`, `network`, `forbidden`                    | `network`, `upload_lost`, `link_expired` | show `message`; offer "Erneut" when retryable |
+| `local`             | a local problem (files, audio device, no URL handler, no clipboard)                                                                                                                                                           | no                                       | show `message`                                |
+| `usage`             | bad input (an invalid address or file, a refused link)                                                                                                                                                                        | no                                       | show `message`                                |
+| `denied`, `expired` | the connect flow only (pairing refused / code expired)                                                                                                                                                                        | no                                       | see `connect_poll`                            |
 
 The `message` is always German and ready to show; it never contains the access token or a signed
 URL.
 
 ## Events
 
-| Event               | Payload                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `room-updated`      | a `RoomView` (see `get_room_view`)                                                        |
-| `shortcut-status`   | `{active: bool, message: string \| null}` after the global shortcut was (re)registered    |
-| `settings-changed`  | the `Settings` object after the tray changed a setting                                    |
-| `chat-event`        | a chat event, tagged by `type` (below)                                                    |
-| `transfer-updated`  | a `TransferView` (below), sent on every state change and about every 150 ms of progress   |
-| `notify-event`      | a notification engine event, tagged by `type` (below)                                     |
-| `quiet-changed`     | `{quiet: bool}`: the "Ruhe" toggle changed (UI or tray)                                   |
-| `auth-expired`      | `{}`: the server rejected the token; background work stopped; show "Verbinden"            |
+| Event              | Payload                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `room-updated`     | a `RoomView` (see `get_room_view`)                                                      |
+| `shortcut-status`  | `{active: bool, message: string \| null}` after the global shortcut was (re)registered  |
+| `settings-changed` | the `Settings` object after the tray changed a setting                                  |
+| `chat-event`       | a chat event, tagged by `type` (below)                                                  |
+| `transfer-updated` | a `TransferView` (below), sent on every state change and about every 150 ms of progress |
+| `notify-event`     | a notification engine event, tagged by `type` (below)                                   |
+| `quiet-changed`    | `{quiet: bool}`: the "Ruhe" toggle changed (UI or tray)                                 |
+| `auth-expired`     | `{}`: the server rejected the token; background work stopped; show "Verbinden"          |
 
 ### `chat-event` payloads
 
@@ -114,17 +114,17 @@ URL.
 
 ```json
 {
-  "id": 1,
-  "kind": "download",
-  "name": "maps.zip",
-  "status": "active",
-  "bytes_done": 1048576,
-  "total": 6291456,
-  "speed_bps": 5242880,
-  "eta_secs": 1,
-  "resumed": false,
-  "path": null,
-  "error": null
+    "id": 1,
+    "kind": "download",
+    "name": "maps.zip",
+    "status": "active",
+    "bytes_done": 1048576,
+    "total": 6291456,
+    "speed_bps": 5242880,
+    "eta_secs": 1,
+    "resumed": false,
+    "path": null,
+    "error": null
 }
 ```
 

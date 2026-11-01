@@ -66,6 +66,8 @@ expect_log "$T/report.txt" 'SUMMARY failures=0' "the script ran to the end"
 
 echo "== stand-in log (realtime lines)"
 grep -E 'pusher|broadcasting' "$T/standin.log" || true
+echo "== stand-in log (download and upload lines)"
+grep -E 'standin: (download GET|ticket issued|tus )' "$T/standin.log" || true
 echo "== evidence on the stand-in side"
 expect_log "$T/standin.log" 'pusher subscribed private-web-voice.channel.1 (signature verified' "private channel subscription authorised by HMAC through broadcasting/auth"
 expect_log "$T/standin.log" 'pusher publish message.posted to 1 subscriber' "the posted message was pushed over the fake Pusher"
