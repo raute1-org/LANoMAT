@@ -14,9 +14,9 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use voice_core::api::{
     ApiClient, Catering, ChatMessage, Connection, EventSummary, EventsResponse, FilesOverview,
-    FriendRequests, FriendSuggestion, FriendUser, GameServer, LinkUrl, Match, MessagesPage,
-    MineResponse, MyItem, Notification, NotificationsPage, NowCard, NowFeed, PollDetail, PollsList,
-    Profile, ProfileUpdate, QuotaInfo, Tournament,
+    FollowTargets, FriendRequests, FriendSuggestion, FriendUser, GameServer, LinkUrl, Match,
+    MessagesPage, MineResponse, MyItem, Notification, NotificationsPage, NowCard, NowFeed, People,
+    PeopleQuery, PollDetail, PollsList, Profile, ProfileUpdate, QuotaInfo, Tournament,
 };
 use voice_core::notify::{
     Category, Incoming, NotificationEngine, Notifier, NotifyConfig, NotifyEvent, SeenState,
@@ -470,6 +470,22 @@ impl Features {
     pub async fn permanent_servers(&self) -> Result<Vec<GameServer>, UiError> {
         self.api()?
             .permanent_servers()
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    // ---- people ----
+
+    pub async fn people(&self, event: &str, query: &PeopleQuery) -> Result<People, UiError> {
+        self.api()?
+            .people(event, query)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn follow_person(&self, event: &str, user_id: u64) -> Result<FollowTargets, UiError> {
+        self.api()?
+            .follow_person(event, user_id)
             .await
             .map_err(|e| self.fail(e))
     }

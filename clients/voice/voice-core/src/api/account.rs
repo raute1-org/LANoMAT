@@ -12,7 +12,7 @@ use crate::error::{Error, Result};
 
 /// `null` where a plain value is expected (the real server did that once for a tournament
 /// `game`) becomes the default instead of failing the whole answer.
-fn nn<'de, D, T>(d: D) -> std::result::Result<T, D::Error>
+pub(super) fn nn<'de, D, T>(d: D) -> std::result::Result<T, D::Error>
 where
     D: Deserializer<'de>,
     T: Default + Deserialize<'de>,
@@ -40,6 +40,9 @@ pub struct Profile {
     #[serde(deserialize_with = "nn")]
     pub has_verified_steam_link: bool,
     pub verified_steam_nickname: Option<String>,
+    /// Whether the person shows where they are (voice room and game) to the other participants
+    /// of an event. `None` when the server does not report it (older server).
+    pub share_location: Option<bool>,
     /// The fields this person may change.
     #[serde(deserialize_with = "nn")]
     pub editable: Vec<String>,
@@ -77,6 +80,9 @@ pub struct ProfileUpdate {
     pub stream_url: Option<Option<String>>,
     #[serde(deserialize_with = "nullable", skip_serializing_if = "Option::is_none")]
     pub profile_color: Option<Option<String>>,
+    /// The location sharing switch (a boolean, never `null`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub share_location: Option<bool>,
 }
 
 impl ProfileUpdate {
@@ -87,6 +93,7 @@ impl ProfileUpdate {
             && self.steam_url.is_none()
             && self.stream_url.is_none()
             && self.profile_color.is_none()
+            && self.share_location.is_none()
     }
 
     fn body(&self) -> Value {
@@ -457,6 +464,40 @@ mod tests {
         assert!(!list[0].can_link && list[0].status.is_empty());
         let r = c.friend_requests().await.unwrap();
         assert!(r.incoming.is_empty() && r.outgoing.is_empty());
+    }
+
+    #[tokio::test]
+    async fn share_location_is_read_and_patched_as_a_boolean() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path(format!("{V1}/profile")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"profile": {"id": 7, "name": "Ada", "share_location": false,
+                 "editable": ["name", "share_location"]}}),
+            ))
+            .mount(&server)
+            .await;
+        Mock::given(method("PATCH"))
+            .and(path(format!("{V1}/profile")))
+            .and(body_json(json!({"share_location": true})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"profile": {"id": 7, "name": "Ada", "share_location": true}}),
+            ))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let c = client(&server);
+        assert_eq!(c.profile().await.unwrap().share_location, Some(false));
+        // An older server does not report it at all.
+        let old: Profile = serde_json::from_value(json!({"id": 1, "name": "x"})).unwrap();
+        assert_eq!(old.share_location, None);
+        let update: ProfileUpdate =
+            serde_json::from_value(json!({"share_location": true, "role": "admin"})).unwrap();
+        let p = c.patch_profile(&update).await.unwrap();
+        assert_eq!(p.share_location, Some(true));
+        // A switch that is null is "not sent", so it can never clear anything.
+        let none: ProfileUpdate = serde_json::from_value(json!({"share_location": null})).unwrap();
+        assert!(c.patch_profile(&none).await.is_err());
     }
 
     #[tokio::test]
