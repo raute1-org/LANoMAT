@@ -10,6 +10,7 @@ pub mod devtokens;
 pub mod error;
 pub mod latency;
 pub mod latency_test;
+pub mod realtime;
 pub mod session;
 
 pub use error::{Error, ErrorKind, Result};

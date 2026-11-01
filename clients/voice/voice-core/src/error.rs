@@ -42,7 +42,28 @@ pub enum Error {
     #[error("voice is not available on the server right now (not configured or SFU unreachable)")]
     Unavailable,
     #[error("rate limited by the server, try again in a moment")]
-    RateLimited,
+    RateLimited { retry_after_secs: Option<u64> },
+    #[error("the server refused this action (HTTP 403)")]
+    Forbidden(String),
+    /// `409`: the object changed under the client (stale `lock_version`); reload and retry.
+    #[error("conflict: {message}")]
+    Conflict {
+        code: Option<String>,
+        message: String,
+    },
+    #[error("gone: {0}")]
+    Gone(String),
+    /// `422`: a business rule or validation error. `message` is the server's German text.
+    #[error("rejected: {message}")]
+    Validation {
+        code: Option<String>,
+        message: String,
+        fields: std::collections::BTreeMap<String, Vec<String>>,
+    },
+    /// A file transfer failed in a way the caller should show (`code` is a stable machine code
+    /// such as `ticket_expired`, `too_large`, `host_full`, `upload_lost`, `cancelled`).
+    #[error("transfer failed ({code}): {message}")]
+    Transfer { code: String, message: String },
     #[error("server error (HTTP {status}): {message}")]
     Server { status: u16, message: String },
     #[error("{0}")]
@@ -72,16 +93,44 @@ impl Error {
             | Error::PairingDenied
             | Error::PairingExpired
             | Error::InvalidGrant => ErrorKind::Auth,
-            Error::Network(_) | Error::BadResponse(_) | Error::RateLimited | Error::Room(_) => {
-                ErrorKind::Network
-            }
+            Error::Network(_)
+            | Error::BadResponse(_)
+            | Error::RateLimited { .. }
+            | Error::Room(_) => ErrorKind::Network,
             Error::NotFound(_)
             | Error::RoomArchived
             | Error::Unavailable
+            | Error::Forbidden(_)
+            | Error::Conflict { .. }
+            | Error::Gone(_)
+            | Error::Validation { .. }
+            | Error::Transfer { .. }
             | Error::Server { .. } => ErrorKind::Server,
             Error::Store(_) | Error::Audio(_) | Error::Control(_) | Error::Io { .. } => {
                 ErrorKind::Local
             }
+        }
+    }
+
+    /// Whether trying the same request again later can succeed (network trouble, throttling, a
+    /// server that is down or starting). Rejections, auth problems and conflicts are not.
+    pub fn retryable(&self) -> bool {
+        match self {
+            Error::Network(_) | Error::RateLimited { .. } | Error::Unavailable | Error::Room(_) => {
+                true
+            }
+            Error::Server { status, .. } => *status >= 500,
+            Error::Transfer { code, .. } => matches!(code.as_str(), "network" | "upload_lost"),
+            _ => false,
+        }
+    }
+
+    /// The stable machine code of the server's refusal, when it sent one.
+    pub fn code(&self) -> Option<&str> {
+        match self {
+            Error::Conflict { code, .. } | Error::Validation { code, .. } => code.as_deref(),
+            Error::Transfer { code, .. } => Some(code),
+            _ => None,
         }
     }
 

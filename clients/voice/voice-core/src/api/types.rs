@@ -91,6 +91,36 @@ pub struct ClientConfig {
     pub voice_ready: bool,
     #[serde(default)]
     pub audio: AudioSettings,
+    /// Module key (`game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`,
+    /// `lfg`, ...) to whether this deployment runs it. Empty with an older server: treat every
+    /// feature as available then.
+    #[serde(default)]
+    pub modules: std::collections::BTreeMap<String, bool>,
+    /// Reverb connection info; `None` when realtime is not configured (poll the REST routes).
+    #[serde(default)]
+    pub realtime: Option<RealtimeConfig>,
+}
+
+impl ClientConfig {
+    /// Whether the event may use the module. Unknown keys count as on, so a client older than the
+    /// server never hides something by mistake; an explicit `false` hides it.
+    pub fn module_enabled(&self, key: &str) -> bool {
+        self.modules.get(key).copied().unwrap_or(true)
+    }
+}
+
+/// `config.realtime`: the public Reverb connection info (no secret).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+#[serde(default)]
+pub struct RealtimeConfig {
+    pub driver: String,
+    /// The public app key (not a secret).
+    pub key: String,
+    pub host: String,
+    pub port: u16,
+    /// `https` means `wss`.
+    pub scheme: String,
+    pub auth_endpoint: String,
 }
 
 /// One entry of `GET rooms`.
