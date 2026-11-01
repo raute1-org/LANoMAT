@@ -11,10 +11,9 @@ use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Http\FilePageController;
 use App\Modules\Gallery\Actions\BuildEventPhotoZip;
-use App\Modules\Gallery\Actions\DeletePhoto;
+use App\Modules\Gallery\Actions\RetractPhoto;
 use App\Modules\Gallery\Actions\UploadPhoto;
 use App\Modules\Gallery\Enums\PhotoVisibility;
-use App\Modules\Gallery\Events\GalleryUpdated;
 use App\Modules\Gallery\Exceptions\GalleryException;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Support\GalleryQuery;
@@ -121,15 +120,18 @@ class GalleryPageController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, EventPhoto $eventPhoto, DeletePhoto $action): RedirectResponse
+    /**
+     * Retracts a photo (uploader or orga, see {@see RetractPhoto}). Resolved by
+     * id rather than route-model binding so a repeated request for an already
+     * retracted photo is a harmless redirect, not a 404 error page.
+     */
+    public function destroy(Request $request, int $eventPhoto, RetractPhoto $action): RedirectResponse
     {
-        $this->authorize('delete', $eventPhoto);
+        $photo = EventPhoto::query()->find($eventPhoto);
 
-        $eventId = $eventPhoto->event_id;
-
-        GalleryUpdated::dispatch($eventId);
-
-        $action->handle($eventPhoto);
+        if ($photo !== null) {
+            $action->handle($photo, $this->authUser($request));
+        }
 
         return back();
     }
@@ -230,6 +232,7 @@ class GalleryPageController extends Controller
             'uploaderName' => $photo->uploader?->name,
             'visibility' => $photo->visibility->value,
             'mine' => $photo->uploaded_by === $user->id,
+            'retractable' => $user->can('retract', $photo),
             'isHighlight' => $photo->is_highlight,
         ];
     }

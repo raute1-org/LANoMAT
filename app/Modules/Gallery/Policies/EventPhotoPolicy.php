@@ -37,6 +37,16 @@ class EventPhotoPolicy
     }
 
     /**
+     * Withdrawing a photo: its uploader at any time (also once approved), or
+     * orga for any photo. Deliberately not helpers — a helper moderates
+     * (approve/reject), but may not remove a participant's own upload.
+     */
+    public function retract(User $user, EventPhoto $photo): bool
+    {
+        return $photo->uploaded_by === $user->id || $user->isOrga();
+    }
+
+    /**
      * Used starting the moderation UI task; defined now so the ability
      * exists alongside the rest of the policy.
      */

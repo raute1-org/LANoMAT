@@ -4,6 +4,7 @@
  * full-resolution image lazily (only once `photo` is set, i.e. the dialog is
  * about to open) rather than preloading every full-size photo up front.
  */
+import { ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -30,6 +31,16 @@ function onOpenChange(open: boolean): void {
         emit('close');
     }
 }
+
+/** Withdrawing is two steps: the first click asks, the second confirms. */
+const confirming = ref(false);
+
+watch(
+    () => props.photo,
+    () => {
+        confirming.value = false;
+    },
+);
 
 function remove(): void {
     if (props.photo) {
@@ -63,8 +74,31 @@ function remove(): void {
                 {{ labels.uploaded_by }} {{ photo.uploaderName }}
             </p>
 
-            <DialogFooter v-if="photo.mine">
-                <Button variant="destructive" size="sm" @click="remove">
+            <DialogFooter v-if="photo.retractable">
+                <template v-if="confirming">
+                    <p class="mr-auto text-sm text-muted-foreground">
+                        <span class="font-medium text-foreground">{{
+                            labels.delete_confirm_title
+                        }}</span>
+                        {{ labels.delete_confirm_body }}
+                    </p>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="confirming = false"
+                    >
+                        {{ labels.cancel }}
+                    </Button>
+                    <Button variant="destructive" size="sm" @click="remove">
+                        {{ labels.delete }}
+                    </Button>
+                </template>
+                <Button
+                    v-else
+                    variant="destructive"
+                    size="sm"
+                    @click="confirming = true"
+                >
                     {{ labels.delete }}
                 </Button>
             </DialogFooter>
