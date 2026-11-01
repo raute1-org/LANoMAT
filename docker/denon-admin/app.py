@@ -65,6 +65,10 @@ MODES = {
     "game": ("Game", "MSGAME"),
 }
 
+# Receiver reply text (the part after "MS") -> our mode key. Replies that are
+# not in the whitelist (decoded names such as DOLBY DIGITAL) have no key.
+MODE_KEY_BY_REPLY = {command[2:]: key for key, (_, command) in MODES.items()}
+
 # Inputs that SSFUN does not always list; they fill the gaps in the picker.
 DEFAULT_SOURCE_NAMES = {
     "TUNER": "Tuner",
@@ -111,7 +115,10 @@ def new_state(sources: list[dict[str, str]] | None = None) -> dict[str, Any]:
         "volumeMax": VOLUME_MAX,
         "mute": False,
         "source": "",
+        # Whitelist key of the current mode, "" when the receiver reports one
+        # that is not in `modes`; `modeName` is the sanitised raw reply.
         "mode": "",
+        "modeName": "",
         "sources": sources if sources is not None else [],
         "modes": [{"key": key, "name": name} for key, (name, _) in MODES.items()],
     }
@@ -159,14 +166,16 @@ class Receiver:
             if rest.strip() != "END":
                 code, _, name = rest.strip().partition(" ")
                 if CODE_RE.fullmatch(code):
-                    self._names[code] = sanitize(name)
+                    self._names[code] = sanitize(name) or code
                     s["sources"] = self._source_list()
         elif line.startswith("SI"):
             code = line[2:].strip()
             if CODE_RE.fullmatch(code):
                 s["source"] = code
         elif line.startswith("MS") and not line.startswith("MSQUICK"):
-            s["mode"] = sanitize(line[2:].title())
+            reply = line[2:].strip().upper()
+            s["mode"] = MODE_KEY_BY_REPLY.get(reply, "")
+            s["modeName"] = sanitize(reply.title())
 
         return self.state != before
 

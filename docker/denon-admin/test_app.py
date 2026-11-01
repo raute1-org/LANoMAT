@@ -8,7 +8,6 @@ receiver or the internet.
 
 import math
 import socket
-import threading
 import time
 
 import pytest
@@ -61,8 +60,37 @@ def test_source_line():
     assert parse("SIBD")["source"] == "BD"
 
 
-def test_mode_line_is_titled():
-    assert parse("MSSTEREO")["mode"] == "Stereo"
+def test_known_mode_reply_maps_to_key_and_name():
+    state = parse("MSSTEREO")
+    assert state["mode"] == "stereo"
+    assert state["modeName"] == "Stereo"
+
+
+@pytest.mark.parametrize(
+    "line,key",
+    [
+        ("MSSTEREO", "stereo"),
+        ("MSDIRECT", "direct"),
+        ("MSPURE DIRECT", "pure"),
+        ("MSAUTO", "auto"),
+        ("MSMOVIE", "movie"),
+        ("MSMUSIC", "music"),
+        ("MSGAME", "game"),
+    ],
+)
+def test_every_listed_mode_reply_maps_to_its_key(line, key):
+    assert parse(line)["mode"] == key
+
+
+def test_decoded_mode_reply_has_no_key_but_a_display_name():
+    state = parse("MSDOLBY DIGITAL")
+    assert state["mode"] == ""
+    assert state["modeName"] == "Dolby Digital"
+
+
+def test_empty_ssfun_name_falls_back_to_the_code():
+    state = parse("SSFUN BD")
+    assert {"code": "BD", "name": "BD"} in state["sources"]
 
 
 def test_quick_select_mode_line_is_ignored():
@@ -110,6 +138,7 @@ def test_state_shape_has_no_zone_two_keys():
         "mute",
         "source",
         "mode",
+        "modeName",
         "sources",
         "modes",
     }
