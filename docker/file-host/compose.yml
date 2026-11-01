@@ -18,6 +18,12 @@
 #   FILES_UID=<UID>                           # numeric uid of <FILES_SFTP_USER> (id -u): tusd must write
 #                                             # files that the SFTP account can delete
 #
+# Certificate renewal (optional, profile `cert-sync`): the `cert-sync` service copies a renewed
+# wildcard certificate from CERT_SOURCE into <FILES_ROOT>/certs and reloads nginx, see
+# docs/infra/file-host.md "Step 4":
+#   CERT_SOURCE=<DIR>   # directory holding certificate.crt + privatekey.key (default ./cert-source)
+#   docker compose --profile cert-sync up -d
+#
 # Runbook, sizing and verification checklist: docs/infra/file-host.md
 services:
   file-host:
@@ -106,3 +112,30 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  cert-sync:
+    # Carries a renewed wildcard certificate over to nginx (docker/file-host/sync-certs.py), so the copy never
+    # goes stale. Opt-in: nothing starts it without `--profile cert-sync`.
+    profiles: [cert-sync]
+    image: python:3.13-alpine
+    restart: unless-stopped
+    # Shares nginx's PID namespace, where the nginx master is PID 1: the script reloads nginx by SIGHUP
+    # without a Docker socket.
+    pid: 'service:file-host'
+    command: ['python3', '-u', '/sync-certs.py']
+    environment:
+      CERT_SOURCE_DIR: /source
+      CERTS_DIR: /certs
+    volumes:
+      - ./sync-certs.py:/sync-certs.py:ro
+      # certificate.crt + privatekey.key, as written by the `certs-export` service or pushed by hand.
+      - ${CERT_SOURCE:-./cert-source}:/source:ro
+      - <FILES_ROOT>/certs:/certs
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - file-host

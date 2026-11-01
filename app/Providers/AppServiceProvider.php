@@ -83,6 +83,7 @@ use App\Modules\Preflight\Checks\DatabaseCheck;
 use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
+use App\Modules\Preflight\Checks\FileHostCheck;
 use App\Modules\Preflight\Checks\LiveKitCheck;
 use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
@@ -274,6 +275,7 @@ class AppServiceProvider extends ServiceProvider
             BackupFreshnessCheck::class,
             ...($modules->enabled(Module::Discord) ? [DiscordApiCheck::class, DiscordGatewaySidecarCheck::class] : []),
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
+            ...($modules->enabled(Module::Files) ? [FileHostCheck::class] : []),
             ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
