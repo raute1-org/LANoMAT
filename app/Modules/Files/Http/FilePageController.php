@@ -7,12 +7,12 @@ use App\Http\Controllers\Controller;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Actions\DeleteSharedFile;
 use App\Modules\Files\Actions\UploadSharedFile;
-use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
 use App\Modules\Files\Support\ResumableUploads;
 use App\Modules\Files\Support\UploadQuota;
+use App\Modules\Files\Support\VisibleFiles;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,25 +38,7 @@ class FilePageController extends Controller
 
         $userId = $request->user()?->id;
 
-        $query = SharedFile::query()
-            ->where('event_id', $event->id)
-            ->with('uploader');
-
-        $query->where(function ($builder) use ($userId) {
-            $builder->where('visibility', FileVisibility::Approved);
-
-            if ($userId !== null) {
-                $builder->orWhere(function ($ownPending) use ($userId) {
-                    $ownPending->where('user_id', $userId)
-                        ->where('visibility', FileVisibility::Pending);
-                });
-            }
-        });
-
-        $files = $query
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+        $files = VisibleFiles::listFor($event, $userId);
 
         return Inertia::render('Files/Index', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
