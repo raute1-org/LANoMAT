@@ -22,6 +22,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Http\Client\RequestException;
 use InvalidArgumentException;
 use UnitEnum;
 
@@ -55,9 +56,21 @@ class RoomControl extends Page
         return __('room_audio.title');
     }
 
-    public function setVolume(float $v): void
+    public function setVolume(mixed $v): void
     {
-        $this->guarded(fn () => app(SetReceiverVolume::class)($this->actor(), $v));
+        $this->guarded(function () use ($v): void {
+            if (! is_int($v) && ! is_float($v) && ! (is_string($v) && is_numeric($v))) {
+                throw new InvalidArgumentException('volume must be numeric');
+            }
+
+            $volume = (float) $v;
+
+            if (! is_finite($volume)) {
+                throw new InvalidArgumentException('volume must be finite');
+            }
+
+            app(SetReceiverVolume::class)($this->actor(), $volume);
+        });
     }
 
     public function volumeStep(int $direction): void
@@ -100,10 +113,16 @@ class RoomControl extends Page
         $this->guarded(fn () => app(SetReceiverMode::class)($this->actor(), $key));
     }
 
-    public function saveCeiling(int $c): void
+    public function saveCeiling(mixed $c): void
     {
         $this->guarded(function () use ($c): void {
-            app(SetVolumeCeiling::class)($this->actor(), $c);
+            $ceiling = filter_var($c, FILTER_VALIDATE_INT);
+
+            if ($ceiling === false) {
+                throw new InvalidArgumentException('ceiling must be an integer');
+            }
+
+            app(SetVolumeCeiling::class)($this->actor(), $ceiling);
 
             Notification::make()->success()->title(__('room_audio.ceiling_saved'))->send();
         });
@@ -136,6 +155,10 @@ class RoomControl extends Page
         } catch (ReceiverUnavailable) {
             $this->fail(__('room_audio.errors.unavailable'));
         } catch (InvalidArgumentException) {
+            $this->fail(__('room_audio.errors.invalid'));
+        } catch (RequestException $e) {
+            // The sidecar refused the command (401 bad token, 422 bad value).
+            report($e);
             $this->fail(__('room_audio.errors.invalid'));
         }
     }

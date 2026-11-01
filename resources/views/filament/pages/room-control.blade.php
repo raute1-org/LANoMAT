@@ -27,7 +27,7 @@
         .rc-label { display: block; font-weight: 500; font-size: .875rem; margin-bottom: .375rem; }
         .rc-field { width: 100%; min-height: 2.5rem; padding: .25rem .75rem; border-radius: .5rem; border: 1px solid var(--gray-300); background: transparent; color: inherit; }
         .dark .rc-field { border-color: var(--gray-600); }
-        .rc-field option { color: #000; }
+        .rc-field option { color: var(--gray-950); }
         .rc-field:disabled { opacity: .5; cursor: not-allowed; }
         .rc-ceiling { display: flex; gap: .5rem; align-items: center; }
         .rc-ceiling .rc-field { max-width: 7rem; font-family: ui-monospace, 'JetBrains Mono', monospace; }
@@ -86,8 +86,9 @@
                     max="{{ min($ceiling, (int) $state->volumeMax) }}"
                     step="0.5"
                     value="{{ $volume ?? 0 }}"
+                    wire:key="vol-{{ $volume ?? 'none' }}-{{ min($ceiling, (int) $state->volumeMax) }}"
                     aria-label="{{ __('room_audio.volume_slider') }}"
-                    x-on:change="$wire.setVolume(parseFloat($event.target.value))"
+                    x-on:change="const v = parseFloat($event.target.value); if (Number.isFinite(v)) $wire.setVolume(v)"
                     @disabled($locked)
                 >
             </div>
@@ -95,7 +96,11 @@
 
         <div class="rc-grid">
             <x-filament::section :heading="__('room_audio.source')">
-                <select class="rc-field" aria-label="{{ __('room_audio.source') }}" x-on:change="$wire.setSource($event.target.value)" @disabled($locked || $state->sources === [])>
+                @php($sourceKnown = collect($state->sources)->contains(fn ($s) => $s['code'] === $state->source))
+                <select class="rc-field" wire:key="source-{{ $state->source }}-{{ count($state->sources) }}" aria-label="{{ __('room_audio.source') }}" x-on:change="if ($event.target.value) $wire.setSource($event.target.value)" @disabled($locked || $state->sources === [])>
+                    @if (! $sourceKnown && $state->sources !== [])
+                        <option value="" selected disabled>{{ $state->source !== '' ? $state->source : '–' }}</option>
+                    @endif
                     @forelse ($state->sources as $source)
                         <option value="{{ $source['code'] }}" @selected($source['code'] === $state->source)>{{ $source['name'] }}</option>
                     @empty
@@ -105,7 +110,11 @@
             </x-filament::section>
 
             <x-filament::section :heading="__('room_audio.mode')">
-                <select class="rc-field" aria-label="{{ __('room_audio.mode') }}" x-on:change="$wire.setMode($event.target.value)" @disabled($locked || $state->modes === [])>
+                @php($modeKnown = collect($state->modes)->contains(fn ($m) => $m['key'] === $state->mode))
+                <select class="rc-field" wire:key="mode-{{ $state->mode }}-{{ $state->modeName }}" aria-label="{{ __('room_audio.mode') }}" x-on:change="if ($event.target.value) $wire.setMode($event.target.value)" @disabled($locked || $state->modes === [])>
+                    @if (! $modeKnown && $state->modes !== [])
+                        <option value="" selected disabled>{{ $state->modeName !== '' ? $state->modeName : '–' }}</option>
+                    @endif
                     @forelse ($state->modes as $mode)
                         <option value="{{ $mode['key'] }}" @selected($mode['key'] === $state->mode)>{{ $mode['name'] }}</option>
                     @empty
@@ -127,7 +136,7 @@
                     value="{{ $ceiling }}"
                     aria-label="{{ __('room_audio.ceiling') }}"
                 >
-                <x-filament::button color="gray" x-on:click="$wire.saveCeiling(parseInt($refs.ceiling.value, 10))">
+                <x-filament::button color="gray" x-on:click="const c = parseInt($refs.ceiling.value, 10); if (Number.isFinite(c)) $wire.saveCeiling(c)">
                     {{ __('room_audio.ceiling_save') }}
                 </x-filament::button>
             </div>
