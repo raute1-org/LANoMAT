@@ -22,9 +22,52 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  php:
-    name: php
+  # Static analysis: no database, no frontend build. Runs in parallel to the
+  # test shards.
+  php-static:
+    name: php-static
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # '8.4' resolves to the newest 8.4.x patch available on the runner.
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.testing .env && php artisan key:generate
+
+      # Pint's cache is content-hash based, so a stale restore-key hit is safe:
+      # only changed files are re-checked. A cold serial run is slow (~1 min on
+      # a fast machine, minutes on a runner); --parallel brings it to seconds.
+      - name: Cache pint
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pint/cache
+          key: pint-${{ runner.os }}-${{ github.sha }}
+          restore-keys: pint-${{ runner.os }}-
+
+      - run: mkdir -p "$HOME/.cache/pint"
+      - run: ./vendor/bin/pint --test --parallel --cache-file="$HOME/.cache/pint/cache"
+      - run: ./vendor/bin/phpstan analyse --memory-limit=1G
+
+  # The suite is split into 3 shards via Pest's built-in --shard (each test runs
+  # in exactly one shard). Every shard has its own postgres service container,
+  # so RefreshDatabase never shares a database across processes.
+  php-tests:
+    name: php-tests (${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     services:
       postgres:
         image: postgres:16-alpine
@@ -35,7 +78,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # '8.4' resolves to the newest 8.4.x patch available on the runner.
       - uses: shivammathur/setup-php@v2
         with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
 
@@ -55,24 +97,22 @@ jobs:
       # The feature tests render Inertia pages through the Vite-powered root
       # view, which needs public/build/manifest.json (the Vite plugin also runs
       # wayfinder:generate itself). The frontend job runs the same build as its
-      # own check; this one only produces the manifest for the tests.
+      # own check; each shard only produces the manifest for the tests.
       - run: npm ci
       - run: npm run build
 
-      - run: ./vendor/bin/pint --test
-      - run: ./vendor/bin/phpstan analyse --memory-limit=1G
-
       - run: php artisan migrate --force
-      - name: Tests (full profile)
-        run: ./vendor/bin/pest
+      - name: Tests (full profile, shard ${{ matrix.shard }}/3)
+        run: ./vendor/bin/pest --shard=${{ matrix.shard }}/3
         env:
           MODULES_PROFILE: full
 
       # The module tests (isolation matrix, profile reports) spawn their own
       # core/full processes and run in the full pest step above; the in-process
       # guard tests assume `full`, so the whole suite is not re-run under core.
-      # This step just proves a plain core boot on CI.
+      # This step just proves a plain core boot on CI (once, in shard 1).
       - name: Core-profile smoke (boot)
+        if: ${{ matrix.shard == 1 }}
         run: |
           php artisan lanomat:modules
           php artisan route:list > /dev/null
@@ -120,11 +160,11 @@ jobs:
   # branch protection / `gh pr checks`, whatever the job split underneath.
   ci:
     name: ci
-    needs: [php, frontend]
+    needs: [php-static, php-tests, frontend]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs to pass
         run: |
-          echo "php=${{ needs.php.result }} frontend=${{ needs.frontend.result }}"
-          [ "${{ needs.php.result }}" = "success" ] && [ "${{ needs.frontend.result }}" = "success" ]
+          echo "php-static=${{ needs.php-static.result }} php-tests=${{ needs.php-tests.result }} frontend=${{ needs.frontend.result }}"
+          [ "${{ needs.php-static.result }}" = "success" ] && [ "${{ needs.php-tests.result }}" = "success" ] && [ "${{ needs.frontend.result }}" = "success" ]
