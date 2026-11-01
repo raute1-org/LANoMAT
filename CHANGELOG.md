@@ -17,6 +17,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Added
 
+- Desktop client: a Beitreten button on every place (voice room, game, server) of a person in Wo ist wer
 - File host preflight check and certificate renewal (#109)
 - Update watch for pinned third-party images (#110)
 - Retract own gallery photos (uploader or orga) (#111)

@@ -905,13 +905,15 @@ input[type='number'] {
     font-size: 0.85rem;
     margin-top: 4px;
 }
+.where .where-join {
+    margin-left: auto;
+}
 .where .muted {
     font-size: 0.8rem;
 }
 .follow-host:empty {
     display: none;
 }
-.follow-panel,
 .confirm {
     padding: 12px;
     border: 1px solid var(--border);
@@ -921,15 +923,6 @@ input[type='number'] {
 .confirm {
     width: 100%;
     border-color: color-mix(in srgb, var(--warn) 50%, transparent);
-}
-.follow-item {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-}
-.follow-item .actions {
-    margin-left: auto;
 }
 .btn.small-btn.primary {
     background: var(--primary);

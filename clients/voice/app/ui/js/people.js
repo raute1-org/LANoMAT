@@ -1,6 +1,6 @@
 // Wo ist wer: the people of the event who share their location (the "Personen" view of
-// Sprache), the compact team strip on Jetzt, and Hinterherjoinen, which takes you to where a
-// person is, in voice and in the game. What a person shows is exactly what the API gives: a room
+// Sprache), the compact team strip on Jetzt, and Hinterherjoinen: every place of a person has its own Beitreten
+// button, which takes you to where the person is, in voice and in the game. What a person shows is exactly what the API gives: a room
 // or server you may not see arrives without details and stays without them.
 import { go } from './nav.js';
 import { copyText, eventSlug, joinServer, avatar } from './shared.js';
@@ -18,10 +18,9 @@ import {
     relative,
     skeleton,
     staleHint,
-    state,
     toast,
 } from './util.js';
-import { inRoom, joinRoom } from './voice.js';
+import { joinRoom } from './voice.js';
 
 const REFRESH_MS = 30000;
 
@@ -37,8 +36,23 @@ const ago = (iso) => {
 
 // ---- where somebody is ----
 
+// The per-place button: pushed to the right of its line, disabled for a place you may not see.
+function joinButton(p, joinable, run) {
+    const btn = el('button', {
+        class: `btn small-btn ${joinable ? 'primary' : ''} where-join`.trim(),
+        type: 'button',
+        text: S.people.join,
+        'aria-label': S.people.joinAria(p.name),
+        disabled: !joinable,
+        title: joinable ? '' : S.people.cannotJoin,
+        onclick: () => run(btn),
+    });
+
+    return btn;
+}
+
 // One line per place: the provider as a chip, the room or game as plain words.
-function whereLines(p) {
+function whereLines(p, onJoin) {
     const lines = [];
 
     for (const v of p.voice || []) {
@@ -60,6 +74,11 @@ function whereLines(p) {
                 dot('ok'),
                 chip(providerName(v.provider)),
                 ...bits,
+                onJoin
+                    ? joinButton(p, Boolean(v.roomRef), (btn) =>
+                          onJoin({ kind: 'voice', provider: v.provider }, btn),
+                      )
+                    : null,
             ),
         );
     }
@@ -82,6 +101,11 @@ function whereLines(p) {
                 g.since
                     ? el('span', { class: 'muted', text: relative(g.since) })
                     : null,
+                onJoin
+                    ? joinButton(p, Boolean(g.joinUrl || g.address), (btn) =>
+                          onJoin({ kind: 'game' }, btn),
+                      )
+                    : null,
             ),
         );
     }
@@ -90,11 +114,6 @@ function whereLines(p) {
 }
 
 const hasPlace = (p) => (p.voice || []).length > 0 || Boolean(p.game);
-
-// The people list only says whether there is something to join, the follow answer says how.
-const canFollow = (p) =>
-    (p.voice || []).some((v) => v.roomRef) ||
-    Boolean(p.game && (p.game.joinUrl || p.game.address));
 
 // ---- Hinterherjoinen ----
 
@@ -154,13 +173,6 @@ function targets(f) {
             run: room
                 ? () => joinRoom(room, { toTab: true })
                 : () => openVoiceLink(v),
-            label: room
-                ? S.people.joinRoom
-                : v.provider === 'discord'
-                  ? S.people.copyLink
-                  : S.people.openIn(providerName(v.provider)),
-            roomId: room || null,
-            copy: !room && v.provider !== 'discord' && url ? url : null,
         });
     }
 
@@ -186,158 +198,9 @@ function targets(f) {
     return { voice, game };
 }
 
-function followPanel(person, f, onClose) {
-    const t = targets(f);
-    const rows = [];
-    let first = true;
-
-    for (const item of t.voice) {
-        const v = item.v;
-        const preferred = f.preferredProvider === v.provider;
-        const here =
-            item.roomId &&
-            inRoom() &&
-            state.view.room &&
-            state.view.room.id === item.roomId;
-        const actions = [];
-
-        if (item.run) {
-            actions.push(
-                el('button', {
-                    class: `btn small-btn ${first ? 'primary' : ''}`.trim(),
-                    type: 'button',
-                    text: here ? S.people.inThisRoom : item.label,
-                    disabled: Boolean(here),
-                    onclick: item.run,
-                }),
-            );
-            first = false;
-
-            if (item.copy) {
-                actions.push(
-                    button(S.people.copyLink, {
-                        kind: 'small-btn',
-                        onclick: () => copyText(item.copy, S.people.linkCopied),
-                    }),
-                );
-            }
-        }
-
-        rows.push(
-            el(
-                'div',
-                { class: 'follow-item' },
-                el(
-                    'div',
-                    { class: 'grow' },
-                    el(
-                        'div',
-                        { class: 'row wrap' },
-                        chip(providerName(v.provider)),
-                        el('span', {
-                            class: 'strong',
-                            text: v.roomLabel || '',
-                        }),
-                        preferred ? chip(S.people.alreadyThere, 'ok') : null,
-                    ),
-                    !item.run
-                        ? el('div', {
-                              class: 'small muted',
-                              text: S.people.notJoinable,
-                          })
-                        : null,
-                ),
-                el('div', { class: 'actions' }, ...actions),
-            ),
-        );
-    }
-
-    const voiceBox = rows.length
-        ? el(
-              'div',
-              { class: 'stack-sm' },
-              el('div', { class: 'group-title', text: S.people.voice }),
-              ...rows,
-          )
-        : null;
-    let gameBox = null;
-
-    if (f.game) {
-        const g = f.game;
-        const what = [g.game, g.serverTitle].filter(Boolean).join(' · ');
-        const actions = [];
-
-        if (t.game && t.game.join) {
-            actions.push(
-                el('button', {
-                    class: `btn small-btn ${first ? 'primary' : ''}`.trim(),
-                    type: 'button',
-                    text: S.people.joinGame,
-                    onclick: t.game.join,
-                }),
-            );
-        }
-
-        if (t.game && t.game.copy) {
-            actions.push(
-                button(S.servers.copyAddress, {
-                    kind: 'small-btn',
-                    onclick: t.game.copy,
-                }),
-            );
-        }
-
-        gameBox = el(
-            'div',
-            { class: 'stack-sm' },
-            el('div', { class: 'group-title', text: S.people.gameSection }),
-            el(
-                'div',
-                { class: 'follow-item' },
-                el(
-                    'div',
-                    { class: 'grow' },
-                    el('div', { class: 'strong', text: what }),
-                    g.copyText
-                        ? el('div', { class: 'small mono', text: g.copyText })
-                        : null,
-                    !actions.length
-                        ? el('div', {
-                              class: 'small muted',
-                              text: S.people.serverHidden,
-                          })
-                        : null,
-                ),
-                el('div', { class: 'actions' }, ...actions),
-            ),
-        );
-    }
-
-    const panel = el(
-        'div',
-        {
-            class: 'follow-panel stack-sm',
-            role: 'group',
-            'aria-label': S.people.followTitle(person.name),
-        },
-        voiceBox,
-        gameBox,
-        !voiceBox && !gameBox
-            ? el('div', { class: 'small muted', text: S.people.followNothing })
-            : null,
-        el(
-            'div',
-            { class: 'row end' },
-            button(S.people.close, { kind: 'ghost', onclick: onClose }),
-        ),
-    );
-
-    return panel;
-}
-
-// Asks where the person is now, then either does the one thing there is to do or shows the
-// choices (voice and game, several providers) inside the row.
-async function follow(person, host, btn) {
+// Asks where the person is now, then does the one thing the clicked place asks for: enter that
+// voice room (by provider) or join / copy that game server. Errors show inside the row.
+async function joinPlace(person, place, host, btn) {
     const slug = eventSlug();
 
     if (!slug) {
@@ -346,10 +209,11 @@ async function follow(person, host, btn) {
 
     clear(host);
     btn.disabled = true;
+    const label = btn.textContent;
     btn.textContent = S.people.following;
     const r = await call('follow_person', { event: slug, userId: person.id });
     btn.disabled = false;
-    btn.textContent = S.people.follow;
+    btn.textContent = label;
 
     if (!r.ok) {
         host.append(
@@ -364,42 +228,37 @@ async function follow(person, host, btn) {
     }
 
     const t = targets(r.value);
-    const runnable = t.voice.filter((x) => x.run);
-    const gameRuns = t.game && (t.game.join || t.game.copy) ? 1 : 0;
+    const run =
+        place.kind === 'game'
+            ? t.game && (t.game.join || t.game.copy)
+            : (t.voice.find((x) => x.v.provider === place.provider) || {}).run;
 
-    // One thing to do: just do it.
-    if (
-        runnable.length + gameRuns === 1 &&
-        !(t.game && t.game.join && t.game.copy)
-    ) {
-        if (runnable.length === 1) {
-            await runnable[0].run();
-        } else if (t.game.join) {
-            await t.game.join();
-        } else {
-            await t.game.copy();
-        }
+    if (!run) {
+        host.append(
+            el('div', {
+                class: 'small muted',
+                role: 'status',
+                text:
+                    place.kind === 'game'
+                        ? S.people.serverHidden
+                        : S.people.notJoinable,
+            }),
+        );
 
         return;
     }
 
-    const panel = followPanel(person, r.value, () => {
-        clear(host);
-        btn.focus();
-    });
-    host.append(panel);
-    const firstBtn = panel.querySelector('button:not([disabled])');
-
-    if (firstBtn) {
-        firstBtn.focus();
-    }
+    await run();
 }
 
 // ---- one person ----
 
 function personRow(p, { compact = false, hiddenSelf = false } = {}) {
     const host = el('div', { class: 'follow-host' });
-    const lines = whereLines(p);
+    const lines = whereLines(
+        p,
+        !p.isMe ? (place, btn) => joinPlace(p, place, host, btn) : null,
+    );
     const chips = [];
 
     // A teammate's team label carries the one accent; without a label a plain "Team" does.
@@ -432,26 +291,12 @@ function personRow(p, { compact = false, hiddenSelf = false } = {}) {
         }
     }
 
-    let action = null;
-
-    // Somebody who is nowhere has nothing to follow: no dead button.
-    if (!p.isMe && hasPlace(p)) {
-        const btn = el('button', {
-            class: `btn ${compact ? 'small-btn ' : ''}${canFollow(p) ? 'primary' : ''}`.trim(),
-            type: 'button',
-            text: S.people.follow,
-            'aria-label': S.people.followAria(p.name),
-            disabled: !canFollow(p),
-            title: canFollow(p) ? '' : S.people.cannotJoin,
-            onclick: () => follow(p, host, btn),
-        });
-        action = btn;
-    } else if (hiddenSelf) {
-        action = button(S.people.toProfile, {
-            kind: 'small-btn',
-            onclick: () => go('mehr', { card: 'profile', force: true }),
-        });
-    }
+    const action = hiddenSelf
+        ? button(S.people.toProfile, {
+              kind: 'small-btn',
+              onclick: () => go('mehr', { card: 'profile', force: true }),
+          })
+        : null;
 
     return el(
         'li',
@@ -481,12 +326,6 @@ function personRow(p, { compact = false, hiddenSelf = false } = {}) {
                 ),
                 ...lines,
                 ...nowhere,
-                !p.isMe && !canFollow(p) && hasPlace(p)
-                    ? el('div', {
-                          class: 'small muted',
-                          text: S.people.cannotJoin,
-                      })
-                    : null,
             ),
             action ? el('div', { class: 'actions' }, action) : null,
         ),
@@ -711,8 +550,8 @@ export async function refreshTeam(enabled) {
         (p) => p.isTeammate && hasPlace(p),
     );
 
-    // Do not rebuild while somebody looks at a follow panel.
-    if (strip.querySelector('.follow-panel')) {
+    // Do not rebuild while a join answer (an error) is showing in a row.
+    if (strip.querySelector('.follow-host:not(:empty)')) {
         return;
     }
 
