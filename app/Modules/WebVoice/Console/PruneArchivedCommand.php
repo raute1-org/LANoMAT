@@ -24,7 +24,7 @@ class PruneArchivedCommand extends Command
     public function handle(): int
     {
         $deleted = WebVoiceChannel::query()
-            ->where('kind', ChannelKind::Match->value)
+            ->whereIn('kind', [ChannelKind::Match->value, ChannelKind::Team->value])
             ->whereNotNull('archived_at')
             ->where('archived_at', '<', now()->subDays((int) config('webvoice.lifecycle.prune_after_days')))
             ->delete();

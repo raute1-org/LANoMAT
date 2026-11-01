@@ -11,6 +11,9 @@ namespace App\Modules\GameServers\Domain;
  */
 final readonly class ServerInfo
 {
+    /**
+     * @param  list<string>  $playerNames
+     */
     public function __construct(
         public string $name,
         public string $map,
@@ -19,10 +22,12 @@ final readonly class ServerInfo
         public int $players,
         public int $maxPlayers,
         public int $bots = 0,
+        /** Player names the server volunteered (Minecraft's status sample); empty when it names nobody. */
+        public array $playerNames = [],
     ) {}
 
     /**
-     * @return array{name: string, map: string, folder: string, game: string, players: int, max_players: int, bots: int}
+     * @return array{name: string, map: string, folder: string, game: string, players: int, max_players: int, bots: int, player_names?: list<string>}
      */
     public function toArray(): array
     {
@@ -34,7 +39,7 @@ final readonly class ServerInfo
             'players' => $this->players,
             'max_players' => $this->maxPlayers,
             'bots' => $this->bots,
-        ];
+        ] + ($this->playerNames === [] ? [] : ['player_names' => $this->playerNames]);
     }
 
     /**
@@ -50,6 +55,7 @@ final readonly class ServerInfo
             players: (int) ($data['players'] ?? 0),
             maxPlayers: (int) ($data['max_players'] ?? 0),
             bots: (int) ($data['bots'] ?? 0),
+            playerNames: is_array($data['player_names'] ?? null) ? array_values(array_filter($data['player_names'], 'is_string')) : [],
         );
     }
 }

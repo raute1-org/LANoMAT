@@ -17,6 +17,7 @@ const props = defineProps<{
         steamUrl: string | null;
         streamUrl: string | null;
         profileColor: string | null;
+        shareLocation: boolean;
         hasVerifiedSteamLink: boolean;
         verifiedSteamNickname: string | null;
     };
@@ -165,6 +166,32 @@ const bio = ref(props.profile.bio ?? '');
                     :default-value="props.profile.profileColor ?? '#000000'"
                 />
                 <InputError class="mt-2" :message="errors.profile_color" />
+            </div>
+
+            <div class="flex items-start gap-3">
+                <!-- An unchecked box sends nothing, so the 0 comes first and a checked 1 wins. -->
+                <input type="hidden" name="share_location" value="0" />
+                <input
+                    id="share_location"
+                    type="checkbox"
+                    name="share_location"
+                    value="1"
+                    class="mt-1 size-4 rounded border-input accent-primary focus-visible:ring-2 focus-visible:ring-ring"
+                    :checked="props.profile.shareLocation"
+                    aria-describedby="share_location_hint"
+                />
+                <div class="grid gap-1">
+                    <Label for="share_location">{{
+                        props.labels.share_location
+                    }}</Label>
+                    <p
+                        id="share_location_hint"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ props.labels.share_location_hint }}
+                    </p>
+                    <InputError :message="errors.share_location" />
+                </div>
             </div>
 
             <div class="flex items-center gap-4">

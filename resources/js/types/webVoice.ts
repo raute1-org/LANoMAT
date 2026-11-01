@@ -2,7 +2,7 @@ export type WebVoiceChannelDto = {
     id: number;
     name: string;
     description: string | null;
-    kind: 'general' | 'match';
+    kind: 'general' | 'match' | 'team';
 };
 
 export type WebVoiceAudioConfig = {

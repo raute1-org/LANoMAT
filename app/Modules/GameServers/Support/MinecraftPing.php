@@ -110,7 +110,38 @@ final class MinecraftPing
             game: $version,
             players: (int) ($players['online'] ?? 0),
             maxPlayers: (int) ($players['max'] ?? 0),
+            playerNames: self::sampleNames($players['sample'] ?? null),
         );
+    }
+
+    /**
+     * The names in the status `players.sample`. Servers may leave it out, cap it (vanilla shows at
+     * most 12) or fill it with a fake entry such as a hint text; entries whose id is the all-zero
+     * UUID are such decoys and are skipped.
+     *
+     * @return list<string>
+     */
+    private static function sampleNames(mixed $sample): array
+    {
+        if (! is_array($sample)) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ($sample as $entry) {
+            if (! is_array($entry) || ! is_string($entry['name'] ?? null) || $entry['name'] === '') {
+                continue;
+            }
+
+            if (($entry['id'] ?? null) === '00000000-0000-0000-0000-000000000000') {
+                continue;
+            }
+
+            $names[] = mb_substr(preg_replace('/§[0-9a-fk-or]/iu', '', $entry['name']) ?? '', 0, 32);
+        }
+
+        return array_values(array_filter($names, fn (string $name): bool => $name !== ''));
     }
 
     /**

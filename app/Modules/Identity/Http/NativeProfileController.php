@@ -49,9 +49,10 @@ class NativeProfileController
             'steam_url' => $user->steam_url,
             'stream_url' => $user->stream_url,
             'profile_color' => $user->profile_color,
+            'share_location' => $user->share_location,
             'has_verified_steam_link' => $steam !== null,
             'verified_steam_nickname' => $steam?->nickname,
-            'editable' => ['name', 'email', 'bio', 'steam_url', 'stream_url', 'profile_color'],
+            'editable' => ['name', 'email', 'bio', 'steam_url', 'stream_url', 'profile_color', 'share_location'],
         ];
     }
 }

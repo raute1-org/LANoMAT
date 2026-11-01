@@ -8,4 +8,6 @@ enum ChannelKind: string
 {
     case General = 'general';
     case Match = 'match';
+    /** A team's standing room for the whole tournament (team tournaments only). */
+    case Team = 'team';
 }

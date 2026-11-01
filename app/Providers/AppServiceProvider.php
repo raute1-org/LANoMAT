@@ -20,6 +20,7 @@ use App\Modules\Discord\Listeners\AnnounceAndCleanupOnCompleted;
 use App\Modules\Discord\Listeners\AnnounceRegistrationOpen;
 use App\Modules\Discord\Listeners\CreateMatchChannelOnReady;
 use App\Modules\Discord\Listeners\LogGatewayEvent;
+use App\Modules\Discord\Support\DiscordVoiceSightings;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
@@ -54,9 +55,11 @@ use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Hosts\SshRemoteExecutor;
 use App\Modules\Identity\Connectors\HttpGuildMembershipChecker;
+use App\Modules\Identity\Connectors\HttpSteamPresence;
 use App\Modules\Identity\Connectors\SteamConnector;
 use App\Modules\Identity\Connectors\TwitchConnector;
 use App\Modules\Identity\Contracts\GuildMembershipChecker;
+use App\Modules\Identity\Contracts\SteamPresence;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Identity\Policies\LinkedAccountPolicy;
@@ -98,7 +101,10 @@ use App\Modules\Preflight\Checks\StorageWritableCheck;
 use App\Modules\Preflight\Checks\TeamSpeakSidecarCheck;
 use App\Modules\Preflight\Contracts\LatestRelease;
 use App\Modules\Preflight\Support\HttpLatestRelease;
+use App\Modules\Presence\Contracts\GameServerDirectory;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
+use App\Modules\Presence\Support\NullGameServerDirectory;
+use App\Modules\Presence\Support\VoiceSources;
 use App\Modules\Provisioning\Contracts\HostKeyScanner;
 use App\Modules\Provisioning\Contracts\HostKeyTrust;
 use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
@@ -139,6 +145,7 @@ use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Policies\TournamentPolicy;
 use App\Modules\Tournaments\Support\TournamentScheduleParticipantResolver;
 use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\HttpMumbleClient;
 use App\Modules\Voice\Listeners\CleanupServerVoiceOnStopped;
 use App\Modules\Voice\Listeners\CleanupVoiceOnCompleted;
@@ -147,6 +154,7 @@ use App\Modules\Voice\Listeners\ProvisionServerVoiceOnReady;
 use App\Modules\Voice\Listeners\ProvisionVoiceOnStart;
 use App\Modules\Voice\Models\VoiceClientInstaller;
 use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
+use App\Modules\Voice\Support\VoiceServerSightings;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
@@ -158,14 +166,17 @@ use App\Modules\WebVoice\Contracts\WebVoiceClient;
 use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnMatchCompleted;
 use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnTournamentCompleted;
 use App\Modules\WebVoice\Listeners\ProvisionWebVoiceChannelsOnMatchReady;
+use App\Modules\WebVoice\Listeners\ProvisionWebVoiceTeamChannelsOnTournamentStarted;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
 use App\Modules\WebVoice\NativeClient\Models\VoiceClientToken;
 use App\Modules\WebVoice\NativeClient\Policies\VoiceClientTokenPolicy;
+use App\Modules\WebVoice\NativeClient\Support\NativeGameServerDirectory;
 use App\Modules\WebVoice\NativeClient\Support\Now\NullOrderCardSource;
 use App\Modules\WebVoice\NativeClient\Support\Now\NullScheduleCardSource;
 use App\Modules\WebVoice\NativeClient\Support\Now\NullVoteCardSource;
 use App\Modules\WebVoice\Policies\WebVoiceChannelPolicy;
 use App\Modules\WebVoice\Support\LiveKitClient;
+use App\Modules\WebVoice\Support\WebVoiceSightings;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -210,6 +221,34 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(VoiceProviders::class);
+
+        // "Where is everybody": Steam's view of what people play, the game server directory and the
+        // voice backends that feed the location snapshot. Which of them exist is decided at resolve
+        // time from the module toggles, so Presence never names Discord, Voice, WebVoice or GameServers.
+        $this->app->bind(SteamPresence::class, HttpSteamPresence::class);
+        $this->app->bind(GameServerDirectory::class, fn (Application $app): GameServerDirectory => $app->make(Modules::class)->enabled(Module::GameServers)
+            && $app->make(Modules::class)->enabled(Module::WebVoice)
+            ? $app->make(NativeGameServerDirectory::class) : new NullGameServerDirectory);
+        $this->app->bind(VoiceSources::class, function (Application $app): VoiceSources {
+            $modules = $app->make(Modules::class);
+            $sources = [];
+
+            if ($modules->enabled(Module::Discord)) {
+                $sources[] = $app->make(DiscordVoiceSightings::class);
+            }
+
+            if ($modules->enabled(Module::Voice)) {
+                foreach (VoiceProvider::cases() as $provider) {
+                    $sources[] = new VoiceServerSightings($provider, $app->make(VoiceProviders::class));
+                }
+            }
+
+            if ($modules->enabled(Module::WebVoice)) {
+                $sources[] = $app->make(WebVoiceSightings::class);
+            }
+
+            return new VoiceSources($sources);
+        });
 
         $this->app->bind(WebVoiceClient::class, fn () => new LiveKitClient(
             (string) config('webvoice.api_url'),
@@ -571,6 +610,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::WebVoice)) {
             Event::listen(MatchReady::class, ProvisionWebVoiceChannelsOnMatchReady::class);
+            Event::listen(TournamentStarted::class, ProvisionWebVoiceTeamChannelsOnTournamentStarted::class);
             Event::listen(MatchCompleted::class, CloseWebVoiceChannelsOnMatchCompleted::class);
             Event::listen(TournamentCompleted::class, CloseWebVoiceChannelsOnTournamentCompleted::class);
         }

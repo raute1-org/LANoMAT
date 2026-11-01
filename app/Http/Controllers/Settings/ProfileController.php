@@ -41,6 +41,7 @@ class ProfileController extends Controller
                 'steamUrl' => $user->steam_url,
                 'streamUrl' => $user->stream_url,
                 'profileColor' => $user->profile_color,
+                'shareLocation' => $user->share_location,
                 'hasVerifiedSteamLink' => $steamAccount !== null,
                 'verifiedSteamNickname' => $steamAccount?->nickname,
             ],

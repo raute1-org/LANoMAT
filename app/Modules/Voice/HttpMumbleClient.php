@@ -119,6 +119,14 @@ class HttpMumbleClient implements VoiceClient
     }
 
     /**
+     * @return list<string>
+     */
+    private function names(mixed $names): array
+    {
+        return is_array($names) ? array_values(array_filter($names, 'is_string')) : [];
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function toChannel(array $payload): VoiceChannel
@@ -131,6 +139,7 @@ class HttpMumbleClient implements VoiceClient
             $parent === 0 ? null : $parent,
             (bool) $payload['temporary'],
             (int) ($payload['occupants'] ?? 0),
+            $this->names($payload['occupant_names'] ?? []),
         );
     }
 }

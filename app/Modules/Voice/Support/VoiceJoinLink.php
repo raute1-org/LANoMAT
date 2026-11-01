@@ -62,6 +62,15 @@ class VoiceJoinLink
      * separators, cut to 30 characters (TeamSpeak's limit). Anything else, such as markup or
      * URL characters, is dropped. Null when nothing usable is left.
      */
+    /**
+     * The name a person has on the given provider's server when they join through a LANoMAT
+     * link: the same normalisation the link applies. Null when nothing usable is left.
+     */
+    public static function serverNameFor(VoiceProvider $provider, ?string $username): ?string
+    {
+        return self::cleanName($username, $provider === VoiceProvider::TeamSpeak ? 3 : 1);
+    }
+
     private static function cleanName(?string $username, int $minLength): ?string
     {
         if ($username === null) {

@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\Events\Enums\EventStatus;
+use App\Modules\Events\Models\Event;
 use App\Modules\Identity\Jobs\RefreshExpiringTokensJob;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -41,6 +43,14 @@ if ($modules->enabled(Module::Files)) {
 }
 if ($modules->enabled(Module::WebVoice)) {
     Schedule::command('webvoice:prune')->daily();
+}
+if ($modules->enabled(Module::Presence)) {
+    // "Who is where" (voice rooms, games) for the participants: one fan-out to the voice sidecars,
+    // LiveKit and Steam, cached for the requests. Only while an event is live.
+    Schedule::command('presence:refresh-locations')
+        ->everyThirtySeconds()
+        ->withoutOverlapping(1)
+        ->when(fn (): bool => Event::query()->where('status', EventStatus::Live->value)->exists());
 }
 Schedule::command('lanomat:heartbeat')->everyMinute();
 Schedule::command('lanomat:health-watch')->everyFiveMinutes();

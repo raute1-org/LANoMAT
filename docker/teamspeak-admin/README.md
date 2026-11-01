@@ -28,14 +28,14 @@ Identical to `docker/mumble-admin`:
 
 | Method | Path              | Body                                | Response                                              |
 | ------ | ----------------- | ------------------------------------ | ------------------------------------------------------ |
-| GET    | `/channels`       | –                                     | `[{id,name,parent,temporary,occupants}, ...]`           |
+| GET    | `/channels`       | –                                     | `[{id,name,parent,temporary,occupants,occupant_names}, ...]` |
 | POST   | `/channels`       | `{name, parent, temporary}`           | `{id,name,parent,temporary,occupants}` (201)            |
 | PATCH  | `/channels/{id}`  | `{name}`                              | `{id,name,parent,temporary,occupants}`                  |
 | DELETE | `/channels/{id}`  | –                                     | 204                                                      |
 | GET    | `/healthz`        | –                                     | `{"status": "ok"}`                                      |
 
 `parent: 0` means "root channel", matching TeamSpeak's own `pid=0` for
-top-level channels. `occupants` is the number of clients currently connected
+top-level channels. `occupant_names` lists the nicknames of those clients (query clients left out; list endpoint only). `occupants` is the number of clients currently connected
 to that channel (from `clientlist`), defaulting to `0`.
 
 All routes except `/healthz` require `Authorization: Bearer <TEAMSPEAK_ADMIN_TOKEN>`.

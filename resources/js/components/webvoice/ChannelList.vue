@@ -16,7 +16,7 @@ const general = computed(() =>
     props.channels.filter((channel) => channel.kind === 'general'),
 );
 const matches = computed(() =>
-    props.channels.filter((channel) => channel.kind === 'match'),
+    props.channels.filter((channel) => channel.kind !== 'general'),
 );
 
 const groups = computed(() => [

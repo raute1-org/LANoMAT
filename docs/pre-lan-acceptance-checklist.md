@@ -178,6 +178,27 @@ the one place to look (from JB's Runde-3 input, 2026-07-21):
   an **already-approved** photo (someone unwillingly in frame); add an
   un-approve/delete action there if it's missing.
 
+## 10. "Wo ist wer" — Standort der Teilnehmer (Presence)
+
+Der Standort (Sprachraum, Spiel) der Teilnehmer, den der native Client unter „Leute" zeigt und dem man mit einem
+Klick folgen kann. Alles ist gegen Fakes getestet; echt prüfen:
+[`infra/native-voice-client-api.md`](infra/native-voice-client-api.md), Abschnitt „People".
+
+- [ ] `presence:refresh-locations` läuft im Scheduler (alle 30 Sekunden, solange ein Event live ist).
+- [ ] **Mumble und TeamSpeak:** die Sidecars neu bauen (sie liefern jetzt `occupant_names`). Zwei Testkonten verbinden
+      sich über den Beitrittslink aus dem Client (mit ihrem LANoMAT-Namen): sie erscheinen mit dem richtigen Raum. Ein
+      Konto mit anderem Namen erscheint **nicht** (lieber unbekannt als geraten).
+- [ ] **Discord:** ein Konto im Sprachkanal erscheint mit Kanalname; ein Discord-Konto ohne LANoMAT-Konto taucht nirgends auf.
+- [ ] **LANoMAT-Webvoice:** wer im Raum ist, erscheint sofort beim nächsten Refresh (LiveKit-Teilnehmerliste).
+- [ ] **Steam:** mit gesetztem `STEAM_API_KEY` und einem verknüpften Konto (Profil mit sichtbarem Spielstatus) erscheint das
+      laufende Spiel; auf einem LANoMAT-Server zusätzlich mit Server und Beitrittslink. Ein privates Profil bleibt unbekannt.
+- [ ] **Minecraft:** der Spielername steht in der Spielerliste des Servers (Status-Beispiel, höchstens 12 Namen) und ist
+      eindeutig einem Konto zuzuordnen; er erscheint mit dem Server.
+- [ ] **Datenschutz:** „Meinen Standort teilen" in den Profil-Einstellungen aus: die anderen sehen die Person nicht mehr
+      (sofort), man selbst sieht sich weiterhin. Folgen auf diese Person ist dasselbe „nicht gefunden" wie bei einer unbekannten Nummer.
+- [ ] **Folgen:** Mumble-/TeamSpeak-Link öffnet den Client im richtigen Raum mit dem eigenen Namen; Discord-Link öffnet den
+      Kanal; Webvoice verbindet über den Raumtoken; ein Match-Raum eines fremden Teams ist nicht beitretbar.
+
 ---
 
 *Source notes distilled from: the per-phase "Vertagt auf reale Infra" sections

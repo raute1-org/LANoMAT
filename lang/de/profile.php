@@ -11,6 +11,8 @@ return [
         'stream_url' => 'Stream-Link',
         'stream_url_placeholder' => 'https://twitch.tv/…',
         'profile_color' => 'Profilfarbe',
+        'share_location' => 'Meinen Standort teilen',
+        'share_location_hint' => 'Die anderen Teilnehmer sehen, in welchem Sprachraum und auf welchem Spielserver du gerade bist, und können dir nachkommen. Du selbst siehst deinen Standort immer. Ist die Option aus, sieht ihn niemand sonst.',
     ],
 
     'public' => [

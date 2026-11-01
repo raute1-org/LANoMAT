@@ -22,6 +22,7 @@ trait ProfileValidationRules
             'steam_url' => $this->steamUrlRules(),
             'stream_url' => $this->streamUrlRules(),
             'profile_color' => $this->profileColorRules(),
+            'share_location' => ['sometimes', 'boolean'],
         ];
     }
 

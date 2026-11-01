@@ -89,6 +89,8 @@ class ChannelOut(BaseModel):
     parent: int
     temporary: bool
     occupants: int = 0
+    # Nicknames of the connected people in this channel (list endpoint only). Query clients are left out.
+    occupant_names: list[str] = []
 
 
 def require_token(credentials: HTTPAuthorizationCredentials | None = Security(bearer)) -> None:
@@ -317,7 +319,21 @@ def _occupant_counts() -> dict[int, int]:
     return counts
 
 
-def _channel_to_out(row: dict[str, str], occupants: dict[int, int]) -> ChannelOut:
+def _occupant_names() -> dict[int, list[str]]:
+    """Nicknames per channel from `clientlist` (ServerQuery clients, `client_type` 1, are skipped)."""
+    with _ServerQueryConnection() as conn:
+        clients = conn.command("clientlist")
+    names: dict[int, list[str]] = {}
+    for client in clients:
+        if client.get("client_type", "0") == "1":
+            continue
+        nickname = client.get("client_nickname")
+        if nickname:
+            names.setdefault(int(client.get("cid", "0")), []).append(nickname)
+    return names
+
+
+def _channel_to_out(row: dict[str, str], occupants: dict[int, int], names: dict[int, list[str]] | None = None) -> ChannelOut:
     channel_id = int(row["cid"])
     return ChannelOut(
         id=channel_id,
@@ -325,6 +341,7 @@ def _channel_to_out(row: dict[str, str], occupants: dict[int, int]) -> ChannelOu
         parent=int(row.get("pid", "0")),
         temporary=row.get("channel_flag_permanent", "1") == "0",
         occupants=occupants.get(channel_id, 0),
+        occupant_names=(names or {}).get(channel_id, []),
     )
 
 
@@ -334,7 +351,8 @@ def list_channels(_: None = Depends(require_token)) -> list[ChannelOut]:
     with _ServerQueryConnection() as conn:
         rows = conn.command("channellist")
     occupants = _occupant_counts()
-    return [_channel_to_out(row, occupants) for row in rows]
+    names = _occupant_names()
+    return [_channel_to_out(row, occupants, names) for row in rows]
 
 
 @app.post("/channels", response_model=ChannelOut, status_code=201)

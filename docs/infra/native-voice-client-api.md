@@ -113,6 +113,8 @@ rule changed on the website changes here too. Code: `app/Modules/WebVoice/Native
 | `GET events/{event}/servers` | `{servers: [...]}` event servers, see "Game servers" (only while the GameServers module is on) |
 | `GET servers` | `{servers: [...]}` permanent servers, every logged-in user (only while the GameServers module is on) |
 
+Where people are (`GET events/{event}/people`, `.../people/{user}/follow`) has its own section, "People", below.
+
 The write routes are the website's actions: the same `TournamentPolicy` checks (a refusal is `403`), the same
 Actions and domain rules, the same optimistic `lock_version`. A match or tournament the user may not see, or a
 match they do not play in, is `404`. Errors:
@@ -226,6 +228,89 @@ Notifications). `vote`, `order` and `schedule` each go through one contract in t
 off, so the feed never reaches into a module that is not running. All three kinds are implemented against the
 existing models and read helpers and need no other branch's endpoints. Casting a vote, ordering and reading
 notifications from the client are not part of this API block.
+
+## People: where is everybody, and follow them
+
+The product idea: voice rooms exist in parallel on Discord, LANoMAT (web voice), TeamSpeak and Mumble, and you
+see where a teammate is right now, in voice and in a game, and can follow them there. Same bearer
+authentication, rate limit and JSON errors as the play API; events are addressed by slug and a draft event is
+`404`. Present only while the Presence module is on. Routes in `routes/voice-client-presence.php`, code in
+`app/Modules/Presence/` (`Http/PeopleApiController`, `Support/PeopleDirectory`, `Support/LocationSnapshotBuilder`).
+
+| Route | Result |
+|-------|--------|
+| `GET events/{event}/people` | `{me, data: [...], meta}`: the participants of the event who share their location, and my own entry under `me` (always, even when I opted out). Query: `team=1` only my teammates (people sharing one of my teams), `friends=1` only my friends (while the Friends module is on), `q=` name contains, `page`, `per_page` (1 to 100, default 50). Sorted: my teammates first, then people who are in voice or a game, then the rest, each by name. |
+| `GET events/{event}/people/{user}/follow` | the join targets for **me** to go where that person is (below) |
+
+A **participant** is a registration that is not cancelled. Everybody else gets `403` (`EventPolicy::viewPeople`);
+orga may always look. A person row:
+
+```json
+{"id": 12, "name": "Ada", "avatarUrl": null, "team": "Alpha Crew", "isMe": false, "isTeammate": true, "isFriend": false,
+ "voice": [{"provider": "webvoice", "roomLabel": "Team Alpha", "roomRef": "41", "kind": "match", "since": "2026-11-04T20:01:00+01:00"}],
+ "game": {"source": "steam", "game": "Counter-Strike 2", "serverTitle": "Match 12", "address": "203.0.113.5", "port": 27015,
+          "joinUrl": "steam://connect/203.0.113.5:27015", "linkId": 7, "since": "2026-11-04T20:03:00+01:00"},
+ "lastSeenAt": "2026-11-04T20:03:30+01:00"}
+```
+
+`voice` has at most one entry per provider (`discord`, `mumble`, `teamspeak`, `webvoice`); `kind` is `match`,
+`team`, `general` or `other`; `roomRef` is the provider's room id and is `null` for a room only its roster may
+join (a match or team room) when I am not on that roster. `game` is `null` when nobody knows; `source` is
+`steam` or `query`; `joinUrl`, `address`, `port`, `serverTitle` and `linkId` are only set for a server the
+viewer may see (the same rule as `GET events/{event}/servers`: another match's server shows only the game
+name). `since` is when the previous refresh first saw the person there; `lastSeenAt` when they were last in
+any room or game.
+
+### Follow
+
+`GET events/{event}/people/{user}/follow` returns
+
+```json
+{"user": {"id": 12, "name": "Ada"}, "preferredProvider": "discord",
+ "voice": [
+   {"provider": "discord", "roomLabel": "Allgemein", "kind": "other", "joinable": true, "join": {"url": "https://discord.com/channels/<guild>/<channel>"}},
+   {"provider": "webvoice", "roomLabel": "Lounge", "kind": "general", "joinable": true, "join": {"roomId": 41, "tokenPath": "/api/voice-client/v1/rooms/41/token"}},
+   {"provider": "mumble", "roomLabel": "Lobby", "kind": "other", "joinable": true, "join": {"url": "mumble://<name>@voice.example/Lobby"}},
+   {"provider": "teamspeak", "roomLabel": "Lobby", "kind": "other", "joinable": false, "join": null}],
+ "game": {"source": "steam", "game": "Counter-Strike 2", "serverTitle": "Match 12", "address": "203.0.113.5", "port": 27015,
+          "joinUrl": "steam://connect/203.0.113.5:27015", "linkId": 7, "since": "...", "copyText": "203.0.113.5:27015"}}
+```
+
+For web voice the client calls the existing `POST rooms/{room}/token` with `roomId` (the join rules stay
+`WebVoiceChannelPolicy`'s). Mumble and TeamSpeak links carry the caller's own name (`VoiceJoinLink`), Discord
+is the channel URL (Discord decides who may connect). `preferredProvider` is a provider the person is on **and**
+I am already connected to, which also comes first in `voice`; otherwise `null`. A room that only a roster may
+join (a match or team room) is `joinable: false` unless I am on that roster or orga. `joinUrl` and `copyText`
+are built exactly as the servers API builds them (`NativeServerDto`); for a Steam player on a server that is
+not LANoMAT's the address Steam shows and `steam://connect/<address>` are used.
+
+**No oracle.** An unknown user, a non-numeric id, somebody who is not a participant, somebody who switched
+`share_location` off, somebody blocked in either direction with the caller, and the caller themselves are all the
+same `404` (same message). Opted-out and blocked people are not in the list either.
+
+### Where the locations come from
+
+All of it is gathered by `php artisan presence:refresh-locations` (scheduled every 30 seconds while an event is
+live; one fan-out to the voice sidecars, LiveKit and Steam) into one cached snapshot (5 minutes). Requests only
+read the snapshot; a cold cache queues a refresh and shows nobody located until it is built. Nothing is
+broadcast on a channel and nothing reaches the beamer; the presence board and its scene are built without any
+location data.
+
+| Source | How a person is found | Limits |
+|--------|----------------------|--------|
+| Discord voice | the Gateway's voice states, already mapped to a LANoMAT user by Discord id | Discord accounts LANoMAT does not know are never named or stored. Needs the Gateway sidecar. |
+| LANoMAT web voice | one LiveKit participant list per live room; the identity `u<user id>` the server put into the token | exact; one HTTP call per room per refresh |
+| Mumble / TeamSpeak | the sidecars list the names of the people in each channel; the name is compared with the name the join link gives that user | a name is only accepted when exactly one user can have it (case insensitive, all users counted, also opted-out ones); an ambiguous name, a TeamSpeak collision suffix or somebody who changed their name is unknown. Needs the updated sidecars (`occupant_names`); an old sidecar means no names. |
+| Steam | `ISteamUser/GetPlayerSummaries` for users with a linked Steam account (`gameid`, `gameextrainfo`, `gameserverip`), batches of 100, 30 s cache, the Steam login's API key | only for profiles that show their game; a failure, a 429/5xx (pauses calls for 60 s) or a timeout is "unknown", never an error |
+| Player lists of our servers | the player names of the last query, matched to a user by exact display name or linked Steam persona name | Minecraft's status sample (vanilla shows at most 12 names, servers may hide them); A2S_INFO carries no names and A2S_PLAYER is not queried, so Source servers are found through Steam only. Event-level servers are not queried at all today (only match servers of type `a2s` and permanent servers are). |
+
+When both Steam and a player list know a person, the server known to LANoMAT wins (it has the exact join info).
+
+### Privacy: `share_location`
+
+A profile setting, default on, in the web settings (checkbox "Meinen Standort teilen") and in `PUT|PATCH profile`
+(`share_location`, boolean). It is read live on every request: switching it off hides the person at once. Opted-out
+people see their own location under `me`.
 
 ## Event features (v1)
 
@@ -467,7 +552,7 @@ live in `routes/voice-client-account.php`; the friends routes exist only while t
 | Route | Result |
 |-------|--------|
 | `GET profile` | `{profile: {...}}`, the own profile (below). |
-| `PUT profile` | The browser's form: `name` and `email` required; `bio`, `steam_url`, `stream_url`, `profile_color` optional (omitted keeps the value, `null` clears it). Returns `{profile}`. |
+| `PUT profile` | The browser's form: `name` and `email` required; `bio`, `steam_url`, `stream_url`, `profile_color` optional (omitted keeps the value, `null` clears it); `share_location` (boolean, see "People") optional. Returns `{profile}`. |
 | `PATCH profile` | Same rules, but `name`/`email` are only validated when sent: change a single field. |
 
 Validation is the browser's (`ProfileUpdateRequest`): name up to 255, unique valid email (a changed
@@ -482,7 +567,8 @@ of each connection is the per-provider name.
 {"profile": {"id": 7, "name": "Ada", "email": "ada@example.test", "email_verified": true,
  "avatar_url": "https://cdn.example.test/a.png", "bio": "hi", "steam_url": null, "stream_url": null,
  "profile_color": "#aabbcc", "has_verified_steam_link": true, "verified_steam_nickname": "ada_s",
- "editable": ["name", "email", "bio", "steam_url", "stream_url", "profile_color"]}}
+ "share_location": true,
+ "editable": ["name", "email", "bio", "steam_url", "stream_url", "profile_color", "share_location"]}}
 ```
 
 ### Linked accounts
@@ -576,5 +662,5 @@ contain someone who blocked the caller.
 ## Files
 
 `app/Modules/WebVoice/NativeClient/` (actions, policy, models, controllers, bearer middleware; the event feature controllers live in `Http/Features/`),
-`routes/voice-client.php`, `routes/voice-client-play.php` and `routes/voice-client-account.php` (profile/connections/friends; controllers in `app/Modules/Identity/Http/Native*` and `app/Modules/Friends/Http/NativeFriendsController.php`) (loaded from `bootstrap/app.php` without the `web` group), config in
+`routes/voice-client.php`, `routes/voice-client-play.php`, `routes/voice-client-presence.php` (people/follow; controllers in `app/Modules/Presence/Http/`) and `routes/voice-client-account.php` (profile/connections/friends; controllers in `app/Modules/Identity/Http/Native*` and `app/Modules/Friends/Http/NativeFriendsController.php`) (loaded from `bootstrap/app.php` without the `web` group), config in
 `config/webvoice.php` under `native`, page `resources/js/pages/WebVoice/Connect.vue`.
