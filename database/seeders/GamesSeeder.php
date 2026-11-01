@@ -60,11 +60,42 @@ class GamesSeeder extends Seeder
     {
         $game = Game::query()->where('slug', $slug)->first();
 
-        if ($game === null || $game->findPreset($preset->key) !== null) {
+        if ($game === null) {
+            return;
+        }
+
+        $existing = $game->findPreset($preset->key);
+
+        if ($existing !== null) {
+            $this->addMissingEnvironment($game, $existing, $preset);
+
             return;
         }
 
         $game->server_presets = [...$game->server_presets, $preset];
+        $game->save();
+    }
+
+    /**
+     * A preset that is already stored keeps everything the orga changed. Only environment variables
+     * the shipped preset has gained since (the Paper egg started to require USER_AGENT) are added, so
+     * an existing install does not stay on a preset the panel refuses.
+     */
+    private function addMissingEnvironment(Game $game, ServerPreset $stored, ServerPreset $shipped): void
+    {
+        $missing = array_diff_key($shipped->config->environment, $stored->config->environment);
+
+        if ($missing === []) {
+            return;
+        }
+
+        $data = $stored->toArray();
+        $data['config']['environment'] = [...$stored->config->environment, ...$missing];
+
+        $game->server_presets = array_map(
+            fn (ServerPreset $p): ServerPreset => $p->key === $stored->key ? ServerPreset::fromArray($data) : $p,
+            $game->server_presets,
+        );
         $game->save();
     }
 
@@ -164,6 +195,9 @@ class GamesSeeder extends Seeder
                 memoryMb: 3072,
                 diskMb: 10240,
                 cpuPercent: 200,
+                // The stock Paper egg requires USER_AGENT (it identifies the download client to the
+                // Paper API) and ships it empty, so provisioning is refused without a value.
+                environment: ['USER_AGENT' => 'LANoMAT (permanent server)'],
                 overridable: ['MINECRAFT_VERSION'],
                 readinessType: 'minecraft',
                 connectTemplate: '{ip}:{port}',
