@@ -16,6 +16,7 @@ import {
 } from './nav.js';
 import * as now from './now.js';
 import * as onboarding from './onboarding.js';
+import { probeOptional } from './optional.js';
 import * as play from './play.js';
 import * as settings from './settings.js';
 import { S } from './strings.js';
@@ -166,7 +167,7 @@ async function afterConnect({ fresh }) {
     state.quiet = quiet.ok ? Boolean(quiet.value) : false;
     state.unread = unread.ok ? Number(unread.value) || 0 : 0;
     paintQuiet();
-    await more.probeOptional();
+    await probeOptional();
     buildTabs();
     $('brand-name').textContent = S.brand;
     const eventName = $('event-name');

@@ -2,6 +2,8 @@
 // talking and muting reachable from every other tab. The text chat sits beside it (chat.js).
 import { initChat, unreadIn, viewRoom, viewedRoom } from './chat.js';
 import { go, pageHeader, setWho } from './nav.js';
+import { peopleOn } from './optional.js';
+import * as people from './people.js';
 import { S } from './strings.js';
 import {
     button,
@@ -25,29 +27,112 @@ import {
 let root = null;
 let roomsBox = null;
 let panelBox = null;
+let peopleBox = null;
+let viewBox = null;
+let colsBox = null;
 const rooms = { phase: 'loading', error: null };
 let joining = null;
+let view = 'rooms'; // 'rooms' | 'people' (where is everybody), the latter only when the server has it
+let peopleFilter = 'all';
 
-export async function show() {
+export async function show(opts = {}) {
+    if (opts.view === 'people' || opts.view === 'rooms') {
+        view = opts.view;
+        peopleFilter = opts.filter || 'all';
+    }
+
+    syncView(true);
     await refreshRooms();
 }
 
-export function hide() {}
+export function focus(opts = {}) {
+    if (opts.view === 'people' || opts.view === 'rooms') {
+        view = opts.view;
+        peopleFilter = opts.filter || 'all';
+        syncView(true);
+    }
+}
+
+export function hide() {
+    people.unmount();
+}
+
+// The switch between the rooms and "Personen"; its content is mounted when the view changes.
+function paintViewSwitch() {
+    const available = peopleOn();
+    viewBox.hidden = !available;
+    clear(viewBox);
+
+    for (const [id, text] of [
+        ['rooms', S.people.rooms],
+        ['people', S.people.people],
+    ]) {
+        viewBox.append(
+            el('button', {
+                class: 'seg-btn',
+                type: 'button',
+                text,
+                'aria-pressed': String(view === id),
+                onclick: () => {
+                    view = id;
+                    peopleFilter = 'all';
+                    syncView(true);
+                },
+            }),
+        );
+    }
+}
+
+function syncView(remount) {
+    if (!viewBox) {
+        return;
+    }
+
+    if (!peopleOn()) {
+        view = 'rooms';
+    }
+
+    paintViewSwitch();
+    roomsBox.hidden = view !== 'rooms';
+    peopleBox.hidden = view !== 'people';
+    colsBox.classList.toggle('people-view', view === 'people');
+
+    if (remount) {
+        people.unmount();
+        clear(peopleBox);
+
+        if (view === 'people') {
+            people.mount(peopleBox, { filter: peopleFilter });
+        }
+    }
+}
 
 export function init(section) {
     root = section;
     roomsBox = el('div', { class: 'stack' });
     panelBox = el('div', {});
+    peopleBox = el('div', { class: 'stack', hidden: true });
+    viewBox = el('div', {
+        class: 'seg',
+        role: 'group',
+        'aria-label': S.people.views,
+        hidden: true,
+    });
     const chatBox = el('div', { class: 'chat-col' });
-    root.append(
-        pageHeader('sprache'),
+    colsBox = el(
+        'div',
+        { class: 'cols' },
         el(
             'div',
-            { class: 'cols' },
-            el('div', { class: 'stack col-voice' }, panelBox, roomsBox),
-            chatBox,
+            { class: 'stack col-voice' },
+            panelBox,
+            viewBox,
+            roomsBox,
+            peopleBox,
         ),
+        chatBox,
     );
+    root.append(pageHeader('sprache'), colsBox);
     initChat(chatBox);
     renderRooms();
     renderPanel();
