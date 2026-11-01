@@ -8,6 +8,7 @@
 //! 5xx `Server`, and transport trouble `Network`. [`Error::retryable`] tells which are worth a retry.
 
 mod account;
+mod avatar;
 mod catering;
 mod chat;
 mod client;
@@ -25,6 +26,7 @@ pub use account::{
     validate_connection_link_url, validate_connection_link_url_loopback_http, Connection,
     FriendRequest, FriendRequests, FriendSuggestion, FriendUser, LinkUrl, Profile, ProfileUpdate,
 };
+pub use avatar::{data_uri, sniff_mime, AvatarRef, MAX_AVATAR_BYTES};
 pub use catering::{
     Catering, CateringLimits, FoodOrder, MenuEntry, MineItem, MineResponse, MyItem,
 };

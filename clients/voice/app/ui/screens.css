@@ -791,6 +791,8 @@ input[type='number'] {
 
 /* ---- people, friends, profile: rows, monogram avatars, follow panels ---- */
 .avatar {
+    position: relative;
+    overflow: hidden;
     display: inline-flex;
     flex: none;
     align-items: center;
@@ -812,6 +814,18 @@ input[type='number'] {
     width: 28px;
     height: 28px;
     font-size: 0.7rem;
+}
+.avatar.xs {
+    width: 20px;
+    height: 20px;
+    font-size: 0.6rem;
+}
+.avatar-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 .avatar.me {
     border-color: var(--primary);

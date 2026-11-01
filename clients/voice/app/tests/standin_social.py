@@ -8,8 +8,10 @@ Hooks (loopback, no auth, see Demo.handle_host): /__connection/<provider>/<statu
 account's status, /__me/location/<on|off> flips the own sharing switch.
 """
 import re
+import struct
 import threading
 import time
+import zlib
 from datetime import datetime, timedelta, timezone
 
 EVENT = "lan-party-2026"
@@ -36,8 +38,37 @@ def module_of(route):
     return None
 
 
+# Who has a local avatar copy on the server: the rest has none (null) and shows the monogram.
+AVATAR_COLORS = {1: (168, 90, 0), 12: (46, 125, 90), 13: (64, 98, 168), 14: (150, 64, 120)}
+AVATAR_HASH = "0123456789abcdef"
+
+
+def avatar_path(uid):
+    """The bearer path the server puts into the DTOs, or None for a person without an avatar."""
+    return f"/api/voice-client/v1/avatars/{uid}/{AVATAR_HASH}" if uid in AVATAR_COLORS else None
+
+
+def avatar_png(uid, size=64):
+    """A tiny real PNG: a coloured square with a light disc (so it is clearly not a monogram)."""
+    r, g, b = AVATAR_COLORS[uid]
+    rows = bytearray()
+    c = (size - 1) / 2
+    for y in range(size):
+        rows.append(0)
+        for x in range(size):
+            inside = (x - c) ** 2 + (y - c) ** 2 < (size * 0.26) ** 2
+            rows += bytes((235, 235, 235) if inside else (r, g, b))
+
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(bytes(rows))) + chunk(b"IEND", b""))
+
+
 def user(uid, name):
-    return {"id": uid, "name": name, "avatar_url": None}
+    return {"id": uid, "name": name, "avatar_url": avatar_path(uid)}
 
 
 class Social:
@@ -49,7 +80,7 @@ class Social:
     def reset(self):
         self.profile = {
             "id": ME, "name": "Tester", "email": "tester@example.test", "email_verified": True,
-            "avatar_url": "https://cdn.example.test/tester.png", "bio": "Spielt gern Rocket League.",
+            "avatar_url": avatar_path(ME), "bio": "Spielt gern Rocket League.",
             "steam_url": None, "stream_url": None, "profile_color": "#a85a00",
             "has_verified_steam_link": True, "verified_steam_nickname": "tester_steam",
             "share_location": True,
@@ -94,7 +125,7 @@ class Social:
         cs2_visible = {"source": "steam", "game": "Counter-Strike 2", "serverTitle": "CS2 Cup Runde 2",
                        "address": "203.0.113.5", "port": 27015, "joinUrl": "steam://connect/203.0.113.5:27015",
                        "linkId": 7, "since": iso(n - timedelta(minutes=6))}
-        return [
+        rows = [
             {**base, "id": 12, "name": "Ada", "team": "Team Rot", "isTeammate": True,
              "voice": [{"provider": "webvoice", "roomLabel": "Lobby", "roomRef": "1", "kind": "general",
                         "since": iso(n - timedelta(minutes=14))},
@@ -122,6 +153,7 @@ class Social:
              "lastSeenAt": iso(n - timedelta(minutes=1))},
             {**base, "id": 16, "name": "Eva", "lastSeenAt": iso(n - timedelta(minutes=47))},
         ]
+        return [{**p, "avatarUrl": avatar_path(p["id"])} for p in rows]
 
     def people_data(self, query):
         everybody = self.people_all()
@@ -138,7 +170,7 @@ class Social:
     def me_entry(self):
         sharing = self.profile["share_location"]
         n = now()
-        return {"id": ME, "name": "Tester", "avatarUrl": None, "team": "Team Rot", "isMe": True,
+        return {"id": ME, "name": "Tester", "avatarUrl": avatar_path(ME), "team": "Team Rot", "isMe": True,
                 "isTeammate": False, "isFriend": False,
                 "voice": [{"provider": "webvoice", "roomLabel": "Match: Rot gegen Blau", "roomRef": "3",
                            "kind": "match", "since": iso(n - timedelta(minutes=2))}] if sharing else [],
@@ -249,6 +281,21 @@ class Social:
         """True when the route was answered."""
         send = h.send
         self.tick()
+        m = re.fullmatch(r"avatars/(\d+)/([0-9a-f]{16})", route)
+        if m and method == "GET":
+            uid = int(m.group(1))
+            if uid not in AVATAR_COLORS or m.group(2) != AVATAR_HASH:
+                send(404, {"message": "Not found."})
+                return True
+            png = avatar_png(uid)
+            h.send_response(200)
+            h.send_header("Content-Type", "image/png")
+            h.send_header("Content-Length", str(len(png)))
+            h.send_header("Cache-Control", "private, max-age=31536000, immutable")
+            h.end_headers()
+            h.wfile.write(png)
+            print(f"avatar served uid={uid}", flush=True)
+            return True
         if route == "profile":
             if method == "GET":
                 send(200, {"profile": self.profile})

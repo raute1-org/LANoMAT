@@ -503,6 +503,9 @@ export const S = {
         blockedDone: (name) => `${name} ist blockiert.`,
         unblocked: (name) => `${name} ist nicht mehr blockiert.`,
     },
+    avatar: {
+        alt: (name) => `Avatar von ${name}`,
+    },
     profile: {
         title: 'Profil',
         failed: 'Profil konnte nicht geladen werden.',

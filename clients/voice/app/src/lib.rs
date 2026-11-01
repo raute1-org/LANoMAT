@@ -3,6 +3,7 @@
 //! (commands, events, tray, overlay, global shortcut, control socket, clean shutdown).
 
 pub mod audio_check;
+pub mod avatar;
 pub mod engine;
 pub mod features;
 pub mod joinurl;
@@ -845,6 +846,14 @@ async fn pick_directory(app: AppHandle) -> Result<Option<String>, UiError> {
 }
 
 #[tauri::command]
+async fn get_avatar(engine: Eng<'_>, path: String) -> Result<Option<String>, UiError> {
+    let api = engine.client().map_err(UiError::from)?;
+    avatar::avatar_data_uri(&api, avatar::AvatarCache::shared(), &path)
+        .await
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
 fn get_download_dir(f: Feat<'_>) -> Result<String, UiError> {
     Ok(f.download_dir().display().to_string())
 }
@@ -1072,7 +1081,8 @@ command_set!(
     copy_text,
     pick_files,
     pick_directory,
-    get_download_dir
+    get_download_dir,
+    get_avatar
 );
 
 /// Raises system notifications through `tauri-plugin-notification`. The desktop plugin has no

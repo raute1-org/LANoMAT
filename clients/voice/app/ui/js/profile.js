@@ -125,7 +125,7 @@ function header(p) {
     return el(
         'div',
         { class: 'row' },
-        avatar(p.name, { me: true }),
+        avatar(p.name, { me: true, src: p.avatar_url }),
         el(
             'div',
             { class: 'grow' },

@@ -469,6 +469,14 @@ Args `{userId}`. Blocks, which also removes the friendship and pending requests 
 
 Args `{userId}`. Result `null`.
 
+## Avatars
+
+The server keeps a small square copy of everybody's avatar and serves it behind the login. Every DTO that has a person (`avatar_url` in friends, requests, suggestions, blocked, the profile and chat authors, `avatarUrl` in people) carries the **path** of that copy, or `null` when the person has none. The path is not a link to open in the browser and never a Discord address: pass it to `get_avatar`.
+
+### `get_avatar`
+
+Args `{path}`: the `avatar_url` / `avatarUrl` value as received. Result: a `data:image/...;base64,...` string to use as an `<img src>`, or `null` when the bytes were not a usable image. The app fetches the avatar once with the login token and keeps it in its cache directory, keyed by user id and content hash (bounded: 400 files, 16 MB, oldest dropped first), so a changed avatar is a new entry and a known one costs no request. Only a PNG, JPEG or WebP of at most 512 KB is returned. `usage` when `path` is not an avatar path (nothing is requested then), `not_found` when the person changed their avatar meanwhile (the hash is stale: show the monogram until the next list load), `rate_limited` after a burst, `unauthorized` when the login is gone. **Show the monogram on `null` and on every error**, load lazily (only rows in view, a few requests at a time) and never block rendering on it.
+
 ## Files and transfers
 
 ### `list_files`
