@@ -47,11 +47,6 @@ name: Release native client
 on:
   push:
     tags: ['client-v*']
-  # TEMPORARY (testing only, removed before the PR is finished): lets the workflow run from the PR.
-  pull_request:
-    paths:
-      - 'clients/voice/**'
-      - '.github/workflows/release-client.yml'
   workflow_dispatch:
     inputs:
       version:
