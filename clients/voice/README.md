@@ -289,6 +289,45 @@ Xvfb, both release orders), uses `lanomat-voice ptt` against the app's socket, a
 active-speaker state reached it; it then closes the window through `WM_DELETE_WINDOW` (hides to the
 tray) and sends SIGTERM.
 
+## Core features: events, play, chat, notifications, files
+
+Besides voice, `voice-core` and the app talk to the rest of the bearer API (see
+[`docs/infra/native-voice-client-api.md`](../../docs/infra/native-voice-client-api.md)). This slice is the
+Rust side only; the screens are built against the single contract in
+[`docs/commands.md`](docs/commands.md) (every command with arguments and result, every event, the
+error object `{kind, message, retryable}`), and a test keeps that document and the registered
+commands in step.
+
+| Where | What |
+|-------|------|
+| `voice-core/src/api/` | Typed clients for events, the "now" feed, tournaments, my matches (check-in, report, confirm, dispute, withdraw), game servers (event and permanent, with `joinUrl` and `copyText`), polls, catering, files (list, quota, delete, signed download link, upload ticket), notifications and preferences, chat, and `config` with `modules` and `realtime`. One error mapping for all of them: 401 `Unauthorized`, 403 `Forbidden`, 404 `NotFound`, 409 `Conflict` (stale `lock_version`), 410 `Gone`, 422 `Validation` (the server's German `message`, its `code` and the field errors), 429 `RateLimited` (with `Retry-After`), 503 `Unavailable`, 5xx `Server`, transport trouble `Network`; `Error::retryable()` says which are worth a retry. |
+| `voice-core/src/realtime/` | A Pusher-protocol client over WebSocket (`tokio-tungstenite`, rustls, the shared crypto provider). Private channels are authorised per connection through `POST broadcasting/auth` with the bearer token (the socket id changes on every connect, so nothing is cached), subscribes to `private-web-voice.channel.{room}` and `private-web-voice.directory`, answers pings, detects a silent link, reconnects with backoff, re-authorises and re-subscribes, fetches what it missed, and falls back to polling `GET rooms/{room}/messages` when `realtime` is null or the socket cannot connect (it keeps trying to come back). The consumer sees a stream of `ChatEvent`. |
+| `voice-core/src/notify/` | The notification engine and its pure policy: defaults on for match, catering, direct mention and vote closing and off for the rest, at most one system notification per category per minute (the rest a count), do-not-disturb while push-to-talk is held (with an open microphone: while speaking) and by the "Ruhe" toggle (also a tray item; a fullscreen-window check is not implemented), de-duplication by id across restarts (bounded id set plus a `created_at` high-water mark in `settings.json`), the first run only records what is already unread, and a mapping from category to the target tab and card. Polling is calm: 15 s focused, 45 s otherwise, backoff on failures, a refetch only when the count changed. Delivery goes through the `Notifier` trait (`tauri-plugin-notification` in the app, a recording fake in the tests). |
+| `voice-core/src/transfer/` | Downloads: streamed to a `.part` file, resumed with HTTP `Range` on `206`, retries with backoff, atomic rename, sanitised names, never overwrites. Uploads: a tus 1.0.0 client over reqwest (creation with `Upload-Metadata`, chunked `PATCH` with an explicit length, `HEAD` to resume at the server's offset, retries like the web app's `useResumableUploads.ts`, no retry on 403, 413, 507 or `ticket_*`), a fingerprint file so an interrupted upload resumes after a restart, and a manager with progress, pause, resume and cancel. The signed link and the ticket are never logged or stored, and the bearer token is never sent to the file host. |
+| `app/src/features.rs` | The Tauri-free command layer over all of the above, unit-tested; `app/src/lib.rs` has the one-line commands. Notification, clipboard and dialog plugins are used from Rust only, so the webview gets no plugin permission (a test checks it); `open_join_url` accepts only `steam://connect/<host>:<port>[/<password>]`. |
+
+Versions added: `tokio-tungstenite` 0.29 (already in the tree through LiveKit, `rustls-tls-native-roots`),
+`tokio-util` 0.7 and `base64` 0.22 (voice-core); `tauri-plugin-notification` 2.8, `tauri-plugin-clipboard-manager`
+2.5, `tauri-plugin-dialog` 2.8 and `time` 0.3 (app); reqwest keeps 0.13 with the `stream` and `query` features.
+
+Settings gained `download_dir`, `notify_categories` and `notify_seen` (the engine's bookkeeping; a save from the UI
+cannot overwrite it). Still no token in `settings.json`.
+
+### Headless feature smoke (what was run)
+
+`app/tests/standin_server.py --features` (with `standin_features.py`) answers the documented endpoints, a signed
+Pusher server (HMAC of `socket_id:channel`, checked on subscribe), a signed file download with `Range`, and a
+tus endpoint that cuts the connection in the middle of the second chunk once. An app built with
+`--features selftest` evaluates `app/tests/selftest.js` in its webview, which calls the commands through the real
+Tauri IPC with the argument names of `docs/commands.md`:
+
+```bash
+dc cargo build -p lanomat-voice-app --features selftest   # `dc` as in "Build and test in the container", app image
+dc sh app/tests/smoke-features.sh                         # Xvfb, stand-in, app; prints PASS/FAIL lines, exits non-zero on failure
+```
+
+It needs no LiveKit server. The feature is for tests only and is never part of a release build.
+
 ## Architecture notes
 
 - `audio::AudioSource` / `AudioSink` are the seams. Everything speaks 48 kHz mono, 10 ms frames.
@@ -337,6 +376,16 @@ created in the container without a warning, but no StatusNotifier host displays 
 never clicked), the overlay on a real compositor (Wayland
 always-on-top and transparency), the dark colour scheme, Windows and macOS, and real audio devices
 (the smoke uses the synthetic tone). The UI was driven with `xdotool`, not with `tauri-driver`.
+
+Not verified for the feature slice: the **real server** (every route was exercised against wiremock fixtures taken
+from the API document and against the Python stand-in, never against Laravel, Reverb or tusd, so a deviation of the real
+wire format from the document would only show there); a real Reverb handshake over **TLS** (`wss`; the tests use
+plain `ws`); the real file host (signed links, `Range` behaviour of the real host, tusd's hooks and its chunk limits);
+**system notifications** as a person sees them (the delivery call was made, but a headless container has no notification
+daemon, and the desktop plugin offers no click callback, hence `take_notification_target`); the clipboard and the
+Steam URL handler on a real desktop (the container has no handler, the validation and the error path are covered);
+the file picker dialogs (compiled and registered, never shown); Windows and macOS for all of it; very large files
+and a real flaky network for the transfers (loopback drops only).
 
 ## Next steps
 

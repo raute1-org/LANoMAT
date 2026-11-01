@@ -175,15 +175,15 @@ impl ApiClient {
     // ---- bearer API v1 ----
 
     pub async fn me(&self) -> Result<Me> {
-        self.get("api/voice-client/v1/me").await
+        self.get_v1("me", &[]).await
     }
 
     pub async fn config(&self) -> Result<ClientConfig> {
-        self.get("api/voice-client/v1/config").await
+        self.get_v1("config", &[]).await
     }
 
     pub async fn rooms(&self) -> Result<Vec<Room>> {
-        let r: RoomsResponse = self.get("api/voice-client/v1/rooms").await?;
+        let r: RoomsResponse = self.get_v1("rooms", &[]).await?;
         Ok(r.rooms)
     }
 
@@ -196,16 +196,80 @@ impl ApiClient {
             .send()
             .await
             .map_err(net_err)?;
-        decode(resp).await
+        decode(resp).await.map_err(|e| match e {
+            Error::Gone(_) => Error::RoomArchived,
+            other => other,
+        })
     }
 
-    async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+    // ---- generic helpers for the feature modules (paths relative to `api/voice-client/v1/`)
+
+    /// `GET`, optionally with a query string, decoded as JSON.
+    pub(crate) async fn get_v1<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+    ) -> Result<T> {
+        let mut req = self.bearer(Method::GET, &v1(path))?;
+        if !query.is_empty() {
+            req = req.query(query);
+        }
+        decode(req.send().await.map_err(net_err)?).await
+    }
+
+    /// A state changing call with an optional JSON body, decoded as JSON.
+    pub(crate) async fn send_v1<T: DeserializeOwned>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<serde_json::Value>,
+    ) -> Result<T> {
+        let mut req = self.bearer(method, &v1(path))?;
+        if let Some(b) = body {
+            req = req.json(&b);
+        }
+        decode(req.send().await.map_err(net_err)?).await
+    }
+
+    /// A call whose answer carries no body we need (`204`, or `200 {ok: true}`).
+    pub(crate) async fn send_v1_empty(&self, method: Method, path: &str) -> Result<()> {
         let resp = self
-            .bearer(Method::GET, path)?
+            .bearer(method, &v1(path))?
             .send()
             .await
             .map_err(net_err)?;
-        decode(resp).await
+        if resp.status().is_success() {
+            return Ok(());
+        }
+        Err(error_from_response(resp).await)
+    }
+
+    /// The bearer request for a route under `v1/`, for callers that need the raw response.
+    pub(crate) fn raw_v1(&self, method: Method, path: &str) -> Result<reqwest::RequestBuilder> {
+        self.bearer(method, &v1(path))
+    }
+
+    /// `POST` JSON to an absolute path on the API origin (the `auth_endpoint` from `config`).
+    pub(crate) async fn post_json_abs<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: serde_json::Value,
+    ) -> Result<T> {
+        let req = self
+            .bearer(Method::POST, path.trim_start_matches('/'))?
+            .json(&body);
+        decode(req.send().await.map_err(net_err)?).await
+    }
+
+    /// The access token, for the one case where it is legitimately sent on: a download that the
+    /// app itself streams (legacy local store). Never put it into a log line or an error.
+    pub(crate) fn bearer_token(&self) -> Option<&str> {
+        self.token.as_deref()
+    }
+
+    /// Absolute URL of a path below the API origin (used for same-origin downloads).
+    pub(crate) fn absolute(&self, path: &str) -> Result<Url> {
+        self.url(path)
     }
 
     fn bearer(&self, method: Method, path: &str) -> Result<reqwest::RequestBuilder> {
@@ -246,14 +310,72 @@ pub(crate) fn classify_token_response(status: StatusCode, body: &[u8]) -> PollEv
     PollEvent::Transient(format!("unexpected HTTP {}", status.as_u16()))
 }
 
-fn net_err(e: reqwest::Error) -> Error {
+fn v1(path: &str) -> String {
+    format!("api/voice-client/v1/{}", path.trim_start_matches('/'))
+}
+
+pub(crate) fn net_err(e: reqwest::Error) -> Error {
     // reqwest includes the URL in its message; it never contains the bearer token (a header).
+    // Callers that talk to a file host strip the URL themselves first (see `transfer`).
     if e.is_timeout() {
         Error::Network("request timed out".into())
     } else if e.is_connect() {
         Error::Network(format!("connection failed ({e})"))
     } else {
         Error::Network(e.to_string())
+    }
+}
+
+/// The body shapes of the server's refusals: the play API uses `error` for its stable code, the
+/// event features use `code`; validation adds an `errors` field map.
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(default)]
+struct ErrorBody {
+    message: Option<String>,
+    error: Option<serde_json::Value>,
+    code: Option<String>,
+    errors: std::collections::BTreeMap<String, Vec<String>>,
+}
+
+/// The one place where an HTTP failure becomes an [`Error`].
+pub(crate) async fn error_from_response(resp: reqwest::Response) -> Error {
+    let status = resp.status();
+    let retry_after = resp
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.trim().parse::<u64>().ok());
+    let body: ErrorBody = resp
+        .bytes()
+        .await
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default();
+    let message = body.message.clone().unwrap_or_default();
+    let code = body.code.clone().or_else(|| {
+        body.error
+            .as_ref()
+            .and_then(|e| e.as_str().map(str::to_owned))
+    });
+    match status {
+        StatusCode::UNAUTHORIZED => Error::Unauthorized,
+        StatusCode::FORBIDDEN => Error::Forbidden(message),
+        StatusCode::NOT_FOUND => Error::NotFound(message),
+        StatusCode::CONFLICT => Error::Conflict { code, message },
+        StatusCode::GONE => Error::Gone(message),
+        StatusCode::UNPROCESSABLE_ENTITY => Error::Validation {
+            code,
+            message,
+            fields: body.errors,
+        },
+        StatusCode::TOO_MANY_REQUESTS => Error::RateLimited {
+            retry_after_secs: retry_after,
+        },
+        StatusCode::SERVICE_UNAVAILABLE => Error::Unavailable,
+        other => Error::Server {
+            status: other.as_u16(),
+            message,
+        },
     }
 }
 
@@ -264,26 +386,7 @@ async fn decode<T: DeserializeOwned>(resp: reqwest::Response) -> Result<T> {
         return serde_json::from_slice(&bytes)
             .map_err(|e| Error::BadResponse(format!("invalid JSON: {e}")));
     }
-    let message = resp
-        .bytes()
-        .await
-        .ok()
-        .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
-        .and_then(|v| v.get("message").and_then(|m| m.as_str().map(str::to_owned)))
-        .unwrap_or_default();
-    Err(match status {
-        StatusCode::UNAUTHORIZED => Error::Unauthorized,
-        StatusCode::NOT_FOUND => {
-            Error::NotFound("room (or API route) not found or not visible to you".into())
-        }
-        StatusCode::GONE => Error::RoomArchived,
-        StatusCode::TOO_MANY_REQUESTS => Error::RateLimited,
-        StatusCode::SERVICE_UNAVAILABLE => Error::Unavailable,
-        other => Error::Server {
-            status: other.as_u16(),
-            message,
-        },
-    })
+    Err(error_from_response(resp).await)
 }
 
 #[cfg(test)]
@@ -538,7 +641,10 @@ mod tests {
         assert!(matches!(c.room_token(401).await, Err(Error::Unauthorized)));
         assert!(matches!(c.room_token(404).await, Err(Error::NotFound(_))));
         assert!(matches!(c.room_token(410).await, Err(Error::RoomArchived)));
-        assert!(matches!(c.room_token(429).await, Err(Error::RateLimited)));
+        assert!(matches!(
+            c.room_token(429).await,
+            Err(Error::RateLimited { .. })
+        ));
         assert!(matches!(c.room_token(503).await, Err(Error::Unavailable)));
         assert!(
             matches!(c.room_token(500).await, Err(Error::Server { status: 500, ref message }) if message == "boom")

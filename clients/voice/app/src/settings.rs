@@ -4,7 +4,10 @@
 
 use std::path::{Path, PathBuf};
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+use voice_core::notify::SeenState;
 
 /// Default push-to-talk shortcut offered in the settings (best effort, see the README).
 pub const DEFAULT_SHORTCUT: &str = "Control+Alt+Space";
@@ -28,6 +31,14 @@ pub struct Settings {
     pub overlay: bool,
     /// Global push-to-talk shortcut (works on X11, Windows and macOS; not on Wayland). Empty = off.
     pub ptt_shortcut: String,
+    /// Where downloads go; `None` means the platform's download folder.
+    pub download_dir: Option<String>,
+    /// System notifications per category (`match`, `catering`, `direct`, `vote`, ...), overriding
+    /// the defaults (on: match, catering, direct, vote; off: the rest).
+    pub notify_categories: BTreeMap<String, bool>,
+    /// Bookkeeping of the notification engine (which ones were announced already). Owned by the
+    /// app: `save_settings` keeps the stored value, whatever the UI sends.
+    pub notify_seen: SeenState,
 }
 
 impl Default for Settings {
@@ -41,6 +52,9 @@ impl Default for Settings {
             close_to_tray: true,
             overlay: false,
             ptt_shortcut: DEFAULT_SHORTCUT.into(),
+            download_dir: None,
+            notify_categories: BTreeMap::new(),
+            notify_seen: SeenState::default(),
         }
     }
 }
@@ -56,6 +70,10 @@ impl Settings {
             .filter(|d| !d.is_empty());
         self.output_device = self
             .output_device
+            .map(|d| d.trim().to_owned())
+            .filter(|d| !d.is_empty());
+        self.download_dir = self
+            .download_dir
             .map(|d| d.trim().to_owned())
             .filter(|d| !d.is_empty());
         self
@@ -105,6 +123,9 @@ mod tests {
             close_to_tray: false,
             overlay: true,
             ptt_shortcut: "F13".into(),
+            download_dir: Some("/tmp/dl".into()),
+            notify_categories: BTreeMap::from([("friends".to_owned(), true)]),
+            notify_seen: SeenState::default(),
         };
         save(&path, &s).unwrap();
         assert_eq!(load(&path), s);

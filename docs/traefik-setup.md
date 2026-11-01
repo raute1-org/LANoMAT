@@ -76,7 +76,7 @@ model used for M5.6/Discord).
   `REVERB_SCHEME=https` at this router (see `.env.example`'s Reverb
   section and `docs/prod-test.md`).
 - **Reverb WS caveat:** confirm `REVERB_ALLOWED_ORIGINS` in `.env` is
-  locked to the real origin(s) (`https://${APP_DOMAIN}`), not `*` — see
+  locked to the real origin(s) (the host name `${APP_DOMAIN}` without `https://`, because Reverb compares the host of the Origin header), not `*` — see
   `config/reverb.php` and the existing `.env.example` comment. This was
   already true before Traefik; Traefik does not change it, just terminates
   the TLS in front of it.

@@ -28,18 +28,36 @@ type AudioPair = (Option<Box<dyn AudioSource>>, Box<dyn AudioSink>);
 /// Called with a snapshot whenever the room view changes.
 pub type Emit = Arc<dyn Fn(&RoomView) + Send + Sync>;
 
-/// An error as the UI shows it: a coarse kind to branch on, a German sentence for the person.
+/// An error as the UI shows it: a coarse kind to branch on, a German sentence for the person,
+/// and whether trying again later can help. `code` is the server's stable machine code for
+/// refusals (`already_voted`, `tournaments.errors.stale_match`, ...), `fields` the validation
+/// errors per input field.
+///
+/// Kinds: `auth` (log in again), `forbidden`, `not_found`, `conflict` (reload and retry), `gone`,
+/// `validation`, `rate_limited`, `unavailable`, `server`, `network`, `transfer`, `local`,
+/// `usage`, and the connect flow's `denied` and `expired`.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct UiError {
     pub kind: &'static str,
     pub message: String,
+    pub retryable: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_after_secs: Option<u64>,
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub fields: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 impl UiError {
-    fn new(kind: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: &'static str, message: impl Into<String>) -> Self {
         Self {
             kind,
             message: message.into(),
+            retryable: false,
+            code: None,
+            retry_after_secs: None,
+            fields: Default::default(),
         }
     }
 }
@@ -63,15 +81,33 @@ pub fn german(e: &Error) -> String {
         Error::BadResponse(_) => {
             "Der Server hat unerwartet geantwortet. Prüfe, ob die Adresse zu LANoMAT gehört.".into()
         }
-        Error::NotFound(_) => "Diesen Raum gibt es nicht oder du darfst ihn nicht betreten.".into(),
+        Error::NotFound(_) => "Das gibt es nicht oder du darfst es nicht sehen.".into(),
         Error::RoomArchived => "Dieser Raum ist archiviert.".into(),
         Error::Unavailable => {
             "Sprachchat ist auf dem Server gerade nicht verfügbar. Versuche es gleich noch einmal."
                 .into()
         }
-        Error::RateLimited => {
-            "Zu viele Anfragen. Warte einen Moment und versuche es erneut.".into()
+        Error::RateLimited { retry_after_secs } => match retry_after_secs {
+            Some(n) => format!("Zu viele Anfragen. Versuche es in {n} Sekunden erneut."),
+            None => "Zu viele Anfragen. Warte einen Moment und versuche es erneut.".into(),
+        },
+        Error::Forbidden(_) => "Das darfst du nicht.".into(),
+        Error::Conflict { message, .. } => {
+            if message.is_empty() {
+                "Das hat sich inzwischen geändert. Lade neu und versuche es noch einmal.".into()
+            } else {
+                message.clone()
+            }
         }
+        Error::Gone(_) => "Das gibt es nicht mehr.".into(),
+        Error::Validation { message, .. } => {
+            if message.is_empty() {
+                "Das geht so nicht.".into()
+            } else {
+                message.clone()
+            }
+        }
+        Error::Transfer { code, message } => transfer_german(code, message),
         Error::Server { status, .. } => format!("Der Server meldet einen Fehler (HTTP {status})."),
         Error::Usage(m) => m.clone(),
         Error::Store(_) => "Die lokalen Zugangsdaten sind nicht lesbar. Verbinde neu.".into(),
@@ -82,11 +118,40 @@ pub fn german(e: &Error) -> String {
     }
 }
 
+/// German text for the stable codes of a failed file transfer.
+fn transfer_german(code: &str, message: &str) -> String {
+    match code {
+        "ticket_expired" | "ticket_invalid" | "ticket_mismatch" => {
+            "Die Upload-Freigabe ist abgelaufen. Starte den Upload neu.".into()
+        }
+        "too_large" => "Die Datei ist zu groß.".into(),
+        "blocked_type" => "Dieser Dateityp ist nicht erlaubt.".into(),
+        "quota_exceeded" => "Dein Speicherplatz ist aufgebraucht.".into(),
+        "uploads_unavailable" => "Uploads sind auf diesem Server nicht verfügbar.".into(),
+        "host_full" => "Der Dateiserver ist voll.".into(),
+        "upload_lost" => "Der Server kennt diesen Upload nicht mehr. Starte ihn neu.".into(),
+        "link_expired" => "Der Download-Link ist abgelaufen. Versuche es erneut.".into(),
+        "empty_file" => "Leere Dateien können nicht hochgeladen werden.".into(),
+        "network" => "Die Verbindung wurde unterbrochen.".into(),
+        "forbidden" => "Der Dateiserver hat die Übertragung abgelehnt.".into(),
+        _ if message.is_empty() => "Die Übertragung ist fehlgeschlagen.".into(),
+        _ => "Die Übertragung ist fehlgeschlagen.".into(),
+    }
+}
+
 fn kind_name(e: &Error) -> &'static str {
     use voice_core::ErrorKind::*;
     match e {
         Error::PairingDenied => "denied",
         Error::PairingExpired | Error::InvalidGrant => "expired",
+        Error::Forbidden(_) => "forbidden",
+        Error::NotFound(_) => "not_found",
+        Error::Conflict { .. } => "conflict",
+        Error::Gone(_) | Error::RoomArchived => "gone",
+        Error::Validation { .. } => "validation",
+        Error::RateLimited { .. } => "rate_limited",
+        Error::Unavailable => "unavailable",
+        Error::Transfer { .. } => "transfer",
         _ => match e.kind() {
             Usage => "usage",
             Auth => "auth",
@@ -99,7 +164,15 @@ fn kind_name(e: &Error) -> &'static str {
 
 impl From<Error> for UiError {
     fn from(e: Error) -> Self {
-        UiError::new(kind_name(&e), german(&e))
+        let mut ui = UiError::new(kind_name(&e), german(&e));
+        ui.retryable = e.retryable();
+        ui.code = e.code().map(str::to_owned);
+        match &e {
+            Error::RateLimited { retry_after_secs } => ui.retry_after_secs = *retry_after_secs,
+            Error::Validation { fields, .. } => ui.fields = fields.clone(),
+            _ => {}
+        }
+        ui
     }
 }
 
@@ -236,8 +309,13 @@ impl Engine {
     /// Persists the settings (never the token) and keeps them in memory.
     pub fn save_settings(&self, new: Settings) -> Result<Settings, UiError> {
         let mut new = new.normalized();
-        // The server URL belongs to the connect flow; a stale copy from the UI must not win.
-        new.server_url = lock(&self.settings).server_url.clone();
+        // The server URL and the notification bookkeeping belong to the app itself; a stale copy
+        // from the UI must not win.
+        {
+            let cur = lock(&self.settings);
+            new.server_url = cur.server_url.clone();
+            new.notify_seen = cur.notify_seen.clone();
+        }
         settings::save(&self.settings_path, &new).map_err(|e| {
             UiError::new(
                 "local",
@@ -246,6 +324,13 @@ impl Engine {
         })?;
         *lock(&self.settings) = new.clone();
         Ok(new)
+    }
+
+    /// Changes the settings from inside the app (not from the UI) and persists them.
+    pub(crate) fn update_settings(&self, f: impl FnOnce(&mut Settings)) {
+        let mut s = lock(&self.settings);
+        f(&mut s);
+        let _ = settings::save(&self.settings_path, &s);
     }
 
     pub fn settings_path(&self) -> &std::path::Path {
@@ -263,7 +348,7 @@ impl Engine {
         lock(&self.view).clone()
     }
 
-    fn client(&self) -> Result<ApiClient, Error> {
+    pub(crate) fn client(&self) -> Result<ApiClient, Error> {
         let creds = self.store.load()?.ok_or(Error::NotLoggedIn)?;
         Ok(ApiClient::new(&creds.base_url)?.with_token(creds.access_token))
     }

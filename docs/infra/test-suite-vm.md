@@ -95,7 +95,7 @@ SESSION_DRIVER=database
 REVERB_HOST=ws.<TEST_DOMAIN>
 REVERB_PORT=443
 REVERB_SCHEME=https
-REVERB_ALLOWED_ORIGINS=https://<TEST_DOMAIN>
+REVERB_ALLOWED_ORIGINS=<TEST_DOMAIN>   # host only, no scheme
 
 # Discord: same application as live, but the test server and its own gate
 DISCORD_REDIRECT_URI=https://<TEST_DOMAIN>/auth/discord/callback

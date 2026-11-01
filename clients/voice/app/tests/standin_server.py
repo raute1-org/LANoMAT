@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qsl, urlsplit
 
 ROOMS = [
     {"id": 1, "name": "Lobby", "description": "Allgemeiner Sprachraum", "kind": "general"},
@@ -61,8 +62,10 @@ class State:
         self.tokens = {}  # access token -> (id, name)
         self.peer_token = "lvc_" + secrets.token_hex(24)
         self.tokens[self.peer_token] = (2, "Peer")
-        self.key = os.environ["LIVEKIT_API_KEY"]
-        self.secret = os.environ["LIVEKIT_API_SECRET"]
+        # Only needed for room tokens; the feature self-test runs without a LiveKit server.
+        self.key = os.environ.get("LIVEKIT_API_KEY", "")
+        self.secret = os.environ.get("LIVEKIT_API_SECRET", "")
+        self.features = None
 
 
 def make_handler(state: State):
@@ -82,12 +85,50 @@ def make_handler(state: State):
             self.end_headers()
             self.wfile.write(raw)
 
+        def handle_one_request(self):
+            self.__dict__.pop("_cached_body", None)  # one handler serves many keep-alive requests
+            super().handle_one_request()
+
         def body(self):
+            if hasattr(self, "_cached_body"):
+                return self._cached_body
             n = int(self.headers.get("Content-Length") or 0)
             try:
-                return json.loads(self.rfile.read(n) or b"{}")
+                self._cached_body = json.loads(self.rfile.read(n) or b"{}")
             except ValueError:
-                return {}
+                self._cached_body = {}
+            return self._cached_body
+
+        def features(self, method):
+            """Feature routes (standin_features.py); True when the request was answered."""
+            if not state.features:
+                return False
+            parsed = urlsplit(self.path)
+            path, query = parsed.path, dict(parse_qsl(parsed.query))
+            if path.startswith("/api/voice-client/v1/"):
+                user = self.user()
+                if not user:
+                    self.send(401, {"message": "Unauthenticated."}, {"WWW-Authenticate": "Bearer"})
+                    return True
+                payload = self.body() if method in ("POST", "PUT", "DELETE") else {}
+                return state.features.handle(self, method, path, query, payload, user)
+            return state.features.handle_host(self, method, path, query)
+
+        def do_PUT(self):
+            if not self.features("PUT"):
+                self.send(404, {"message": "Not found."})
+
+        def do_DELETE(self):
+            if not self.features("DELETE"):
+                self.send(404, {"message": "Not found."})
+
+        def do_PATCH(self):
+            if not self.features("PATCH"):
+                self.send(404, {"message": "Not found."})
+
+        def do_HEAD(self):
+            if not self.features("HEAD"):
+                self.send(404)
 
         def user(self):
             auth = self.headers.get("Authorization", "")
@@ -96,6 +137,8 @@ def make_handler(state: State):
             return None
 
         def do_POST(self):
+            if self.features("POST"):
+                return
             path = self.path.split("?")[0]
             payload = self.body()  # always drain the body (keep-alive connections)
             if path == "/api/voice-client/device":
@@ -145,6 +188,8 @@ def make_handler(state: State):
             self.send(404, {"message": "Not found."})
 
         def do_GET(self):
+            if self.features("GET"):
+                return
             path = self.path.split("?")[0]
             if not path.startswith("/api/voice-client/v1/"):
                 return self.send(404, {"message": "Not found."})
@@ -176,8 +221,22 @@ def main():
     p.add_argument("--deny", action="store_true")
     p.add_argument("--no-rooms", action="store_true")
     p.add_argument("--moderator-muted", type=int, default=0, help="user id that gets muted:true")
+    p.add_argument("--features", action="store_true",
+                   help="also serve the event/play/files/chat/notification routes and a Pusher server")
+    p.add_argument("--pusher-port", type=int, default=8098)
+    p.add_argument("--tus-chunk", type=int, default=1048576, help="chunkSize of the upload ticket")
+    p.add_argument("--tus-drop-after", type=int, default=0,
+                   help="cut the connection after this many body bytes of the second PATCH (once)")
+    p.add_argument("--upload-source", help="file the finished upload is compared against (log only)")
     args = p.parse_args()
     state = State(args)
+    if args.features:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # works under `python3 -I`
+        import standin_features
+        state.features = standin_features.Features(args, f"http://127.0.0.1:{args.port}")
+        if args.upload_source:
+            with open(args.upload_source, "rb") as f:
+                state.features.expected_upload = f.read()
     fd = os.open(args.peer_token_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         f.write(state.peer_token)

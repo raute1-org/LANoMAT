@@ -70,7 +70,7 @@ REVERB_APP_SECRET=<random>
 REVERB_HOST=ws.lan.raute1.org
 REVERB_PORT=443
 REVERB_SCHEME=https
-REVERB_ALLOWED_ORIGINS=https://lan.raute1.org
+REVERB_ALLOWED_ORIGINS=lan.raute1.org   # host name only, no scheme: Reverb compares the host of the Origin header
 ```
 
 Notes:

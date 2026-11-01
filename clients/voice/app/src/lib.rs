@@ -3,8 +3,16 @@
 //! (commands, events, tray, overlay, global shortcut, control socket, clean shutdown).
 
 pub mod engine;
+pub mod features;
+pub mod joinurl;
 pub mod settings;
 pub mod view;
+
+#[cfg(feature = "selftest")]
+mod selftest;
+
+#[cfg(test)]
+mod contract_tests;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -17,14 +25,22 @@ use tauri::{
     AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-use voice_core::api::{FileTokenStore, Room};
+use voice_core::api::{
+    Catering, ChatMessage, EventSummary, EventsResponse, FileTokenStore, FilesOverview, GameServer,
+    Match, MessagesPage, MineResponse, MyItem, Notification, NotificationsPage, NowFeed,
+    PollDetail, PollsList, QuotaInfo, Room, Tournament,
+};
 use voice_core::control::{self, ControlServer, PttCommand};
+use voice_core::notify::{Notifier, SystemNotification};
+use voice_core::transfer::manager::TransferView;
 
 use engine::{ConnectPoll, ConnectStart, Devices, Engine, Status, UiError};
+use features::{ConfigView, FeatureOptions, Features, TransferStarted, UploadStarted};
 use settings::Settings;
 use view::RoomView;
 
 type Eng<'a> = State<'a, Arc<Engine>>;
+type Feat<'a> = State<'a, Arc<Features>>;
 
 /// Event carrying a [`RoomView`] snapshot to every window.
 pub const EVENT_ROOM: &str = "room-updated";
@@ -68,7 +84,11 @@ struct Runtime {
 
 struct TrayItems {
     mute: MenuItem<tauri::Wry>,
+    quiet: MenuItem<tauri::Wry>,
 }
+
+const QUIET_OFF: &str = "Ruhe (keine Benachrichtigungen)";
+const QUIET_ON: &str = "Ruhe aufheben";
 
 fn is_wayland() -> bool {
     std::env::var("XDG_SESSION_TYPE").is_ok_and(|v| v.eq_ignore_ascii_case("wayland"))
@@ -165,8 +185,12 @@ fn show_main(app: &AppHandle) {
 // ---- commands ----
 
 #[tauri::command]
-async fn get_status(engine: Eng<'_>) -> Result<Status, UiError> {
-    Ok(engine.status().await)
+async fn get_status(engine: Eng<'_>, features: Feat<'_>) -> Result<Status, UiError> {
+    let status = engine.status().await;
+    if status.state == "connected" {
+        features.inner().ensure_started();
+    }
+    Ok(status)
 }
 
 #[tauri::command]
@@ -175,8 +199,12 @@ async fn connect_start(engine: Eng<'_>, server_url: String) -> Result<ConnectSta
 }
 
 #[tauri::command]
-async fn connect_poll(engine: Eng<'_>) -> Result<ConnectPoll, UiError> {
-    Ok(engine.connect_poll().await)
+async fn connect_poll(engine: Eng<'_>, features: Feat<'_>) -> Result<ConnectPoll, UiError> {
+    let poll = engine.connect_poll().await;
+    if matches!(poll, ConnectPoll::Connected { .. }) {
+        features.inner().ensure_started();
+    }
+    Ok(poll)
 }
 
 #[tauri::command]
@@ -230,10 +258,12 @@ fn load_settings(engine: Eng<'_>) -> Result<Settings, UiError> {
 fn save_settings(
     app: AppHandle,
     engine: Eng<'_>,
+    features: Feat<'_>,
     settings: Settings,
 ) -> Result<SaveResult, UiError> {
     let previous = engine.settings();
     let saved = engine.save_settings(settings)?;
+    features.apply_settings(&saved);
     let shortcut = if saved.ptt_shortcut != previous.ptt_shortcut
         || rt(&app).lock().expect("runtime").shortcut.is_none()
     {
@@ -275,23 +305,26 @@ fn get_environment(app: AppHandle, engine: Eng<'_>) -> Result<EnvInfo, UiError> 
 }
 
 #[tauri::command]
-async fn logout(engine: Eng<'_>) -> Result<(), UiError> {
+async fn logout(engine: Eng<'_>, features: Feat<'_>) -> Result<(), UiError> {
+    features.stop_all();
     engine.inner().logout().await
 }
 
 #[tauri::command]
 async fn open_url(engine: Eng<'_>, url: String) -> Result<(), UiError> {
     if !engine.url_allowed(&url).await {
-        return Err(UiError {
-            kind: "usage",
-            message: "Diese Adresse darf die App nicht öffnen.".into(),
-        });
+        return Err(UiError::new(
+            "usage",
+            "Diese Adresse darf die App nicht öffnen.",
+        ));
     }
-    open_in_browser(&url).map_err(|e| UiError {
-        kind: "local",
-        message: format!(
-            "Der Browser konnte nicht gestartet werden ({e}). Kopiere den Link stattdessen."
-        ),
+    open_in_browser(&url).map_err(|e| {
+        UiError::new(
+            "local",
+            format!(
+                "Der Browser konnte nicht gestartet werden ({e}). Kopiere den Link stattdessen."
+            ),
+        )
     })
 }
 
@@ -314,6 +347,340 @@ fn open_in_browser(url: &str) -> std::io::Result<()> {
         .map(|_| ())
 }
 
+// ---- feature commands: thin wrappers over `features::Features` (see docs/commands.md) ----
+
+#[tauri::command]
+async fn get_config(f: Feat<'_>) -> Result<ConfigView, UiError> {
+    f.config().await
+}
+
+#[tauri::command]
+async fn list_events(f: Feat<'_>) -> Result<EventsResponse, UiError> {
+    f.events().await
+}
+
+#[tauri::command]
+async fn current_event(f: Feat<'_>) -> Result<Option<EventSummary>, UiError> {
+    f.current_event().await
+}
+
+#[tauri::command]
+async fn now_feed(f: Feat<'_>, event: String) -> Result<NowFeed, UiError> {
+    f.inner().now(&event).await
+}
+
+#[tauri::command]
+async fn list_tournaments(f: Feat<'_>, event: String) -> Result<Vec<Tournament>, UiError> {
+    f.tournaments(&event).await
+}
+
+#[tauri::command]
+async fn list_my_matches(f: Feat<'_>, event: String) -> Result<Vec<Match>, UiError> {
+    f.my_matches(&event).await
+}
+
+#[tauri::command]
+async fn tournament_checkin(f: Feat<'_>, tournament_id: u64) -> Result<Tournament, UiError> {
+    f.tournament_checkin(tournament_id).await
+}
+
+#[tauri::command]
+async fn match_report(
+    f: Feat<'_>,
+    match_id: u64,
+    score1: u32,
+    score2: u32,
+) -> Result<Match, UiError> {
+    f.match_report(match_id, score1, score2).await
+}
+
+#[tauri::command]
+async fn match_confirm(f: Feat<'_>, match_id: u64, lock_version: u64) -> Result<Match, UiError> {
+    f.match_confirm(match_id, lock_version).await
+}
+
+#[tauri::command]
+async fn match_dispute(f: Feat<'_>, match_id: u64) -> Result<Match, UiError> {
+    f.match_dispute(match_id).await
+}
+
+#[tauri::command]
+async fn match_withdraw_report(
+    f: Feat<'_>,
+    match_id: u64,
+    lock_version: u64,
+) -> Result<Match, UiError> {
+    f.match_withdraw_report(match_id, lock_version).await
+}
+
+#[tauri::command]
+async fn list_event_servers(f: Feat<'_>, event: String) -> Result<Vec<GameServer>, UiError> {
+    f.event_servers(&event).await
+}
+
+#[tauri::command]
+async fn list_permanent_servers(f: Feat<'_>) -> Result<Vec<GameServer>, UiError> {
+    f.permanent_servers().await
+}
+
+#[tauri::command]
+async fn list_polls(f: Feat<'_>, event: String) -> Result<PollsList, UiError> {
+    f.polls(&event).await
+}
+
+#[tauri::command]
+async fn get_poll(f: Feat<'_>, poll_id: u64) -> Result<PollDetail, UiError> {
+    f.poll(poll_id).await
+}
+
+#[tauri::command]
+async fn vote_poll(f: Feat<'_>, poll_id: u64, option_id: u64) -> Result<PollDetail, UiError> {
+    f.vote(poll_id, option_id).await
+}
+
+#[tauri::command]
+async fn get_catering(f: Feat<'_>, event: String) -> Result<Catering, UiError> {
+    f.catering(&event).await
+}
+
+#[tauri::command]
+async fn my_catering_items(f: Feat<'_>, event: String) -> Result<MineResponse, UiError> {
+    f.catering_mine(&event).await
+}
+
+#[tauri::command]
+async fn place_food_item(
+    f: Feat<'_>,
+    order_id: u64,
+    option_key: String,
+    note: Option<String>,
+) -> Result<MyItem, UiError> {
+    f.place_food_item(order_id, &option_key, note.as_deref())
+        .await
+}
+
+#[tauri::command]
+async fn cancel_food_item(f: Feat<'_>, item_id: u64) -> Result<(), UiError> {
+    f.cancel_food_item(item_id).await
+}
+
+#[tauri::command]
+async fn list_files(f: Feat<'_>, event: String) -> Result<FilesOverview, UiError> {
+    f.files(&event).await
+}
+
+#[tauri::command]
+async fn files_quota(f: Feat<'_>, event: String) -> Result<QuotaInfo, UiError> {
+    f.files_quota(&event).await
+}
+
+#[tauri::command]
+async fn delete_file(f: Feat<'_>, file_id: u64) -> Result<(), UiError> {
+    f.delete_file(file_id).await
+}
+
+#[tauri::command]
+async fn download_file(
+    f: Feat<'_>,
+    file_id: u64,
+    name: Option<String>,
+) -> Result<TransferStarted, UiError> {
+    f.download_file(file_id, name.as_deref().unwrap_or("download"))
+        .await
+}
+
+#[tauri::command]
+async fn upload_files(
+    f: Feat<'_>,
+    event: String,
+    paths: Vec<String>,
+) -> Result<Vec<UploadStarted>, UiError> {
+    f.upload_files(&event, paths).await
+}
+
+#[tauri::command]
+fn list_transfers(f: Feat<'_>) -> Result<Vec<TransferView>, UiError> {
+    Ok(f.transfers())
+}
+
+#[tauri::command]
+fn transfer_pause(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+    f.transfer_pause(transfer_id)
+}
+
+#[tauri::command]
+fn transfer_resume(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+    f.transfer_resume(transfer_id)
+}
+
+#[tauri::command]
+fn transfer_cancel(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+    f.transfer_cancel(transfer_id)
+}
+
+#[tauri::command]
+fn transfer_forget(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+    f.transfer_forget(transfer_id);
+    Ok(())
+}
+
+#[tauri::command]
+async fn list_notifications(
+    f: Feat<'_>,
+    unread_only: Option<bool>,
+    page: Option<u32>,
+    per_page: Option<u32>,
+) -> Result<NotificationsPage, UiError> {
+    f.notifications(
+        unread_only.unwrap_or(false),
+        page.unwrap_or(1),
+        per_page.unwrap_or(20),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn unread_count(f: Feat<'_>) -> Result<u64, UiError> {
+    f.unread_count().await
+}
+
+#[tauri::command]
+async fn mark_notification_read(f: Feat<'_>, id: String) -> Result<Notification, UiError> {
+    f.mark_notification_read(&id).await
+}
+
+#[tauri::command]
+async fn mark_all_notifications_read(f: Feat<'_>) -> Result<u64, UiError> {
+    f.mark_all_notifications_read().await
+}
+
+#[tauri::command]
+async fn get_notification_preferences(
+    f: Feat<'_>,
+) -> Result<std::collections::BTreeMap<String, bool>, UiError> {
+    f.notification_preferences().await
+}
+
+#[tauri::command]
+async fn set_notification_preferences(
+    f: Feat<'_>,
+    preferences: std::collections::BTreeMap<String, bool>,
+) -> Result<std::collections::BTreeMap<String, bool>, UiError> {
+    f.set_notification_preferences(preferences).await
+}
+
+#[tauri::command]
+fn set_quiet(f: Feat<'_>, quiet: bool) -> Result<bool, UiError> {
+    Ok(f.set_quiet(quiet))
+}
+
+#[tauri::command]
+fn take_notification_target(f: Feat<'_>) -> Result<Option<voice_core::notify::Target>, UiError> {
+    Ok(f.take_notification_target())
+}
+
+#[tauri::command]
+fn get_quiet(f: Feat<'_>) -> Result<bool, UiError> {
+    Ok(f.quiet())
+}
+
+#[tauri::command]
+async fn chat_history(
+    f: Feat<'_>,
+    room_id: u64,
+    before: Option<u64>,
+) -> Result<MessagesPage, UiError> {
+    f.chat_history(room_id, before).await
+}
+
+#[tauri::command]
+async fn chat_post(f: Feat<'_>, room_id: u64, body: String) -> Result<ChatMessage, UiError> {
+    f.chat_post(room_id, &body).await
+}
+
+#[tauri::command]
+async fn chat_delete(f: Feat<'_>, message_id: u64) -> Result<(), UiError> {
+    f.chat_delete(message_id).await
+}
+
+#[tauri::command]
+async fn chat_subscribe(f: Feat<'_>, room_ids: Vec<u64>) -> Result<(), UiError> {
+    f.inner().chat_subscribe(room_ids).await
+}
+
+#[tauri::command]
+fn chat_unsubscribe(f: Feat<'_>) -> Result<(), UiError> {
+    f.chat_unsubscribe();
+    Ok(())
+}
+
+/// Opens a game server's `steam://connect/...` link with the system handler. Nothing else is
+/// accepted (see `joinurl`): the webview may not make the OS open arbitrary URLs.
+#[tauri::command]
+fn open_join_url(url: String) -> Result<(), UiError> {
+    let url = joinurl::validate_steam_connect(&url)
+        .map_err(|m| UiError::new("usage", m))?
+        .to_owned();
+    open_in_browser(&url).map_err(|e| {
+        UiError::new(
+            "local",
+            format!("Steam konnte nicht gestartet werden ({e}). Kopiere die Adresse stattdessen."),
+        )
+    })
+}
+
+/// Puts text on the clipboard (a server address, a connect string).
+#[tauri::command]
+fn copy_text(app: AppHandle, text: String) -> Result<(), UiError> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    if text.chars().count() > 4096 {
+        return Err(UiError::new("usage", "Der Text ist zu lang."));
+    }
+    app.clipboard().write_text(text).map_err(|e| {
+        UiError::new(
+            "local",
+            format!("Die Zwischenablage ist nicht erreichbar ({e})."),
+        )
+    })
+}
+
+/// Shows the system file picker; returns the chosen paths (empty when cancelled).
+#[tauri::command]
+async fn pick_files(app: AppHandle) -> Result<Vec<String>, UiError> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().pick_files(move |p| {
+        let _ = tx.send(p);
+    });
+    let picked = rx.await.ok().flatten().unwrap_or_default();
+    Ok(picked
+        .into_iter()
+        .filter_map(|p| p.into_path().ok())
+        .map(|p| p.display().to_string())
+        .collect())
+}
+
+/// Shows the system folder picker; returns the folder or null when cancelled.
+#[tauri::command]
+async fn pick_directory(app: AppHandle) -> Result<Option<String>, UiError> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().pick_folder(move |p| {
+        let _ = tx.send(p);
+    });
+    Ok(rx
+        .await
+        .ok()
+        .flatten()
+        .and_then(|p| p.into_path().ok())
+        .map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+fn get_download_dir(f: Feat<'_>) -> Result<String, UiError> {
+    Ok(f.download_dir().display().to_string())
+}
+
 #[tauri::command]
 fn quit(app: AppHandle) {
     app.exit(0);
@@ -329,10 +696,16 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Anzeigen", true, None::<&str>)?;
     let mute = MenuItem::with_id(app, "mute", "Stumm schalten", true, None::<&str>)?;
     let overlay = MenuItem::with_id(app, "overlay", "Overlay ein/aus", true, None::<&str>)?;
+    let quiet_label = if app.state::<Arc<Features>>().quiet() {
+        QUIET_ON
+    } else {
+        QUIET_OFF
+    };
+    let quiet = MenuItem::with_id(app, "quiet", quiet_label, true, None::<&str>)?;
     let leave = MenuItem::with_id(app, "leave", "Verlassen", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &mute, &overlay, &leave, &quit])?;
-    app.manage(TrayItems { mute });
+    let menu = Menu::with_items(app, &[&show, &mute, &quiet, &overlay, &leave, &quit])?;
+    app.manage(TrayItems { mute, quiet });
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("LANoMAT Voice")
         .menu(&menu)
@@ -344,6 +717,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 "mute" => {
                     let next = !engine.is_muted();
                     engine.set_muted(next);
+                }
+                "quiet" => {
+                    // The label follows through the `quiet-changed` event the toggle sends.
+                    let f = app.state::<Arc<Features>>();
+                    let next = !f.quiet();
+                    f.set_quiet(next);
                 }
                 "overlay" => {
                     let mut s = engine.settings();
@@ -416,6 +795,112 @@ fn cleanup(app: &AppHandle) {
     }
 }
 
+/// One list for the registration and for the test that keeps `docs/commands.md` honest.
+macro_rules! command_set {
+    ($($name:ident),* $(,)?) => {
+        /// Every command the UI may invoke.
+        pub const COMMAND_NAMES: &[&str] = &[$(stringify!($name)),*];
+
+        #[cfg(not(feature = "selftest"))]
+        fn register(b: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+            b.invoke_handler(tauri::generate_handler![$($name),*])
+        }
+
+        #[cfg(feature = "selftest")]
+        fn register(b: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+            b.invoke_handler(tauri::generate_handler![
+                $($name,)* selftest::selftest_report, selftest::selftest_done
+            ])
+        }
+    };
+}
+
+command_set!(
+    get_status,
+    connect_start,
+    connect_poll,
+    connect_cancel,
+    list_rooms,
+    join_room,
+    leave_room,
+    set_talking,
+    set_muted,
+    get_room_view,
+    list_devices,
+    load_settings,
+    save_settings,
+    get_environment,
+    logout,
+    open_url,
+    quit,
+    get_config,
+    list_events,
+    current_event,
+    now_feed,
+    list_tournaments,
+    list_my_matches,
+    tournament_checkin,
+    match_report,
+    match_confirm,
+    match_dispute,
+    match_withdraw_report,
+    list_event_servers,
+    list_permanent_servers,
+    list_polls,
+    get_poll,
+    vote_poll,
+    get_catering,
+    my_catering_items,
+    place_food_item,
+    cancel_food_item,
+    list_files,
+    files_quota,
+    delete_file,
+    download_file,
+    upload_files,
+    list_transfers,
+    transfer_pause,
+    transfer_resume,
+    transfer_cancel,
+    transfer_forget,
+    list_notifications,
+    unread_count,
+    mark_notification_read,
+    mark_all_notifications_read,
+    get_notification_preferences,
+    set_notification_preferences,
+    set_quiet,
+    get_quiet,
+    take_notification_target,
+    chat_history,
+    chat_post,
+    chat_delete,
+    chat_subscribe,
+    chat_unsubscribe,
+    open_join_url,
+    copy_text,
+    pick_files,
+    pick_directory,
+    get_download_dir
+);
+
+/// Raises system notifications through `tauri-plugin-notification`. The desktop plugin has no
+/// click callback, so the target screen travels in the `notify-event` instead; the UI opens it
+/// when the window is shown (see docs/commands.md).
+struct TauriNotifier;
+
+impl Notifier for TauriNotifier {
+    fn notify(&self, n: &SystemNotification) -> Result<(), String> {
+        use tauri_plugin_notification::NotificationExt;
+        let app = APP.get().ok_or("the app is not ready")?;
+        let mut b = app.notification().builder().title(&n.title);
+        if let Some(body) = &n.body {
+            b = b.body(body);
+        }
+        b.show().map_err(|e| e.to_string())
+    }
+}
+
 /// Builds and runs the application; returns when it has exited.
 pub fn run() {
     if let Ok(filter) = std::env::var("RUST_LOG") {
@@ -432,33 +917,41 @@ pub fn run() {
         if let Some(app) = APP.get() {
             let _ = app.emit(EVENT_ROOM, view);
             refresh_tray(app, view);
+            // Talking (push-to-talk held) silences system notifications.
+            if let Some(f) = app.try_state::<Arc<Features>>() {
+                f.set_talking(view.talking_for_dnd());
+            }
         }
     });
     let engine = Engine::new(store, settings_path, emit, synthetic_audio());
+    let event_sink: features::EventSink = Arc::new(|name, payload| {
+        if let Some(app) = APP.get() {
+            if name == features::EVT_QUIET {
+                if let Some(items) = app.try_state::<TrayItems>() {
+                    let on = payload.get("quiet").and_then(|q| q.as_bool()) == Some(true);
+                    let _ = items.quiet.set_text(if on { QUIET_ON } else { QUIET_OFF });
+                }
+            }
+            let _ = app.emit(name, payload);
+        }
+    });
+    let features = Features::new(
+        engine.clone(),
+        event_sink,
+        Arc::new(TauriNotifier),
+        FeatureOptions::default(),
+    )
+    .expect("transfer manager");
 
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(engine.clone())
-        .manage(Arc::new(Mutex::new(Runtime::default())))
-        .invoke_handler(tauri::generate_handler![
-            get_status,
-            connect_start,
-            connect_poll,
-            connect_cancel,
-            list_rooms,
-            join_room,
-            leave_room,
-            set_talking,
-            set_muted,
-            get_room_view,
-            list_devices,
-            load_settings,
-            save_settings,
-            get_environment,
-            logout,
-            open_url,
-            quit
-        ])
+        .manage(features.clone())
+        .manage(Arc::new(Mutex::new(Runtime::default())));
+    let app = register(builder)
         .setup(move |app| {
             engine.set_runtime(tauri::async_runtime::handle().inner().clone());
             let handle = app.handle().clone();
@@ -475,6 +968,13 @@ pub fn run() {
             set_overlay(&handle, settings.overlay);
             let (h, e) = (handle.clone(), engine.clone());
             tauri::async_runtime::spawn(async move { start_control_socket(h, e).await });
+            if engine.client().is_ok() {
+                // A stored token: notifications run from the start, also with the window hidden.
+                let f = features.clone();
+                tauri::async_runtime::spawn(async move { f.ensure_started() });
+            }
+            #[cfg(feature = "selftest")]
+            selftest::arm(&handle);
             let h = handle.clone();
             tauri::async_runtime::spawn(async move {
                 wait_for_termination().await;
@@ -483,17 +983,24 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() != "main" {
-                    return;
+            if window.label() != "main" {
+                return;
+            }
+            let app = window.app_handle();
+            match event {
+                WindowEvent::Focused(focused) => {
+                    app.state::<Arc<Features>>().set_focused(*focused);
                 }
-                let app = window.app_handle();
-                if app.state::<Arc<Engine>>().settings().close_to_tray {
-                    api.prevent_close();
-                    let _ = window.hide();
-                } else {
-                    app.exit(0);
+                WindowEvent::CloseRequested { api, .. } => {
+                    if app.state::<Arc<Engine>>().settings().close_to_tray {
+                        api.prevent_close();
+                        let _ = window.hide();
+                        app.state::<Arc<Features>>().set_focused(false);
+                    } else {
+                        app.exit(0);
+                    }
                 }
+                _ => {}
             }
         })
         .build(tauri::generate_context!())
