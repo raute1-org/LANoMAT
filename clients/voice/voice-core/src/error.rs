@@ -120,7 +120,9 @@ impl Error {
                 true
             }
             Error::Server { status, .. } => *status >= 500,
-            Error::Transfer { code, .. } => matches!(code.as_str(), "network" | "upload_lost"),
+            Error::Transfer { code, .. } => {
+                matches!(code.as_str(), "network" | "upload_lost" | "link_expired")
+            }
             _ => false,
         }
     }
