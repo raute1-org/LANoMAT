@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\GameServers\Support;
 
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -13,6 +14,8 @@ use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
+use App\Modules\Tournaments\Support\EntryRoster;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * The single `ServerLink` -> wire DTO projection for the event's game
@@ -42,7 +45,52 @@ class ServerListProjection
      */
     public static function forEvent(Event $event): array
     {
-        $links = ServerLink::query()
+        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link))->all());
+    }
+
+    /**
+     * The event list as seen by one viewer, for the native client: the same query and DTO as
+     * {@see self::forEvent()}, but a server bound to a single match is only listed for people
+     * who play in that match (either roster) and for orga. Stricter than the public web page on
+     * purpose: other players' match servers are not the viewer's business.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function forEventViewedBy(Event $event, User $viewer): array
+    {
+        $links = self::linksForEvent($event)->filter(function (ServerLink $link) use ($viewer): bool {
+            if ($link->match_id === null || $viewer->isOrga()) {
+                return true;
+            }
+
+            return self::viewerPlaysIn($link->match, $viewer);
+        });
+
+        return array_values($links->map(fn (ServerLink $link): array => self::dto($link) + ['description' => $link->description])->all());
+    }
+
+    /** True when the viewer is on the roster of either entry of the match. */
+    public static function viewerPlaysIn(?GameMatch $match, User $viewer): bool
+    {
+        if ($match === null) {
+            return false;
+        }
+
+        foreach ([$match->entry1, $match->entry2] as $entry) {
+            if ($entry !== null && in_array($viewer->id, array_map('intval', EntryRoster::userIdsFor($entry)), true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return Collection<int, ServerLink>
+     */
+    public static function linksForEvent(Event $event): Collection
+    {
+        return ServerLink::query()
             ->where(function ($query): void {
                 // Ready and NotResponding servers are always listed; a server the orga just
                 // started from a preset (event-level) is listed while it starts up.
@@ -61,11 +109,9 @@ class ServerListProjection
                     fn ($q) => $q->where('event_id', $event->id),
                 );
             })
-            ->with(['match.tournament.game', 'tournament.game', 'game'])
+            ->with(['match.tournament.game', 'match.entry1', 'match.entry2', 'tournament.game', 'game'])
             ->orderBy('id')
             ->get();
-
-        return array_values($links->map(fn (ServerLink $link): array => self::dto($link))->all());
     }
 
     /**
@@ -78,7 +124,26 @@ class ServerListProjection
      */
     public static function forPermanent(): array
     {
-        $links = ServerLink::query()
+        return array_values(self::permanentLinks()->map(fn (ServerLink $link): array => self::permanentDto($link))->all());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function permanentDto(ServerLink $link): array
+    {
+        return self::dto($link) + [
+            'description' => $link->description,
+            'source' => $link->source->value,
+        ];
+    }
+
+    /**
+     * @return Collection<int, ServerLink>
+     */
+    public static function permanentLinks(): Collection
+    {
+        return ServerLink::query()
             ->permanent()
             ->whereIn('status', [
                 ServerLinkStatus::Ready,
@@ -90,17 +155,12 @@ class ServerListProjection
             ->orderBy('title')
             ->orderBy('id')
             ->get();
-
-        return array_values($links->map(fn (ServerLink $link): array => self::dto($link) + [
-            'description' => $link->description,
-            'source' => $link->source->value,
-        ])->all());
     }
 
     /**
      * @return array<string, mixed>
      */
-    private static function dto(ServerLink $link): array
+    public static function dto(ServerLink $link): array
     {
         $tournament = self::tournamentFor($link);
         $game = $tournament !== null ? $tournament->game : $link->game;

@@ -60,6 +60,16 @@ const PUBLIC_ROUTES = [
     'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
     'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
     'GET api/voice-client/v1/config' => 'bearer middleware (AuthenticateVoiceClient); no secrets',
+    'GET api/voice-client/v1/events/{event}/now' => 'bearer middleware; own matches/votes/orders/notifications only, draft events 404 (tests/Feature/WebVoice/NativeClient/NowFeedTest)',
+    'GET api/voice-client/v1/events/{event}/tournaments' => 'bearer middleware; same visibility as the web list, draft events 404',
+    'GET api/voice-client/v1/events/{event}/my-matches' => 'bearer middleware; only matches of the caller\'s own or rostered entries',
+    'GET api/voice-client/v1/events/{event}/servers' => 'bearer middleware; web server list narrowed to the caller\'s own match server (ServerListProjection::forEventViewedBy)',
+    'GET api/voice-client/v1/servers' => 'bearer middleware; ServerLinkPolicy viewPermanent (every logged-in user), like the web page',
+    'POST api/voice-client/v1/tournaments/{tournament}/checkin' => 'bearer middleware; acts on the caller\'s own entry, TournamentPolicy checkIn, hidden tournaments 404',
+    'POST api/voice-client/v1/matches/{match}/report' => 'bearer middleware; TournamentPolicy report + own entry (404 for non-participants)',
+    'POST api/voice-client/v1/matches/{match}/confirm' => 'bearer middleware; TournamentPolicy confirm (opponent only) + lock_version',
+    'POST api/voice-client/v1/matches/{match}/dispute' => 'bearer middleware; TournamentPolicy dispute (opponent only)',
+    'POST api/voice-client/v1/matches/{match}/report/withdraw' => 'bearer middleware; TournamentPolicy withdrawReport (reporting side only) + lock_version',
     'GET auth/discord/callback' => 'OAuth callback, state-verified by Socialite',
     'GET broadcasting/auth' => 'channel authorization callbacks decide per channel (routes/channels.php)',
     'POST csp-report' => 'browser CSP reports, throttled and size-limited',
@@ -466,6 +476,8 @@ it('puts every state-changing route behind CSRF verification', function () {
     $exempt = [
         'api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/{serverLink}',
         'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token',
+        'api/voice-client/v1/tournaments/{tournament}/checkin', 'api/voice-client/v1/matches/{match}/report', 'api/voice-client/v1/matches/{match}/confirm',
+        'api/voice-client/v1/matches/{match}/dispute', 'api/voice-client/v1/matches/{match}/report/withdraw',
         '_boost/browser-logs', 'csp-report', 'storage/{path}',
     ];
     $failures = [];

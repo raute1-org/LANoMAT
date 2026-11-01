@@ -9,6 +9,7 @@ return [
         1 => 'Events',
         2 => 'Infoscreen',
         3 => 'Registration',
+        4 => 'WebVoice',
     ],
     'CustomServers' => [
         0 => 'Events',
@@ -147,6 +148,7 @@ return [
         2 => 'Infoscreen',
         3 => 'Notifications',
         4 => 'Tournaments',
+        5 => 'WebVoice',
     ],
     'Seating' => [
         0 => 'Events',
@@ -185,8 +187,11 @@ return [
         1 => 'Gallery',
         2 => 'Infoscreen',
         3 => 'Registration',
+        4 => 'WebVoice',
     ],
     'WebVoice' => [
-        0 => 'Tournaments',
+        0 => 'Events',
+        1 => 'GameServers',
+        2 => 'Tournaments',
     ],
 ];

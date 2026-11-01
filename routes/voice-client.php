@@ -26,3 +26,6 @@ Route::prefix('api/voice-client/v1')->middleware([AuthenticateVoiceClient::class
     Route::post('rooms/{room}/token', [VoiceClientApiController::class, 'token'])->middleware('throttle:30,1')->name('rooms.token');
     Route::get('config', [VoiceClientApiController::class, 'config'])->name('config');
 });
+
+// Play block (now feed, tournaments/matches, game servers): kept in its own file.
+require __DIR__.'/voice-client-play.php';
