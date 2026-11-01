@@ -226,18 +226,48 @@ symptom). `deploy.sh` does the right thing and also exports `APP_VERSION` / `APP
 build by hand, `source scripts/ops/lib/version.sh` and export `APP_VERSION="$(lanomat_version .)"` and
 `APP_COMMIT="$(lanomat_commit .)"` first, otherwise the images report `dev`.
 
-**Native voice client download.** The Desktop-App is offered inside LANoMAT (`/talk/client`), always in the
-version that matches the server. After pulling and BEFORE `up -d`, build it (a few minutes with a warm cache;
-needs the docker images of `clients/voice`, see its README):
+**Native voice client download (Linux and Windows).** The Desktop-App is offered inside LANoMAT (`/talk/client`),
+always in the version that matches the server. The Windows files are built by the GitHub workflow
+`release-client.yml` (about 25 minutes, no Windows machine needed); the server only offers files whose
+manifest carries exactly the deployed version AND commit. The sequence for a deploy:
+
+1. Merge/pull the commit that is going to be deployed (the version string is `git describe --tags --always`
+   of the checkout, `scripts/ops/lib/version.sh`).
+2. Dispatch the workflow for exactly that version, from the commit's branch or tag, and wait for it:
+
+   ```bash
+   gh workflow run release-client.yml --ref main -f version="$(. scripts/ops/lib/version.sh; lanomat_version .)"
+   gh run watch "$(gh run list --workflow release-client.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+   ```
+
+3. On the server checkout (after `git pull`, BEFORE `up -d`; `gh` must be authenticated once with `gh auth login`):
+
+   ```bash
+   scripts/ops/fetch-client-release.sh            # newest successful run for this commit; verifies sha256 + sizes
+   scripts/ops/fetch-client-release.sh --dry-run  # only download and verify
+   ```
+
+   It refuses a run for another version or commit and prints the exact `gh workflow run ... -f version=...`
+   line to use. `--run <id>` or `--tag client-v...` pick a run or a (draft) release explicitly. The files are
+   published atomically into `./clients-dist` (files first, `manifest.json` last).
+4. `scripts/deploy/deploy.sh` (or the build and `up -d` by hand).
+
+Fallback without GitHub (Linux only, a few minutes with a warm cache, needs the docker images of
+`clients/voice`):
 
 ```bash
 scripts/ops/build-client.sh        # refuses a dirty tree; publishes ./clients-dist (mounted read-only)
 ```
 
-`./clients-dist` is mounted into `app` and `scheduler`. Build before the first `up`, because Docker creates a
-missing bind-mount directory as root. Only Linux x86_64 is built. The Preflight check `client_build` warns
+Both scripts merge: Windows entries fetched earlier stay when `build-client.sh` rebuilds Linux for the same
+version and commit, and a locally built Linux entry stays when the Windows files are fetched (`--prefer-workflow`
+lets the workflow's Linux file win instead). A different version removes the old files.
+
+`./clients-dist` is mounted into `app` and `scheduler`. Publish before the first `up`, because Docker creates a
+missing bind-mount directory as root. The Windows files are **not signed** (`signed: false`): the download page
+tells users how to click through the SmartScreen warning. The Preflight check `client_build` warns
 ("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
-run the build script after every deploy that changes the version.
+repeat the fetch (or the build) after every deploy that changes the version.
 
 **One-time after the deploy that introduces local avatars.** LANoMAT now keeps its own copy of every Discord
 avatar (nothing is loaded from the Discord CDN by browsers or the desktop client any more). New logins fetch

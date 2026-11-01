@@ -64,7 +64,7 @@ tauri-build's "static VC runtime, dynamic UCRT" default (otherwise `lld-link` re
 ### Files and manifest contract
 
 `<V>` is the version string. The shape is what the server's `ClientBuilds` validates and
-`scripts/ops/build-client.sh` writes, with the extra `signed` field (ignored by the server today).
+`scripts/ops/build-client.sh` writes, with the extra `signed` field (read by the server: the download page explains unsigned Windows files).
 
 | File | os | arch | kind |
 | --- | --- | --- | --- |
@@ -128,22 +128,33 @@ A later task: the Tauri updater with a `latest.json` that the LANoMAT server its
 an updater signing key (`cargo tauri signer generate`), installer bundles (NSIS on Windows, AppImage
 on Linux) with `.sig` files and `tauri-plugin-updater`. None of that exists yet.
 
-## What the deploy has to do (later task)
+## Getting the files onto the server: `fetch-client-release.sh`
 
-The server serves downloads from `clients-dist/`. To publish a matching set for the server version it
-is being deployed with, the deploy step must:
+The server serves downloads from `clients-dist/`. `scripts/ops/fetch-client-release.sh` publishes the
+workflow's set for the server version it is deployed with. The contract:
 
-1. Pick the draft-then-published release (or the workflow artifact `client-release-files`) whose
-   `manifest.json` has `app_version` equal to the server's version string and the same `commit`.
-2. Download all its files plus `manifest.json` into a staging directory inside `clients-dist/` and
-   verify `SHA256SUMS` (`sha256sum -c`) and that every `files[].size` and `sha256` of the manifest
-   matches, refusing the set otherwise.
-3. Move the files into place first and `manifest.json` last (atomically, like `build-client.sh`: a
-   reader sees the old or the new release, never a mix), then prune files the new manifest no longer
-   lists. `manifest-<os>-<arch>.json` and `SHA256SUMS` are informational and need not be published.
+1. **Which set.** Default: the newest successful run of `release-client.yml` whose head commit is this
+   checkout's commit and whose `manifest.json` has `app_version` equal to `lanomat_version` of this
+   checkout. `--run <id>` takes the artifact `client-release-files` of that run, `--tag client-v...` the
+   (draft or published) release assets. `--version` / `--commit` override what is wanted (testing).
+2. **Refuse otherwise.** The manifest's `app_version` AND `commit` must equal the wanted ones; the error
+   tells the operator to run `gh workflow run release-client.yml --ref <ref> -f version=<wanted>`. A dirty
+   checkout (`-dirty` version) is refused.
+3. **Verify.** Every listed name is a plain file name `lanomat-voice-(app|cli)-<V>-<os>-<arch>.(tar.gz|zip|exe)`
+   (at most 64 entries, no duplicates, `signed` a boolean if present); every file exists, is no link, has
+   the listed size and sha256, and `SHA256SUMS` agrees (its lines may only name plain files). `signed:false`
+   files are named in the output; `--require-signed` refuses them.
+4. **Publish atomically** (like `build-client.sh`): stage dir inside the target, files first,
+   `manifest.json` renamed last, under the same `flock`, then prune files the manifest no longer lists. The
+   directory is never replaced (bind mount). `--dry-run` stops after step 3 and prints the merged manifest.
+5. **Merge.** If the target's manifest is for the same version and commit, its intact entries stay (a locally
+   built Linux client) and the workflow's entries are added; same name or same os/arch/kind: the local entry
+   wins unless `--prefer-workflow`. `build-client.sh` merges the other way: it keeps non-Linux entries of the
+   same version and commit. Another version or commit: the old files go.
 
-Only public GitHub release assets are involved, so the deploy needs no credentials for this; nothing
-secret belongs into the workflow.
+`gh` must be authenticated (`gh auth login` or `GH_TOKEN`; nothing is printed). The workflow artifact is kept
+30 days; a draft release needs a token with write access to read it. `manifest-<os>-<arch>.json` and
+`SHA256SUMS` are not published.
 
 ## Verification status
 

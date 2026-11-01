@@ -65,8 +65,20 @@ version and commit baked in (`LANOMAT_BUILD_VERSION`, `LANOMAT_BUILD_COMMIT`; `l
 `<version> (<commit>)`, the Tauri `get_environment` command returns `version` and `commit`, every API call sends
 `X-Client-Version`). Each binary is packed into a reproducible `.tar.gz` (binary, a German `LIESMICH.txt`; the app
 also a `.desktop` file and the icon). Staging happens inside the output directory, files move into place first and
-`manifest.json` is renamed last; older releases are pruned afterwards. Only **Linux x86_64** is built: there is no
-Windows or macOS builder, so the manifest lists no such file and the page says "noch kein Build". The binaries are
+`manifest.json` is renamed last; older releases are pruned afterwards. `build-client.sh` builds only **Linux
+x86_64**. The Windows files come from the GitHub workflow (`.github/workflows/release-client.yml`) and reach
+`clients-dist/` with `scripts/ops/fetch-client-release.sh`:
+
+```bash
+scripts/ops/fetch-client-release.sh                # newest successful workflow run for this checkout's commit
+scripts/ops/fetch-client-release.sh --run <id>     # or a specific run / --tag client-v... (draft or published release)
+scripts/ops/fetch-client-release.sh --dry-run      # download and verify only
+scripts/ops/fetch-client-release.sh --prefer-workflow   # the workflow's file replaces a local one of the same os/arch/kind
+```
+
+It needs an authenticated `gh`, verifies every file against `SHA256SUMS` and the manifest, refuses a manifest whose
+`app_version` or `commit` is not this checkout's (the error names the `gh workflow run ... -f version=<wanted>`
+call) and merges with a locally built Linux entry of the same version. The binaries are
 linked against Debian bookworm's glibc and need GTK 3 / WebKitGTK 4.1 (app) and ALSA at runtime.
 
 `clients-dist/manifest.json` (gitignored; compose mounts the directory read-only into the app):
@@ -79,12 +91,13 @@ linked against Debian bookworm's glibc and need GTK 3 / WebKitGTK 4.1 (app) and 
   "built_at": "2026-11-01T11:49:36Z",
   "files": [
     {"name": "lanomat-voice-app-<version>-linux-x86_64.tar.gz", "os": "linux", "arch": "x86_64",
-     "kind": "app", "size": 22574008, "sha256": "<64 hex characters>"}
+     "kind": "app", "size": 22574008, "sha256": "<64 hex characters>", "signed": false}
   ]
 }
 ```
 
-`os` is `linux|windows|macos`, `arch` `x86_64|aarch64`, `kind` `app|cli`. More platforms later are just more
+`os` is `linux|windows|macos`, `arch` `x86_64|aarch64`, `kind` `app|cli`; `signed` (optional boolean) says whether the
+release pipeline code-signed the file, the download page shows a SmartScreen explanation for unsigned Windows files. More platforms later are just more
 `files` entries; the server validates names (plain file names only), sizes and the schema before offering anything.
 The update check against the server is `voice_core::update::assess` / the `get_update_status` command
 (`docs/commands.md`).

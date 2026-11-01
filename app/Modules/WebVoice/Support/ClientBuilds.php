@@ -252,6 +252,7 @@ class ClientBuilds
         $kind = $entry['kind'] ?? null;
         $size = $entry['size'] ?? null;
         $sha = $entry['sha256'] ?? null;
+        $signed = $entry['signed'] ?? null;
 
         if (! is_string($name) || preg_match(self::NAME, $name) !== 1 || str_contains($name, '..')
             || $name === 'manifest.json'
@@ -259,10 +260,11 @@ class ClientBuilds
             || ! is_string($arch) || ! in_array($arch, self::ARCH, true)
             || ! is_string($kind) || ! in_array($kind, self::KIND, true)
             || ! is_int($size) || $size < 0
-            || ! is_string($sha) || preg_match(self::SHA256, $sha) !== 1) {
+            || ! is_string($sha) || preg_match(self::SHA256, $sha) !== 1
+            || ($signed !== null && ! is_bool($signed))) {
             return null;
         }
 
-        return new ClientBuild($name, $os, $arch, $kind, $size, $sha);
+        return new ClientBuild($name, $os, $arch, $kind, $size, $sha, $signed);
     }
 }
