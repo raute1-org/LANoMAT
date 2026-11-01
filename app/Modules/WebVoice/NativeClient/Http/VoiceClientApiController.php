@@ -10,6 +10,8 @@ use App\Modules\WebVoice\Actions\IssueJoinToken;
 use App\Modules\WebVoice\Domain\WebVoiceUnavailable;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
 use App\Modules\WebVoice\Queries\VisibleChannels;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -72,8 +74,18 @@ class VoiceClientApiController extends Controller
             'livekit_url' => $url === '' ? null : $url,
             'voice_ready' => $url !== '',
             'audio' => (array) config('webvoice.audio'),
+            // Which optional modules this deployment runs, so the client can hide what the event does not use.
+            'modules' => $this->modules(),
             'realtime' => $this->realtime(),
         ]);
+    }
+
+    /** @return array<string, bool> keyed like the MODULE_<KEY> overrides, e.g. `game_servers` */
+    private function modules(): array
+    {
+        $modules = app(Modules::class);
+
+        return collect(Module::cases())->mapWithKeys(fn (Module $module): array => [$module->key() => $modules->enabled($module)])->all();
     }
 
     /**

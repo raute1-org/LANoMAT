@@ -7,6 +7,7 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Policies\FoodOrderItemPolicy;
 use App\Modules\Catering\Policies\FoodOrderPolicy;
+use App\Modules\Catering\Support\NativeOrderCards;
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\CustomServers\Policies\CustomServerPolicy;
 use App\Modules\Discord\Contracts\DiscordClient;
@@ -117,6 +118,7 @@ use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
 use App\Modules\Schedule\Listeners\SyncScheduleOnTournamentSaved;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Policies\ScheduleItemPolicy;
+use App\Modules\Schedule\Support\NativeScheduleCards;
 use App\Modules\Seating\Listeners\ReleaseSeatOnCancellation;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Policies\SeatAssignmentPolicy;
@@ -148,6 +150,10 @@ use App\Modules\Voice\Policies\VoiceClientInstallerPolicy;
 use App\Modules\Voice\VoiceProviders;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Policies\PollPolicy;
+use App\Modules\Voting\Support\NativeVoteCards;
+use App\Modules\WebVoice\Contracts\OrderCardSource;
+use App\Modules\WebVoice\Contracts\ScheduleCardSource;
+use App\Modules\WebVoice\Contracts\VoteCardSource;
 use App\Modules\WebVoice\Contracts\WebVoiceClient;
 use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnMatchCompleted;
 use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnTournamentCompleted;
@@ -155,6 +161,9 @@ use App\Modules\WebVoice\Listeners\ProvisionWebVoiceChannelsOnMatchReady;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
 use App\Modules\WebVoice\NativeClient\Models\VoiceClientToken;
 use App\Modules\WebVoice\NativeClient\Policies\VoiceClientTokenPolicy;
+use App\Modules\WebVoice\NativeClient\Support\Now\NullOrderCardSource;
+use App\Modules\WebVoice\NativeClient\Support\Now\NullScheduleCardSource;
+use App\Modules\WebVoice\NativeClient\Support\Now\NullVoteCardSource;
 use App\Modules\WebVoice\Policies\WebVoiceChannelPolicy;
 use App\Modules\WebVoice\Support\LiveKitClient;
 use App\Support\DisplayTimezone;
@@ -166,6 +175,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentTimezone;
 use Filament\Tables\Table;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -208,6 +218,15 @@ class AppServiceProvider extends ServiceProvider
             (int) config('webvoice.token_ttl'),
             (int) config('webvoice.timeout'),
         ));
+
+        // Native client "now" feed: each optional module contributes through one contract; while the
+        // module is off a null source is bound. Decided at resolve time so tests can swap Modules.
+        $this->app->bind(VoteCardSource::class, fn (Application $app): VoteCardSource => $app->make(Modules::class)->enabled(Module::Voting)
+            ? $app->make(NativeVoteCards::class) : new NullVoteCardSource);
+        $this->app->bind(OrderCardSource::class, fn (Application $app): OrderCardSource => $app->make(Modules::class)->enabled(Module::Catering)
+            ? $app->make(NativeOrderCards::class) : new NullOrderCardSource);
+        $this->app->bind(ScheduleCardSource::class, fn (Application $app): ScheduleCardSource => $app->make(Modules::class)->enabled(Module::Schedule)
+            ? $app->make(NativeScheduleCards::class) : new NullScheduleCardSource);
 
         $this->app->bind(PelicanClient::class, fn () => new HttpPelicanClient(
             (string) (config('services.pelican.url') ?? config('services.pelican.panel_url')),

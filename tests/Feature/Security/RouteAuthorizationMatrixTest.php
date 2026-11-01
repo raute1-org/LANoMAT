@@ -60,6 +60,16 @@ const PUBLIC_ROUTES = [
     'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
     'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
     'GET api/voice-client/v1/config' => 'bearer middleware (AuthenticateVoiceClient); no secrets',
+    'GET api/voice-client/v1/events/{event}/now' => 'bearer middleware; own matches/votes/orders/notifications only, draft events 404 (tests/Feature/WebVoice/NativeClient/NowFeedTest)',
+    'GET api/voice-client/v1/events/{event}/tournaments' => 'bearer middleware; same visibility as the web list, draft events 404',
+    'GET api/voice-client/v1/events/{event}/my-matches' => 'bearer middleware; only matches of the caller\'s own or rostered entries',
+    'GET api/voice-client/v1/events/{event}/servers' => 'bearer middleware; web server list narrowed to the caller\'s own match server (ServerListProjection::forEventViewedBy)',
+    'GET api/voice-client/v1/servers' => 'bearer middleware; ServerLinkPolicy viewPermanent (every logged-in user), like the web page',
+    'POST api/voice-client/v1/tournaments/{tournament}/checkin' => 'bearer middleware; acts on the caller\'s own entry, TournamentPolicy checkIn, hidden tournaments 404',
+    'POST api/voice-client/v1/matches/{match}/report' => 'bearer middleware; TournamentPolicy report + own entry (404 for non-participants)',
+    'POST api/voice-client/v1/matches/{match}/confirm' => 'bearer middleware; TournamentPolicy confirm (opponent only) + lock_version',
+    'POST api/voice-client/v1/matches/{match}/dispute' => 'bearer middleware; TournamentPolicy dispute (opponent only)',
+    'POST api/voice-client/v1/matches/{match}/report/withdraw' => 'bearer middleware; TournamentPolicy withdrawReport (reporting side only) + lock_version',
     // Native client event features: bearer middleware + the browser's Actions/Policies (tests/Feature/WebVoice/NativeClient/Features)
     'GET api/voice-client/v1/events' => 'bearer middleware; non-draft events plus the caller\'s own registration',
     'GET api/voice-client/v1/events/{event}/polls' => 'bearer middleware; draft events 404',
@@ -492,6 +502,8 @@ it('puts every state-changing route behind CSRF verification', function () {
         'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token', 'api/voice-client/v1/rooms/{room}/messages', 'api/voice-client/v1/messages/{message}', 'api/voice-client/v1/broadcasting/auth', 'api/voice-client/v1/notifications/read-all', 'api/voice-client/v1/notifications/{notification}/read', 'api/voice-client/v1/notification-preferences',
         'api/voice-client/v1/polls/{poll}/vote', 'api/voice-client/v1/food-orders/{foodOrder}/items', 'api/voice-client/v1/food-order-items/{foodOrderItem}',
         'api/voice-client/v1/events/{event}/files/uploads/ticket', 'api/voice-client/v1/files/{sharedFile}',
+        'api/voice-client/v1/tournaments/{tournament}/checkin', 'api/voice-client/v1/matches/{match}/report', 'api/voice-client/v1/matches/{match}/confirm',
+        'api/voice-client/v1/matches/{match}/dispute', 'api/voice-client/v1/matches/{match}/report/withdraw',
         '_boost/browser-logs', 'csp-report', 'storage/{path}',
     ];
     $failures = [];

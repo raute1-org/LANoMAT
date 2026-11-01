@@ -29,11 +29,11 @@ use App\Modules\Tournaments\Http\Requests\ConfirmReportRequest;
 use App\Modules\Tournaments\Http\Requests\CorrectReportRequest;
 use App\Modules\Tournaments\Http\Requests\SubmitReportRequest;
 use App\Modules\Tournaments\Models\GameMatch;
-use App\Modules\Tournaments\Models\MatchReport;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Tournaments\Support\EventRegistrationRequirement;
+use App\Modules\Tournaments\Support\MyTournamentState;
 use App\Modules\Tournaments\Support\PendingReportView;
 use App\Modules\Tournaments\Support\StandingsView;
 use App\Modules\Tournaments\Support\TeamPicker;
@@ -122,7 +122,7 @@ class TournamentPageController extends Controller
                 'entryCount' => (int) $tournament->getAttribute('active_entries_count'),
                 'maxEntries' => $tournament->max_entries,
                 'teamSize' => $tournament->team_size,
-                'myEntry' => $this->myEntryState($user, $myEntries->get($tournament->id) ?? $rosteredEntries->get($tournament->id)),
+                'myEntry' => MyTournamentState::entryState($user, $myEntries->get($tournament->id) ?? $rosteredEntries->get($tournament->id)),
                 'gameName' => $tournament->game?->name,
                 // ADVISORY only — see GameOwnershipHint's docblock and
                 // OwnershipHintNeverBlocksTest: this never gates enrollment,
@@ -161,7 +161,7 @@ class TournamentPageController extends Controller
         $matches = BracketMatchProjection::matchesForTournament($tournament->id);
 
         $user = $request->user();
-        $myEntry = $user === null ? null : $this->entryFor($tournament, $user);
+        $myEntry = $user === null ? null : MyTournamentState::entryFor($tournament, $user);
 
         $myMatch = $myEntry === null ? null : $this->activeMatchFor($matches, $myEntry);
 
@@ -188,7 +188,7 @@ class TournamentPageController extends Controller
             'myEntryId' => $myEntry?->id,
             // The viewer's own pending result claims, "own : opponent" (F-S4-2).
             'pendingReports' => (object) PendingReportView::forViewer($matches, $myEntry),
-            'myEntry' => $this->myEntryState($user, $myEntry ?? ($user === null ? null : $this->rosteredEntryFor($tournament, $user))),
+            'myEntry' => MyTournamentState::entryState($user, $myEntry ?? ($user === null ? null : MyTournamentState::rosteredEntryFor($tournament, $user))),
             'registration' => EventRegistrationRequirement::viewState($user, $event),
             'myMatchVoiceLinks' => $myMatch === null ? [] : $this->voiceLinksFor($myMatch, $myEntry, $user->name),
             // Gates the match card's manual "Go" control (Task 11) —
@@ -261,7 +261,7 @@ class TournamentPageController extends Controller
         $this->abortUnlessVisible($request, $tournament);
 
         $user = $this->authUser($request);
-        $entry = $this->entryFor($tournament, $user);
+        $entry = MyTournamentState::entryFor($tournament, $user);
 
         abort_if($entry === null, 404);
 
@@ -290,7 +290,7 @@ class TournamentPageController extends Controller
     {
         $this->abortUnlessVisible($request, $tournament);
 
-        $entry = $this->entryFor($tournament, $this->authUser($request));
+        $entry = MyTournamentState::entryFor($tournament, $this->authUser($request));
 
         abort_if($entry === null, 404);
 
@@ -314,7 +314,7 @@ class TournamentPageController extends Controller
         $this->authorize('report', $match);
 
         $user = $this->authUser($request);
-        $entry = $this->entryForMatch($match, $user);
+        $entry = MyTournamentState::entryForMatch($match, $user);
 
         abort_if($entry === null, 404);
 
@@ -335,7 +335,7 @@ class TournamentPageController extends Controller
 
     public function confirm(ConfirmReportRequest $request, GameMatch $match, ConfirmMatchReport $action): RedirectResponse
     {
-        $report = $this->pendingReportFor($match);
+        $report = MyTournamentState::pendingReportFor($match);
 
         if ($report === null) {
             return $this->reportAlreadyHandled($request, $match);
@@ -344,7 +344,7 @@ class TournamentPageController extends Controller
         $this->authorize('confirm', $report);
 
         $user = $this->authUser($request);
-        $entry = $this->entryForMatch($match, $user);
+        $entry = MyTournamentState::entryForMatch($match, $user);
 
         abort_if($entry === null, 404);
 
@@ -365,7 +365,7 @@ class TournamentPageController extends Controller
 
     public function dispute(Request $request, GameMatch $match, DisputeMatchReport $action): RedirectResponse
     {
-        $report = $this->pendingReportFor($match);
+        $report = MyTournamentState::pendingReportFor($match);
         if ($report === null) {
             return $this->reportAlreadyHandled($request, $match);
         }
@@ -373,7 +373,7 @@ class TournamentPageController extends Controller
         $this->authorize('dispute', $report);
 
         $user = $this->authUser($request);
-        $entry = $this->entryForMatch($match, $user);
+        $entry = MyTournamentState::entryForMatch($match, $user);
 
         abort_if($entry === null, 404);
 
@@ -392,7 +392,7 @@ class TournamentPageController extends Controller
 
     public function withdrawReport(ConfirmReportRequest $request, GameMatch $match, WithdrawMatchReport $action): RedirectResponse
     {
-        $report = $this->pendingReportFor($match);
+        $report = MyTournamentState::pendingReportFor($match);
 
         if ($report === null) {
             return $this->reportAlreadyHandled($request, $match);
@@ -400,7 +400,7 @@ class TournamentPageController extends Controller
 
         $this->authorize('withdrawReport', $report);
 
-        $entry = $this->entryForMatch($match, $this->authUser($request));
+        $entry = MyTournamentState::entryForMatch($match, $this->authUser($request));
 
         abort_if($entry === null, 404);
 
@@ -419,7 +419,7 @@ class TournamentPageController extends Controller
 
     public function correctReport(CorrectReportRequest $request, GameMatch $match, CorrectMatchReport $action): RedirectResponse
     {
-        $report = $this->pendingReportFor($match);
+        $report = MyTournamentState::pendingReportFor($match);
 
         if ($report === null) {
             return $this->reportAlreadyHandled($request, $match);
@@ -427,7 +427,7 @@ class TournamentPageController extends Controller
 
         $this->authorize('withdrawReport', $report);
 
-        $entry = $this->entryForMatch($match, $this->authUser($request));
+        $entry = MyTournamentState::entryForMatch($match, $this->authUser($request));
 
         abort_if($entry === null, 404);
 
@@ -466,7 +466,7 @@ class TournamentPageController extends Controller
         $user = $this->authUser($request);
 
         abort_unless(
-            $this->entryForMatch($match, $user) !== null && $match->reports()->exists(),
+            MyTournamentState::entryForMatch($match, $user) !== null && $match->reports()->exists(),
             404,
         );
 
@@ -530,83 +530,6 @@ class TournamentPageController extends Controller
         );
 
         return $active ?? $mine->last();
-    }
-
-    /**
-     * @return array{id: int, status: string, canWithdraw: bool, isOwner: bool}|null
-     */
-    private function myEntryState(?User $user, ?TournamentEntry $entry): ?array
-    {
-        if ($user === null || $entry === null) {
-            return null;
-        }
-
-        return [
-            'id' => $entry->id,
-            'status' => $entry->status->value,
-            'canWithdraw' => $user->can('withdraw', $entry),
-            // False for a plain team member: shown as entered, nothing to act on.
-            'isOwner' => $entry->user_id === $user->id || $entry->team?->owner_id === $user->id,
-        ];
-    }
-
-    /**
-     * The viewer's own entry for this tournament — directly owned, or via
-     * team ownership — or null if they have none.
-     */
-    private function entryFor(Tournament $tournament, User $user): ?TournamentEntry
-    {
-        return TournamentEntry::query()
-            ->where('tournament_id', $tournament->id)
-            ->where('status', '!=', EntryStatus::Withdrawn->value)
-            ->ownedBy($user)
-            ->latest('id')
-            ->first();
-    }
-
-    /** Display-only: the viewer's team's entry when they are a plain member. */
-    private function rosteredEntryFor(Tournament $tournament, User $user): ?TournamentEntry
-    {
-        return TournamentEntry::query()
-            ->where('tournament_id', $tournament->id)
-            ->where('status', '!=', EntryStatus::Withdrawn->value)
-            ->rosteredBy($user)
-            ->with('team')
-            ->latest('id')
-            ->first();
-    }
-
-    /**
-     * Resolve which of the match's two entries belongs to `$user` (directly
-     * or via team ownership) — the entry the write Actions act on behalf of.
-     */
-    private function entryForMatch(GameMatch $match, User $user): ?TournamentEntry
-    {
-        foreach ([$match->entry1, $match->entry2] as $entry) {
-            if ($entry === null) {
-                continue;
-            }
-
-            if ($entry->user_id === $user->id || $entry->team?->owner_id === $user->id) {
-                return $entry;
-            }
-        }
-
-        return null;
-    }
-
-    private function pendingReportFor(GameMatch $match): ?MatchReport
-    {
-        // Scoped to Pending specifically: a match can accumulate more than
-        // one MatchReport over its lifetime (submit, dispute, re-report
-        // after an orga override, etc.) — the latest row regardless of
-        // status could be an already-Confirmed or already-Disputed report,
-        // which must not be reachable for a second confirm/dispute.
-        return MatchReport::query()
-            ->where('match_id', $match->id)
-            ->where('status', ReportStatus::Pending->value)
-            ->latest('id')
-            ->first();
     }
 
     /**

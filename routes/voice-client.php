@@ -93,3 +93,6 @@ Route::prefix('api/voice-client/v1')->middleware([AuthenticateVoiceClient::class
         Route::put('notification-preferences', [NativeNotificationController::class, 'updatePreferences'])->name('notification-preferences.update');
     }
 });
+
+// Play block (now feed, tournaments/matches, game servers): kept in its own file.
+require __DIR__.'/voice-client-play.php';

@@ -77,8 +77,8 @@ Malformed input is a `422`. A rate limited caller gets `429`.
 
 All routes are JSON under `<app>/api/voice-client/v1`, authenticated with
 `Authorization: Bearer <token>`. They are rate limited per token (120 per minute; room tokens 30 per
-minute). Besides voice it carries text chat, realtime channel auth, notifications (sections
-below) and the event functions in [Event features](#event-features-v1). A missing, malformed, unknown,
+minute). Besides voice it carries text chat, realtime channel auth, notifications and the event functions
+(sections below), and the "play" routes (now feed, tournaments, matches, game servers). A missing, malformed, unknown,
 revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 
 | Route | Result |
@@ -86,11 +86,146 @@ revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 | `GET me` | `{id, name, role, identity}`; `identity` is the LiveKit identity (`u<id>`) the client will have in a room |
 | `GET rooms` | `{rooms: [{id, name, description, kind}]}`: exactly the rooms the browser page lists for that user (`VisibleChannels`: general rooms, the user's own match rooms, orga and admins see every live room; archived never) |
 | `POST rooms/{room}/token` | the same payload as the browser, from the same action (`IssueJoinToken`): `{url, token, identity, muted, audio}`. A moderator mute arrives as `muted: true` and a token without the publish right. Never takes identity or room name from the client. |
-| `GET config` | `{api_version, livekit_url, voice_ready, audio, realtime}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`) and the Reverb connection info (see "Realtime"). No secrets. |
+| `GET config` | `{api_version, livekit_url, voice_ready, audio, modules, realtime}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`), the Reverb connection info (see "Realtime") and `modules`, which maps every module key (the `MODULE_<KEY>` names, e.g. `game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`) to whether this deployment runs it, so the client can hide what the event does not use. No secrets. |
 
 A room the caller may not see answers `404`, exactly like a room that does not exist (no
 enumeration, no 403). An archived room answers `410` for admins and `404` for everyone else. `503`
 means the LiveKit server is not configured or not reachable.
+
+## Play API: now feed, tournaments, matches, game servers
+
+Same authentication, rate limit and error shape as above (`401` without a valid bearer token; JSON errors
+even without an `Accept` header). Events are addressed by **slug**, as on the website; an event in `draft`
+is a `404`. Everything here reuses the participant web pages' own Actions, Policies and read helpers, so a
+rule changed on the website changes here too. Code: `app/Modules/WebVoice/NativeClient/` (`Http/*ApiController`,
+`Support/Native*`), routes in `routes/voice-client-play.php`.
+
+| Route | Result |
+|-------|--------|
+| `GET events/{event}/now` | the prioritised "Jetzt" cards: `{cards, more}` (see below) |
+| `GET events/{event}/tournaments` | `{tournaments: [...]}` visible tournaments (no drafts for participants) with my enrollment state |
+| `GET events/{event}/my-matches` | `{matches: [...]}` my active, upcoming and recently finished matches |
+| `POST tournaments/{tournament}/checkin` | check in my entry; returns `{tournament}` |
+| `POST matches/{match}/report` | body `score1`, `score2` (own : opponent, no tie); returns `{match}` |
+| `POST matches/{match}/confirm` | body `lock_version`; the opponent confirms; returns `{match}` |
+| `POST matches/{match}/dispute` | the opponent disputes; returns `{match}` |
+| `POST matches/{match}/report/withdraw` | body `lock_version`; the reporting side takes its claim back; returns `{match}` |
+| `GET events/{event}/servers` | `{servers: [...]}` event servers, see "Game servers" (only while the GameServers module is on) |
+| `GET servers` | `{servers: [...]}` permanent servers, every logged-in user (only while the GameServers module is on) |
+
+The write routes are the website's actions: the same `TournamentPolicy` checks (a refusal is `403`), the same
+Actions and domain rules, the same optimistic `lock_version`. A match or tournament the user may not see, or a
+match they do not play in, is `404`. Errors:
+
+| Status | Body | When |
+|--------|------|------|
+| `422` | `{"message": "...", "error": "tournaments.errors.checkin_closed"}` | a domain rule (`TournamentException`): window closed, match not ready, already reported, registration required, ... |
+| `422` | `{"message": "...", "errors": {"score2": ["..."]}}` | validation, e.g. a tied score or a missing `lock_version` |
+| `409` | `{"message": "...", "error": "tournaments.errors.stale_match"}` | the match changed under the client (stale `lock_version`): reload and retry. Also `report_not_pending` / `report_withdrawn` for a stale click on a claim that is gone |
+
+### Tournament DTO
+
+```json
+{
+  "id": 7, "name": "CS2 Cup", "game": "Counter-Strike 2", "format": "single_elimination", "status": "check_in",
+  "startsAt": "2026-11-07T18:00:00+00:00",
+  "checkinOpensAt": "2026-11-07T17:30:00+00:00", "checkinClosesAt": "2026-11-07T17:55:00+00:00",
+  "entryCount": 12, "maxEntries": 16, "teamSize": 1,
+  "myEntry": {"id": 31, "status": "registered", "canWithdraw": true, "isOwner": true},
+  "can": {"checkIn": true, "withdraw": true},
+  "registration": {"required": false, "open": false, "url": "<app>/events/<slug>/register"}
+}
+```
+
+`myEntry` is null when the user is not enrolled; a plain team member sees the team's entry with `isOwner: false`
+and nothing to act on.
+
+### Match DTO
+
+```json
+{
+  "id": 88, "phase": "active", "status": "ready",
+  "tournament": {"id": 7, "name": "CS2 Cup", "game": "Counter-Strike 2", "status": "live"},
+  "round": 2, "bracket": "winners",
+  "scheduledAt": null, "warmupStartedAt": null, "updatedAt": "2026-11-07T18:20:00+00:00",
+  "me": {"entryId": 31, "name": "Team Rot"}, "opponent": {"entryId": 35, "name": "Team Blau"},
+  "score": null, "won": null, "lockVersion": 0,
+  "pendingReport": null,
+  "voiceRoomId": 14,
+  "server": null,
+  "can": {"report": true, "confirm": false, "dispute": false, "withdrawReport": false, "checkIn": false}
+}
+```
+
+`phase` is `active` (ready, warmup, live, reported, disputed), `upcoming` (pending; the opponent may still be
+unknown, so `opponent` can be null) or `finished` (completed in the last three hours, at most five). The list
+is ordered active (result to confirm first, then ready, then live), upcoming, finished. `score` and
+`pendingReport` are from my side ("own : opponent"); `pendingReport` is `{reportedByMe, ownScore,
+opponentScore}`. `voiceRoomId` is the id of my team's room for this match, the same id `GET rooms` lists and
+`POST rooms/{room}/token` accepts, or null when there is no room or the room policy would not let me in.
+`server` is the match's own server in the game server DTO below, or null. `can.*` are the policy answers for the
+moment: `report` while the match is ready or live, `confirm` and `dispute` for the opponent of a pending claim,
+`withdrawReport` for the reporter, `checkIn` while my tournament's check-in window is open and I have not
+checked in. A plain team member sees the match with every flag false.
+
+### Game servers
+
+Both lists use the website's projections (`ServerListProjection`), so the listed servers, their status and
+players/map are the same as on `/events/{event}/servers` and `/servers`. Two deliberate differences from the
+public event page, which lists every match server to every logged-in user: the event list here drops a server
+bound to a single match unless the user plays in that match (either roster) or is orga, and the DTO is a fixed
+whitelist (no RAM estimate, never the stored password on its own).
+
+```json
+{
+  "id": 21, "title": "CS2 Cup Runde 2", "game": "Counter-Strike 2", "matchLabel": "CS2 Cup, Runde 2",
+  "description": null, "status": "ready",
+  "players": 4, "maxPlayers": 10, "map": "de_mirage", "checkedAt": "2026-11-07T18:21:00+00:00",
+  "address": "203.0.113.5", "port": 27015,
+  "connectString": "steam://connect/203.0.113.5:27015", "connectIsLink": true,
+  "installHint": {"steamUrl": "steam://store/730", "shareUrl": null, "versionNote": null},
+  "joinUrl": "steam://connect/203.0.113.5:27015",
+  "copyText": "203.0.113.5:27015"
+}
+```
+
+`players`, `maxPlayers`, `map` and `checkedAt` are null while the server was never queried (or is offline).
+`status` is `provisioning`, `ready`, `not_responding` or `offline` (the permanent list also shows offline ones).
+`joinUrl` is the `steam://connect/...` link, only while the server is `ready`, else null. `copyText` is what the
+client copies, only while `ready` or `not_responding`: the connect string when it is plain text (it carries the
+password exactly where the website's connect string does), otherwise `address:port`. A server with a plain
+connect string has `connectIsLink: false` and `joinUrl: null`. An offline or starting server has neither, so
+the client shows no join button.
+
+### The "now" feed
+
+`GET events/{event}/now` returns `{cards: [...], more: [...]}`: at most five cards, most urgent first, the rest
+in `more`. Every card is `{kind, id, state, title, body, at, data}` (`title` is German, ready to show; `id` is
+stable per object, e.g. `match:88`). The voice card of the UX concept is client side and not part of the feed.
+
+| kind (state) | Priority | Source | `data` |
+|--------------|----------|--------|--------|
+| `match` (`checkin_open`) | 5 if the window closes within 10 min, else 12 | my tournaments with `can.checkIn` | `{tournament}` (Tournament DTO); `at` is when check-in closes |
+| `match` (`confirm_result`) | 8 | the opponent's claim is waiting for me | `{match}` |
+| `match` (`ready`) | 10 | my match is ready or in warmup | `{match}` with `voiceRoomId` and `server` |
+| `match` (`live`) | 15 | my match is live | `{match}` |
+| `vote` (`open`) | 30 if it closes within 10 min, else 40 | open poll of the event I have not voted in | `{pollId, question, closesAt, options: [{id, label}]}` |
+| `order` (`closing_soon`) | 45 | an open ordering round closing within 45 min that I have not ordered in (needs a confirmed registration) | `{orderId, title, closesAt, menu: [{key, name, priceCents}]}` |
+| `notification` (`unread`) | 60, 61, 62 | my latest three unread in-app notifications | `{notificationId, category}` |
+| `schedule` (`next` or `running`) | 90 | next programme item; only when there is no match, vote or order card | `{item}` |
+
+A match I reported myself, a disputed match and an upcoming one give no card (they are in `my-matches`).
+"Order ready for pick-up" has no state on an order: the "Essen ist da" message is the `FoodOrderReady` in-app
+notification and therefore arrives as a `notification` card.
+
+**How the optional kinds are wired.** `match` and `notification` read core modules directly (Tournaments,
+Notifications). `vote`, `order` and `schedule` each go through one contract in the WebVoice module
+(`VoteCardSource`, `OrderCardSource`, `ScheduleCardSource`); the owning module implements it
+(`Voting\Support\NativeVoteCards`, `Catering\Support\NativeOrderCards`, `Schedule\Support\NativeScheduleCards`) and
+`AppServiceProvider` binds a null source (`NativeClient\Support\Now\Null*CardSource`) while that module is switched
+off, so the feed never reaches into a module that is not running. All three kinds are implemented against the
+existing models and read helpers and need no other branch's endpoints. Casting a vote, ordering and reading
+notifications from the client are not part of this API block.
 
 ## Event features (v1)
 
@@ -342,5 +477,5 @@ Notification DTO:
 ## Files
 
 `app/Modules/WebVoice/NativeClient/` (actions, policy, models, controllers, bearer middleware; the event feature controllers live in `Http/Features/`),
-`routes/voice-client.php` (loaded from `bootstrap/app.php` without the `web` group), config in
+`routes/voice-client.php` and `routes/voice-client-play.php` (loaded from `bootstrap/app.php` without the `web` group), config in
 `config/webvoice.php` under `native`, page `resources/js/pages/WebVoice/Connect.vue`.
