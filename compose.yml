@@ -428,6 +428,7 @@ services:
     profiles: [prod]
     environment:
       DENON_HOST: ${DENON_HOST:-}
+      DENON_PORT: ${DENON_PORT:-23}
       DENON_ADMIN_TOKEN: ${DENON_ADMIN_TOKEN:-}
     ports: ['127.0.0.1:8087:8000']
 

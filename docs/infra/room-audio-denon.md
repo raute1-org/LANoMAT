@@ -95,7 +95,7 @@ docker compose --profile prod exec denon-admin python -c "import socket; socket.
 If the receiver sits on a VLAN that the Docker bridge cannot route, run the sidecar on the
 host network instead. Then the compose port mapping is ignored and the API listens on the
 host's port 8000 on every interface, so add a firewall rule that only allows the app
-server to reach it, and point `DENON_ADMIN_REST_URL` at the host's address. Do not leave
+server to reach it (Docker-published ports bypass UFW and the INPUT chain, so such rules belong in the `DOCKER-USER` chain, not in the host's normal input rules), and point `DENON_ADMIN_REST_URL` at the host's address. Do not leave
 the host-network variant open to the venue LAN without that rule.
 
 **App in the cloud.** The app server reaches the venue only through the WireGuard tunnel
@@ -107,8 +107,9 @@ through the tunnel, so bind the sidecar to the venue host's tunnel address inste
 ports: ['<TUNNEL_IP>:8087:8000']
 ```
 
-Then restrict the port to the tunnel interface with the host firewall (accept on the
-WireGuard interface only, drop everything else on 8087). Set `DENON_ADMIN_REST_URL` on the
+Then restrict the port to the tunnel interface. Rules for a Docker-published port have
+no effect in the host's normal input chain; put them in the `DOCKER-USER` chain (accept on
+the WireGuard interface only, drop everything else on 8087). Set `DENON_ADMIN_REST_URL` on the
 app side to `http://<TUNNEL_IP>:8087`. The app's Preflight check runs inside the app
 container, so it needs the same route.
 
@@ -133,7 +134,13 @@ on the server, so neither the slider nor a crafted request can exceed it. Set th
 before the event, and check it once with the room's real speakers.
 
 When the receiver is in standby, the page disables volume, mute and input controls and
-shows "Receiver ist aus". Power on works from the page.
+shows "Receiver ist aus". Power on works from the page only if the receiver keeps its
+telnet port open in standby: set its network control / network standby option to
+"Always On" ("On"). In deep standby the receiver closes telnet, the page shows
+"nicht erreichbar" and power is disabled; switch the receiver on by hand then.
+
+Denon receivers typically accept only one telnet client. The sidecar holds that session, so
+the owner's separate desktop plugin must not run against the same receiver at the same time.
 
 ## 6. Preflight
 
@@ -146,9 +153,16 @@ With the module on, the admin Preflight shows the check `room_audio` (Raum-Audio
   Check `<RECEIVER_IP>` in the venue `.env`, the receiver's power and its network setting.
 - **ok**: the sidecar holds the telnet session.
 
+The check also calls `/state` with the token, so a wrong or missing token shows as **down**
+with a token message instead of looking healthy.
+
 ## 7. Venue checklist
 
-- [ ] `docker compose --profile prod ps denon-admin` shows the service healthy.
+- [ ] `docker compose --profile prod ps denon-admin` shows the service healthy (the image has
+      a healthcheck on `/healthz`; it only proves the sidecar process answers, not the
+      receiver connection).
+- [ ] The receiver's network standby is "Always On", so power on from the page works.
+- [ ] No other telnet client (for example the desktop plugin) is connected to the receiver.
 - [ ] `/healthz` reports `connected: true` from the venue host.
 - [ ] The app server reaches the sidecar URL (Preflight `room_audio` is ok).
 - [ ] The network source (`NET`) switches in Raumsteuerung and the receiver follows.
