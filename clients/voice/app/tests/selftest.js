@@ -228,6 +228,49 @@
             }
         },
     );
+
+    for (const bad of [
+        'https://discord.com/channels/1/2',
+        'mumble://Ada:secret@voice.example/Lobby',
+        'mumble://voice.example/Lobby?version=1.2.0',
+        'ts3server://voice.example?password=hunter2',
+        'ts3server://voice.example?port=9987&port=9988',
+    ]) {
+        await expectErr(
+            `open_join_url refuses ${bad.split('?')[0]}`,
+            (e) => e.kind === 'usage',
+            () => inv('open_join_url', { url: bad }),
+        );
+    }
+
+    await check(
+        'open_join_url passes validation for the voice links of the server',
+        async () => {
+            for (const url of [
+                'mumble://Tester@voice.example:64738/Team Alpha',
+                'ts3server://voice.example?port=9987&nickname=Tester&channel=Lobby',
+            ]) {
+                try {
+                    await inv('open_join_url', { url });
+                } catch (e) {
+                    assert(
+                        e.kind === 'local',
+                        `expected local for ${url}, got ${text(e)}`,
+                    );
+                }
+            }
+
+            return 'both validated (local error without a handler is fine)';
+        },
+    );
+    await expectErr(
+        'list_people and follow_person are registered and reach the API (the stand-in has no Presence module)',
+        (e) => e.kind === 'not_found',
+        async () => {
+            await inv('follow_person', { event: 'lan-party-2026', userId: 12 });
+            await inv('list_people', { event: 'lan-party-2026' });
+        },
+    );
     await check('copy_text', async () => {
         try {
             await inv('copy_text', { text: '203.0.113.5:27015' });

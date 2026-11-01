@@ -263,6 +263,14 @@
                 );
                 await sleep(900);
                 await shot(`${P.mode}-sprache`);
+                await clickText('.seg-btn', S.people.people);
+                await waitFor(
+                    () => qa('#screen-sprache li.pr').length >= 7,
+                    6000,
+                    'people rows',
+                );
+                await shot(`${P.mode}-personen`);
+                await clickText('.seg-btn', S.people.rooms);
                 await tab('spielen');
                 await waitFor(
                     () => qa('#screen-spielen article.match').length >= 3,
@@ -281,6 +289,20 @@
                 await clickText('.list-row', S.more.notifications);
                 await sleep(900);
                 await shot(`${P.mode}-notifications`);
+                await clickText('button', S.back);
+                await clickText('.list-row', S.more.friends);
+                await waitFor(
+                    () => qa('#screen-mehr li.pr').length >= 9,
+                    6000,
+                    'friend rows',
+                );
+                await shot(`${P.mode}-friends`);
+                await clickText('button', S.back);
+                await clickText('.list-row', S.more.profile);
+                await waitFor(() => q('#pf-name'), 6000, 'profile form');
+                await sleep(800);
+                await shot(`${P.mode}-profile`);
+                await clickText('button', S.back);
 
                 if (P.mode === 'narrow') {
                     // Scalable text: 125 % on the narrow window.
@@ -310,6 +332,10 @@
         await tab('sprache');
         await sleep(600);
         await shot(`${prefix}-sprache`);
+        await clickText('.seg-btn', S.people.people);
+        await sleep(1000);
+        await shot(`${prefix}-sprache-personen`);
+        await clickText('.seg-btn', S.people.rooms);
         await tab('spielen');
         await clickText('.seg-btn', S.play.sub.matches);
         await waitFor(
@@ -343,6 +369,14 @@
         await clickText('.list-row', S.more.notifications);
         await sleep(800);
         await shot(`${prefix}-notifications`);
+        await clickText('button', S.back);
+        await clickText('.list-row', S.more.friends);
+        await sleep(1000);
+        await shot(`${prefix}-friends`);
+        await clickText('button', S.back);
+        await clickText('.list-row', S.more.profile);
+        await sleep(1200);
+        await shot(`${prefix}-profile`);
         await clickText('button', S.back);
     };
 
@@ -422,12 +456,22 @@
             );
             assert(
                 !byText('#screen-mehr .list-row', S.more.friends),
-                'Friends stays hidden without its commands',
+                'Freunde is hidden when the server module is off',
             );
             assert(
                 !byText('#screen-mehr .list-row', S.more.profile),
-                'Profil stays hidden without its commands',
+                'Profil is hidden when the server module is off',
             );
+            assert(
+                !visible(q('.team-strip')),
+                'no team strip without the Presence module',
+            );
+            await tab('sprache');
+            assert(
+                !byText('#screen-sprache .seg-btn', S.people.people),
+                'no Personen view without the Presence module',
+            );
+            await tab('mehr');
 
             return (
                 'tab bar: ' +
@@ -461,6 +505,54 @@
 
         return;
     }
+
+    await step(
+        'Jetzt: the team strip shows a teammate in voice and game and offers Hinterherjoinen',
+        async () => {
+            const strip = await waitFor(
+                () => visible(q('.team-strip')) && q('.team-strip'),
+                8000,
+                'team strip',
+            );
+            assert(
+                !strip.closest('article.card') && byText('.name', 'Ada', strip),
+                'a plain section with Ada',
+            );
+            await shot('17-jetzt-team-strip');
+            await clickText('button', S.people.follow, strip);
+            await waitFor(
+                () => visible(q('.follow-panel', strip)),
+                6000,
+                'follow panel in the strip',
+            );
+            await shot('17b-jetzt-team-strip-follow');
+            assert(
+                byText('button', S.people.joinRoom, strip) &&
+                    byText('button', S.people.joinGame, strip),
+                'voice and game are two parts',
+            );
+            await clickText('button', S.people.close, strip);
+            assert(!q('.follow-panel', strip), 'panel closed');
+            await clickText('button', S.people.stripAll, strip);
+            await waitFor(
+                () => visible(q('#screen-sprache')),
+                4000,
+                'Sprache opened',
+            );
+            await waitFor(
+                () =>
+                    byText('#screen-sprache .seg-btn', S.people.team) &&
+                    byText(
+                        '#screen-sprache .seg-btn',
+                        S.people.team,
+                    ).getAttribute('aria-pressed') === 'true',
+                4000,
+                'the team filter is on',
+            );
+            await clickText('.seg-btn', S.people.rooms);
+            await tab('jetzt');
+        },
+    );
 
     await step('vote on a card in Jetzt with one tap', async () => {
         const card = await waitFor(
@@ -688,6 +780,243 @@
         assert(!q('.chat-panel .error'), 'no error wall');
     });
 
+    // ---------------------------------------------------------------- Sprache: Personen
+    const personRow = (name, scope = '#screen-sprache') =>
+        qa(`${scope} li.pr`).find(
+            (r) =>
+                visible(r) &&
+                (q('.name', r)?.textContent.trim() === name ||
+                    q('.name', r)?.textContent.trim().startsWith(`${name} (`)),
+        );
+    const people = () => qa('#screen-sprache li.pr .name');
+    // With a room joined the panel is tall: bring the list to the top of the window for the shot.
+    const toList = async () => {
+        q('#screen-sprache .seg')?.scrollIntoView({ block: 'start' });
+        await sleep(250);
+    };
+    await step(
+        'Sprache: Personen next to the rooms, teammates first, where they are',
+        async () => {
+            await tab('sprache');
+            await clickText('.seg-btn', S.people.people);
+            await waitFor(
+                () => qa('#screen-sprache li.pr').length >= 7,
+                6000,
+                'people rows',
+            );
+            const names = people().map((n) => n.textContent.trim());
+            assert(
+                names[0].startsWith('Tester') &&
+                    names.slice(1, 3).join() === 'Ada,Fynn',
+                `me first, then the teammates (${names.join(', ')})`,
+            );
+            const ada = personRow('Ada');
+            assert(
+                byText('.chip', S.people.providers.webvoice, ada) &&
+                    byText('.where', 'Lobby', ada) &&
+                    byText('.where', 'Counter-Strike 2', ada),
+                'Ada: web voice room and game',
+            );
+            assert(
+                byText('.chip', S.people.teammate, ada) &&
+                    byText('.chip', 'Team Rot', ada),
+                'team label and teammate chip',
+            );
+            assert(
+                !visible(q('#screen-sprache .chat-col')),
+                'the chat column makes room for the list',
+            );
+            assert(
+                !byText('.chip', S.people.hidden, personRow('Tester')),
+                'sharing is on: no "not shared" chip',
+            );
+            await toList();
+            await shot('24-sprache-personen');
+        },
+    );
+    await step(
+        'Personen: filters Team and Freunde, search, and the empty states',
+        async () => {
+            await clickText('.seg-btn', S.people.team);
+            await waitFor(
+                () => qa('#screen-sprache li.pr').length === 3,
+                5000,
+                'team rows',
+            );
+            await toList();
+            await shot('26-personen-filter-team');
+            await clickText('.seg-btn', S.people.friends);
+            await waitFor(
+                () =>
+                    personRow('Ben') &&
+                    !personRow('Ada') &&
+                    qa('#screen-sprache li.pr').length === 3,
+                5000,
+                'friend rows (me, Ben, Fynn)',
+            );
+            await clickText('.seg-btn', S.people.all);
+            await waitFor(() => personRow('Ada'), 5000, 'all again');
+            await typeInto(q('#people-search'), 'cl');
+            await waitFor(
+                () => personRow('Cleo') && !personRow('Ben'),
+                5000,
+                'search result',
+            );
+            await typeInto(q('#people-search'), 'zzz');
+            await waitFor(
+                () => byText('#screen-sprache .empty', S.people.noMatch),
+                5000,
+                'no match state',
+            );
+            await toList();
+            await shot('27-personen-nomatch');
+            await typeInto(q('#people-search'), '');
+            await waitFor(() => personRow('Ben'), 5000, 'cleared');
+        },
+    );
+    await step(
+        'Personen: a room and server you may not see cannot be followed',
+        async () => {
+            const dirk = personRow('Dirk');
+            const btn = byText('button', S.people.follow, dirk);
+            assert(btn && btn.disabled, 'disabled button');
+            assert(
+                byText('.small', S.people.cannotJoin, dirk),
+                'the reason is written down',
+            );
+            assert(
+                byText('.where', 'Counter-Strike 2', dirk) &&
+                    !byText('.where', 'CS2 Cup', dirk),
+                'only the game name is shown',
+            );
+            dirk.scrollIntoView({ block: 'center' });
+            await sleep(250);
+            await shot('29-personen-not-joinable');
+        },
+    );
+    await step(
+        'Hinterherjoinen: Discord is only copied, Mumble opens a rewritten link, the game address copies',
+        async () => {
+            await clickText('button', S.people.follow, personRow('Ben'));
+            await waitFor(
+                () => toastText().includes(S.people.linkCopied),
+                4000,
+                'discord link copied',
+            );
+            const cleo = personRow('Cleo');
+            await clickText('button', S.people.follow, cleo);
+            await waitFor(
+                () => visible(q('.follow-panel', cleo)),
+                5000,
+                'panel',
+            );
+            await toList();
+            await shot('25-personen-follow-panel');
+            await clickText('button', S.people.openIn('Mumble'), cleo);
+            await waitFor(
+                () => toastText().includes(S.people.voiceOpened('Mumble')),
+                4000,
+                'mumble opened toast',
+            );
+            await clickText('button', S.servers.copyAddress, cleo);
+            await waitFor(
+                () => toastText().includes(S.servers.addressCopied),
+                4000,
+                'address copied',
+            );
+            await clickText('button', S.people.close, cleo);
+            assert(
+                document.activeElement.textContent.includes(S.people.follow),
+                'focus returns to the row button',
+            );
+        },
+    );
+    await step(
+        'Hinterherjoinen: a teammate in a web voice room, followed through the real join flow',
+        async () => {
+            const ada = personRow('Ada');
+            await clickText('button', S.people.follow, ada);
+            await waitFor(
+                () => visible(q('.follow-panel', ada)),
+                5000,
+                'panel',
+            );
+            assert(
+                byText('.chip', S.people.alreadyThere, ada),
+                'the preferred provider is marked',
+            );
+            await toList();
+            await shot('25b-personen-follow-ada');
+            await clickText('button', S.people.joinGame, ada);
+            await waitFor(
+                () =>
+                    toastText().includes(S.servers.opening('CS2 Cup Runde 2')),
+                4000,
+                'steam link opened',
+            );
+            await clickText('button', S.people.joinRoom, ada);
+            await waitFor(
+                () => visible(q('#screen-sprache .room-panel')),
+                15000,
+                'room panel',
+            );
+            await waitFor(
+                () =>
+                    text('#screen-sprache .room-panel h2') === 'Lobby' &&
+                    text('#screen-sprache .room-panel [role=status]') ===
+                        S.voice.phase.connected,
+                15000,
+                'connected to the Lobby (dev LiveKit)',
+            );
+            await shot('24b-personen-followed-into-room');
+            // The row now knows that you are there.
+            await clickText('.seg-btn', S.people.people);
+            await waitFor(() => personRow('Ada'), 5000, 'people again');
+            await clickText('button', S.people.follow, personRow('Ada'));
+            await waitFor(
+                () => byText('button', S.people.inThisRoom, personRow('Ada')),
+                5000,
+                'in this room',
+            );
+            assert(
+                byText('button', S.people.inThisRoom, personRow('Ada'))
+                    .disabled,
+                'joining the room you are in is disabled',
+            );
+        },
+    );
+    await step(
+        'Personen: my own entry says "Standort nicht geteilt" only after I opted out',
+        async () => {
+            await hook('hostget __me/location/off');
+            await clickText('button', S.reload);
+            await waitFor(
+                () => byText('.chip', S.people.hidden, personRow('Tester')),
+                5000,
+                'hidden chip',
+            );
+            assert(
+                byText('.small', S.people.hiddenHint, personRow('Tester')),
+                'what it means',
+            );
+            await toList();
+            await shot('28-personen-hidden-self');
+            await hook('hostget __me/location/on');
+            await clickText('button', S.reload);
+            await waitFor(
+                () => !byText('.chip', S.people.hidden, personRow('Tester')),
+                5000,
+                'chip gone',
+            );
+            await clickText('.seg-btn', S.people.rooms);
+            await waitFor(
+                () => visible(q('#screen-sprache .chat-col')),
+                3000,
+                'rooms and chat back',
+            );
+        },
+    );
+
     // ---------------------------------------------------------------- Spielen
     await step(
         'Spielen: my matches, report with a tie, then a result',
@@ -894,24 +1223,370 @@
     );
 
     // ---------------------------------------------------------------- Mehr
+    const toHub = async () => {
+        await tab('mehr');
+
+        for (let i = 0; i < 3 && byText('#screen-mehr button', S.back); i++) {
+            await click(byText('#screen-mehr button', S.back));
+        }
+    };
+    const friendRow = (name) =>
+        qa('#screen-mehr li.pr').find(
+            (r) => visible(r) && q('.name', r)?.textContent.trim() === name,
+        );
     await step(
-        'Mehr: hub with badges; Friends and Profil hidden until their commands exist',
+        'Freunde: accept, decline, send, cancel, with the server own message when it refuses',
         async () => {
-            await tab('mehr');
+            await toHub();
+            await clickText('.list-row', S.more.friends);
             await waitFor(
-                () => qa('#screen-mehr .list-row').length >= 4,
-                4000,
-                'hub',
+                () => qa('#screen-mehr li.pr').length >= 9,
+                6000,
+                'friend rows',
             );
-            await shot('50-mehr');
-            assert(
-                !byText('#screen-mehr .list-row', S.more.friends) &&
-                    !byText('#screen-mehr .list-row', S.more.profile),
-                'hidden entries',
+            await shot('64-friends');
+            await clickText('button', S.friends.accept, friendRow('Gero'));
+            await waitFor(
+                () => toastText().includes(S.friends.accepted('Gero')),
+                4000,
+                'accepted toast',
+            );
+            await waitFor(
+                () =>
+                    friendRow('Gero') &&
+                    byText('button', S.friends.remove, friendRow('Gero')),
+                4000,
+                'Gero is a friend now',
+            );
+            await clickText('button', S.friends.decline, friendRow('Lena'));
+            await waitFor(
+                () =>
+                    toastText().includes(S.friends.declined) &&
+                    !friendRow('Lena'),
+                4000,
+                'declined, gone from the list',
+            );
+            await clickText('button', S.friends.send, friendRow('Cleo'));
+            await waitFor(
+                () =>
+                    toastText().includes(S.friends.sent('Cleo')) &&
+                    byText('button', S.friends.cancel, friendRow('Cleo')),
+                4000,
+                'Cleo moved to the sent requests',
+            );
+            await clickText('button', S.friends.send, friendRow('Karl'));
+            await waitFor(
+                () =>
+                    byText(
+                        '#screen-mehr .inline-error',
+                        'Du hast Karl schon eine Anfrage gesendet.',
+                    ),
+                4000,
+                'the server message',
+            );
+            await shot('65-friends-error');
+            await clickText('button', S.friends.cancel, friendRow('Hanna'));
+            await waitFor(
+                () =>
+                    toastText().includes(S.friends.cancelled) &&
+                    !friendRow('Hanna'),
+                4000,
+                'cancelled',
             );
         },
     );
+    await step(
+        'Freunde: remove and block ask first, inside the page; Escape keeps the friend',
+        async () => {
+            await clickText('button', S.friends.remove, friendRow('Ben'));
+            await waitFor(
+                () => q('#screen-mehr [role=alertdialog]'),
+                3000,
+                'confirmation',
+            );
+            assert(
+                text('#screen-mehr [role=alertdialog]').includes(
+                    S.friends.confirmRemoveTitle('Ben'),
+                ),
+                'names the person',
+            );
+            assert(
+                document.activeElement.textContent.trim() === S.friends.keep,
+                'focus starts on the safe button',
+            );
+            await shot('66-friends-confirm');
+            await hook('key Escape');
+            await waitFor(
+                () => !q('#screen-mehr [role=alertdialog]'),
+                3000,
+                'Escape closed it',
+            );
+            assert(friendRow('Ben'), 'Ben is still a friend');
+            await clickText('button', S.friends.remove, friendRow('Ben'));
+            await clickText('[role=alertdialog] button', S.friends.remove);
+            await waitFor(
+                () =>
+                    toastText().includes(S.friends.removed('Ben')) &&
+                    !friendRow('Ben'),
+                4000,
+                'removed',
+            );
+            await clickText('button', S.friends.block, friendRow('Fynn'));
+            await waitFor(
+                () => q('#screen-mehr [role=alertdialog]'),
+                3000,
+                'block confirmation',
+            );
+            await clickText('[role=alertdialog] button', S.friends.block);
+            await waitFor(
+                () =>
+                    toastText().includes(S.friends.blockedDone('Fynn')) &&
+                    byText('button', S.friends.unblock, friendRow('Fynn')),
+                4000,
+                'Fynn is blocked',
+            );
+            await shot('67-friends-blocked');
+            assert(
+                byText('#screen-mehr .hint', S.friends.blockedHint),
+                'the calm hint about who blocked whom',
+            );
+            await clickText('button', S.friends.unblock, friendRow('Jonas'));
+            await waitFor(
+                () => toastText().includes(S.friends.unblocked('Jonas')),
+                4000,
+                'unblocked',
+            );
+            await clickText('button', S.back);
+        },
+    );
+    const fieldErr = (key) => q(`#pf-${key}-err`);
+    await step(
+        'Profil: server data, a validation error per field, then a saved change',
+        async () => {
+            await toHub();
+            await clickText('.list-row', S.more.profile);
+            await waitFor(() => q('#pf-name'), 5000, 'form');
+            assert(q('#pf-name').value === 'Tester', 'the name');
+            assert(
+                byText('.chip', S.profile.emailDone),
+                'verified e-mail chip',
+            );
+            await shot('68-profile');
+            await typeInto(q('#pf-steam_url'), 'http://example.test/x');
+            await typeInto(q('#pf-profile_color'), 'rot');
+            await clickText('button', S.profile.save);
+            await waitFor(
+                () => visible(fieldErr('steam_url')),
+                4000,
+                'steam error',
+            );
+            assert(
+                fieldErr('steam_url').textContent.includes(
+                    'https://steamcommunity.com/',
+                ) && visible(fieldErr('profile_color')),
+                'the server text under each field',
+            );
+            assert(
+                !visible(fieldErr('name')) &&
+                    q('#pf-steam_url').getAttribute('aria-invalid') === 'true',
+                'only the wrong fields are marked',
+            );
+            assert(
+                document.activeElement === q('#pf-steam_url'),
+                'focus goes to the first wrong field',
+            );
+            fieldErr('steam_url').scrollIntoView({ block: 'center' });
+            await sleep(250);
+            await shot('69-profile-errors');
+            await typeInto(
+                q('#pf-steam_url'),
+                'https://steamcommunity.com/id/tester',
+            );
+            await typeInto(q('#pf-profile_color'), '#112233');
+            await typeInto(q('#pf-bio'), 'Spielt Rocket League und Valheim.');
+            await clickText('button', S.profile.save);
+            await waitFor(
+                () => toastText().includes(S.profile.saved),
+                4000,
+                'saved toast',
+            );
+            await waitFor(
+                () =>
+                    q('#pf-bio') &&
+                    q('#pf-bio').value ===
+                        'Spielt Rocket League und Valheim.' &&
+                    !visible(fieldErr('steam_url')),
+                4000,
+                'the form shows the saved values',
+            );
+        },
+    );
+    await step(
+        'Profil: the location switch says what it shares and takes effect at once',
+        async () => {
+            const box = q('#pf-share');
+            assert(box && box.checked, 'on by default');
+            assert(
+                text('#pf-share-text') === S.profile.shareText &&
+                    text('#pf-share-text').includes('Sprachraum') &&
+                    text('#pf-share-text').includes('sofort'),
+                'one plain sentence',
+            );
+            q('#pf-share').scrollIntoView({ block: 'center' });
+            await sleep(250);
+            await shot('69b-profile-privacy');
+            await click(box);
+            await waitFor(
+                () => text('#pf-share-status') === S.profile.shareOff,
+                4000,
+                'off',
+            );
+            const hidden = await inv('list_people', {
+                event: 'lan-party-2026',
+            });
+            assert(
+                hidden.me.voice.length === 0,
+                'the server no longer shows my location',
+            );
+            await click(q('#pf-share'));
+            await waitFor(
+                () => text('#pf-share-status') === S.profile.shareOn,
+                4000,
+                'on again',
+            );
+            const shown = await inv('list_people', {
+                event: 'lan-party-2026',
+            });
+            assert(shown.me.voice.length === 1, 'visible again');
+        },
+    );
+    await step(
+        'Profil: linked accounts, Verknüpfen waits for the browser until the status changes',
+        async () => {
+            const conn = (label) =>
+                qa('#screen-mehr li.pr').find(
+                    (r) =>
+                        visible(r) &&
+                        q('.name', r)?.textContent.trim() === label,
+                );
+            const toRow = async (label) => {
+                conn(label)?.scrollIntoView({ block: 'center' });
+                await sleep(250);
+            };
+            await waitFor(() => conn('Twitch'), 4000, 'connections');
+            assert(
+                byText('.small', S.profile.loginAccount, conn('Discord')) &&
+                    !q('button', conn('Discord')),
+                'Discord is the read-only login account',
+            );
+            await toRow('Twitch');
+            await shot('69c-profile-connections');
+
+            // The real command checks the link before the system browser gets it: a link of
+            // another origin, another path or with a fragment is refused (a selftest build lets
+            // the stand-in's own plain-http loopback origin through, nothing else).
+            for (const url of [
+                'https://evil.example/settings/connections/link/x',
+                `${P.serverUrl}/settings/other/x`,
+                `${P.serverUrl}/settings/connections/link/x#f`,
+            ]) {
+                const refused = await inv('open_link_url', { url }).then(
+                    () => null,
+                    (e) => e,
+                );
+                assert(
+                    refused && refused.kind === 'usage',
+                    `open_link_url refuses ${url}`,
+                );
+            }
+
+            await clickText('button', S.profile.link, conn('Twitch'));
+            await waitFor(
+                () => byText('.waiting', S.profile.waiting),
+                4000,
+                'waiting state',
+            );
+            await toRow('Twitch');
+            await shot('69d-profile-link-waiting');
+            assert(
+                !document.body.textContent.includes('demo-link'),
+                'the single-use link is never on screen',
+            );
+            await waitFor(
+                () => toastText().includes(S.profile.linked('Twitch')),
+                20000,
+                'the status changed on the server',
+            );
+            await waitFor(
+                () => byText('button', S.profile.unlink, conn('Twitch')),
+                4000,
+                'Twitch shows as connected',
+            );
+            assert(
+                text('#screen-mehr').includes(S.profile.as('tester_twitch')),
+                'the name at the provider',
+            );
+            await toRow('Twitch');
+            await shot('69e-profile-linked');
+        },
+    );
+    await step(
+        'Profil: cancel a link, unlink with a confirmation, link again after re-auth',
+        async () => {
+            const conn = (label) =>
+                qa('#screen-mehr li.pr').find(
+                    (r) =>
+                        visible(r) &&
+                        q('.name', r)?.textContent.trim() === label,
+                );
+            const toRow = async (label) => {
+                conn(label)?.scrollIntoView({ block: 'center' });
+                await sleep(250);
+            };
+            await clickText('button', S.profile.unlink, conn('Twitch'));
+            await waitFor(
+                () => q('#screen-mehr [role=alertdialog]'),
+                3000,
+                'unlink confirmation',
+            );
+            q('#screen-mehr [role=alertdialog]').scrollIntoView({
+                block: 'center',
+            });
+            await sleep(250);
+            await shot('69f-profile-unlink-confirm');
+            await clickText('[role=alertdialog] button', S.profile.unlink);
+            await waitFor(
+                () => toastText().includes(S.profile.unlinked('Twitch')),
+                4000,
+                'unlinked',
+            );
+            await clickText('button', S.profile.link, conn('Twitch'));
+            await waitFor(
+                () => byText('.waiting', S.profile.waiting),
+                4000,
+                'waiting again',
+            );
+            await clickText('button', S.profile.cancelWait);
+            await waitFor(() => !q('.waiting'), 3000, 'the wait is cancelled');
+            // The stand-in would still flip after its delay: reset it, then show a status that
+            // needs the person to link again.
+            await hook('hostget __connection/twitch/not_connected');
+            await hook('hostget __connection/steam/needs_reauth');
+            await clickText('button', S.back);
+            await clickText('.list-row', S.more.profile);
+            await waitFor(
+                () => byText('button', S.profile.relink, conn('Steam')),
+                4000,
+                'Steam asks for a new link',
+            );
+            await toRow('Steam');
+            await shot('69g-profile-reauth');
+            await hook('hostget __connection/steam/connected');
+            await clickText('button', S.back);
+        },
+    );
     await step('Abstimmungen: list and a detail with results', async () => {
+        await toHub();
         await clickText('.list-row', S.more.polls);
         await waitFor(
             () => qa('#screen-mehr .list-row').length >= 2,

@@ -13,7 +13,7 @@ rm -rf "$T"
 mkdir -p "$T/cfg" "$T/run" "$T/peer-cfg/lanomat-voice" "$T/shots"
 chmod 700 "$T/run"
 
-Xvfb :99 -screen 0 1024x800x24 >"$T/xvfb.log" 2>&1 &
+Xvfb "${SMOKE_DISPLAY:-:99}" -screen 0 1024x800x24 >"$T/xvfb.log" 2>&1 &
 echo $! >"$T/xvfb.pid"
 
 python3 -I app/tests/standin_server.py --port "${STANDIN_PORT:-8099}" \
@@ -32,7 +32,7 @@ if [ -n "${PRE_SETTINGS:-}" ]; then
   mkdir -p "$T/cfg/lanomat-voice"
   printf '%s' "$PRE_SETTINGS" >"$T/cfg/lanomat-voice/settings.json"
 fi
-export DISPLAY=:99 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+export DISPLAY="${SMOKE_DISPLAY:-:99}" GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
   WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
 export XDG_CONFIG_HOME="$T/cfg" XDG_RUNTIME_DIR="$T/run" XDG_SESSION_TYPE=x11
 export HOSTNAME=demo-pc LANOMAT_VOICE_SYNTHETIC_AUDIO=1 RUST_LOG="${RUST_LOG:-lanomat_voice_app=info}"

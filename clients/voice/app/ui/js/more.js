@@ -1,48 +1,21 @@
 // Mehr: the hub of everything that is not needed every minute. Each entry opens its own page
-// inside this tab; Friends and Profil appear only when the Rust side has their commands.
+// inside this tab; Freunde and Profil appear only when the Rust side has their commands and the
+// server runs their module (see optional.js).
 import * as files from './files.js';
+import * as friends from './friends.js';
 import { moduleOn, pageHeader } from './nav.js';
 import * as notifications from './notifications.js';
+import { optional } from './optional.js';
 import * as polls from './polls.js';
+import * as profile from './profile.js';
 import { mountAccount, mountSettings } from './settings.js';
 import { S } from './strings.js';
-import {
-    clear,
-    el,
-    invoke,
-    isUnknownCommand,
-    normalizeError,
-    on,
-    state,
-} from './util.js';
+import { clear, el, on, state } from './util.js';
 
 let root = null;
 let box = null;
 let route = 'hub';
 let logoutFn = () => {};
-const optional = { friends: false, profile: false };
-
-// A command the Rust side does not have yet rejects with "unknown command"; the server answers
-// not_found while the module is off. Any other answer (even an error) means the entry is wanted. Nothing is faked: the entries stay hidden otherwise.
-const OPTIONAL_PROBES = {
-    friends: 'list_friends',
-    profile: 'get_profile',
-};
-
-export async function probeOptional() {
-    for (const [id, cmd] of Object.entries(OPTIONAL_PROBES)) {
-        try {
-            await invoke(cmd);
-            optional[id] = true;
-        } catch (e) {
-            const err = normalizeError(e);
-
-            // Unknown command: not built yet. not_found: the server module is switched off.
-            optional[id] = !isUnknownCommand(err) && err.kind !== 'not_found';
-        }
-    }
-}
-
 export function init(section, { logout }) {
     root = section;
     logoutFn = logout;
@@ -58,12 +31,19 @@ export async function show(opts = {}) {
         vote: 'polls',
         notifications: 'notifications',
         friends: 'friends',
+        profile: 'profile',
     }[opts.card];
     open(hint || route);
 }
 
-export function hide() {
+function unmountPages() {
     files.unmount();
+    friends.unmount();
+    profile.unmount();
+}
+
+export function hide() {
+    unmountPages();
 }
 
 export function focus(opts) {
@@ -72,7 +52,7 @@ export function focus(opts) {
 
 function open(next) {
     route = next;
-    files.unmount();
+    unmountPages();
     clear(box);
     const back = () => open('hub');
 
@@ -88,30 +68,10 @@ function open(next) {
         mountSettings(box, { back });
     } else if (next === 'account') {
         mountAccount(box, { back, logout: logoutFn });
-    } else if (next === 'friends' || next === 'profile') {
-        box.append(
-            el(
-                'div',
-                { class: 'page-head' },
-                el(
-                    'div',
-                    { class: 'row' },
-                    el('button', {
-                        class: 'btn ghost',
-                        type: 'button',
-                        text: S.back,
-                        onclick: back,
-                    }),
-                    el('h1', { text: S.more[next] }),
-                ),
-            ),
-            el(
-                'div',
-                { class: 'empty', role: 'status' },
-                el('div', { class: 'strong', text: S.more.pending }),
-                el('div', { class: 'small', text: S.more.pendingHint }),
-            ),
-        );
+    } else if (next === 'friends') {
+        friends.mount(box, { back });
+    } else if (next === 'profile') {
+        profile.mount(box, { back });
     }
 
     const main = document.getElementById('main');

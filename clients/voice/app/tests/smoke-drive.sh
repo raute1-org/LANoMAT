@@ -5,7 +5,7 @@
 # smoke-start.sh, inside the same container. Screenshots land in $SMOKE_DIR/shots.
 set -u
 T=${SMOKE_DIR:-/tmp/smoke}
-export DISPLAY=:99
+export DISPLAY="${SMOKE_DISPLAY:-:99}"
 CLI=${CLI_BIN:-target/debug/lanomat-voice}
 # The app's own environment, so `ptt` finds the app's control socket.
 export XDG_RUNTIME_DIR="$T/run"

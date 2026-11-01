@@ -302,16 +302,58 @@ Result `GameServer[]` of the permanent servers (Minecraft, UT2004, ...).
 
 ### `open_join_url`
 
-Args `{url}`. Opens a game server's join link with the system handler. **Only
-`steam://connect/<host>:<port>` and `steam://connect/<host>:<port>/<password>`** are accepted (host
-name or IPv4, numeric port, password of letters, digits, `.`, `_`, `~`, `-`); anything else (other
-schemes, other steam commands, queries, encodings, whitespace) is `usage`. A machine without a handler
-answers `local`: fall back to `copy_text`.
+Args `{url}`. Opens a join link with the system handler. Accepted are **only**
+
+- `steam://connect/<host>:<port>` and `steam://connect/<host>:<port>/<password>` (host name or
+  IPv4, numeric port, password of letters, digits, `.`, `_`, `~`, `-`),
+- `mumble://[name@]host[:port]/channel[/sub]` (no password, only the name the server put in; at least
+  one channel segment; no query or fragment),
+- `ts3server://host[?port=N][&nickname=NAME][&channel=NAME]` (only these three keys, each at most once).
+
+Names and channels may be written raw or percent-encoded (the server writes channel names raw, with
+spaces) but must be letters, digits and ` _-.:()[]|+,!'&` (user names ` _.@|()[]-`, at most 30
+characters); the link that is **opened** is rewritten with every name percent-encoded, so it never
+contains whitespace. Everything else (other schemes, other steam commands, Discord links, credentials,
+queries, fragments, control characters, `..` segments, a port that is not a number, an odd host) is
+`usage`. A machine without a handler answers `local`: fall back to `copy_text`. Discord channel links
+are never opened this way: copy them.
 
 ### `copy_text`
 
 Args `{text}` (at most 4096 characters). Puts the text on the clipboard. Rejects with `local` when
 there is no clipboard.
+
+## People: where is everybody, and follow them
+
+The participants of an event who share their location, as in `docs/infra/native-voice-client-api.md`
+("People"). Results are the server's **camelCase** DTOs, parsed tolerantly (a `null` or missing value
+never fails the answer, a room reference may be a number or a string). Both commands answer
+`not_found` while the Presence module is off for the server (the Sprache tab then shows no "Personen"
+view), `forbidden` for somebody who is not a participant of the event, and the same `not_found` for an
+unknown, opted-out or blocked person (no oracle: do not try to tell them apart).
+
+### `list_people`
+
+Args `{event, team?, friends?, q?, page?, perPage?}`: `team` only my teammates, `friends` only my
+friends, `q` the name contains, `perPage` 1 to 100. Result `{me, data, meta}`: `me` is my own entry
+(always, also when I opted out of sharing), `data` the people who share their location (my teammates
+first, then people in voice or a game, then the rest), `meta` the paging info as the server sends it.
+A person is `{id, name, avatarUrl, team, isMe, isTeammate, isFriend, voice, game, lastSeenAt}`;
+`voice` has at most one entry per provider `{provider: discord|mumble|teamspeak|webvoice, roomLabel,
+roomRef, kind: match|team|general|other, since}` (`roomRef` is `null` for a room only its roster may
+join), `game` is `null` or `{source: steam|query, game, serverTitle, address, port, joinUrl, linkId,
+since}` where everything but `source`, `game` and `since` is only present for a server the viewer
+may see (another match's server shows the game name only).
+
+### `follow_person`
+
+Args `{event, userId}`. Result `{user: {id, name}, preferredProvider, voice, game}`: `voice` is a list
+of `{provider, roomLabel, kind, joinable, join}` (the preferred provider first; `join` is `{roomId,
+tokenPath}` for web voice, which the UI joins with `join_room {roomId}`, or `{url}` for the others,
+which the UI opens with `open_join_url` for `mumble://` and `ts3server://` and copies with
+`copy_text` for a Discord channel link), `game` carries `joinUrl` (`open_join_url`) and `copyText`
+(`copy_text`) like a game server. `preferredProvider` is a provider the person is on and I am already
+connected to, or `null`.
 
 ## Polls, catering
 
@@ -357,11 +399,11 @@ never an e-mail or Discord id, and there is no presence and no user search: peop
 
 ### `get_profile`
 
-Result `{id, name, email, email_verified, avatar_url, bio, steam_url, stream_url, profile_color, has_verified_steam_link, verified_steam_nickname, editable: string[]}` (`email`, `avatar_url`, `bio`, `steam_url`, `stream_url`, `profile_color`, `verified_steam_nickname` may be `null`). `editable` lists the fields the person may change; the avatar is the Discord one and read-only.
+Result `{id, name, email, email_verified, avatar_url, bio, steam_url, stream_url, profile_color, has_verified_steam_link, verified_steam_nickname, share_location, editable: string[]}` (`email`, `avatar_url`, `bio`, `steam_url`, `stream_url`, `profile_color`, `verified_steam_nickname` may be `null`; `share_location` is `null` when the server does not report it). `editable` lists the fields the person may change; the avatar is the Discord one and read-only. `share_location` is the privacy switch of "Wo ist wer": whether the other participants of an event see which voice room and which game server the person is in.
 
 ### `update_profile`
 
-Args `{changes}`, an object with any of `name`, `email` (text, cannot be cleared) and `bio`, `steam_url`, `stream_url`, `profile_color` (text, or `null` to clear). **A key that is left out keeps its value**; unknown keys are ignored (so is `role` and everything else); an empty object is `usage`. Server rules: name up to 255, unique valid e-mail (a changed e-mail resets its verification), bio up to 1000, `steam_url` starts with `https://steamcommunity.com/`, `stream_url` is https, `profile_color` is `#rrggbb`. Result the updated profile (as `get_profile`). A rule violation is `validation` with `fields` (`{"email": ["..."]}`).
+Args `{changes}`, an object with any of `name`, `email` (text, cannot be cleared), `bio`, `steam_url`, `stream_url`, `profile_color` (text, or `null` to clear) and `share_location` (boolean; `null` counts as not sent). **A key that is left out keeps its value**; unknown keys are ignored (so is `role` and everything else); an empty object is `usage`. Server rules: name up to 255, unique valid e-mail (a changed e-mail resets its verification), bio up to 1000, `steam_url` starts with `https://steamcommunity.com/`, `stream_url` is https, `profile_color` is `#rrggbb`. Result the updated profile (as `get_profile`). A rule violation is `validation` with `fields` (`{"email": ["..."]}`).
 
 ```json
 { "changes": { "bio": "Hallo!", "stream_url": null } }
@@ -381,7 +423,7 @@ Args `{provider}`. Result `{provider, url, expires_at}`: a single-use link into 
 
 ### `open_link_url`
 
-Args `{url}`. Opens the link of `connection_link_url` with the system browser. **Only** an `https` URL whose origin equals the logged-in server's and whose path starts with `/settings/connections/link/` followed by a token is accepted (no credentials, no fragment, no further path segments, no encoded tricks); anything else is `usage`. A machine without a browser handler answers `local`.
+Args `{url}`. Opens the link of `connection_link_url` with the system browser. **Only** an `https` URL whose origin equals the logged-in server's and whose path starts with `/settings/connections/link/` followed by a token is accepted (no credentials, no fragment, no further path segments, no encoded tricks); anything else is `usage` (a build with the `selftest` feature, used only by the headless UI smoke, additionally accepts plain `http` for a `127.0.0.1` or `localhost` origin that equals the server's; a release build never does). A machine without a browser handler answers `local`.
 
 ### `list_friends`
 
