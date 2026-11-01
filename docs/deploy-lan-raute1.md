@@ -239,6 +239,20 @@ missing bind-mount directory as root. Only Linux x86_64 is built. The Preflight 
 ("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
 run the build script after every deploy that changes the version.
 
+**One-time after the deploy that introduces local avatars.** LANoMAT now keeps its own copy of every Discord
+avatar (nothing is loaded from the Discord CDN by browsers or the desktop client any more). New logins fetch
+theirs in the background, and the scheduler refreshes active users daily, but the people who are already in
+the database have no copy yet (they see monograms until then). Fill them once, after the migration, from a
+machine that can reach the internet:
+
+```bash
+docker compose --profile prod exec app php artisan lanomat:refresh-avatars --all
+```
+
+It fetches slowly on purpose (a short pause between users) and never fails as a whole because one avatar
+fails; run it again to retry the failures. Files land on the private disk (`storage/app/private/avatars`),
+which is part of the storage volume.
+
 ## 5. Migrate and create the admin
 
 ```bash

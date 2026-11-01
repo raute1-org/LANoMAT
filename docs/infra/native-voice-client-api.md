@@ -88,9 +88,34 @@ revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 | `POST rooms/{room}/token` | the same payload as the browser, from the same action (`IssueJoinToken`): `{url, token, identity, muted, audio}`. A moderator mute arrives as `muted: true` and a token without the publish right. Never takes identity or room name from the client. |
 | `GET config` | `{api_version, livekit_url, voice_ready, audio, modules, realtime, client}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`), the Reverb connection info (see "Realtime") and `modules`, which maps every module key (the `MODULE_<KEY>` names, e.g. `game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`) to whether this deployment runs it, so the client can hide what the event does not use. `client` is the version block described under "Versions and the client download". No secrets. |
 
+| `GET avatars/{user}/{hash}` | The avatar of a person, see "Avatars" below. |
+
 A room the caller may not see answers `404`, exactly like a room that does not exist (no
 enumeration, no 403). An archived room answers `410` for admins and `404` for everyone else. `503`
 means the LiveKit server is not configured or not reachable.
+
+## Avatars
+
+LANoMAT keeps its own copy of each person's Discord avatar (a 256 x 256 WebP, metadata stripped, on the
+private disk, fetched by the server and refreshed daily), so neither the browser nor this client ever
+talks to the Discord CDN: no one learns who looks at whom, and it works at a LAN without internet.
+
+**DTO field.** Every DTO that has a person carries the avatar in `avatar_url` (friends, requests,
+suggestions, blocked users, the own profile, chat message authors) or `avatarUrl` (people). The name is
+kept for compatibility, but the **value changed its meaning**: it is no longer a Discord address but the
+**bearer path of the local copy**, `/api/voice-client/v1/avatars/<user id>/<content hash>`, or `null`
+when the person has no avatar (or it has not been fetched yet). Never fall back to anything else on
+`null`: show a monogram. The realtime chat event is shared with the browser and carries the browser
+path `/avatars/<user id>/<content hash>`; the client maps both forms to the bearer route.
+
+**Route.** `GET /api/voice-client/v1/avatars/{user}/{hash}`, bearer-authenticated like the rest, answers the
+image bytes (`image/webp`) with `Cache-Control: private, max-age=31536000, immutable`, `ETag: "<hash>"`
+and `X-Content-Type-Options: nosniff`; a matching `If-None-Match` gets `304`. It is visible to every logged-in
+user (ability `view-avatar`, like names). `404` for a wrong or outdated hash, an unknown user, a user without
+an avatar or a missing file; `401` without a valid token. The hash is part of the URL: a changed avatar is
+a new URL, so the bytes behind one URL never change and can be cached forever (the desktop client keeps
+them on disk by user id and hash). It has its own limiter (600 per minute and token), because a people list
+loads dozens of avatars at once.
 
 ## Versions and the client download
 
@@ -507,7 +532,7 @@ Same rules as the browser (`/talk`), because the endpoints call the browser's ow
 | `POST rooms/{room}/messages` | body `{body}` (plain text, trimmed, 1 to 500 characters). `201 {message}`; `422` for empty or too long; `429` when the per-user limit is hit (10 messages per 10 s, the budget is shared with the browser). The author is always the token's user. |
 | `DELETE messages/{message}` | moderation, admin and orga only (policy `moderate`): `200 {ok: true}`; `403` for everyone else who can see the room, `404` when the room is not visible. |
 
-Message DTO (identical to the browser's payload and to the realtime event):
+Message DTO (identical to the browser's payload and to the realtime event, except that `author.avatar_url` is the bearer avatar path in the API answers and the browser path in the realtime event, see "Avatars"):
 
 ```json
 {
@@ -597,7 +622,7 @@ email resets verification), bio up to 1000, `steam_url` must start with `https:/
 `stream_url` must be https, `profile_color` is `#rrggbb`. Failures are `422` JSON
 (`{message, errors: {field: [...]}}`). `role`, `discord_id`, `avatar_url` and every other key are
 ignored. There is no avatar upload: the browser has none either, the avatar is the Discord one
-(read-only). There is also no stored "context display name" preference to expose; `external_name`
+(read-only); `avatar_url` here is the bearer path of the local copy or `null` (see "Avatars"). There is also no stored "context display name" preference to expose; `external_name`
 of each connection is the per-provider name.
 
 ```json
@@ -640,7 +665,7 @@ opens the returned `url` in the system browser and polls `GET connections` (ever
 
 ### Friends
 
-The lists carry display fields only (`id`, `name`, `avatar_url`): never email or discord id. The browser's
+The lists carry display fields only (`id`, `name`, `avatar_url`, the bearer avatar path or `null`): never email or discord id. The browser's
 `/friends` page shows no presence, so neither does this API; the `isFriend` presence flag stays on the
 (web) presence board. The browser has no user search either, so there is none here: people are found through
 `friends/suggestions` (shared events, teams, tournaments, Steam friends) and the ids the other
