@@ -1,6 +1,7 @@
 // Mehr > Einstellungen and Mehr > Gerät und Konto. Settings save on change, like before.
 import { categoryToggles } from './notifications.js';
 import { S } from './strings.js';
+import { versionCard } from './update.js';
 import {
     button,
     call,
@@ -451,6 +452,7 @@ export function mountAccount(box, { back, logout } = {}) {
         el(
             'div',
             { class: 'stack' },
+            versionCard(),
             el(
                 'section',
                 { class: 'card stack-sm' },

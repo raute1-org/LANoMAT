@@ -52,5 +52,82 @@ for (const t of ['jetzt', 'sprache', 'spielen', 'essen', 'mehr']) {
     }
 }
 
+// The update notice decisions (app/ui/js/update-policy.js): fail open, dismiss per version, and the
+// focus re-check after more than ten minutes away.
+const policy = await import(path.join(dir, 'update-policy.js'));
+const none = new Set();
+const checks = [
+    ['no status shows nothing', policy.noticeFor(null, none) === null],
+    [
+        'an error (no status) shows nothing',
+        policy.noticeFor(undefined, none) === null,
+    ],
+    [
+        'up to date shows nothing',
+        policy.noticeFor({ status: 'up_to_date' }, none) === null,
+    ],
+    [
+        'an unknown state shows nothing',
+        policy.noticeFor({ status: 'something_new' }, none) === null,
+    ],
+    [
+        'an offered update names its version',
+        JSON.stringify(
+            policy.noticeFor(
+                { status: 'update_available', latest: 'm13-13-g1' },
+                none,
+            ),
+        ) === JSON.stringify({ kind: 'available', latest: 'm13-13-g1' }),
+    ],
+    [
+        'Später hides the offer for that version only',
+        policy.noticeFor(
+            { status: 'update_available', latest: 'm13-13-g1' },
+            new Set(['m13-13-g1']),
+        ) === null &&
+            policy.noticeFor(
+                { status: 'update_available', latest: 'm13-14-g2' },
+                new Set(['m13-13-g1']),
+            ) !== null,
+    ],
+    [
+        'an incompatible client is never dismissed by Später',
+        policy.noticeFor(
+            { status: 'incompatible', min: 'm13-13-g1' },
+            new Set(['m13-13-g1']),
+        ).kind === 'incompatible',
+    ],
+    [
+        'the manual check names a dismissed update in words',
+        policy.manualLine(
+            { status: 'update_available', latest: 'm13-13-g1' },
+            new Set(['m13-13-g1']),
+        ).kind === 'still',
+    ],
+    [
+        'the manual check says up to date',
+        policy.manualLine({ status: 'up_to_date' }, none).kind === 'upToDate',
+    ],
+    [
+        'the focus re-check needs more than ten minutes away',
+        !policy.shouldCheckAfterFocus(0, 10 * 60 * 1000),
+    ],
+    [
+        'more than ten minutes away re-checks',
+        policy.shouldCheckAfterFocus(0, 10 * 60 * 1000 + 1),
+    ],
+    [
+        'no blur recorded, no re-check',
+        !policy.shouldCheckAfterFocus(null, 99999999),
+    ],
+];
+
+for (const [name, ok] of checks) {
+    if (!ok) {
+        console.log('FAIL update policy:', name);
+        bad++;
+    }
+}
+
 console.log(bad ? `FAIL (${bad})` : 'ui strings ok');
 process.exit(bad ? 1 : 0);

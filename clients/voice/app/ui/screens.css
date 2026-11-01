@@ -89,6 +89,33 @@ h3 {
     border-bottom: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
 }
 
+/* ---- update notice (under the header, see js/update.js) ---- */
+.update-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    box-shadow: inset 3px 0 0 var(--warn);
+}
+.update-banner .update-text {
+    flex: 1 1 240px;
+    margin: 0;
+}
+.update-banner .row {
+    gap: 8px;
+}
+/* An incompatible client: the same strip, a stronger tint and rule, no dismiss control. */
+.update-banner.required {
+    background: color-mix(in srgb, var(--warn) 18%, var(--card));
+    border-bottom: 2px solid var(--warn);
+    box-shadow: none;
+    font-weight: 600;
+}
+
 /* ---- tabs ---- */
 .tabs {
     display: flex;

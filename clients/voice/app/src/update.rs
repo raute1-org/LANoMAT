@@ -2,7 +2,9 @@
 //! offers (`GET config`, `client` block) and let [`voice_core::update::assess`] decide. Kept out
 //! of `features.rs` and free of Tauri types so it can be tested against a mock server.
 
-use voice_core::update::{assess, UpdateStatus};
+use voice_core::update::{
+    assess, client_download_url, client_download_url_loopback_http, UpdateStatus,
+};
 
 use crate::engine::{Engine, UiError};
 
@@ -14,6 +16,24 @@ pub async fn update_status(engine: &Engine) -> Result<UpdateStatus, UiError> {
         voice_core::build_info().version,
         config.client.as_ref(),
     ))
+}
+
+/// The download page of the connected server: the base of the stored login joined with the
+/// `download_path` the server announces (`/talk/client`). The address is built here, never taken
+/// from the webview; `voice_core::update` checks it like the single-use connection link.
+pub async fn download_url(engine: &Engine) -> Result<String, UiError> {
+    let client = engine.client()?;
+    let config = client.config().await?;
+    let announced = config
+        .client
+        .as_ref()
+        .and_then(|c| c.download_path.as_deref());
+    let url = if cfg!(feature = "selftest") {
+        client_download_url_loopback_http(client.base_url(), announced)
+    } else {
+        client_download_url(client.base_url(), announced)
+    };
+    Ok(url?)
 }
 
 #[cfg(test)]
@@ -62,5 +82,18 @@ mod tests {
         });
         // The test binary is a `dev` build: unorderable, so it fails open.
         assert_eq!(status_for(with_block).await, UpdateStatus::UpToDate);
+    }
+
+    #[tokio::test]
+    async fn without_a_login_there_is_no_download_address() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::new(
+            FileTokenStore::new(dir.path().join("credentials.json")),
+            dir.path().join("settings.json"),
+            Arc::new(|_| {}),
+            true,
+        );
+        // Nothing stored: the address cannot be built, so the command refuses (never opens).
+        assert!(download_url(&engine).await.is_err());
     }
 }

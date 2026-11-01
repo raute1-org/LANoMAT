@@ -22,6 +22,7 @@ use std::cmp::Ordering;
 use serde::Serialize;
 
 use crate::api::ClientInfo;
+use crate::error::{Error, Result};
 
 /// Outcome of [`assess`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -118,9 +119,128 @@ pub fn assess(client_version: &str, info: Option<&ClientInfo>) -> UpdateStatus {
     UpdateStatus::UpToDate
 }
 
+/// The one path the client accepts as the download page of its server (`config.client.download_path`).
+pub const DOWNLOAD_PATH: &str = "/talk/client";
+
+/// The address of the download page of the server at `base_url`, for the system browser. The
+/// announced path must be exactly [`DOWNLOAD_PATH`] (a missing one means that path); the result is
+/// `base_url` with that path below its own base path, so it stays on the logged-in origin. https
+/// only, no credentials, query or fragment. Anything else is [`Error::Usage`].
+pub fn client_download_url(base_url: &str, announced: Option<&str>) -> Result<String> {
+    check_download_url(base_url, announced, false)
+}
+
+/// The same check for the headless UI smoke (`selftest` builds only): a stand-in on loopback
+/// speaks plain http, so that one origin may use `http`. Nothing else is relaxed.
+pub fn client_download_url_loopback_http(
+    base_url: &str,
+    announced: Option<&str>,
+) -> Result<String> {
+    check_download_url(base_url, announced, true)
+}
+
+fn check_download_url(
+    base_url: &str,
+    announced: Option<&str>,
+    loopback_http: bool,
+) -> Result<String> {
+    let no = || Error::Usage("Diese Adresse darf die App nicht öffnen.".into());
+    if announced.unwrap_or(DOWNLOAD_PATH) != DOWNLOAD_PATH {
+        return Err(no());
+    }
+    let base = reqwest::Url::parse(base_url).map_err(|_| no())?;
+    let scheme_ok = |u: &reqwest::Url| {
+        u.scheme() == "https"
+            || (loopback_http
+                && u.scheme() == "http"
+                && matches!(u.host_str(), Some("127.0.0.1" | "localhost")))
+    };
+    if !scheme_ok(&base)
+        || !base.username().is_empty()
+        || base.password().is_some()
+        || base.query().is_some()
+        || base.fragment().is_some()
+    {
+        return Err(no());
+    }
+    let mut out = base.clone();
+    out.set_path(&format!(
+        "{}{DOWNLOAD_PATH}",
+        base.path().trim_end_matches('/')
+    ));
+    Ok(out.into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_download_page_is_built_on_the_login_origin_only() {
+        let ok = |base, announced| client_download_url(base, announced).unwrap();
+        assert_eq!(
+            ok("https://lan.example.test", Some("/talk/client")),
+            "https://lan.example.test/talk/client"
+        );
+        assert_eq!(
+            ok("https://lan.example.test/", None),
+            "https://lan.example.test/talk/client"
+        );
+        assert_eq!(
+            ok("https://lan.example.test/lan/", Some("/talk/client")),
+            "https://lan.example.test/lan/talk/client"
+        );
+    }
+
+    #[test]
+    fn anything_but_the_one_path_or_a_foreign_address_is_refused() {
+        let base = "https://lan.example.test";
+        for announced in [
+            "/admin",
+            "/talk/client/",
+            "/talk/client?x=1",
+            "/talk/client#x",
+            "/talk/../admin",
+            "/talk/client/../x",
+            "//evil.example/talk/client",
+            "https://evil.example/talk/client",
+            "/talk/clientx",
+            "",
+        ] {
+            assert!(
+                matches!(
+                    client_download_url(base, Some(announced)),
+                    Err(Error::Usage(_))
+                ),
+                "{announced} must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn the_base_must_be_a_plain_https_login_without_credentials_or_query() {
+        let refused = |base: &str| client_download_url(base, None).is_err();
+        assert!(
+            refused("http://lan.example.test"),
+            "plain http off loopback"
+        );
+        assert!(refused("ftp://lan.example.test"));
+        assert!(refused("https://user:pw@lan.example.test"));
+        assert!(refused("https://lan.example.test/?next=/x"));
+        assert!(refused("not a url"));
+        assert!(refused(""));
+    }
+
+    #[test]
+    fn the_selftest_variant_allows_loopback_http_and_nothing_more() {
+        let loopback = |base: &str| client_download_url_loopback_http(base, None);
+        assert_eq!(
+            loopback("http://127.0.0.1:8095").unwrap(),
+            "http://127.0.0.1:8095/talk/client"
+        );
+        assert!(loopback("http://192.0.2.7:8095").is_err());
+        assert!(loopback("http://lan.example.test").is_err());
+    }
 
     fn info(min: Option<&str>, latest: Option<&str>) -> ClientInfo {
         ClientInfo {

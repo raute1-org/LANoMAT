@@ -224,7 +224,7 @@ Result `{status: "up_to_date"}`, `{status: "update_available", latest}` or
 this client: show a blocking banner. `update_available` is a hint only. Versions that cannot be
 ordered (`dev`, other schemes) and servers without the `client` block always give `up_to_date`.
 Errors like any server call (`network`, `auth`, ...): ignore them, there is just no banner. The
-download page of the connected server is `/talk/client`, opened with `open_url`.
+download page of the connected server is `/talk/client`, opened with `open_client_download`.
 
 ### `logout`
 
@@ -235,6 +235,14 @@ Forgets the token locally and stops notifications and chat. Revoking it on the s
 Args `{url}`. Opens the pairing page (or `/talk/connect` of the connected server) in the browser; any
 other address is refused (`usage`). The allow-list is deliberately strict.
 
+### `open_client_download`
+
+No args. Opens the download page of the connected server in the system browser. The address is built
+from the stored login and the `download_path` the server announces in `config.client` (`/talk/client`,
+or `/talk/client` when it says nothing): same origin as the login, https (plain http only for a loopback
+stand-in in the UI smoke builds), no query, no fragment, and no other path (`usage` otherwise). The
+webview never passes an address. A missing login is `auth`; a browser that cannot start is `local`.
+
 ### `quit`
 
 Ends the app.
@@ -243,7 +251,7 @@ Ends the app.
 
 ### `get_config`
 
-Result `{api_version, voice_ready, modules, realtime}`. `modules` maps a module key
+Result `{api_version, voice_ready, modules, realtime, server_version}`. `server_version` is the LANoMAT version the server runs (`config.client.server_version`), or `null` from an older server. `modules` maps a module key
 (`game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`, ...) to whether the
 deployment runs it. `realtime` is a bool: whether live chat is configured (else the client polls).
 The connection details are never handed to the UI.

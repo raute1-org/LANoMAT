@@ -1,6 +1,7 @@
 // Navigation shell: the five tabs (adapted to the modules that run), badges, the connection
 // indicator, the offline banner, the Ruhe toggle and the help sheet of every tab.
 import { S } from './strings.js';
+import { paintUpdate } from './update.js';
 import { $, call, clear, el, emit, on, say, state } from './util.js';
 
 export const TAB_IDS = ['jetzt', 'sprache', 'spielen', 'essen', 'mehr'];
@@ -45,6 +46,8 @@ export function showScreen(name) {
         $('dock').hidden = true;
         $('offline-banner').hidden = true;
     }
+
+    paintUpdate();
 
     emit('screen', name);
 }

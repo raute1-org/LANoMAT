@@ -4,7 +4,9 @@
 # server in --ui-demo mode, takes screenshots of the normal, empty and error states and checks
 # the evidence on the stand-in side. Run inside the app dev container:
 #
-#   cargo build -p lanomat-voice-app --features selftest
+#   LANOMAT_BUILD_VERSION=m13-12-g0a1b2c3 LANOMAT_BUILD_COMMIT=0a1b2c3 \
+#     cargo build -p lanomat-voice-app --features selftest
+#     (the update steps need a build with an orderable version; a plain `dev` build never shows a notice)
 #   LIVEKIT_API_KEY=... LIVEKIT_API_SECRET=... sh app/tests/smoke-ui.sh        # all screens
 #   MODE=mods sh app/tests/smoke-ui.sh                                          # modules off, orga role
 #   MODE=narrow sh app/tests/smoke-ui.sh                                        # a 430 px wide window
@@ -117,6 +119,7 @@ if [ "$MODE" = full ]; then
   expect_log "$T/opened.log" '^mumble://Tester@voice.example:64738/Team%20Nachtschicht$' "the Mumble link was rewritten (no space) before it was opened"
   expect_log "$T/opened.log" '^steam://connect/203.0.113.5:27015$' "the game link of a teammate was opened"
   expect_log "$T/opened.log" '^http://127.0.0.1:[0-9]*/settings/connections/link/demo-link-1$' "the single-use link went to the system browser (checked by the real open_link_url)"
+  expect_log "$T/opened.log" '^http://127.0.0.1:[0-9]*/talk/client$' "the update notice's download went to the server's download page (open_client_download)"
   if grep -q 'discord.com' "$T/opened.log" 2>/dev/null; then bad "a Discord link was opened (it must only be copied)"; else ok "no Discord link was opened"; fi
   if grep -q 'demo-link' "$T/app.log" "$T/report.txt" 2>/dev/null; then bad "the single-use link appears in the app log or report"; else ok "the single-use link appears neither in the app log nor in the report"; fi
   [ -f "$T/dl/maps.zip" ] && ok "the downloaded file is on disk" || bad "the downloaded file is missing"
