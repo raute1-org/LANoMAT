@@ -96,3 +96,6 @@ Route::prefix('api/voice-client/v1')->middleware([AuthenticateVoiceClient::class
 
 // Play block (now feed, tournaments/matches, game servers): kept in its own file.
 require __DIR__.'/voice-client-play.php';
+
+// Account block (profile, connections, friends): kept in its own file.
+require __DIR__.'/voice-client-account.php';

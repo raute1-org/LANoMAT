@@ -455,6 +455,105 @@ Notification DTO:
  "read": false, "read_at": null, "created_at": "2026-11-02T12:00:00+00:00"}
 ```
 
+## Account: profile, linked accounts, friends
+
+Same rules as the browser pages (`/settings/profile`, `/settings/connections`, `/friends`): the
+controllers (in the Identity and Friends modules) call the browser's Actions, FormRequest rules and
+Policies; the acting user is always the token owner, ids in a body never select the actor. Routes
+live in `routes/voice-client-account.php`; the friends routes exist only while the Friends module is routable.
+
+### Profile
+
+| Route | Result |
+|-------|--------|
+| `GET profile` | `{profile: {...}}`, the own profile (below). |
+| `PUT profile` | The browser's form: `name` and `email` required; `bio`, `steam_url`, `stream_url`, `profile_color` optional (omitted keeps the value, `null` clears it). Returns `{profile}`. |
+| `PATCH profile` | Same rules, but `name`/`email` are only validated when sent: change a single field. |
+
+Validation is the browser's (`ProfileUpdateRequest`): name up to 255, unique valid email (a changed
+email resets verification), bio up to 1000, `steam_url` must start with `https://steamcommunity.com/`,
+`stream_url` must be https, `profile_color` is `#rrggbb`. Failures are `422` JSON
+(`{message, errors: {field: [...]}}`). `role`, `discord_id`, `avatar_url` and every other key are
+ignored. There is no avatar upload: the browser has none either, the avatar is the Discord one
+(read-only). There is also no stored "context display name" preference to expose; `external_name`
+of each connection is the per-provider name.
+
+```json
+{"profile": {"id": 7, "name": "Ada", "email": "ada@example.test", "email_verified": true,
+ "avatar_url": "https://cdn.example.test/a.png", "bio": "hi", "steam_url": null, "stream_url": null,
+ "profile_color": "#aabbcc", "has_verified_steam_link": true, "verified_steam_nickname": "ada_s",
+ "editable": ["name", "email", "bio", "steam_url", "stream_url", "profile_color"]}}
+```
+
+### Linked accounts
+
+| Route | Result |
+|-------|--------|
+| `GET connections` | `{connections: [...]}`: `discord` (login identity, `read_only: true`, never linkable/removable), then `steam` and `twitch`. |
+| `DELETE connections/{provider}` | Unlinks the own account (`LinkedAccountPolicy`), idempotent. `{connection}` with the new state. `discord` and unknown providers are `404`. |
+| `POST connections/{provider}/link-url` | `{provider, url, expires_at}`: a single-use link into the browser (below). `404` when the provider is not configured. 10 per minute. |
+
+```json
+{"provider": "twitch", "label": "Twitch", "status": "needs_reauth", "external_name": "streamer1",
+ "available": true, "can_link": true, "can_unlink": true, "read_only": false}
+```
+
+`status` is `connected`, `not_connected` or `needs_reauth` (link again to renew). `can_link` is false
+for a connected account and for a provider the deployment has no credentials for (`available: false`).
+Tokens are never returned.
+
+**Linking from the client.** OAuth is not reimplemented. The client calls `POST connections/{provider}/link-url`,
+opens the returned `url` in the system browser and polls `GET connections` (every few seconds, up to the
+`expires_at` plus the provider round trip) until the provider's `status` becomes `connected`. The URL is
+`<app>/settings/connections/link/<random token>`:
+
+* It sits behind the normal web login: a browser without a session is sent through the regular login and
+  returns to the URL, then the normal logged-in flow (`/settings/connections/{provider}/redirect` and the
+  provider callback) continues. A guest visit does not use up the token.
+* The token is bound to the issuing user (a different logged-in user gets `403` and does not burn it), is
+  valid for 10 minutes and works once (a replay or an expired/unknown token is `410`). Only a sha256 digest
+  of it is stored (cache).
+* Opening it is a `GET` with a side effect (it consumes the token), so do not let link previews fetch it.
+
+### Friends
+
+The lists carry display fields only (`id`, `name`, `avatar_url`): never email or discord id. The browser's
+`/friends` page shows no presence, so neither does this API; the `isFriend` presence flag stays on the
+(web) presence board. The browser has no user search either, so there is none here: people are found through
+`friends/suggestions` (shared events, teams, tournaments, Steam friends) and the ids the other
+endpoints return (the public `/users/{id}` page's id).
+
+| Route | Result |
+|-------|--------|
+| `GET friends` | `{friends: [{id, name, avatar_url}]}` |
+| `GET friends/requests` | `{incoming: [{id, user}], outgoing: [{id, user}]}`; `id` is the request id used below. |
+| `GET friends/suggestions` | `{suggestions: [{id, name, avatar_url, shared, reasons, reason_labels}]}`; `reasons` are `shared_event`, `shared_team`, `shared_tournament`, `shared_steam_friend`, `reason_labels` the German copy of the web page. Never lists friends, pending, or users blocked in either direction. |
+| `GET friends/blocked` | `{blocked: [{id, name, avatar_url}]}` |
+| `POST friends/requests` | body `{user_id}`, answers `201 {status}`: `pending`, or `accepted` when the other side had already asked (auto-accept). No request id is returned: re-read `friends/requests`. 20 per minute. |
+| `POST friends/requests/{id}/accept` and `.../decline` | Addressee only (`FriendshipPolicy::respond`). `{status: accepted|declined}`. |
+| `DELETE friends/requests/{id}` | Cancel an own outgoing request (`204`). |
+| `DELETE friends/{user}` | Remove a friend (`204`, also when there was none). |
+| `POST users/{user}/block` | `{blocked: true}`; tears down the friendship and pending requests in both directions. |
+| `DELETE users/{user}/block` | Unblock (`204`). |
+
+**Blocked-by is never revealed.** If the addressee blocked the caller, `POST friends/requests` answers
+exactly like a normal pending request (same status and body) and creates nothing and notifies nobody; the
+caller's own block is reported (`blocked`). Blocking is identical whether or not the target blocked the
+caller. A request id of two other users is `404` (not `403`), so ids cannot be probed. Suggestions never
+contain someone who blocked the caller.
+
+### Errors
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `401` | `{message}` | missing, garbage, revoked or expired token |
+| `403` | `{message}` | policy refusal (e.g. answering a request you sent) |
+| `404` | `{message}` | unknown provider/user, request of two other users, unconfigured provider on `link-url` |
+| `410` | `{message}` | link token expired, used or unknown (browser URL only) |
+| `422` | `{message, errors}` | validation failure (profile fields, `user_id`) |
+| `422` | `{code, message}` | refused friend rule: `cannot_friend_self`, `already_friends`, `request_pending`, `blocked` (the caller's own block), `cannot_block_self`; `message` is the German browser copy |
+| `429` | `{message}` | rate limit |
+
 ## Security properties
 
 * **Hashes only.** Device codes, user codes and access tokens are stored as sha256 digests. The plain
@@ -477,5 +576,5 @@ Notification DTO:
 ## Files
 
 `app/Modules/WebVoice/NativeClient/` (actions, policy, models, controllers, bearer middleware; the event feature controllers live in `Http/Features/`),
-`routes/voice-client.php` and `routes/voice-client-play.php` (loaded from `bootstrap/app.php` without the `web` group), config in
+`routes/voice-client.php`, `routes/voice-client-play.php` and `routes/voice-client-account.php` (profile/connections/friends; controllers in `app/Modules/Identity/Http/Native*` and `app/Modules/Friends/Http/NativeFriendsController.php`) (loaded from `bootstrap/app.php` without the `web` group), config in
 `config/webvoice.php` under `native`, page `resources/js/pages/WebVoice/Connect.vue`.
