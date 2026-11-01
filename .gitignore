@@ -40,3 +40,6 @@ yarn-error.log
 
 # Rendered LiveKit config (contains the API secret); the template is docker/livekit/livekit.yaml.template
 /docker/livekit/livekit.yaml
+
+__pycache__/
+*.pyc
