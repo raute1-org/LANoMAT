@@ -31,6 +31,7 @@ enum Module: string
     case Provisioning = 'provisioning';
     case Recap = 'recap';
     case Registration = 'registration';
+    case RoomAudio = 'room_audio';
     case Schedule = 'schedule';
     case Seating = 'seating';
     case Stats = 'stats';

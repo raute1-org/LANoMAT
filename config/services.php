@@ -164,6 +164,11 @@ return [
     // bearer token for MA's HTTP/JSON-RPC surface at MUSIC_ASSISTANT_URL
     // (default port 8095); MUSIC_ASSISTANT_PLAYER_ID is the MA player/queue
     // id LANoMAT's single configured jukebox player controls.
+    'room_audio' => [
+        'rest_url' => env('DENON_ADMIN_REST_URL', 'http://denon-admin:8000'),
+        'token' => env('DENON_ADMIN_TOKEN'),
+    ],
+
     'music_assistant' => [
         'base_url' => env('MUSIC_ASSISTANT_URL', 'http://music-assistant:8095'),
         'token' => env('MUSIC_ASSISTANT_TOKEN'),

@@ -49,6 +49,7 @@ export type ModuleKey =
     | 'provisioning'
     | 'recap'
     | 'registration'
+    | 'room_audio'
     | 'schedule'
     | 'seating'
     | 'stats'

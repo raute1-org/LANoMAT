@@ -10,31 +10,31 @@ widget-only relative commands (`up`, `down`, `toggle`) are not offered.
 
 ## Configuration
 
-| Variable             | Default | Meaning                                                             |
-| -------------------- | ------- | ------------------------------------------------------------------- |
-| `DENON_HOST`         | *(none)* | Receiver address on the venue LAN, e.g. `203.0.113.10`. Set only in the venue's `.env`, never in the repository. Empty means the session never starts. |
-| `DENON_PORT`         | `23`    | Receiver telnet control port.                                        |
-| `DENON_ADMIN_TOKEN`  | *(required)* | Bearer token the REST API requires. Without it the API answers 503. |
+| Variable            | Default      | Meaning                                                                                                                                                |
+| ------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DENON_HOST`        | _(none)_     | Receiver address on the venue LAN, e.g. `203.0.113.10`. Set only in the venue's `.env`, never in the repository. Empty means the session never starts. |
+| `DENON_PORT`        | `23`         | Receiver telnet control port.                                                                                                                          |
+| `DENON_ADMIN_TOKEN` | _(required)_ | Bearer token the REST API requires. Without it the API answers 503.                                                                                    |
 
 ## REST contract
 
 All routes except `/healthz` require `Authorization: Bearer <DENON_ADMIN_TOKEN>`
 (401 when missing or wrong, constant-time comparison).
 
-| Method | Path        | Body                                  | Response                                                                 |
-| ------ | ----------- | ------------------------------------- | ------------------------------------------------------------------------ |
-| GET    | `/state`    | –                                     | `{connected, power, mainZone, volume, volumeMax, mute, source, mode, sources, modes}` |
-| POST   | `/command`  | `{"command": ..., "value": ...}`      | `200 {"ok": true}`, `422` for an unknown command or value, `503` when not connected |
-| GET    | `/healthz`  | –                                     | `200 {"status": "ok", "connected": bool}` (no auth)                      |
+| Method | Path       | Body                             | Response                                                                              |
+| ------ | ---------- | -------------------------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/state`   | –                                | `{connected, power, mainZone, volume, volumeMax, mute, source, mode, sources, modes}` |
+| POST   | `/command` | `{"command": ..., "value": ...}` | `200 {"ok": true}`, `422` for an unknown command or value, `503` when not connected   |
+| GET    | `/healthz` | –                                | `200 {"status": "ok", "connected": bool}` (no auth)                                   |
 
 Whitelisted commands and their values:
 
-| `command` | `value`                                             | Sent to the receiver |
-| --------- | --------------------------------------------------- | -------------------- |
-| `power`   | `"on"` or `"off"`                                   | `PWON` / `PWSTANDBY` |
-| `volume`  | number `0`..`98` (rounded to 0.5 steps)            | `MV325`, `MV05`, ... |
-| `mute`    | `"on"` or `"off"`                                   | `MUON` / `MUOFF`     |
-| `source`  | code matching `^[A-Z0-9/]{1,12}$`                   | `SI<code>`           |
+| `command` | `value`                                                                         | Sent to the receiver       |
+| --------- | ------------------------------------------------------------------------------- | -------------------------- |
+| `power`   | `"on"` or `"off"`                                                               | `PWON` / `PWSTANDBY`       |
+| `volume`  | number `0`..`98` (rounded to 0.5 steps)                                         | `MV325`, `MV05`, ...       |
+| `mute`    | `"on"` or `"off"`                                                               | `MUON` / `MUOFF`           |
+| `source`  | code matching `^[A-Z0-9/]{1,12}$`                                               | `SI<code>`                 |
 | `mode`    | a key of `MODES` (`stereo`, `direct`, `pure`, `auto`, `movie`, `music`, `game`) | the mode's `MS...` command |
 
 Anything else returns `422` and is never forwarded.
