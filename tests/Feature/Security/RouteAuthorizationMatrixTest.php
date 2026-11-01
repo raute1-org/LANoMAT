@@ -60,6 +60,20 @@ const PUBLIC_ROUTES = [
     'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
     'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
     'GET api/voice-client/v1/config' => 'bearer middleware (AuthenticateVoiceClient); no secrets',
+    // Native client event features: bearer middleware + the browser's Actions/Policies (tests/Feature/WebVoice/NativeClient/Features)
+    'GET api/voice-client/v1/events' => 'bearer middleware; non-draft events plus the caller\'s own registration',
+    'GET api/voice-client/v1/events/{event}/polls' => 'bearer middleware; draft events 404',
+    'GET api/voice-client/v1/polls/{poll}' => 'bearer middleware; draft events 404, results as on the web page',
+    'POST api/voice-client/v1/polls/{poll}/vote' => 'bearer middleware; PollPolicy vote + CastVote rules',
+    'GET api/voice-client/v1/events/{event}/catering' => 'bearer middleware; own items only',
+    'GET api/voice-client/v1/events/{event}/catering/mine' => 'bearer middleware; own items only',
+    'POST api/voice-client/v1/food-orders/{foodOrder}/items' => 'bearer middleware; FoodOrderItemPolicy create + PlaceFoodOrderItem rules',
+    'DELETE api/voice-client/v1/food-order-items/{foodOrderItem}' => 'bearer middleware; FoodOrderItemPolicy delete + CancelFoodOrderItem window',
+    'GET api/voice-client/v1/events/{event}/files' => 'bearer middleware; approved + own pending files (VisibleFiles)',
+    'GET api/voice-client/v1/events/{event}/files/quota' => 'bearer middleware; the caller\'s own usage',
+    'POST api/voice-client/v1/events/{event}/files/uploads/ticket' => 'bearer middleware; SharedFilePolicy create + IssueUploadTicket rules',
+    'GET api/voice-client/v1/files/{sharedFile}/download' => 'bearer middleware; SharedFilePolicy download, signed file-host URL',
+    'DELETE api/voice-client/v1/files/{sharedFile}' => 'bearer middleware; SharedFilePolicy delete',
     'GET auth/discord/callback' => 'OAuth callback, state-verified by Socialite',
     'GET broadcasting/auth' => 'channel authorization callbacks decide per channel (routes/channels.php)',
     'POST csp-report' => 'browser CSP reports, throttled and size-limited',
@@ -466,6 +480,8 @@ it('puts every state-changing route behind CSRF verification', function () {
     $exempt = [
         'api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/{serverLink}',
         'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token',
+        'api/voice-client/v1/polls/{poll}/vote', 'api/voice-client/v1/food-orders/{foodOrder}/items', 'api/voice-client/v1/food-order-items/{foodOrderItem}',
+        'api/voice-client/v1/events/{event}/files/uploads/ticket', 'api/voice-client/v1/files/{sharedFile}',
         '_boost/browser-logs', 'csp-report', 'storage/{path}',
     ];
     $failures = [];

@@ -187,6 +187,11 @@ return [
         3 => 'Registration',
     ],
     'WebVoice' => [
-        0 => 'Tournaments',
+        0 => 'Catering',
+        1 => 'Events',
+        2 => 'Files',
+        3 => 'Registration',
+        4 => 'Tournaments',
+        5 => 'Voting',
     ],
 ];
