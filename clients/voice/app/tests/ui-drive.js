@@ -78,6 +78,15 @@
 
         return e;
     };
+    // The Beitreten button on one place of a person (a chip text: provider name or "Spiel").
+    const placeBtn = (row, chipText) =>
+        qa('.where', row)
+            .find(
+                (w) =>
+                    visible(w) &&
+                    q('.chip', w)?.textContent.trim() === chipText,
+            )
+            ?.querySelector('button.where-join');
     const clickText = (sel, text, root) =>
         click(() => byText(sel, text, root), `${sel} "${text}"`);
     const typeInto = async (input, text) => {
@@ -538,7 +547,7 @@
     }
 
     await step(
-        'Jetzt: the team strip shows a teammate in voice and game and offers Hinterherjoinen',
+        'Jetzt: the team strip shows a teammate in voice and game and offers a Beitreten button per place',
         async () => {
             const strip = await waitFor(
                 () => visible(q('.team-strip')) && q('.team-strip'),
@@ -550,20 +559,11 @@
                 'a plain section with Ada',
             );
             await shot('17-jetzt-team-strip');
-            await clickText('button', S.people.follow, strip);
-            await waitFor(
-                () => visible(q('.follow-panel', strip)),
-                6000,
-                'follow panel in the strip',
-            );
-            await shot('17b-jetzt-team-strip-follow');
             assert(
-                byText('button', S.people.joinRoom, strip) &&
-                    byText('button', S.people.joinGame, strip),
-                'voice and game are two parts',
+                placeBtn(strip, S.people.game) &&
+                    placeBtn(strip, S.people.providers.webvoice),
+                'voice and game each have their own button',
             );
-            await clickText('button', S.people.close, strip);
-            assert(!q('.follow-panel', strip), 'panel closed');
             await clickText('button', S.people.stripAll, strip);
             await waitFor(
                 () => visible(q('#screen-sprache')),
@@ -931,11 +931,11 @@
         'Personen: a room and server you may not see cannot be followed',
         async () => {
             const dirk = personRow('Dirk');
-            const btn = byText('button', S.people.follow, dirk);
+            const btn = placeBtn(dirk, S.people.game);
             assert(btn && btn.disabled, 'disabled button');
             assert(
-                byText('.small', S.people.cannotJoin, dirk),
-                'the reason is written down',
+                btn.title === S.people.cannotJoin,
+                'the reason is on the button',
             );
             assert(
                 byText('.where', 'Counter-Strike 2', dirk) &&
@@ -950,37 +950,26 @@
     await step(
         'Hinterherjoinen: Discord is only copied, Mumble opens a rewritten link, the game address copies',
         async () => {
-            await clickText('button', S.people.follow, personRow('Ben'));
+            placeBtn(personRow('Ben'), S.people.providers.discord).click();
             await waitFor(
                 () => toastText().includes(S.people.linkCopied),
                 4000,
                 'discord link copied',
             );
             const cleo = personRow('Cleo');
-            await clickText('button', S.people.follow, cleo);
-            await waitFor(
-                () => visible(q('.follow-panel', cleo)),
-                5000,
-                'panel',
-            );
             await toList();
-            await shot('25-personen-follow-panel');
-            await clickText('button', S.people.openIn('Mumble'), cleo);
+            await shot('25-personen-join-per-place');
+            placeBtn(cleo, S.people.providers.mumble).click();
             await waitFor(
                 () => toastText().includes(S.people.voiceOpened('Mumble')),
                 4000,
                 'mumble opened toast',
             );
-            await clickText('button', S.servers.copyAddress, cleo);
+            placeBtn(cleo, S.people.game).click();
             await waitFor(
-                () => toastText().includes(S.servers.addressCopied),
+                () => toastText().length > 0,
                 4000,
-                'address copied',
-            );
-            await clickText('button', S.people.close, cleo);
-            assert(
-                document.activeElement.textContent.includes(S.people.follow),
-                'focus returns to the row button',
+                'game join or address copy answers',
             );
         },
     );
@@ -988,26 +977,16 @@
         'Hinterherjoinen: a teammate in a web voice room, followed through the real join flow',
         async () => {
             const ada = personRow('Ada');
-            await clickText('button', S.people.follow, ada);
-            await waitFor(
-                () => visible(q('.follow-panel', ada)),
-                5000,
-                'panel',
-            );
-            assert(
-                byText('.chip', S.people.alreadyThere, ada),
-                'the preferred provider is marked',
-            );
             await toList();
             await shot('25b-personen-follow-ada');
-            await clickText('button', S.people.joinGame, ada);
+            placeBtn(ada, S.people.game).click();
             await waitFor(
                 () =>
                     toastText().includes(S.servers.opening('CS2 Cup Runde 2')),
                 4000,
                 'steam link opened',
             );
-            await clickText('button', S.people.joinRoom, ada);
+            placeBtn(ada, S.people.providers.webvoice).click();
             await waitFor(
                 () => visible(q('#screen-sprache .room-panel')),
                 15000,
@@ -1022,20 +1001,6 @@
                 'connected to the Lobby (dev LiveKit)',
             );
             await shot('24b-personen-followed-into-room');
-            // The row now knows that you are there.
-            await clickText('.seg-btn', S.people.people);
-            await waitFor(() => personRow('Ada'), 5000, 'people again');
-            await clickText('button', S.people.follow, personRow('Ada'));
-            await waitFor(
-                () => byText('button', S.people.inThisRoom, personRow('Ada')),
-                5000,
-                'in this room',
-            );
-            assert(
-                byText('button', S.people.inThisRoom, personRow('Ada'))
-                    .disabled,
-                'joining the room you are in is disabled',
-            );
         },
     );
     await step(
