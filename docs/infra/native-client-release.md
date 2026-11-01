@@ -96,9 +96,11 @@ cd app && cargo tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc 
   portable exe never installs anything and needs WebView2 present.
 - **Version metadata.** NSIS and the Windows version resource need a numeric `x.y.z`.
   `clients/voice/ci/win-version.sh` maps the release string deterministically (self-tested in
-  `ci/build.sh`): `client-v1.2.3` / `v1.2.3` / `1.2.3` -> `1.2.3`; a `git describe` string
-  `<tag>-<N>-g<hex>` (optionally `-dirty`) -> `0.N.0`, so `m12-496-g9624daa` -> `0.496.0`; anything else
-  -> `0.0.0`; a field above 65535 is an error. The exact string stays in the file names, the manifest and
+  `ci/build.sh`): `client-v1.2.3` / `v1.2.3` / `1.2.3` -> `1.2.3`; a milestone build
+  `m<M>-<N>-g<hex>` (the version string of `git describe`, optionally `-dirty`; the bare tag `m<M>` is
+  `0.M.0`) -> `0.M.N`, so `m12-496-g9624daa` -> `0.12.496` and the first build after the next milestone
+  tag, `m13-3-g...`, is `0.13.3` (still higher, so an installed copy sees an upgrade); any other
+  `<tag>-<N>-g<hex>` -> `0.0.N`; anything else -> `0.0.0`; a field above 65535 is an error. The exact string stays in the file names, the manifest and
   `--version`; only the exe's file/product version and the installer's version use the number (the
   smoke test checks it).
 - **Signing and the installer.** The SignPath hook signs the three `.exe` files, but the exe *inside* the

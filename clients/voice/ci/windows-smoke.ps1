@@ -144,7 +144,11 @@ Write-Host "uninstall entry: DisplayName='$($entry.DisplayName)' DisplayVersion=
 if ($entry.DisplayVersion -ne $WindowsVersion) { throw "DisplayVersion '$($entry.DisplayVersion)' is not the Windows version $WindowsVersion" }
 
 $installed = $mainExe[0].FullName
-$pi = Start-AndCheck $installed 'installed'
+# A finished install may launch the app (the Tauri template can run it after the last page): close
+# whatever is running so the checks below start from a clean state.
+Get-Process -Name 'lanomat-voice-app' -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+$pi =Start-AndCheck $installed 'installed'
 
 # A second copy (the portable file) next to the running installed one must not break it.
 $second = Start-Process -FilePath $portable -PassThru

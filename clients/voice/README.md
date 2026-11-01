@@ -236,7 +236,7 @@ docker run --rm -v "$PWD:/work" -v lanomat-xwin-cache:/xwin-cache lanomat-voice-
 `ci/windows-smoke.ps1` is the check that runs on a real Windows runner (CLI version, version metadata, the
 portable exe, a silent install, the installed exe, the uninstall; window and pipe round trip each time).
 The installer comes from `cargo tauri build --bundles nsis` (bundler switched on for that call only), its
-numeric version from `ci/win-version.sh` (`m12-496-g9624daa` -> `0.496.0`); see
+numeric version from `ci/win-version.sh` (`m12-496-g9624daa` -> `0.12.496`); see
 [`docs/infra/native-client-release.md`](../../docs/infra/native-client-release.md). A Linux AppImage or
 Arch package would be a possible follow-up; they are not built. A Windows machine with Rust, MSVC build tools and clang >= 21 can also build natively
 with `cargo build --release -p lanomat-voice-app -p voice-cli`.

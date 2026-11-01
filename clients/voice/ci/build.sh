@@ -57,7 +57,7 @@ cp "target/$WIN/release/lanomat-voice.exe" dist/windows/
 # The desktop app is built by the Tauri bundler: it compiles the app exe (the portable file) and
 # wraps that same exe in an NSIS installer. The bundler is off in tauri.conf.json and is switched
 # on for this one invocation, together with the numeric Windows version (ci/win-version.sh maps
-# the release string, e.g. m12-496-g9624daa -> 0.496.0; the exact string stays in LANOMAT_BUILD_VERSION).
+# the release string, e.g. m12-496-g9624daa -> 0.12.496; the exact string stays in LANOMAT_BUILD_VERSION).
 step "release build (windows, cross): desktop app and NSIS installer"
 WINVER=$(ci/win-version.sh "$LANOMAT_BUILD_VERSION")
 echo "Windows file version: $WINVER (from $LANOMAT_BUILD_VERSION)"
