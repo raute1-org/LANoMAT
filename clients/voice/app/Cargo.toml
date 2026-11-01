@@ -26,6 +26,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 tauri-plugin-notification = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
+time = { version = "0.3", features = ["parsing", "std"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -33,3 +34,7 @@ tauri-build = { version = "2", features = [] }
 [dev-dependencies]
 wiremock = "0.6"
 tempfile = "3"
+
+[features]
+# Headless self-test of the commands through the real IPC (see src/selftest.rs); not for releases.
+selftest = []

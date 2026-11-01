@@ -2668,6 +2668,7 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-notification",
  "tempfile",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
