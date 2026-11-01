@@ -111,6 +111,8 @@ fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     f.write_all(bytes)
 }
 
+/// Windows: no mode bits; the file sits under the per-user profile (`%APPDATA%`), whose default
+/// ACL already restricts it to that user.
 #[cfg(not(unix))]
 fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::write(path, bytes)

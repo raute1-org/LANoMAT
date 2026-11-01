@@ -77,6 +77,8 @@ impl TokenStore for FileTokenStore {
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."));
         std::fs::create_dir_all(dir).map_err(|e| Error::io(dir, e))?;
+        // Windows: no mode bits to set. The file lives under the per-user profile (`%APPDATA%`),
+        // whose default ACL already limits it to that user, SYSTEM and Administrators.
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;

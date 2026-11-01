@@ -331,8 +331,7 @@ async fn join(
 
     // SIGTERM (systemd, `docker stop`, a window manager's exec-once teardown) must end the session as
     // cleanly as Ctrl-C does: leave the room and remove the control socket.
-    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        .map_err(|e| Error::io("SIGTERM handler", e))?;
+    let mut terminate = Terminate::install().map_err(|e| Error::io("termination handler", e))?;
 
     let outcome = loop {
         tokio::select! {
@@ -366,6 +365,45 @@ fn print_event(e: &SessionEvent) {
         SessionEvent::Reconnecting => println!("connection lost, reconnecting..."),
         SessionEvent::Reconnected => println!("reconnected"),
         SessionEvent::Disconnected(_) => {}
+    }
+}
+
+/// The platform's "please stop" request besides Ctrl-C: SIGTERM on unix; on Windows Ctrl-Break and
+/// the console being closed.
+#[cfg(unix)]
+struct Terminate(tokio::signal::unix::Signal);
+
+#[cfg(unix)]
+impl Terminate {
+    fn install() -> std::io::Result<Self> {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).map(Self)
+    }
+
+    async fn recv(&mut self) {
+        self.0.recv().await;
+    }
+}
+
+#[cfg(windows)]
+struct Terminate {
+    brk: tokio::signal::windows::CtrlBreak,
+    close: tokio::signal::windows::CtrlClose,
+}
+
+#[cfg(windows)]
+impl Terminate {
+    fn install() -> std::io::Result<Self> {
+        Ok(Self {
+            brk: tokio::signal::windows::ctrl_break()?,
+            close: tokio::signal::windows::ctrl_close()?,
+        })
+    }
+
+    async fn recv(&mut self) {
+        tokio::select! {
+            _ = self.brk.recv() => {}
+            _ = self.close.recv() => {}
+        }
     }
 }
 
