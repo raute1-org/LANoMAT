@@ -119,12 +119,20 @@ async function moderate(
         :description="labels.lead"
     >
         <template #actions>
-            <Link
-                href="/talk/connect"
-                class="rounded-sm text-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            >
-                {{ labels.connect_link }}
-            </Link>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <Link
+                    href="/talk/client"
+                    class="rounded-sm text-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                    {{ labels.client_link }}
+                </Link>
+                <Link
+                    href="/talk/connect"
+                    class="rounded-sm text-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                    {{ labels.connect_link }}
+                </Link>
+            </div>
         </template>
 
         <!-- empty -->

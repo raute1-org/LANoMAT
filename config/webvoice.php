@@ -66,5 +66,11 @@ return [
         'poll_interval' => 5,
         // A paired device's token expires this many days after its last use (sliding).
         'token_ttl_days' => 90,
+        // Clients older than this (a version string, see voice_core::update::assess) are told to
+        // update; null = no floor. Raise it when an API change breaks old clients.
+        'min_client_version' => env('VOICE_CLIENT_MIN_VERSION') ?: null,
+        // Where scripts/ops/build-client.sh publishes the client builds and manifest.json.
+        // compose mounts ./clients-dist here read-only. A missing directory just means "no builds".
+        'dist_path' => env('VOICE_CLIENT_DIST_PATH') ?: base_path('clients-dist'),
     ],
 ];

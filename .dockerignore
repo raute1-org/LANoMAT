@@ -24,3 +24,5 @@ tests
 docs
 *.md
 !README.md
+clients-dist
+clients/voice/target

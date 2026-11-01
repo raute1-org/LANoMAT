@@ -13,8 +13,6 @@ use super::types::{
 };
 use crate::error::{Error, Result};
 
-const USER_AGENT: &str = concat!("lanomat-voice/", env!("CARGO_PKG_VERSION"));
-
 #[derive(Clone)]
 pub struct ApiClient {
     http: reqwest::Client,
@@ -29,6 +27,18 @@ impl std::fmt::Debug for ApiClient {
             .field("token", &self.token.as_ref().map(|_| "<redacted>"))
             .finish()
     }
+}
+
+/// `X-Client-Version` on every call, next to the `User-Agent`: lets the server see (and one day
+/// refuse) outdated clients. Nothing here identifies the person or the machine.
+fn version_headers() -> reqwest::header::HeaderMap {
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Ok(value) =
+        reqwest::header::HeaderValue::from_str(crate::buildinfo::build_info().version)
+    {
+        headers.insert("x-client-version", value);
+    }
+    headers
 }
 
 /// The device name shown on the approval page: `<host name> (<app>)`, e.g. `box (lanomat-voice)`.
@@ -78,7 +88,8 @@ impl ApiClient {
     pub fn new(base_url: &str) -> Result<Self> {
         let base = normalize_base_url(base_url)?;
         let http = reqwest::Client::builder()
-            .user_agent(USER_AGENT)
+            .user_agent(crate::buildinfo::user_agent())
+            .default_headers(version_headers())
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(20))
             .build()
@@ -615,6 +626,68 @@ mod tests {
         assert_eq!(grant.audio.bitrate, 32_000);
         // Missing keys fall back to the server defaults.
         assert!(grant.audio.noise_suppression);
+    }
+
+    #[tokio::test]
+    async fn every_call_sends_the_client_version_and_user_agent() {
+        let info = crate::build_info();
+        let server = MockServer::start().await;
+        // Only a request carrying both headers is answered; anything else is a 404.
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .and(header("x-client-version", info.version))
+            .and(header(
+                "user-agent",
+                format!("lanomat-voice/{}", info.version).as_str(),
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "api_version": 1, "livekit_url": null, "voice_ready": false,
+                "client": {
+                    "server_version": "m12-470-gabc1234", "commit": "abc1234",
+                    "min_client_version": null, "latest_client_version": "m12-470-gabc1234",
+                    "download_path": "/talk/client", "future_field": 1
+                }
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/voice-client/device"))
+            .and(header("x-client-version", info.version))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "device_code": "d", "user_code": "ABCD-EFGH", "verification_url": "x",
+                "expires_in": 600, "interval": 5
+            })))
+            .mount(&server)
+            .await;
+        let c = client(&server).with_token("t");
+        let cfg = c.config().await.unwrap();
+        let block = cfg.client.expect("client block");
+        assert_eq!(
+            block.latest_client_version.as_deref(),
+            Some("m12-470-gabc1234")
+        );
+        assert_eq!(block.min_client_version, None);
+        assert_eq!(block.download_path.as_deref(), Some("/talk/client"));
+        c.start_device_flow("box").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_config_without_the_client_block_still_parses() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "api_version": 1, "livekit_url": null, "voice_ready": false
+            })))
+            .mount(&server)
+            .await;
+        assert!(client(&server)
+            .with_token("t")
+            .config()
+            .await
+            .unwrap()
+            .client
+            .is_none());
     }
 
     #[tokio::test]

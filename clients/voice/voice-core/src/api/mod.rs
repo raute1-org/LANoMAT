@@ -47,8 +47,8 @@ pub use presence::{
 };
 pub use store::{FileTokenStore, StoredCredentials, TokenStore};
 pub use types::{
-    AudioSettings, ClientConfig, DeviceAuthorization, JoinGrant, Me, RealtimeConfig, Room,
-    TokenResponse,
+    AudioSettings, ClientConfig, ClientInfo, DeviceAuthorization, JoinGrant, Me, RealtimeConfig,
+    Room, TokenResponse,
 };
 
 use crate::error::{Error, Result};

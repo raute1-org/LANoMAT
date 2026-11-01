@@ -7,6 +7,7 @@ pub mod engine;
 pub mod features;
 pub mod joinurl;
 pub mod settings;
+pub mod update;
 pub mod view;
 
 #[cfg(feature = "selftest")]
@@ -78,7 +79,10 @@ pub struct EnvInfo {
     /// `None` when the control socket is up, else why not.
     pub socket_error: Option<String>,
     pub shortcut: ShortcutStatus,
+    /// The LANoMAT version this client was built for (`dev` for a local build).
     pub version: &'static str,
+    /// The git commit of the build (`unknown` for a local build).
+    pub commit: &'static str,
 }
 
 #[derive(Default)]
@@ -293,6 +297,11 @@ fn save_settings(
 }
 
 #[tauri::command]
+async fn get_update_status(engine: Eng<'_>) -> Result<voice_core::update::UpdateStatus, UiError> {
+    update::update_status(engine.inner()).await
+}
+
+#[tauri::command]
 fn get_environment(app: AppHandle, engine: Eng<'_>) -> Result<EnvInfo, UiError> {
     let rt = rt(&app);
     let rt = rt.lock().expect("runtime");
@@ -306,7 +315,8 @@ fn get_environment(app: AppHandle, engine: Eng<'_>) -> Result<EnvInfo, UiError> 
             active: false,
             message: None,
         }),
-        version: env!("CARGO_PKG_VERSION"),
+        version: voice_core::build_info().version,
+        commit: voice_core::build_info().commit,
     })
 }
 
@@ -974,6 +984,7 @@ macro_rules! command_set {
 }
 
 command_set!(
+    get_update_status,
     get_status,
     connect_start,
     connect_poll,

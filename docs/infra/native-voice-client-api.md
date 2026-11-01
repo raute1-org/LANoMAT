@@ -86,11 +86,48 @@ revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 | `GET me` | `{id, name, role, identity}`; `identity` is the LiveKit identity (`u<id>`) the client will have in a room |
 | `GET rooms` | `{rooms: [{id, name, description, kind}]}`: exactly the rooms the browser page lists for that user (`VisibleChannels`: general rooms, the user's own match rooms, orga and admins see every live room; archived never) |
 | `POST rooms/{room}/token` | the same payload as the browser, from the same action (`IssueJoinToken`): `{url, token, identity, muted, audio}`. A moderator mute arrives as `muted: true` and a token without the publish right. Never takes identity or room name from the client. |
-| `GET config` | `{api_version, livekit_url, voice_ready, audio, modules, realtime}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`), the Reverb connection info (see "Realtime") and `modules`, which maps every module key (the `MODULE_<KEY>` names, e.g. `game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`) to whether this deployment runs it, so the client can hide what the event does not use. No secrets. |
+| `GET config` | `{api_version, livekit_url, voice_ready, audio, modules, realtime, client}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`), the Reverb connection info (see "Realtime") and `modules`, which maps every module key (the `MODULE_<KEY>` names, e.g. `game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`) to whether this deployment runs it, so the client can hide what the event does not use. `client` is the version block described under "Versions and the client download". No secrets. |
 
 A room the caller may not see answers `404`, exactly like a room that does not exist (no
 enumeration, no 403). An archived room answers `410` for admins and `404` for everyone else. `503`
 means the LiveKit server is not configured or not reachable.
+
+## Versions and the client download
+
+The client a person downloads is always the build for the server they download it from. Version flow:
+`git describe --tags --always --dirty` (`scripts/ops/lib/version.sh`, one helper for both sides) gives the
+version string, for example `m12-463-g0a3b6ff`. `scripts/deploy/deploy.sh` exports it as `APP_VERSION` (and the
+12-character commit as `APP_COMMIT`), compose passes both as build args to every application image, the
+Dockerfile bakes them into `ENV`, and `config('app.version')` / `config('app.commit')` read them (`dev` outside a
+built image). `scripts/ops/build-client.sh` computes the same string and compiles it into the Rust binaries
+(`LANOMAT_BUILD_VERSION`, `LANOMAT_BUILD_COMMIT`, read by `voice_core::build_info()`).
+
+The build script publishes `clients-dist/` with a `manifest.json` (see `clients/voice/README.md`); the app mounts
+it read-only and serves it on `GET /talk/client` (page) and `GET /talk/client/download/{file}` (any logged-in
+user; only names listed in the validated manifest, otherwise 404; the response carries
+`X-Checksum-Sha256`). Preflight check `client_build` warns when the published build does not match the running
+version or does not exist.
+
+`GET config` carries, additively:
+
+```json
+"client": {
+  "server_version": "m12-463-g0a3b6ff",
+  "commit": "<12 hex characters>",
+  "min_client_version": null,
+  "latest_client_version": "m12-463-g0a3b6ff",
+  "download_path": "/talk/client"
+}
+```
+
+`min_client_version` is `webvoice.native.min_client_version` (`VOICE_CLIENT_MIN_VERSION`, default `null`, no
+floor); `latest_client_version` is the version of the published build, `null` when there is none. The client
+decides with `voice_core::update::assess` (up to date, update available, incompatible) and exposes it as the
+`get_update_status` command; versions it cannot order (`dev`, other schemes) never block.
+
+Headers: every client API call sends `X-Client-Version: <version>` and `User-Agent: lanomat-voice/<version>`
+(nothing about the person or the machine); every response of the client API, errors included, carries
+`X-Server-Version: <version>`.
 
 ## Play API: now feed, tournaments, matches, game servers
 

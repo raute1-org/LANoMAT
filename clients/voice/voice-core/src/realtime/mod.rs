@@ -198,7 +198,7 @@ fn ws_url(cfg: &RealtimeConfig) -> String {
         "{scheme}://{}{port}/app/{}?protocol=7&client=lanomat-voice&version={}&flash=false",
         cfg.host,
         cfg.key,
-        env!("CARGO_PKG_VERSION")
+        crate::buildinfo::build_info().version
     )
 }
 

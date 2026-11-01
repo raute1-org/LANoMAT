@@ -83,6 +83,7 @@ use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
 use App\Modules\Preflight\Actions\RunPreflight;
 use App\Modules\Preflight\Checks\BackupFreshnessCheck;
+use App\Modules\Preflight\Checks\ClientBuildCheck;
 use App\Modules\Preflight\Checks\DatabaseCheck;
 use App\Modules\Preflight\Checks\DependencyUpdatesCheck;
 use App\Modules\Preflight\Checks\DiscordApiCheck;
@@ -340,7 +341,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::Discord) ? [DiscordApiCheck::class, DiscordGatewaySidecarCheck::class] : []),
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::Files) ? [FileHostCheck::class] : []),
-            ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class] : []),
+            ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class, ClientBuildCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
         ], 'preflight.checks');

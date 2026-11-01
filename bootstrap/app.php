@@ -9,6 +9,7 @@ use App\Http\Middleware\LimitRequestBodySize;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
 use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
 use App\Modules\Files\Http\Middleware\VerifyTusHookSecret;
+use App\Modules\WebVoice\NativeClient\Http\AddServerVersionHeader;
 use App\Modules\WebVoice\NativeClient\Http\AuthenticateVoiceClient;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -30,7 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Native voice client API: bearer tokens, no session, no cookies, no CSRF (the `web`
             // group is deliberately not applied). Gated by the WebVoice module toggle.
             if (app(Modules::class)->routable(Module::WebVoice)) {
-                Route::group([], base_path('routes/voice-client.php'));
+                Route::middleware(AddServerVersionHeader::class)->group(base_path('routes/voice-client.php'));
             }
 
             // CSP violation reports: browsers POST these on their own, so no
