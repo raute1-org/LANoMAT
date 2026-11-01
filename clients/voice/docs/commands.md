@@ -210,7 +210,21 @@ Args `{settings}` (the whole `Settings` object). Result `{settings, shortcut: {a
 
 ### `get_environment`
 
-Result `{wayland, synthetic_audio, settings_path, socket_path, socket_error, shortcut, version}`.
+Result `{wayland, synthetic_audio, settings_path, socket_path, socket_error, shortcut, version, commit}`.
+`version` is the LANoMAT release the client was built for (a `git describe` string such as
+`m12-463-g0a3b6ff`, `dev` for a local build) and `commit` its git commit (`unknown` locally); the
+settings screen shows both. The same values go out as `X-Client-Version` and in the
+`User-Agent: lanomat-voice/<version>` of every API call.
+
+### `get_update_status`
+
+No args. Asks the connected server (`GET config`, block `client`) and compares it with this build.
+Result `{status: "up_to_date"}`, `{status: "update_available", latest}` or
+`{status: "incompatible", min}`. `incompatible` means the server's `min_client_version` is newer than
+this client: show a blocking banner. `update_available` is a hint only. Versions that cannot be
+ordered (`dev`, other schemes) and servers without the `client` block always give `up_to_date`.
+Errors like any server call (`network`, `auth`, ...): ignore them, there is just no banner. The
+download page of the connected server is `/talk/client`, opened with `open_url`.
 
 ### `logout`
 
