@@ -39,6 +39,7 @@ use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Voice\Http\VoiceSetupController;
 use App\Modules\Voting\Http\PollPageController;
 use App\Modules\WebVoice\Http\WebVoiceController;
+use App\Modules\WebVoice\NativeClient\Http\ConnectController;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Support\Facades\Route;
@@ -379,6 +380,11 @@ if ($modules->routable(Module::WebVoice)) {
         Route::post('channels/{channel}/participants/{user}/mute', [WebVoiceController::class, 'mute'])->name('participants.mute');
         Route::delete('channels/{channel}/participants/{user}/mute', [WebVoiceController::class, 'unmute'])->name('participants.unmute');
         Route::post('channels/{channel}/participants/{user}/remove', [WebVoiceController::class, 'remove'])->name('participants.remove');
+
+        // Native desktop client: pairing approval page and "Verbundene Geräte".
+        Route::get('connect', [ConnectController::class, 'show'])->name('connect');
+        Route::post('connect', [ConnectController::class, 'decide'])->middleware('throttle:voice-client-approve')->name('connect.decide');
+        Route::delete('devices/{device}', [ConnectController::class, 'revoke'])->name('devices.revoke');
     });
 }
 

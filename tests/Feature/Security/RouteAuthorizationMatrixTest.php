@@ -54,6 +54,12 @@ const PUBLIC_ROUTES = [
     'POST _boost/browser-logs' => 'laravel/boost dev tooling, only registered when the dev dependency is installed (never in the --no-dev image)',
     'POST api/discord/interactions' => 'Ed25519 signature middleware (VerifyDiscordSignature)',
     'POST api/telemetry/cs2/{serverLink}' => 'per-server telemetry token checked in the controller',
+    'POST api/voice-client/device' => 'native voice client device flow step 1: unauthenticated by design, throttled per IP',
+    'POST api/voice-client/token' => 'native voice client device flow step 3: the device code is the credential, throttled per IP and code',
+    'GET api/voice-client/v1/me' => 'bearer middleware (AuthenticateVoiceClient), never the session',
+    'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
+    'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
+    'GET api/voice-client/v1/config' => 'bearer middleware (AuthenticateVoiceClient); no secrets',
     'GET auth/discord/callback' => 'OAuth callback, state-verified by Socialite',
     'GET broadcasting/auth' => 'channel authorization callbacks decide per channel (routes/channels.php)',
     'POST csp-report' => 'browser CSP reports, throttled and size-limited',
@@ -86,7 +92,7 @@ const PUBLIC_ROUTES = [
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers',
-    'GET voice/setup', 'GET talk', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
+    'GET voice/setup', 'GET talk', 'GET talk/connect', 'POST talk/connect', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',
     'GET settings/connections/{provider}/redirect', 'GET settings/connections/{provider}/callback',
@@ -125,6 +131,7 @@ const OPEN_OBJECT_ROUTES = [
     'GET voice/installers/{installer}/download' => 'published installers are for all users',
     'DELETE user/passkeys/{passkey}' => 'scoped to the caller\'s own passkeys (covered by passkey scenario)',
     'POST screen/{event}/control/{scene}' => 'role middleware',
+    'DELETE talk/devices/{device}' => 'VoiceClientTokenPolicy revoke inside RevokeVoiceClientToken: owner only (tests/Feature/WebVoice/NativeClient)',
     'POST talk/channels/{channel}/token' => 'WebVoiceChannelPolicy join inside IssueJoinToken: roster or general only, tests/Feature/WebVoice/WebVoiceHttpTest',
     'GET talk/channels/{channel}/messages' => 'WebVoiceChannelPolicy view inside ChannelMessages: roster or general only',
     'POST talk/channels/{channel}/messages' => 'WebVoiceChannelPolicy post inside PostMessage, author is the caller',
@@ -458,6 +465,7 @@ it('puts every state-changing route behind CSRF verification', function () {
     // Token/signature-authenticated machine endpoints and stateless (cookie-less) endpoints.
     $exempt = [
         'api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/{serverLink}',
+        'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token',
         '_boost/browser-logs', 'csp-report', 'storage/{path}',
     ];
     $failures = [];

@@ -6,6 +6,8 @@ namespace App\Modules\WebVoice\Console;
 
 use App\Modules\WebVoice\Domain\ChannelKind;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
+use App\Modules\WebVoice\NativeClient\Models\VoiceClientDeviceCode;
+use App\Modules\WebVoice\NativeClient\Models\VoiceClientToken;
 use Illuminate\Console\Command;
 
 /**
@@ -28,6 +30,13 @@ class PruneArchivedCommand extends Command
             ->delete();
 
         $this->info("Pruned {$deleted} archived match channel(s).");
+
+        // Native voice client housekeeping: finished/expired pairing requests and dead tokens.
+        $codes = VoiceClientDeviceCode::query()->where('expires_at', '<', now()->subDay())->delete();
+        $tokens = VoiceClientToken::query()
+            ->where(fn ($q) => $q->where('expires_at', '<', now()->subDays(30))->orWhere('revoked_at', '<', now()->subDays(30)))
+            ->delete();
+        $this->info("Pruned {$codes} pairing request(s) and {$tokens} dead client token(s).");
 
         return self::SUCCESS;
     }
