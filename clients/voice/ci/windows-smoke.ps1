@@ -56,3 +56,6 @@ try {
 finally {
     if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
 }
+
+# The last native command (ptt status) exits 1 on purpose; do not leak that as the script result.
+exit 0
