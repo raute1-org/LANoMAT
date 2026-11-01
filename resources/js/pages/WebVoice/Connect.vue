@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { MonitorSmartphone } from '@lucide/vue';
+import DesktopClientLink from '@/components/DesktopClientLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -134,6 +135,8 @@ const formatDate = (iso: string | null): string =>
                 {{ labels.continue }}
             </Button>
         </form>
+
+        <DesktopClientLink class="mt-4" :label="labels.get_app" />
 
         <section class="mt-8" aria-labelledby="connected-devices">
             <h2

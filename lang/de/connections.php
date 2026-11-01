@@ -19,6 +19,9 @@ return [
         'unavailable' => 'Derzeit nicht verfügbar.',
         'empty' => 'Aktuell ist kein Anbieter für Verknüpfungen verfügbar.',
         'provider_id_label' => 'Konto-ID',
+        'desktop_app_heading' => 'Desktop-App',
+        'desktop_app_text' => 'Sprache, Chat, Spielen und mehr als eigene App für deinen Rechner.',
+        'desktop_app_link' => 'Herunterladen',
         'load_error' => 'Die Verknüpfungen konnten nicht geladen werden. Bitte lade die Seite neu.',
     ],
 ];

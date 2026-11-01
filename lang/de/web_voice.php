@@ -143,6 +143,7 @@ return [
         'title' => 'Desktop-App verbinden',
         'description' => 'Koppelt die LANoMAT-Sprach-App auf deinem Rechner mit deinem Konto.',
         'back' => 'Zurück zum Sprachchat',
+        'get_app' => 'Noch keine App? Hol dir die Desktop-App.',
         'enter_heading' => 'Code eingeben',
         'enter_help' => 'Starte die Verbindung in der Desktop-App. Sie zeigt dir einen Code aus acht Zeichen an.',
         'code_label' => 'Code aus der App',
@@ -168,9 +169,21 @@ return [
         'revoke' => 'Trennen',
     ],
 
+    // Entry points to the download page outside the voice area (dashboard card, device page, ...).
+    'client_hint' => [
+        'region' => 'Desktop-App',
+        'heading' => 'Alles in einer App: Sprache, Chat, Essen, Abstimmungen, Server',
+        'body' => 'Die Desktop-App gibt es für :os, passend zu dieser Version von LANoMAT.',
+        'cta' => 'Desktop-App holen',
+        'dismiss' => 'Hinweis ausblenden',
+        'os_linux' => 'Linux',
+        'os_windows' => 'Windows',
+        'os_macos' => 'macOS',
+    ],
+
     'client' => [
         'title' => 'Desktop-App herunterladen',
-        'description' => 'Die LANoMAT-Sprach-App für deinen Rechner, immer in der Version, die zu diesem Server passt.',
+        'description' => 'Die LANoMAT-App für deinen Rechner mit Sprache, Chat, Essen, Abstimmungen und Servern, immer in der Version, die zu diesem Server passt.',
         'back' => 'Zurück zum Sprachchat',
         'loading' => 'Download-Seite wird geladen',
         'error' => 'Die Download-Seite konnte nicht geladen werden. Lade die Seite neu.',

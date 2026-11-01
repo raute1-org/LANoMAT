@@ -14,6 +14,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -47,6 +48,14 @@ class AdminPanelProvider extends PanelProvider
                     ->label(ShellParity::FILAMENT_BACK_LABEL)
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->url('/'),
+            ])
+            // Same entry as the participant sidebar ("Desktop-App"), shown while WebVoice has routes.
+            ->navigationItems([
+                NavigationItem::make(ShellParity::DESKTOP_APP_LABEL)
+                    ->url(ShellParity::DESKTOP_APP_URL)
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->sort(1000)
+                    ->visible(fn (): bool => app(Modules::class)->routable(Module::WebVoice)),
             ])
             ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.shell.admin-stripe'))
             ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.back-to-app'))

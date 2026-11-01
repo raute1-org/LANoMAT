@@ -12,6 +12,7 @@ import {
     Image,
     Headphones,
     Mic,
+    MonitorDown,
     PartyPopper,
     Swords,
     Trophy,
@@ -37,6 +38,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useDesktopClient } from '@/composables/useDesktopClient';
 import { useModules } from '@/composables/useModules';
 import { homeHref } from '@/lib/home';
 import { dashboard } from '@/routes';
@@ -65,7 +67,10 @@ import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
 import { setup as voiceSetup } from '@/routes/voice';
-import { index as webVoiceIndex } from '@/routes/webvoice';
+import {
+    client as webVoiceClient,
+    index as webVoiceIndex,
+} from '@/routes/webvoice';
 import type { NavItem } from '@/types';
 import type { EventSummary } from '@/types/events';
 
@@ -78,6 +83,7 @@ const isStaff = computed<boolean>(
 );
 
 const { has } = useModules();
+const { client: desktopClient } = useDesktopClient();
 
 const generalItems = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
@@ -105,6 +111,19 @@ const generalItems = computed<NavItem[]>(() => [
         : []),
     ...(has('web_voice')
         ? [{ title: 'Sprachchat', href: webVoiceIndex(), icon: Headphones }]
+        : []),
+    // The shared prop is null for guests and when the WebVoice module is not routable.
+    ...(has('web_voice') && desktopClient.value
+        ? [
+              {
+                  title: 'Desktop-App',
+                  href: webVoiceClient(),
+                  icon: MonitorDown,
+                  ...(desktopClient.value.available
+                      ? { indicator: 'Für dein System verfügbar' }
+                      : {}),
+              },
+          ]
         : []),
 ]);
 

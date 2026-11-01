@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import DesktopClientHint from '@/components/DesktopClientHint.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ const props = defineProps<{
     steamLinked: boolean;
     statusLabels: Record<string, string>;
     labels: Record<string, any>;
+    clientHint: Record<string, string>;
 }>();
 
 defineOptions({
@@ -151,6 +153,9 @@ const ticketNote = computed<string>(() => {
         </div>
 
         <template v-else>
+            <!-- desktop app hint: only with a matching build, dismissible per version -->
+            <DesktopClientHint :labels="clientHint" />
+
             <!-- current / next event -->
             <section
                 class="rounded-md border border-border bg-card p-5"

@@ -6,6 +6,7 @@ namespace App\Modules\WebVoice\Support;
 
 use App\Modules\WebVoice\NativeClient\Support\NativeClientConfig;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
@@ -56,6 +57,38 @@ class ClientBuilds
         }
 
         return $this->manifest;
+    }
+
+    /**
+     * Cheap summary for pages that only need to know "is there an app for me": the manifest
+     * version, whether it matches this server, and the OSes with a GUI build. Cached for 60 s;
+     * the manifest's mtime and size are part of the key, so republishing shows up immediately.
+     *
+     * @return array{version: string|null, current: bool, oses: list<string>}
+     */
+    public function offer(): array
+    {
+        $dir = $this->directory();
+        $file = $dir === null ? null : $dir.DIRECTORY_SEPARATOR.'manifest.json';
+
+        if ($file === null || ! is_file($file)) {
+            return ['version' => null, 'current' => false, 'oses' => []];
+        }
+
+        clearstatcache(true, $file);
+        $key = 'webvoice.client.offer.'.hash('xxh3', implode('|', [$file, (int) @filemtime($file), (int) @filesize($file), self::serverVersion(), (string) self::serverCommit()]));
+
+        /** @var array{version: string|null, current: bool, oses: list<string>} */
+        return Cache::remember($key, 60, function (): array {
+            $manifest = $this->current();
+            $apps = array_filter($manifest->builds ?? [], fn (ClientBuild $b): bool => $b->kind === 'app');
+
+            return [
+                'version' => $manifest?->appVersion,
+                'current' => $manifest !== null && $apps !== [] && $this->matchesServer(),
+                'oses' => array_values(array_unique(array_map(fn (ClientBuild $b): string => $b->os, $apps))),
+            ];
+        });
     }
 
     /** The version string of the running server. */

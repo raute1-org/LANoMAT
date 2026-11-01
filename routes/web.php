@@ -371,6 +371,10 @@ if ($modules->routable(Module::Voice)) {
 if ($modules->routable(Module::WebVoice)) {
     // Browser voice + text chat. Not event-scoped (general channels are installation-wide);
     // every endpoint authorizes through WebVoiceChannelPolicy inside its action.
+    // Short stable alias for printed material and the Discord bot: guests are sent to the login
+    // by `auth`, logged-in users on to the real download page (which keeps its /talk/client URL).
+    Route::get('app', fn () => redirect()->route('webvoice.client'))->middleware('auth')->name('client.download.short');
+
     Route::middleware(['auth'])->prefix('talk')->name('webvoice.')->group(function () {
         Route::get('/', [WebVoiceController::class, 'index'])->name('index');
         // Native client download: the files come from the validated manifest only (ClientBuilds).

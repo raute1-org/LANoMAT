@@ -11,6 +11,7 @@
 
 use App\Models\User;
 use App\Support\Brand\ShellParity;
+use App\Support\Modules\Modules;
 use Filament\Enums\UserMenuPosition;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentView;
@@ -110,6 +111,34 @@ it('marks the admin area (badge + stripe) and offers an always-visible way back'
         ->and($back = FilamentView::renderHook(PanelsRenderHook::TOPBAR_END)->toHtml())->toContain('data-shell="back-to-app"')
         ->and($back)->toContain('href="/"')
         ->and($back)->toContain('Zur App');
+});
+
+it('offers the desktop app in both shells under the same label and URL', function () {
+    // Participant sidebar (Vue) ...
+    $sidebar = ShellParity::read('resources/js/components/AppSidebar.vue');
+    expect($sidebar)->toContain("title: 'Desktop-App'")->toContain("has('web_voice')");
+
+    // ... and the Filament navigation item, visible while the WebVoice module has routes.
+    Filament::setCurrentPanel('admin');
+    $this->actingAs(User::factory()->make());
+    $items = collect(Filament::getPanel('admin')->getNavigationItems())
+        ->filter(fn ($item) => $item->getLabel() === 'Desktop-App');
+
+    expect($items)->toHaveCount(1)
+        ->and($items->first()->getUrl())->toBe('/app')
+        ->and($items->first()->isVisible())->toBeTrue()
+        ->and(route('client.download.short', absolute: false))->toBe('/app');
+});
+
+it('hides the Filament desktop-app item while the WebVoice module is off', function () {
+    $this->app->instance(Modules::class, new Modules('full', ['web_voice' => false]));
+
+    Filament::setCurrentPanel('admin');
+    $this->actingAs(User::factory()->make());
+    $item = collect(Filament::getPanel('admin')->getNavigationItems())
+        ->first(fn ($item) => $item->getLabel() === 'Desktop-App');
+
+    expect($item)->not->toBeNull()->and($item->isVisible())->toBeFalse();
 });
 
 it('keeps the admin marker out of the participant app', function () {

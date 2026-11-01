@@ -41,6 +41,13 @@ function isActive(item: NavItem): boolean {
                     <Link :href="item.href">
                         <component :is="item.icon" />
                         <span>{{ item.title }}</span>
+                        <span
+                            v-if="item.indicator"
+                            class="ml-auto size-2 shrink-0 rounded-full bg-ok group-data-[collapsible=icon]:hidden"
+                            data-test="nav-indicator"
+                        >
+                            <span class="sr-only">{{ item.indicator }}</span>
+                        </span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>

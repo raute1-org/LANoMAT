@@ -1,5 +1,6 @@
 import type { ModuleKey } from '@/types';
 import type { Auth } from '@/types/auth';
+import type { DesktopClientOffer } from '@/types/desktopClient';
 import type { EventSummary } from '@/types/events';
 import type { NotificationItem } from '@/types/notifications';
 
@@ -23,6 +24,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             currentEvent: EventSummary | null;
+            desktopClient: DesktopClientOffer | null;
             modules: ModuleKey[];
             notificationLabels: Record<string, string>;
             unreadNotificationCount: number;
