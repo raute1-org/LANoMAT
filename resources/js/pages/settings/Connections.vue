@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import ConnectionCard from '@/components/settings/ConnectionCard.vue';
 import type { ConnectionProvider } from '@/components/settings/ConnectionCard.vue';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDesktopClient } from '@/composables/useDesktopClient';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { edit } from '@/routes/connections';
 
@@ -24,6 +27,7 @@ defineOptions({
 });
 
 const { isNavigating, hasError } = usePageLoadState();
+const { client: desktopClient } = useDesktopClient();
 </script>
 
 <template>
@@ -81,5 +85,26 @@ const { isNavigating, hasError } = usePageLoadState();
                 />
             </div>
         </template>
+
+        <!-- desktop app: a short row, only when the download page is reachable -->
+        <div
+            v-if="desktopClient"
+            class="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4"
+            data-test="connections-desktop-app"
+        >
+            <div class="min-w-0 text-sm">
+                <p class="font-medium">
+                    {{ props.labels.desktop_app_heading }}
+                </p>
+                <p class="text-muted-foreground">
+                    {{ props.labels.desktop_app_text }}
+                </p>
+            </div>
+            <Button as-child variant="outline" size="sm">
+                <Link :href="desktopClient.url">
+                    {{ props.labels.desktop_app_link }}
+                </Link>
+            </Button>
+        </div>
     </div>
 </template>

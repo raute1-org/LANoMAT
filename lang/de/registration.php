@@ -14,6 +14,8 @@ return [
     'page' => [
         'title' => 'Zum Event anmelden',
         'choose_ticket' => 'Ticket wählen',
+        'desktop_app_lead' => 'Zeitplan, Essen und Abstimmungen gibt es auch als Desktop-App.',
+        'desktop_app_link' => 'Desktop-App holen',
         'register' => 'Jetzt anmelden',
         'my_registration' => 'Meine Anmeldung',
         'ticket' => 'Ticket',

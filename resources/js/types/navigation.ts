@@ -14,4 +14,6 @@ export type NavItem = {
     isActive?: boolean;
     /** Also highlight on nested paths (e.g. /teams/12 under /teams). */
     prefix?: boolean;
+    /** Small status dot with an accessible text, e.g. a build exists for the visitor's system. */
+    indicator?: string;
 };

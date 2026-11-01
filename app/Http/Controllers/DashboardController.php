@@ -37,6 +37,7 @@ class DashboardController extends Controller
             'steamLinked' => LinkedProviders::has($user, LinkedAccountProvider::Steam),
             'statusLabels' => trans('events.status'),
             'labels' => trans('dashboard'),
+            'clientHint' => trans('web_voice.client_hint'),
         ]);
     }
 

@@ -1,5 +1,6 @@
 export * from './auth';
 export * from './catering';
+export * from './desktopClient';
 export * from './events';
 export * from './files';
 export * from './friends';

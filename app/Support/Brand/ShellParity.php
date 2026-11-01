@@ -36,6 +36,12 @@ final class ShellParity
     /** German label of the Filament user-menu link back to the participant app. */
     public const FILAMENT_BACK_LABEL = 'Zur App';
 
+    /** German label of the desktop-app download entry; sidebar item in the Vue app AND navigation item in Filament. */
+    public const DESKTOP_APP_LABEL = 'Desktop-App';
+
+    /** Short stable URL both shells link to (redirects to the download page for logged-in users). */
+    public const DESKTOP_APP_URL = '/app';
+
     /** German labels of the Vue user menu (UserMenuContent.vue): admin link, settings, logout. */
     public const VUE_MENU_LABELS = ['Admin-Bereich', 'Einstellungen', 'Abmelden'];
 

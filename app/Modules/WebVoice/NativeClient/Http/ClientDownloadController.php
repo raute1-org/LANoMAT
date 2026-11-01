@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Modules\WebVoice\NativeClient\Models\VoiceClientToken;
 use App\Modules\WebVoice\Support\ClientBuild;
 use App\Modules\WebVoice\Support\ClientBuilds;
+use App\Modules\WebVoice\Support\VisitorPlatform;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -44,7 +45,7 @@ class ClientDownloadController extends Controller
                 'url' => route('webvoice.client.download', ['file' => $build->name], absolute: false),
             ])->values(),
             // Preselects a tab only; every platform is listed regardless.
-            'detectedOs' => $this->detectOs((string) $request->userAgent()),
+            'detectedOs' => VisitorPlatform::os((string) $request->userAgent()),
             'labels' => trans('web_voice.client'),
         ]);
     }
@@ -65,19 +66,6 @@ class ClientDownloadController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-cache',
         ]);
-    }
-
-    /** @return 'linux'|'windows'|'macos'|null */
-    private function detectOs(string $userAgent): ?string
-    {
-        return match (true) {
-            stripos($userAgent, 'Windows') !== false => 'windows',
-            stripos($userAgent, 'Macintosh') !== false || stripos($userAgent, 'Mac OS X') !== false => 'macos',
-            // Android and ChromeOS also say Linux, but have no build either way: treat them as unknown.
-            stripos($userAgent, 'Android') !== false || stripos($userAgent, 'CrOS') !== false => null,
-            stripos($userAgent, 'Linux') !== false || stripos($userAgent, 'X11') !== false => 'linux',
-            default => null,
-        };
     }
 
     private function user(Request $request): User

@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import ArrivalPlanFields from '@/components/ArrivalPlanFields.vue';
+import DesktopClientLink from '@/components/DesktopClientLink.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
@@ -242,6 +243,11 @@ function cancel() {
             >
                 {{ cancelBlockedLabels[registration.cancelBlockedReason] }}
             </p>
+
+            <DesktopClientLink
+                :lead="labels.desktop_app_lead"
+                :label="labels.desktop_app_link"
+            />
         </section>
 
         <section v-else-if="availability === 'open'" class="mt-8 space-y-6">

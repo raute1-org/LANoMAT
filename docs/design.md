@@ -145,6 +145,7 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 ### 4. Navigation
 
 - **Reachable:** every page is reachable from the sidebar (`components/AppSidebar.vue`) or a visible in-page link/CTA. No orphan pages. Cross-event items go in the "Allgemein" group, event-scoped items in the "Aktuelle LAN" group (shown when `currentEvent` exists); secondary event modules with a user-facing index (Essensbestellung, Abstimmungen, Mitspieler finden, Dateien, Spielserver) live in the "Mehr" group right below it, each gated by `useModules().has(...)`, and are mirrored as buttons on the event overview (`Event/Show`); staff get "Check-in" and "Infoscreen-Steuerung" in the event group; status-dependent items (e.g. "Anmeldung" only while `status === 'registration'`) are conditional entries.
+- **Desktop app entry points:** the shared Inertia prop `desktopClient` (`DesktopClientOffer`: `null` for guests and without WebVoice routes, else `{url, version, os, available}`; manifest summary cached 60 s) drives the sidebar entry "Desktop-App" (dot = a build for your OS), the dismissible `DesktopClientHint` on the Dashboard (only with a matching build, never on phones/tablets, dismissal kept in `localStorage` per client version) and the quiet `DesktopClientLink` on `/talk/connect`, `settings/connections` and the registered state of `Event/Register`. `GET /app` (`client.download.short`) redirects to `/talk/client` for printed material.
 - **Contextual instead of sidebar:** detail pages, flows and one-off pages (ticket, a single tournament, team edit) are reached via links from their list or the Dashboard.
 - **Module gating:** frontend `useModules().has('<key>')` around nav items and links; backend routes via `$modules->routable(Module::X)`; backend cross-module calls via `Modules::enabled()`/events/contracts (architecture ratchet in `tests/Architecture`).
 - **Active state:** `NavMain` highlights by exact URL; set `prefix: true` on a `NavItem` whose detail pages live below it (e.g. `/teams/{id}`), or `isActive` to override (the "Aktuelle LAN" link yields to the event "Übersicht").
@@ -239,6 +240,7 @@ Single definition: `App\Support\Brand\ShellParity`. Canonical logo geometry: `pu
 | User-menu items, German | "Admin-Bereich", "Einstellungen", "Abmelden" | "Zur App", Filament profile/logout |
 | Admin marker present **only** in admin | none (must stay absent) | neutral "Admin" badge in the brand + 3px top stripe (`PanelsRenderHook::BODY_START`) |
 | Back link to app always visible in admin | n/a | "Zur App" button (`PanelsRenderHook::TOPBAR_END`) + user-menu item |
+| "Desktop-App" entry (while the WebVoice module is routable) | `AppSidebar.vue` "Allgemein" group, green dot when a build for the visitor's OS exists | Filament navigation item to `/app` (`ShellParity::DESKTOP_APP_LABEL`) |
 
 **Marker colour choice:** the badge and stripe are neutral high-contrast (Filament `gray-950` on light, `gray-50` on dark), not amber. Amber is rationed to the primary action and live state (see above); using it for "you are in admin" would dilute that signal.
 

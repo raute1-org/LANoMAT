@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Registration\Enums\RegistrationAvailability;
+use App\Modules\WebVoice\Support\DesktopClientOffer;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -48,6 +49,8 @@ class HandleInertiaRequests extends Middleware
                 fn (Module $m) => $m->key(),
                 app(Modules::class)->enabledModules(),
             ),
+            // Lazy: resolved only when the response includes it; the manifest summary is cached for 60 s.
+            'desktopClient' => fn () => app(DesktopClientOffer::class)->for($request),
             'auth' => [
                 'user' => $request->user(),
             ],
