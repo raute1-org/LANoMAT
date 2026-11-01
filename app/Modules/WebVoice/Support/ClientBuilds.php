@@ -250,6 +250,8 @@ class ClientBuilds
         $os = $entry['os'] ?? null;
         $arch = $entry['arch'] ?? null;
         $kind = $entry['kind'] ?? null;
+        // Manifests that predate the field have none: that is a plain archive.
+        $variant = $entry['variant'] ?? ClientBuild::ARCHIVE;
         $size = $entry['size'] ?? null;
         $sha = $entry['sha256'] ?? null;
         $signed = $entry['signed'] ?? null;
@@ -259,12 +261,24 @@ class ClientBuilds
             || ! is_string($os) || ! in_array($os, self::OS, true)
             || ! is_string($arch) || ! in_array($arch, self::ARCH, true)
             || ! is_string($kind) || ! in_array($kind, self::KIND, true)
+            || ! is_string($variant) || ! in_array($variant, ClientBuild::VARIANTS, true)
+            || ! $this->variantFits($variant, $name, $os, $kind)
             || ! is_int($size) || $size < 0
             || ! is_string($sha) || preg_match(self::SHA256, $sha) !== 1
             || ($signed !== null && ! is_bool($signed))) {
             return null;
         }
 
-        return new ClientBuild($name, $os, $arch, $kind, $size, $sha, $signed);
+        return new ClientBuild($name, $os, $arch, $kind, $size, $sha, $signed, $variant);
+    }
+
+    /** A setup or portable file is the Windows app as an .exe, named for what it is; an archive may be anything. */
+    private function variantFits(string $variant, string $name, string $os, string $kind): bool
+    {
+        return match ($variant) {
+            ClientBuild::INSTALLER => $os === 'windows' && $kind === 'app' && str_ends_with($name, '-setup.exe'),
+            ClientBuild::PORTABLE => $os === 'windows' && $kind === 'app' && str_ends_with($name, '-portable.exe'),
+            default => true,
+        };
     }
 }

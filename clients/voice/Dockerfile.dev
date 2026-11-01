@@ -45,7 +45,8 @@ RUN apt-get update \
 
 # ---- windows: cross-build for x86_64-pc-windows-msvc from Linux with cargo-xwin (downloads the
 # Windows SDK/CRT once into XWIN_CACHE_DIR; clang-cl and lld-link do the compile and link). NASM
-# is needed by aws-lc-sys on Windows targets, zip packs the portable app archive.
+# is needed by aws-lc-sys on Windows targets. nsis (makensis) and tauri-cli build the Windows
+# installer (`cargo tauri build --bundles nsis`, see ci/build.sh); zip stays for ad-hoc packing.
 FROM app AS windows
 
 ARG LLVM_VERSION=21
@@ -61,3 +62,10 @@ RUN apt-get update \
 
 ENV XWIN_CACHE_DIR=/xwin-cache \
     XWIN_ACCEPT_LICENSE=1
+
+# tauri-cli drives the NSIS bundler; its version is pinned (the `tauri` crate in Cargo.lock is 2.12.x).
+RUN cargo install tauri-cli --version 2.12.4 --locked
+# Debian 12 ships NSIS 3.08 without Win/RestartManager.nsh, which Tauri's installer template includes.
+RUN curl -fsSL https://raw.githubusercontent.com/kichik/nsis/bef54b0100b03756a8fe7100ae7b1130f2237798/Include/Win/RestartManager.nsh \
+      -o /usr/share/nsis/Include/Win/RestartManager.nsh \
+    && echo "67149978412da9b283e2e1abe48a360093df9caf6363373e2cabe463978b7c0e  /usr/share/nsis/Include/Win/RestartManager.nsh" | sha256sum -c -

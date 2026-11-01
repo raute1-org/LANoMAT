@@ -30,9 +30,23 @@ eine aktuelle Distribution mit GTK 3, WebKitGTK 4.1 und PipeWire, PulseAudio ode
 
 ### Windows
 
-1. Lade die Datei `lanomat-voice-app-...-windows-x86_64.zip` herunter und entpacke sie, zum Beispiel auf
-   den Desktop.
-2. Starte `LANoMAT-Voice.exe`.
+Auf der Download-Seite gibt es für Windows zwei Dateien der App. Such dir eine aus:
+
+**Installer (empfohlen)**, `lanomat-voice-app-...-windows-x86_64-setup.exe`:
+
+1. Doppelklicke die Setup-Datei. Du brauchst keine Administratorrechte, die App wird nur für dein
+   Windows-Konto installiert (Sprache Deutsch oder Englisch, je nach Windows).
+2. Starte **LANoMAT Voice** danach über das Startmenü.
+3. Entfernen kannst du die App unter „Einstellungen, Apps, Installierte Apps".
+
+**Portable EXE (ohne Installation)**, `lanomat-voice-app-...-windows-x86_64-portable.exe`:
+
+1. Lege die Datei an einen festen Platz, zum Beispiel in deine Dokumente.
+2. Doppelklicke sie. Es wird nichts installiert; deine Einstellungen liegen im Benutzerprofil
+   (`%APPDATA%\lanomat-voice`), nicht neben der Datei. Zum Löschen löschst du einfach die Datei.
+
+Beide Varianten sind dieselbe App und teilen sich die Einstellungen und die Anmeldung. Starte aber nur eine
+Kopie gleichzeitig: Die Push-to-Talk-Verbindung gehört pro Windows-Konto immer einer laufenden App.
 
 Die Windows-Version ist noch **nicht digital signiert**. Deshalb zeigt Windows beim ersten Start die Meldung
 „Der Computer wurde durch Windows geschützt" (SmartScreen). Das ist erwartbar und kein Zeichen für ein
@@ -41,9 +55,11 @@ Problem, solange du die Datei von der LANoMAT-Seite hast:
 1. Klicke auf **Weitere Informationen**.
 2. Klicke auf **Trotzdem ausführen**.
 
-Wenn du ganz sicher gehen willst, vergleiche die Prüfsumme der Datei (`Get-FileHash .\datei.zip` in der
+Wenn du ganz sicher gehen willst, vergleiche die Prüfsumme der Datei (`Get-FileHash .\datei.exe` in der
 PowerShell) mit dem SHA-256-Wert auf der Download-Seite. Die App braucht die WebView2-Laufzeit; sie ist in
-Windows 11 und im aktuellen Windows 10 schon enthalten.
+Windows 11 und im aktuellen Windows 10 schon enthalten. Fehlt sie, holt der Installer sie einmalig aus dem
+Internet; die portable Datei installiert nichts nach. In einem LAN ohne Internet muss die Laufzeit vorher
+auf dem Rechner sein.
 
 ## Erster Start
 

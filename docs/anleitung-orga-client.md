@@ -45,7 +45,12 @@ Version des Servers entsprechen muss (zu sehen auf der Seite `/talk/client` oder
 Das Ergebnis ist ein **Entwurf** (Draft) eines GitHub-Releases, den du prüfst und selbst veröffentlichst.
 Die Dateien samt `manifest.json` kopierst du anschließend nach `clients-dist/`, **erst die Dateien, die
 `manifest.json` zuletzt**. Ein automatischer Abruf beim Deploy ist noch nicht gebaut. Die Windows-Dateien
-sind unsigniert; das Manifest sagt `signed: false`.
+sind unsigniert; das Manifest sagt `signed: false`. Für Windows entstehen pro Version drei Dateien: der
+Installer (`...-windows-x86_64-setup.exe`, NSIS, pro Benutzer ohne Administratorrechte), die portable App
+(`...-windows-x86_64-portable.exe`, eine einzelne Datei) und die Kommandozeile (`lanomat-voice-cli-...exe`).
+Im Manifest steht dafür das Feld `variant` (`installer`, `portable`, `archive`; ohne Feld gilt `archive`, so
+bleiben ältere Manifeste mit der ZIP-Datei gültig). Auf einem Rechner ohne WebView2-Laufzeit braucht der
+Installer einmalig Internet; im LAN ohne Internet muss die Laufzeit vorher installiert sein.
 
 Achtung: Ein Tag `client-v...` wird auch für `git describe` zum nächsten Tag. Wer nach dem Taggen das
 Server-Image baut, bekommt diesen Tag als Version. Details und die Alternative mit Handstart stehen in

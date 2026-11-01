@@ -14,6 +14,9 @@ WIN=x86_64-pc-windows-msvc
 
 step() { printf '\n=== %s ===\n' "$*"; }
 
+step "windows version mapping selftest"
+ci/win-version.sh --selftest
+
 step "cargo fmt --check"
 cargo fmt --check
 
@@ -47,9 +50,25 @@ done
 step "clippy (windows, cross)"
 cargo xwin clippy --workspace --all-targets --all-features --target "$WIN" -- -D warnings
 
-step "release build (windows, cross)"
-cargo xwin build --release --target "$WIN" -p lanomat-voice-app -p voice-cli
-cp "target/$WIN/release/lanomat-voice.exe" "target/$WIN/release/lanomat-voice-app.exe" dist/windows/
+step "release build (windows, cross): CLI"
+cargo xwin build --release --target "$WIN" -p voice-cli
+cp "target/$WIN/release/lanomat-voice.exe" dist/windows/
+
+# The desktop app is built by the Tauri bundler: it compiles the app exe (the portable file) and
+# wraps that same exe in an NSIS installer. The bundler is off in tauri.conf.json and is switched
+# on for this one invocation, together with the numeric Windows version (ci/win-version.sh maps
+# the release string, e.g. m12-496-g9624daa -> 0.496.0; the exact string stays in LANOMAT_BUILD_VERSION).
+step "release build (windows, cross): desktop app and NSIS installer"
+WINVER=$(ci/win-version.sh "$LANOMAT_BUILD_VERSION")
+echo "Windows file version: $WINVER (from $LANOMAT_BUILD_VERSION)"
+rm -rf "target/$WIN/release/bundle/nsis"
+(cd app && cargo tauri build --runner cargo-xwin --target "$WIN" --bundles nsis --ci \
+  --config "{\"version\":\"$WINVER\",\"bundle\":{\"active\":true}}")
+cp "target/$WIN/release/lanomat-voice-app.exe" dist/windows/
+setups=$(find "target/$WIN/release/bundle/nsis" -maxdepth 1 -name '*-setup.exe')
+[ "$(printf '%s\n' "$setups" | wc -l)" = 1 ] || { echo "expected exactly one NSIS setup, got: $setups" >&2; exit 1; }
+cp "$setups" dist/windows/lanomat-voice-app-setup.exe
+echo "$WINVER" > dist/windows/windows-version.txt
 
 step "windows test executables"
 cargo xwin test --release --no-run --workspace --target "$WIN" --message-format=json \

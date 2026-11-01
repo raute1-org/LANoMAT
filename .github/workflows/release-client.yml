@@ -8,11 +8,14 @@
 #   * ONE Linux job builds everything inside the image from `clients/voice/Dockerfile.dev`
 #     (`--target windows`): the Linux binaries natively, the Windows binaries cross-compiled for
 #     x86_64-pc-windows-msvc with cargo-xwin (clang-cl + lld-link, Windows SDK from Microsoft).
-#     No Windows runner is needed to BUILD.
+#     No Windows runner is needed to BUILD. The Windows installer is built by the Tauri bundler
+#     (NSIS, `cargo tauri build --runner cargo-xwin`, ci/build.sh); its numeric file version comes
+#     from clients/voice/ci/win-version.sh.
 #   * A real Windows runner (`windows-smoke`) then RUNS what was cross-built: the unit tests
 #     (compiled as .exe on Linux, so the named-pipe push-to-talk code is exercised for real) and a
-#     smoke test that starts the app, checks its window and drives the push-to-talk pipe.
-#   * `package` signs the Windows files when asked to, zips, writes SHA256SUMS and the manifest.
+#     smoke test that starts the portable exe, installs the setup silently, starts the installed
+#     app, checks window and push-to-talk pipe each time, and uninstalls again.
+#   * `package` signs the Windows files when asked to, names them, writes SHA256SUMS and the manifest.
 #   * `draft-release` (tags only) attaches everything to a DRAFT release. The owner publishes it.
 #
 # Version contract (the same as scripts/ops/build-client.sh and the server's ClientBuilds validator):
@@ -27,10 +30,11 @@
 # docs/infra/native-client-release.md); <V> is the version string:
 #   lanomat-voice-app-<V>-linux-x86_64.tar.gz     desktop app            (kind app)
 #   lanomat-voice-cli-<V>-linux-x86_64.tar.gz     CLI                    (kind cli)
-#   lanomat-voice-app-<V>-windows-x86_64.zip      desktop app, portable  (kind app)
-#   lanomat-voice-cli-<V>-windows-x86_64.exe      CLI                    (kind cli)
+#   lanomat-voice-app-<V>-windows-x86_64-setup.exe     desktop app, NSIS installer   (kind app, variant installer)
+#   lanomat-voice-app-<V>-windows-x86_64-portable.exe  desktop app, one portable exe (kind app, variant portable)
+#   lanomat-voice-cli-<V>-windows-x86_64.exe           CLI                           (kind cli, variant archive)
 #   manifest.json: { app_version, commit, api_version, built_at,
-#                    files: [{ name, os, arch, kind, size, sha256, signed }] } for all files,
+#                    files: [{ name, os, arch, kind, variant, size, sha256, signed }] } for all files,
 #   manifest-<os>-<arch>.json: the same for one platform, and SHA256SUMS.
 #
 # Windows code signing (OFF by default, files are labelled `signed: false`):
@@ -73,6 +77,7 @@ jobs:
       commit: ${{ steps.v.outputs.commit }}
       api_version: ${{ steps.v.outputs.api_version }}
       release: ${{ steps.v.outputs.release }}
+      windows_version: ${{ steps.v.outputs.windows_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -91,6 +96,7 @@ jobs:
             echo "::error::'$version' is not a usable version string (letters, digits, . _ - ; at most 64)"
             exit 1
           fi
+          windows_version=$(clients/voice/ci/win-version.sh "$version")
           commit=$(lanomat_commit .)
           api=$(grep -oE "API_VERSION = [0-9]+" app/Modules/WebVoice/NativeClient/Support/NativeClientConfig.php | grep -oE "[0-9]+$")
           release=false
@@ -102,6 +108,7 @@ jobs:
             echo "commit=$commit"
             echo "api_version=$api"
             echo "release=$release"
+            echo "windows_version=$windows_version"
           } >> "$GITHUB_OUTPUT"
           echo "::notice::client $version at $commit (API v$api), draft release: $release"
 
@@ -158,7 +165,7 @@ jobs:
           sudo chown -R "$USER" clients/voice/dist
           mkdir -p stage/linux stage/windows stage/windows-tests
           cp clients/voice/dist/linux/* stage/linux/
-          cp clients/voice/dist/windows/*.exe stage/windows/
+          cp clients/voice/dist/windows/*.exe clients/voice/dist/windows/windows-version.txt stage/windows/
           cp clients/voice/dist/windows-tests/* stage/windows-tests/
           ls -l stage/*
 
@@ -206,14 +213,15 @@ jobs:
             Write-Host '::endgroup::'
           }
           if ($failed.Count -gt 0) { throw "failing test binaries: $($failed -join ', ')" }
-      - name: Smoke test (CLI version, app window, push-to-talk pipe)
+      - name: Smoke test (portable exe, silent install, installed app, uninstall)
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           APP_VERSION: ${{ needs.meta.outputs.version }}
-        run: ./clients/voice/ci/windows-smoke.ps1 -Dir bin -Version $env:APP_VERSION
+          WINDOWS_VERSION: ${{ needs.meta.outputs.windows_version }}
+        run: ./clients/voice/ci/windows-smoke.ps1 -Dir bin -Version $env:APP_VERSION -WindowsVersion $env:WINDOWS_VERSION
 
-  # Optionally signs, zips, writes SHA256SUMS and the manifests.
+  # Optionally signs, names, writes SHA256SUMS and the manifests.
   package:
     needs: [meta, build, windows-smoke]
     runs-on: ${{ fromJSON(vars.CLIENT_LINUX_RUNS_ON || '"ubuntu-24.04"') }}
@@ -279,22 +287,10 @@ jobs:
           # Linux: tarballs keep the executable bit.
           cp linux/* dist/
 
-          # Windows: the CLI as a plain .exe, the app as a portable zip (exe plus a short note).
+          # Windows: the CLI as a plain .exe, the app as the NSIS installer and as one portable exe.
           cp "$src/lanomat-voice.exe" "dist/lanomat-voice-cli-$VERSION-windows-x86_64.exe"
-          dir="lanomat-voice-app-$VERSION-windows-x86_64"
-          mkdir -p "zip/$dir"
-          cp "$src/lanomat-voice-app.exe" "zip/$dir/LANoMAT-Voice.exe"
-          cat > "zip/$dir/LIESMICH.txt" <<EOF
-          LANoMAT Voice (Desktop-App), Version $VERSION, Windows 10/11 x64, portabel
-          Gebaut aus Commit $COMMIT, passend zum LANoMAT-Server derselben Version.
-
-          Starten: LANoMAT-Voice.exe (Voraussetzung: WebView2-Laufzeit, ab Windows 11 und in
-          aktuellen Windows-10-Installationen vorhanden). Beim ersten Start die Adresse des Servers
-          eingeben und den Code im Browser unter "Verbundene Geraete" bestaetigen.
-          Die Datei ist unsigniert, SmartScreen warnt: "Weitere Informationen", dann
-          "Trotzdem ausfuehren". Die SHA-256-Pruefsumme steht auf der Download-Seite.
-          EOF
-          (cd zip && zip -qr "../dist/$dir.zip" "$dir")
+          cp "$src/lanomat-voice-app-setup.exe" "dist/lanomat-voice-app-$VERSION-windows-x86_64-setup.exe"
+          cp "$src/lanomat-voice-app.exe" "dist/lanomat-voice-app-$VERSION-windows-x86_64-portable.exe"
 
           chmod +x clients/voice/ci/manifest.sh
           clients/voice/ci/manifest.sh dist "$VERSION" "$COMMIT" "$API_VERSION" "$signed"
@@ -333,7 +329,7 @@ jobs:
           cat > notes.md <<EOF
           LANoMAT Voice $VERSION (native client).
 
-          - Windows 10/11 x64: \`lanomat-voice-app-$VERSION-windows-x86_64.zip\` entpacken und \`LANoMAT-Voice.exe\` starten (WebView2 noetig); \`lanomat-voice-cli-$VERSION-windows-x86_64.exe\` ist die Kommandozeile.
+          - Windows 10/11 x64: \`lanomat-voice-app-$VERSION-windows-x86_64-setup.exe\` ist der Installer (empfohlen, ohne Administratorrechte), \`lanomat-voice-app-$VERSION-windows-x86_64-portable.exe\` die portable App ohne Installation (WebView2 noetig); \`lanomat-voice-cli-$VERSION-windows-x86_64.exe\` ist die Kommandozeile.
           - Linux x86_64: \`lanomat-voice-app-$VERSION-linux-x86_64.tar.gz\` bzw. \`lanomat-voice-cli-$VERSION-linux-x86_64.tar.gz\` entpacken.
 
           $note

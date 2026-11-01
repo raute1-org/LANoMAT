@@ -39,12 +39,16 @@ How the native voice client (`clients/voice`: the Tauri desktop app `lanomat-voi
    clang 21 from apt.llvm.org for libwebrtc, the Tauri Linux dependencies, `cargo-xwin`) and runs
    `clients/voice/ci/build.sh` inside it: `cargo fmt --check`, `cargo clippy ... -D warnings`,
    `cargo test --workspace`, the Linux release binaries and tarballs, the same clippy for
-   `x86_64-pc-windows-msvc`, the Windows release binaries **cross-compiled with cargo-xwin** (no
-   Windows machine is needed to build) and the Windows unit-test executables.
+   `x86_64-pc-windows-msvc`, the Windows CLI **cross-compiled with cargo-xwin** (no Windows machine
+   is needed to build), the Windows **desktop app and its NSIS installer** (see below) and the Windows
+   unit-test executables.
 3. `windows-smoke` (real `windows-2025` runner): runs the Windows test executables (so the named-pipe
-   push-to-talk code is tested for real) and `ci/windows-smoke.ps1` (CLI `--version`, the app window,
-   `ptt status` through the live app's pipe).
-4. `package`: optional signing, the portable zip, `SHA256SUMS`, `manifest.json` and per-platform
+   push-to-talk code is tested for real) and `ci/windows-smoke.ps1`: CLI `--version`, the version
+   metadata, then the **portable exe** (window, `ptt status` through the live app's pipe, process
+   stops, nothing written next to the exe), then a **silent install** of the setup (per user, into a
+   temp dir), the **installed** exe with the same checks, a second copy next to it, and the silent
+   **uninstall** (directory, Start Menu shortcut and registry entry are gone).
+4. `package`: optional signing, naming the Windows files, `SHA256SUMS`, `manifest.json` and per-platform
    fragments (`ci/manifest.sh`); uploads the artifact `client-release-files`.
 5. `draft-release` (tag runs only): a **draft** GitHub Release with those files. The workflow never
    publishes; the owner reviews the draft and publishes it by hand. A manual run publishes nothing
@@ -61,24 +65,72 @@ tauri-build's "static VC runtime, dynamic UCRT" default (otherwise `lld-link` re
 `RuntimeLibrary` mismatch or missing `strlen`/`sinf`); and `clang-cl`/`llvm-lib` must be on `PATH`
 (the `windows` stage of `Dockerfile.dev` links them from the apt.llvm.org packages).
 
+### The Windows installer and the portable exe
+
+One `cargo tauri build` produces both. `ci/build.sh` runs, inside the `windows` image,
+
+```sh
+cd app && cargo tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --ci \
+  --config '{"version":"<numeric>","bundle":{"active":true}}'
+```
+
+- The bundler is **off** in `app/tauri.conf.json` (`bundle.active=false`, so a plain `cargo build` and
+  the CLI build are untouched) and is switched on only by this `--config`. The NSIS settings live in the
+  file: per-user install without administrator rights (`installMode: currentUser`), `languages`
+  German and English (the installer picks the Windows language), start menu shortcut, uninstaller,
+  product name `LANoMAT Voice`, identifier `app.lanomat.voice`.
+- The image has `nsis` (makensis), `tauri-cli` (version pinned in `Dockerfile.dev`, installed with
+  `--locked`) and the `Win/RestartManager.nsh` header (checksum-pinned; Debian 12's NSIS 3.08 lacks it,
+  Tauri's installer template needs it). The static-CRT settings (`.cargo/config.toml`,
+  `app/build.rs`) apply unchanged: `tauri build` compiles the same crate.
+- **The same exe is the portable file and the one inside the installer.** After the bundle step the
+  exe in `target/<triple>/release/lanomat-voice-app.exe` is copied out as the portable app. (The Tauri
+  bundler patches a bundle-type marker into it; it only matters to the Tauri updater plugin, which this
+  app does not use.) Settings and credentials live in `%APPDATA%\lanomat-voice` for both (the
+  `directories` crate, independent of where the exe sits), so a portable copy and an installed copy
+  share them. The push-to-talk pipe is per user, so **two running copies exclude each other**: the
+  second cannot take the pipe (the smoke test proves the first keeps working).
+- **WebView2.** `webviewInstallMode` is `embedBootstrapper`: the installer carries Microsoft's small
+  bootstrapper and runs it if WebView2 is missing, which needs the internet **once**. A LAN without
+  internet needs the WebView2 runtime preinstalled (Windows 11 and updated Windows 10 have it). The
+  portable exe never installs anything and needs WebView2 present.
+- **Version metadata.** NSIS and the Windows version resource need a numeric `x.y.z`.
+  `clients/voice/ci/win-version.sh` maps the release string deterministically (self-tested in
+  `ci/build.sh`): `client-v1.2.3` / `v1.2.3` / `1.2.3` -> `1.2.3`; a `git describe` string
+  `<tag>-<N>-g<hex>` (optionally `-dirty`) -> `0.N.0`, so `m12-496-g9624daa` -> `0.496.0`; anything else
+  -> `0.0.0`; a field above 65535 is an error. The exact string stays in the file names, the manifest and
+  `--version`; only the exe's file/product version and the installer's version use the number (the
+  smoke test checks it).
+- **Signing and the installer.** The SignPath hook signs the three `.exe` files, but the exe *inside* the
+  installer is the unsigned one (it was embedded before signing). Signing the inner exe too needs
+  Tauri's `bundle.windows.signCommand` on a Windows host; that is left for the day signing is real.
+- Not built here: a Linux AppImage or an Arch package (possible follow-ups, mentioned for later).
+
 ### Files and manifest contract
 
 `<V>` is the version string. The shape is what the server's `ClientBuilds` validates and
 `scripts/ops/build-client.sh` writes, with the extra `signed` field (read by the server: the download page explains unsigned Windows files).
 
-| File | os | arch | kind |
-| --- | --- | --- | --- |
-| `lanomat-voice-app-<V>-linux-x86_64.tar.gz` | linux | x86_64 | app |
-| `lanomat-voice-cli-<V>-linux-x86_64.tar.gz` | linux | x86_64 | cli |
-| `lanomat-voice-app-<V>-windows-x86_64.zip` | windows | x86_64 | app (portable, `LANoMAT-Voice.exe` inside) |
-| `lanomat-voice-cli-<V>-windows-x86_64.exe` | windows | x86_64 | cli |
+| File | os | arch | kind | variant |
+| --- | --- | --- | --- | --- |
+| `lanomat-voice-app-<V>-linux-x86_64.tar.gz` | linux | x86_64 | app | archive |
+| `lanomat-voice-cli-<V>-linux-x86_64.tar.gz` | linux | x86_64 | cli | archive |
+| `lanomat-voice-app-<V>-windows-x86_64-setup.exe` | windows | x86_64 | app | installer (NSIS, per user) |
+| `lanomat-voice-app-<V>-windows-x86_64-portable.exe` | windows | x86_64 | app | portable (one exe) |
+| `lanomat-voice-cli-<V>-windows-x86_64.exe` | windows | x86_64 | cli | archive |
+
+`variant` is `installer`, `portable` or `archive`; a manifest without the field (everything built before
+the installer, including the old `lanomat-voice-app-<V>-windows-x86_64.zip`) means `archive`, and the
+server still accepts it. The server checks that `installer` and `portable` are the Windows app and end
+in `-setup.exe` / `-portable.exe`. Downloads are served as attachments with
+`application/vnd.microsoft.portable-executable` (exe), `nosniff` and the checksum header.
 
 Next to them `SHA256SUMS`, `manifest.json` (all files) and `manifest-<os>-<arch>.json` (one platform):
 
 ```json
 { "app_version": "<V>", "commit": "<12 chars>", "api_version": 1, "built_at": "2026-11-01T12:00:00Z",
   "files": [ { "name": "...", "os": "windows", "arch": "x86_64", "kind": "app|cli",
-               "size": 123, "sha256": "...", "signed": false } ] }
+               "variant": "installer|portable|archive", "size": 123, "sha256": "...", "signed": false } ] }
 ```
 
 `scripts/ops/build-client.sh` (the server-side Linux-only build into `clients-dist/`) and this workflow
@@ -88,7 +140,7 @@ produce interchangeable Linux files; only the workflow produces Windows files.
 
 Windows files are built **unsigned**: SmartScreen shows "Der Computer wurde durch Windows
 geschuetzt"; users click **Weitere Informationen**, then **Trotzdem ausfuehren** (documented in the
-client README, in the zip's `LIESMICH.txt` and in the draft release's notes). The manifest says
+client README, the download page and the draft release's notes). The manifest says
 `signed: false`. The pipeline is prepared for signing: the `package` job has a hook that is skipped
 unless the repository variable **`WINDOWS_SIGNING`** is set.
 
@@ -111,7 +163,7 @@ unless the repository variable **`WINDOWS_SIGNING`** is set.
    - variable `WINDOWS_SIGNING` = `signpath`
 5. The next run uploads the unsigned exes, submits them with the official
    `signpath/github-action-submit-signing-request` action, waits for the result and packages the signed
-   files (`signed: true` in the manifest). The zip is built from the signed exe afterwards.
+   files (`signed: true` in the manifest); see the note above about the exe inside the installer.
 
 ### Route B: Azure Artifact Signing (formerly Trusted Signing)
 
@@ -140,15 +192,15 @@ workflow's set for the server version it is deployed with. The contract:
 2. **Refuse otherwise.** The manifest's `app_version` AND `commit` must equal the wanted ones; the error
    tells the operator to run `gh workflow run release-client.yml --ref <ref> -f version=<wanted>`. A dirty
    checkout (`-dirty` version) is refused.
-3. **Verify.** Every listed name is a plain file name `lanomat-voice-(app|cli)-<V>-<os>-<arch>.(tar.gz|zip|exe)`
-   (at most 64 entries, no duplicates, `signed` a boolean if present); every file exists, is no link, has
+3. **Verify.** Every listed name is a plain file name `lanomat-voice-(app|cli)-<V>-<os>-<arch>[-setup|-portable].(tar.gz|zip|exe)`
+   (at most 64 entries, no duplicates, `signed` a boolean if present, `variant` one of the three and consistent with the name); every file exists, is no link, has
    the listed size and sha256, and `SHA256SUMS` agrees (its lines may only name plain files). `signed:false`
    files are named in the output; `--require-signed` refuses them.
 4. **Publish atomically** (like `build-client.sh`): stage dir inside the target, files first,
    `manifest.json` renamed last, under the same `flock`, then prune files the manifest no longer lists. The
    directory is never replaced (bind mount). `--dry-run` stops after step 3 and prints the merged manifest.
 5. **Merge.** If the target's manifest is for the same version and commit, its intact entries stay (a locally
-   built Linux client) and the workflow's entries are added; same name or same os/arch/kind: the local entry
+   built Linux client) and the workflow's entries are added; same name or same os/arch/kind/variant: the local entry
    wins unless `--prefer-workflow`. `build-client.sh` merges the other way: it keeps non-Linux entries of the
    same version and commit. Another version or commit: the old files go.
 
