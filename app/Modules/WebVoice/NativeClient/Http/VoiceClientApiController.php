@@ -9,7 +9,9 @@ use App\Models\User;
 use App\Modules\WebVoice\Actions\IssueJoinToken;
 use App\Modules\WebVoice\Domain\WebVoiceUnavailable;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
+use App\Modules\WebVoice\NativeClient\Support\NativeClientConfig;
 use App\Modules\WebVoice\Queries\VisibleChannels;
+use App\Modules\WebVoice\Support\ClientBuilds;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Http\JsonResponse;
@@ -65,19 +67,41 @@ class VoiceClientApiController extends Controller
     }
 
     /** Client tuning only: the public LiveKit URL and the audio defaults; never a secret. */
-    public function config(): JsonResponse
+    public function config(ClientBuilds $builds): JsonResponse
     {
         $url = (string) config('webvoice.url');
 
         return response()->json([
-            'api_version' => 1,
+            'api_version' => NativeClientConfig::API_VERSION,
             'livekit_url' => $url === '' ? null : $url,
             'voice_ready' => $url !== '',
             'audio' => (array) config('webvoice.audio'),
             // Which optional modules this deployment runs, so the client can hide what the event does not use.
             'modules' => $this->modules(),
             'realtime' => $this->realtime(),
+            'client' => $this->clientInfo($builds),
         ]);
+    }
+
+    /**
+     * What the client needs for its update check (voice_core::update::assess): the server's own
+     * version, the oldest client it accepts and the build offered for download. Additive and
+     * tolerant on the client side; all of it is public release information.
+     *
+     * @return array{server_version: string, commit: string|null, min_client_version: string|null, latest_client_version: string|null, download_path: string}
+     */
+    private function clientInfo(ClientBuilds $builds): array
+    {
+        $manifest = $builds->current();
+
+        return [
+            'server_version' => ClientBuilds::serverVersion(),
+            'commit' => ClientBuilds::serverCommit(),
+            'min_client_version' => NativeClientConfig::minClientVersion(),
+            // Only a build with files on disk counts as offered.
+            'latest_client_version' => $manifest !== null && $manifest->builds !== [] ? $manifest->appVersion : null,
+            'download_path' => route('webvoice.client', absolute: false),
+        ];
     }
 
     /** @return array<string, bool> keyed like the MODULE_<KEY> overrides, e.g. `game_servers` */

@@ -4,6 +4,7 @@
 
 pub mod api;
 pub mod audio;
+pub mod buildinfo;
 pub mod control;
 #[cfg(feature = "dev-tokens")]
 pub mod devtokens;
@@ -14,7 +15,9 @@ pub mod notify;
 pub mod realtime;
 pub mod session;
 pub mod transfer;
+pub mod update;
 
+pub use buildinfo::{build_info, BuildInfo};
 pub use error::{Error, ErrorKind, Result};
 
 /// Picks rustls's process-wide crypto provider. The dependency tree enables both `aws-lc-rs`

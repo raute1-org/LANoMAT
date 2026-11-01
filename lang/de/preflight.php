@@ -18,6 +18,7 @@ return [
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
         'backup' => 'Backup',
+        'client_build' => 'Desktop-App-Download',
         'dependency_updates' => 'Software-Updates',
     ],
     'messages' => [
@@ -34,6 +35,8 @@ return [
         'updates_behind' => 'Veraltet: :components. Vor dem Event prüfen, ob ein Update ansteht.',
         'backup_missing' => 'Kein Backup-Marker gefunden. Läuft das Backup-Skript?',
         'backup_unreadable' => 'Backup-Marker ist unlesbar.',
+        'client_build_missing' => 'Kein Desktop-App-Build veröffentlicht. Die Orga muss den Client bauen: scripts/ops/build-client.sh.',
+        'client_build_stale' => 'Der Desktop-App-Build (:client) passt nicht zum Server (:server). Die Orga muss den Client neu bauen: scripts/ops/build-client.sh.',
         'backup_age' => 'Letztes erfolgreiches Backup vor :hours Stunden.',
     ],
     'status' => [

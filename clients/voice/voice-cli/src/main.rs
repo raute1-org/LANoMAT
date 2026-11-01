@@ -21,7 +21,7 @@ use voice_core::{Error, ErrorKind, Result};
 #[derive(Parser)]
 #[command(
     name = "lanomat-voice",
-    version,
+    version = voice_core::buildinfo::long_version(),
     about = "Native voice client for LANoMAT web voice"
 )]
 struct Cli {

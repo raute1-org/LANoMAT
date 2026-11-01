@@ -146,7 +146,7 @@ const PUBLIC_ROUTES = [
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers',
-    'GET voice/setup', 'GET talk', 'GET talk/connect', 'POST talk/connect', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
+    'GET voice/setup', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',
     'GET settings/connections/{provider}/redirect', 'GET settings/connections/{provider}/callback', 'GET settings/connections/link/{token}',
@@ -185,6 +185,7 @@ const OPEN_OBJECT_ROUTES = [
     'GET voice/installers/{installer}/download' => 'published installers are for all users',
     'DELETE user/passkeys/{passkey}' => 'scoped to the caller\'s own passkeys (covered by passkey scenario)',
     'POST screen/{event}/control/{scene}' => 'role middleware',
+    'GET talk/client/download/{file}' => 'VoiceClientTokenPolicy downloadClient: any logged-in user; {file} is no model, only a name looked up in the validated manifest (tests/Feature/WebVoice/NativeClient/ClientDownloadTest)',
     'DELETE talk/devices/{device}' => 'VoiceClientTokenPolicy revoke inside RevokeVoiceClientToken: owner only (tests/Feature/WebVoice/NativeClient)',
     'POST talk/channels/{channel}/token' => 'WebVoiceChannelPolicy join inside IssueJoinToken: roster or general only, tests/Feature/WebVoice/WebVoiceHttpTest',
     'GET talk/channels/{channel}/messages' => 'WebVoiceChannelPolicy view inside ChannelMessages: roster or general only',

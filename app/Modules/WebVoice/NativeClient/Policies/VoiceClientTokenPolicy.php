@@ -19,6 +19,12 @@ class VoiceClientTokenPolicy
         return true;
     }
 
+    /** The client download page and its files: every logged-in user (the route group is `auth`). */
+    public function downloadClient(User $user): bool
+    {
+        return true;
+    }
+
     public function revoke(User $user, VoiceClientToken $token): bool
     {
         return $token->user_id === $user->getKey();

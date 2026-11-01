@@ -46,3 +46,6 @@ __pycache__/
 
 # Native voice client (Rust workspace)
 /clients/voice/target/
+
+# built native voice client releases (scripts/ops/build-client.sh)
+/clients-dist

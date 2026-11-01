@@ -99,6 +99,26 @@ pub struct ClientConfig {
     /// Reverb connection info; `None` when realtime is not configured (poll the REST routes).
     #[serde(default)]
     pub realtime: Option<RealtimeConfig>,
+    /// Version and download facts for the update check; `None` with an older server.
+    #[serde(default)]
+    pub client: Option<ClientInfo>,
+}
+
+/// `config.client`: which server this is and which client builds it offers. Every field is
+/// optional so a server may add or drop one without breaking the client.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+#[serde(default)]
+pub struct ClientInfo {
+    /// The LANoMAT version the server runs.
+    pub server_version: Option<String>,
+    /// The git commit of the server build.
+    pub commit: Option<String>,
+    /// Clients older than this cannot work against the server.
+    pub min_client_version: Option<String>,
+    /// The client build the server currently offers for download.
+    pub latest_client_version: Option<String>,
+    /// Where to download it, as a path on the server (`/talk/client`).
+    pub download_path: Option<String>,
 }
 
 impl ClientConfig {

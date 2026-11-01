@@ -42,8 +42,8 @@ pub use poll::{PollEvent, PollState, PollStep};
 pub use polls::{PollDetail, PollOption, PollSummary, PollsList};
 pub use store::{FileTokenStore, StoredCredentials, TokenStore};
 pub use types::{
-    AudioSettings, ClientConfig, DeviceAuthorization, JoinGrant, Me, RealtimeConfig, Room,
-    TokenResponse,
+    AudioSettings, ClientConfig, ClientInfo, DeviceAuthorization, JoinGrant, Me, RealtimeConfig,
+    Room, TokenResponse,
 };
 
 use crate::error::{Error, Result};
