@@ -54,14 +54,17 @@ use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
 use App\Modules\Hosts\SshRemoteExecutor;
+use App\Modules\Identity\Connectors\HttpAvatarFetcher;
 use App\Modules\Identity\Connectors\HttpGuildMembershipChecker;
 use App\Modules\Identity\Connectors\HttpSteamPresence;
 use App\Modules\Identity\Connectors\SteamConnector;
 use App\Modules\Identity\Connectors\TwitchConnector;
+use App\Modules\Identity\Contracts\AvatarFetcher;
 use App\Modules\Identity\Contracts\GuildMembershipChecker;
 use App\Modules\Identity\Contracts\SteamPresence;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
+use App\Modules\Identity\Policies\AvatarPolicy;
 use App\Modules\Identity\Policies\LinkedAccountPolicy;
 use App\Modules\Identity\Support\LinkedAccountConnectors;
 use App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated;
@@ -215,6 +218,7 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->app->bind(GuildMembershipChecker::class, HttpGuildMembershipChecker::class);
+        $this->app->bind(AvatarFetcher::class, HttpAvatarFetcher::class);
 
         $this->app->bind(VoiceClient::class, fn () => new HttpMumbleClient(
             (string) config('services.mumble.rest_url'),
@@ -483,6 +487,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('voice-client-approve', fn (Request $request) => Limit::perMinute(10)->by('voice-client-approve|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('voice-client-api', fn (Request $request) => Limit::perMinute(120)->by('voice-client-api|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
 
+        // Avatars: a page loads dozens at once, and every one is immutable and cacheable afterwards.
+        RateLimiter::for('avatars', fn (Request $request) => Limit::perMinute(600)->by('avatars|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('voice-client-avatars', fn (Request $request) => Limit::perMinute(600)->by('voice-client-avatars|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
+
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
 
         Gate::policy(EventModel::class, EventPolicy::class);
@@ -495,6 +503,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(GameMatch::class, TournamentPolicy::class);
         Gate::policy(MatchReport::class, TournamentPolicy::class);
         Gate::policy(LinkedAccount::class, LinkedAccountPolicy::class);
+        // A named ability, not a User policy: a policy on User would also switch on Filament's UserResource authorization.
+        Gate::define('view-avatar', [AvatarPolicy::class, 'view']);
 
         if ($this->on(Module::Schedule)) {
             Gate::policy(ScheduleItem::class, ScheduleItemPolicy::class);

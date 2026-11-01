@@ -223,6 +223,22 @@ compose service on the `prod` profile — exactly one Gateway session may exist 
 
 ## Identity & account linking
 
+**Local avatars.** `users.avatar_url` stays the remembered Discord source URL (set by the OAuth
+callback, never rendered). `RefreshAvatarJob` (dispatched after the login, never inline) runs
+`CacheAvatar`: the `AvatarFetcher` contract (`HttpAvatarFetcher`: https and the Discord CDN hosts only,
+every redirect hop checked, 5 s, 2 MB, image content type; `FakeAvatarFetcher` in tests) downloads it,
+`AvatarProcessor` validates it by really decoding it (header and dimension checks first), crops it to a
+256 x 256 square and re-encodes it through GD (WebP, JPEG as a fallback), which drops all metadata. The
+result is stored on the private `local` disk as `avatars/<user id>-<content hash>.<ext>`
+(`users.avatar_path` + `avatar_hash`), the replaced file is deleted, a failed fetch keeps the old file.
+`lanomat:refresh-avatars` (daily 04:30; `--all` for everybody, `--user=<id>`) refreshes users registered
+for a running or upcoming event or logged in during the last 30 days (`users.last_login_at`), chunked and
+paced, one failing user never fails the run. The files are served only through
+`GET /avatars/{user}/{hash}` (session) and `GET /api/voice-client/v1/avatars/{user}/{hash}` (bearer):
+ability `view-avatar` (every logged-in user), the hash must match the row, immutable cache headers.
+Every UI reads `User::avatar_src` (browser path, or `null` for the monogram; never the CDN URL), the
+native-client DTOs `User::nativeAvatarSrc()`; the shared `UserAvatar.vue` renders it.
+
 Login stays **Discord-only**. `users.discord_id` is a unique-nullable column and remains
 the sole authentication anchor and the routing key for Discord DMs and Interactions — it is
 never touched by anything in this section.

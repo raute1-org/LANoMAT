@@ -177,6 +177,6 @@ class NativeFriendsController extends Controller
      */
     private function userDto(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->name, 'avatar_url' => $user->avatar_url];
+        return ['id' => $user->id, 'name' => $user->name, 'avatar_url' => $user->nativeAvatarSrc()];
     }
 }

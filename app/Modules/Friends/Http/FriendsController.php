@@ -156,7 +156,7 @@ class FriendsController extends Controller
         return [
             'id' => $user->id,
             'name' => $user->name,
-            'avatarUrl' => $user->avatar_url,
+            'avatarUrl' => $user->avatar_src,
         ];
     }
 

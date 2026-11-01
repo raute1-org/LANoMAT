@@ -1,6 +1,7 @@
 // Text chat next to voice: history per room, send with Enter, live messages through the
 // chat events, mention highlighting, moderator delete and the unread counts.
 import { setBadge } from './nav.js';
+import { avatar } from './shared.js';
 import { S } from './strings.js';
 import {
     button,
@@ -370,6 +371,12 @@ function paint(scroll) {
                 el(
                     'div',
                     { class: 'msg-head' },
+                    m.author.avatar_url
+                        ? avatar(m.author.name, {
+                              tiny: true,
+                              src: m.author.avatar_url,
+                          })
+                        : null,
                     el('span', {
                         class: 'msg-author',
                         text: isMe ? S.chat.you : m.author.name,

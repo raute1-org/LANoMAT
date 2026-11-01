@@ -68,10 +68,12 @@ return [
         1 => 'GameServers',
     ],
     'Identity' => [
-        0 => 'Friends',
-        1 => 'Games',
-        2 => 'Notifications',
-        3 => 'Voice',
+        0 => 'Events',
+        1 => 'Friends',
+        2 => 'Games',
+        3 => 'Notifications',
+        4 => 'Registration',
+        5 => 'Voice',
     ],
     'Infoscreen' => [
         0 => 'Catering',

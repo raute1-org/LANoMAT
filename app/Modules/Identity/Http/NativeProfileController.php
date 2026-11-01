@@ -44,7 +44,7 @@ class NativeProfileController
             'name' => $user->name,
             'email' => $user->email,
             'email_verified' => $user->email_verified_at !== null,
-            'avatar_url' => $user->avatar_url,
+            'avatar_url' => $user->nativeAvatarSrc(),
             'bio' => $user->bio,
             'steam_url' => $user->steam_url,
             'stream_url' => $user->stream_url,

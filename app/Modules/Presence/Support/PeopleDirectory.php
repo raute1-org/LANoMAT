@@ -280,7 +280,7 @@ final class PeopleDirectory
         return [
             'id' => $user->id,
             'name' => $user->name,
-            'avatarUrl' => $user->avatar_url,
+            'avatarUrl' => $user->nativeAvatarSrc(),
             'team' => ($teams[$user->id] ?? '') !== '' ? $teams[$user->id] : null,
             'isMe' => $isMe,
             'isTeammate' => ! $isMe && array_intersect($teamIdsByUser[$user->id] ?? [], $myTeamIds) !== [],

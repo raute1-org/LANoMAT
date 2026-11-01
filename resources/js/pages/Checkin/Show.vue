@@ -3,10 +3,9 @@ import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { CircleCheck, Clock, TicketX } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { useInitials } from '@/composables/useInitials';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { formatInstant } from '@/lib/datetime';
 import {
     register as eventsRegister,
@@ -31,7 +30,6 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
-const { getInitials } = useInitials();
 
 // The token lives only in the URL (never in props): post back to this very page.
 const checkinForm = useForm({});
@@ -112,16 +110,11 @@ function register() {
             class="mt-6 flex items-center gap-3 rounded-md border border-border bg-card p-4"
             data-test="checkin-participant"
         >
-            <Avatar class="size-10">
-                <AvatarImage
-                    v-if="participant.avatarUrl"
-                    :src="participant.avatarUrl"
-                    :alt="participant.name"
-                />
-                <AvatarFallback>{{
-                    getInitials(participant.name)
-                }}</AvatarFallback>
-            </Avatar>
+            <UserAvatar
+                :name="participant.name"
+                :src="participant.avatarUrl"
+                :size="40"
+            />
             <p class="min-w-0 truncate text-sm font-medium text-foreground">
                 {{ labels.greeting.replace(':name', participant.name) }}
             </p>

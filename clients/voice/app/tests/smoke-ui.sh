@@ -61,7 +61,7 @@ fi
 
 export DISPLAY="$DSP" GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
   WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
-export XDG_CONFIG_HOME="$T/cfg" XDG_RUNTIME_DIR="$T/run" XDG_SESSION_TYPE=x11
+export XDG_CONFIG_HOME="$T/cfg" XDG_CACHE_HOME="$T/cache" XDG_RUNTIME_DIR="$T/run" XDG_SESSION_TYPE=x11
 # A neutral host name: the device name of a pairing and the screenshots must not leak a real one.
 # A stand-in for the system's URL handler: it only records what the app asked it to open, so the
 # smoke can show exactly which (rewritten) link left the app. Nothing is actually launched.
@@ -107,6 +107,9 @@ if [ "$MODE" = full ]; then
   expect_log "$T/standin.log" 'POST /api/voice-client/v1/rooms/3/messages' "a chat message was sent"
   expect_log "$T/standin.log" 'POST /api/voice-client/v1/rooms/1/token' "following Ada into the web voice room joined it (room token requested)"
   expect_log "$T/standin.log" 'GET /api/voice-client/v1/events/lan-party-2026/people/12/follow' "the follow targets of a teammate were asked for"
+  expect_log "$T/standin.log" 'avatar served uid=12' "Ada's avatar was fetched through the server (bearer route) for the people list"
+  expect_log "$T/standin.log" 'avatar served uid=13' "Ben's avatar was fetched for the friends list"
+  [ -n "$(ls "$T"/cache/lanomat-voice/avatars/*.img 2>/dev/null)" ] && ok "the avatars are cached on disk, keyed by user and hash" || bad "no avatar in the cache directory"
   expect_log "$T/standin.log" 'PATCH /api/voice-client/v1/profile' "the profile was saved with PATCH"
   expect_log "$T/standin.log" 'POST /api/voice-client/v1/connections/twitch/link-url' "a single-use link was requested for Twitch"
   expect_log "$T/standin.log" 'POST /api/voice-client/v1/friends/requests/501/accept' "a friend request was accepted"

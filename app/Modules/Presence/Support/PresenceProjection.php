@@ -90,7 +90,7 @@ final class PresenceProjection
                     registrationId: $registration->id,
                     userId: $user->id,
                     name: $user->name,
-                    avatarUrl: $user->avatar_url,
+                    avatarUrl: $user->avatar_src,
                     streamUrl: self::safeStreamUrl($user->stream_url),
                     seatLabel: $registration->seatAssignment?->seat?->label,
                     activity: $playing !== null ? self::activityLabel($playing['match']) : null,

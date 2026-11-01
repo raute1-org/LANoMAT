@@ -127,7 +127,7 @@ export function mount(box, { back }) {
         el(
             'div',
             { class: 'row grow' },
-            avatar(u.name),
+            avatar(u.name, { src: u.avatar_url }),
             el('div', { class: 'name', text: u.name }),
         );
 
@@ -372,7 +372,7 @@ export function mount(box, { back }) {
                         el(
                             'div',
                             { class: 'row grow' },
-                            avatar(s.name),
+                            avatar(s.name, { src: s.avatar_url }),
                             el(
                                 'div',
                                 { class: 'grow' },
@@ -421,7 +421,7 @@ export function mount(box, { back }) {
                         el(
                             'div',
                             { class: 'row grow' },
-                            avatar(r.user.name),
+                            avatar(r.user.name, { src: r.user.avatar_url }),
                             el(
                                 'div',
                                 { class: 'grow' },

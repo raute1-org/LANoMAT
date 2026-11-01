@@ -17,8 +17,10 @@ use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerPageController;
+use App\Modules\Identity\Http\AvatarController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
+use App\Modules\Identity\Support\AvatarStore;
 use App\Modules\Infoscreen\Http\OrgaPingController;
 use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
@@ -61,6 +63,13 @@ Route::post('dev/login/{role}', DevLoginController::class)->name('dev.login');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    // Local avatar copies (Identity, core): every logged-in user, immutable per content hash.
+    Route::get('avatars/{user}/{hash}', [AvatarController::class, 'show'])
+        ->whereNumber('user')
+        ->where('hash', AvatarStore::HASH_PATTERN)
+        ->middleware('throttle:avatars')
+        ->name('avatars.show');
 
     // Nobody who is not logged in may see ANY event data: the event list, the
     // event page and every event-scoped participant page require login. Guests

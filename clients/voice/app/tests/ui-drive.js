@@ -831,6 +831,28 @@
                 'sharing is on: no "not shared" chip',
             );
             await toList();
+            // Avatars: the picture is fetched by the app through the server and laid over the
+            // monogram when the row is in view (rows far below load lazily); a person without
+            // one keeps the monogram only.
+            await waitFor(
+                () =>
+                    q('img.avatar-img', personRow('Ada')) &&
+                    q('img.avatar-img', personRow('Tester')),
+                8000,
+                'avatar pictures in the people list',
+            );
+            const adaImg = q('img.avatar-img', personRow('Ada'));
+            assert(
+                adaImg.src.startsWith('data:image/png;base64,') &&
+                    adaImg.alt === S.avatar.alt('Ada') &&
+                    adaImg.naturalWidth > 0,
+                'Ada: the avatar is a decoded data: image with its alt text',
+            );
+            assert(
+                !q('img.avatar-img', personRow('Dirk')) &&
+                    q('.avatar', personRow('Dirk'))?.textContent.trim() === 'D',
+                'Dirk has no avatar: the monogram stays',
+            );
             await shot('24-sprache-personen');
         },
     );
@@ -1243,6 +1265,18 @@
                 () => qa('#screen-mehr li.pr').length >= 9,
                 6000,
                 'friend rows',
+            );
+            await waitFor(
+                () =>
+                    q('img.avatar-img', friendRow('Ben')) &&
+                    q('img.avatar-img', friendRow('Cleo')),
+                8000,
+                'avatar pictures in the friends list',
+            );
+            assert(
+                !q('img.avatar-img', friendRow('Fynn')) &&
+                    q('.avatar', friendRow('Fynn'))?.textContent.trim() === 'F',
+                'Fynn has no avatar: the monogram stays',
             );
             await shot('64-friends');
             await clickText('button', S.friends.accept, friendRow('Gero'));

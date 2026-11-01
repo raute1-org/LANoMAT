@@ -47,7 +47,7 @@ class SelfCheckInController extends Controller
         return Inertia::render('Checkin/Show', [
             'state' => $state,
             'event' => ['name' => $event->name, 'slug' => $event->slug],
-            'participant' => ['name' => $user->name, 'avatarUrl' => $user->avatar_url],
+            'participant' => ['name' => $user->name, 'avatarUrl' => $user->avatar_src],
             'checkedInAt' => $registration?->checked_in_at?->toIso8601String(),
             'opensAt' => $window === SelfCheckInWindow::NOT_OPEN
                 ? SelfCheckInWindow::opensAt($event)?->toIso8601String()

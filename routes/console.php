@@ -57,3 +57,4 @@ Schedule::command('lanomat:health-watch')->everyFiveMinutes();
 // More often than the 12 h cache lifetime, so the preflight check never finds an empty cache.
 Schedule::command('lanomat:check-updates')->everySixHours();
 Schedule::job(new RefreshExpiringTokensJob)->hourly();
+Schedule::command('lanomat:refresh-avatars')->dailyAt('04:30')->withoutOverlapping()->runInBackground();

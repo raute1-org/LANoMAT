@@ -461,7 +461,11 @@ function personRow(p, { compact = false, hiddenSelf = false } = {}) {
         el(
             'div',
             { class: 'row wrap fill' },
-            avatar(p.name, { me: p.isMe, small: compact }),
+            avatar(p.name, {
+                me: p.isMe,
+                small: compact,
+                src: p.avatarUrl,
+            }),
             el(
                 'div',
                 { class: 'grow' },

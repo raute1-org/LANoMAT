@@ -23,7 +23,7 @@ class ProfileController
         return Inertia::render('Profile/Show', [
             'profile' => [
                 'name' => $user->name,
-                'avatarUrl' => $user->avatar_url,
+                'avatarUrl' => $request->user() !== null ? $user->avatar_src : null,
                 'bio' => $user->bio,
                 'steamUrl' => $user->steam_url,
                 'profileColor' => $user->profile_color,

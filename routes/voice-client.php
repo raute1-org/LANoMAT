@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\Identity\Http\AvatarController;
+use App\Modules\Identity\Support\AvatarStore;
 use App\Modules\Notifications\Http\NativeNotificationController;
 use App\Modules\WebVoice\NativeClient\Http\AuthenticateVoiceClient;
 use App\Modules\WebVoice\NativeClient\Http\DeviceFlowController;
@@ -93,6 +95,18 @@ Route::prefix('api/voice-client/v1')->middleware([AuthenticateVoiceClient::class
         Route::put('notification-preferences', [NativeNotificationController::class, 'updatePreferences'])->name('notification-preferences.update');
     }
 });
+
+// Local avatars for the native client (Identity, core): the same bytes as the browser route, bearer-authenticated,
+// with a limiter of its own because a people list loads dozens of avatars at once.
+Route::prefix('api/voice-client/v1')
+    ->middleware([AuthenticateVoiceClient::class, 'throttle:voice-client-avatars', SubstituteBindings::class])
+    ->name('voice-client.v1.')
+    ->group(function () {
+        Route::get('avatars/{user}/{hash}', [AvatarController::class, 'show'])
+            ->whereNumber('user')
+            ->where('hash', AvatarStore::HASH_PATTERN)
+            ->name('avatars.show');
+    });
 
 // Play block (now feed, tournaments/matches, game servers): kept in its own file.
 require __DIR__.'/voice-client-play.php';

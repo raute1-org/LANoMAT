@@ -1,5 +1,6 @@
 // Building blocks used by more than one screen: game server actions with the install hint,
 // copying, the "no event" state, and where a notification category leads.
+import { attachAvatar } from './avatar.js';
 import { S } from './strings.js';
 import {
     button,
@@ -181,9 +182,9 @@ export function notificationTarget(category) {
 
 // ---- people: the monogram avatar and the in-page confirmation ----
 
-// The avatar the server sends is a remote picture, and the window's content security policy
-// loads nothing from the internet (and a CDN would learn who looks at whom): a monogram stands
-// in, the same for everybody.
+// The monogram stands in for everybody and stays underneath: the window's content security policy
+// loads nothing from the internet, so a person's picture is fetched by the app through the server
+// (`get_avatar`, see avatar.js) and laid over the monogram when it has arrived.
 export function initials(name) {
     const words = String(name || '')
         .trim()
@@ -200,12 +201,19 @@ export function initials(name) {
     return (first + second).toUpperCase();
 }
 
-export function avatar(name, { me = false, small = false } = {}) {
-    return el('span', {
-        class: `avatar${me ? ' me' : ''}${small ? ' sm' : ''}`,
+export function avatar(
+    name,
+    { me = false, small = false, tiny = false, src = null } = {},
+) {
+    const node = el('span', {
+        class: `avatar${me ? ' me' : ''}${small ? ' sm' : ''}${tiny ? ' xs' : ''}`,
         'aria-hidden': 'true',
         text: initials(name),
     });
+
+    attachAvatar(node, src, name);
+
+    return node;
 }
 
 // A confirmation that replaces the row it belongs to (no browser dialog). Escape or the

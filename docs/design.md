@@ -74,6 +74,14 @@ The one memorable element. Anything that is *happening now* — a live match, an
 
 Example intent: `● LIVE  17:42` — amber dot + mono clock. The seating grid and the tournament bracket should read like a control diagram, not a marketing graphic. Provide a small shared component/util for this so it stays identical everywhere.
 
+## Avatars
+
+A person's picture is always rendered by `components/UserAvatar.vue`: a round `bg-muted` monogram (initials,
+`text-muted-foreground`) with the picture laid over it, `loading="lazy"`, `decoding="async"`, explicit
+width/height and the name as alt text. The `src` is LANoMAT's own avatar URL (`User::avatar_src`, served to
+logged-in users only), never a Discord CDN address; no avatar, or a failed load, is the monogram. Guests (the
+public profile) get no picture at all.
+
 ## States are not optional (Rams: *understandable*, *honest*)
 
 Every list/data surface ships all four states, in the interface's voice (German UI copy via `lang/de`):

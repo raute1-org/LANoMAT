@@ -3,6 +3,7 @@ import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
+import UserAvatar from '@/components/UserAvatar.vue';
 import {
     block as blockUser,
     cancel as cancelRequest,
@@ -82,12 +83,12 @@ function unblock(): void {
     <PageContainer width="default" :as="isAuthenticated ? 'div' : 'main'">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-4">
-                <div
-                    class="h-16 w-16 shrink-0 rounded-full bg-cover bg-center ring-2"
+                <UserAvatar
+                    :name="profile.name"
+                    :src="profile.avatarUrl"
+                    :size="64"
+                    class="ring-2"
                     :style="{
-                        backgroundImage: profile.avatarUrl
-                            ? `url(${profile.avatarUrl})`
-                            : undefined,
                         '--tw-ring-color': profile.profileColor ?? undefined,
                     }"
                 />

@@ -10,7 +10,8 @@ class UpsertUserFromDiscord
      * Create or update a user from Discord OAuth data.
      *
      * Field ownership (M0 whole-branch review):
-     * - Discord-owned: `avatar_url` (+ `discord_id`) — refreshed on every login.
+     * - Discord-owned: `avatar_url` (+ `discord_id`) — refreshed on every login. The local copy is
+     *   fetched afterwards by RefreshAvatarJob (the controller dispatches it), never inside the login.
      * - User-owned: `name`, `email` — only filled once, on first creation; a
      *   later edit by the user (or a previous login) must survive relogin.
      */
@@ -19,12 +20,12 @@ class UpsertUserFromDiscord
         $user = User::firstWhere('discord_id', $discordId);
 
         if ($user !== null) {
-            $user->forceFill(['avatar_url' => $avatarUrl])->save();
+            $user->forceFill(['avatar_url' => $avatarUrl, 'last_login_at' => now()])->save();
 
             return $user;
         }
 
-        return User::create([
+        $user = User::create([
             'discord_id' => $discordId,
             'name' => $username,
             'avatar_url' => $avatarUrl,
@@ -34,5 +35,9 @@ class UpsertUserFromDiscord
             // email for the newly created account when it's already taken.
             'email' => $email !== null && User::where('email', $email)->exists() ? null : $email,
         ]);
+
+        $user->forceFill(['last_login_at' => now()])->save();
+
+        return $user;
     }
 }

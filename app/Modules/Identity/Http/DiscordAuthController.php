@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Identity\Actions\UpsertUserFromDiscord;
 use App\Modules\Identity\Contracts\GuildMembershipChecker;
 use App\Modules\Identity\Exceptions\GuildMembershipUnavailable;
+use App\Modules\Identity\Jobs\RefreshAvatarJob;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,6 +72,9 @@ class DiscordAuthController
         );
 
         Auth::login($user, remember: true);
+
+        // The avatar copy is fetched in the background: the login never waits for the CDN.
+        RefreshAvatarJob::dispatch($user->id);
 
         return redirect()->intended('/');
     }

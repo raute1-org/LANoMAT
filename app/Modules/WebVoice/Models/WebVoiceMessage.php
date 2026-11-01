@@ -44,9 +44,12 @@ class WebVoiceMessage extends Model
     }
 
     /**
+     * `$native` picks the avatar path of the bearer API instead of the browser route; the realtime
+     * broadcast is shared by both clients and carries the browser path (the native client maps it).
+     *
      * @return array{id: int, channel_id: int, body: string, created_at: string, author: array{id: int, name: string, avatar_url: string|null}}
      */
-    public function toPayload(): array
+    public function toPayload(bool $native = false): array
     {
         $author = $this->author ?? throw new LogicException('The author relation must be loaded.');
 
@@ -58,7 +61,7 @@ class WebVoiceMessage extends Model
             'author' => [
                 'id' => $this->user_id,
                 'name' => $author->name,
-                'avatar_url' => $author->avatar_url,
+                'avatar_url' => $native ? $author->nativeAvatarSrc() : $author->avatar_src,
             ],
         ];
     }
