@@ -11,6 +11,7 @@ use App\Modules\RoomAudio\Actions\SetReceiverSource;
 use App\Modules\RoomAudio\Actions\SetReceiverVolume;
 use App\Modules\RoomAudio\Actions\SetVolumeCeiling;
 use App\Modules\RoomAudio\Contracts\ReceiverClient;
+use App\Modules\RoomAudio\Exceptions\ReceiverUnavailable;
 use App\Modules\RoomAudio\Models\RoomAudioSetting;
 use App\Modules\RoomAudio\Support\ReceiverState;
 use App\Modules\RoomAudio\Testing\FakeReceiverClient;
@@ -130,3 +131,34 @@ it('accepts listed mode keys and rejects others', function () {
         ->toThrow(InvalidArgumentException::class);
     expect($this->receiver->calls)->toBe([['setMode', 'direct']]);
 });
+
+it('throws ReceiverUnavailable for a source while the receiver is down, not an unknown-source error', function () {
+    $this->receiver->willReturnState(ReceiverState::unreachable());
+
+    expect(fn () => app(SetReceiverSource::class)($this->orga, 'DVD'))
+        ->toThrow(ReceiverUnavailable::class);
+
+    expect($this->receiver->calls)->toBe([]);
+});
+
+it('throws ReceiverUnavailable for a mode while the receiver is down, not an unknown-mode error', function () {
+    $this->receiver->willReturnState(ReceiverState::unreachable());
+
+    expect(fn () => app(SetReceiverMode::class)($this->orga, 'stereo'))
+        ->toThrow(ReceiverUnavailable::class);
+
+    expect($this->receiver->calls)->toBe([]);
+});
+
+it('propagates ReceiverUnavailable from power, mute and volume when the receiver cannot be reached', function (string $action) {
+    $this->receiver->willBeUnavailable();
+
+    $call = match ($action) {
+        'power' => fn () => app(SetReceiverPower::class)($this->orga, true),
+        'mute' => fn () => app(SetReceiverMute::class)($this->orga, true),
+        'volume' => fn () => app(SetReceiverVolume::class)($this->orga, 30.0),
+    };
+
+    expect($call)->toThrow(ReceiverUnavailable::class);
+    expect($this->receiver->calls)->toBe([]);
+})->with(['power', 'mute', 'volume']);

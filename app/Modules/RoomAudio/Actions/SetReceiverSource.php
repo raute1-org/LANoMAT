@@ -6,6 +6,7 @@ namespace App\Modules\RoomAudio\Actions;
 
 use App\Models\User;
 use App\Modules\RoomAudio\Contracts\ReceiverClient;
+use App\Modules\RoomAudio\Exceptions\ReceiverUnavailable;
 use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
@@ -22,7 +23,13 @@ final readonly class SetReceiverSource
     {
         Gate::forUser($actor)->authorize('room-audio.control');
 
-        $known = array_column($this->receiver->state()->sources, 'code');
+        $state = $this->receiver->state();
+
+        if (! $state->connected) {
+            throw ReceiverUnavailable::unreachable();
+        }
+
+        $known = array_column($state->sources, 'code');
 
         if ($code !== self::NETWORK_INPUT && ! in_array($code, $known, true)) {
             throw new InvalidArgumentException('Unknown receiver source.');

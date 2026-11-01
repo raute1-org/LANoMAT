@@ -6,6 +6,7 @@ namespace App\Modules\RoomAudio\Actions;
 
 use App\Models\User;
 use App\Modules\RoomAudio\Contracts\ReceiverClient;
+use App\Modules\RoomAudio\Exceptions\ReceiverUnavailable;
 use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
@@ -20,7 +21,13 @@ final readonly class SetReceiverMode
     {
         Gate::forUser($actor)->authorize('room-audio.control');
 
-        $known = array_column($this->receiver->state()->modes, 'key');
+        $state = $this->receiver->state();
+
+        if (! $state->connected) {
+            throw ReceiverUnavailable::unreachable();
+        }
+
+        $known = array_column($state->modes, 'key');
 
         if (! in_array($key, $known, true)) {
             throw new InvalidArgumentException('Unknown receiver sound mode.');
