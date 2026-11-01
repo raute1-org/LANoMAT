@@ -170,3 +170,32 @@ with a token message instead of looking healthy.
 - [ ] Power off and on from the page; the page shows "Receiver ist aus" while off.
 - [ ] Music Assistant plays to the receiver over HEOS; LANoMAT only steers, it does not play.
 - [ ] The token is only in the venue `.env` and the app's `.env`, not in files or commits.
+
+## 8. Test VM with network isolation
+
+The isolation of the Proxmox test VM ([`proxmox-test-vm-lancache.md`](proxmox-test-vm-lancache.md),
+step 5) rejects every private destination except the gateway DNS and the WireGuard net, for the
+host (`output` chain) and for containers (`forward` chain). The sidecar's telnet connection to a
+receiver in another private net is therefore refused (`Packet filtered` / `No route to host`)
+until one narrow exception exists. Add it in **both** chains of `/etc/nftables.d/10-isolation.nft`,
+right after the `$WG_NET` line and before the private-net reject:
+
+```
+ip daddr <RECEIVER_IP> tcp dport 23 accept
+```
+
+Check with `nft -c -f` first, then load with `nft -f`. Only TCP 23 to that one address is
+opened; ping and every other port stay blocked. Keep a copy of the file before editing it.
+
+## 9. Verified on a real receiver (2026-11-01)
+
+One Denon AV receiver on a separate LAN, reached from the isolated test VM through the exception
+above: the sidecar connected (`/healthz` `connected: true`), the Preflight probe `room_audio` was
+ok, and `/state` returned the real state.
+
+- The `NET` input is named "HEOS Music" (code `NET`).
+- Telnet stays open while the receiver is in standby (`power: false`, `mainZone: false`), so the
+  page can show "Receiver ist aus" and switch it on.
+- The sound mode maps to the whitelist key (`stereo`) and the display name (`Stereo`).
+- Not yet checked on the device: volume, mute, power and input commands from the page, zone
+  handling (`mainZone`), and parallel use with another telnet client.
