@@ -74,7 +74,7 @@ class MatchProgression
                 continue;
             }
 
-            $wasReady = $statusBefore[$domainMatch->id] === MatchStatus::Ready;
+            $wasReady = in_array($statusBefore[$domainMatch->id], [MatchStatus::Ready, MatchStatus::Live], true);
             $isNowReady = $domainMatch->isPlayable() && ! $domainMatch->isDecided();
 
             if ($isNowReady && ! $wasReady) {
@@ -249,6 +249,13 @@ class MatchProgression
             $entry2Id = $domainMatch->slot2->entryId();
             $winnerEntryId = $domainMatch->winnerEntryId();
             $status = $this->statusFor($domainMatch, isset($dead[$domainMatch->id]));
+
+            // The domain only knows "playable"; a row already past Ready
+            // (warming up, live, awaiting confirmation, disputed) keeps its
+            // lifecycle status when another match's result is progressed.
+            if ($status === MatchStatus::Ready && ($row->status === MatchStatus::Live || $row->status === MatchStatus::Warmup || $row->status === MatchStatus::Reported || $row->status === MatchStatus::Disputed)) {
+                $status = $row->status;
+            }
 
             $changed = $row->entry1_id !== $entry1Id
                 || $row->entry2_id !== $entry2Id

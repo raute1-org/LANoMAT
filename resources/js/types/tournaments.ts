@@ -94,7 +94,13 @@ export interface MatchVoiceLinkItem {
 export type MatchVoiceLinks = MatchVoiceLinkItem[];
 
 export type MatchStatusValue =
-    'pending' | 'ready' | 'warmup' | 'reported' | 'disputed' | 'completed';
+    | 'pending'
+    | 'ready'
+    | 'warmup'
+    | 'live'
+    | 'reported'
+    | 'disputed'
+    | 'completed';
 
 export type ServerLinkStatusValue =
     'pending' | 'provisioning' | 'ready' | 'failed' | 'stopped';

@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\Gate;
 /**
  * The beamer "gong" moment: an orga/helper (or, once both rosters have
  * checked in as ready, an automatic trigger — see
- * {@see allRostersReady()}) flips a `Warmup` match back to `Ready`
- * (live-ish — the match is now actually being played) and dispatches
+ * {@see allRostersReady()}) flips a `Warmup` match to `Live`
+ * (the match is now actually being played) and dispatches
  * {@see MatchWentLive}, which
  * `App\Modules\Infoscreen\Listeners\GongOnMatchLive` turns into a
  * synthetic beamer scene.
@@ -50,7 +50,7 @@ class GoLive
                 throw TournamentException::matchNotInWarmup();
             }
 
-            $locked->status = MatchStatus::Ready;
+            $locked->status = MatchStatus::Live;
             $locked->save();
 
             return $locked;

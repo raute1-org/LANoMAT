@@ -202,6 +202,6 @@ it('flashes a success toast when a helper sends a warmup match live', function (
 
     $response = $this->actingAs($helper)->post("/matches/{$match->id}/go")->assertRedirect();
 
-    expect($match->fresh()->status)->toBe(MatchStatus::Ready);
+    expect($match->fresh()->status)->toBe(MatchStatus::Live);
     $response->assertSessionHas('inertia.flash_data.toast.message', trans('tournaments.warmup.went_live'));
 });

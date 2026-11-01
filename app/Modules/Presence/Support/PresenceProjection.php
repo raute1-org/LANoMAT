@@ -136,7 +136,7 @@ final class PresenceProjection
     }
 
     /**
-     * Matches currently "at the table": `Warmup`/`Ready` in a `Live`
+     * Matches currently "at the table": `Warmup`/`Ready`/`Live` in a `Live`
      * tournament of this event.
      *
      * @return Collection<int, GameMatch>
@@ -144,7 +144,7 @@ final class PresenceProjection
     private static function liveMatches(Event $event): Collection
     {
         return GameMatch::query()
-            ->whereIn('status', [MatchStatus::Warmup->value, MatchStatus::Ready->value])
+            ->whereIn('status', [MatchStatus::Warmup->value, MatchStatus::Ready->value, MatchStatus::Live->value])
             ->whereHas('tournament', function ($query) use ($event): void {
                 $query->where('event_id', $event->id)
                     ->where('status', TournamentStatus::Live->value);

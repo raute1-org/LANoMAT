@@ -168,7 +168,7 @@ class ScreenshotSeeder extends Seeder
                 'position' => 0,
                 'entry1_id' => $this->at($entries, 0)->id,
                 'entry2_id' => $this->at($entries, 1)->id,
-                'status' => MatchStatus::Ready,
+                'status' => MatchStatus::Live,
             ]);
 
             GameMatch::factory()->create([

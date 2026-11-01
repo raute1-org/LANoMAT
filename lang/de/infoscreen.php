@@ -156,6 +156,7 @@ return [
         'match_status_pending' => 'Ausstehend',
         'match_status_ready' => 'Bereit',
         'match_status_warmup' => 'Aufwärmen',
+        'match_status_live' => 'Läuft',
         'match_status_reported' => 'Gemeldet',
         'match_status_disputed' => 'Strittig',
         'match_status_completed' => 'Abgeschlossen',
