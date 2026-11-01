@@ -181,7 +181,7 @@ README
 
 pack "$APP_DIR" "$APP_TAR"
 pack "$CLI_DIR" "$CLI_TAR"
-rm -rf "$STAGE/bin"
+rm -rf "${STAGE:?}/bin"
 
 # ---- manifest ---------------------------------------------------------------------------------
 entry() { # entry <name> <kind>
