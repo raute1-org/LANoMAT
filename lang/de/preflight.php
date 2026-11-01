@@ -18,6 +18,7 @@ return [
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
         'backup' => 'Backup',
+        'dependency_updates' => 'Software-Updates',
     ],
     'messages' => [
         'not_configured' => 'Nicht konfiguriert.',
@@ -29,6 +30,8 @@ return [
         'storage_mismatch' => 'Schreibprobe stimmte nicht überein.',
         'failed_jobs' => ':count fehlgeschlagene(r) Job(s).',
         'stale' => 'Kein aktuelles Lebenszeichen.',
+        'updates_unknown' => 'Noch keine Versionsabfrage erfolgreich (lanomat:check-updates).',
+        'updates_behind' => 'Veraltet: :components. Vor dem Event prüfen, ob ein Update ansteht.',
         'backup_missing' => 'Kein Backup-Marker gefunden. Läuft das Backup-Skript?',
         'backup_unreadable' => 'Backup-Marker ist unlesbar.',
         'backup_age' => 'Letztes erfolgreiches Backup vor :hours Stunden.',
