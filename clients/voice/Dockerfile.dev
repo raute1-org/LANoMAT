@@ -1,0 +1,29 @@
+# Reproducible build and test environment for the native voice client.
+# Build: docker build -t lanomat-voice-dev -f Dockerfile.dev .
+#
+# The prebuilt libwebrtc that the LiveKit SDK links needs clang 21 or newer (its hermetic
+# libc++ check fails with Debian bookworm's clang 14), so clang comes from apt.llvm.org.
+FROM rust:1.91-bookworm
+
+ARG LLVM_VERSION=21
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg \
+        libasound2-dev pkg-config libssl-dev cmake \
+        libx11-dev libxext-dev libgl1-mesa-dev libdrm-dev libgbm-dev libva-dev \
+    && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-${LLVM_VERSION} main" \
+        > /etc/apt/sources.list.d/llvm.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        clang-${LLVM_VERSION} libclang-${LLVM_VERSION}-dev lld-${LLVM_VERSION} \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CC=clang-${LLVM_VERSION} \
+    CXX=clang++-${LLVM_VERSION} \
+    LIBCLANG_PATH=/usr/lib/llvm-${LLVM_VERSION}/lib
+
+RUN rustup component add clippy rustfmt
+
+WORKDIR /work

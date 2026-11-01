@@ -43,3 +43,6 @@ yarn-error.log
 
 __pycache__/
 *.pyc
+
+# Native voice client (Rust workspace)
+/clients/voice/target/

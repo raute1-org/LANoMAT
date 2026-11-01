@@ -1,0 +1,15 @@
+[package]
+name = "voice-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lanomat-voice"
+path = "src/main.rs"
+
+[dependencies]
+voice-core = { path = "../voice-core", features = ["cpal-audio", "dev-tokens"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+clap = { version = "4", features = ["derive"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi"] }
