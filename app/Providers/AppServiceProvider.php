@@ -98,6 +98,7 @@ use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
 use App\Modules\Preflight\Checks\PelicanCheck;
 use App\Modules\Preflight\Checks\QueueWorkerCheck;
+use App\Modules\Preflight\Checks\ReceiverSidecarCheck;
 use App\Modules\Preflight\Checks\RedisCheck;
 use App\Modules\Preflight\Checks\ReverbCheck;
 use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
@@ -122,6 +123,9 @@ use App\Modules\Provisioning\Support\PhpseclibHostKeyScanner;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\RoomAudio\Contracts\ReceiverClient;
+use App\Modules\RoomAudio\HttpReceiverClient;
+use App\Modules\RoomAudio\Policies\RoomAudioPolicy;
 use App\Modules\Schedule\Contracts\ScheduleParticipantResolver;
 use App\Modules\Schedule\Events\ScheduleItemModified;
 use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
@@ -301,6 +305,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(HostKeyScanner::class, PhpseclibHostKeyScanner::class);
         $this->app->bind(HostKeyTrust::class, CrossCheckHostKeyTrust::class);
 
+        $this->app->bind(ReceiverClient::class, fn () => new HttpReceiverClient(
+            rtrim((string) config('services.room_audio.rest_url'), '/'),
+            (string) config('services.room_audio.token'),
+        ));
+
         $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
             (string) config('services.music_assistant.base_url'),
             (string) config('services.music_assistant.token'),
@@ -348,6 +357,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class, ClientBuildCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
+            ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
         ], 'preflight.checks');
 
         $this->app->bind(LatestRelease::class, HttpLatestRelease::class);
@@ -575,6 +585,10 @@ class AppServiceProvider extends ServiceProvider
         if ($this->on(Module::Jukebox)) {
             Gate::define('jukebox.participate', [JukeboxPolicy::class, 'participate']);
             Gate::define('jukebox.moderate', [JukeboxPolicy::class, 'moderate']);
+        }
+
+        if ($this->on(Module::RoomAudio)) {
+            Gate::define('room-audio.control', [RoomAudioPolicy::class, 'control']);
         }
     }
 

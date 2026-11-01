@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Http\Middleware\AddContentSecurityPolicy;
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
+use App\Modules\RoomAudio\Filament\Pages\RoomControl;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
 use App\Support\Brand\ShellParity;
 use App\Support\Modules\Module;
@@ -95,6 +96,13 @@ class AdminPanelProvider extends PanelProvider
             if (is_dir($dir)) {
                 $panel->discoverResources(in: $dir, for: "App\\Modules\\{$module->name}\\Filament\\Resources");
             }
+        }
+
+        // Standalone panel pages are registered explicitly per module: the
+        // Filament/Pages directories of other modules hold resource pages
+        // (e.g. Registration's ArrivalOverview), which must not be discovered as panel pages.
+        if ($modules->enabled(Module::RoomAudio)) {
+            $panel->pages([RoomControl::class]);
         }
 
         return $panel

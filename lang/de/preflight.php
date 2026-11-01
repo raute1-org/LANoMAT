@@ -17,6 +17,7 @@ return [
         'teamspeak' => 'TeamSpeak',
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
+        'room_audio' => 'Raum-Audio (Denon)',
         'backup' => 'Backup',
         'client_build' => 'Desktop-App-Download',
         'dependency_updates' => 'Software-Updates',
@@ -37,6 +38,10 @@ return [
         'backup_unreadable' => 'Backup-Marker ist unlesbar.',
         'client_build_missing' => 'Kein Desktop-App-Build veröffentlicht. Die Orga muss den Client bauen: scripts/ops/build-client.sh.',
         'client_build_stale' => 'Der Desktop-App-Build (:client) passt nicht zum Server (:server). Die Orga muss den Client neu bauen: scripts/ops/build-client.sh.',
+        'receiver_offline' => 'Der Receiver ist aus oder nicht erreichbar. Der Sidecar läuft, hat aber keine Verbindung zum Receiver.',
+        'sidecar_http' => 'Der Raum-Audio-Sidecar antwortet mit HTTP :status.',
+        'sidecar_token' => 'Der Raum-Audio-Sidecar lehnt das Token ab oder hat keines konfiguriert. DENON_ADMIN_TOKEN in App und Sidecar prüfen.',
+        'sidecar_unreadable' => 'Die Antwort des Raum-Audio-Sidecars ist unlesbar.',
         'backup_age' => 'Letztes erfolgreiches Backup vor :hours Stunden.',
     ],
     'status' => [

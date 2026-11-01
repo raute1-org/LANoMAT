@@ -26,7 +26,7 @@ files to the receiver over HEOS). Participants keep voting for tracks; they do *
   `HttpReceiverClient` (sidecar) and `FakeReceiverClient` (tests). Other modules never call it directly;
   the Jukebox page may show the panel through a `Modules::enabled()` guard.
 - Actions per use case (`SetReceiverVolume` ...), each clamping to an orga-set **volume ceiling**
-  (stored per event) and rejecting values the receiver cannot take; controllers/Filament stay thin.
+  (one value for the venue, one receiver per venue) and rejecting values the receiver cannot take; controllers/Filament stay thin.
 - Filament: a standalone "Raumsteuerung" page for orga (state, volume slider, mute, power, input, mode,
   ceiling). State is read through the client (short cache), never trusted from the browser.
 - Preflight probe `room_audio` (sidecar reachable, receiver connected) and a "receiver off while the

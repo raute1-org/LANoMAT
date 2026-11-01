@@ -803,6 +803,7 @@ Stand 2026-11-01. Nach dem Produktiv-Deployment (PRs #53–#132, alles auf `main
 - **Dateihost** (PR #103/#104/#109): alle Dateitypen, signierte Downloads vom LanCache-Host, fortsetzbare tus-Uploads, Preflight-Check und automatische Zertifikat-Synchronisation (`cert-sync`).
 - **Update-Wächter** (PR #110): Preflight-Check `dependency_updates` für gepinnte Fremd-Images, warnt nur.
 - **Web-Voice** (PR #100, #107): LiveKit, Chat, Diagnose, Latenz-Selbsttest, Headset-Modus. **Voice/Discord** (PR #72, #74, #78–#79, #89–#97, #105/#106): Mumble 1.5, TeamSpeak gegen echten Server, Kategorie pro Event und Raum pro Team, leere Räume sofort weg.
+- **Raum-Audio (Denon)** (optionales Modul `RoomAudio`, Profil `full`, #139): Orga steuert Power, Lautstärke mit Obergrenze, Mute, Eingang und Klangmodus des AV-Receivers über den Telnet-Sidecar `docker/denon-admin/`; Preflight-Check `room_audio`; Runbook [`docs/infra/room-audio-denon.md`](../../infra/room-audio-denon.md). Music Assistant spielt weiterhin über HEOS am Receiver; LANoMAT steuert nur. Hinweis-Idee „Receiver aus während die Jukebox spielt“ ist bewusst nicht umgesetzt (kein Import aus Jukebox ins Modul).
 - **Weiteres:** `MatchStatus::Live` (PR #112), Galerie-Retract (PR #111), Dauer-Gameserver (PR #99), Provisioning (PR #61), Paper-Preset mit `USER_AGENT` (PR #118), Schriften selbst gehostet (PR #98), QA Runde 2 mit Fixes (PR #66–#71).
 
 ### Entscheidungen

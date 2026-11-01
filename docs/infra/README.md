@@ -21,6 +21,7 @@ rules").
 | [mumble-changelog-notes.md](mumble-changelog-notes.md)             | What Mumble's release changelogs since 1.4.230 mean for us: the 1.5 upgrade, the Ice module rename, security fixes, usable features.                                                |
 | [livekit-web-voice.md](livekit-web-voice.md)                       | Self-hosted LiveKit SFU for the in-browser voice and text chat (`WebVoice` module): ports, latency settings, TLS, manual checklist.                                                 |
 | [file-host.md](file-host.md)                                       | Shared files stored on and served from the LanCache host: chrooted SFTP account, nginx with signed expiring links, resumable big-file uploads (tusd, tus protocol), TLS, checklist. |
+| [room-audio-denon.md](room-audio-denon.md)                         | Denon AV receiver at the venue for the `RoomAudio` module: the denon-admin sidecar, network placement, finding the `NET` source, ceiling, Preflight.                                |
 
 ## Suggested reading order
 
