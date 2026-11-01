@@ -1,0 +1,30 @@
+[package]
+name = "voice-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+# Real audio devices through cpal (needs libasound2-dev on Linux).
+cpal-audio = ["dep:cpal"]
+# Mint LiveKit join tokens locally from an API key and secret (loopback tests, `latency-test`).
+dev-tokens = ["dep:livekit-api"]
+
+[dependencies]
+livekit = { version = "0.10.0", features = ["rustls-tls-native-roots"] }
+livekit-api = { version = "0.10.0", default-features = false, features = ["access-token"], optional = true }
+futures-util = { version = "0.3", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "fs", "net", "io-util"] }
+rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std", "tls12"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+directories = "6"
+tracing = "0.1"
+cpal = { version = "0.18", optional = true }
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3"
