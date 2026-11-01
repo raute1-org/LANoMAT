@@ -889,7 +889,8 @@
                     !byText('.where', 'CS2 Cup', dirk),
                 'only the game name is shown',
             );
-            await toList();
+            dirk.scrollIntoView({ block: 'center' });
+            await sleep(250);
             await shot('29-personen-not-joinable');
         },
     );
@@ -1548,7 +1549,10 @@
                 3000,
                 'unlink confirmation',
             );
-            await toRow('Twitch');
+            q('#screen-mehr [role=alertdialog]').scrollIntoView({
+                block: 'center',
+            });
+            await sleep(250);
             await shot('69f-profile-unlink-confirm');
             await clickText('[role=alertdialog] button', S.profile.unlink);
             await waitFor(

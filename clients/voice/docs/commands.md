@@ -409,7 +409,7 @@ Args `{provider}`. Result `{provider, url, expires_at}`: a single-use link into 
 
 ### `open_link_url`
 
-Args `{url}`. Opens the link of `connection_link_url` with the system browser. **Only** an `https` URL whose origin equals the logged-in server's and whose path starts with `/settings/connections/link/` followed by a token is accepted (no credentials, no fragment, no further path segments, no encoded tricks); anything else is `usage`. A machine without a browser handler answers `local`.
+Args `{url}`. Opens the link of `connection_link_url` with the system browser. **Only** an `https` URL whose origin equals the logged-in server's and whose path starts with `/settings/connections/link/` followed by a token is accepted (no credentials, no fragment, no further path segments, no encoded tricks); anything else is `usage` (a build with the `selftest` feature, used only by the headless UI smoke, additionally accepts plain `http` for a `127.0.0.1` or `localhost` origin that equals the server's; a release build never does). A machine without a browser handler answers `local`.
 
 ### `list_friends`
 

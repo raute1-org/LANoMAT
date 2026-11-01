@@ -385,7 +385,7 @@ export const S = {
         notifications: 'Benachrichtigungen',
         notificationsHint: 'Verlauf und was dir gemeldet wird',
         friends: 'Freunde',
-        friendsHint: 'Wer ist da, Anfragen und Vorschläge',
+        friendsHint: 'Anfragen, Vorschläge und blockierte Personen',
         profile: 'Profil',
         profileHint: 'Dein Name, Bio und verknüpfte Konten',
         settings: 'Einstellungen',
