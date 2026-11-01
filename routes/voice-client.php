@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Notifications\Http\NativeNotificationController;
 use App\Modules\WebVoice\NativeClient\Http\AuthenticateVoiceClient;
 use App\Modules\WebVoice\NativeClient\Http\DeviceFlowController;
 use App\Modules\WebVoice\NativeClient\Http\Features\CateringApiController;
@@ -8,6 +9,8 @@ use App\Modules\WebVoice\NativeClient\Http\Features\FilesApiController;
 use App\Modules\WebVoice\NativeClient\Http\Features\PollsApiController;
 use App\Modules\WebVoice\NativeClient\Http\ForceJsonAccept;
 use App\Modules\WebVoice\NativeClient\Http\VoiceClientApiController;
+use App\Modules\WebVoice\NativeClient\Http\VoiceClientBroadcastingController;
+use App\Modules\WebVoice\NativeClient\Http\VoiceClientChatController;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Routing\Middleware\SubstituteBindings;
@@ -68,3 +71,25 @@ Route::prefix('api/voice-client/v1')
             Route::delete('files/{sharedFile}', [FilesApiController::class, 'destroy'])->middleware('throttle:30,1')->name('files.destroy');
         }
     });
+
+/*
+| --- Chat, realtime auth and notifications (native client API v1) ---------------------------
+| Kept in a block of its own. Same bearer middleware and per-token throttle as above; every
+| decision is made by the browser's policies/actions the controllers delegate to.
+*/
+Route::prefix('api/voice-client/v1')->middleware([AuthenticateVoiceClient::class, 'throttle:voice-client-api', SubstituteBindings::class])->name('voice-client.v1.')->group(function () {
+    Route::get('rooms/{room}/messages', [VoiceClientChatController::class, 'index'])->name('rooms.messages');
+    Route::post('rooms/{room}/messages', [VoiceClientChatController::class, 'store'])->middleware('throttle:web-voice-chat')->name('rooms.messages.store');
+    Route::delete('messages/{message}', [VoiceClientChatController::class, 'destroy'])->name('messages.destroy');
+
+    Route::post('broadcasting/auth', VoiceClientBroadcastingController::class)->name('broadcasting.auth');
+
+    if (app(Modules::class)->routable(Module::Notifications)) {
+        Route::get('notifications', [NativeNotificationController::class, 'index'])->name('notifications');
+        Route::get('notifications/unread-count', [NativeNotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+        Route::post('notifications/read-all', [NativeNotificationController::class, 'readAll'])->name('notifications.read-all');
+        Route::post('notifications/{notification}/read', [NativeNotificationController::class, 'read'])->name('notifications.read');
+        Route::get('notification-preferences', [NativeNotificationController::class, 'preferences'])->name('notification-preferences');
+        Route::put('notification-preferences', [NativeNotificationController::class, 'updatePreferences'])->name('notification-preferences.update');
+    }
+});
