@@ -17,8 +17,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Bearer-authenticated JSON API of the native desktop client (v1). Voice only: there is no chat
- * API in v1. Room visibility and join rules are the browser's (WebVoiceChannelPolicy).
+ * Bearer-authenticated JSON API of the native desktop client (v1). Voice and config only; chat,
+ * realtime auth and notifications have their own controllers. Room visibility and join rules are the browser's (WebVoiceChannelPolicy).
  */
 class VoiceClientApiController extends Controller
 {
@@ -76,6 +76,7 @@ class VoiceClientApiController extends Controller
             'audio' => (array) config('webvoice.audio'),
             // Which optional modules this deployment runs, so the client can hide what the event does not use.
             'modules' => $this->modules(),
+            'realtime' => $this->realtime(),
         ]);
     }
 
@@ -85,6 +86,33 @@ class VoiceClientApiController extends Controller
         $modules = app(Modules::class);
 
         return collect(Module::cases())->mapWithKeys(fn (Module $module): array => [$module->key() => $modules->enabled($module)])->all();
+    }
+
+    /**
+     * Where a Pusher-protocol client connects for live chat. Public connection data only: the app
+     * key is what browsers receive too; the secret never leaves the server. Null when Reverb is
+     * not configured (clients then fall back to polling the REST endpoints).
+     *
+     * @return array{driver: string, key: string, host: string, port: int, scheme: string, auth_endpoint: string}|null
+     */
+    private function realtime(): ?array
+    {
+        $key = (string) config('broadcasting.connections.reverb.key');
+        $options = (array) config('broadcasting.connections.reverb.options');
+        $host = (string) ($options['host'] ?? '');
+
+        if ($key === '' || $host === '' || config('broadcasting.default') !== 'reverb') {
+            return null;
+        }
+
+        return [
+            'driver' => 'reverb',
+            'key' => $key,
+            'host' => $host,
+            'port' => (int) ($options['port'] ?? 443),
+            'scheme' => (string) ($options['scheme'] ?? 'https'),
+            'auth_endpoint' => route('voice-client.v1.broadcasting.auth', absolute: false),
+        ];
     }
 
     private function user(Request $request): User

@@ -190,8 +190,12 @@ return [
         4 => 'WebVoice',
     ],
     'WebVoice' => [
-        0 => 'Events',
-        1 => 'GameServers',
-        2 => 'Tournaments',
+        0 => 'Catering',
+        1 => 'Events',
+        2 => 'Files',
+        3 => 'GameServers',
+        4 => 'Registration',
+        5 => 'Tournaments',
+        6 => 'Voting',
     ],
 ];

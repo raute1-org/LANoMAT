@@ -7,12 +7,12 @@ use App\Http\Controllers\Controller;
 use App\Modules\Catering\Actions\CancelFoodOrderItem;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
 use App\Modules\Catering\Domain\MenuOption;
-use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
+use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Events\Models\Event;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -38,11 +38,7 @@ class CateringController extends Controller
 
         $userId = $request->user()?->id;
 
-        $orders = FoodOrder::query()
-            ->where('event_id', $event->id)
-            ->whereIn('status', [FoodOrderStatus::Open->value, FoodOrderStatus::Closed->value])
-            ->orderByDesc('created_at')
-            ->get();
+        $orders = ListedFoodOrders::forEvent($event);
 
         return Inertia::render('Catering/Show', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
