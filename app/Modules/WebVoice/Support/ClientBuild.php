@@ -14,9 +14,22 @@ final class ClientBuild
         public readonly string $kind,
         public readonly int $size,
         public readonly string $sha256,
+        /** Code-signed by the release pipeline? `null`: the manifest does not say (the local Linux build). */
+        public readonly ?bool $signed = null,
     ) {}
 
-    /** @return array{name: string, os: string, arch: string, kind: string, size: int, sha256: string} */
+    /** Content type of the download, from the file extension (the name was validated against the manifest). */
+    public function contentType(): string
+    {
+        return match (true) {
+            str_ends_with($this->name, '.zip') => 'application/zip',
+            str_ends_with($this->name, '.exe') => 'application/vnd.microsoft.portable-executable',
+            str_ends_with($this->name, '.tar.gz'), str_ends_with($this->name, '.gz') => 'application/gzip',
+            default => 'application/octet-stream',
+        };
+    }
+
+    /** @return array{name: string, os: string, arch: string, kind: string, size: int, sha256: string, signed: bool|null} */
     public function toArray(): array
     {
         return [
@@ -26,6 +39,7 @@ final class ClientBuild
             'kind' => $this->kind,
             'size' => $this->size,
             'sha256' => $this->sha256,
+            'signed' => $this->signed,
         ];
     }
 }

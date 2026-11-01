@@ -163,9 +163,13 @@ It is the same thing as the `venue-entry` compose profile. Remove it with `docke
   same Dockerfile; a partial build left `queue` and `scheduler` on old code here and caused failed jobs. Export
   `APP_VERSION`/`APP_COMMIT` first (`source scripts/ops/lib/version.sh`; `scripts/deploy/deploy.sh` does it) so the
   images do not report `dev`. Migrations: `docker compose --profile prod exec app php artisan migrate --force`.
-- Native client download: run `scripts/ops/build-client.sh` after the pull and before `up -d`; it publishes
-  `./clients-dist`, which compose mounts read-only into `app` and `scheduler`. Preflight warns when the build is
-  missing or does not match the deployed version.
+- Native client download (Linux and Windows): after the pull and before `up -d`, run
+  `scripts/ops/fetch-client-release.sh`. It needs the GitHub workflow to have run for exactly the commit being
+  deployed: `gh workflow run release-client.yml --ref <branch> -f version="$(. scripts/ops/lib/version.sh; lanomat_version .)"`
+  (about 25 minutes; `gh auth login` once on the host). The script verifies sha256 and sizes, refuses a wrong
+  version or commit, and publishes `./clients-dist`, which compose mounts read-only into `app` and `scheduler`.
+  Without GitHub access: `scripts/ops/build-client.sh` builds Linux locally (no Windows). Preflight warns when
+  the build is missing or does not match the deployed version. Details: `docs/deploy-lan-raute1.md`.
 - Demo data: `php artisan db:seed --class=ScreenshotSeeder` from a checkout with the dev dependencies, through an SSH
   tunnel to the database port (the production image has no Faker).
 - Backups: `scripts/ops/install-backup-cron.sh <project-dir>`, then run `scripts/ops/backup.sh` once so the Preflight

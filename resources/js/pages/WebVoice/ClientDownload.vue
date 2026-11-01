@@ -17,6 +17,7 @@ type Build = {
     size: number;
     sha256: string;
     url: string;
+    signed: boolean | null;
 };
 
 const props = defineProps<{
@@ -42,6 +43,12 @@ const buildsFor = (os: Os): Build[] =>
     props.builds.filter((build) => build.os === os);
 
 const shown = computed(() => buildsFor(selected.value));
+
+const unsignedWindows = computed(
+    () =>
+        selected.value === 'windows' &&
+        shown.value.some((build) => build.signed === false),
+);
 
 const copied = ref<string | null>(null);
 
@@ -72,6 +79,20 @@ const builtAt = computed(() =>
               timeZone: 'Europe/Berlin',
           }),
 );
+
+function meta(build: Build): string {
+    const parts = [build.arch, megabytes(build.size)];
+
+    if (build.os === 'windows') {
+        parts.push(
+            build.signed === true
+                ? props.labels.signed_label
+                : props.labels.unsigned_label,
+        );
+    }
+
+    return parts.join(', ');
+}
 
 const kindLabel = (kind: Build['kind']): string =>
     kind === 'app' ? props.labels.kind_app : props.labels.kind_cli;
@@ -215,8 +236,7 @@ const kindLabel = (kind: Build['kind']): string =>
                                         {{ kindLabel(build.kind) }}
                                     </p>
                                     <p class="text-xs text-muted-foreground">
-                                        {{ build.arch }},
-                                        {{ megabytes(build.size) }}
+                                        {{ meta(build) }}
                                     </p>
                                 </div>
                                 <Button as-child>
@@ -266,6 +286,45 @@ const kindLabel = (kind: Build['kind']): string =>
                             </div>
                         </li>
                     </ul>
+                </section>
+
+                <div
+                    v-if="unsignedWindows"
+                    class="mt-4 flex items-start gap-3 rounded-md border border-warn/60 bg-warn/10 p-5 text-sm"
+                    role="note"
+                    data-test="client-unsigned"
+                >
+                    <TriangleAlert
+                        class="mt-0.5 size-5 shrink-0 text-warn"
+                        aria-hidden="true"
+                    />
+                    <div>
+                        <p class="font-medium">{{ labels.unsigned_title }}</p>
+                        <p class="mt-1 text-muted-foreground">
+                            {{ labels.unsigned_body }}
+                        </p>
+                    </div>
+                </div>
+
+                <section
+                    v-if="selected === 'windows' && shown.length > 0"
+                    class="mt-8"
+                    aria-labelledby="install-heading-win"
+                >
+                    <h2
+                        id="install-heading-win"
+                        class="text-lg font-semibold tracking-tight"
+                    >
+                        {{ labels.install_heading }}
+                    </h2>
+                    <ol
+                        class="mt-3 list-decimal space-y-2 pl-5 text-sm"
+                        data-test="client-steps-windows"
+                    >
+                        <li>{{ labels.step_win_extract }}</li>
+                        <li>{{ labels.step_win_start }}</li>
+                        <li>{{ labels.step_win_smartscreen }}</li>
+                    </ol>
                 </section>
 
                 <section

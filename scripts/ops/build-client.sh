@@ -11,8 +11,9 @@
 # What it does: builds `lanomat-voice` (CLI) and `lanomat-voice-app` (Tauri) for linux x86_64 in the
 # docker images of clients/voice (no Rust toolchain on the host; cargo registry and target live in
 # the named volumes lanomat-cargo-registry / lanomat-cargo-target), packs each into a .tar.gz and
-# writes manifest.json next to them. Only Linux x86_64 is built: there is no Windows or macOS
-# builder, and the manifest says so by simply not listing them.
+# writes manifest.json next to them. Only Linux x86_64 is built here: Windows files come from the
+# GitHub workflow (scripts/ops/fetch-client-release.sh). If clients-dist already holds Windows (or
+# other non-Linux-x86_64) entries of the SAME version and commit, they are kept in the manifest.
 #
 # Atomicity: everything is staged inside <out>/.staging-<pid> (same filesystem), tarballs are moved
 # into place first and manifest.json is renamed LAST, so a reader sees either the old or the new
@@ -39,7 +40,7 @@ while [ $# -gt 0 ]; do
         --allow-dirty) ALLOW_DIRTY=1 ;;
         --version) shift; VERSION_OVERRIDE="${1:?--version needs a value}" ;;
         --out) shift; OUT="${1:?--out needs a directory}" ;;
-        -h|--help) sed -n '2,19p' "${BASH_SOURCE[0]}"; exit 0 ;;
+        -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
         *) die "unknown argument: $1 (see --help)" ;;
     esac
     shift
@@ -189,14 +190,29 @@ entry() { # entry <name> <kind>
     jq -n --arg name "$1" --arg os "$OS" --arg arch "$ARCH" --arg kind "$2" \
         --argjson size "$(stat -c %s "$file")" \
         --arg sha "$(sha256sum "$file" | cut -d' ' -f1)" \
-        '{name: $name, os: $os, arch: $arch, kind: $kind, size: $size, sha256: $sha}'
+        '{name: $name, os: $os, arch: $arch, kind: $kind, size: $size, sha256: $sha, signed: false}'
 }
+
+# Entries of the same version and commit for other platforms (the workflow's Windows files, put
+# there by fetch-client-release.sh) stay, as long as the file is intact on disk.
+KEEP='[]'
+if [ -f "$OUT/manifest.json" ] && [ ! -L "$OUT/manifest.json" ] \
+    && [ "$(jq -r '.app_version // empty' "$OUT/manifest.json" 2>/dev/null || true)" = "$VERSION" ] \
+    && [ "$(jq -r '.commit // empty' "$OUT/manifest.json" 2>/dev/null || true)" = "$COMMIT" ]; then
+    while IFS=$'\t' read -r name size sha; do
+        [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || continue
+        p="$OUT/$name"
+        if [ -f "$p" ] && [ ! -L "$p" ] && [ "$(stat -c %s "$p")" = "$size" ] && [ "$(sha256sum "$p" | cut -d' ' -f1)" = "$sha" ]; then
+            KEEP="$(jq -c --arg n "$name" --slurpfile m "$OUT/manifest.json" '. + [$m[0].files[] | select(.name == $n)]' <<<"$KEEP")"
+        fi
+    done < <(jq -r '(.files // [])[] | select((.name|type)=="string" and (.size|type)=="number" and (.sha256|type)=="string" and ((.os == "linux" and .arch == "x86_64") | not)) | [.name, .size, .sha256] | @tsv' "$OUT/manifest.json" 2>/dev/null || true)
+fi
 
 jq -n \
     --arg app_version "$VERSION" --arg commit "$COMMIT" --argjson api_version "$API_VERSION" \
     --arg built_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --argjson app "$(entry "$APP_TAR" app)" --argjson cli "$(entry "$CLI_TAR" cli)" \
-    '{app_version: $app_version, commit: $commit, api_version: $api_version, built_at: $built_at, files: [$app, $cli]}' \
+    --argjson app "$(entry "$APP_TAR" app)" --argjson cli "$(entry "$CLI_TAR" cli)" --argjson keep "$KEEP" \
+    '{app_version: $app_version, commit: $commit, api_version: $api_version, built_at: $built_at, files: ([$app, $cli] + $keep)}' \
     > "$STAGE/manifest.json"
 
 # ---- publish: files first, manifest last ---------------------------------------------------------
@@ -206,10 +222,10 @@ chmod 0644 "$OUT/$APP_TAR" "$OUT/$CLI_TAR" "$STAGE/manifest.json"
 mv -f "$STAGE/manifest.json" "$OUT/manifest.json"
 
 # Prune what the new manifest no longer lists (older releases), after the switch.
-for old in "$OUT"/lanomat-voice-*.tar.gz; do
+for old in "$OUT"/lanomat-voice-*.tar.gz "$OUT"/lanomat-voice-*.zip "$OUT"/lanomat-voice-*.exe; do
     [ -e "$old" ] || continue
     name="$(basename "$old")"
-    if [ "$name" != "$APP_TAR" ] && [ "$name" != "$CLI_TAR" ]; then
+    if ! jq -e --arg n "$name" '.files | map(.name) | index($n)' "$OUT/manifest.json" >/dev/null; then
         rm -f "$old"
         echo "    pruned $name"
     fi

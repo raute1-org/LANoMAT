@@ -37,7 +37,9 @@ export APP_VERSION APP_COMMIT
 echo "==> Version $APP_VERSION ($APP_COMMIT)"
 if [ -f clients-dist/manifest.json ] && ! grep -q "\"app_version\": \"$APP_VERSION\"" clients-dist/manifest.json; then
     echo "NOTE: clients-dist holds a client build for another version." >&2
-    echo "      Run scripts/ops/build-client.sh so /talk/client matches this server." >&2
+    echo "      Fetch the workflow build (Linux + Windows): scripts/ops/fetch-client-release.sh" >&2
+    echo "      (needs the release-client workflow run for this commit, see docs/deploy-lan-raute1.md)," >&2
+    echo "      or build Linux only: scripts/ops/build-client.sh" >&2
 fi
 
 # --pull refreshes the moving base tags (FrankenPHP 1.13-php8.4, node:22-alpine)

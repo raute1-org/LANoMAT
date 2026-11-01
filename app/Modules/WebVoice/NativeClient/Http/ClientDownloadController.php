@@ -61,7 +61,7 @@ class ClientDownloadController extends Controller
         abort_if($build === null || $path === null || ! is_file($path), 404);
 
         return response()->download($path, $build->name, [
-            'Content-Type' => 'application/gzip',
+            'Content-Type' => $build->contentType(),
             'X-Checksum-Sha256' => $build->sha256,
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-cache',
