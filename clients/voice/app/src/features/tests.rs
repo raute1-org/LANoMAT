@@ -530,3 +530,65 @@ fn unknown_category_keys_in_the_settings_are_ignored() {
     assert_eq!(o.len(), 1);
     assert_eq!(o.get(&Category::Match), Some(&false));
 }
+
+#[tokio::test]
+async fn account_calls_use_the_shared_error_object_and_the_expiry_event() {
+    let r = rig().await;
+    let s = &r.server;
+    Mock::given(method("POST"))
+        .and(path("/api/voice-client/v1/friends/requests"))
+        .respond_with(
+            ResponseTemplate::new(422).set_body_json(
+                json!({"code": "request_pending", "message": "Anfrage läuft schon."}),
+            ),
+        )
+        .mount(s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/friends"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            json!({"friends": [{"id": 9, "name": "Bob", "avatar_url": null, "extra": 1}]}),
+        ))
+        .mount(s)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/voice-client/v1/friends/requests/4/accept"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"status": "accepted"})))
+        .mount(s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/profile"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({"message": "x"})))
+        .mount(s)
+        .await;
+
+    let e = r.features.send_friend_request(9).await.unwrap_err();
+    assert_eq!((e.kind, e.retryable), ("validation", false));
+    assert_eq!(e.code.as_deref(), Some("request_pending"));
+    assert_eq!(e.message, "Anfrage läuft schon.");
+
+    let f = r.features.friends().await.unwrap();
+    assert_eq!(f[0].name, "Bob");
+    let a = r.features.accept_friend_request(4).await.unwrap();
+    assert_eq!(a, json!({"status": "accepted"}));
+
+    let e = r.features.profile().await.unwrap_err();
+    assert_eq!(e.kind, "auth");
+    assert_eq!(r.events_named(EVT_AUTH).len(), 1);
+}
+
+#[tokio::test]
+async fn only_the_servers_own_connect_link_may_be_opened() {
+    let r = rig_at(Some("https://lan.example.test".into())).await;
+    let ok = "https://lan.example.test/settings/connections/link/tok_1";
+    assert_eq!(r.features.checked_link_url(ok).unwrap(), ok);
+    for bad in [
+        "https://evil.example/settings/connections/link/tok_1",
+        "https://lan.example.test/login",
+        "http://lan.example.test/settings/connections/link/tok_1",
+        "steam://connect/1.2.3.4:27015",
+    ] {
+        let e = r.features.checked_link_url(bad).unwrap_err();
+        assert_eq!(e.kind, "usage", "{bad}");
+    }
+}

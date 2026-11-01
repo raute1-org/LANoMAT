@@ -1,5 +1,5 @@
 //! Client side of `docs/infra/native-voice-client-api.md`: device-code pairing, bearer API v1
-//! (voice, events, play, polls, catering, files, chat, notifications) and credential storage.
+//! (voice, events, play, polls, catering, files, chat, notifications, profile, connections, friends) and credential storage.
 //!
 //! Every HTTP failure goes through one mapping (`client::error_from_response`): 401 to
 //! [`Error::Unauthorized`] (log in again), 403 `Forbidden`, 404 `NotFound`, 409 `Conflict` (stale
@@ -7,6 +7,7 @@
 //! `code` and the field errors), 429 `RateLimited` (with `Retry-After`), 503 `Unavailable`, other
 //! 5xx `Server`, and transport trouble `Network`. [`Error::retryable`] tells which are worth a retry.
 
+mod account;
 mod catering;
 mod chat;
 mod client;
@@ -19,6 +20,10 @@ mod polls;
 mod store;
 mod types;
 
+pub use account::{
+    validate_connection_link_url, Connection, FriendRequest, FriendRequests, FriendSuggestion,
+    FriendUser, LinkUrl, Profile, ProfileUpdate,
+};
 pub use catering::{
     Catering, CateringLimits, FoodOrder, MenuEntry, MineItem, MineResponse, MyItem,
 };
