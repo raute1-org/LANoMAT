@@ -9,9 +9,11 @@ use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Models\UserBlock;
 use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
+use App\Modules\Identity\Support\AvatarStore;
 use App\Modules\Identity\Support\DisplayNameResolver;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -39,7 +41,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $remember_token
  * @property string|null $discord_id
  * @property Role $role
- * @property string|null $avatar_url
+ * @property string|null $avatar_url Remembered Discord source URL; never rendered, only fetched server-side.
+ * @property string|null $avatar_path Local avatar copy on the private disk.
+ * @property string|null $avatar_hash Content hash of the local copy, part of its URL.
+ * @property Carbon|null $avatar_checked_at
+ * @property Carbon|null $last_login_at
  * @property string|null $bio
  * @property string|null $steam_url
  * @property string|null $stream_url
@@ -48,14 +54,15 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property array<string, bool>|null $notification_prefs
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read string|null $avatar_src Relative URL of the local avatar (browser route), null = show a monogram.
  * @property-read bool $has_password
  * @property-read bool $is_staff
  * @property-read bool $can_access_admin
  */
 #[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'stream_url', 'profile_color', 'share_location', 'notification_prefs'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-#[Appends(['has_password', 'is_staff', 'can_access_admin'])]
-class User extends Authenticatable implements FilamentUser, PasskeyUser
+#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'avatar_hash'])]
+#[Appends(['has_password', 'is_staff', 'can_access_admin', 'avatar_src'])]
+class User extends Authenticatable implements FilamentUser, HasAvatar, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
@@ -87,7 +94,34 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
             'role' => Role::class,
             'notification_prefs' => 'array',
             'share_location' => 'boolean',
+            'avatar_checked_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The avatar every UI renders: the relative URL of the local copy (served to logged-in users
+     * only), or null so the UI shows a monogram. It never falls back to the Discord CDN URL.
+     *
+     * @return Attribute<string|null, never>
+     */
+    protected function avatarSrc(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => app(AvatarStore::class)->webUrl($this),
+        );
+    }
+
+    /** The same avatar as a bearer-API path, for the native client DTOs. */
+    public function nativeAvatarSrc(): ?string
+    {
+        return app(AvatarStore::class)->nativeUrl($this);
+    }
+
+    /** Filament panel avatar: the panel is session-authenticated, so the browser route works there. */
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->avatar_src;
     }
 
     public function isAdmin(): bool

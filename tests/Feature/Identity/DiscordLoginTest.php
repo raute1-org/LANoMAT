@@ -2,7 +2,9 @@
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Modules\Identity\Jobs\RefreshAvatarJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as SocialiteUser;
@@ -114,4 +116,25 @@ it('creates a new discord user with a null email instead of a 500 when the email
     $newUser = User::where('discord_id', '123456789')->firstOrFail();
     expect($newUser->email)->toBeNull();
     $this->assertAuthenticatedAs($newUser);
+});
+
+it('dispatches the avatar refresh instead of fetching during the login, and stamps last_login_at', function () {
+    Queue::fake();
+    Socialite::shouldReceive('driver->user')->andReturn(fakeDiscordUser());
+
+    $this->get('/auth/discord/callback')->assertRedirect('/');
+
+    $user = User::where('discord_id', '123456789')->firstOrFail();
+    Queue::assertPushed(RefreshAvatarJob::class, fn (RefreshAvatarJob $job) => $job->userId === $user->id);
+    expect($user->last_login_at)->not->toBeNull()
+        ->and($user->avatar_path)->toBeNull();
+});
+
+it('still logs in when the avatar CDN is down', function () {
+    // Sync queue + the test-wide failing fake fetcher: the job fails quietly, the login is unaffected.
+    Socialite::shouldReceive('driver->user')->andReturn(fakeDiscordUser());
+
+    $this->get('/auth/discord/callback')->assertRedirect('/');
+
+    $this->assertAuthenticated();
 });

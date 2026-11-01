@@ -60,8 +60,10 @@ describe('profile', function () {
 
         expect($response->json('profile'))->toMatchArray([
             'id' => $this->user->id, 'name' => 'Ada', 'email' => 'ada@example.test', 'bio' => 'hi',
-            'avatar_url' => 'https://cdn.example.test/a.png', 'has_verified_steam_link' => false,
-        ])->not->toHaveKeys(['role', 'discord_id', 'password']);
+            // No local copy yet: null, never the remembered CDN address (see tests/Feature/Identity/AvatarOutputsTest).
+            'avatar_url' => null, 'has_verified_steam_link' => false,
+        ])->not->toHaveKeys(['role', 'discord_id', 'password'])
+            ->and($response->getContent())->not->toContain('cdn.example.test');
     });
 
     it('updates through the browser rules with PUT and resets email verification on change', function () {

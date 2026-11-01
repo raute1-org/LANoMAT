@@ -2,7 +2,7 @@ export type User = {
     id: number;
     name: string;
     email: string;
-    avatar?: string;
+    avatar_src?: string | null;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     has_password: boolean;

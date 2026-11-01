@@ -3,7 +3,6 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -13,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useEventChannel } from '@/composables/useEventChannel';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { useResync } from '@/composables/useResync';
@@ -113,15 +113,6 @@ const visibleParticipants = computed(() => {
     return participants;
 });
 
-function initials(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('');
-}
-
 function openSpotsLabel(openSpots: number | null): string {
     return openSpots === null
         ? t('free_slots', 'open_unlimited')
@@ -220,16 +211,11 @@ function openSpotsLabel(openSpots: number | null): string {
                         :key="participant.registrationId"
                         class="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
                     >
-                        <Avatar class="size-9">
-                            <AvatarImage
-                                v-if="participant.avatarUrl"
-                                :src="participant.avatarUrl"
-                                :alt="participant.name"
-                            />
-                            <AvatarFallback>{{
-                                initials(participant.name)
-                            }}</AvatarFallback>
-                        </Avatar>
+                        <UserAvatar
+                            :name="participant.name"
+                            :src="participant.avatarUrl"
+                            :size="36"
+                        />
 
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">

@@ -56,6 +56,7 @@ const PUBLIC_ROUTES = [
     'POST api/telemetry/cs2/{serverLink}' => 'per-server telemetry token checked in the controller',
     'POST api/voice-client/device' => 'native voice client device flow step 1: unauthenticated by design, throttled per IP',
     'POST api/voice-client/token' => 'native voice client device flow step 3: the device code is the credential, throttled per IP and code',
+    'GET api/voice-client/v1/avatars/{user}/{hash}' => 'bearer middleware; view-avatar ability (every logged-in user, like names), 404 for a wrong hash or a user without avatar, immutable cache headers',
     'GET api/voice-client/v1/me' => 'bearer middleware (AuthenticateVoiceClient), never the session',
     'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
     'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
@@ -176,6 +177,7 @@ const OPEN_OBJECT_ROUTES = [
     'DELETE schedule/{item}/favorite' => 'favourites are per caller',
     'POST teams/{team}/join' => 'creates a join request for the caller',
     'DELETE teams/{team}/leave' => 'removes the caller only',
+    'GET avatars/{user}/{hash}' => 'view-avatar ability: every logged-in user sees every avatar, like names; the content hash must match (tests/Feature/Identity/AvatarServingTest)',
     'DELETE friends/{user}' => 'removes the caller\'s own friendship with {user}',
     'POST friends/{user}/block' => 'caller blocks {user}',
     'DELETE friends/{user}/block' => 'caller unblocks {user}',
@@ -279,7 +281,7 @@ function modelParameters(LaravelRoute $route): array
 {
     $names = $route->parameterNames();
 
-    return array_values(array_diff($names, ['event', 'provider', 'token', 'scene', 'role', 'path', 'component', 'filename', 'export', 'import']));
+    return array_values(array_diff($names, ['event', 'provider', 'token', 'scene', 'role', 'path', 'component', 'filename', 'export', 'import', 'hash']));
 }
 
 /** @param array<string, string> $overrides */
@@ -296,6 +298,7 @@ function fillUri(LaravelRoute $route, array $overrides = []): string
         return match (true) {
             $m[1] === 'provider' => 'steam',
             $m[1] === 'role' => 'participant',
+            $m[1] === 'hash' => '0123456789abcdef',
             $m[1] === 'notification' => '00000000-0000-4000-8000-000000000000',
             $where !== null && preg_match('/^\^?\[?0-9|\\\\d/', $where) === 1 => '1',
             default => '1',

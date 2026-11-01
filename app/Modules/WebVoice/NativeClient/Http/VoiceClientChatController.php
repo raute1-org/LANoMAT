@@ -30,7 +30,7 @@ class VoiceClientChatController extends Controller
         $this->mustSee($user, $room);
 
         $before = $request->integer('before') ?: null;
-        $messages = $history->page($user, $room, $before);
+        $messages = $history->page($user, $room, $before, native: true);
         $limit = (int) config('webvoice.chat.history');
 
         return response()->json([
@@ -47,7 +47,7 @@ class VoiceClientChatController extends Controller
 
         $message = $post->handle($user, $room, $request->validated('body'));
 
-        return response()->json(['message' => $message->toPayload()], 201);
+        return response()->json(['message' => $message->toPayload(native: true)], 201);
     }
 
     public function destroy(Request $request, WebVoiceMessage $message, DeleteMessage $delete): JsonResponse

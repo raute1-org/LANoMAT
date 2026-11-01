@@ -16,7 +16,7 @@ class ChannelMessages
     /**
      * @return list<array<string, mixed>>
      */
-    public function page(User $viewer, WebVoiceChannel $channel, ?int $beforeId = null): array
+    public function page(User $viewer, WebVoiceChannel $channel, ?int $beforeId = null, bool $native = false): array
     {
         Gate::forUser($viewer)->authorize('view', $channel);
 
@@ -36,7 +36,7 @@ class ChannelMessages
 
         return array_values($query->get()
             ->reverse()
-            ->map(fn (WebVoiceMessage $message): array => $message->toPayload())
+            ->map(fn (WebVoiceMessage $message): array => $message->toPayload($native))
             ->all());
     }
 }

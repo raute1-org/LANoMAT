@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import UserAvatar from '@/components/UserAvatar.vue';
 import type { SuggestionDto } from '@/types';
 
 const props = defineProps<{
@@ -14,10 +14,6 @@ const emit = defineEmits<{
     add: [];
 }>();
 
-function initials(name: string): string {
-    return name.trim().charAt(0).toUpperCase();
-}
-
 const reasonLabels = computed(() =>
     props.suggestion.reasons.map(
         (reason) => props.labels[`reason_${reason}`] ?? reason,
@@ -28,14 +24,7 @@ const reasonLabels = computed(() =>
 <template>
     <li class="flex items-center justify-between gap-4 px-4 py-3">
         <div class="flex min-w-0 items-center gap-3">
-            <Avatar>
-                <AvatarImage
-                    v-if="suggestion.avatarUrl"
-                    :src="suggestion.avatarUrl"
-                    :alt="suggestion.name"
-                />
-                <AvatarFallback>{{ initials(suggestion.name) }}</AvatarFallback>
-            </Avatar>
+            <UserAvatar :name="suggestion.name" :src="suggestion.avatarUrl" />
             <div class="min-w-0">
                 <p class="truncate font-medium">{{ suggestion.name }}</p>
                 <p class="truncate text-sm text-muted-foreground">
