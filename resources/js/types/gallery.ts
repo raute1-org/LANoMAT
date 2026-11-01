@@ -13,5 +13,7 @@ export interface GalleryPhotoDto {
     uploaderName: string | null;
     visibility: 'pending' | 'approved' | 'rejected';
     mine: boolean;
+    /** The viewer may withdraw this photo (its uploader, or orga). */
+    retractable: boolean;
     isHighlight: boolean;
 }
