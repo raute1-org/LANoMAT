@@ -37,7 +37,7 @@ function runCertSync(string $source, string $dest): string
         var_export($source, true),
         var_export($dest, true),
     );
-    exec('python3 -I -c '.escapeshellarg($code).' 2>&1', $out);
+    exec('python3 -I -B -c '.escapeshellarg($code).' 2>&1', $out);
 
     return trim(implode("\n", $out));
 }
