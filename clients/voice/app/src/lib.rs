@@ -11,6 +11,9 @@ pub mod view;
 #[cfg(feature = "selftest")]
 mod selftest;
 
+#[cfg(test)]
+mod contract_tests;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -568,6 +571,11 @@ fn set_quiet(f: Feat<'_>, quiet: bool) -> Result<bool, UiError> {
 }
 
 #[tauri::command]
+fn take_notification_target(f: Feat<'_>) -> Result<Option<voice_core::notify::Target>, UiError> {
+    Ok(f.take_notification_target())
+}
+
+#[tauri::command]
 fn get_quiet(f: Feat<'_>) -> Result<bool, UiError> {
     Ok(f.quiet())
 }
@@ -847,6 +855,7 @@ command_set!(
     set_notification_preferences,
     set_quiet,
     get_quiet,
+    take_notification_target,
     chat_history,
     chat_post,
     chat_delete,

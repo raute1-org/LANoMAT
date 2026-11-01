@@ -19,7 +19,7 @@ use voice_core::api::{
 };
 use voice_core::notify::{
     Category, Incoming, NotificationEngine, Notifier, NotifyConfig, NotifyEvent, SeenState,
-    SeenStore,
+    SeenStore, Target,
 };
 use voice_core::realtime::{self, ChatEvent, LinkState, RealtimeHandle, RealtimeOptions};
 use voice_core::transfer::default_retry_delays;
@@ -121,7 +121,12 @@ pub struct Features {
     quiet: AtomicBool,
     talking: AtomicBool,
     focused: AtomicBool,
+    /// Where the latest system notification leads (see `take_notification_target`).
+    last_target: Mutex<Option<(std::time::Instant, Target)>>,
 }
+
+/// How long a delivered notification's target stays claimable by the UI.
+const TARGET_TTL: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// Category overrides from the settings (unknown keys are ignored).
 pub fn category_overrides(s: &Settings) -> BTreeMap<Category, bool> {
@@ -227,6 +232,7 @@ impl Features {
             quiet: AtomicBool::new(false),
             talking: AtomicBool::new(false),
             focused: AtomicBool::new(true),
+            last_target: Mutex::new(None),
         }))
     }
 
@@ -278,11 +284,22 @@ impl Features {
             return Ok(b.engine.clone());
         }
         let ev = self.emit.clone();
+        let me = Arc::downgrade(self);
         let engine = NotificationEngine::new(
             self.api()?,
             self.notifier.clone(),
             Arc::new(SettingsSeen(self.engine.clone())),
             Arc::new(move |e: NotifyEvent| {
+                if let Some(f) = me.upgrade() {
+                    match &e {
+                        NotifyEvent::Delivered { notification } => {
+                            *lock(&f.last_target) =
+                                Some((std::time::Instant::now(), notification.target.clone()));
+                        }
+                        NotifyEvent::AuthExpired => (f.emit)(EVT_AUTH, json!({})),
+                        NotifyEvent::Unread { .. } => {}
+                    }
+                }
                 ev(EVT_NOTIFY, serde_json::to_value(&e).unwrap_or(Value::Null));
             }),
             self.opts.notify.clone(),
@@ -338,6 +355,14 @@ impl Features {
         }
         (self.emit)(EVT_QUIET, json!({ "quiet": quiet }));
         quiet
+    }
+
+    /// The screen the latest system notification leads to, once: the desktop notification
+    /// plugin has no click callback, so the UI asks for it when the window comes to the front.
+    /// `None` when there is none or it is older than five minutes.
+    pub fn take_notification_target(&self) -> Option<Target> {
+        let (at, target) = lock(&self.last_target).take()?;
+        (at.elapsed() < TARGET_TTL).then_some(target)
     }
 
     pub fn quiet(&self) -> bool {

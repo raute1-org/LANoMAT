@@ -316,6 +316,8 @@ mod tests {
         }
     }
 
+    type Requests = Arc<Mutex<Vec<(String, Option<String>)>>>; // (path, Range)
+
     #[derive(Default)]
     struct Behaviour {
         /// Cut the first connection after this many body bytes.
@@ -326,7 +328,7 @@ mod tests {
 
     struct Host {
         port: u16,
-        requests: Arc<Mutex<Vec<(String, Option<String>)>>>, // (path, Range)
+        requests: Requests,
         auth_seen: Arc<Mutex<Vec<Option<String>>>>,
     }
 

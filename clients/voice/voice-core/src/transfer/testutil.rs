@@ -36,7 +36,6 @@ pub async fn read_request_with(
     s: &mut TcpStream,
     limit: impl Fn(&str, &HashMap<String, String>) -> Option<usize>,
 ) -> Option<Req> {
-    let body_limit: Option<usize>;
     let mut buf = Vec::new();
     let mut tmp = [0u8; 4096];
     let head_end = loop {
@@ -63,7 +62,7 @@ pub async fn read_request_with(
         .get("content-length")
         .and_then(|v| v.parse().ok())
         .unwrap_or(0);
-    body_limit = limit(&method, &headers);
+    let body_limit: Option<usize> = limit(&method, &headers);
     let target = body_limit.map_or(want, |l| l.min(want));
     while body.len() < target {
         let n = s.read(&mut tmp).await.unwrap_or(0);

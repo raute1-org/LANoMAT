@@ -86,8 +86,10 @@ mod tests {
 
     #[test]
     fn survives_a_json_round_trip_and_tolerates_missing_fields() {
-        let mut s = SeenState::default();
-        s.baselined = true;
+        let mut s = SeenState {
+            baselined: true,
+            ..Default::default()
+        };
         s.mark("a", "2026-11-02T12:00:00+00:00");
         let back: SeenState = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
         assert_eq!(back, s);

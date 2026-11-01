@@ -220,7 +220,7 @@ impl NotificationEngine {
         if changed {
             self.emit(NotifyEvent::Unread { count });
         }
-        let refresh = changed || tick_no % self.cfg.full_refresh_every.max(1) == 0;
+        let refresh = changed || tick_no.is_multiple_of(self.cfg.full_refresh_every.max(1));
         let baselined = lock(&self.seen).baselined;
         if count == 0 && baselined {
             return Ok(());

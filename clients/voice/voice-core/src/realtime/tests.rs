@@ -390,34 +390,60 @@ async fn reconnect_reauthorises_with_the_new_socket_id_and_catches_up() {
         json!({"message": msg(11, 3)}),
     );
     until(&mut rx, |e| matches!(e, ChatEvent::MessagePosted { .. })).await;
-    fake.drop_connections();
+    // The server has both messages before the link dies (the client does not poll while live), so
+    // the catch-up after the reconnect cannot race with the test's own bookkeeping.
     api.messages.lock().unwrap().push(msg(11, 3));
     api.messages.lock().unwrap().push(msg(12, 3));
+    fake.drop_connections();
 
-    until(&mut rx, is_state(LinkState::Reconnecting)).await;
-    until(&mut rx, is_state(LinkState::Live)).await;
-    fake.wait_subscribed("private-web-voice.channel.3", 2).await;
-    fake.wait_subscribed(DIRECTORY_CHANNEL, 2).await;
-
-    // The second connection has a new socket id and every channel was authorised again.
-    let subs = fake.st.subs.lock().unwrap().clone();
-    let second: Vec<_> = subs.iter().filter(|s| s.0 == 1).collect();
-    assert!(second
+    // Collect everything until the link is live again and the missed message has arrived: under
+    // load the first reconnect attempt may fail once, and the catch-up then runs from the
+    // polling fallback before "live", so the order of the two is not part of the contract.
+    let mut seen: Vec<ChatEvent> = Vec::new();
+    let live = is_state(LinkState::Live);
+    loop {
+        let has_live = seen.iter().any(&live);
+        let has_12 = seen
+            .iter()
+            .any(|e| matches!(e, ChatEvent::MessagePosted { message, .. } if message.id == 12));
+        if has_live && has_12 {
+            break;
+        }
+        seen.push(recv(&mut rx).await);
+    }
+    assert!(seen.iter().any(is_state(LinkState::Reconnecting)));
+    let posted: Vec<u64> = seen
         .iter()
-        .all(|s| s.1 == "101.77" && s.3 == sig(&s.1, &s.2)));
-    assert!(second.iter().any(|s| s.2 == DIRECTORY_CHANNEL));
+        .filter_map(|e| match e {
+            ChatEvent::MessagePosted { message, .. } => Some(message.id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        posted,
+        vec![12],
+        "only the missed message (11 was seen live, 10 was the baseline)"
+    );
+
+    // The last connection has a new socket id and every channel was authorised again for it.
+    fake.wait_subscribed(DIRECTORY_CHANNEL, 2).await;
+    fake.wait_subscribed("private-web-voice.channel.3", 2).await;
+    let subs = fake.st.subs.lock().unwrap().clone();
+    let last = subs.iter().map(|s| s.0).max().unwrap();
+    assert!(last >= 1);
+    let current: Vec<_> = subs.iter().filter(|s| s.0 == last).collect();
+    let socket_id = format!("{}.77", 100 + last);
+    assert!(current
+        .iter()
+        .all(|s| s.1 == socket_id && s.3 == sig(&s.1, &s.2)));
+    assert!(current.iter().any(|s| s.2 == DIRECTORY_CHANNEL));
+    assert!(current.iter().any(|s| s.2 == "private-web-voice.channel.3"));
     assert!(api
         .auth_bodies
         .lock()
         .unwrap()
         .iter()
-        .any(|b| b["socket_id"] == "101.77"));
-
-    // The catch-up delivered only message 12 (11 was already seen live, 10 was the baseline).
-    match until(&mut rx, |e| matches!(e, ChatEvent::MessagePosted { .. })).await {
-        ChatEvent::MessagePosted { message, .. } => assert_eq!(message.id, 12),
-        _ => unreachable!(),
-    }
+        .any(|b| b["socket_id"] == socket_id.as_str()));
 }
 
 #[tokio::test]

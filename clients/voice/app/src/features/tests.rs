@@ -237,7 +237,7 @@ async fn config_exposes_modules_and_realtime_as_a_flag_only() {
         .await;
     let c = r.features.config().await.unwrap();
     assert!(c.realtime && c.voice_ready);
-    assert_eq!(c.modules["catering"], false);
+    assert!(!c.modules["catering"]);
     assert!(
         !serde_json::to_string(&c).unwrap().contains("\"k\""),
         "no connection details"
@@ -270,6 +270,16 @@ async fn a_vote_that_closes_soon_becomes_one_notification_and_only_once() {
     assert_eq!(shown.len(), 1, "one for vote 3, none for vote 4, no repeat");
     assert_eq!(shown[0].target.screen, "jetzt");
     assert!(shown[0].body.as_deref().unwrap().contains("Welche Map?"));
+    // No click callback on the desktop: the UI claims the target when the window comes forward.
+    let t = r.features.take_notification_target().expect("a target");
+    assert_eq!(
+        (t.screen.as_str(), t.card.as_deref()),
+        ("jetzt", Some("vote"))
+    );
+    assert!(
+        r.features.take_notification_target().is_none(),
+        "claimed once"
+    );
 }
 
 #[test]
@@ -494,8 +504,10 @@ async fn uploads_refuse_the_apps_own_files_per_entry_and_report_server_refusals(
 #[tokio::test]
 async fn saving_settings_from_the_ui_cannot_overwrite_the_notification_bookkeeping() {
     let r = rig().await;
-    let mut seen = SeenState::default();
-    seen.baselined = true;
+    let mut seen = SeenState {
+        baselined: true,
+        ..Default::default()
+    };
     seen.ids.push_back("abc".into());
     let s2 = seen.clone();
     r.engine.update_settings(|s| s.notify_seen = s2);
