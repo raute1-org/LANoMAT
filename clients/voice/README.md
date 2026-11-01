@@ -196,9 +196,9 @@ no-op there).
 **Opening links.** `steam://connect/...` and other links are opened with the system handler
 (`rundll32 url.dll,FileProtocolHandler`).
 
-**Install and SmartScreen.** The release is a portable zip (`lanomat-voice-app-windows-x86_64.zip`:
+**Install and SmartScreen.** The release is a portable zip (`lanomat-voice-app-<version>-windows-x86_64.zip`:
 unpack anywhere, start `LANoMAT-Voice.exe`; needs the WebView2 runtime, which Windows 11 and current
-Windows 10 have) plus the CLI `lanomat-voice-windows-x86_64.exe`. The files are **not code-signed yet**,
+Windows 10 have) plus the CLI `lanomat-voice-cli-<version>-windows-x86_64.exe`. The files are **not code-signed yet**,
 so Windows SmartScreen warns ("Der Computer wurde durch Windows geschuetzt"). Click **Weitere
 Informationen**, then **Trotzdem ausfuehren**. Compare the SHA-256 with `SHA256SUMS` from the release
 first (`Get-FileHash .\file`). Signing comes later (see

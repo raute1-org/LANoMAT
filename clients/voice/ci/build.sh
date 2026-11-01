@@ -28,8 +28,21 @@ cargo build --release -p lanomat-voice-app -p voice-cli
 
 rm -rf dist
 mkdir -p dist/linux dist/windows dist/windows-tests
-tar -C target/release -czf dist/linux/lanomat-voice-linux-x86_64.tar.gz lanomat-voice
-tar -C target/release -czf dist/linux/lanomat-voice-app-linux-x86_64.tar.gz lanomat-voice-app
+# The version string is the server's (scripts/ops/lib/version.sh) and is also in the file names.
+: "${LANOMAT_BUILD_VERSION:?LANOMAT_BUILD_VERSION is required}"
+for kind in app cli; do
+  dir="lanomat-voice-$kind-$LANOMAT_BUILD_VERSION-linux-x86_64"
+  mkdir -p "dist/linux/$dir"
+  if [ "$kind" = app ]; then
+    install -m 0755 target/release/lanomat-voice-app "dist/linux/$dir/lanomat-voice-app"
+    install -m 0644 app/icons/icon.png "dist/linux/$dir/lanomat-voice.png"
+  else
+    install -m 0755 target/release/lanomat-voice "dist/linux/$dir/lanomat-voice"
+  fi
+  tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist/linux -cf - "$dir" \
+    | gzip -9 -n > "dist/linux/$dir.tar.gz"
+  rm -rf "dist/linux/$dir"
+done
 
 step "clippy (windows, cross)"
 cargo xwin clippy --workspace --all-targets --all-features --target "$WIN" -- -D warnings
