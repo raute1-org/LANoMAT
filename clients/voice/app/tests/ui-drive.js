@@ -528,7 +528,7 @@
                 'match card with server',
             );
             card.scrollIntoView({ block: 'center' });
-        await shot('13-jetzt-match');
+            await shot('13-jetzt-match');
             await clickText('button', S.servers.join, card);
             await waitFor(
                 () => toastText().length > 0,
