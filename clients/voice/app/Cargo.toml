@@ -1,0 +1,32 @@
+[package]
+name = "lanomat-voice-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "LANoMAT voice desktop shell (Tauri v2) on top of voice-core"
+
+[lib]
+name = "lanomat_voice_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lanomat-voice-app"
+path = "src/main.rs"
+
+[dependencies]
+voice-core = { path = "../voice-core", features = ["cpal-audio"] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3"

@@ -172,23 +172,9 @@ fn authenticated_client() -> Result<ApiClient> {
     Ok(ApiClient::new(&creds.base_url)?.with_token(creds.access_token))
 }
 
-fn default_device_name() -> String {
-    let host = std::env::var("HOSTNAME")
-        .ok()
-        .filter(|h| !h.is_empty())
-        .or_else(|| {
-            std::fs::read_to_string("/etc/hostname")
-                .ok()
-                .map(|h| h.trim().to_owned())
-                .filter(|h| !h.is_empty())
-        })
-        .unwrap_or_else(|| "this device".into());
-    format!("{host} (lanomat-voice)")
-}
-
 async fn login(base_url: &str, device_name: Option<String>) -> Result<()> {
     let client = ApiClient::new(base_url)?;
-    let name = device_name.unwrap_or_else(default_device_name);
+    let name = device_name.unwrap_or_else(|| voice_core::api::default_device_name("lanomat-voice"));
     let auth = client.start_device_flow(&name).await?;
 
     println!(
@@ -371,6 +357,11 @@ fn print_event(e: &SessionEvent) {
         SessionEvent::Connected { .. } => {}
         SessionEvent::ParticipantJoined(who) => println!("+ {who} joined"),
         SessionEvent::ParticipantLeft(who) => println!("- {who} left"),
+        SessionEvent::ParticipantNamed { identity, name } => println!("  {identity} is {name}"),
+        SessionEvent::ParticipantMuted { identity, muted } => {
+            println!("  {identity} {}", if *muted { "muted" } else { "unmuted" });
+        }
+        SessionEvent::ActiveSpeakers(who) => println!("  speaking: {}", who.join(", ")),
         SessionEvent::RemoteAudio(who) => println!("  hearing {who}"),
         SessionEvent::Reconnecting => println!("connection lost, reconnecting..."),
         SessionEvent::Reconnected => println!("reconnected"),

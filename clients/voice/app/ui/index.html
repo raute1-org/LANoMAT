@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>LANoMAT Voice</title>
+        <link rel="stylesheet" href="app.css" />
+    </head>
+    <body>
+        <div class="app">
+            <header class="bar">
+                <div class="brand">
+                    <img src="logo-mark.svg" alt="" />
+                    <span>LANoMAT Voice</span>
+                </div>
+                <div class="spacer"></div>
+                <div class="who" id="who" hidden>
+                    <span class="dot" id="who-dot" aria-hidden="true"></span>
+                    <span id="who-text"></span>
+                </div>
+            </header>
+
+            <nav class="tabs" id="tabs" aria-label="Bereiche" hidden>
+                <button class="tab" type="button" data-tab="rooms">
+                    Räume
+                </button>
+                <button class="tab" type="button" data-tab="settings">
+                    Einstellungen
+                </button>
+            </nav>
+
+            <main id="main" tabindex="-1">
+                <!-- boot -->
+                <section
+                    class="stack"
+                    id="screen-boot"
+                    aria-busy="true"
+                    aria-label="Wird geladen"
+                >
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                </section>
+
+                <!-- connect -->
+                <section
+                    class="stack"
+                    id="screen-connect"
+                    hidden
+                    aria-labelledby="connect-title"
+                >
+                    <div class="stack-sm">
+                        <h1 id="connect-title">Gerät verbinden</h1>
+                        <p class="muted">
+                            Verbinde diese App einmalig mit deinem
+                            LANoMAT-Konto. Du bestätigst auf der Webseite, die
+                            App bekommt kein Passwort zu sehen.
+                        </p>
+                    </div>
+
+                    <div class="error" id="connect-error" role="alert" hidden>
+                        <div class="stack-sm">
+                            <strong id="connect-error-title"></strong>
+                            <span id="connect-error-text"></span>
+                        </div>
+                    </div>
+
+                    <form class="card stack-sm" id="connect-form" novalidate>
+                        <label for="server-url">Serveradresse</label>
+                        <input
+                            id="server-url"
+                            type="url"
+                            inputmode="url"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="https://lan.example.org"
+                        />
+                        <div class="small muted">
+                            Die Adresse, unter der du LANoMAT im Browser
+                            öffnest.
+                        </div>
+                        <button
+                            class="btn primary block"
+                            type="submit"
+                            id="connect-submit"
+                        >
+                            Verbinden
+                        </button>
+                    </form>
+
+                    <div class="card stack-sm" id="connect-wait" hidden>
+                        <h2>Code bestätigen</h2>
+                        <p class="small muted">
+                            Öffne die Seite, melde dich an und prüfe, dass
+                            dieser Code und der Gerätename übereinstimmen.
+                        </p>
+                        <div
+                            class="code"
+                            id="user-code"
+                            aria-label="Dein Code"
+                        ></div>
+                        <div class="row wrap">
+                            <button class="btn" type="button" id="copy-code">
+                                Code kopieren
+                            </button>
+                            <button class="btn" type="button" id="copy-link">
+                                Link kopieren
+                            </button>
+                            <button
+                                class="btn primary"
+                                type="button"
+                                id="open-link"
+                            >
+                                Im Browser öffnen
+                            </button>
+                        </div>
+                        <div class="url" id="verify-url"></div>
+                        <div class="small muted">
+                            Gerätename:
+                            <span class="mono" id="device-name"></span>
+                        </div>
+                        <div class="row small" role="status">
+                            <span
+                                class="dot warn pulse"
+                                aria-hidden="true"
+                            ></span>
+                            <span
+                                >Warte auf Bestätigung. Der Code gilt noch
+                                <span class="countdown" id="countdown"></span
+                                >.</span
+                            >
+                        </div>
+                        <button
+                            class="btn block"
+                            type="button"
+                            id="connect-cancel"
+                        >
+                            Abbrechen
+                        </button>
+                    </div>
+                </section>
+
+                <!-- rooms -->
+                <section
+                    class="stack"
+                    id="screen-rooms"
+                    hidden
+                    aria-label="Räume"
+                >
+                    <div class="room-panel" id="room-panel" hidden>
+                        <div class="row between">
+                            <div class="row">
+                                <span
+                                    class="dot"
+                                    id="room-dot"
+                                    aria-hidden="true"
+                                ></span>
+                                <h2 id="room-title"></h2>
+                            </div>
+                            <button
+                                class="btn danger"
+                                type="button"
+                                id="leave-btn"
+                            >
+                                Verlassen
+                            </button>
+                        </div>
+                        <div
+                            class="small muted"
+                            id="room-state"
+                            role="status"
+                        ></div>
+                        <div class="hint warn" id="room-listen-only" hidden>
+                            Du kannst hier nur zuhören: Ein Moderator hat dich
+                            stummgeschaltet oder es gibt kein Mikrofon.
+                        </div>
+                        <div
+                            class="error"
+                            id="room-error"
+                            role="alert"
+                            hidden
+                        ></div>
+                        <button
+                            class="ptt"
+                            type="button"
+                            id="ptt"
+                            aria-pressed="false"
+                        >
+                            <span class="big" id="ptt-label">Sprechen</span>
+                            <span class="small" id="ptt-sub"></span>
+                        </button>
+                        <div class="row between wrap">
+                            <button
+                                class="btn"
+                                type="button"
+                                id="mute-btn"
+                                aria-pressed="false"
+                            >
+                                Stumm schalten
+                            </button>
+                            <span class="small muted" id="ptt-keys"></span>
+                        </div>
+                        <div>
+                            <div class="group-title">Im Raum</div>
+                            <ul class="people" id="people"></ul>
+                            <div class="empty" id="people-empty" hidden>
+                                Noch niemand sonst hier.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row between">
+                        <h1>Räume</h1>
+                        <button class="btn" type="button" id="reload-rooms">
+                            Neu laden
+                        </button>
+                    </div>
+                    <div class="error" id="rooms-error" role="alert" hidden>
+                        <div class="stack-sm">
+                            <strong>Räume konnten nicht geladen werden.</strong>
+                            <span id="rooms-error-text"></span>
+                            <button class="btn" type="button" id="rooms-retry">
+                                Erneut versuchen
+                            </button>
+                        </div>
+                    </div>
+                    <div class="stack-sm" id="rooms-loading" aria-busy="true">
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                    </div>
+                    <div class="empty" id="rooms-empty" hidden>
+                        Für dich gibt es gerade keine Sprachräume. Sobald ein
+                        Raum geöffnet wird oder ein Match beginnt, erscheint er
+                        hier.
+                    </div>
+                    <div class="stack" id="rooms-list"></div>
+                </section>
+
+                <!-- settings -->
+                <section
+                    class="stack"
+                    id="screen-settings"
+                    hidden
+                    aria-label="Einstellungen"
+                >
+                    <h1>Einstellungen</h1>
+
+                    <section class="card stack-sm">
+                        <h2>Audio</h2>
+                        <div>
+                            <label for="input-device">Mikrofon</label>
+                            <select id="input-device"></select>
+                        </div>
+                        <div>
+                            <label for="output-device">Wiedergabe</label>
+                            <select id="output-device"></select>
+                        </div>
+                        <div class="hint warn" id="devices-error" hidden></div>
+                        <div class="small muted" id="devices-note">
+                            Gilt ab dem nächsten Beitritt.
+                        </div>
+                        <div class="check">
+                            <input type="checkbox" id="open-mic" />
+                            <div>
+                                <label for="open-mic"
+                                    >Mikrofon immer offen</label
+                                >
+                                <div class="small muted">
+                                    Ohne Sprechtaste senden, sobald du einem
+                                    Raum beitrittst.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="check">
+                            <input type="checkbox" id="headset-mode" />
+                            <div>
+                                <label for="headset-mode"
+                                    >Headset-Modus (niedrigste Latenz)</label
+                                >
+                                <div class="small muted">
+                                    Schaltet Echounterdrückung,
+                                    Rauschunterdrückung und automatische
+                                    Lautstärke aus. Nur mit Kopfhörern: Über
+                                    Lautsprecher hören andere sich selbst
+                                    doppelt.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card stack-sm">
+                        <h2>Sprechtaste</h2>
+                        <div>
+                            <label for="shortcut">Globale Taste</label>
+                            <input
+                                id="shortcut"
+                                type="text"
+                                readonly
+                                spellcheck="false"
+                                placeholder="Taste drücken"
+                            />
+                        </div>
+                        <div class="row wrap">
+                            <button
+                                class="btn"
+                                type="button"
+                                id="shortcut-clear"
+                            >
+                                Entfernen
+                            </button>
+                            <button
+                                class="btn"
+                                type="button"
+                                id="shortcut-default"
+                            >
+                                Standard
+                            </button>
+                        </div>
+                        <div class="hint" id="shortcut-hint">
+                            Klicke ins Feld und drücke die Kombination. Entf
+                            oder Rücktaste entfernt sie.
+                        </div>
+                        <div class="hint" id="wayland-hint" hidden>
+                            Wayland erlaubt Apps keine globalen Tasten. Binde
+                            sie stattdessen in deinem Compositor an
+                            <span class="mono">lanomat-voice ptt down</span> und
+                            <span class="mono">lanomat-voice ptt up</span>; die
+                            laufende App nimmt die Befehle an.
+                        </div>
+                    </section>
+
+                    <section class="card stack-sm">
+                        <h2>Fenster</h2>
+                        <div class="check">
+                            <input type="checkbox" id="close-to-tray" />
+                            <div>
+                                <label for="close-to-tray"
+                                    >Schließen minimiert in den Tray</label
+                                >
+                                <div class="small muted">
+                                    Die App läuft weiter und hält deine
+                                    Verbindung. „Beenden“ im Tray-Menü schließt
+                                    sie.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="check">
+                            <input type="checkbox" id="overlay" />
+                            <div>
+                                <label for="overlay"
+                                    >Overlay „Wer spricht“</label
+                                >
+                                <div class="small muted">
+                                    Kleines Fenster, das über anderen Fenstern
+                                    bleibt. Manche Wayland-Compositoren
+                                    ignorieren „immer im Vordergrund“.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card stack-sm">
+                        <h2>Verbundene Geräte</h2>
+                        <p class="small muted">
+                            Dieses Gerät ist mit deinem Konto verbunden. Um es
+                            zu trennen, öffne auf der Webseite
+                            <span class="mono">/talk/connect</span> und wähle
+                            „Trennen“ unter „Verbundene Geräte“.
+                        </p>
+                        <div class="row wrap">
+                            <button class="btn" type="button" id="open-connect">
+                                Verbundene Geräte öffnen
+                            </button>
+                            <button
+                                class="btn danger"
+                                type="button"
+                                id="logout"
+                            >
+                                Abmelden
+                            </button>
+                        </div>
+                        <div class="small muted">
+                            Abmelden entfernt nur die lokal gespeicherten
+                            Zugangsdaten.
+                        </div>
+                    </section>
+
+                    <div class="card stack-sm small">
+                        <div class="row between">
+                            <span class="muted">Steuer-Socket</span>
+                            <span class="mono" id="env-socket"></span>
+                        </div>
+                        <div class="row between">
+                            <span class="muted">Einstellungen</span>
+                            <span class="mono" id="env-settings"></span>
+                        </div>
+                        <div class="row between">
+                            <span class="muted">Version</span>
+                            <span class="mono" id="env-version"></span>
+                        </div>
+                    </div>
+                    <div class="saved" id="saved" role="status"></div>
+                </section>
+            </main>
+        </div>
+        <div class="sr-only" id="live" aria-live="polite"></div>
+        <script src="app.js"></script>
+    </body>
+</html>

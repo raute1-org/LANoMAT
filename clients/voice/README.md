@@ -7,13 +7,14 @@ a browser cannot do: **global push-to-talk** (also on Wayland), a lower floor fo
 a headless latency self-test. Server side, rooms and tuning background:
 [`docs/infra/livekit-web-voice.md`](../../docs/infra/livekit-web-voice.md).
 
-This is the first working slice: a cargo workspace with a UI-free core library and a command line
-binary. The Tauri shell is the next step (see the end), not part of this slice.
+A cargo workspace with a UI-free core library, a command line binary and the Tauri v2 desktop app
+(see "Desktop app" below).
 
 | Crate | What |
 |-------|------|
 | `voice-core` | Library: API client (device-code pairing, bearer API v1), credential store, LiveKit session (publish, subscribe, mute), audio traits with `cpal` and synthetic implementations, push-to-talk control socket, latency maths and the two-session latency test. |
 | `voice-cli` | Binary `lanomat-voice`: `login`, `rooms`, `join`, `ptt`, `latency-test`, `devices`, `logout`. |
+| `app` | Binary `lanomat-voice-app`: Tauri v2 desktop shell with a plain static HTML/CSS/JS front end, tray icon, speaking overlay and the same control socket as the CLI. |
 
 Versions used (Cargo.lock is committed): `livekit` 0.10.0 (with `libwebrtc` 0.3.55, which downloads a
 prebuilt libwebrtc at build time), `livekit-api` 0.10.0 (token minting for the dev/latency tooling
@@ -27,7 +28,7 @@ Cargo's registry and target directory live in named volumes, so the repository s
 
 ```bash
 cd clients/voice
-docker build -t lanomat-voice-dev -f Dockerfile.dev .
+docker build --target core -t lanomat-voice-dev -f Dockerfile.dev .
 
 # helper used in the examples below
 dc() { docker run --rm --network host -v "$PWD:/work" \
@@ -178,6 +179,116 @@ receiver through the SFU.
 - Echo cancellation, noise suppression and AGC are off in this test, as the synthetic browser track
   bypasses `getUserMedia`; the "Headset-Modus" question is therefore not covered by it.
 
+## Desktop app
+
+`clients/voice/app` is a Tauri v2 shell over `voice-core`. All behaviour sits in
+`app/src/engine.rs` (plain async methods, no Tauri types, unit-tested); `app/src/lib.rs` only wires
+it to Tauri commands, events, tray, overlay, global shortcut, the control socket and shutdown. The
+front end is static HTML, CSS and JS in `app/ui/` with no npm and no build step, bundled by Tauri,
+using the Signalpult tokens from `resources/css/app.css` and copies of Space Grotesk and
+JetBrains Mono (OFL, licences in `app/ui/fonts/`). UI copy is German.
+
+Versions: Tauri 2.12 (`tauri-build` 2.7, `tauri-plugin-global-shortcut` 2.4), WebKitGTK 4.1 on Linux.
+No Tauri CLI is needed: a plain `cargo build -p lanomat-voice-app` produces the binary
+(`tauri.conf.json` plus `tauri::generate_context!`).
+
+Screens:
+
+- **Verbinden**: server URL, then the user code, the verification link (copy, open in the browser),
+  a countdown and a waiting state; denied, expired and unreachable end in an error with "Erneut
+  versuchen".
+- **Räume**: general rooms and your own match rooms (loading, empty, error and normal states), and,
+  when joined, a live panel with the connection state (a LiveIndicator-style dot), the roster with
+  speaking and mute state, a big hold-to-talk button (mouse, touch or Space), and a hard mute.
+- **Einstellungen**: microphone and speaker (substring match like the CLI), open mic,
+  "Headset-Modus" (no echo cancellation, noise suppression or AGC, as in the browser; see the web
+  voice runbook), the global shortcut with a key capture field, close-to-tray, the overlay, where to
+  revoke the device (`/talk/connect`, "Trennen" under "Verbundene Geräte") and "Abmelden".
+
+Screenshots from the headless run are in
+[`docs/screenshots/voice-app/`](../../docs/screenshots/voice-app/): `01-connect`, `02-connect-wait`,
+`04-room-muted`, `05-talking`, `08-settings`, `10-connect-denied`, `11-rooms-empty`,
+`12-rooms-error`, `13-settings-scrolled`, `14-overlay`.
+
+### Build and run
+
+```bash
+cd clients/voice
+# one Dockerfile, two stages on the pinned rust:1.91-bookworm base
+docker build --target app -t lanomat-voice-app-dev -f Dockerfile.dev .  # + WebKitGTK, tray, Xvfb, xdotool, ImageMagick
+
+dc() { docker run --rm --network host -v "$PWD:/work" \
+  -v lanomat-cargo-registry:/usr/local/cargo/registry -v lanomat-cargo-target:/work/target \
+  -w /work lanomat-voice-app-dev sh -c "$*"; }
+dc cargo build --release -p lanomat-voice-app     # target/release/lanomat-voice-app (inside the volume)
+```
+
+To run it on your desktop, build on the host instead (`cargo build --release -p lanomat-voice-app`;
+it needs the system packages of the `app` stage in `Dockerfile.dev` plus `clang >= 21` for libwebrtc). An
+`.AppImage` or `.deb` bundle needs `cargo install tauri-cli --version '^2' --locked` and
+`cargo tauri build`; it is not part of this slice (`bundle.active` is false).
+
+### Push-to-talk, tray, close behaviour
+
+- **Control socket (always on, also on Wayland).** The app binds the same unix socket as
+  `lanomat-voice join` (`$XDG_RUNTIME_DIR/lanomat-voice.sock`, override with
+  `LANOMAT_VOICE_SOCKET`). `lanomat-voice ptt down|up|toggle|status` drives the running app, so the
+  compositor binds from "Push-to-talk and key binds" above work unchanged. Only one of app and
+  `join` can own the socket; a second owner is reported as "nicht aktiv" in the settings, never a
+  crash. The socket is removed on exit, including after SIGTERM.
+- **Global shortcut (best effort).** Registered with `tauri-plugin-global-shortcut`, configurable in
+  the settings (default `Control+Alt+Space`, key down = talk, key up = mute). It works on X11,
+  Windows and macOS. **It does not work on Wayland** (applications cannot grab global keys); the
+  settings say so and point to the compositor binds. Registration failures (key already taken, no
+  X server) show up as a hint in the UI, never as a crash.
+- **Hard mute.** "Stumm schalten" (button or tray) blocks transmitting, including open mic and the
+  shortcut, until lifted; releasing a key is always allowed.
+- **Tray.** Menu: Anzeigen, Stumm schalten / Stummschaltung aufheben, Overlay ein/aus, Verlassen,
+  Beenden; the tooltip names the room and whether you are transmitting. If the tray icon cannot be
+  created the app logs a warning and keeps working with its window.
+- **Closing the window hides it to the tray** and the session keeps running (setting "Schließen
+  minimiert in den Tray", on by default); with it off, closing quits. "Beenden" in the tray, SIGTERM
+  and SIGINT always quit: the room is left and the control socket removed.
+- **Overlay** ("Wer spricht"): a separate frameless, transparent, always-on-top window (top left,
+  draggable) showing the room, your state and who is speaking, toggled in the settings or the tray.
+  Always-on-top is a hint: Wayland compositors may ignore it, and transparency needs a compositing
+  window manager (on a bare Xvfb the transparent corners are black, see `14-overlay.png`).
+
+### Files
+
+Settings: `<config dir>/lanomat-voice/settings.json` (`~/.config/lanomat-voice/settings.json` on
+Linux), written atomically, **never containing the token**; unknown keys are ignored and a broken
+file falls back to the defaults. The token stays in `credentials.json` in the same directory (0600),
+managed by `voice-core`. The settings screen shows both paths.
+
+### Headless smoke (what was run)
+
+`app/tests/` holds the stand-in server and three scripts. The stand-in (`standin_server.py`, standard
+library only, loopback) answers the device-code flow and the bearer API like the real server and
+mints LiveKit join tokens for a dev SFU; the key pair comes from the environment only.
+
+```bash
+docker run -d --rm --name lanomat-lk-app --network host \
+  livekit/livekit-server:v1.13.11 --dev --bind 127.0.0.1
+# long-lived test container; read the dev key pair from the SFU's log into the environment
+docker run -d --name lanomat-app-smoke --network host -v "$PWD:/work" \
+  -v lanomat-cargo-registry:/usr/local/cargo/registry -v lanomat-cargo-target:/work/target \
+  -e LIVEKIT_API_KEY=<key from the log> -e LIVEKIT_API_SECRET=<secret from the log> \
+  -w /work lanomat-voice-app-dev sleep infinity
+docker exec lanomat-app-smoke cargo build -p voice-cli -p lanomat-voice-app
+docker exec lanomat-app-smoke sh app/tests/smoke-start.sh   # Xvfb, stand-in, app (synthetic audio)
+docker exec lanomat-app-smoke sh app/tests/smoke-drive.sh   # drive it, check the SFU side, SIGTERM
+docker exec lanomat-app-smoke sh app/tests/smoke-states.sh  # denied, empty, error, overlay shots
+```
+
+`LANOMAT_VOICE_SYNTHETIC_AUDIO=1` replaces sound devices with a 440 Hz test tone and a discarding
+sink (the container has none). `smoke-drive.sh` clicks through the UI with `xdotool`, holds the
+on-screen button and Space, presses the global shortcut with synthetic key events (X11 grab on
+Xvfb, both release orders), uses `lanomat-voice ptt` against the app's socket, and has a second user
+(the CLI) in the same room on the real SFU, whose log proves that the unmute, the mute and the
+active-speaker state reached it; it then closes the window through `WM_DELETE_WINDOW` (hides to the
+tray) and sends SIGTERM.
+
 ## Architecture notes
 
 - `audio::AudioSource` / `AudioSink` are the seams. Everything speaks 48 kHz mono, 10 ms frames.
@@ -217,13 +328,19 @@ Not verified:
   built or run there.
 - **Mixing and many participants.** Playback mixes streams by summing with saturation; loud rooms with
   many speakers were not tried.
-- **Global key capture** is deliberately left to the compositor/WM binds above; there is no built-in
-  hotkey grabber.
+- **Global key capture on Wayland** is left to the compositor/WM binds above. The desktop app adds
+  a global shortcut that works where the platform allows it (X11, Windows, macOS) and never on Wayland.
 
-## Next step: the Tauri shell
+Additionally not verified for the desktop app: the global shortcut on anything but X11 (it was
+exercised with synthetic key events on Xvfb only), the tray icon as a user sees it (the icon is
+created in the container without a warning, but no StatusNotifier host displays it, and the menu was
+never clicked), the overlay on a real compositor (Wayland
+always-on-top and transparency), the dark colour scheme, Windows and macOS, and real audio devices
+(the smoke uses the synthetic tone). The UI was driven with `xdotool`, not with `tauri-driver`.
 
-Not built in this slice. The plan is a Tauri app on top of `voice-core`: tray icon with mute state,
-a settings UI (device pickers, push-to-talk key, jitter and processing options, per-user volume), a
-room list and roster, and a small overlay showing who is speaking. The control socket protocol stays
-as the compositor-friendly entry point; the shell adds in-app hotkeys where the platform allows them
-(X11, Windows, macOS) and a portal-based global shortcut on Wayland.
+## Next steps
+
+Per-user volume and more tuning knobs in the app, a portal-based global shortcut on Wayland
+(`xdg-desktop-portal` GlobalShortcuts, compositor support is still patchy), Windows and macOS builds
+(the control socket needs a named pipe or loopback variant), packaged bundles, and the bearer
+`latency-test/token` route mentioned above.

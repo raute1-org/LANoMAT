@@ -28,6 +28,18 @@ pub enum SessionEvent {
     },
     ParticipantJoined(String),
     ParticipantLeft(String),
+    /// The display name a participant joined with (sent right after `ParticipantJoined`).
+    ParticipantNamed {
+        identity: String,
+        name: String,
+    },
+    /// A participant muted or unmuted their microphone track.
+    ParticipantMuted {
+        identity: String,
+        muted: bool,
+    },
+    /// Identities the SFU currently detects as speaking (our own included), loudest first.
+    ActiveSpeakers(Vec<String>),
     /// Audio of this participant is now being played.
     RemoteAudio(String),
     Reconnecting,
@@ -89,6 +101,24 @@ impl Session {
             identity: identity.clone(),
         });
 
+        // Participants who were already in the room: no join event will ever arrive for them.
+        for p in room.remote_participants().values() {
+            let who = p.identity().as_str().to_owned();
+            let _ = event_tx.send(SessionEvent::ParticipantJoined(who.clone()));
+            let _ = event_tx.send(SessionEvent::ParticipantNamed {
+                identity: who.clone(),
+                name: p.name(),
+            });
+            for publication in p.track_publications().values() {
+                if publication.kind() == TrackKind::Audio {
+                    let _ = event_tx.send(SessionEvent::ParticipantMuted {
+                        identity: who.clone(),
+                        muted: publication.is_muted(),
+                    });
+                }
+            }
+        }
+
         let talking = Arc::new(AtomicBool::new(false));
         let mut tasks = Vec::new();
         let mut publication = None;
@@ -144,8 +174,31 @@ impl Session {
             while let Some(event) = room_events.recv().await {
                 match event {
                     RoomEvent::ParticipantConnected(p) => {
-                        let _ = remote_tx.send(SessionEvent::ParticipantJoined(
-                            p.identity().as_str().to_owned(),
+                        let who = p.identity().as_str().to_owned();
+                        let _ = remote_tx.send(SessionEvent::ParticipantJoined(who.clone()));
+                        let _ = remote_tx.send(SessionEvent::ParticipantNamed {
+                            identity: who,
+                            name: p.name(),
+                        });
+                    }
+                    RoomEvent::TrackMuted { participant, .. } => {
+                        let _ = remote_tx.send(SessionEvent::ParticipantMuted {
+                            identity: participant.identity().as_str().to_owned(),
+                            muted: true,
+                        });
+                    }
+                    RoomEvent::TrackUnmuted { participant, .. } => {
+                        let _ = remote_tx.send(SessionEvent::ParticipantMuted {
+                            identity: participant.identity().as_str().to_owned(),
+                            muted: false,
+                        });
+                    }
+                    RoomEvent::ActiveSpeakersChanged { speakers } => {
+                        let _ = remote_tx.send(SessionEvent::ActiveSpeakers(
+                            speakers
+                                .iter()
+                                .map(|s| s.identity().as_str().to_owned())
+                                .collect(),
                         ));
                     }
                     RoomEvent::ParticipantDisconnected(p) => {

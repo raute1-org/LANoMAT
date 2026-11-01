@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["voice-core", "voice-cli"]
+members = ["voice-core", "voice-cli", "app"]
 
 [workspace.package]
 version = "0.1.0"
