@@ -13,6 +13,7 @@ return [
         'discord_gateway' => 'Discord-Gateway-Bot',
         'mumble' => 'Mumble',
         'livekit' => 'Web-Sprachchat (LiveKit)',
+        'file_host' => 'Datei-Host',
         'teamspeak' => 'TeamSpeak',
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
@@ -21,6 +22,10 @@ return [
     'messages' => [
         'not_configured' => 'Nicht konfiguriert.',
         'gateway_not_connected' => 'Der Bot ist nicht mit Discord verbunden (HTTP :status).',
+        'file_host_unsigned' => 'Der Datei-Host beantwortet einen unsignierten Link mit HTTP :status statt 403.',
+        'file_host_tus' => 'tusd antwortet nicht als Upload-Server (HTTP :status).',
+        'file_host_cert_unreadable' => 'Das Zertifikat des Datei-Hosts konnte nicht gelesen werden.',
+        'file_host_cert_expiring' => 'Das Zertifikat des Datei-Hosts läuft in :days Tag(en) ab. Läuft die Zertifikat-Synchronisation?',
         'storage_mismatch' => 'Schreibprobe stimmte nicht überein.',
         'failed_jobs' => ':count fehlgeschlagene(r) Job(s).',
         'stale' => 'Kein aktuelles Lebenszeichen.',

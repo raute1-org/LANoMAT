@@ -123,11 +123,28 @@ otherwise the file host store refuses with a clear error and nothing else change
 Downloads start from an HTTPS page, so the file host must be HTTPS with a certificate browsers trust. Reuse the
 wildcard `*.<LAN_DOMAIN>` that the venue Traefik already issues ([lan-tls-certificates.md](lan-tls-certificates.md)):
 
-1. Export it from Traefik's `acme-lan.json` (for example with `traefik-certs-dumper file --watch`), producing
-   `fullchain.pem` and `privkey.pem` for `*.<LAN_DOMAIN>`.
-2. Copy both to `<FILES_ROOT>/certs/` on `<LANCACHE_HOST>` (`scp` or `rsync` after each renewal, root-only,
-   `chmod 600 privkey.pem`). `docker compose exec file-host nginx -s reload` picks up a renewed certificate.
-3. The private key lives on the LanCache host now: treat that host like the Traefik host.
+1. Get the pair out of Traefik: the `certs-export` service ([local-service-tls.md](local-service-tls.md)) writes it as
+   `wildcard.<LAN_DOMAIN>/certificate.crt` and `privatekey.key`.
+2. Let the `cert-sync` service carry it over (`docker/file-host/sync-certs.py`, profile `cert-sync` in the file host's
+   compose file). Point `CERT_SOURCE` at the directory that holds that pair and start it:
+
+   ```bash
+   CERT_SOURCE=<DIR_WITH_certificate.crt_AND_privatekey.key>
+   docker compose --profile cert-sync up -d
+   ```
+
+   Every minute it compares the source with `<FILES_ROOT>/certs/{fullchain,privkey}.pem`. A different pair is checked
+   (certificate and key must belong together), replaces both files and makes nginx reload; an unreadable or
+   mismatched pair changes nothing, so a half-written export never breaks the working copy. It shares nginx's PID
+   namespace and reloads it by `SIGHUP`, so it needs no Docker socket. It logs only changes of state.
+3. **Same machine as Traefik** (the test VM): `CERT_SOURCE` is the host path of Traefik's certs volume plus
+   `/wildcard.<LAN_DOMAIN>` (`docker volume inspect <PROJECT>_traefik_certs` shows the mountpoint).
+   **Another machine** (the venue: file host on the LanCache machine, Traefik elsewhere): the source directory has to
+   be filled from the Traefik host, for example by a restricted key and `rsync -t` run after each renewal, or an NFS
+   mount. The sync step itself does not change.
+4. The private key lives on the LanCache host now: treat that host like the Traefik host.
+5. **Preflight** shows the certificate that the file host really serves. It warns 14 days before expiry and reports
+   down 3 days before, so a sync that silently stopped is noticed in time.
 
 If the venue Traefik is not reachable from the LanCache host, issue the certificate directly on it with any
 DNS-01 client (for example `lego` with the same DNS token), for `files.<LAN_DOMAIN>` alone. Check `notAfter`
