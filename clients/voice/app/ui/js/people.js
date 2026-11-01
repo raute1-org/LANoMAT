@@ -39,7 +39,7 @@ const ago = (iso) => {
 // The per-place button: pushed to the right of its line, disabled for a place you may not see.
 function joinButton(p, joinable, run) {
     const btn = el('button', {
-        class: `btn small-btn ${joinable ? 'primary' : ''} where-join`.trim(),
+        class: 'btn small-btn where-join',
         type: 'button',
         text: S.people.join,
         'aria-label': S.people.joinAria(p.name),

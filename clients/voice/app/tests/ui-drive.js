@@ -78,6 +78,15 @@
 
         return e;
     };
+    // The Beitreten button on one place of a person (a chip text: provider name or "Spiel").
+    const placeBtn = (row, chipText) =>
+        qa('.where', row)
+            .find(
+                (w) =>
+                    visible(w) &&
+                    q('.chip', w)?.textContent.trim() === chipText,
+            )
+            ?.querySelector('button.where-join');
     const clickText = (sel, text, root) =>
         click(() => byText(sel, text, root), `${sel} "${text}"`);
     const typeInto = async (input, text) => {
@@ -803,15 +812,6 @@
     });
 
     // ---------------------------------------------------------------- Sprache: Personen
-    // The Beitreten button on one place of a person (a chip text: provider name or "Spiel").
-    const placeBtn = (row, chipText) =>
-        qa('.where', row)
-            .find(
-                (w) =>
-                    visible(w) &&
-                    q('.chip', w)?.textContent.trim() === chipText,
-            )
-            ?.querySelector('button.where-join');
     const personRow = (name, scope = '#screen-sprache') =>
         qa(`${scope} li.pr`).find(
             (r) =>
