@@ -44,4 +44,6 @@ if ($modules->enabled(Module::WebVoice)) {
 }
 Schedule::command('lanomat:heartbeat')->everyMinute();
 Schedule::command('lanomat:health-watch')->everyFiveMinutes();
+// More often than the 12 h cache lifetime, so the preflight check never finds an empty cache.
+Schedule::command('lanomat:check-updates')->everySixHours();
 Schedule::job(new RefreshExpiringTokensJob)->hourly();

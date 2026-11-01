@@ -28,7 +28,7 @@ it('keeps all probes and schedule entries under full', function () {
     $report = modulesReport('full');
 
     expect(implode("\n", $report['scheduled']))->toContain('lanomat:jukebox-tick');
-    expect(count($report['preflight']))->toBe(16);
+    expect(count($report['preflight']))->toBe(17);
 });
 
 it('registers no optional listener under the core profile', function () {

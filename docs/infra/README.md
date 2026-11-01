@@ -42,3 +42,22 @@ WireGuard, Pelican and the game server steps are not.
 
 Related, older docs: [`../lancache-setup.md`](../lancache-setup.md) (LanCache
 host runbook used by `ApplyLancacheSetup`), [`../three-server-setup.md`](../three-server-setup.md).
+
+## Update watch (pinned third-party images)
+
+`lanomat:check-updates` (scheduled every six hours, Preflight is a core module) compares the image tags pinned in
+`compose.yml` and `docker/file-host/compose.yml` with the latest GitHub release of the upstream project (Mumble,
+LiveKit, tusd, Traefik) and caches the answer for 12 hours. The Preflight check `dependency_updates` ("Software-Updates"
+in the Filament tile and `lanomat:preflight`) reads only that cache:
+
+- `ok`: every watched component is on the latest minor line (patch releases do not count, being ahead of upstream is fine).
+- `warn`: one or more components trail by a minor or major version; the message lists `pinned → latest`.
+- `skipped`: nothing has been looked up yet or GitHub was unreachable. A failed lookup keeps the previous answer.
+
+It never reports `down`: it is a heads-up to read the changelog before the event, not an outage. PostgreSQL, Redis and
+nginx are listed with their pinned tag only (no release source; Docker Hub lookups are out of scope). A GitHub release tag
+does not always equal the Docker image tag of a project, so treat a warning as a prompt to check, not as a fact.
+
+To watch another component, add an entry to `config/updates.php` (`label`, `image` as written in the compose file, and
+optionally `repo` as `org/project`); a compose file that is not listed in `compose_files` is not scanned. Tests use the
+`FakeLatestRelease` and never call GitHub.

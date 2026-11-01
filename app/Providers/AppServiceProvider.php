@@ -80,6 +80,7 @@ use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
 use App\Modules\Preflight\Actions\RunPreflight;
 use App\Modules\Preflight\Checks\BackupFreshnessCheck;
 use App\Modules\Preflight\Checks\DatabaseCheck;
+use App\Modules\Preflight\Checks\DependencyUpdatesCheck;
 use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
@@ -94,6 +95,8 @@ use App\Modules\Preflight\Checks\ReverbCheck;
 use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
 use App\Modules\Preflight\Checks\StorageWritableCheck;
 use App\Modules\Preflight\Checks\TeamSpeakSidecarCheck;
+use App\Modules\Preflight\Contracts\LatestRelease;
+use App\Modules\Preflight\Support\HttpLatestRelease;
 use App\Modules\Presence\Listeners\BroadcastPresenceOnTournamentActivity;
 use App\Modules\Provisioning\Contracts\HostKeyScanner;
 use App\Modules\Provisioning\Contracts\HostKeyTrust;
@@ -273,6 +276,7 @@ class AppServiceProvider extends ServiceProvider
             SchedulerHeartbeatCheck::class,
             QueueWorkerCheck::class,
             BackupFreshnessCheck::class,
+            DependencyUpdatesCheck::class,
             ...($modules->enabled(Module::Discord) ? [DiscordApiCheck::class, DiscordGatewaySidecarCheck::class] : []),
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::Files) ? [FileHostCheck::class] : []),
@@ -280,6 +284,8 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
         ], 'preflight.checks');
+
+        $this->app->bind(LatestRelease::class, HttpLatestRelease::class);
 
         $this->app->bind(
             RunPreflight::class,
