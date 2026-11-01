@@ -31,6 +31,21 @@ impl std::fmt::Debug for ApiClient {
     }
 }
 
+/// The device name shown on the approval page: `<host name> (<app>)`, e.g. `box (lanomat-voice)`.
+pub fn default_device_name(app: &str) -> String {
+    let host = std::env::var("HOSTNAME")
+        .ok()
+        .filter(|h| !h.is_empty())
+        .or_else(|| {
+            std::fs::read_to_string("/etc/hostname")
+                .ok()
+                .map(|h| h.trim().to_owned())
+                .filter(|h| !h.is_empty())
+        })
+        .unwrap_or_else(|| "this device".into());
+    format!("{host} ({app})")
+}
+
 /// Parses and normalises the LANoMAT origin the user typed (`https://host`, optional path prefix).
 pub fn normalize_base_url(input: &str) -> Result<Url> {
     let trimmed = input.trim();

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>LANoMAT Voice Overlay</title>
+        <link rel="stylesheet" href="app.css" />
+    </head>
+    <body class="overlay">
+        <div
+            class="ov"
+            id="ov"
+            data-tauri-drag-region
+            role="status"
+            aria-live="polite"
+        >
+            <div class="head" data-tauri-drag-region>
+                <span class="dot" id="ov-dot" aria-hidden="true"></span>
+                <span id="ov-room">Kein Raum</span>
+                <span class="state" id="ov-state"></span>
+            </div>
+            <ul id="ov-list"></ul>
+            <div class="none" id="ov-none">Tritt einem Raum bei.</div>
+        </div>
+        <script src="overlay.js"></script>
+    </body>
+</html>
