@@ -216,6 +216,7 @@ jobs:
           }
           if ($failed.Count -gt 0) { throw "failing test binaries: $($failed -join ', ')" }
       - name: Smoke test (CLI version, app window, push-to-talk pipe)
+        if: ${{ !cancelled() }}
         shell: pwsh
         env:
           APP_VERSION: ${{ needs.meta.outputs.version }}

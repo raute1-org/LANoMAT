@@ -582,7 +582,16 @@ mod tests {
             // A pipe has no stale file: once the owner is gone the name can be taken again.
             serve.abort();
             let _ = serve.await;
-            assert!(ControlServer::bind(&path).await.is_ok());
+            // Handler tasks still holding an instance finish within moments, so allow a short wait.
+            let mut rebound = false;
+            for _ in 0..60 {
+                if ControlServer::bind(&path).await.is_ok() {
+                    rebound = true;
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            assert!(rebound, "the pipe name was never released");
         }
 
         #[tokio::test]
