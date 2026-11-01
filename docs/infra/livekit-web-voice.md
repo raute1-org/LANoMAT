@@ -11,6 +11,8 @@ run side by side, nothing about them changes.
 > Status: configuration and code are done and tested against a fake server. **Nothing here has been run against a
 > real LiveKit server or a real browser yet.** The checklist at the end is the acceptance test.
 
+> A native desktop client uses the same rooms through a separate token API: see [native-voice-client-api.md](native-voice-client-api.md).
+
 ## Placeholders
 
 | Placeholder            | Meaning                                                                                            |

@@ -57,4 +57,14 @@ return [
             ? (int) env('LIVEKIT_JITTER_BUFFER_TARGET_MS')
             : null,
     ],
+
+    // Native desktop client (device authorization flow + bearer API). Runbook:
+    // docs/infra/native-voice-client-api.md.
+    'native' => [
+        // Lifetime of a device/user code pair and the polling interval handed to the client.
+        'code_ttl' => 600,
+        'poll_interval' => 5,
+        // A paired device's token expires this many days after its last use (sliding).
+        'token_ttl_days' => 90,
+    ],
 ];

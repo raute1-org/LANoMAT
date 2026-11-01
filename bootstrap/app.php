@@ -9,6 +9,8 @@ use App\Http\Middleware\LimitRequestBodySize;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
 use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
 use App\Modules\Files\Http\Middleware\VerifyTusHookSecret;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -23,6 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         then: function (): void {
+            // Native voice client API: bearer tokens, no session, no cookies, no CSRF (the `web`
+            // group is deliberately not applied). Gated by the WebVoice module toggle.
+            if (app(Modules::class)->routable(Module::WebVoice)) {
+                Route::group([], base_path('routes/voice-client.php'));
+            }
+
             // CSP violation reports: browsers POST these on their own, so no
             // session, cookies or CSRF (the `web` group is deliberately not
             // applied); size-limited in the controller and throttled here.

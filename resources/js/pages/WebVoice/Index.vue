@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
@@ -118,6 +118,15 @@ async function moderate(
         :title="labels.heading"
         :description="labels.lead"
     >
+        <template #actions>
+            <Link
+                href="/talk/connect"
+                class="rounded-sm text-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            >
+                {{ labels.connect_link }}
+            </Link>
+        </template>
+
         <!-- empty -->
         <p
             v-if="channels.length === 0"

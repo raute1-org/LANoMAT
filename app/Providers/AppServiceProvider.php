@@ -150,6 +150,8 @@ use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnMatchCompleted;
 use App\Modules\WebVoice\Listeners\CloseWebVoiceChannelsOnTournamentCompleted;
 use App\Modules\WebVoice\Listeners\ProvisionWebVoiceChannelsOnMatchReady;
 use App\Modules\WebVoice\Models\WebVoiceChannel;
+use App\Modules\WebVoice\NativeClient\Models\VoiceClientToken;
+use App\Modules\WebVoice\NativeClient\Policies\VoiceClientTokenPolicy;
 use App\Modules\WebVoice\Policies\WebVoiceChannelPolicy;
 use App\Modules\WebVoice\Support\LiveKitClient;
 use App\Support\DisplayTimezone;
@@ -406,6 +408,16 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('self-checkin', fn (Request $request) => Limit::perMinute(30)->by('self-checkin|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('web-voice-chat', fn (Request $request) => Limit::perSecond((int) config('webvoice.chat.rate_limit'), (int) config('webvoice.chat.rate_window'))->by('web-voice-chat|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
+        // Native voice client: the device endpoints are unauthenticated, so they are limited per IP
+        // (and per device code) and the approval form per user (it guesses a short user code).
+        RateLimiter::for('voice-client-device', fn (Request $request) => Limit::perMinute(5)->by('voice-client-device|'.$request->ip()));
+        RateLimiter::for('voice-client-token', fn (Request $request) => [
+            Limit::perMinute(30)->by('voice-client-token|'.$request->ip()),
+            Limit::perMinute(30)->by('voice-client-token-code|'.hash('sha256', is_string($request->input('device_code')) ? $request->input('device_code') : '')),
+        ]);
+        RateLimiter::for('voice-client-approve', fn (Request $request) => Limit::perMinute(10)->by('voice-client-approve|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('voice-client-api', fn (Request $request) => Limit::perMinute(120)->by('voice-client-api|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
+
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
 
         Gate::policy(EventModel::class, EventPolicy::class);
@@ -472,6 +484,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::WebVoice)) {
             Gate::policy(WebVoiceChannel::class, WebVoiceChannelPolicy::class);
+            Gate::policy(VoiceClientToken::class, VoiceClientTokenPolicy::class);
         }
 
         if ($this->on(Module::Friends)) {
