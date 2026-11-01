@@ -192,23 +192,41 @@ Versions: Tauri 2.12 (`tauri-build` 2.7, `tauri-plugin-global-shortcut` 2.4), We
 No Tauri CLI is needed: a plain `cargo build -p lanomat-voice-app` produces the binary
 (`tauri.conf.json` plus `tauri::generate_context!`).
 
-Screens:
+### Participant screens
 
-- **Verbinden**: server URL, then the user code, the verification link (copy, open in the browser),
-  a countdown and a waiting state; denied, expired and unreachable end in an error with "Erneut
-  versuchen".
-- **Räume**: general rooms and your own match rooms (loading, empty, error and normal states), and,
-  when joined, a live panel with the connection state (a LiveIndicator-style dot), the roster with
-  speaking and mute state, a big hold-to-talk button (mouse, touch or Space), and a hard mute.
-- **Einstellungen**: microphone and speaker (substring match like the CLI), open mic,
-  "Headset-Modus" (no echo cancellation, noise suppression or AGC, as in the browser; see the web
-  voice runbook), the global shortcut with a key capture field, close-to-tray, the overlay, where to
-  revoke the device (`/talk/connect`, "Trennen" under "Verbundene Geräte") and "Abmelden".
+The window is a set of small ES modules in `app/ui/js/` (no bundler, no npm; `index.html` loads
+`js/main.js` as `<script type="module">`), one file per screen, all German strings in
+`js/strings.js`, design tokens in `app.css` and the component styles in `screens.css`. The concept
+is [`docs/ux-concept.md`](docs/ux-concept.md), the command contract
+[`docs/commands.md`](docs/commands.md).
 
-Screenshots from the headless run are in
-[`docs/screenshots/voice-app/`](../../docs/screenshots/voice-app/): `01-connect`, `02-connect-wait`,
-`04-room-muted`, `05-talking`, `08-settings`, `10-connect-denied`, `11-rooms-empty`,
-`12-rooms-error`, `13-settings-scrolled`, `14-overlay`.
+| File | Screen |
+|------|--------|
+| `connect.js`, `onboarding.js` | **Verbinden** (device code, countdown, denied/expired/unreachable with a retry) and the **first-run guide** after a fresh pairing: headset, a moving input meter, a test tone, push-to-talk key or open mic, then straight to Jetzt |
+| `now.js` | **Jetzt**: the prioritised cards of `now_feed` (match with *Beitreten*, *Server beitreten*, *Adresse kopieren* and "So kommst du ran", check-in, result to confirm; vote with the options as buttons on the card; order with a one-tap quick order; notifications; schedule) plus the client-side voice card, five at most and the rest under "Mehr anzeigen", polled every 30 s (60 s for the badges on the other tabs, nothing while hidden). Done actions stay as a "Erledigt" card until you leave |
+| `voice.js`, `chat.js` | **Sprache**: rooms, the live room panel (hold-to-talk by mouse, Space or the global key, mute, roster) and the text chat beside it (history, Enter sends, 500 characters, the rate limit as a calm hint, live messages with de-duplication, `@name` mentions highlighted, delete for orga and admin, unread badge). On the other tabs a voice dock keeps talk and mute one tap away |
+| `play.js`, `matches.js` | **Spielen**: my matches (report with the tie check, confirm, dispute, withdraw, check-in, `lock_version` conflicts answered with a reload), tournaments with my enrollment, event and permanent game servers (status light, players, map, address, offline has no join button) |
+| `food.js` | **Essen**: the menu per ordering round with quantity steppers, a running total from integer cents, item-based ordering with the server's refusals shown in the line, my orders with a status timeline and cancel while open (with the reason when not) |
+| `more.js`, `polls.js`, `files.js`, `notifications.js`, `settings.js` | **Mehr**: Abstimmungen (one tap, results as the server returns them), Dateien (quota bar, download with progress and the final path, upload by drag and drop or picker with progress, pause, resume, cancel and the moderation note), Benachrichtigungen (history, mark read, a switch per category for the app list and for desktop hints, the "Ruhe" toggle), Einstellungen and Gerät und Konto. **Freunde** and **Profil** are hidden until `list_friends` / `get_profile` exist (probed once, an `unknown command` keeps them out); their pages are placeholders for the follow-up that wires them |
+| `nav.js` | the five tabs (a tab or a Mehr entry only when `get_config().modules` says the module runs), badges, the connection indicator and offline banner, the "Ruhe" toggle, a Hilfe sheet per tab, keyboard: arrow keys between tabs, Alt+1 to Alt+5 |
+
+Every list has loading, empty, error (plain message and "Erneut versuchen") and normal states; a
+failed refresh keeps the last data and says so. Nothing shows raw JSON. Text is `rem`-based, focus is
+visible, `prefers-reduced-motion` is respected, the dark scheme follows the system, and below 560 px
+the tabs share the width.
+
+Three small Rust additions came with the screens: `audio_check_start`, `audio_check_stop` and
+`play_test_tone` (with the `audio-level` event) for the first-run guide, a `role` in `get_status`
+(chat moderation is offered to `orga` and `admin` only), and the four transfer commands became
+`async` (a sync command has no Tokio runtime, so *Weiter* on a paused upload used to panic). The
+"service unavailable" message no longer talks about voice chat when a feature route is busy.
+
+Screenshots of every screen in its normal, empty and error state are in
+[`docs/screenshots/voice-app/`](../../docs/screenshots/voice-app/) (names are numbered by screen:
+`01`-`06` connect and first-run guide, `10`-`16` Jetzt, `20`-`23` Sprache, `30`-`34` Spielen,
+`40`-`43` Essen, `50`-`63` Mehr, `70-empty-*`, `80-error-*`, `81`, `85-offline`, `90`/`91` modules off
+and moderation, `narrow-*`, `dark-*`, and `v*` from the voice smoke: room, talking, settings,
+overlay, denied).
 
 ### Build and run
 
@@ -288,6 +306,35 @@ Xvfb, both release orders), uses `lanomat-voice ptt` against the app's socket, a
 (the CLI) in the same room on the real SFU, whose log proves that the unmute, the mute and the
 active-speaker state reached it; it then closes the window through `WM_DELETE_WINDOW` (hides to the
 tray) and sends SIGTERM.
+
+### Headless UI smoke (what was run)
+
+`app/tests/smoke-ui.sh` drives the screens through the real UI: `app/tests/ui-drive.js` runs inside
+the app's webview (the same `selftest` seam, plus a test-only `selftest_hook` command that runs
+`ui-hook.sh` for screenshots, scenario switches, a second chat user and real key events through
+`xdotool`), against the stand-in in `--ui-demo` mode (`standin_demo.py`: stateful matches, servers,
+polls, a food round, files, notifications and chat, a rate limit, scenarios `normal`, `empty`, `error`
+and `offline`). `app/tests/check-ui.mjs` checks with plain node that every string path used by a module
+exists in `strings.js`.
+
+```bash
+dc cargo build -p lanomat-voice-app --features selftest
+LIVEKIT_API_KEY=... LIVEKIT_API_SECRET=... dc sh app/tests/smoke-ui.sh   # MODE=full: pairing, guide, every flow
+MODE=mods dc sh app/tests/smoke-ui.sh       # modules off (no Essen tab, no Dateien), orga role (chat delete)
+MODE=empty dc sh app/tests/smoke-ui.sh      # every screen with nothing to show
+MODE=errors dc sh app/tests/smoke-ui.sh     # every screen with a failing server, then the retry recovers
+MODE=narrow dc sh app/tests/smoke-ui.sh     # 430 px window, text at 125 %
+MODE=dark dc sh app/tests/smoke-ui.sh       # dark colour scheme
+```
+
+`MODE=full` pairs through the connect screen, walks the first-run guide (the meter must move), votes
+and orders on the Jetzt cards, joins the match room (needs the LiveKit dev server of the voice smoke),
+copies a server address, sends and receives a chat message (a mention raises the tab badge), runs into
+the rate limit, reports, withdraws and confirms results, orders food up to the item limit, downloads a
+file (progress, final path) and uploads one by drag and drop with the connection cut in the middle of a
+chunk, pause and resume, and checks the evidence on the stand-in side. The voice smoke
+(`smoke-drive.sh`, `smoke-states.sh`) uses the new tabs; their coordinates assume the 960x760
+window.
 
 ## Core features: events, play, chat, notifications, files
 
@@ -386,6 +433,15 @@ daemon, and the desktop plugin offers no click callback, hence `take_notificatio
 Steam URL handler on a real desktop (the container has no handler, the validation and the error path are covered);
 the file picker dialogs (compiled and registered, never shown); Windows and macOS for all of it; very large files
 and a real flaky network for the transfers (loopback drops only).
+
+Not verified for the participant screens: **real audio** (the first-run guide's meter and tone ran
+against the synthetic source and sink; `cpal` capture and playback behind them are the same untested
+code as before), a **real OS drag and drop** (the drop is delivered as the window event that Tauri
+sends, emitted by the script; xdotool cannot drag a file in from outside), the **file picker** and
+**folder picker** dialogs, **system notifications** and their click target, the **tray and overlay on
+Wayland**, **Windows and macOS**, the **real server** (only the stand-in), and **Friends and Profil**
+(hidden by design until the other branch's commands exist; the probe names `list_friends` and
+`get_profile` are the ones in that branch's contract).
 
 ## Next steps
 

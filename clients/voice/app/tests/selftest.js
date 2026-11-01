@@ -288,6 +288,10 @@
     await check(
         'chat: realtime link goes live and a posted message comes back signed',
         async () => {
+            // The real UI of the window already follows the chat: stop its link so this step
+            // sees a fresh connection (a new subscription starts one and reports "live").
+            await inv('chat_unsubscribe');
+            await sleep(300);
             await inv('chat_subscribe', { roomIds: [1] });
             await waitFor(
                 () =>

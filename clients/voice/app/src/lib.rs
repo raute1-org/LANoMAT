@@ -2,6 +2,7 @@
 //! `voice-core`. All behaviour lives in [`engine::Engine`]; this file wires it to Tauri
 //! (commands, events, tray, overlay, global shortcut, control socket, clean shutdown).
 
+pub mod audio_check;
 pub mod engine;
 pub mod features;
 pub mod joinurl;
@@ -34,6 +35,7 @@ use voice_core::control::{self, ControlServer, PttCommand};
 use voice_core::notify::{Notifier, SystemNotification};
 use voice_core::transfer::manager::TransferView;
 
+use audio_check::AudioCheck;
 use engine::{ConnectPoll, ConnectStart, Devices, Engine, Status, UiError};
 use features::{ConfigView, FeatureOptions, Features, TransferStarted, UploadStarted};
 use settings::Settings;
@@ -507,22 +509,22 @@ fn list_transfers(f: Feat<'_>) -> Result<Vec<TransferView>, UiError> {
 }
 
 #[tauri::command]
-fn transfer_pause(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+async fn transfer_pause(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
     f.transfer_pause(transfer_id)
 }
 
 #[tauri::command]
-fn transfer_resume(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+async fn transfer_resume(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
     f.transfer_resume(transfer_id)
 }
 
 #[tauri::command]
-fn transfer_cancel(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+async fn transfer_cancel(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
     f.transfer_cancel(transfer_id)
 }
 
 #[tauri::command]
-fn transfer_forget(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
+async fn transfer_forget(f: Feat<'_>, transfer_id: u64) -> Result<(), UiError> {
     f.transfer_forget(transfer_id);
     Ok(())
 }
@@ -570,6 +572,28 @@ async fn set_notification_preferences(
     preferences: std::collections::BTreeMap<String, bool>,
 ) -> Result<std::collections::BTreeMap<String, bool>, UiError> {
     f.set_notification_preferences(preferences).await
+}
+
+#[tauri::command]
+async fn audio_check_start(
+    a: State<'_, Arc<AudioCheck>>,
+    input_device: Option<String>,
+) -> Result<(), UiError> {
+    a.start(input_device)
+}
+
+#[tauri::command]
+async fn audio_check_stop(a: State<'_, Arc<AudioCheck>>) -> Result<(), UiError> {
+    a.stop();
+    Ok(())
+}
+
+#[tauri::command]
+async fn play_test_tone(
+    a: State<'_, Arc<AudioCheck>>,
+    output_device: Option<String>,
+) -> Result<(), UiError> {
+    a.play_tone(output_device).await
 }
 
 #[tauri::command]
@@ -910,7 +934,7 @@ macro_rules! command_set {
         #[cfg(feature = "selftest")]
         fn register(b: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
             b.invoke_handler(tauri::generate_handler![
-                $($name,)* selftest::selftest_report, selftest::selftest_done
+                $($name,)* selftest::selftest_report, selftest::selftest_done, selftest::selftest_hook
             ])
         }
     };
@@ -972,6 +996,9 @@ command_set!(
     set_notification_preferences,
     set_quiet,
     get_quiet,
+    audio_check_start,
+    audio_check_stop,
+    play_test_tone,
     take_notification_target,
     chat_history,
     chat_post,
@@ -1053,6 +1080,7 @@ pub fn run() {
             let _ = app.emit(name, payload);
         }
     });
+    let audio_check = AudioCheck::new(engine.clone(), event_sink.clone(), synthetic_audio());
     let features = Features::new(
         engine.clone(),
         event_sink,
@@ -1068,6 +1096,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(engine.clone())
         .manage(features.clone())
+        .manage(audio_check)
         .manage(Arc::new(Mutex::new(Runtime::default())));
     let app = register(builder)
         .setup(move |app| {

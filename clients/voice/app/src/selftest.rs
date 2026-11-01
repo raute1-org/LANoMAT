@@ -29,6 +29,26 @@ pub fn selftest_report(line: String) {
     }
 }
 
+/// Runs the script named by `LANOMAT_SELFTEST_HOOK` with `args` (a screenshot or a stand-in
+/// scenario switch, which a script in the webview cannot do itself) and returns its stdout. The
+/// webview keeps painting meanwhile. Test-only like everything in this module.
+#[tauri::command]
+pub async fn selftest_hook(args: String) -> String {
+    let Ok(script) = std::env::var("LANOMAT_SELFTEST_HOOK") else {
+        return "no hook".into();
+    };
+    tokio::task::spawn_blocking(move || {
+        std::process::Command::new("sh")
+            .arg(script)
+            .args(args.split_whitespace())
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|e| format!("hook failed: {e}"))
+    })
+    .await
+    .unwrap_or_default()
+}
+
 /// Ends the run; a non-zero `failures` makes the process exit with 1.
 #[tauri::command]
 pub fn selftest_done(app: AppHandle, failures: i32) {

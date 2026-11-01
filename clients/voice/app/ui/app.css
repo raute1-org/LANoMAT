@@ -128,7 +128,7 @@ body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    font-size: 15px;
+    font-size: 0.9375rem;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
 }
@@ -207,32 +207,6 @@ h2 {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.tabs {
-    display: flex;
-    gap: 4px;
-    padding: 8px 16px 0;
-    border-bottom: 1px solid var(--border);
-    background: var(--card);
-}
-.tab {
-    appearance: none;
-    background: none;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    color: var(--muted-foreground);
-    font: inherit;
-    font-weight: 500;
-    padding: 8px 12px;
-    cursor: pointer;
-    margin-bottom: -1px;
-}
-.tab[aria-current='page'] {
-    color: var(--foreground);
-    border-bottom-color: var(--primary);
-}
-.tab:hover {
-    color: var(--foreground);
-}
 main {
     flex: 1;
     overflow-y: auto;
@@ -242,12 +216,6 @@ main {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-width: 520px;
-    margin: 0 auto;
-}
-.stack > .stack {
-    max-width: none;
-    margin: 0;
 }
 .stack-sm {
     display: flex;

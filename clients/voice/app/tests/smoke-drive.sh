@@ -11,7 +11,7 @@ CLI=${CLI_BIN:-target/debug/lanomat-voice}
 export XDG_RUNTIME_DIR="$T/run"
 FAILED=0
 
-shot() { import -window root "$T/shots/$1.png"; echo "screenshot: $1.png"; }
+shot() { import -window root -crop 960x760+0+0 +repage "$T/shots/v$1.png"; echo "screenshot: v$1.png"; }
 ok() { echo "PASS  $1"; }
 bad() { echo "FAIL  $1"; FAILED=1; }
 expect_log() { # file pattern description
@@ -21,8 +21,9 @@ click() { xdotool mousemove "$1" "$2" click 1; sleep 0.4; }
 
 echo "== 1. connect screen"
 shot 01-connect
-click 240 244
-xdotool type --delay 20 "http://127.0.0.1:${STANDIN_PORT:-8099}"
+click 480 244   # the address field
+sleep 1
+xdotool type --delay 60 "http://127.0.0.1:${STANDIN_PORT:-8099}"
 xdotool key Return
 sleep 2
 shot 02-connect-wait
@@ -32,6 +33,8 @@ for i in $(seq 1 30); do
   grep -q 'v1/rooms' "$T/standin.log" && break
   sleep 1
 done
+sleep 1
+click 285 439   # a fresh pairing opens the first-run guide: Ueberspringen
 sleep 1
 expect_log "$T/standin.log" 'POST /api/voice-client/token HTTP/1.1" 200' "device flow approved and token issued"
 expect_log "$T/standin.log" 'GET /api/voice-client/v1/rooms' "room list fetched with the bearer token"
@@ -47,8 +50,10 @@ echo $! >"$T/peer.pid"
 sleep 4
 expect_log "$T/peer.log" 'Joined "Lobby" as u2' "peer joined the Lobby as u2"
 
-echo "== 4. join the Lobby in the app (click Beitreten)"
-click 430 218
+echo "== 4. join the Lobby in the app (tab Sprache, click Beitreten)"
+click 129 72
+sleep 1
+click 405 298
 sleep 4
 shot 04-room-muted
 expect_log "$T/peer.log" '+ u1 joined' "peer saw the app user (u1) join"
@@ -67,7 +72,7 @@ expect_log "$T/peer.log" 'u1 muted' "SFU delivered the mute to the peer"
 expect_log "$T/peer.log" 'speaking: u1' "peer saw the app user as active speaker"
 
 echo "== 6. hold the on-screen button with the mouse"
-xdotool mousemove 240 260 mousedown 1
+xdotool mousemove 240 320 mousedown 1
 sleep 2
 R=$("$CLI" ptt status 2>&1); [ "$R" = talking ] && ok "mouse hold -> talking" || bad "mouse hold -> $R"
 shot 07-mouse-hold
@@ -84,8 +89,10 @@ xdotool keyup space
 sleep 1
 R=$("$CLI" ptt status 2>&1); [ "$R" = muted ] && ok "space release -> muted" || bad "space release -> $R"
 
-echo "== 8. settings screen"
-click 155 70
+echo "== 8. settings screen (tab Mehr, Einstellungen)"
+click 364 72
+sleep 1
+click 400 417
 sleep 1
 shot 08-settings
 

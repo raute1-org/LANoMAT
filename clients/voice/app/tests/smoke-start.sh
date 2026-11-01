@@ -27,6 +27,11 @@ printf '{"base_url":"http://127.0.0.1:%s","access_token":"%s","device_name":"pee
   "${STANDIN_PORT:-8099}" "$(cat "$T/peer-token")" >"$T/peer-cfg/lanomat-voice/credentials.json"
 chmod 600 "$T/peer-cfg/lanomat-voice/credentials.json"
 
+# PRE_SETTINGS: a settings.json to start with (e.g. the overlay switched on).
+if [ -n "${PRE_SETTINGS:-}" ]; then
+  mkdir -p "$T/cfg/lanomat-voice"
+  printf '%s' "$PRE_SETTINGS" >"$T/cfg/lanomat-voice/settings.json"
+fi
 export DISPLAY=:99 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
   WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
 export XDG_CONFIG_HOME="$T/cfg" XDG_RUNTIME_DIR="$T/run" XDG_SESSION_TYPE=x11

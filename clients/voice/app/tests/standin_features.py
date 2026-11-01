@@ -190,6 +190,10 @@ class Features:
         self.patches = 0
         self.dropped = False
         self.content = file_bytes()
+        self.demo = None
+        if getattr(args, "ui_demo", False):
+            import standin_demo
+            self.demo = standin_demo.Demo(self)
         self.notifications = [
             {"id": "00000000-0000-4000-8000-000000000001", "category": "match", "title": "Dein Match startet",
              "body": "Gleich geht es los.", "read": False, "read_at": None,
@@ -239,11 +243,23 @@ class Features:
                 "visibility": "approved", "created_at": iso(datetime.now(timezone.utc)),
                 "mine": False, "can_download": True, "can_delete": False}
 
+    def add_message(self, room, uid, name, body):
+        with self.lock:
+            self.next_msg += 1
+            msg = {"id": self.next_msg, "channel_id": room, "body": body,
+                   "created_at": iso(datetime.now(timezone.utc)),
+                   "author": {"id": uid, "name": name, "avatar_url": None}}
+            self.messages[room].append(msg)
+        self.pusher.publish(f"private-web-voice.channel.{room}", "message.posted", {"message": msg})
+        return msg
+
     def handle(self, h, method, path, query, payload, user):
         """Returns True when the request was answered."""
         uid, name = user
         route = path[len("/api/voice-client/v1/"):]
         send = h.send
+        if self.demo and self.demo.handle(h, method, route, query, payload, user):
+            return True
 
         if method == "GET" and route == "config":
             send(200, {
@@ -407,6 +423,8 @@ class Features:
     # ---- raw file host paths: /dl/... and /upload/... (no bearer: the link is the credential) ----
 
     def handle_host(self, h, method, path, query):
+        if self.demo and self.demo.handle_host(h, method, path, query):
+            return True
         if path.startswith("/dl/") and method == "GET":
             return self._download(h)
         if path.startswith("/upload/"):
@@ -434,7 +452,7 @@ class Features:
             for i in range(0, len(body), DL_CHUNK):
                 h.wfile.write(body[i:i + DL_CHUNK])
                 h.wfile.flush()
-                time.sleep(0.004)
+                time.sleep(0.03 if self.demo else 0.004)
         except OSError:
             pass
         return True
@@ -501,6 +519,8 @@ class Features:
                 except OSError:
                     pass
                 return True
+            if self.demo:
+                time.sleep(0.7)  # slow enough to see progress, pause and resume in a screenshot
             data = h.rfile.read(n)
             if offset != len(up["data"]):
                 reply(409)
@@ -511,6 +531,8 @@ class Features:
             if len(up["data"]) == up["length"]:
                 ok = bytes(up["data"]) == self.expected_upload
                 log(f"tus complete {uid} bytes={len(up['data'])} matches_source={ok}")
+                if self.demo:
+                    self.demo.on_upload_complete(up["meta"].get("filename", "upload.bin"), len(up["data"]))
             return True
         return False
 
