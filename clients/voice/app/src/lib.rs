@@ -968,7 +968,12 @@ fn cleanup(app: &AppHandle) {
         let _ = tokio::time::timeout(Duration::from_secs(3), engine.leave_room()).await;
     });
     if let Some(path) = rt(app).lock().expect("runtime").socket_path.take() {
+        // A unix socket leaves a file behind; a Windows named pipe vanishes with the process
+        // (and a DeleteFile on a pipe name would open the pipe), so there is nothing to remove.
+        #[cfg(unix)]
         let _ = std::fs::remove_file(path);
+        #[cfg(not(unix))]
+        drop(path);
     }
 }
 
@@ -1236,7 +1241,23 @@ async fn wait_for_termination() {
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+async fn wait_for_termination() {
+    use tokio::signal::windows::{ctrl_break, ctrl_close, ctrl_shutdown};
+    let (Ok(mut brk), Ok(mut close), Ok(mut shutdown)) =
+        (ctrl_break(), ctrl_close(), ctrl_shutdown())
+    else {
+        return std::future::pending().await;
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        _ = brk.recv() => {}
+        _ = close.recv() => {}
+        _ = shutdown.recv() => {}
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
 async fn wait_for_termination() {
     let _ = tokio::signal::ctrl_c().await;
 }

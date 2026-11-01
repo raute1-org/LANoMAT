@@ -1,0 +1,347 @@
+# Builds the native voice client (clients/voice: the Tauri desktop app and the CLI) for Linux and
+# Windows, tests it, and collects the release files.
+#
+# Triggers: a tag `client-v*` (the build that becomes a draft GitHub Release) or a manual run
+# (`workflow_dispatch`). Never on push or pull request: the build is heavy (libwebrtc).
+#
+# How it builds (technique borrowed from the owner's other Tauri project):
+#   * ONE Linux job builds everything inside the image from `clients/voice/Dockerfile.dev`
+#     (`--target windows`): the Linux binaries natively, the Windows binaries cross-compiled for
+#     x86_64-pc-windows-msvc with cargo-xwin (clang-cl + lld-link, Windows SDK from Microsoft).
+#     No Windows runner is needed to BUILD.
+#   * A real Windows runner (`windows-smoke`) then RUNS what was cross-built: the unit tests
+#     (compiled as .exe on Linux, so the named-pipe push-to-talk code is exercised for real) and a
+#     smoke test that starts the app, checks its window and drives the push-to-talk pipe.
+#   * `package` signs the Windows files when asked to, zips, writes SHA256SUMS and the manifest.
+#   * `draft-release` (tags only) attaches everything to a DRAFT release. The owner publishes it.
+#
+# Version contract (the same as scripts/ops/build-client.sh and the server's ClientBuilds validator):
+#   app_version = what `lanomat_version` (scripts/ops/lib/version.sh: `git describe --tags --always`,
+#   e.g. m12-463-g0a3b6ff, or exactly the tag name `client-v...` when built at that tag) gives for
+#   the built commit, unless the `version` input overrides it. Use the override to match the version
+#   string a deployed server reports: the server only offers a client whose app_version equals its
+#   own `config('app.version')`. It goes into the build as LANOMAT_BUILD_VERSION, the 12-character
+#   commit as LANOMAT_BUILD_COMMIT, and into the file names.
+#
+# Release files (names and shape are the contract with the server's ClientBuilds, see
+# docs/infra/native-client-release.md); <V> is the version string:
+#   lanomat-voice-app-<V>-linux-x86_64.tar.gz     desktop app            (kind app)
+#   lanomat-voice-cli-<V>-linux-x86_64.tar.gz     CLI                    (kind cli)
+#   lanomat-voice-app-<V>-windows-x86_64.zip      desktop app, portable  (kind app)
+#   lanomat-voice-cli-<V>-windows-x86_64.exe      CLI                    (kind cli)
+#   manifest.json: { app_version, commit, api_version, built_at,
+#                    files: [{ name, os, arch, kind, size, sha256, signed }] } for all files,
+#   manifest-<os>-<arch>.json: the same for one platform, and SHA256SUMS.
+#
+# Windows code signing (OFF by default, files are labelled `signed: false`):
+#   set the repository VARIABLE  WINDOWS_SIGNING=signpath  and provide
+#     secret    SIGNPATH_API_TOKEN
+#     variables SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG, SIGNPATH_SIGNING_POLICY_SLUG,
+#               SIGNPATH_ARTIFACT_CONFIGURATION_SLUG (optional)
+#   See the `sign-windows-signpath` step in the `package` job and docs/infra/native-client-release.md.
+#
+# Runner choice: repository variables CLIENT_LINUX_RUNS_ON / CLIENT_WINDOWS_RUNS_ON (JSON string,
+# e.g. '"ubuntu-24.04"') override the defaults.
+name: Release native client
+
+on:
+  push:
+    tags: ['client-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string; empty = the one the server of this commit reports (git describe)'
+        required: false
+        default: ''
+      publish:
+        description: 'Create the DRAFT GitHub Release (only honoured when run on a client-v* tag)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-client-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    runs-on: ${{ fromJSON(vars.CLIENT_LINUX_RUNS_ON || '"ubuntu-24.04"') }}
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      commit: ${{ steps.v.outputs.commit }}
+      api_version: ${{ steps.v.outputs.api_version }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the version string comes from the tags
+      - name: Decide version and release mode
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          source scripts/ops/lib/version.sh
+          version=${INPUT_VERSION:-$(lanomat_version .)}
+          if ! lanomat_version_ok "$version"; then
+            echo "::error::'$version' is not a usable version string (letters, digits, . _ - ; at most 64)"
+            exit 1
+          fi
+          commit=$(lanomat_commit .)
+          api=$(grep -oE "API_VERSION = [0-9]+" app/Modules/WebVoice/NativeClient/Support/NativeClientConfig.php | grep -oE "[0-9]+$")
+          release=false
+          if [ "$GITHUB_REF_TYPE" = tag ] && { [ "$GITHUB_EVENT_NAME" = push ] || [ "$INPUT_PUBLISH" = true ]; }; then
+            release=true
+          fi
+          {
+            echo "version=$version"
+            echo "commit=$commit"
+            echo "api_version=$api"
+            echo "release=$release"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::client $version at $commit (API v$api), draft release: $release"
+
+  # Linux build and test, and the Windows cross-build, all inside the Dockerfile.dev image.
+  build:
+    needs: meta
+    runs-on: ${{ fromJSON(vars.CLIENT_LINUX_RUNS_ON || '"ubuntu-24.04"') }}
+    env:
+      LANOMAT_BUILD_VERSION: ${{ needs.meta.outputs.version }}
+      LANOMAT_BUILD_COMMIT: ${{ needs.meta.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Build the toolchain image (clang 21, Tauri deps, cargo-xwin)
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: clients/voice
+          file: clients/voice/Dockerfile.dev
+          target: windows
+          load: true
+          tags: lanomat-voice-build:ci
+          cache-from: type=gha,scope=client-image
+          cache-to: type=gha,scope=client-image,mode=max
+
+      # The cargo registry, the target directory (libwebrtc is downloaded and compiled into it) and the
+      # Windows SDK that cargo-xwin fetches (about 1.5 GB from Microsoft) are cached between runs.
+      - name: Cache cargo, target and xwin
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ci-cache/registry
+            .ci-cache/target
+            .ci-cache/xwin
+          key: client-build-${{ hashFiles('clients/voice/Cargo.lock') }}
+          restore-keys: client-build-
+
+      - name: Run the build script in the image
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-cache/registry .ci-cache/target .ci-cache/xwin clients/voice/dist
+          docker run --rm \
+            -e LANOMAT_BUILD_VERSION -e LANOMAT_BUILD_COMMIT \
+            -v "$PWD/clients/voice:/work" \
+            -v "$PWD/.ci-cache/registry:/usr/local/cargo/registry" \
+            -v "$PWD/.ci-cache/target:/work/target" \
+            -v "$PWD/.ci-cache/xwin:/xwin-cache" \
+            lanomat-voice-build:ci sh ci/build.sh
+
+      - name: Stage files for the next jobs
+        run: |
+          set -euo pipefail
+          sudo chown -R "$USER" clients/voice/dist
+          mkdir -p stage/linux stage/windows stage/windows-tests
+          cp clients/voice/dist/linux/* stage/linux/
+          cp clients/voice/dist/windows/*.exe stage/windows/
+          cp clients/voice/dist/windows-tests/* stage/windows-tests/
+          ls -l stage/*
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-linux
+          path: stage/linux/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-windows-unsigned
+          path: stage/windows/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-windows-tests
+          path: stage/windows-tests/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Runs the cross-built Windows binaries on a real Windows system.
+  windows-smoke:
+    needs: [meta, build]
+    runs-on: ${{ fromJSON(vars.CLIENT_WINDOWS_RUNS_ON || '"windows-2025"') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-windows-unsigned
+          path: bin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-windows-tests
+          path: tests
+      - name: Unit tests (compiled on Linux, run here)
+        shell: pwsh
+        run: |
+          $failed = @()
+          foreach ($t in Get-ChildItem tests -Filter *.exe) {
+            Write-Host "::group::$($t.Name)"
+            & $t.FullName --test-threads=4
+            if ($LASTEXITCODE -ne 0) { $failed += $t.Name }
+            Write-Host '::endgroup::'
+          }
+          if ($failed.Count -gt 0) { throw "failing test binaries: $($failed -join ', ')" }
+      - name: Smoke test (CLI version, app window, push-to-talk pipe)
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ needs.meta.outputs.version }}
+        run: ./clients/voice/ci/windows-smoke.ps1 -Dir bin -Version $env:APP_VERSION
+
+  # Optionally signs, zips, writes SHA256SUMS and the manifests.
+  package:
+    needs: [meta, build, windows-smoke]
+    runs-on: ${{ fromJSON(vars.CLIENT_LINUX_RUNS_ON || '"ubuntu-24.04"') }}
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      COMMIT: ${{ needs.meta.outputs.commit }}
+      API_VERSION: ${{ needs.meta.outputs.api_version }}
+      SIGNING: ${{ vars.WINDOWS_SIGNING }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-linux
+          path: linux
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-windows-unsigned
+          path: windows-unsigned
+
+      # ---- Windows signing hook: OFF unless the repository variable WINDOWS_SIGNING is `signpath`. ----
+      # SignPath Foundation (free for open source) signs the .exe files; the submit action needs the
+      # GitHub artifact id of the unsigned upload, hence the extra upload step in front of it.
+      - name: Upload the unsigned Windows files for SignPath
+        id: upload-unsigned
+        if: ${{ vars.WINDOWS_SIGNING == 'signpath' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-to-sign
+          path: windows-unsigned/*.exe
+          if-no-files-found: error
+          retention-days: 1
+      - name: sign-windows-signpath
+        if: ${{ vars.WINDOWS_SIGNING == 'signpath' }}
+        uses: signpath/github-action-submit-signing-request@c92b958760219087e01f8d67a1669ed57afe2627 # v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: windows-signed
+      # Alternative: Azure Artifact Signing (formerly Trusted Signing). Needs an Azure identity
+      # (OIDC, `id-token: write` on this job) and an Artifact Signing account, certificate profile:
+      #   - uses: azure/login@<pinned sha>
+      #     with: { client-id: ${{ vars.AZURE_CLIENT_ID }}, tenant-id: ${{ vars.AZURE_TENANT_ID }}, subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }} }
+      #   - uses: azure/artifact-signing-action@<pinned sha>      # runs on a windows runner
+      #     with: { endpoint: ..., signing-account-name: ..., certificate-profile-name: ..., files-folder: windows-unsigned, files-folder-filter: exe }
+      # (that route has to run on a Windows runner: move this signing step into its own job.)
+
+      - name: Assemble the release files, checksums and manifests
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          signed=false
+          src=windows-unsigned
+          if [ "$SIGNING" = signpath ]; then
+            signed=true
+            src=windows-signed
+          fi
+
+          # Linux: tarballs keep the executable bit.
+          cp linux/* dist/
+
+          # Windows: the CLI as a plain .exe, the app as a portable zip (exe plus a short note).
+          cp "$src/lanomat-voice.exe" "dist/lanomat-voice-cli-$VERSION-windows-x86_64.exe"
+          dir="lanomat-voice-app-$VERSION-windows-x86_64"
+          mkdir -p "zip/$dir"
+          cp "$src/lanomat-voice-app.exe" "zip/$dir/LANoMAT-Voice.exe"
+          cat > "zip/$dir/LIESMICH.txt" <<EOF
+          LANoMAT Voice (Desktop-App), Version $VERSION, Windows 10/11 x64, portabel
+          Gebaut aus Commit $COMMIT, passend zum LANoMAT-Server derselben Version.
+
+          Starten: LANoMAT-Voice.exe (Voraussetzung: WebView2-Laufzeit, ab Windows 11 und in
+          aktuellen Windows-10-Installationen vorhanden). Beim ersten Start die Adresse des Servers
+          eingeben und den Code im Browser unter "Verbundene Geraete" bestaetigen.
+          Die Datei ist unsigniert, SmartScreen warnt: "Weitere Informationen", dann
+          "Trotzdem ausfuehren". Die SHA-256-Pruefsumme steht auf der Download-Seite.
+          EOF
+          (cd zip && zip -qr "../dist/$dir.zip" "$dir")
+
+          chmod +x clients/voice/ci/manifest.sh
+          clients/voice/ci/manifest.sh dist "$VERSION" "$COMMIT" "$API_VERSION" "$signed"
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-release-files
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  # Tags only: a DRAFT release with the files. The owner reviews and publishes it.
+  draft-release:
+    needs: [meta, package]
+    if: ${{ needs.meta.outputs.release == 'true' }}
+    runs-on: ${{ fromJSON(vars.CLIENT_LINUX_RUNS_ON || '"ubuntu-24.04"') }}
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.meta.outputs.version }}
+      SIGNING: ${{ vars.WINDOWS_SIGNING }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-release-files
+          path: dist
+      - name: Create the draft release
+        run: |
+          set -euo pipefail
+          if [ "$SIGNING" = signpath ]; then
+            note='Die Windows-Dateien sind signiert.'
+          else
+            note='Die Windows-Dateien sind UNSIGNIERT: SmartScreen kann warnen ("Weitere Informationen", dann "Trotzdem ausfuehren").'
+          fi
+          cat > notes.md <<EOF
+          LANoMAT Voice $VERSION (native client).
+
+          - Windows 10/11 x64: \`lanomat-voice-app-$VERSION-windows-x86_64.zip\` entpacken und \`LANoMAT-Voice.exe\` starten (WebView2 noetig); \`lanomat-voice-cli-$VERSION-windows-x86_64.exe\` ist die Kommandozeile.
+          - Linux x86_64: \`lanomat-voice-app-$VERSION-linux-x86_64.tar.gz\` bzw. \`lanomat-voice-cli-$VERSION-linux-x86_64.tar.gz\` entpacken.
+
+          $note
+          Pruefsummen: \`SHA256SUMS\` und \`manifest.json\` (die Datei, die der Server aus clients-dist liest).
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "LANoMAT Voice $VERSION" \
+            --notes-file notes.md

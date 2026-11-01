@@ -42,3 +42,22 @@ RUN apt-get update \
         xvfb xauth dbus dbus-x11 xdotool imagemagick x11-utils \
         python3 procps \
     && rm -rf /var/lib/apt/lists/*
+
+# ---- windows: cross-build for x86_64-pc-windows-msvc from Linux with cargo-xwin (downloads the
+# Windows SDK/CRT once into XWIN_CACHE_DIR; clang-cl and lld-link do the compile and link). NASM
+# is needed by aws-lc-sys on Windows targets, zip packs the portable app archive.
+FROM app AS windows
+
+ARG LLVM_VERSION=21
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nasm zip nsis llvm-${LLVM_VERSION} \
+    && rm -rf /var/lib/apt/lists/* \
+    && for t in clang-cl lld-link llvm-lib llvm-ar llvm-rc llvm-dlltool llvm-mt; do \
+         ln -sf /usr/lib/llvm-${LLVM_VERSION}/bin/$t /usr/local/bin/$t; \
+       done \
+    && rustup target add x86_64-pc-windows-msvc \
+    && cargo install cargo-xwin --version 0.23.1 --locked
+
+ENV XWIN_CACHE_DIR=/xwin-cache \
+    XWIN_ACCEPT_LICENSE=1

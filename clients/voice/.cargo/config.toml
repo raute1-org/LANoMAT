@@ -1,0 +1,6 @@
+# The prebuilt libwebrtc that the LiveKit SDK links is built against the STATIC Windows C runtime
+# (/MT). Everything else in the binary has to use the same one or lld-link refuses with
+# "mismatch detected for 'RuntimeLibrary'". With crt-static the `cc` crate also compiles the
+# C++ glue with /MT. A side effect: no VC++ redistributable is needed on the target machine.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

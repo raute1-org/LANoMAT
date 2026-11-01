@@ -165,6 +165,58 @@ F13
 Each `ptt` call starts a process, so expect a few milliseconds of key-to-mic delay; that is on top
 of nothing else; the mute state is switched immediately in the running session.
 
+On Windows the same protocol runs over a named pipe, see [Windows](#windows).
+
+## Windows
+
+Windows 10/11 x64 is a supported platform (`x86_64-pc-windows-msvc`). The code is the same; only the
+transport of the push-to-talk channel and the shutdown signals differ (`cfg(windows)` in
+`voice-core/src/control.rs`, `voice-cli` and `app`).
+
+**Push-to-talk channel.** Instead of the unix socket, the running app or `lanomat-voice join` serves a
+named pipe `\\.\pipe\lanomat-voice-<your user SID>`. The protocol and the behaviour are identical:
+one request line (`down`, `up`, `toggle`, `status`), one reply line; `down` and `up` are idempotent; a
+second live session is refused (the pipe is created with the first-instance flag; a pipe has no stale
+file because it vanishes with its owner). Only you can open it: the pipe has a protected DACL with
+full access for your account and LocalSystem only, and remote clients are rejected. Override the name
+with `LANOMAT_VOICE_SOCKET` (a full `\\.\pipe\...` name). Bind your key in whatever tool you like
+(AutoHotkey, the keyboard software of your mouse) to run `lanomat-voice.exe ptt down` on press and
+`lanomat-voice.exe ptt up` on release. The app's own global shortcut works on Windows too.
+
+**Stopping.** Ctrl-C, Ctrl-Break and closing the console end `join` cleanly; the app also ends on
+logoff/shutdown.
+
+**Files.** Credentials and settings live under `%APPDATA%\lanomat-voice\config` (the per-user profile,
+which only your account, SYSTEM and administrators can read, so the 0600 handling of the unix build is a
+no-op there).
+
+**Autostart.** The app does not register itself. To start it at login, put a shortcut to
+`LANoMAT-Voice.exe` into `shell:startup` (Win+R, type `shell:startup`).
+
+**Opening links.** `steam://connect/...` and other links are opened with the system handler
+(`rundll32 url.dll,FileProtocolHandler`).
+
+**Install and SmartScreen.** The release is a portable zip (`lanomat-voice-app-<version>-windows-x86_64.zip`:
+unpack anywhere, start `LANoMAT-Voice.exe`; needs the WebView2 runtime, which Windows 11 and current
+Windows 10 have) plus the CLI `lanomat-voice-cli-<version>-windows-x86_64.exe`. The files are **not code-signed yet**,
+so Windows SmartScreen warns ("Der Computer wurde durch Windows geschuetzt"). Click **Weitere
+Informationen**, then **Trotzdem ausfuehren**. Compare the SHA-256 with `SHA256SUMS` from the release
+first (`Get-FileHash .\file`). Signing comes later (see
+[`docs/infra/native-client-release.md`](../../docs/infra/native-client-release.md)).
+
+**Build.** The Windows binaries are cross-compiled on Linux with `cargo-xwin` (the `windows` stage of
+`Dockerfile.dev`); `ci/build.sh` is the whole pipeline and what the release workflow runs:
+
+```bash
+cd clients/voice
+docker build --target windows -t lanomat-voice-build -f Dockerfile.dev .
+docker run --rm -v "$PWD:/work" -v lanomat-xwin-cache:/xwin-cache lanomat-voice-build sh ci/build.sh
+```
+
+`ci/windows-smoke.ps1` is the check that runs on a real Windows runner (CLI version, app window, the
+pipe round trip). A Windows machine with Rust, MSVC build tools and clang >= 21 can also build natively
+with `cargo build --release -p lanomat-voice-app -p voice-cli`.
+
 ## Latency test
 
 `lanomat-voice latency-test <room>` mirrors the browser's "Latenztest" (see "Measuring and tuning
