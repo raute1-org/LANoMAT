@@ -51,7 +51,7 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | Voice (Mumble) (optional) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
 | WebVoice (optional) | Web voice | Browser voice (self-hosted LiveKit SFU) and persisted text chat per channel, general + per-match team rooms, admin moderation; orga/admin connection diagnostics and an in-page latency self-test (reserved probe room, never a channel); bearer-token API and device-authorization pairing for the native desktop client (`NativeClient` sub-namespace); see `docs/infra/livekit-web-voice.md` and `docs/infra/native-voice-client-api.md`; the Rust client core, CLI and the Tauri v2 desktop shell (tray, speaking overlay, push-to-talk via control socket and a best-effort global shortcut) live in `clients/voice/` (see its README); the client is downloadable at `/talk/client` in the version that matches the server (`scripts/ops/build-client.sh` publishes `clients-dist/` with a manifest, `ClientBuilds` validates it, `config('app.version')` is the one version string); Linux and Windows builds, signing and the draft-release workflow: `docs/infra/native-client-release.md` |
 | Infoscreen (optional) | M5 | Fullscreen rotating scenes for the venue projector |
-| GameServers (optional) | M6 | Pelican Panel integration, match server provisioning |
+| GameServers (optional) | M6, post-M12 | Pelican Panel integration, match server provisioning from presets (port pool, A2S readiness), permanent game servers across events (Pelican, Docker or listed only) |
 | Notifications (core) | M2 (cross-cutting) | `database` + `discord` notification channels |
 | Stats (optional) | M6 | Cross-event leaderboards and badges |
 | Friends (optional) | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
@@ -81,6 +81,14 @@ Hard dependencies between optional modules (`Module::requires()`, enforced at bo
 | Stats | Voting |
 | Friends | Presence |
 
+`Module.php` is the single list of modules (31 cases, one per `app/Modules` directory). The architecture
+ratchet in `tests/Architecture/` keeps the graph honest: `module-dependencies.php` is the baseline of every
+cross-module reference that exists (a new edge or a vanished one fails `ModuleDependenciesTest`; regenerate
+with `LANOMAT_ARCH_DUMP=1 ./vendor/bin/pest tests/Architecture`), `core-optional-baseline.php` records the
+accepted edges from core modules to optional ones (they must be event, contract or `Modules::enabled()`
+guarded), and `PageLayoutsTest` guards the page layout table. `requires()` above lists only the hard
+runtime dependencies derived from that baseline.
+
 The `Tournaments` module additionally has `app/Modules/Tournaments/Domain/` — the bracket
 engine (`BracketGenerator`, `BracketProgressor`). It is pure domain code with no IO, and is
 exhaustively tested with Pest before any UI work is built on top of it.
@@ -97,6 +105,214 @@ explicitly registered, but Laravel's policy auto-discovery still resolves them; 
 scheduler entries are gated) and container bindings stay unconditional. `php artisan lanomat:modules`
 prints the resulting profile; `tests/Feature/Modules/IsolationMatrixTest.php` boots core plus each
 optional module (with its `requires` closure) alone.
+
+## System map
+
+The diagrams are Mermaid (GitHub renders them natively). They show what the code and the runbooks
+describe; dashed edges are optional, per-module integrations that are off in the `core` profile.
+
+### Runtime components
+
+```mermaid
+flowchart LR
+    subgraph clients["Clients"]
+        browser["Browser: participant app"]
+        desktop["Desktop app: Rust and Tauri"]
+        admin["Admin panel: Filament at /admin"]
+        beamer["Beamer and OBS overlays"]
+    end
+
+    traefik["Traefik: TLS and routing"]
+
+    subgraph appstack["Application services: one image each"]
+        app["app: FrankenPHP, HTTP"]
+        queue["queue: queue:work"]
+        scheduler["scheduler: schedule:work"]
+        reverb["reverb-prod: websockets"]
+    end
+
+    subgraph data["State"]
+        pg[("PostgreSQL")]
+        redis[("Redis")]
+        storage[("Storage volume")]
+    end
+
+    subgraph sidecars["Sidecars: pure transport"]
+        dgw["discord-gateway: discord.js"]
+        madmin["mumble-admin: Ice REST"]
+        tsadmin["teamspeak-admin: ServerQuery REST"]
+    end
+
+    subgraph ext["External systems, reached through contracts"]
+        discord["Discord"]
+        mumble["Mumble"]
+        teamspeak["TeamSpeak"]
+        pelican["Pelican Panel and Wings"]
+        ma["Music Assistant"]
+        livekit["LiveKit SFU"]
+        filehost["File host: nginx, tusd, cert-sync"]
+        oauth["Steam and Twitch"]
+    end
+
+    browser --> traefik
+    desktop -->|"bearer API /api/voice-client/v1"| traefik
+    admin --> traefik
+    beamer --> traefik
+    traefik --> app
+    traefik --> reverb
+
+    app --> pg
+    app --> redis
+    app --> storage
+    queue --> pg
+    queue --> redis
+    scheduler --> redis
+    app -->|"broadcast"| reverb
+    queue -->|"broadcast"| reverb
+
+    dgw -->|"internal/discord/gateway, shared secret"| app
+    dgw <--> discord
+    queue --> discord
+    app --> discord
+    queue --> madmin
+    queue --> tsadmin
+    madmin --> mumble
+    tsadmin --> teamspeak
+    queue -.->|"PelicanClient"| pelican
+    queue -.->|"MusicClient"| ma
+    app -.->|"room tokens, admin API"| livekit
+    app -.->|"SFTP, signed links, tusd hooks"| filehost
+    app -.->|"account linking"| oauth
+
+    browser -.->|"WebRTC"| livekit
+    desktop -.->|"WebRTC"| livekit
+    browser -.->|"downloads and tus uploads"| filehost
+```
+
+The browser and the desktop app reach LiveKit and the file host directly: the app only issues room
+tokens, signed download links and single-use upload tickets, so audio and file bytes never pass through
+it. Queue, scheduler and `reverb-prod` are separate services with their own images, which is why a deploy
+has to build all four (see `scripts/deploy/deploy.sh`).
+
+### Venue topology
+
+The app can run in the cloud (today) or at the venue behind the cloud server as a public entry
+([`infra/app-at-the-venue.md`](infra/app-at-the-venue.md), a plan that was rehearsed on a test VM, not run
+at a real venue yet).
+
+```mermaid
+flowchart TB
+    internet["Participants and orga outside the venue"]
+
+    subgraph cloud["Cloud entry"]
+        ctraefik["Traefik: TLS pass-through by SNI, PROXY v2"]
+        socat["venue-entry: socat forwarder"]
+    end
+
+    wg{{"WireGuard tunnel"}}
+
+    subgraph venue["Venue"]
+        router["Venue router and LAN DNS"]
+        vtraefik["Venue Traefik: wildcard certificate, DNS-01"]
+        vapp["App stack: app, queue, scheduler, reverb-prod"]
+        lancache["LanCache host: file host, game cache"]
+        gamehost["Game host: Pelican panel and Wings"]
+        voicehost["Voice: Mumble, TeamSpeak, LiveKit"]
+        radio["Music Assistant"]
+        lanclients["LAN clients and the beamer"]
+    end
+
+    internet --> ctraefik
+    ctraefik --> socat
+    socat --> wg
+    wg --> vtraefik
+    lanclients --> router
+    router -->|"LAN domain resolves to the venue"| vtraefik
+    vtraefik --> vapp
+    vapp --> lancache
+    vapp --> gamehost
+    vapp --> voicehost
+    vapp --> radio
+    lanclients -.-> voicehost
+    lanclients -.-> lancache
+```
+
+### MatchReady fan-out
+
+`MatchReady` is the event the tournament lifecycle raises when both sides of a match are known. It is
+broadcast to the public `tournament.{id}` channel for the live bracket, and the listeners registered in
+`app/Providers/AppServiceProvider.php` run per enabled module.
+
+```mermaid
+flowchart LR
+    mr["MatchReady (Tournaments)"]
+    bc["Reverb: tournament.id channel, live bracket"]
+    n["NotifyRosterOnMatchReady: in-app bell, Discord DM mirror when Discord is on, always registered"]
+    d["CreateMatchChannelOnReady: Discord, private text and voice channels"]
+    v["ProvisionMatchVoiceOnReady: Voice, Mumble and TeamSpeak rooms"]
+    w["ProvisionWebVoiceChannelsOnMatchReady: WebVoice, team rooms"]
+    g["ProvisionMatchServerOnReady: GameServers, Pelican server"]
+    p["BroadcastPresenceOnTournamentActivity: Presence, who is playing"]
+    sl["ServerLinkUpdated (GameServers)"]
+    follow["EnterWarmupOnServerReady, UpdateMatchSurfacesOnServerReady, ProvisionServerVoiceOnReady"]
+
+    mr --> bc
+    mr --> n
+    mr -.->|"Discord on"| d
+    mr -.->|"Voice on"| v
+    mr -.->|"WebVoice on"| w
+    mr -.->|"GameServers on"| g
+    mr -.->|"Presence on"| p
+    g -->|"server becomes ready"| sl
+    sl --> follow
+```
+
+Every box except `NotifyRosterOnMatchReady` is registered only when its module is enabled, and the
+modules never call each other directly: the fan-out is the event. `MatchCompleted` and
+`TournamentCompleted` mirror it for cleanup (Discord archive, voice and web voice rooms, servers).
+
+### Native client version flow
+
+One string identifies the build everywhere: `scripts/ops/lib/version.sh` produces it for the server image
+and for the client, and the server offers a download only when it matches.
+
+```mermaid
+flowchart TB
+    gd["git describe --tags --always --dirty: scripts/ops/lib/version.sh"]
+    deploy["scripts/deploy/deploy.sh: exports APP_VERSION and APP_COMMIT"]
+    arg["compose build arg: all four app services"]
+    cfg["config app.version and app.commit"]
+    bc["build-client.sh or release-client.yml workflow"]
+    env["LANOMAT_BUILD_VERSION and LANOMAT_BUILD_COMMIT into the Rust build"]
+    dist["clients-dist: files and manifest.json, written last"]
+    cb["ClientBuilds validates the manifest"]
+    match{"app_version equals config app.version?"}
+    page["/talk/client and /app: download offered"]
+    nomatch["Page says: version does not match this server"]
+    pre["Preflight: Desktop-App-Download"]
+    conf["GET /api/voice-client/v1/config, client block: server_version, min_client_version, latest_client_version, download_path"]
+    upd["Client update check: voice_core update assess, command get_update_status"]
+
+    gd --> deploy
+    deploy --> arg
+    arg --> cfg
+    gd --> bc
+    bc --> env
+    bc --> dist
+    dist --> cb
+    cfg --> match
+    cb --> match
+    match -->|"yes"| page
+    match -->|"no"| nomatch
+    cb --> pre
+    cfg --> pre
+    cfg --> conf
+    cb --> conf
+    conf --> upd
+```
+
+The client sends its version in `X-Client-Version` on every call and the server answers with its own in
+`X-Server-Version` on every response; `min_client_version` (`VOICE_CLIENT_MIN_VERSION`) lets an operator refuse old clients.
 
 ## Data model: Event as aggregate root
 
@@ -612,22 +828,10 @@ remain correct after a plain reload.
 
 ## Current implementation status
 
-M0–M2 are complete:
-
-- **M0:** Laravel 13 + Filament v5 + Inertia/Vue scaffold, Docker dev stack, Discord OAuth
-  login, role middleware, admin panel gating, and CI.
-- **M1:** `Events` module — `Event` aggregate with lifecycle transitions, public event page,
-  profile editing.
-- **M2:** `Registration` module — sign-up with QR-code tickets, manual paid status, orga
-  QR check-in. `Seating` module — seat/seat-assignment models, participant SVG seating
-  chart with claim/switch, and a standalone Filament `SeatResource` (grid bulk-creation,
-  per-seat network metadata) rather than an Event tab — see the roadmap's M2 insights for
-  the reasoning. `Notifications` module — `database` channel, bell dropdown, per-category
-  preferences. `Discord` module — `DiscordClient` contract with `HttpDiscordClient`
-  (`Http::fake()`-only in tests) and `FakeDiscordClient`, a per-user DM notification
-  channel, and outbox-deduplicated event announcements/reminders driven by the
-  `lanomat:send-reminders` scheduler command.
-
-`Identity`, `Events`, `Registration`, `Seating`, `Notifications`, and `Discord` now exist
-under `app/Modules/`; the remaining modules above are built out phase by phase per the
-roadmap (M3 onward).
+All roadmap phases M0–M13 are implemented and tagged; the modules above are all present under
+`app/Modules/` (31, see `App\Support\Modules\Module`). Since the last tag the project gained, untagged on
+`main`: the production deployment on the `core` profile, web voice with LiveKit, the file host with
+resumable uploads, permanent game servers and presets, the `Provisioning` module, Mumble 1.5 and
+TeamSpeak sidecars, the Discord Gateway sidecar, and the native desktop client (`clients/voice/`) with its
+bearer API. [`CHANGELOG.md`](../CHANGELOG.md) lists the merged work by date, the README's "Project state"
+summarises it, and the roadmap's PRE-LAN-CHECKLISTE tracks what still needs real hardware.

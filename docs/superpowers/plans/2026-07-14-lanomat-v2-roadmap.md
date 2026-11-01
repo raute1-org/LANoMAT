@@ -721,7 +721,7 @@ Stand 2026-10-30. Alle Roadmap-Phasen M0–M13 sind fertig (Tags `m0`–`m13`, `
 ### Erkenntnisse Erstes Produktiv-Deployment (`lan.raute1.org`, Profil `core`)
 
 - **Runbook & Deploy:** [`docs/deploy-lan-raute1.md`](../../deploy-lan-raute1.md) (DNS, `.env`, Start, erster Admin, Testcheckliste, Backups, Update-Pfad) plus `scripts/deploy/deploy.sh` (PR #24/#26). Produktiv läuft das Profil **`core`** (Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight); der Wechsel auf `full` ist dokumentiert (Abschnitt 9) und bleibt eine Owner-Entscheidung.
-- **Traefik/TLS:** Traefik v3.6 (Docker-29-API-Kompatibilität, PR #25), Compose-Ports nur auf Loopback, Proxy-Header-Vertrauen + erzwungenes https in Produktion, `X-Forwarded-Prefix` wird nicht mehr vertraut, `storage/app` liegt in einem benannten Volume. **Fallstrick (PR #53, offen):** `git pull` ersetzt die gebind-mountete Traefik-Config durch neue Inodes — der laufende Container sah die alte Config, die neuen Header fehlten in Produktion, bis Traefik von Hand neu erzeugt wurde. `deploy.sh` erzeugt Traefik jetzt neu, wenn sich `docker/traefik/` oder `compose.yml` geändert haben (nur beim nächsten betroffenen Deploy real prüfbar).
+- **Traefik/TLS:** Traefik v3.6 (Docker-29-API-Kompatibilität, PR #25), Compose-Ports nur auf Loopback, Proxy-Header-Vertrauen + erzwungenes https in Produktion, `X-Forwarded-Prefix` wird nicht mehr vertraut, `storage/app` liegt in einem benannten Volume. **Fallstrick (PR #53, gemergt, PR #63 verfeinert die Entscheidung):** `git pull` ersetzt die gebind-mountete Traefik-Config durch neue Inodes — der laufende Container sah die alte Config, die neuen Header fehlten in Produktion, bis Traefik von Hand neu erzeugt wurde. `deploy.sh` erzeugt Traefik jetzt neu, wenn sich `docker/traefik/` oder `compose.yml` geändert haben (nur beim nächsten betroffenen Deploy real prüfbar).
 - **Login:** alle Event-Seiten verlangen Login, Gäste sehen eine Landingpage (PR #29). **Discord-Guild-Gate** (`DISCORD_LOGIN_GUILD_ID`, PR #31, **Issue #8 erledigt/geschlossen**): Mitgliedschaft wird über den OAuth-Token des Nutzers geprüft (Scope `guilds.members.read`, kein Bot nötig), Discord-Ausfall = Login verweigert (fail-closed), Admins ausgenommen. **Steam-Verknüpfung:** 500 bei `null`-`approvedScopes` behoben (PR #30); Twitch wie M9.
 - **Backups:** `scripts/ops/backup.sh` (nächtlich per `install-backup-cron.sh`, `pg_dump` + Storage-Volume, beide Archive verifiziert, atomar veröffentlicht, 14 Tage Retention, `.last-success`-Marker) + Preflight-Probe **`BackupFreshnessCheck`** (`BACKUP_MARKER_PATH`; OK < 26 h, Warnung darüber, Ausfall > 50 h). PR #45: auch winzige gültige Storage-Archive (leeres Upload-Volume) werden akzeptiert. **Der Off-Host-Transfer ist bewusst NICHT Teil des Repos** (Owner-Entscheidung: vorerst keiner, siehe Checkliste) und eine Wiederherstellung wurde noch nicht geübt.
 - **Security-Header:** HSTS/Frame-Deny/nosniff/Referrer-Policy/Permissions-Policy über Traefik, `expose_php=0`; **CSP report-only** (Nonce, `/csp-report`, `storage/logs/csp.log`, `CSP_MODE=report-only|enforce|off`) — Umschalten auf `enforce` erst nach einer Probe-Veranstaltung ohne First-Party-Verstöße. Rate-Limiter laufen auf dem Datenbank-Store (`CACHE_LIMITER_STORE=database`), damit ein Redis-Ausfall nicht jede Anfrage 500t.
@@ -747,10 +747,10 @@ Stand 2026-10-30. Alle Roadmap-Phasen M0–M13 sind fertig (Tags `m0`–`m13`, `
 - **PelicanClient auf der echten API neu gebaut** (PR #51, `docs/gameservers-pelican.md`): zwei API-Typen/Token (`PELICAN_APPLICATION_TOKEN`, `PELICAN_CLIENT_TOKEN` eines **Nicht-Admin**-Service-Users, `PELICAN_OWNER_USER_ID`, `PELICAN_DEFAULT_NODE_ID`), Provisioning/Power/Config auf den realen Vertrag verdrahtet, Live-Contract-Check `php artisan gameservers:pelican-check` / `scripts/ops/pelican-contract-check.sh`. **Damit ist der „Client-API-Auth-Form noch zu bestätigen"-Punkt aus M6 gegen ein echtes Panel aufgelöst** (Test-Panel, nicht die Event-Infra; M6-T13 bleibt bis zur Venue-Infra offen).
 - **Sonstiges:** Discord-gespiegelte Benachrichtigungen sind gequeut (T), Beamer-/Overlay-Fixes, Gallery-ZIP-Toast, Jukebox-Verfügbarkeitshinweis, ICS-Endzeit-Schätzung.
 
-### Erkenntnisse Infrastruktur-Rezepte & Provisioning (Stand: Rezepte gemergt, Feature in Arbeit)
+### Erkenntnisse Infrastruktur-Rezepte & Provisioning (Stand 2026-10-30; Presets und Provisioning inzwischen gemergt)
 
 - **Vorhanden (gemergt, PR #48/#49/#52):** öffentlich-sichere, platzhalterbasierte Runbooks unter [`docs/infra/`](../../infra/README.md): Proxmox-Test-VM + LanCache (gehärtet, Egress-Isolation, Automatisierungs-Landkarte) → WireGuard-Tunnel → Pelican Panel/Wings (LanCache-DNS für Game-Container, Contract-Check) → Custom-Game-Server Garry's Mod TTT (SteamCMD über LanCache, Preset-Modell). Jedes Runbook endet mit „What LANoMAT automation would need".
-- **In Arbeit (Status laut Git, ehrlich):** `feat/gameserver-presets-egg` — **lokaler Branch, kein PR, nicht auf origin**: LANoMAT-Garry's-Mod-Egg-Fork + idempotenter Egg-Import, editierbare Server-Presets (Egg-Referenz, Limits, Environment, Readiness), Start-aus-Preset mit Port-Pool 27015–27050, Install-Verifikation, A2S-Readiness, Seed-Presets und Teilnehmer-Serverseite; Teile liegen noch uncommittet im Arbeitsverzeichnis. `feat/provisioning-core` — **lokaler Branch, kein PR, nicht auf origin**: optionales Modul `Provisioning` (`HypervisorClient`, `ProvisioningStep`, Dry-run) ist bisher nur als Modul-Verdrahtung (Enum-Case, Config, Modul-Key, Test-Gruppen) committet. Beides ist **nicht in `main`** und nicht Teil der Abnahme.
+- **Stand 2026-10-30 (überholt: beide Branches sind seit 2026-10-31 gemergt, PR #60/#61):** `feat/gameserver-presets-egg` — **lokaler Branch, kein PR, nicht auf origin**: LANoMAT-Garry's-Mod-Egg-Fork + idempotenter Egg-Import, editierbare Server-Presets (Egg-Referenz, Limits, Environment, Readiness), Start-aus-Preset mit Port-Pool 27015–27050, Install-Verifikation, A2S-Readiness, Seed-Presets und Teilnehmer-Serverseite; Teile liegen noch uncommittet im Arbeitsverzeichnis. `feat/provisioning-core` — **lokaler Branch, kein PR, nicht auf origin**: optionales Modul `Provisioning` (`HypervisorClient`, `ProvisioningStep`, Dry-run) ist bisher nur als Modul-Verdrahtung (Enum-Case, Config, Modul-Key, Test-Gruppen) committet. Beides ist **nicht in `main`** und nicht Teil der Abnahme.
 
 ### PRE-LAN-CHECKLISTE (was vor der echten LAN auf Venue/Infra verifiziert sein muss)
 
@@ -786,7 +786,60 @@ Ergänzt [`docs/pre-lan-acceptance-checklist.md`](../../pre-lan-acceptance-check
 - **Pelican:** SQLite vs. PostgreSQL fürs Panel, Panel-Digest/Wings-Version pinnen, API-Key `allowed_ips`, Wings-SFTP-Bind, eine Quelle der Wahrheit für Subnetz-Listen.
 - **LanCache-Testhost:** Subnetze/Quell-Netze, Image-Digests pinnen, `UPSTREAM_DNS`, Cache-Größe (150g nur für die 200-GB-Testplatte).
 - **Brand:** offene Lücken in `docs/brand/sources.md` (OG-/Social-Bild, Print, Admin-/E-Mail-Oberflächen).
-- **Backlog:** Offline-Login-QR (bewusst nicht gebaut, Risiko akzeptiert). Erledigt (2026-11): dedizierter `MatchStatus::Live` (PR #112), Galerie-Retract (PR #111), Update-Wächter für gepinnte Fremd-Images als Preflight-Check `dependency_updates` (PR #110, warnt nur), Datei-Host-Preflight-Check und automatische Zertifikat-Erneuerung (PR #109), Server-Teil des nativen Voice-Clients mit Geräte-Anmeldung (PR #113, `docs/infra/native-voice-client-api.md`). Double-Elim-32-Sonderfall entfällt (DE gilt für 2..64). Offen: der native Desktop-Client selbst (Tauri mit Rust-LiveKit-Kern, braucht Rust-Toolchain).
+- **Backlog:** Offline-Login-QR (bewusst nicht gebaut, Risiko akzeptiert). Erledigt (2026-11): dedizierter `MatchStatus::Live` (PR #112), Galerie-Retract (PR #111), Update-Wächter für gepinnte Fremd-Images als Preflight-Check `dependency_updates` (PR #110, warnt nur), Datei-Host-Preflight-Check und automatische Zertifikat-Erneuerung (PR #109), Server-Teil des nativen Voice-Clients mit Geräte-Anmeldung (PR #113, `docs/infra/native-voice-client-api.md`). Double-Elim-32-Sonderfall entfällt (DE gilt für 2..64). Der native Desktop-Client ist inzwischen gebaut (siehe Abschnitt „Post-Roadmap: nativer Client, Infrastruktur und Betrieb (Nov 2026)").
+
+## Post-Roadmap: nativer Client, Infrastruktur und Betrieb (Nov 2026)
+
+Stand 2026-11-01. Nach dem Produktiv-Deployment (PRs #53–#132, alles auf `main`, ungetaggt; Liste mit Daten in [`CHANGELOG.md`](../../../CHANGELOG.md)). Die Punkte „In Arbeit" (Gameserver-Presets/Egg, `Provisioning`) im Abschnitt davor sind überholt: beides ist gemergt (PR #60, #61, #99).
+
+### Umgesetzt
+
+- **Nativer Client** (`clients/voice/`, Rust-Workspace `voice-core` + `voice-cli` + Tauri-v2-App `app`):
+  - Server-Seite: Bearer-API `api/voice-client/v1` mit Geräte-Anmeldung (Device-Code, widerrufbare Tokens, PR #113); Chat, Realtime-Auth und Benachrichtigungen (#120); Event-Funktionen (Abstimmungen, Essen, Dateien, #121); Spielen-API (Jetzt-Feed, Turniere, Matches, Gameserver, #122); Profil, verknüpfte Konten, Freunde (#123).
+  - Client-Seite: Rust-Kern und CLI (#116), Tauri-Desktop-App mit Tray, Overlay und Push-to-talk (#117), Kernfunktionen mit API-Clients, Chat, Dateiübertragung und Befehlsvertrag (#124), Profil/Konten/Freunde (#125), die fünf Teilnehmer-Tabs Jetzt, Sprache, Spielen, Essen, Mehr (#126), Freunde, Profil und „Wo ist wer" mit Hinterherjoinen (#130). UX-Konzept: `clients/voice/docs/ux-concept.md` (#119).
+  - Verteilung: Download und Versionsabgleich in LANoMAT (`/talk/client`, `/app`, #129), Einstiege in Navigation, Dashboard und Einstellungen (#131), Windows-Port plus Release-Workflow `release-client.yml` (#128).
+- **Standort und Folgen** (PR #127): „Wo ist wer" liefert Voice-Raum, Spiel und Server je Person; `users.share_location` (Standard an), Abwahl im Profil „Meinen Standort teilen".
+- **Lokale Avatare** (PR #132): LANoMAT hält eine 256-px-Kopie jedes Discord-Avatars, Browser und Client greifen nie auf das Discord-CDN zu; nach dem Deploy einmal `php artisan lanomat:refresh-avatars --all`.
+- **Dateihost** (PR #103/#104/#109): alle Dateitypen, signierte Downloads vom LanCache-Host, fortsetzbare tus-Uploads, Preflight-Check und automatische Zertifikat-Synchronisation (`cert-sync`).
+- **Update-Wächter** (PR #110): Preflight-Check `dependency_updates` für gepinnte Fremd-Images, warnt nur.
+- **Web-Voice** (PR #100, #107): LiveKit, Chat, Diagnose, Latenz-Selbsttest, Headset-Modus. **Voice/Discord** (PR #72, #74, #78–#79, #89–#97, #105/#106): Mumble 1.5, TeamSpeak gegen echten Server, Kategorie pro Event und Raum pro Team, leere Räume sofort weg.
+- **Weiteres:** `MatchStatus::Live` (PR #112), Galerie-Retract (PR #111), Dauer-Gameserver (PR #99), Provisioning (PR #61), Paper-Preset mit `USER_AGENT` (PR #118), Schriften selbst gehostet (PR #98), QA Runde 2 mit Fixes (PR #66–#71).
+
+### Entscheidungen
+
+- **Windows zuerst unsigniert**, SignPath Foundation (kostenlos für Open Source) als vorbereiteter Signierweg (`WINDOWS_SIGNING=signpath`, Antrag steht aus); Azure Artifact Signing nur als bezahlte Alternative. Das Manifest führt `signed: false`.
+- **Avatare werden lokal gecacht** statt vom Discord-CDN geladen (Datenschutz, Offline-LAN, ein Quell-Host).
+- **`share_location` ist Opt-out, Standard an**: der Nutzen von „Wo ist wer" hängt an der Sichtbarkeit; wer nicht will, schaltet es im Profil ab, im Client steht ein ehrlicher Satz dazu.
+- **Nur Linux und Windows**, macOS wird nicht gebaut; der Tauri-Updater ist bewusst später (die Download-Seite bietet nur die zum Server passende Version).
+- **Eine Version, ein Ort:** `scripts/ops/lib/version.sh` (`git describe --tags --always --dirty`) ist für Server-Image und Client-Build dieselbe Quelle; der Server bietet nur eine exakt passende Version an.
+- **Kein Offline-Login-QR** und **kein Lasttest** bleiben bestehende Entscheidungen.
+
+### Erkenntnisse
+
+- **Partial-Build-Falle beim Deploy:** `docker compose build app` baute nur ein Image; `queue`, `scheduler` und `reverb-prod` haben je ein eigenes Image und liefen auf dem alten Stand (und ohne Version). Deploy baut jetzt alle vier Dienste (`app queue scheduler reverb-prod`) mit `APP_VERSION`/`APP_COMMIT` aus `version.sh`; von Hand gilt dasselbe.
+- **Reverb-Origin-Format:** `REVERB_ALLOWED_ORIGINS` erwartet den Host-Namen ohne Schema (`lan.example`), weil Reverb den Host des `Origin`-Headers vergleicht. Mit `https://…` schlägt jeder Handshake fehl.
+- **Reverb lehnt Handshakes ohne `Origin` ab:** ein nativer Client muss die Origin seines Servers mitsenden (Fix `77eed6f`).
+- **Windows lässt sich von Linux cross-bauen:** `cargo-xwin` funktioniert inklusive libwebrtc, wenn das Ziel `crt-static` nutzt (`clients/voice/.cargo/config.toml`) und tauri-build den dynamischen UCRT-Default nicht erzwingt; `clang-cl`/`llvm-lib` müssen im `PATH` sein. Nur Tests der Named-Pipe-Teile und der Smoke-Test laufen auf einem echten `windows-2025`-Runner.
+- **Paper-Egg braucht `USER_AGENT`:** das Standard-Egg des Panels verlangt die Variable; das Preset und der Seeder tragen sie jetzt nach (PR #118).
+- **Turnier-`game` kann `null` sein:** der Client-Vertrag und die Match-DTOs müssen mit fehlendem Spiel umgehen (Fix in `77eed6f`).
+- **Der Client hat keine Host-Toolchain:** Bau und Tests laufen in Docker (`clients/voice/Dockerfile.dev`); die Route-Autorisierungsmatrix muss jede neue Client-Route kennen.
+- **Offene Lücke:** der Befehl `get_update_status` existiert im Client, die Oberfläche zeigt aber noch keinen Update-Hinweis; die Aktualisierung ist heute „neue Version unter `/app` laden".
+
+### PRE-LAN-CHECKLISTE: Ergänzungen (Client und Betrieb)
+
+Fortsetzung der Tabelle oben (Nr. 18 ff., alle `offen`); Detailschritte in `clients/voice/README.md` und `docs/infra/livekit-web-voice.md`.
+
+| # | Punkt | Owner | Status |
+|---|-------|-------|--------|
+| 18 | Desktop-App mit echtem Mikrofon und Lautsprechern unter Linux (Sprache, Push-to-talk, Overlay, Hörbarkeit) | Owner | offen |
+| 19 | Desktop-App mit echtem Mikrofon und Lautsprechern unter Windows (WASAPI, Tray, Overlay, globaler Shortcut, Named-Pipe-Bindings) | Owner | offen |
+| 20 | Tray, Overlay und globaler Shortcut unter Wayland (Compositor-Binds für `lanomat-voice ptt`, Overlay „immer im Vordergrund") | Owner | offen |
+| 21 | Steam-Präsenz („Wo ist wer", Spiel/Server) mit echt verknüpften Konten | Owner | offen |
+| 22 | Namensabgleich Mumble/TeamSpeak mit echten Clients („Wo ist wer", Join-Links mit eigenem Namen) | Owner | offen |
+| 23 | Latenzvergleich Web-Voice gegen Mumble mit einer dritten Aufnahme (Messung wie im LiveKit-Runbook) | Owner | offen |
+| 24 | Windows SmartScreen: Ablauf „Weitere Informationen, Trotzdem ausführen" mit der unsignierten Datei; SignPath-Antrag stellen | Owner | offen |
+| 25 | Produktiv-`REVERB_ALLOWED_ORIGINS` prüfen (Host-Name ohne Schema, Browser und Client verbinden sich) | Owner | offen |
+| 26 | Download-Seite auf dem Server: `clients-dist/` passt zur deployten Version (Preflight „Desktop-App-Download" grün) | Owner | offen |
 
 ---
 
