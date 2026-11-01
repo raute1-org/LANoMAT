@@ -23,7 +23,7 @@
 #
 # MERGE: if the target already holds a manifest for the same version and commit (for example a locally
 # built Linux client) its entries stay, the Windows entries are added; same name or same
-# os/arch/kind: the local file wins unless --prefer-workflow. Another version or commit: the old
+# os/arch/kind/variant (variant: installer | portable | archive, absent = archive): the local file wins unless --prefer-workflow. Another version or commit: the old
 # files go.
 #
 # Needs `gh` (authenticated: `gh auth login`, or GH_TOKEN in the environment; the token is never
@@ -165,11 +165,14 @@ bad="$(jq -r --arg re "$NAME_RE" --arg v "$WANT_VERSION" '
       .files[] |
       if (type != "object") then "entry is not an object"
       elif ((.name | type) != "string") or (.name | test($re) | not) or (.name | contains("..")) or .name == "manifest.json" or .name == "SHA256SUMS" then "unsafe or invalid name: \(.name)"
-      elif (.name | test("^lanomat-voice-(app|cli)-" + ($v | gsub("[.]"; "[.]")) + "-(linux|windows|macos)-(x86_64|aarch64)[.](tar[.]gz|zip|exe)$") | not) then "unexpected file name for version \($v): \(.name)"
+      elif (.name | test("^lanomat-voice-(app|cli)-" + ($v | gsub("[.]"; "[.]")) + "-(linux|windows|macos)-(x86_64|aarch64)(-setup|-portable)?[.](tar[.]gz|zip|exe)$") | not) then "unexpected file name for version \($v): \(.name)"
       elif ((.os | IN("linux","windows","macos")) | not) or ((.arch | IN("x86_64","aarch64")) | not) or ((.kind | IN("app","cli")) | not) then "bad os/arch/kind for \(.name)"
       elif ((.size | type) != "number") or (.size != (.size | floor)) or .size < 0 then "bad size for \(.name)"
       elif ((.sha256 | type) != "string") or (.sha256 | test("^[a-f0-9]{64}$") | not) then "bad sha256 for \(.name)"
       elif (has("signed") and (.signed | type) != "boolean") then "bad signed flag for \(.name)"
+      elif (has("variant") and (((.variant | type) != "string") or ((.variant | IN("installer","portable","archive")) | not))) then "bad variant for \(.name)"
+      elif ((.variant // "archive") != (if (.name | test("-setup[.]exe$")) then "installer" elif (.name | test("-portable[.]exe$")) then "portable" else "archive" end)) then "variant does not match the file name: \(.name)"
+      elif ((.variant // "archive") != "archive") and ((.os != "windows") or (.kind != "app")) then "only the Windows app comes as installer or portable: \(.name)"
       else empty end
     end' "$DL/manifest.json" 2>&1)" || die "manifest.json is malformed: $bad"
 [ -z "$bad" ] || die "manifest.json is invalid: $bad"
@@ -237,7 +240,7 @@ if [ -f "$OUT/manifest.json" ] && [ ! -L "$OUT/manifest.json" ]; then
                | . as $o
                | select(
                    if $prefer == 1
-                   then ($nf | map(select(.name == $o.name or (.os == $o.os and .arch == $o.arch and .kind == $o.kind))) | length) == 0
+                   then ($nf | map(select(.name == $o.name or (.os == $o.os and .arch == $o.arch and .kind == $o.kind and (.variant // "archive") == ($o.variant // "archive")))) | length) == 0
                    else true end)]' "$OUT/manifest.json")"
         echo "==> Existing manifest is for the same version and commit: keeping $(jq 'length' <<<"$KEEP") local entr(y/ies)"
     else
@@ -249,7 +252,7 @@ fi
 # --prefer-workflow is off, the local one wins and the workflow's file is not published.
 ADD="$(jq -c --argjson keep "$KEEP" '
     [ .files[] | . as $n
-      | select(($keep | map(select(.name == $n.name or (.os == $n.os and .arch == $n.arch and .kind == $n.kind))) | length) == 0) ]' "$DL/manifest.json")"
+      | select(($keep | map(select(.name == $n.name or (.os == $n.os and .arch == $n.arch and .kind == $n.kind and (.variant // "archive") == ($n.variant // "archive")))) | length) == 0) ]' "$DL/manifest.json")"
 skipped="$(jq -r --argjson add "$ADD" '[.files[].name] - ($add | map(.name)) | .[]' "$DL/manifest.json")"
 if [ -n "$skipped" ]; then
     echo "    local entries win for (use --prefer-workflow to replace them):"

@@ -12,7 +12,7 @@
 # docker images of clients/voice (no Rust toolchain on the host; cargo registry and target live in
 # the named volumes lanomat-cargo-registry / lanomat-cargo-target), packs each into a .tar.gz and
 # writes manifest.json next to them. Only Linux x86_64 is built here: Windows files come from the
-# GitHub workflow (scripts/ops/fetch-client-release.sh). If clients-dist already holds Windows (or
+# GitHub workflow (scripts/ops/fetch-client-release.sh: installer, portable exe, CLI). If clients-dist holds Windows (or
 # other non-Linux-x86_64) entries of the SAME version and commit, they are kept in the manifest.
 #
 # Atomicity: everything is staged inside <out>/.staging-<pid> (same filesystem), tarballs are moved
@@ -190,7 +190,7 @@ entry() { # entry <name> <kind>
     jq -n --arg name "$1" --arg os "$OS" --arg arch "$ARCH" --arg kind "$2" \
         --argjson size "$(stat -c %s "$file")" \
         --arg sha "$(sha256sum "$file" | cut -d' ' -f1)" \
-        '{name: $name, os: $os, arch: $arch, kind: $kind, size: $size, sha256: $sha, signed: false}'
+        '{name: $name, os: $os, arch: $arch, kind: $kind, variant: "archive", size: $size, sha256: $sha, signed: false}'
 }
 
 # Entries of the same version and commit for other platforms (the workflow's Windows files, put

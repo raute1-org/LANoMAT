@@ -60,6 +60,39 @@ it('reads a valid manifest and offers its files', function () {
         ->and($builds->find('lanomat-voice-app-v1-linux-x86_64.tar.gz')->kind)->toBe('app');
 });
 
+it('treats a missing variant as an archive and keeps an explicit one', function () {
+    $dir = distDir();
+    $builds = new ClientBuilds($dir);
+    expect($builds->find('lanomat-voice-app-v1-linux-x86_64.tar.gz')->variant)->toBe('archive');
+
+    $manifest = json_decode((string) file_get_contents($dir.'/manifest.json'), true);
+    $manifest['files'][0]['variant'] = 'archive';
+    file_put_contents($dir.'/manifest.json', json_encode($manifest));
+
+    expect((new ClientBuilds($dir))->find('lanomat-voice-app-v1-linux-x86_64.tar.gz')->toArray()['variant'])->toBe('archive');
+});
+
+it('accepts the windows installer and portable exe only under their file names', function () {
+    $dir = sys_get_temp_dir().'/lanomat-dist-'.bin2hex(random_bytes(6));
+    mkdir($dir);
+    $this->dirs = [...$this->dirs, $dir];
+    $entry = fn (string $name, string $variant) => ['name' => $name, 'os' => 'windows', 'arch' => 'x86_64', 'kind' => 'app', 'variant' => $variant, 'size' => 3, 'sha256' => hash('sha256', 'abc')];
+    file_put_contents($dir.'/lanomat-voice-app-v1-windows-x86_64-setup.exe', 'abc');
+    file_put_contents($dir.'/lanomat-voice-app-v1-windows-x86_64-portable.exe', 'abc');
+    $write = fn (array $files) => file_put_contents($dir.'/manifest.json', json_encode([
+        'app_version' => 'v1', 'commit' => 'abc123def456', 'api_version' => 1, 'built_at' => '2026-11-01T10:00:00Z', 'files' => $files,
+    ]));
+
+    $write([$entry('lanomat-voice-app-v1-windows-x86_64-setup.exe', 'installer'), $entry('lanomat-voice-app-v1-windows-x86_64-portable.exe', 'portable')]);
+    expect((new ClientBuilds($dir))->current()->builds)->toHaveCount(2);
+
+    $write([$entry('lanomat-voice-app-v1-windows-x86_64-portable.exe', 'installer')]);
+    expect((new ClientBuilds($dir))->current())->toBeNull();
+
+    $write([$entry('lanomat-voice-app-v1-windows-x86_64-setup.exe', 'portable')]);
+    expect((new ClientBuilds($dir))->current())->toBeNull();
+});
+
 it('has no manifest for a missing directory, a missing file or garbage', function () {
     expect((new ClientBuilds('/nonexistent/'.bin2hex(random_bytes(4))))->current())->toBeNull();
 
@@ -113,6 +146,10 @@ it('rejects malformed fields', function (callable $break) {
     'unknown os' => fn (&$m) => $m['files'][0]['os'] = 'plan9',
     'unknown arch' => fn (&$m) => $m['files'][0]['arch'] = 'mips',
     'unknown kind' => fn (&$m) => $m['files'][0]['kind'] = 'installer',
+    'unknown variant' => fn (&$m) => $m['files'][0]['variant'] = 'msi',
+    'variant not a string' => fn (&$m) => $m['files'][0]['variant'] = ['installer'],
+    'installer on a linux tarball' => fn (&$m) => $m['files'][0]['variant'] = 'installer',
+    'portable on a linux tarball' => fn (&$m) => $m['files'][0]['variant'] = 'portable',
     'negative size' => fn (&$m) => $m['files'][0]['size'] = -1,
     'float size' => fn (&$m) => $m['files'][0]['size'] = 1.5,
     'short sha' => fn (&$m) => $m['files'][0]['sha256'] = 'abc',

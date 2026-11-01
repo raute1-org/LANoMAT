@@ -14,6 +14,7 @@ type Build = {
     os: Os;
     arch: string;
     kind: 'app' | 'cli';
+    variant: 'installer' | 'portable' | 'archive';
     size: number;
     sha256: string;
     url: string;
@@ -42,7 +43,15 @@ const selected = ref<Os>(props.detectedOs ?? 'linux');
 const buildsFor = (os: Os): Build[] =>
     props.builds.filter((build) => build.os === os);
 
-const shown = computed(() => buildsFor(selected.value));
+// The Windows app comes first as installer, then as portable exe, then (older releases) as an archive.
+const order = (build: Build): number =>
+    build.kind === 'cli'
+        ? 3
+        : ({ installer: 0, portable: 1, archive: 2 } as const)[build.variant];
+
+const shown = computed(() =>
+    [...buildsFor(selected.value)].sort((a, b) => order(a) - order(b)),
+);
 
 const unsignedWindows = computed(
     () =>
@@ -94,8 +103,61 @@ function meta(build: Build): string {
     return parts.join(', ');
 }
 
-const kindLabel = (kind: Build['kind']): string =>
-    kind === 'app' ? props.labels.kind_app : props.labels.kind_cli;
+function title(build: Build): string {
+    if (build.kind === 'cli') {
+        return props.labels.kind_cli;
+    }
+
+    if (build.variant === 'installer') {
+        return props.labels.variant_installer;
+    }
+
+    if (build.variant === 'portable') {
+        return props.labels.variant_portable;
+    }
+
+    return build.os === 'windows'
+        ? `${props.labels.kind_app} (${props.labels.variant_archive})`
+        : props.labels.kind_app;
+}
+
+const hint = (build: Build): string | null =>
+    build.kind === 'app' && build.variant === 'installer'
+        ? props.labels.variant_installer_hint
+        : build.kind === 'app' && build.variant === 'portable'
+          ? props.labels.variant_portable_hint
+          : null;
+
+// The install steps of one Windows download, as label keys (Linux keeps its own section below).
+function steps(build: Build): string[] {
+    if (build.os !== 'windows' || build.kind !== 'app') {
+        return [];
+    }
+
+    if (build.variant === 'installer') {
+        return [
+            'step_win_setup_run',
+            'step_win_smartscreen',
+            'step_win_setup_start',
+        ];
+    }
+
+    if (build.variant === 'portable') {
+        return [
+            'step_win_portable_place',
+            'step_win_portable_start',
+            'step_win_smartscreen',
+        ];
+    }
+
+    return ['step_win_extract', 'step_win_start', 'step_win_smartscreen'];
+}
+
+const hasWindowsApp = computed(
+    () =>
+        selected.value === 'windows' &&
+        shown.value.some((build) => build.kind === 'app'),
+);
 </script>
 
 <template>
@@ -232,8 +294,17 @@ const kindLabel = (kind: Build['kind']): string =>
                                 class="flex flex-wrap items-center justify-between gap-3"
                             >
                                 <div class="min-w-0 text-sm">
-                                    <p class="font-medium">
-                                        {{ kindLabel(build.kind) }}
+                                    <p
+                                        class="font-medium"
+                                        :data-test="`client-title-${build.variant}-${build.kind}`"
+                                    >
+                                        {{ title(build) }}
+                                    </p>
+                                    <p
+                                        v-if="hint(build)"
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        {{ hint(build) }}
                                     </p>
                                     <p class="text-xs text-muted-foreground">
                                         {{ meta(build) }}
@@ -249,6 +320,15 @@ const kindLabel = (kind: Build['kind']): string =>
                                     </a>
                                 </Button>
                             </div>
+                            <ol
+                                v-if="steps(build).length > 0"
+                                class="mt-3 list-decimal space-y-1 pl-5 text-sm"
+                                :data-test="`client-steps-${build.variant}`"
+                            >
+                                <li v-for="key in steps(build)" :key="key">
+                                    {{ labels[key] }}
+                                </li>
+                            </ol>
                             <div class="mt-3 flex items-start gap-2">
                                 <div class="min-w-0 flex-1">
                                     <p class="text-xs text-muted-foreground">
@@ -306,26 +386,13 @@ const kindLabel = (kind: Build['kind']): string =>
                     </div>
                 </div>
 
-                <section
-                    v-if="selected === 'windows' && shown.length > 0"
-                    class="mt-8"
-                    aria-labelledby="install-heading-win"
+                <p
+                    v-if="hasWindowsApp"
+                    class="mt-4 text-sm text-muted-foreground"
+                    data-test="client-webview2"
                 >
-                    <h2
-                        id="install-heading-win"
-                        class="text-lg font-semibold tracking-tight"
-                    >
-                        {{ labels.install_heading }}
-                    </h2>
-                    <ol
-                        class="mt-3 list-decimal space-y-2 pl-5 text-sm"
-                        data-test="client-steps-windows"
-                    >
-                        <li>{{ labels.step_win_extract }}</li>
-                        <li>{{ labels.step_win_start }}</li>
-                        <li>{{ labels.step_win_smartscreen }}</li>
-                    </ol>
-                </section>
+                    {{ labels.webview2_note }}
+                </p>
 
                 <section
                     v-if="selected === 'linux' && shown.length > 0"

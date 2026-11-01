@@ -96,7 +96,8 @@ linked against Debian bookworm's glibc and need GTK 3 / WebKitGTK 4.1 (app) and 
 }
 ```
 
-`os` is `linux|windows|macos`, `arch` `x86_64|aarch64`, `kind` `app|cli`; `signed` (optional boolean) says whether the
+`os` is `linux|windows|macos`, `arch` `x86_64|aarch64`, `kind` `app|cli`; `variant` (optional) is `installer|portable|archive`
+(the Windows setup, the single portable exe, or a plain archive/CLI file; absent means `archive`); `signed` (optional boolean) says whether the
 release pipeline code-signed the file, the download page shows a SmartScreen explanation for unsigned Windows files. More platforms later are just more
 `files` entries; the server validates names (plain file names only), sizes and the schema before offering anything.
 The update check against the server is `voice_core::update::assess` / the `get_update_status` command
@@ -204,14 +205,20 @@ which only your account, SYSTEM and administrators can read, so the 0600 handlin
 no-op there).
 
 **Autostart.** The app does not register itself. To start it at login, put a shortcut to
-`LANoMAT-Voice.exe` into `shell:startup` (Win+R, type `shell:startup`).
+the app (the installed one: copy its Start Menu shortcut; the portable one: a shortcut to the exe) into `shell:startup` (Win+R, type `shell:startup`).
 
 **Opening links.** `steam://connect/...` and other links are opened with the system handler
 (`rundll32 url.dll,FileProtocolHandler`).
 
-**Install and SmartScreen.** The release is a portable zip (`lanomat-voice-app-<version>-windows-x86_64.zip`:
-unpack anywhere, start `LANoMAT-Voice.exe`; needs the WebView2 runtime, which Windows 11 and current
-Windows 10 have) plus the CLI `lanomat-voice-cli-<version>-windows-x86_64.exe`. The files are **not code-signed yet**,
+**Install and SmartScreen.** The release has the app twice, plus the CLI:
+`lanomat-voice-app-<version>-windows-x86_64-setup.exe` is an NSIS installer (per user, no administrator
+rights, German or English, Start Menu shortcut, uninstaller; recommended) and
+`lanomat-voice-app-<version>-windows-x86_64-portable.exe` is the same app as ONE exe that needs no
+installation (settings stay in `%APPDATA%\lanomat-voice`, never next to the file). Both need the WebView2
+runtime, which Windows 11 and current Windows 10 have; the installer downloads it once if it is missing (a
+LAN without internet needs it preinstalled), the portable exe never installs anything. Two running copies
+exclude each other (the push-to-talk pipe is per user). The CLI is
+`lanomat-voice-cli-<version>-windows-x86_64.exe`. The files are **not code-signed yet**,
 so Windows SmartScreen warns ("Der Computer wurde durch Windows geschuetzt"). Click **Weitere
 Informationen**, then **Trotzdem ausfuehren**. Compare the SHA-256 with `SHA256SUMS` from the release
 first (`Get-FileHash .\file`). Signing comes later (see
@@ -226,8 +233,12 @@ docker build --target windows -t lanomat-voice-build -f Dockerfile.dev .
 docker run --rm -v "$PWD:/work" -v lanomat-xwin-cache:/xwin-cache lanomat-voice-build sh ci/build.sh
 ```
 
-`ci/windows-smoke.ps1` is the check that runs on a real Windows runner (CLI version, app window, the
-pipe round trip). A Windows machine with Rust, MSVC build tools and clang >= 21 can also build natively
+`ci/windows-smoke.ps1` is the check that runs on a real Windows runner (CLI version, version metadata, the
+portable exe, a silent install, the installed exe, the uninstall; window and pipe round trip each time).
+The installer comes from `cargo tauri build --bundles nsis` (bundler switched on for that call only), its
+numeric version from `ci/win-version.sh` (`m12-496-g9624daa` -> `0.12.496`); see
+[`docs/infra/native-client-release.md`](../../docs/infra/native-client-release.md). A Linux AppImage or
+Arch package would be a possible follow-up; they are not built. A Windows machine with Rust, MSVC build tools and clang >= 21 can also build natively
 with `cargo build --release -p lanomat-voice-app -p voice-cli`.
 
 ## Latency test
