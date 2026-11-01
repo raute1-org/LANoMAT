@@ -77,6 +77,7 @@ impl Session {
         sink: Box<dyn AudioSink>,
         options: SessionOptions,
     ) -> Result<Session> {
+        crate::install_crypto_provider();
         let (room, mut room_events) =
             Room::connect(&grant.url, &grant.token, RoomOptions::default())
                 .await

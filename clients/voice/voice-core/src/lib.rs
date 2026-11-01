@@ -13,3 +13,21 @@ pub mod latency_test;
 pub mod session;
 
 pub use error::{Error, ErrorKind, Result};
+
+/// Picks rustls's process-wide crypto provider. The dependency tree enables both `aws-lc-rs`
+/// (reqwest) and `ring` (the LiveKit websocket), so rustls cannot choose one itself and panics on
+/// the first `wss://` connection. Idempotent: a provider that is already installed is kept.
+/// Called by the CLI at start-up and by [`session::Session::connect`], so library users need not.
+pub fn install_crypto_provider() {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn installing_the_crypto_provider_twice_is_harmless() {
+        super::install_crypto_provider();
+        super::install_crypto_provider();
+        assert!(rustls::crypto::CryptoProvider::get_default().is_some());
+    }
+}

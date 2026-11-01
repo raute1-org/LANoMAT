@@ -112,6 +112,7 @@ fn exit_code(kind: ErrorKind) -> u8 {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    voice_core::install_crypto_provider();
     init_logging();
     let cli = Cli::parse();
     match run(cli.command).await {
@@ -342,9 +343,15 @@ async fn join(
     };
     tokio::pin!(serve);
 
+    // SIGTERM (systemd, `docker stop`, a window manager's exec-once teardown) must end the session as
+    // cleanly as Ctrl-C does: leave the room and remove the control socket.
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .map_err(|e| Error::io("SIGTERM handler", e))?;
+
     let outcome = loop {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => break Ok(()),
+            _ = terminate.recv() => break Ok(()),
             _ = &mut serve => break Ok(()),
             event = events.recv() => match event {
                 Some(SessionEvent::Disconnected(reason)) => {
