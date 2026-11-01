@@ -786,7 +786,7 @@ Ergänzt [`docs/pre-lan-acceptance-checklist.md`](../../pre-lan-acceptance-check
 - **Pelican:** SQLite vs. PostgreSQL fürs Panel, Panel-Digest/Wings-Version pinnen, API-Key `allowed_ips`, Wings-SFTP-Bind, eine Quelle der Wahrheit für Subnetz-Listen.
 - **LanCache-Testhost:** Subnetze/Quell-Netze, Image-Digests pinnen, `UPSTREAM_DNS`, Cache-Größe (150g nur für die 200-GB-Testplatte).
 - **Brand:** offene Lücken in `docs/brand/sources.md` (OG-/Social-Bild, Print, Admin-/E-Mail-Oberflächen).
-- **Backlog (unverändert):** Offline-Login-QR (bewusst nicht gebaut), Release-Wächter, Galerie-Retract, Double-Elim-32-Sonderfall entfällt (DE gilt jetzt für 2..64). Erledigt: dedizierter `MatchStatus::Live` (siehe Erkenntnis unter M6).
+- **Backlog:** Offline-Login-QR (bewusst nicht gebaut, Risiko akzeptiert). Erledigt (2026-11): dedizierter `MatchStatus::Live` (PR #112), Galerie-Retract (PR #111), Update-Wächter für gepinnte Fremd-Images als Preflight-Check `dependency_updates` (PR #110, warnt nur), Datei-Host-Preflight-Check und automatische Zertifikat-Erneuerung (PR #109), Server-Teil des nativen Voice-Clients mit Geräte-Anmeldung (PR #113, `docs/infra/native-voice-client-api.md`). Double-Elim-32-Sonderfall entfällt (DE gilt für 2..64). Offen: der native Desktop-Client selbst (Tauri mit Rust-LiveKit-Kern, braucht Rust-Toolchain).
 
 ---
 
