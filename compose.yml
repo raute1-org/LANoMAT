@@ -415,6 +415,22 @@ services:
     ports: ['127.0.0.1:8086:8000']
     depends_on: [teamspeak]
 
+  # Denon AVR sidecar (room audio, spec 2026-11-01): the only component that
+  # speaks the receiver's telnet control protocol. Orga-only control via a
+  # bearer token; the receiver IP is set in the venue's .env (DENON_HOST) and
+  # never committed. Host port 8087 is loopback-only, like the other sidecars;
+  # the Laravel app reaches it over the compose network as
+  # http://denon-admin:8000. The sidecar must be able to reach the receiver's
+  # telnet port (23) on the venue LAN; see docker/denon-admin/README.md.
+  denon-admin:
+    restart: unless-stopped
+    build: ./docker/denon-admin
+    profiles: [prod]
+    environment:
+      DENON_HOST: ${DENON_HOST:-}
+      DENON_ADMIN_TOKEN: ${DENON_ADMIN_TOKEN:-}
+    ports: ['127.0.0.1:8087:8000']
+
   # Discord Gateway sidecar (spec 2026-07-21): the single persistent Gateway
   # connection (presence + inbound events), bridged to `app` over the compose
   # network. Pure transport; all logic is in the Laravel app. profiles:[prod]
