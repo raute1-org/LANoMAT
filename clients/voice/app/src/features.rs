@@ -66,6 +66,8 @@ pub struct ConfigView {
     pub modules: BTreeMap<String, bool>,
     /// Realtime chat is configured (else the client polls).
     pub realtime: bool,
+    /// The LANoMAT version the server runs (`config.client.server_version`), when it says.
+    pub server_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -379,6 +381,7 @@ impl Features {
             voice_ready: c.voice_ready,
             realtime: c.realtime.is_some(),
             modules: c.modules,
+            server_version: c.client.and_then(|info| info.server_version),
         })
     }
 

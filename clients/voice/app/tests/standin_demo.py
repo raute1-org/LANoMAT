@@ -18,6 +18,17 @@ import standin_social
 EVENT = "lan-party-2026"
 LIMIT = 10
 
+# The client version the UI smoke is built with (LANOMAT_BUILD_VERSION, see smoke-ui.sh) and the
+# `client` block of GET config per client scenario (GET /__client/<name>): uptodate (the build is
+# the latest), update-available (a newer build is offered), incompatible (the server needs a newer one).
+CLIENT_BUILD = "m13-12-g0a1b2c3"
+CLIENT_SERVER = "m13-13-g1b2c3d4"
+CLIENT_SCENARIOS = {
+    "uptodate": {"min_client_version": "m13-1-g0000000", "latest_client_version": CLIENT_BUILD},
+    "update-available": {"min_client_version": "m13-1-g0000000", "latest_client_version": CLIENT_SERVER},
+    "incompatible": {"min_client_version": CLIENT_SERVER, "latest_client_version": CLIENT_SERVER},
+}
+
 
 def iso(dt):
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
@@ -32,6 +43,7 @@ class Demo:
         self.f = features
         self.lock = threading.Lock()
         self.scenario = getattr(features.args, "scenario", "normal")
+        self.client = "uptodate"
         self.chat_posts = {}  # user id -> [timestamps]
         self.next_item = 100
         self.next_file = 100
@@ -268,6 +280,14 @@ class Demo:
         return True
 
     def handle_host(self, h, method, path, query):
+        m = re.fullmatch(r"/__client/([\w-]+)", path)
+        if m:
+            if m.group(1) not in CLIENT_SCENARIOS:
+                h.send(404, {"message": "unknown client scenario"})
+                return True
+            self.client = m.group(1)
+            h.send(200, {"client": self.client})
+            return True
         m = re.fullmatch(r"/__scenario/(\w+)", path)
         if m:
             self.scenario = m.group(1)
@@ -319,7 +339,10 @@ class Demo:
             send(200, {"api_version": 1, "livekit_url": None, "voice_ready": True, "audio": {}, "modules": mods,
                        "realtime": {"driver": "reverb", "key": "standin-app", "host": "127.0.0.1",
                                     "port": self.f.args.pusher_port, "scheme": "http",
-                                    "auth_endpoint": "/api/voice-client/v1/broadcasting/auth"}})
+                                    "auth_endpoint": "/api/voice-client/v1/broadcasting/auth"},
+                       "client": {"server_version": CLIENT_SERVER, "commit": "1b2c3d4",
+                                  **CLIENT_SCENARIOS[self.client],
+                                  "download_path": "/talk/client"}})
             return True
         if route in ("events", "broadcasting/auth", "rooms") or re.fullmatch(r"rooms/\d+/token", route):
             return False

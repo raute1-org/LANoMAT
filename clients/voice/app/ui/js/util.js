@@ -63,6 +63,7 @@ export const state = {
     quiet: false,
     chatStatus: 'connecting',
     online: true,
+    update: null, // get_update_status, see update.js
 };
 
 const handlers = new Map();

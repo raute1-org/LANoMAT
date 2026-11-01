@@ -223,6 +223,21 @@ async fn without_credentials_everything_is_an_auth_error_without_a_request() {
 }
 
 #[tokio::test]
+async fn config_reports_the_server_version_only_when_the_server_says_it() {
+    let r = rig().await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/config"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "api_version": 1, "voice_ready": true, "modules": {},
+            "client": {"server_version": "m12-470-gabc1234", "download_path": "/talk/client"}
+        })))
+        .mount(&r.server)
+        .await;
+    let c = r.features.config().await.unwrap();
+    assert_eq!(c.server_version.as_deref(), Some("m12-470-gabc1234"));
+}
+
+#[tokio::test]
 async fn config_exposes_modules_and_realtime_as_a_flag_only() {
     let r = rig().await;
     Mock::given(method("GET"))

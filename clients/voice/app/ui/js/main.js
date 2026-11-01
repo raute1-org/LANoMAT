@@ -20,6 +20,7 @@ import { probeOptional } from './optional.js';
 import * as play from './play.js';
 import * as settings from './settings.js';
 import { S } from './strings.js';
+import * as update from './update.js';
 import { $, call, emit, listen, on, say, state, toast } from './util.js';
 import * as voice from './voice.js';
 
@@ -71,6 +72,8 @@ function init() {
     // The notification plugin has no click callback: when the window comes back to the front,
     // ask where the latest system notification wanted to lead.
     listen('tauri://focus', async (e) => {
+        update.focusChanged(e.payload !== false);
+
         if (e.payload === false || !setupDone) {
             return;
         }
@@ -117,6 +120,7 @@ function authLost(error) {
 
     authBusy = true;
     setupDone = false;
+    update.stop();
     resetNav();
     connect.open({
         title: S.errors.authTitle,
@@ -139,6 +143,7 @@ async function logout() {
     state.view = null;
     state.status = { ...state.status, state: 'signed_out' };
     setupDone = false;
+    update.stop();
     resetNav();
     connect.open({ url: state.status.server_url });
     say(S.account.loggedOut);
@@ -177,6 +182,7 @@ async function afterConnect({ fresh }) {
     setWho(state.online ? 'ok' : 'down');
     voice.refreshRooms();
     now.start();
+    update.start();
 
     if (fresh) {
         showScreen('onboarding');

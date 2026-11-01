@@ -12,6 +12,8 @@
 
     const inv = (name, args) => window.__TAURI__.core.invoke(name, args);
     const { S } = await import('./js/strings.js');
+    // The stand-in's latest client build (CLIENT_SERVER in standin_demo.py).
+    const UPDATE_LATEST = 'm13-13-g1b2c3d4';
     let failures = 0;
 
     const report = (ok, name, detail) => {
@@ -98,6 +100,24 @@
         await click(() => q(`#tab-${id}`), `tab ${id}`);
         await waitFor(() => visible(q(`#screen-${id}`)), 4000, `screen ${id}`);
         await sleep(500);
+    };
+    // Gerät und Konto > "Nach Updates suchen", then back to a neutral screen state.
+    const checkForUpdates = async () => {
+        await tab('mehr');
+
+        // Mehr remembers its open page: leave a sub-page for the hub first.
+        if (byText('#screen-mehr button', S.back)) {
+            await clickText('#screen-mehr button', S.back);
+        }
+
+        await clickText('.list-row', S.more.account);
+        await clickText('#screen-mehr button', S.update.check);
+        await waitFor(
+            () => !byText('#screen-mehr button', S.update.checking),
+            6000,
+            'the update check to finish',
+        );
+        await sleep(200);
     };
     const step = async (name, fn) => {
         try {
@@ -303,6 +323,17 @@
                 await sleep(800);
                 await shot(`${P.mode}-profile`);
                 await clickText('button', S.back);
+
+                // The update notice in this window and colour scheme.
+                await hook('hostget __client/update-available');
+                await checkForUpdates();
+                await tab('jetzt');
+                await waitFor(
+                    () => visible(q('#update-banner')),
+                    6000,
+                    'update notice',
+                );
+                await shot(`${P.mode}-update`);
 
                 if (P.mode === 'narrow') {
                     // Scalable text: 125 % on the narrow window.
@@ -1797,6 +1828,120 @@
         await shot('63-account');
         await clickText('button', S.back);
     });
+
+    // ---------------------------------------------------------------- update notice
+    await step(
+        'update: a newer build is offered, Später hides it for this version',
+        async () => {
+            const env = await inv('get_environment');
+            assert(
+                env.version !== 'dev',
+                'the smoke needs the test build: LANOMAT_BUILD_VERSION=m13-12-g0a1b2c3 (see smoke-ui.sh)',
+            );
+            await hook('hostget __client/update-available');
+            await checkForUpdates();
+            await tab('jetzt');
+            await waitFor(
+                () => visible(q('#update-banner')),
+                6000,
+                'update notice',
+            );
+            const box = q('#update-banner');
+            assert(box.getAttribute('role') === 'status', 'role=status');
+            assert(
+                text('#update-banner .update-text') ===
+                    S.update.available(UPDATE_LATEST, env.version),
+                `the offer names both versions, got "${text('#update-banner .update-text')}"`,
+            );
+            assert(
+                byText('#update-banner button', S.update.download) &&
+                    byText('#update-banner button', S.update.later),
+                'two labelled buttons',
+            );
+            await shot('update-1-available');
+            await clickText('#update-banner button', S.update.later);
+            await waitFor(
+                () => !visible(q('#update-banner')),
+                2000,
+                'the notice to close',
+            );
+            assert(
+                document.activeElement === document.getElementById('main'),
+                'focus moved to the main area, not lost',
+            );
+            // Hidden for this version; a manual check names it in words instead.
+            await checkForUpdates();
+            assert(
+                !visible(q('#update-banner')),
+                'the dismissed version stays hidden',
+            );
+            assert(
+                text('#screen-mehr [role=status]').includes(
+                    S.update.stillAvailable(UPDATE_LATEST),
+                ),
+                'the manual check names the dismissed version',
+            );
+        },
+    );
+    await step(
+        'update: an incompatible client gets a notice on every tab, without a dismiss',
+        async () => {
+            await hook('hostget __client/incompatible');
+            await checkForUpdates();
+            await tab('jetzt');
+            await waitFor(
+                () => visible(q('#update-banner.required')),
+                6000,
+                'incompatible notice',
+            );
+            assert(
+                text('#update-banner .update-text') ===
+                    S.update.incompatible(UPDATE_LATEST),
+                'the incompatible text names the minimum',
+            );
+            assert(
+                !byText('#update-banner button', S.update.later),
+                'no dismiss control on the incompatible notice',
+            );
+            await shot('update-2-incompatible');
+
+            for (const id of ['sprache', 'spielen', 'essen', 'mehr']) {
+                await tab(id);
+                assert(
+                    visible(q('#update-banner.required')),
+                    `the notice shows on ${id}`,
+                );
+            }
+
+            await tab('jetzt');
+            await clickText('#update-banner button', S.update.download);
+            await sleep(300);
+        },
+    );
+    await step(
+        'update: an up-to-date build shows nothing and the manual check says so',
+        async () => {
+            await hook('hostget __client/uptodate');
+            await checkForUpdates();
+            await tab('jetzt');
+            await sleep(300);
+            assert(
+                !visible(q('#update-banner')),
+                'no notice for an up-to-date build',
+            );
+            await checkForUpdates();
+            await waitFor(
+                () =>
+                    text('#screen-mehr [role=status]').includes(
+                        S.update.upToDate,
+                    ),
+                4000,
+                'the up-to-date line',
+            );
+            await shot('update-3-account');
+            await tab('jetzt');
+        },
+    );
 
     // ---------------------------------------------------------------- stale data and offline
     await step(

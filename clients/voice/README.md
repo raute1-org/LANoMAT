@@ -415,14 +415,21 @@ and `offline`). `app/tests/check-ui.mjs` checks with plain node that every strin
 exists in `strings.js`.
 
 ```bash
-dc cargo build -p lanomat-voice-app --features selftest
+# The update notice needs an orderable build version (a plain `dev` build never shows one): the
+# stand-in offers m13-13-g1b2c3d4 as the newer build and calls m13-12-g0a1b2c3 the current one.
+LANOMAT_BUILD_VERSION=m13-12-g0a1b2c3 LANOMAT_BUILD_COMMIT=0a1b2c3 dc cargo build -p lanomat-voice-app --features selftest
 LIVEKIT_API_KEY=... LIVEKIT_API_SECRET=... dc sh app/tests/smoke-ui.sh   # MODE=full: pairing, guide, every flow
 MODE=mods dc sh app/tests/smoke-ui.sh       # modules off (no Essen tab, no Dateien), orga role (chat delete)
 MODE=empty dc sh app/tests/smoke-ui.sh      # every screen with nothing to show
 MODE=errors dc sh app/tests/smoke-ui.sh     # every screen with a failing server, then the retry recovers
 MODE=narrow dc sh app/tests/smoke-ui.sh     # 430 px window, text at 125 %
-MODE=dark dc sh app/tests/smoke-ui.sh       # dark colour scheme
+MODE=dark dc sh app/tests/smoke-ui.sh       # dark colour scheme (with the update notice)
 ```
+
+The update notice (`js/update.js`, `js/update-policy.js`) is driven in `full` (available, Später, the
+incompatible notice on every tab, up to date) and in the narrow and dark windows. The stand-in's
+client scenario is switched with `GET /__client/<uptodate|update-available|incompatible>` (the
+`client` block of `config`); `opened.log` must show the server's `/talk/client` page.
 
 The stand-in's social half is `standin_social.py` (profile with the browser's validation rules, linked
 accounts with a single-use link and a status flip four seconds later, friends with every state change,

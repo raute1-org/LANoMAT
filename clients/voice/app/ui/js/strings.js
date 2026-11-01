@@ -735,6 +735,23 @@ export const S = {
         loggedOut: 'Abgemeldet.',
     },
 
+    update: {
+        available: (latest, current) =>
+            `Neue Version verfügbar: ${latest}, du hast ${current}.`,
+        stillAvailable: (latest) => `Neue Version verfügbar: ${latest}.`,
+        incompatible: (min) =>
+            `Diese App ist zu alt für diesen Server (mindestens ${min}). Bitte aktualisiere sie.`,
+        download: 'Herunterladen',
+        later: 'Später',
+        title: 'Updates',
+        thisApp: (version, commit) => `Version ${version} (${commit})`,
+        server: 'Server-Version',
+        serverUnknown: 'unbekannt',
+        check: 'Nach Updates suchen',
+        checking: 'Wird geprüft …',
+        upToDate: 'Du hast die passende Version.',
+    },
+
     // ---- Verbinden ----
     connect: {
         title: 'Gerät verbinden',

@@ -345,6 +345,21 @@ async fn open_url(engine: Eng<'_>, url: String) -> Result<(), UiError> {
     })
 }
 
+/// Opens the download page of the connected server (`config.client.download_path`, `/talk/client`)
+/// in the system browser. The address comes from [`update::download_url`], never from the webview.
+#[tauri::command]
+async fn open_client_download(engine: Eng<'_>) -> Result<(), UiError> {
+    let url = update::download_url(engine.inner()).await?;
+    open_in_browser(&url).map_err(|e| {
+        UiError::new(
+            "local",
+            format!(
+                "Der Browser konnte nicht gestartet werden ({e}). Öffne die Seite stattdessen selbst."
+            ),
+        )
+    })
+}
+
 fn open_in_browser(url: &str) -> std::io::Result<()> {
     #[cfg(target_os = "macos")]
     let mut cmd = std::process::Command::new("open");
@@ -1015,6 +1030,7 @@ command_set!(
     get_environment,
     logout,
     open_url,
+    open_client_download,
     quit,
     get_config,
     list_events,
