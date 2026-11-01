@@ -331,6 +331,88 @@ Args `{orderId, optionKey, note?}` (note at most 200 characters). Result the pla
 
 Args `{itemId}`. Cancels an item while its order window is open (`validation` `not_open` afterwards).
 
+## Profile, linked accounts, friends
+
+The own profile, the linked accounts (Steam, Twitch; Discord is the read-only login identity) and
+friends, as in the browser (`/settings/profile`, `/settings/connections`, `/friends`). The acting
+person is always the token owner. Results are the server's DTOs with **snake_case** keys. The
+friends commands answer `not_found` when the server has the Friends module switched off (hide the
+screen with `get_config().modules`). The lists show display fields only (`id, name, avatar_url`),
+never an e-mail or Discord id, and there is no presence and no user search: people are found in
+`list_friend_suggestions` or by the user ids other screens already carry.
+
+### `get_profile`
+
+Result `{id, name, email, email_verified, avatar_url, bio, steam_url, stream_url, profile_color, has_verified_steam_link, verified_steam_nickname, editable: string[]}` (`email`, `avatar_url`, `bio`, `steam_url`, `stream_url`, `profile_color`, `verified_steam_nickname` may be `null`). `editable` lists the fields the person may change; the avatar is the Discord one and read-only.
+
+### `update_profile`
+
+Args `{changes}`, an object with any of `name`, `email` (text, cannot be cleared) and `bio`, `steam_url`, `stream_url`, `profile_color` (text, or `null` to clear). **A key that is left out keeps its value**; unknown keys are ignored (so is `role` and everything else); an empty object is `usage`. Server rules: name up to 255, unique valid e-mail (a changed e-mail resets its verification), bio up to 1000, `steam_url` starts with `https://steamcommunity.com/`, `stream_url` is https, `profile_color` is `#rrggbb`. Result the updated profile (as `get_profile`). A rule violation is `validation` with `fields` (`{"email": ["..."]}`).
+
+```json
+{ "changes": { "bio": "Hallo!", "stream_url": null } }
+```
+
+### `list_connections`
+
+Result `Connection[]`: `{provider, label, status, external_name, available, can_link, can_unlink, read_only}`. `provider` is `discord` (always first, `read_only: true`, never linkable or removable), `steam` or `twitch`. `status` is `connected`, `not_connected` or `needs_reauth` (link again to renew). `can_link` is false for a connected account and for a provider the deployment has no credentials for (`available: false`: show it greyed out). `external_name` is the name at the provider (or `null`). Tokens are never returned.
+
+### `unlink_connection`
+
+Args `{provider}` (`steam` or `twitch`). Result the new `Connection` state. Idempotent; `discord` or an unknown provider is `not_found`.
+
+### `connection_link_url`
+
+Args `{provider}`. Result `{provider, url, expires_at}`: a single-use link into the browser (valid 10 minutes, works once). `not_found` when the provider is not configured, `rate_limited` after 10 per minute. **Linking flow:** call this, pass the `url` to `open_link_url`, then poll `list_connections` every few seconds (until `expires_at` plus about a minute for the provider round trip) until that provider's `status` is `connected`. Do not show or log the URL.
+
+### `open_link_url`
+
+Args `{url}`. Opens the link of `connection_link_url` with the system browser. **Only** an `https` URL whose origin equals the logged-in server's and whose path starts with `/settings/connections/link/` followed by a token is accepted (no credentials, no fragment, no further path segments, no encoded tricks); anything else is `usage`. A machine without a browser handler answers `local`.
+
+### `list_friends`
+
+Result `[{id, name, avatar_url}]`.
+
+### `list_friend_requests`
+
+Result `{incoming: [{id, user}], outgoing: [{id, user}]}` with `user` = `{id, name, avatar_url}`. The request `id` (not the user id) is what `accept_friend_request`, `decline_friend_request` and `cancel_friend_request` take.
+
+### `list_friend_suggestions`
+
+Result `[{id, name, avatar_url, shared, reasons, reason_labels}]`: `shared` is a count, `reasons` are `shared_event`, `shared_team`, `shared_tournament`, `shared_steam_friend`, `reason_labels` the German copy to show. Never lists friends, pending requests or blocked people.
+
+### `list_blocked_users`
+
+Result `[{id, name, avatar_url}]`.
+
+### `send_friend_request`
+
+Args `{userId}`. Result `{status}`: `pending`, or `accepted` when the other side had already asked. No request id comes back: re-read `list_friend_requests`. Refusals are `validation` with `code` `cannot_friend_self`, `already_friends`, `request_pending` or `blocked` (the person's own block) and the German `message`. Someone who blocked you is never revealed: you just see `pending`. `rate_limited` after 20 per minute.
+
+### `accept_friend_request`
+
+Args `{requestId}`. Result `{status: "accepted"}`. Only the addressee may answer (`forbidden` otherwise; a request of two other people is `not_found`).
+
+### `decline_friend_request`
+
+Args `{requestId}`. Result `{status: "declined"}`. Same rules as accept.
+
+### `cancel_friend_request`
+
+Args `{requestId}`. Cancels an own outgoing request. Result `null`.
+
+### `remove_friend`
+
+Args `{userId}`. Removes a friend (also fine when there was none). Result `null`.
+
+### `block_user`
+
+Args `{userId}`. Blocks, which also removes the friendship and pending requests in both directions. Result `null`. Blocking yourself is `validation` with `code` `cannot_block_self`.
+
+### `unblock_user`
+
+Args `{userId}`. Result `null`.
+
 ## Files and transfers
 
 ### `list_files`

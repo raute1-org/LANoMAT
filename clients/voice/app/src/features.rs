@@ -13,9 +13,10 @@ use serde_json::{json, Value};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use voice_core::api::{
-    ApiClient, Catering, ChatMessage, EventSummary, EventsResponse, FilesOverview, GameServer,
-    Match, MessagesPage, MineResponse, MyItem, Notification, NotificationsPage, NowCard, NowFeed,
-    PollDetail, PollsList, QuotaInfo, Tournament,
+    ApiClient, Catering, ChatMessage, Connection, EventSummary, EventsResponse, FilesOverview,
+    FriendRequests, FriendSuggestion, FriendUser, GameServer, LinkUrl, Match, MessagesPage,
+    MineResponse, MyItem, Notification, NotificationsPage, NowCard, NowFeed, PollDetail, PollsList,
+    Profile, ProfileUpdate, QuotaInfo, Tournament,
 };
 use voice_core::notify::{
     Category, Incoming, NotificationEngine, Notifier, NotifyConfig, NotifyEvent, SeenState,
@@ -516,6 +517,121 @@ impl Features {
     pub async fn cancel_food_item(&self, item_id: u64) -> Result<(), UiError> {
         self.api()?
             .cancel_food_item(item_id)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    // ---- profile, linked accounts, friends ----
+
+    pub async fn profile(&self) -> Result<Profile, UiError> {
+        self.api()?.profile().await.map_err(|e| self.fail(e))
+    }
+
+    pub async fn update_profile(&self, changes: &ProfileUpdate) -> Result<Profile, UiError> {
+        self.api()?
+            .patch_profile(changes)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn connections(&self) -> Result<Vec<Connection>, UiError> {
+        self.api()?.connections().await.map_err(|e| self.fail(e))
+    }
+
+    pub async fn unlink_connection(&self, provider: &str) -> Result<Connection, UiError> {
+        self.api()?
+            .unlink_connection(provider)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn connection_link_url(&self, provider: &str) -> Result<LinkUrl, UiError> {
+        self.api()?
+            .connection_link_url(provider)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    /// The link when it is the single-use connect link of the logged-in server, else `usage`.
+    pub fn checked_link_url(&self, url: &str) -> Result<String, UiError> {
+        let api = self.api()?;
+        voice_core::api::validate_connection_link_url(api.base_url(), url).map_err(UiError::from)
+    }
+
+    pub async fn friends(&self) -> Result<Vec<FriendUser>, UiError> {
+        self.api()?.friends().await.map_err(|e| self.fail(e))
+    }
+
+    pub async fn friend_requests(&self) -> Result<FriendRequests, UiError> {
+        self.api()?
+            .friend_requests()
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn friend_suggestions(&self) -> Result<Vec<FriendSuggestion>, UiError> {
+        self.api()?
+            .friend_suggestions()
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn blocked_users(&self) -> Result<Vec<FriendUser>, UiError> {
+        self.api()?.blocked_users().await.map_err(|e| self.fail(e))
+    }
+
+    /// `{status}`: `pending`, or `accepted` when the other side had already asked.
+    pub async fn send_friend_request(&self, user_id: u64) -> Result<Value, UiError> {
+        let s = self
+            .api()?
+            .send_friend_request(user_id)
+            .await
+            .map_err(|e| self.fail(e))?;
+        Ok(json!({"status": s}))
+    }
+
+    pub async fn accept_friend_request(&self, request_id: u64) -> Result<Value, UiError> {
+        let s = self
+            .api()?
+            .accept_friend_request(request_id)
+            .await
+            .map_err(|e| self.fail(e))?;
+        Ok(json!({"status": s}))
+    }
+
+    pub async fn decline_friend_request(&self, request_id: u64) -> Result<Value, UiError> {
+        let s = self
+            .api()?
+            .decline_friend_request(request_id)
+            .await
+            .map_err(|e| self.fail(e))?;
+        Ok(json!({"status": s}))
+    }
+
+    pub async fn cancel_friend_request(&self, request_id: u64) -> Result<(), UiError> {
+        self.api()?
+            .cancel_friend_request(request_id)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn remove_friend(&self, user_id: u64) -> Result<(), UiError> {
+        self.api()?
+            .remove_friend(user_id)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn block_user(&self, user_id: u64) -> Result<(), UiError> {
+        self.api()?
+            .block_user(user_id)
+            .await
+            .map_err(|e| self.fail(e))
+    }
+
+    pub async fn unblock_user(&self, user_id: u64) -> Result<(), UiError> {
+        self.api()?
+            .unblock_user(user_id)
             .await
             .map_err(|e| self.fail(e))
     }

@@ -40,6 +40,9 @@ use engine::{ConnectPoll, ConnectStart, Devices, Engine, Status, UiError};
 use features::{ConfigView, FeatureOptions, Features, TransferStarted, UploadStarted};
 use settings::Settings;
 use view::RoomView;
+use voice_core::api::{
+    Connection, FriendRequests, FriendSuggestion, FriendUser, LinkUrl, Profile, ProfileUpdate,
+};
 
 type Eng<'a> = State<'a, Arc<Engine>>;
 type Feat<'a> = State<'a, Arc<Features>>;
@@ -638,6 +641,104 @@ fn chat_unsubscribe(f: Feat<'_>) -> Result<(), UiError> {
     Ok(())
 }
 
+// ---- profile, linked accounts, friends ----
+
+#[tauri::command]
+async fn get_profile(f: Feat<'_>) -> Result<Profile, UiError> {
+    f.profile().await
+}
+
+#[tauri::command]
+async fn update_profile(f: Feat<'_>, changes: ProfileUpdate) -> Result<Profile, UiError> {
+    f.update_profile(&changes).await
+}
+
+#[tauri::command]
+async fn list_connections(f: Feat<'_>) -> Result<Vec<Connection>, UiError> {
+    f.connections().await
+}
+
+#[tauri::command]
+async fn unlink_connection(f: Feat<'_>, provider: String) -> Result<Connection, UiError> {
+    f.unlink_connection(&provider).await
+}
+
+#[tauri::command]
+async fn connection_link_url(f: Feat<'_>, provider: String) -> Result<LinkUrl, UiError> {
+    f.connection_link_url(&provider).await
+}
+
+/// Opens the single-use link of `connection_link_url` in the system browser. Only an https URL
+/// of the logged-in server below `/settings/connections/link/` is accepted.
+#[tauri::command]
+fn open_link_url(f: Feat<'_>, url: String) -> Result<(), UiError> {
+    let url = f.checked_link_url(&url)?;
+    open_in_browser(&url).map_err(|e| {
+        UiError::new(
+            "local",
+            format!("Der Browser konnte nicht gestartet werden ({e})."),
+        )
+    })
+}
+
+#[tauri::command]
+async fn list_friends(f: Feat<'_>) -> Result<Vec<FriendUser>, UiError> {
+    f.friends().await
+}
+
+#[tauri::command]
+async fn list_friend_requests(f: Feat<'_>) -> Result<FriendRequests, UiError> {
+    f.friend_requests().await
+}
+
+#[tauri::command]
+async fn list_friend_suggestions(f: Feat<'_>) -> Result<Vec<FriendSuggestion>, UiError> {
+    f.friend_suggestions().await
+}
+
+#[tauri::command]
+async fn list_blocked_users(f: Feat<'_>) -> Result<Vec<FriendUser>, UiError> {
+    f.blocked_users().await
+}
+
+#[tauri::command]
+async fn send_friend_request(f: Feat<'_>, user_id: u64) -> Result<serde_json::Value, UiError> {
+    f.send_friend_request(user_id).await
+}
+
+#[tauri::command]
+async fn accept_friend_request(f: Feat<'_>, request_id: u64) -> Result<serde_json::Value, UiError> {
+    f.accept_friend_request(request_id).await
+}
+
+#[tauri::command]
+async fn decline_friend_request(
+    f: Feat<'_>,
+    request_id: u64,
+) -> Result<serde_json::Value, UiError> {
+    f.decline_friend_request(request_id).await
+}
+
+#[tauri::command]
+async fn cancel_friend_request(f: Feat<'_>, request_id: u64) -> Result<(), UiError> {
+    f.cancel_friend_request(request_id).await
+}
+
+#[tauri::command]
+async fn remove_friend(f: Feat<'_>, user_id: u64) -> Result<(), UiError> {
+    f.remove_friend(user_id).await
+}
+
+#[tauri::command]
+async fn block_user(f: Feat<'_>, user_id: u64) -> Result<(), UiError> {
+    f.block_user(user_id).await
+}
+
+#[tauri::command]
+async fn unblock_user(f: Feat<'_>, user_id: u64) -> Result<(), UiError> {
+    f.unblock_user(user_id).await
+}
+
 /// Opens a game server's `steam://connect/...` link with the system handler. Nothing else is
 /// accepted (see `joinurl`): the webview may not make the OS open arbitrary URLs.
 #[tauri::command]
@@ -904,6 +1005,23 @@ command_set!(
     chat_delete,
     chat_subscribe,
     chat_unsubscribe,
+    get_profile,
+    update_profile,
+    list_connections,
+    unlink_connection,
+    connection_link_url,
+    open_link_url,
+    list_friends,
+    list_friend_requests,
+    list_friend_suggestions,
+    list_blocked_users,
+    send_friend_request,
+    accept_friend_request,
+    decline_friend_request,
+    cancel_friend_request,
+    remove_friend,
+    block_user,
+    unblock_user,
     open_join_url,
     copy_text,
     pick_files,
