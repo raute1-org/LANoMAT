@@ -7,6 +7,7 @@
 #   ui-hook.sh scenario NAME             GET /__scenario/NAME on the stand-in (normal, empty, error, offline)
 #   ui-hook.sh chat ROOM AUTHOR BODY...  a second user writes in a room (published over the fake Pusher)
 #   ui-hook.sh uploaded                  names of the files the stand-in holds
+#   ui-hook.sh hostget PATH              GET /PATH on the stand-in (a __ hook such as __me/location/off)
 # Environment: DISPLAY, STANDIN_PORT, SMOKE_SHOTS.
 PORT=${STANDIN_PORT:-8099}
 OUT=${SMOKE_SHOTS:-/tmp/smoke-ui-shots}
@@ -43,6 +44,9 @@ case "$cmd" in
     ;;
   uploaded)
     curl -fsS "http://127.0.0.1:$PORT/__uploaded"
+    ;;
+  hostget)
+    curl -fsS "http://127.0.0.1:$PORT/$1"
     ;;
   *)
     echo "unknown hook command: $cmd"

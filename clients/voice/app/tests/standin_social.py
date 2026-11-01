@@ -69,7 +69,7 @@ class Social:
         self.link_flip = {}  # provider -> time.time() when it flips to connected
         self.link_seq = 0
         self.friends = [user(13, "Ben"), user(17, "Fynn")]
-        self.incoming = [{"id": 501, "user": user(18, "Gero")}]
+        self.incoming = [{"id": 501, "user": user(18, "Gero")}, {"id": 503, "user": user(23, "Lena")}]
         self.outgoing = [{"id": 502, "user": user(19, "Hanna")}]
         self.suggestions = [
             {**user(14, "Cleo"), "shared": 2, "reasons": ["shared_event", "shared_tournament"],

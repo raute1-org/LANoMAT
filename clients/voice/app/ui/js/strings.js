@@ -424,7 +424,7 @@ export const S = {
         teammate: 'Team',
         friend: 'Freund',
         nowhere: 'Gerade in keinem Raum und in keinem Spiel.',
-        lastSeen: (ago) => `zuletzt aktiv ${ago}`,
+        lastSeen: (ago) => `Zuletzt aktiv ${ago}.`,
         ago: (min) => (min < 1 ? 'gerade eben' : `vor ${min} Min`),
         since: (rel) => rel,
         inVoice: 'Sprache',
@@ -453,7 +453,7 @@ export const S = {
         joinGame: 'Spiel beitreten',
         notJoinable: 'Diesen Raum kannst du nicht betreten.',
         serverHidden: 'Den Server kannst du nicht sehen.',
-        alreadyThere: 'Hier bist du schon verbunden',
+        alreadyThere: 'Dein Anbieter',
         voiceOpened: (provider) => `${provider} wird geöffnet.`,
         voiceCopied: (provider) =>
             `${provider} lässt sich hier nicht öffnen. Der Link ist kopiert.`,

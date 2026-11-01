@@ -571,7 +571,13 @@ impl Features {
     /// The link when it is the single-use connect link of the logged-in server, else `usage`.
     pub fn checked_link_url(&self, url: &str) -> Result<String, UiError> {
         let api = self.api()?;
-        voice_core::api::validate_connection_link_url(api.base_url(), url).map_err(UiError::from)
+        // The headless UI smoke talks to a stand-in on loopback over plain http; only a build with
+        // the `selftest` feature (never a release build) lets that one origin through.
+        #[cfg(feature = "selftest")]
+        let check = voice_core::api::validate_connection_link_url_loopback_http;
+        #[cfg(not(feature = "selftest"))]
+        let check = voice_core::api::validate_connection_link_url;
+        check(api.base_url(), url).map_err(UiError::from)
     }
 
     pub async fn friends(&self) -> Result<Vec<FriendUser>, UiError> {

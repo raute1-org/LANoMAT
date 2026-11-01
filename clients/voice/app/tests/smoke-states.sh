@@ -3,7 +3,7 @@
 # while loading rooms, and the settings screen with the speaking overlay switched on. Each part
 # starts its own environment (smoke-start.sh / smoke-stop.sh). Screenshots go to $SMOKE_SHOTS.
 set -u
-export DISPLAY=:99
+export DISPLAY="${SMOKE_DISPLAY:-:99}"
 T=${SMOKE_DIR:-/tmp/smoke}
 OUT=${SMOKE_SHOTS:-/tmp/smoke-shots}
 PORT=${STANDIN_PORT:-8099}

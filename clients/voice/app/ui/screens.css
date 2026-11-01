@@ -805,6 +805,9 @@ input[type='number'] {
     font-weight: 600;
     letter-spacing: 0.02em;
 }
+.pr .avatar {
+    align-self: flex-start;
+}
 .avatar.sm {
     width: 28px;
     height: 28px;
@@ -943,4 +946,22 @@ textarea:disabled {
     padding: 10px 12px;
     border: 1px dashed var(--primary);
     border-radius: var(--radius);
+}
+
+/* The heading that takes focus after a change gets a ring as wide as its text, not the page. */
+.stack-sm > h2[tabindex] {
+    align-self: flex-start;
+}
+
+/* Narrow window: the action drops under the row instead of squeezing the places. */
+@media (max-width: 560px) {
+    .pr .fill {
+        flex-wrap: wrap;
+    }
+    .pr .fill > .grow {
+        flex: 1 1 calc(100% - 50px);
+    }
+    .pr .fill > .actions {
+        margin-left: 48px;
+    }
 }

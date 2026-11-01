@@ -76,7 +76,7 @@ function whereLines(p) {
             el(
                 'div',
                 { class: 'where' },
-                dot('live'),
+                dot('ok'),
                 chip(S.people.game),
                 el('span', { class: 'strong', text: what.join(' · ') }),
                 g.since
@@ -169,7 +169,14 @@ function targets(f) {
         g && (g.joinUrl || g.copyText)
             ? {
                   g,
-                  join: g.joinUrl ? () => joinServer(g) : null,
+                  join: g.joinUrl
+                      ? () =>
+                            joinServer({
+                                joinUrl: g.joinUrl,
+                                copyText: g.copyText,
+                                title: g.serverTitle || g.game,
+                            })
+                      : null,
                   copy: g.copyText
                       ? () => copyText(g.copyText, S.servers.addressCopied)
                       : null,
@@ -395,11 +402,10 @@ function personRow(p, { compact = false, hiddenSelf = false } = {}) {
     const lines = whereLines(p);
     const chips = [];
 
+    // A teammate's team label carries the one accent; without a label a plain "Team" does.
     if (p.team) {
-        chips.push(chip(p.team));
-    }
-
-    if (!p.isMe && p.isTeammate) {
+        chips.push(chip(p.team, !p.isMe && p.isTeammate ? 'live' : ''));
+    } else if (!p.isMe && p.isTeammate) {
         chips.push(chip(S.people.teammate, 'live'));
     }
 
@@ -419,7 +425,7 @@ function personRow(p, { compact = false, hiddenSelf = false } = {}) {
                 el('div', {
                     class: 'small muted',
                     text: p.lastSeenAt
-                        ? `${S.people.nowhere} ${S.people.lastSeen(ago(p.lastSeenAt))}.`
+                        ? `${S.people.nowhere} ${S.people.lastSeen(ago(p.lastSeenAt))}`
                         : S.people.nowhere,
                 }),
             );
@@ -428,7 +434,8 @@ function personRow(p, { compact = false, hiddenSelf = false } = {}) {
 
     let action = null;
 
-    if (!p.isMe) {
+    // Somebody who is nowhere has nothing to follow: no dead button.
+    if (!p.isMe && hasPlace(p)) {
         const btn = el('button', {
             class: `btn ${compact ? 'small-btn ' : ''}${canFollow(p) ? 'primary' : ''}`.trim(),
             type: 'button',

@@ -22,8 +22,8 @@ mod store;
 mod types;
 
 pub use account::{
-    validate_connection_link_url, Connection, FriendRequest, FriendRequests, FriendSuggestion,
-    FriendUser, LinkUrl, Profile, ProfileUpdate,
+    validate_connection_link_url, validate_connection_link_url_loopback_http, Connection,
+    FriendRequest, FriendRequests, FriendSuggestion, FriendUser, LinkUrl, Profile, ProfileUpdate,
 };
 pub use catering::{
     Catering, CateringLimits, FoodOrder, MenuEntry, MineItem, MineResponse, MyItem,

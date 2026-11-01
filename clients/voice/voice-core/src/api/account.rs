@@ -235,13 +235,29 @@ const LINK_PATH: &str = "settings/connections/link/";
 /// token, and spelled exactly as the URL parser would write it (no whitespace, no encoded dot
 /// segments). Returns the URL on success; anything else is [`Error::Usage`].
 pub fn validate_connection_link_url(base_url: &str, url: &str) -> Result<String> {
+    validate_link_url(base_url, url, false)
+}
+
+/// The same check for the headless UI smoke (`selftest` builds only): a stand-in server on
+/// loopback speaks plain http, so that one origin may use `http`. Nothing else is relaxed.
+pub fn validate_connection_link_url_loopback_http(base_url: &str, url: &str) -> Result<String> {
+    validate_link_url(base_url, url, true)
+}
+
+fn validate_link_url(base_url: &str, url: &str, loopback_http: bool) -> Result<String> {
     let no = || Error::Usage("Dieser Link ist nicht erlaubt.".into());
     let base = Url::parse(base_url).map_err(|_| no())?;
     let parsed = Url::parse(url).map_err(|_| no())?;
     let prefix = format!("{}/{LINK_PATH}", base.path().trim_end_matches('/'));
     let token = parsed.path().strip_prefix(&prefix).unwrap_or("");
-    let ok = parsed.scheme() == "https"
-        && base.scheme() == "https"
+    let scheme_ok = |u: &Url| {
+        u.scheme() == "https"
+            || (loopback_http
+                && u.scheme() == "http"
+                && matches!(u.host_str(), Some("127.0.0.1" | "localhost")))
+    };
+    let ok = scheme_ok(&parsed)
+        && scheme_ok(&base)
         && parsed.origin() == base.origin()
         && parsed.username().is_empty()
         && parsed.password().is_none()
@@ -464,6 +480,41 @@ mod tests {
         assert!(!list[0].can_link && list[0].status.is_empty());
         let r = c.friend_requests().await.unwrap();
         assert!(r.incoming.is_empty() && r.outgoing.is_empty());
+    }
+
+    #[test]
+    fn plain_http_is_only_ever_allowed_on_loopback_in_the_smoke_variant() {
+        let base = "http://127.0.0.1:8095";
+        let ok = "http://127.0.0.1:8095/settings/connections/link/demo-1";
+        // The real check never lets http through, loopback or not.
+        assert!(validate_connection_link_url(base, ok).is_err());
+        assert_eq!(
+            validate_connection_link_url_loopback_http(base, ok).unwrap(),
+            ok
+        );
+        for (b, u) in [
+            // another host than loopback
+            (
+                "http://203.0.113.5:8095",
+                "http://203.0.113.5:8095/settings/connections/link/x",
+            ),
+            // a different origin
+            (base, "http://127.0.0.1:9999/settings/connections/link/x"),
+            (base, "http://localhost:8095/settings/connections/link/x"),
+            // the other rules stay
+            (base, "http://127.0.0.1:8095/settings/connections/link/x/y"),
+            (base, "http://127.0.0.1:8095/settings/connections/link/x#f"),
+            (
+                base,
+                "http://u:p@127.0.0.1:8095/settings/connections/link/x",
+            ),
+            (base, "http://127.0.0.1:8095/other/x"),
+        ] {
+            assert!(
+                validate_connection_link_url_loopback_http(b, u).is_err(),
+                "{u}"
+            );
+        }
     }
 
     #[tokio::test]

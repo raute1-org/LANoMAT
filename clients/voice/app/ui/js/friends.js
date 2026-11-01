@@ -4,6 +4,7 @@
 import { avatar, inlineConfirm } from './shared.js';
 import { S } from './strings.js';
 import {
+    add,
     button,
     call,
     clear,
@@ -221,7 +222,8 @@ export function mount(box, { back }) {
             return;
         }
 
-        body.append(
+        add(
+            body,
             section(
                 S.friends.incoming,
                 incoming.map((r) => {
@@ -344,7 +346,7 @@ export function mount(box, { back }) {
         });
 
         if (friendRows.length) {
-            body.append(section(S.friends.friends, friendRows));
+            add(body, section(S.friends.friends, friendRows));
         } else {
             body.append(
                 el(
@@ -360,7 +362,8 @@ export function mount(box, { back }) {
             );
         }
 
-        body.append(
+        add(
+            body,
             section(
                 S.friends.suggestions,
                 suggestions.map((s) =>
