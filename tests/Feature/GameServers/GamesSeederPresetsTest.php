@@ -72,3 +72,28 @@ it('does not overwrite presets an orga edited when seeded again', function () {
     $fresh = Game::query()->where('slug', 'garrys-mod')->firstOrFail();
     expect($fresh->server_presets)->toHaveCount(2)->and($fresh->findPreset('ttt')->name)->toBe('Mein TTT');
 });
+
+it('gives the Paper preset the USER_AGENT variable the panel egg requires', function () {
+    $preset = Game::query()->where('slug', 'minecraft')->firstOrFail()->findPreset('paper');
+
+    expect($preset->config->environment)->toHaveKey('USER_AGENT')
+        ->and($preset->config->environment['USER_AGENT'])->not->toBe('')
+        ->and($preset->config->overridable)->not->toContain('USER_AGENT');
+});
+
+it('adds environment variables a preset gained since it was seeded without touching the orga edits', function () {
+    $game = Game::query()->where('slug', 'minecraft')->firstOrFail();
+    $old = $game->findPreset('paper')->toArray();
+    unset($old['config']['environment']['USER_AGENT']);
+    $old['config']['environment']['CUSTOM'] = 'kept';
+    $old['config']['memory_mb'] = 4096;
+    $game->server_presets = [ServerPreset::fromArray($old)];
+    $game->save();
+
+    $this->seed(GamesSeeder::class);
+
+    $preset = Game::query()->where('slug', 'minecraft')->firstOrFail()->findPreset('paper');
+    expect($preset->config->environment)->toHaveKey('USER_AGENT')
+        ->and($preset->config->environment['CUSTOM'])->toBe('kept')
+        ->and($preset->config->memoryMb)->toBe(4096);
+});
