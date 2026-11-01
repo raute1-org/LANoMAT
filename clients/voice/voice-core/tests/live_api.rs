@@ -90,6 +90,39 @@ async fn every_read_endpoint_deserialises_against_the_real_server() {
         "prefs={}",
         api.notification_preferences().await.expect("prefs").len()
     );
+    let profile = api.profile().await.expect("profile");
+    println!(
+        "profile id={} editable={} steam_link={}",
+        profile.id,
+        profile.editable.len(),
+        profile.has_verified_steam_link
+    );
+    let connections = api.connections().await.expect("connections");
+    println!(
+        "connections={:?}",
+        connections
+            .iter()
+            .map(|c| format!("{}:{}", c.provider, c.status))
+            .collect::<Vec<_>>()
+    );
+    println!("friends={}", api.friends().await.expect("friends").len());
+    let requests = api.friend_requests().await.expect("friend requests");
+    println!(
+        "friend requests incoming={} outgoing={}",
+        requests.incoming.len(),
+        requests.outgoing.len()
+    );
+    println!(
+        "friend suggestions={}",
+        api.friend_suggestions()
+            .await
+            .expect("friend suggestions")
+            .len()
+    );
+    println!(
+        "blocked={}",
+        api.blocked_users().await.expect("blocked").len()
+    );
     if let Some(room) = rooms.first() {
         let page = api.messages(room.id, None).await.expect("messages");
         println!("messages={}", page.messages.len());
