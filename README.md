@@ -173,6 +173,10 @@ run at the same time), and `traefik` (TLS-terminating reverse proxy in front of 
     docker compose --profile prod up -d
     ```
 
+    For a real deploy use `scripts/deploy/deploy.sh`: it builds all four application services
+    (`app queue scheduler reverb-prod`) and exports `APP_VERSION`/`APP_COMMIT` from
+    `scripts/ops/lib/version.sh`. Building only some of them leaves the others on a stale image.
+
 3. **Run migrations and create the first admin**, same command as dev, just inside the
    `app` container:
 
@@ -337,68 +341,104 @@ Committed output (captured against the local production stack —
 
 ## Project state
 
-**All roadmap phases (M0–M13) are complete and tagged** (`m0`–`m13`, plus
-`m10-presence` and `friends`), plus the cross-cutting Friends system. Everything
-below the tags is merged to `main` untagged:
+LANoMAT v2 is feature-complete against its roadmap. **All phases M0–M13 are done and tagged**
+(`m0`–`m13`, plus `m10-presence` and `friends`); everything after the tags is merged to `main`
+untagged. The first production deployment (`lan.raute1.org`, `core` profile) has been live since
+2026-10-30. What is left is verification on real venue hardware, listed at the end.
 
-- **Web voice chat** — optional `WebVoice` module (`MODULE_WEB_VOICE`): voice in the browser through a self-hosted LiveKit server (opt-in compose profile `web-voice`, runbook `docs/infra/livekit-web-voice.md`) plus a persisted text chat per channel over Reverb. General channels are admin-managed, match rooms follow the tournament lifecycle (one room per team, visible only to its roster; admin and orga see and moderate everything, only admins manage the general channels). Orga and admin get a connection diagnostics panel and an in-page latency self-test on `/talk`, and every user an opt-in headset mode; how to measure and compare with Mumble is in the runbook. Tested against a fake server and, headless with fake devices, against a local LiveKit container; real-venue and microphone verification is still open (checklist in the runbook).
-- **Native voice client API, file host checks, update watch** — the server side of a native desktop voice client (device-code pairing, revocable bearer tokens, `/api/voice-client/v1`, `docs/infra/native-voice-client-api.md`); a Preflight check and automatic certificate renewal for the file host; a Preflight update watch for pinned third-party images (warns only); a dedicated `MatchStatus::Live`; gallery photo retract.
-- **Local avatars** — LANoMAT keeps its own 256 px copy of every Discord avatar (private disk, content-addressed, EXIF-free, fetched in the background after login and refreshed daily by `lanomat:refresh-avatars`) and serves it to logged-in users and the native client only; browsers and the desktop app never contact the Discord CDN. After deploying, run `php artisan lanomat:refresh-avatars --all` once (`docs/deploy-lan-raute1.md`).
-- **Self check-in & walk-ins** — on-site QR (`/checkin/{token}`, rotatable in the admin panel) lets participants check themselves in; registration stays open while the event is live as long as spots remain (see `docs/self-checkin.md`).
-- **Arrival planning** — participants optionally state arrival and departure (day + time window) when registering or later; orga get an "Anreise-Übersicht" (expected arrivals, people on site over time, peak, actual vs expected) on the event in the admin panel (see `docs/arrival-planning.md`).
-- **M0–M3** — fundament; events & identity; registration, QR-ticket check-in,
-  seating, in-app notifications and the Discord base; cross-event teams &
-  tournaments (pure bracket engine, Reverb realtime, Discord interactions,
-  Mumble voice).
-- **M4–M6** — catering, voting/polls and LFG; infoscreen scenes for the venue
-  projector; production deployment infra; game servers via Pelican + live stats.
-- **M7–M8** — infra & operations (Traefik ingress, own image registry, moderated
-  LAN file-sharing, custom Docker game servers, separate-host LanCache, screenshot
-  pipeline); multi-provider voice (Mumble + TeamSpeak).
-- **M9–M11** — account linking (Steam/Twitch) & the Friends system; presence +
-  casting/OBS overlays; the LAN-radio jukebox (Music Assistant).
-- **Permanent game servers** — servers that run all year, independent of events
-  (e.g. a Minecraft server): a Pelican server from a preset on a chosen node, a
-  Docker container on a managed host, or an external server that is only listed.
-  Visible to every logged-in user at `/servers` (status, players, join address),
-  managed by admins in the admin panel, never touched by event or tournament
-  lifecycles (see `docs/gameservers-pelican.md`, "Permanent servers").
-- **M12** — post-/pre-LAN content: moderated photo gallery (EXIF-strip, zip,
-  beamer slideshow), public recap page & scene, news block, pre-LAN countdown, and
-  the MVP-of-the-night vote.
+### What the product is
 
-**Shared files** now accept every type except those a browser could execute from
-our origin (HTML, SVG, JavaScript); executables stay behind the moderation gate
-and are always delivered as `nosniff` attachments. Files can optionally live only
-on the LanCache host: the app forwards uploads over SFTP and answers downloads with
-a redirect to a short-lived signed link served by a small nginx there
-(`FILES_STORE=host`, see [`docs/infra/file-host.md`](docs/infra/file-host.md)).
-With the file host plus `FILES_TUS_URL`, participants can upload whole games (about
-15 GB per file, up to 50 GB; 100 GB per person and event, both provisional and set
-by `FILES_MAX_FILE_GB` / `FILES_PER_USER_QUOTA_MB`) as **resumable chunked uploads**
-over the tus protocol, straight from the browser to `tusd` on the file host. The app
-only issues a single-use ticket (it reserves the quota) and answers tusd's HTTP hooks;
-the bytes never pass through it. A closed tab or lost connection resumes where it
-stopped, and every file still waits for orga approval.
+A Laravel 13 monolith (Inertia v2 + Vue 3 participant app, Filament v5 admin panel at `/admin`,
+Reverb websockets, PostgreSQL, Redis) for running a LAN party: registration with QR tickets, seating,
+teams and tournaments with live brackets, schedule, catering, voting, LFG, infoscreens for the beamer,
+a photo gallery and recap, a friends system, a LAN radio, and the glue to Discord, voice chat and game
+servers. The module list, the data model and system diagrams are in
+[`docs/architecture.md`](docs/architecture.md).
 
-**Post-roadmap robustness** (hardening toward the real LAN, merged to `main`,
-untagged): a consolidated [pre-LAN acceptance checklist](docs/pre-lan-acceptance-checklist.md),
-the **Preflight Ampel** (`php artisan lanomat:preflight` traffic-light health
-check + Filament dashboard tile + scheduled orga bell), and the **Discord Gateway
-bot** (a thin discord.js sidecar for online presence + inbound Gateway events,
-bridged to Laravel). Plus navigation and onboarding polish: a grouped,
-current-event-aware authenticated sidebar, a slim shared header for the public
-pages, and — under `APP_ENV=local` only — a demo login so a fresh clone is
-explorable without a Discord app (see Setup). Two prod bugs found running a fresh
-clone were fixed along the way: preflight heartbeat markers now survive a
-serializing cache store, and the browser's Reverb connection is delivered at
-runtime (not baked into the build). Double elimination now supports any field
-from 2 to 64 entrants (previously capped at n ∈ {2, 4, 6, 8, 16}), with the
-losers-bracket intake ordering computed rather than tabulated per size and
-byes rendered visibly in the bracket ("Freilos", or "Entfällt" for a match
-that can never be played).
+### What is built
 
-**Module toggles.** Everything except the nine core modules is optional and
+**Core modules** (always on): Events, Registration (QR tickets, self check-in via on-site QR, walk-ins,
+camera scanner, arrival planning), Seating, Teams, Games, Tournaments (single and double elimination
+for any field of 2 to 64, round robin, check-in, submit/confirm/dispute reporting, live bracket over
+Reverb, a dedicated `MatchStatus::Live`), Identity (Discord-only login with an optional guild gate,
+Steam/Twitch account linking, local avatar copies), Notifications and Preflight.
+
+**Optional modules** (31 modules in total, switched per deployment, see "Module toggles" below):
+Schedule, Catering, Voting, Lfg, Infoscreen, Stats, Friends, Presence, Casting (OBS overlays), Jukebox
+(LAN radio via Music Assistant), Gallery, Recap, News, Discord, Voice (Mumble and TeamSpeak), WebVoice,
+GameServers, CustomServers, Hosts, Lancache, Files, Provisioning.
+
+**Native desktop client** (`clients/voice/`, Rust + Tauri v2, Linux x86_64 and Windows x86_64; macOS is
+deliberately not built):
+
+- It pairs with the server through the device-code flow (the participant approves a code in the
+  browser) and then uses a revocable bearer API under `/api/voice-client/v1`
+  ([`docs/infra/native-voice-client-api.md`](docs/infra/native-voice-client-api.md)).
+- Five tabs: **Jetzt** (what needs me now: match, vote, order, notifications), **Sprache** (web voice
+  rooms, text chat, "Wo ist wer" with follow-into-room), **Spielen** (my matches with result reporting,
+  tournaments, game servers), **Essen** (catering orders) and **Mehr** (polls, shared files with
+  resumable transfers, notifications, friends, profile and linked accounts, settings). A first-run guide
+  checks the headset.
+- Push-to-talk through a control socket (`lanomat-voice ptt down|up|toggle|status`; a named pipe on
+  Windows), which also works on Wayland, plus a best-effort global shortcut (not on Wayland), a tray
+  icon and a speaking overlay. A CLI and a headless latency test are included.
+- **Download and version matching:** participants get the client inside LANoMAT (sidebar "Desktop-App",
+  `/app`, `/talk/client`). The server only offers a build whose `manifest.json` `app_version` equals its
+  own `config('app.version')` (the string from `git describe --tags --always --dirty`, produced by
+  `scripts/ops/lib/version.sh` for both the server image and the client build) and says "version does
+  not match" otherwise. `scripts/ops/build-client.sh` builds the Linux files into `clients-dist/`; the
+  Linux and Windows release workflow, signing hooks and draft release are described in
+  [`docs/infra/native-client-release.md`](docs/infra/native-client-release.md). Windows files are
+  **unsigned** for now (SmartScreen warning; SignPath Foundation is the prepared free signing route).
+  The Preflight check "Desktop-App-Download" warns when the published build is missing or stale.
+  The Rust client has no host toolchain: it builds in Docker (`clients/voice/Dockerfile.dev`).
+  Guides in German: [`docs/anleitung-teilnehmer-desktop-app.md`](docs/anleitung-teilnehmer-desktop-app.md)
+  (participants) and [`docs/anleitung-orga-client.md`](docs/anleitung-orga-client.md) (orga).
+- **Location:** "Wo ist wer" shows where people are (voice room, game, server) and lets you follow them.
+  Everyone shares their location by default; the profile switch "Meinen Standort teilen" opts out.
+
+**Infrastructure pieces** (runbooks in [`docs/infra/`](docs/infra/README.md), all placeholder-based):
+
+- **Web voice** with a self-hosted LiveKit server (opt-in compose profile `web-voice`): general rooms,
+  per-team match rooms that follow the tournament lifecycle, persisted text chat over Reverb,
+  connection diagnostics, an in-page latency self-test and a headset mode
+  ([`docs/infra/livekit-web-voice.md`](docs/infra/livekit-web-voice.md)).
+- **Mumble and TeamSpeak** run side by side behind a `VoiceClient` abstraction, each with a purpose-built
+  admin sidecar (`docker/mumble-admin/` for Mumble 1.5, `docker/teamspeak-admin/`). Empty rooms are
+  removed at once, rooms with people stay; voice join links carry the user's own name.
+- **Discord:** a REST client behind a contract, a thin discord.js Gateway sidecar for presence and inbound
+  events (`docker/discord-gateway/`; the Ed25519 HTTP interactions endpoint stays as a dormant fallback),
+  a category per event, a room per team and private per-match text and voice channels
+  ([`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) has the bot checklist).
+- **File host:** shared files can live on the LanCache host (nginx with signed expiring links, `tusd` for
+  resumable uploads of about 15 GB per file, a `cert-sync` service that carries the wildcard certificate
+  over and reloads nginx); every upload still waits for orga approval
+  ([`docs/infra/file-host.md`](docs/infra/file-host.md)). A Preflight check watches the host and its
+  certificate.
+- **Permanent game servers** (Pelican, Docker or listed-only) independent of events at `/servers`, plus
+  match servers from presets (the Garry's Mod egg, port pool, A2S readiness); `PelicanClient` is built
+  on the real Pelican API ([`docs/gameservers-pelican.md`](docs/gameservers-pelican.md)).
+- **Provisioning** (optional, off in `core`): `provisioning:plan|run|probe-hypervisor` turns the Proxmox
+  test-VM runbook into a dry-runnable, queued, rollback-capable run
+  ([`docs/provisioning.md`](docs/provisioning.md)).
+- **Preflight and update watch:** `lanomat:preflight` is a traffic light over up to 18 checks (database,
+  Redis, queue, scheduler, Reverb, backup freshness, and, per enabled module, Discord, the sidecars,
+  LiveKit, Music Assistant, Pelican, file host, client build) with a Filament tile and an orga bell;
+  `lanomat:check-updates` warns when a pinned third-party image (Mumble, LiveKit, tusd, Traefik) trails
+  its latest release.
+- **Operations:** Traefik/TLS, a cloud entry that passes TLS through to an app at the venue over
+  WireGuard, nightly backups with a restore drill ([`docs/ops/restore-runbook.md`](docs/ops/restore-runbook.md)),
+  security headers with a report-only CSP, and a public-repository safety guard (gitleaks plus
+  `scripts/ops/check-public-safe.sh`).
+
+**Deploy rule:** `scripts/deploy/deploy.sh` builds and starts all four application services
+(`app queue scheduler reverb-prod`) with `APP_VERSION` and `APP_COMMIT` exported from
+`scripts/ops/lib/version.sh`. A partial build leaves services on stale images or without a version.
+`REVERB_ALLOWED_ORIGINS` is the host name only, without a scheme.
+
+### Module toggles
+
+Everything except the nine core modules is optional and
 switched per deployment in `config/modules.php` (env: `MODULES_PROFILE` plus
 `MODULE_<KEY>=true|false` overrides). A disabled module registers no routes
 (404), Filament resources, scheduler entries, listeners or Preflight
@@ -411,33 +451,33 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 | `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight                                                                                                                    |
 | `full`           | all 31 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting, WebVoice) |
 
-**Live deployment** of `lan.raute1.org` (core profile): runbook in
-[`docs/deploy-lan-raute1.md`](docs/deploy-lan-raute1.md) (DNS, `.env`, start command, first admin, test checklist, backups).
+### History in one paragraph
 
-**Since the roadmap phases** (production deployment and QA, PRs #17–#52): first
-live deployment on the `core` profile, Discord guild login gate, login required
-for event pages, unified app shell with layout rules and a shell-parity guard,
-Europe/Berlin display time zone, German error pages, new logo mark and brand docs,
-tournament status "Angekündigt" with admin lifecycle actions and withdraw/correct
-for reports, a four-round QA programme (decisions in [`docs/qa/rulings.md`](docs/qa/rulings.md)),
-a nightly backup script with a Preflight freshness check, security headers plus a
-report-only CSP, a public-repository safety guard (gitleaks + `check-public-safe.sh`),
-and a `PelicanClient` rebuilt against the real Pelican API (`gameservers:pelican-check`).
-Public-safe infrastructure runbooks live in [`docs/infra/`](docs/infra/README.md).
-The CI workflow is currently disabled manually; the gates run locally, and a sharded
-CI is prepared in draft PR #47.
+M0–M3 laid the fundament, events, registration, seating, notifications, teams and tournaments (pure
+bracket engine, Reverb, Discord interactions, Mumble). M4–M6 added catering, voting, LFG, infoscreens,
+production infra and Pelican game servers; M7–M8 infra and multi-provider voice; M9–M11 account linking,
+the Friends system, presence, casting and the jukebox; M12 the gallery, recap, news, countdown and the
+MVP vote. After the tags came the production deployment and a four-round QA programme (decisions in
+[`docs/qa/rulings.md`](docs/qa/rulings.md)), the unified app shell, self check-in and arrival planning,
+the infra runbooks, web voice, the file host and the native client. The dated list is in
+[`CHANGELOG.md`](CHANGELOG.md); the living plan is the
+[roadmap](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md).
 
-**In progress, not on `main`:** game server presets with a Garry's Mod egg
-(`feat/gameserver-presets-egg`) and a `Provisioning` module
-(`feat/provisioning-core`) exist only as local branches; there is no PR yet.
+### Not verified on real hardware yet
 
-**What remains** is real-infra verification before the LAN: the "PRE-LAN-CHECKLISTE"
-in the roadmap (real Pelican/Wings and LanCache on the venue server, Mumble/TeamSpeak/
-Music Assistant, Discord guild gate with a real non-member, Steam/Twitch linking,
-camera scan on real phones, beamer and OBS overlays, restore drill, load test, CSP
-`enforce` decision) and a small backlog (offline login-QR, a release watcher). See [`CLAUDE.md`](CLAUDE.md) for the current implementation status and
-[`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md)
-for the full phase roadmap.
+Everything above is tested against fakes, headless containers or a test VM. Still open before the LAN
+(the roadmap's PRE-LAN-CHECKLISTE has the full table):
+
+- the native client with a real microphone and speakers on Linux and on Windows; tray, overlay and the
+  global shortcut on Wayland; the Windows SmartScreen dialog; Steam presence with linked accounts;
+  Mumble/TeamSpeak name matching; a latency comparison against a third recording;
+- real Pelican/Wings and LanCache on the venue server, real Mumble, TeamSpeak and Music Assistant,
+  the Discord guild gate with a real non-member, camera scan on real phones, beamer and OBS overlays;
+- the production `REVERB_ALLOWED_ORIGINS` value, the CSP `enforce` decision, an active WireGuard tunnel.
+
+**Deliberately not built:** an offline login QR (a Discord outage means no login; risk accepted), a
+load test (about 50 participants do not need one), macOS builds of the client, and a Tauri auto-updater.
+CI is currently disabled manually; the gates run locally and a sharded CI is prepared in draft PR #47.
 
 ## Acknowledgements
 
