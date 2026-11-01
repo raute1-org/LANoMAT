@@ -98,6 +98,7 @@ use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
 use App\Modules\Preflight\Checks\PelicanCheck;
 use App\Modules\Preflight\Checks\QueueWorkerCheck;
+use App\Modules\Preflight\Checks\ReceiverSidecarCheck;
 use App\Modules\Preflight\Checks\RedisCheck;
 use App\Modules\Preflight\Checks\ReverbCheck;
 use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
@@ -356,6 +357,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class, ClientBuildCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
+            ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
         ], 'preflight.checks');
 
         $this->app->bind(LatestRelease::class, HttpLatestRelease::class);

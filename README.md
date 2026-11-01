@@ -421,9 +421,13 @@ deliberately not built):
 - **Provisioning** (optional, off in `core`): `provisioning:plan|run|probe-hypervisor` turns the Proxmox
   test-VM runbook into a dry-runnable, queued, rollback-capable run
   ([`docs/provisioning.md`](docs/provisioning.md)).
-- **Preflight and update watch:** `lanomat:preflight` is a traffic light over up to 18 checks (database,
+- **Room audio** (optional `RoomAudio` module, profile `full`): the orga steers the room's Denon AV receiver
+  (power, volume with an orga ceiling, mute, input, sound mode) from the admin page Raumsteuerung, through a
+  telnet sidecar (`docker/denon-admin/`); Music Assistant still plays to the receiver over HEOS
+  ([`docs/infra/room-audio-denon.md`](docs/infra/room-audio-denon.md)).
+- **Preflight and update watch:** `lanomat:preflight` is a traffic light over up to 19 checks (database,
   Redis, queue, scheduler, Reverb, backup freshness, and, per enabled module, Discord, the sidecars,
-  LiveKit, Music Assistant, Pelican, file host, client build) with a Filament tile and an orga bell;
+  LiveKit, Music Assistant, the Denon receiver sidecar, Pelican, file host, client build) with a Filament tile and an orga bell;
   `lanomat:check-updates` warns when a pinned third-party image (Mumble, LiveKit, tusd, Traefik) trails
   its latest release.
 - **Operations:** Traefik/TLS, a cloud entry that passes TLS through to an app at the venue over
@@ -449,7 +453,7 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 | Profile          | Modules                                                                                                                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight                                                                                                                    |
-| `full`           | all 31 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, Schedule, Stats, Voice, Voting, WebVoice) |
+| `full`           | all 32 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, RoomAudio, Schedule, Stats, Voice, Voting, WebVoice) |
 
 ### History in one paragraph
 

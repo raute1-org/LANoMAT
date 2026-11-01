@@ -38,6 +38,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 - Freunde, Profil and Wo ist wer with Hinterherjoinen (#130)
 - Desktop app entry points (nav, dashboard hint, settings, /app alias) (#131)
 - Keep Discord avatars in LANoMAT and serve them from there (#132)
+- Room audio: Denon AV receiver control for the orga (`RoomAudio` module, telnet sidecar, Raumsteuerung page, Preflight check)
 
 ### Changed
 
