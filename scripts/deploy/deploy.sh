@@ -27,6 +27,19 @@ if [ -f "$DEPLOYED_MARKER" ] && git cat-file -e "$(cat "$DEPLOYED_MARKER")^{comm
     BASE_HEAD="$(cat "$DEPLOYED_MARKER")"
 fi
 
+# The images carry no repository history: hand the version in. Same helper as the client build
+# (scripts/ops/build-client.sh), so a client built from this checkout matches this server.
+# shellcheck source=../ops/lib/version.sh
+source scripts/ops/lib/version.sh
+APP_VERSION="$(lanomat_version .)"
+APP_COMMIT="$(lanomat_commit .)"
+export APP_VERSION APP_COMMIT
+echo "==> Version $APP_VERSION ($APP_COMMIT)"
+if [ -f clients-dist/manifest.json ] && ! grep -q "\"app_version\": \"$APP_VERSION\"" clients-dist/manifest.json; then
+    echo "NOTE: clients-dist holds a client build for another version." >&2
+    echo "      Run scripts/ops/build-client.sh so /talk/client matches this server." >&2
+fi
+
 # --pull refreshes the moving base tags (FrankenPHP 1.13-php8.4, node:22-alpine)
 # so every deploy ships the newest PHP/Node patch releases (security fixes).
 echo "==> Building (pulling fresh base images) and starting: ${SERVICES[*]}"

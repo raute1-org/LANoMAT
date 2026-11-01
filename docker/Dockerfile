@@ -153,6 +153,15 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 # the base entrypoint's default `frankenphp run` args don't pick up
 # /app/Caddyfile even though WORKDIR is /app).
 ENV SERVER_NAME=":80"
+
+# The version this image was built from (scripts/ops/lib/version.sh, passed by compose). The image
+# carries no repository history, so `config('app.version')` reads these. Declared late so a new
+# version does not invalidate the dependency and asset layers above. Never put APP_VERSION into
+# .env: an empty value there would override this.
+ARG APP_VERSION=dev
+ARG APP_COMMIT=unknown
+ENV APP_VERSION=${APP_VERSION} \
+    APP_COMMIT=${APP_COMMIT}
 COPY docker/frankenphp/Caddyfile /etc/caddy/Caddyfile
 
 # Raise PHP upload limits (see the file's header): large voice-client installer

@@ -47,6 +47,48 @@ Files written by the container are owned by root; `chown` them back if that both
 For a binary you can run on the host, build on the host instead (`cargo build --release -p voice-cli`
 needs `clang >= 21`, `cmake`, `pkg-config` and the ALSA development package).
 
+## Release build and download (what users get)
+
+Users download the client from LANoMAT itself (`/talk/client`), always the build that matches the server.
+The orga builds and publishes it with `scripts/ops/build-client.sh` from the repository root:
+
+```bash
+scripts/ops/build-client.sh                 # refuses a dirty tree
+scripts/ops/build-client.sh --allow-dirty   # testing only: version gets a -dirty suffix
+scripts/ops/build-client.sh --version X     # override the version string (needs --allow-dirty)
+scripts/ops/build-client.sh --out DIR       # publish somewhere else than ./clients-dist
+```
+
+It compiles `lanomat-voice` (CLI) and `lanomat-voice-app` (Tauri) in the images `lanomat-voice-dev` and
+`lanomat-voice-app-dev` (built on first use; cargo registry and target in the named volumes), with the LANoMAT
+version and commit baked in (`LANOMAT_BUILD_VERSION`, `LANOMAT_BUILD_COMMIT`; `lanomat-voice --version` prints
+`<version> (<commit>)`, the Tauri `get_environment` command returns `version` and `commit`, every API call sends
+`X-Client-Version`). Each binary is packed into a reproducible `.tar.gz` (binary, a German `LIESMICH.txt`; the app
+also a `.desktop` file and the icon). Staging happens inside the output directory, files move into place first and
+`manifest.json` is renamed last; older releases are pruned afterwards. Only **Linux x86_64** is built: there is no
+Windows or macOS builder, so the manifest lists no such file and the page says "noch kein Build". The binaries are
+linked against Debian bookworm's glibc and need GTK 3 / WebKitGTK 4.1 (app) and ALSA at runtime.
+
+`clients-dist/manifest.json` (gitignored; compose mounts the directory read-only into the app):
+
+```json
+{
+  "app_version": "m12-463-g0a3b6ff",
+  "commit": "<12 hex characters>",
+  "api_version": 1,
+  "built_at": "2026-11-01T11:49:36Z",
+  "files": [
+    {"name": "lanomat-voice-app-<version>-linux-x86_64.tar.gz", "os": "linux", "arch": "x86_64",
+     "kind": "app", "size": 22574008, "sha256": "<64 hex characters>"}
+  ]
+}
+```
+
+`os` is `linux|windows|macos`, `arch` `x86_64|aarch64`, `kind` `app|cli`. More platforms later are just more
+`files` entries; the server validates names (plain file names only), sizes and the schema before offering anything.
+The update check against the server is `voice_core::update::assess` / the `get_update_status` command
+(`docs/commands.md`).
+
 ## Use
 
 ```bash
