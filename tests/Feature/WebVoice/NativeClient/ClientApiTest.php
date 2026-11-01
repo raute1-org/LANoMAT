@@ -184,13 +184,6 @@ it('serves client config without secrets', function () {
     expect($response->getContent())->not->toContain('a-long-enough-secret')->not->toContain('api_key')->not->toContain('api_secret');
 });
 
-it('has no chat endpoints in v1', function () {
-    $headers = bearer($this->ada);
-
-    $this->getJson("/api/voice-client/v1/rooms/{$this->lobby->id}/messages", $headers)->assertNotFound();
-    $this->postJson("/api/voice-client/v1/rooms/{$this->lobby->id}/messages", ['body' => 'x'], $headers)->assertNotFound();
-});
-
 it('rate limits the room token endpoint per user', function () {
     $headers = bearer($this->ada);
 

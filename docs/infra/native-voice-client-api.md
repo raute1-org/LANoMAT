@@ -77,7 +77,8 @@ Malformed input is a `422`. A rate limited caller gets `429`.
 
 All routes are JSON under `<app>/api/voice-client/v1`, authenticated with
 `Authorization: Bearer <token>`. They are rate limited per token (120 per minute; room tokens 30 per
-minute). The v1 API is voice only: **there is no chat API in v1**. A missing, malformed, unknown,
+minute). Besides voice it carries text chat, realtime channel auth and notifications (sections
+below). A missing, malformed, unknown,
 revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 
 | Route | Result |
@@ -85,11 +86,93 @@ revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 | `GET me` | `{id, name, role, identity}`; `identity` is the LiveKit identity (`u<id>`) the client will have in a room |
 | `GET rooms` | `{rooms: [{id, name, description, kind}]}`: exactly the rooms the browser page lists for that user (`VisibleChannels`: general rooms, the user's own match rooms, orga and admins see every live room; archived never) |
 | `POST rooms/{room}/token` | the same payload as the browser, from the same action (`IssueJoinToken`): `{url, token, identity, muted, audio}`. A moderator mute arrives as `muted: true` and a token without the publish right. Never takes identity or room name from the client. |
-| `GET config` | `{api_version, livekit_url, voice_ready, audio}`: the LiveKit URL the client must use and the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`). No secrets. |
+| `GET config` | `{api_version, livekit_url, voice_ready, audio, realtime}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`) and the Reverb connection info (see "Realtime"). No secrets. |
 
 A room the caller may not see answers `404`, exactly like a room that does not exist (no
 enumeration, no 403). An archived room answers `410` for admins and `404` for everyone else. `503`
 means the LiveKit server is not configured or not reachable.
+
+## Text chat
+
+Same rules as the browser (`/talk`), because the endpoints call the browser's own query and actions
+(`ChannelMessages`, `PostMessage`, `DeleteMessage`). A room the caller may not see is `404` (never
+403), an archived room `410` for admins and `404` for everyone else.
+
+| Route | Result |
+|-------|--------|
+| `GET rooms/{room}/messages?before=<id>` | `{messages: [...], next_before}`. Newest page first: without `before` you get the latest page (size `webvoice.chat.history`, default 50), with `before` the page of older messages. Inside a page messages are oldest first, ready to append. `next_before` is the id to pass as `before` for the next older page, `null` when the history is exhausted. |
+| `POST rooms/{room}/messages` | body `{body}` (plain text, trimmed, 1 to 500 characters). `201 {message}`; `422` for empty or too long; `429` when the per-user limit is hit (10 messages per 10 s, the budget is shared with the browser). The author is always the token's user. |
+| `DELETE messages/{message}` | moderation, admin and orga only (policy `moderate`): `200 {ok: true}`; `403` for everyone else who can see the room, `404` when the room is not visible. |
+
+Message DTO (identical to the browser's payload and to the realtime event):
+
+```json
+{
+  "id": 412,
+  "channel_id": 3,
+  "body": "gl hf",
+  "created_at": "2026-11-02T12:00:00+00:00",
+  "author": {"id": 7, "name": "Ada", "avatar_url": null}
+}
+```
+
+## Realtime (Reverb, Pusher protocol)
+
+The browser subscribes to private Reverb channels authorized by its session. A native client uses
+any Pusher-protocol client (for example `pusher-js` semantics) against the same Reverb server, but
+authorizes through its bearer token.
+
+`GET config` returns `realtime` (or `null` when Reverb is not configured; poll the REST endpoints
+then):
+
+```json
+{"driver": "reverb", "key": "<public app key>", "host": "ws.example.org", "port": 443, "scheme": "https",
+ "auth_endpoint": "/api/voice-client/v1/broadcasting/auth"}
+```
+
+Connect to `<scheme>://<host>:<port>/app/<key>` (`wss` when `scheme` is `https`). The app secret is
+never exposed.
+
+`POST broadcasting/auth` takes the Pusher body `{socket_id, channel_name}` and answers
+`{"auth": "<key>:<signature>"}`. It runs the same channel callbacks as the browser
+(`routes/channels.php`) for the bearer user. `403` for a channel the user may not see, an unknown
+channel, a name without the `private-` prefix, or a presence channel. Only the three families below
+are ever signed.
+
+| Channel (subscribe as) | Authorization | Events |
+|------------------------|---------------|--------|
+| `private-web-voice.channel.{roomId}` | WebVoiceChannelPolicy `view` (general room, own match room, admin everywhere, archived nowhere) | `message.posted` with `{message: <DTO>}`; `message.deleted` with `{channel_id, message_id}` |
+| `private-web-voice.directory` | any authenticated user | `channels.changed` (empty payload): the room list changed, refetch `GET rooms` |
+| `private-App.Models.User.{userId}` | only the user's own id | none today (see below) |
+
+Event names are the `broadcastAs()` names; with a Pusher client bind them exactly as written (they
+are not namespaced).
+
+Notifications are stored in the database only and the app does not broadcast them yet, so the
+`App.Models.User.{id}` channel is authorized (ready for it) but silent. Clients should poll
+`GET notifications/unread-count` (for example every 30 to 60 s) and refetch the list when it
+changes.
+
+## Notifications
+
+Own notifications only: every query goes through the authenticated user's notifications relation,
+so another user's id is `404`, exactly like an unknown id.
+
+| Route | Result |
+|-------|--------|
+| `GET notifications?unread=1&per_page=20&page=1` | `{notifications: [...], page, per_page, total, has_more}`. Unread first, then newest first. `unread=1` filters to unread. `per_page` 1 to 50 (default 20). |
+| `GET notifications/unread-count` | `{unread: 3}` |
+| `POST notifications/{id}/read` | `{notification: {...}}`, now read. |
+| `POST notifications/read-all` | `{marked: <count>}` |
+| `GET notification-preferences` | `{preferences: {registration: true, ...}}` for the categories a user can switch: `registration`, `checkin`, `match`, `teams`, `friends`, `schedule`, `catering`, `orga_ping`, `discord`. Default `true`. (`account` and `system` are not optional.) |
+| `PUT notification-preferences` | body `{preferences: {match: false}}`: partial update, other categories keep their value; unknown categories or non-boolean values are `422`. Returns the effective preferences. The same switches gate the bell and the Discord DM channel. |
+
+Notification DTO:
+
+```json
+{"id": "b2c7c9a6-1f5e-4a7e-9d5b-0a1e2c3d4e5f", "category": "match", "title": "Dein Match startet", "body": "...",
+ "read": false, "read_at": null, "created_at": "2026-11-02T12:00:00+00:00"}
+```
 
 ## Security properties
 
@@ -102,6 +185,7 @@ means the LiveKit server is not configured or not reachable.
   never act on a browser session).
 * **The approval step is a normal logged-in, CSRF-protected form** and is throttled per user (10 per
   minute) because it guesses an 8 character code. Each code works once and only while pending.
+* **Bearer check first.** `AuthenticateVoiceClient` is prioritized before the throttles and route-model binding (`bootstrap/app.php`), so throttles key on the resolved user and an unauthenticated caller gets `401` for every id, existing or not.
 * **Throttles:** device requests 5 per minute per IP; token polling 30 per minute per IP and per
   device code; the approval form per user; the API per token.
 * **Short codes are not secrets worth guessing:** 31 symbols over 8 characters (about 8.5e11), 10

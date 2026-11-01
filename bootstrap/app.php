@@ -9,6 +9,7 @@ use App\Http\Middleware\LimitRequestBodySize;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
 use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
 use App\Modules\Files\Http\Middleware\VerifyTusHookSecret;
+use App\Modules\WebVoice\NativeClient\Http\AuthenticateVoiceClient;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -52,6 +54,11 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/WebVoice/Console',
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        // The native client's bearer check must run before the throttles (they key on the
+        // resolved user, not the IP) and before implicit route-model binding (otherwise an
+        // unauthenticated caller could tell existing ids from missing ones by 404 vs 401).
+        $middleware->prependToPriorityList(before: ThrottleRequests::class, prepend: AuthenticateVoiceClient::class);
+
         // Traefik terminates TLS and forwards plain HTTP on the compose network.
         // Trust its X-Forwarded-* headers so generated URLs (OAuth redirects,
         // asset links) and request->secure() reflect the public https origin.

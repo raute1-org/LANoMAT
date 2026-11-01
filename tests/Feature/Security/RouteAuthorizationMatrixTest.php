@@ -60,6 +60,16 @@ const PUBLIC_ROUTES = [
     'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
     'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
     'GET api/voice-client/v1/config' => 'bearer middleware (AuthenticateVoiceClient); no secrets',
+    'GET api/voice-client/v1/rooms/{room}/messages' => 'bearer middleware; WebVoiceChannelPolicy view (404 when unseen) + ChannelMessages (tests/Feature/WebVoice/NativeClient)',
+    'POST api/voice-client/v1/rooms/{room}/messages' => 'bearer middleware; view (404) then PostMessage authorizes post, shared web-voice-chat throttle',
+    'DELETE api/voice-client/v1/messages/{message}' => 'bearer middleware; view (404) then DeleteMessage authorizes moderate',
+    'POST api/voice-client/v1/broadcasting/auth' => 'bearer middleware; channel allowlist + the routes/channels.php callbacks decide, 403 otherwise',
+    'GET api/voice-client/v1/notifications' => 'bearer middleware; own notifications relation only',
+    'GET api/voice-client/v1/notifications/unread-count' => 'bearer middleware; own notifications relation only',
+    'POST api/voice-client/v1/notifications/read-all' => 'bearer middleware; own notifications relation only',
+    'POST api/voice-client/v1/notifications/{notification}/read' => 'bearer middleware; scoped through the own notifications relation, foreign id is 404',
+    'GET api/voice-client/v1/notification-preferences' => 'bearer middleware; the caller own preferences',
+    'PUT api/voice-client/v1/notification-preferences' => 'bearer middleware; the caller own preferences, category allowlist',
     'GET auth/discord/callback' => 'OAuth callback, state-verified by Socialite',
     'GET broadcasting/auth' => 'channel authorization callbacks decide per channel (routes/channels.php)',
     'POST csp-report' => 'browser CSP reports, throttled and size-limited',
@@ -465,7 +475,7 @@ it('puts every state-changing route behind CSRF verification', function () {
     // Token/signature-authenticated machine endpoints and stateless (cookie-less) endpoints.
     $exempt = [
         'api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/{serverLink}',
-        'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token',
+        'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token', 'api/voice-client/v1/rooms/{room}/messages', 'api/voice-client/v1/messages/{message}', 'api/voice-client/v1/broadcasting/auth', 'api/voice-client/v1/notifications/read-all', 'api/voice-client/v1/notifications/{notification}/read', 'api/voice-client/v1/notification-preferences',
         '_boost/browser-logs', 'csp-report', 'storage/{path}',
     ];
     $failures = [];
