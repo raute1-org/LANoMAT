@@ -11,6 +11,10 @@ return [
         'description' => ':tournament, Runde :round, gegen :opponent',
     ],
 
+    'team' => [
+        'description' => 'Dein Team-Raum für :tournament',
+    ],
+
     'resource' => [
         'label' => 'Sprachkanal',
         'plural_label' => 'Sprachkanäle',
@@ -19,6 +23,7 @@ return [
         'kind' => 'Art',
         'kind_general' => 'Allgemein',
         'kind_match' => 'Match',
+        'kind_team' => 'Team',
         'archived' => 'Archiviert',
         'archive' => 'Archivieren',
         'restore' => 'Wiederherstellen',

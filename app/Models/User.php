@@ -44,6 +44,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $steam_url
  * @property string|null $stream_url
  * @property string|null $profile_color
+ * @property bool $share_location Whether other participants may see where this user is (voice room, game server).
  * @property array<string, bool>|null $notification_prefs
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -51,7 +52,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read bool $is_staff
  * @property-read bool $can_access_admin
  */
-#[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'stream_url', 'profile_color', 'notification_prefs'])]
+#[Fillable(['name', 'email', 'password', 'discord_id', 'avatar_url', 'bio', 'steam_url', 'stream_url', 'profile_color', 'share_location', 'notification_prefs'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 #[Appends(['has_password', 'is_staff', 'can_access_admin'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser
@@ -85,6 +86,7 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'role' => Role::class,
             'notification_prefs' => 'array',
+            'share_location' => 'boolean',
         ];
     }
 

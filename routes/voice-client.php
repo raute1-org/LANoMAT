@@ -99,3 +99,6 @@ require __DIR__.'/voice-client-play.php';
 
 // Account block (profile, connections, friends): kept in its own file.
 require __DIR__.'/voice-client-account.php';
+
+// People block (where participants are, follow them): kept in its own file.
+require __DIR__.'/voice-client-presence.php';

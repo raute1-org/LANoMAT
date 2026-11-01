@@ -61,6 +61,7 @@ class FakeVoiceClient implements VoiceClient
             $existing->parentId,
             $existing->temporary,
             $existing->occupants,
+            $existing->occupantNames,
         );
     }
 
@@ -86,6 +87,31 @@ class FakeVoiceClient implements VoiceClient
             $existing->parentId,
             $existing->temporary,
             $n,
+            $existing->occupantNames,
+        );
+    }
+
+    /**
+     * Test hook: who is in a channel, by the display name the voice server shows. Also sets the
+     * head count, as a real sidecar would report both.
+     *
+     * @param  list<string>  $names
+     */
+    public function setOccupantNames(int $channelId, array $names): void
+    {
+        $existing = $this->channels[$channelId] ?? null;
+
+        if ($existing === null) {
+            return;
+        }
+
+        $this->channels[$channelId] = new VoiceChannel(
+            $existing->id,
+            $existing->name,
+            $existing->parentId,
+            $existing->temporary,
+            count($names),
+            $names,
         );
     }
 

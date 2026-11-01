@@ -33,7 +33,7 @@ over plain HTTP, so the PHP side stays dependency-free and fully
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/channels` | – | `[{id,name,parent,temporary,occupants}, ...]` |
+| GET | `/channels` | – | `[{id,name,parent,temporary,occupants,occupant_names}, ...]` (`occupant_names`: nicknames of the connected people, query clients left out) |
 | POST | `/channels` | `{name, parent, temporary}` | `{id,name,parent,temporary,occupants}` (201) |
 | PATCH | `/channels/{id}` | `{name}` | `{id,name,parent,temporary,occupants}` |
 | DELETE | `/channels/{id}` | – | 204 |

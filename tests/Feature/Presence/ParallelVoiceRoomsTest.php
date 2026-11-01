@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Models\User;
 use App\Modules\Discord\Jobs\CleanupMatchChannelJob;
 use App\Modules\Discord\Support\EventCategories;
+use App\Modules\Tournaments\Enums\EntryStatus;
 use App\Modules\Tournaments\Events\MatchCompleted;
 use App\Modules\Tournaments\Events\MatchReady;
 use App\Modules\Tournaments\Events\TournamentCompleted;
+use App\Modules\Tournaments\Events\TournamentStarted;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Models\TournamentEntry;
@@ -90,7 +92,8 @@ it('tears every provider down again: web and Discord on the match, Mumble and Te
     (new CleanupMatchChannelJob($this->match->id))->handle($this->discord, app(EventCategories::class));
     expect($this->discord->deletedChannelIds)->toHaveCount(2);
 
-    // Mumble and TeamSpeak match rooms go with the tournament.
+    // NOT mirrored today: Mumble and TeamSpeak match rooms are not touched by MatchCompleted (no
+    // listener); they go with the tournament, below. Reported in the PR as a known asymmetry.
     $before = collect($this->voice)->map(fn ($fake) => count($fake->channels))->all();
     expect($before)->toBe(['mumble' => 2, 'teamspeak' => 2]);
 
@@ -100,4 +103,45 @@ it('tears every provider down again: web and Discord on the match, Mumble and Te
         expect($fake->channels)->toBe([], $provider);
     }
     expect($this->match->fresh()->voice_channels)->toBeNull();
+});
+
+it('gives a team tournament standing team rooms on web voice as on Mumble and TeamSpeak', function () {
+    $tournament = Tournament::factory()->live()->create(['name' => 'Squad Cup', 'team_size' => 3]);
+    $users = User::factory()->count(2)->create();
+    TournamentEntry::factory()->team()->for($tournament)->create([
+        'display_name' => 'Squad One',
+        'roster_snapshot' => [['user_id' => $users[0]->id], ['user_id' => $users[1]->id]],
+    ]);
+    TournamentEntry::factory()->team()->for($tournament)->create([
+        'display_name' => 'Squad Two',
+        'roster_snapshot' => [['user_id' => $this->ada->id]],
+    ]);
+    TournamentEntry::factory()->team()->for($tournament)->create([
+        'display_name' => 'Squad Gone',
+        'roster_snapshot' => [['user_id' => $this->bea->id]],
+        'status' => EntryStatus::Withdrawn,
+    ]);
+
+    event(new TournamentStarted($tournament));
+    // A replayed event must not duplicate anything.
+    event(new TournamentStarted($tournament));
+
+    $rooms = WebVoiceChannel::query()->where('kind', 'team')->orderBy('name')->get();
+    expect($rooms->pluck('name')->all())->toBe(['Squad One', 'Squad Two'])
+        ->and($rooms[0]->members->pluck('id')->sort()->values()->all())->toBe([$users[0]->id, $users[1]->id])
+        ->and($rooms[1]->members->pluck('id')->all())->toBe([$this->ada->id]);
+
+    foreach ($this->voice as $provider => $fake) {
+        expect(collect($fake->channels)->pluck('name')->all())->toContain('Squad One', 'Squad Two', '🏆 Squad Cup');
+    }
+
+    event(new TournamentCompleted($tournament));
+
+    expect(WebVoiceChannel::query()->where('kind', 'team')->whereNull('archived_at')->count())->toBe(0);
+});
+
+it('makes no standing team rooms for a solo tournament', function () {
+    event(new TournamentStarted($this->tournament));
+
+    expect(WebVoiceChannel::query()->where('kind', 'team')->count())->toBe(0);
 });

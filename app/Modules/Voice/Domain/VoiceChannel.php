@@ -10,11 +10,16 @@ namespace App\Modules\Voice\Domain;
  */
 final readonly class VoiceChannel
 {
+    /**
+     * @param  list<string>  $occupantNames
+     */
     public function __construct(
         public int $id,
         public string $name,
         public ?int $parentId,
         public bool $temporary,
         public int $occupants = 0,
+        /** Display names of the people in the channel itself (not its sub-channels), when the sidecar reports them. */
+        public array $occupantNames = [],
     ) {}
 }
