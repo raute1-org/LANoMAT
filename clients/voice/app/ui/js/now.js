@@ -2,6 +2,8 @@
 // client-side voice card. Polls the feed calmly while visible and keeps the tab badges.
 import { matchCard } from './matches.js';
 import { go, pageHeader, setBadge } from './nav.js';
+import { peopleOn } from './optional.js';
+import { refreshTeam, teamStrip } from './people.js';
 import { eventSlug, noEventState, notificationTarget } from './shared.js';
 import { S } from './strings.js';
 import {
@@ -41,7 +43,7 @@ const voiceCard = {};
 export function init(section) {
     root = section;
     listBox = el('div', { class: 'stack' });
-    root.append(pageHeader('jetzt'), listBox);
+    root.append(pageHeader('jetzt'), teamStrip(), listBox);
     on('room-view', paintVoiceCard);
     on('tab', schedule);
     on('online', () => refresh());
@@ -92,10 +94,13 @@ export async function refresh() {
         feed = null;
         updateBadges();
         render();
+        refreshTeam(false);
 
         return;
     }
 
+    // The team strip lives beside the feed and never blocks it.
+    refreshTeam(peopleOn());
     const r = await call('now_feed', { event: slug });
 
     if (!r.ok) {

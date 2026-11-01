@@ -21,7 +21,7 @@ expect_log() { # file pattern description
   if grep -q -e "$2" "$1"; then ok "$3"; else bad "$3 (no '$2' in $1)"; fi
 }
 
-Xvfb :99 -screen 0 1024x800x24 >"$T/xvfb.log" 2>&1 &
+Xvfb "${SMOKE_DISPLAY:-:99}" -screen 0 1024x800x24 >"$T/xvfb.log" 2>&1 &
 XVFB=$!
 
 # A source file whose size is not a multiple of the 1 MiB chunk size.
@@ -38,7 +38,7 @@ printf '{"base_url":"http://127.0.0.1:%s","access_token":"%s","device_name":"sel
   "$PORT" "$(cat "$T/token")" >"$T/cfg/lanomat-voice/credentials.json"
 chmod 600 "$T/cfg/lanomat-voice/credentials.json"
 
-export DISPLAY=:99 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+export DISPLAY="${SMOKE_DISPLAY:-:99}" GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
   WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
 export XDG_CONFIG_HOME="$T/cfg" XDG_RUNTIME_DIR="$T/run" XDG_SESSION_TYPE=x11
 export HOSTNAME=selftest-pc LANOMAT_VOICE_SYNTHETIC_AUDIO=1 RUST_LOG="${RUST_LOG:-lanomat_voice_app=info}"

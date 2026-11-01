@@ -39,6 +39,7 @@ use App\Modules\Tournaments\Http\TournamentPageController;
 use App\Modules\Voice\Http\VoiceSetupController;
 use App\Modules\Voting\Http\PollPageController;
 use App\Modules\WebVoice\Http\WebVoiceController;
+use App\Modules\WebVoice\NativeClient\Http\ClientDownloadController;
 use App\Modules\WebVoice\NativeClient\Http\ConnectController;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -372,6 +373,12 @@ if ($modules->routable(Module::WebVoice)) {
     // every endpoint authorizes through WebVoiceChannelPolicy inside its action.
     Route::middleware(['auth'])->prefix('talk')->name('webvoice.')->group(function () {
         Route::get('/', [WebVoiceController::class, 'index'])->name('index');
+        // Native client download: the files come from the validated manifest only (ClientBuilds).
+        Route::get('client', [ClientDownloadController::class, 'show'])->name('client');
+        Route::get('client/download/{file}', [ClientDownloadController::class, 'download'])
+            ->where('file', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
+            ->middleware('throttle:20,1')
+            ->name('client.download');
         Route::post('channels/{channel}/token', [WebVoiceController::class, 'token'])->middleware('throttle:30,1')->name('token');
         Route::post('latency-test/token', [WebVoiceController::class, 'latencyTestToken'])->middleware('throttle:10,1')->name('latency-test.token');
         Route::get('channels/{channel}/messages', [WebVoiceController::class, 'messages'])->name('messages');

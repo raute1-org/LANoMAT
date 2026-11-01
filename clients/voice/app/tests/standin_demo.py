@@ -13,6 +13,8 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
+import standin_social
+
 EVENT = "lan-party-2026"
 LIMIT = 10
 
@@ -33,9 +35,11 @@ class Demo:
         self.chat_posts = {}  # user id -> [timestamps]
         self.next_item = 100
         self.next_file = 100
+        self.social = standin_social.Social(features.args.port)
         self.reset()
 
     def reset(self):
+        self.social.reset()
         n = now()
         self.polls = {
             3: {"id": 3, "question": "Welche Map spielen wir im Finale?", "kind": "standard", "status": "open",
@@ -271,6 +275,8 @@ class Demo:
                 self.reset()
             h.send(200, {"scenario": self.scenario})
             return True
+        if self.social.host(h, path):
+            return True
         if path == "/__reset":
             self.reset()
             h.send(200, {"ok": True})
@@ -306,7 +312,7 @@ class Demo:
         if route == "config":
             off = set(self.f.args.modules_off.split(",")) if self.f.args.modules_off else set()
             mods = {"game_servers": True, "catering": True, "voting": True, "files": True, "tournaments": True,
-                    "schedule": True, "lfg": False}
+                    "schedule": True, "lfg": False, "friends": True, "presence": True, "identity": True}
             for k in off:
                 if k:
                     mods[k] = False
@@ -323,6 +329,13 @@ class Demo:
         if self.scenario == "error" and not route.startswith("rooms/"):
             return self.fail(h)
         empty = self.scenario == "empty"
+        off = set(self.f.args.modules_off.split(",")) if self.f.args.modules_off else set()
+        off = set(self.f.args.modules_off.split(",")) if self.f.args.modules_off else set()
+        if standin_social.module_of(route) in off:
+            send(404, {"message": "Dieser Bereich ist hier nicht eingeschaltet."})
+            return True
+        if self.social.handle(h, method, route, query, payload, empty):
+            return True
         m = re.fullmatch(r"events/([^/]+)/(.+)", route)
         if m:
             sub = m.group(2)

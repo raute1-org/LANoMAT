@@ -7,6 +7,7 @@ pub mod engine;
 pub mod features;
 pub mod joinurl;
 pub mod settings;
+pub mod update;
 pub mod view;
 
 #[cfg(feature = "selftest")]
@@ -41,7 +42,8 @@ use features::{ConfigView, FeatureOptions, Features, TransferStarted, UploadStar
 use settings::Settings;
 use view::RoomView;
 use voice_core::api::{
-    Connection, FriendRequests, FriendSuggestion, FriendUser, LinkUrl, Profile, ProfileUpdate,
+    Connection, FollowTargets, FriendRequests, FriendSuggestion, FriendUser, LinkUrl, People,
+    PeopleQuery, Profile, ProfileUpdate,
 };
 
 type Eng<'a> = State<'a, Arc<Engine>>;
@@ -77,7 +79,10 @@ pub struct EnvInfo {
     /// `None` when the control socket is up, else why not.
     pub socket_error: Option<String>,
     pub shortcut: ShortcutStatus,
+    /// The LANoMAT version this client was built for (`dev` for a local build).
     pub version: &'static str,
+    /// The git commit of the build (`unknown` for a local build).
+    pub commit: &'static str,
 }
 
 #[derive(Default)]
@@ -292,6 +297,11 @@ fn save_settings(
 }
 
 #[tauri::command]
+async fn get_update_status(engine: Eng<'_>) -> Result<voice_core::update::UpdateStatus, UiError> {
+    update::update_status(engine.inner()).await
+}
+
+#[tauri::command]
 fn get_environment(app: AppHandle, engine: Eng<'_>) -> Result<EnvInfo, UiError> {
     let rt = rt(&app);
     let rt = rt.lock().expect("runtime");
@@ -305,7 +315,8 @@ fn get_environment(app: AppHandle, engine: Eng<'_>) -> Result<EnvInfo, UiError> 
             active: false,
             message: None,
         }),
-        version: env!("CARGO_PKG_VERSION"),
+        version: voice_core::build_info().version,
+        commit: voice_core::build_info().commit,
     })
 }
 
@@ -426,6 +437,36 @@ async fn list_event_servers(f: Feat<'_>, event: String) -> Result<Vec<GameServer
 #[tauri::command]
 async fn list_permanent_servers(f: Feat<'_>) -> Result<Vec<GameServer>, UiError> {
     f.permanent_servers().await
+}
+
+/// The participants of an event who share their location, with where they are.
+#[tauri::command]
+async fn list_people(
+    f: Feat<'_>,
+    event: String,
+    team: Option<bool>,
+    friends: Option<bool>,
+    q: Option<String>,
+    page: Option<u32>,
+    per_page: Option<u32>,
+) -> Result<People, UiError> {
+    f.people(
+        &event,
+        &PeopleQuery {
+            team: team.unwrap_or(false),
+            friends: friends.unwrap_or(false),
+            q,
+            page,
+            per_page,
+        },
+    )
+    .await
+}
+
+/// The join targets to go where a person is (voice rooms and game).
+#[tauri::command]
+async fn follow_person(f: Feat<'_>, event: String, user_id: u64) -> Result<FollowTargets, UiError> {
+    f.follow_person(&event, user_id).await
 }
 
 #[tauri::command]
@@ -739,17 +780,19 @@ async fn unblock_user(f: Feat<'_>, user_id: u64) -> Result<(), UiError> {
     f.unblock_user(user_id).await
 }
 
-/// Opens a game server's `steam://connect/...` link with the system handler. Nothing else is
-/// accepted (see `joinurl`): the webview may not make the OS open arbitrary URLs.
+/// Opens a join link with the system handler: a game server's `steam://connect/...` link, or the
+/// `mumble://` / `ts3server://` link of a voice room. Nothing else is accepted (see `joinurl`):
+/// the webview may not make the OS open arbitrary URLs. A voice link is rewritten strictly
+/// (names percent-encoded) before it is opened.
 #[tauri::command]
 fn open_join_url(url: String) -> Result<(), UiError> {
-    let url = joinurl::validate_steam_connect(&url)
-        .map_err(|m| UiError::new("usage", m))?
-        .to_owned();
+    let (url, program) = joinurl::validate_join_url(&url).map_err(|m| UiError::new("usage", m))?;
     open_in_browser(&url).map_err(|e| {
         UiError::new(
             "local",
-            format!("Steam konnte nicht gestartet werden ({e}). Kopiere die Adresse stattdessen."),
+            format!(
+                "{program} konnte nicht gestartet werden ({e}). Kopiere die Adresse stattdessen."
+            ),
         )
     })
 }
@@ -946,6 +989,7 @@ macro_rules! command_set {
 }
 
 command_set!(
+    get_update_status,
     get_status,
     connect_start,
     connect_poll,
@@ -976,6 +1020,8 @@ command_set!(
     match_withdraw_report,
     list_event_servers,
     list_permanent_servers,
+    list_people,
+    follow_person,
     list_polls,
     get_poll,
     vote_poll,

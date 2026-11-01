@@ -1,5 +1,17 @@
 name: lanomat
 
+# One build recipe for every service that runs the application image (app, queue, scheduler,
+# reverb-prod). Each of them builds its OWN image from the same Dockerfile, so a deploy has to
+# build and recreate all four: `docker compose --profile prod build app queue scheduler reverb-prod`.
+# APP_VERSION / APP_COMMIT come from scripts/ops/lib/version.sh (scripts/deploy/deploy.sh exports
+# them); the image carries no repository history, so the version has to be handed in. Unset: `dev`.
+x-app-build: &app-build
+  context: .
+  dockerfile: docker/Dockerfile
+  args:
+    APP_VERSION: ${APP_VERSION:-dev}
+    APP_COMMIT: ${APP_COMMIT:-unknown}
+
 services:
   postgres:
     restart: unless-stopped
@@ -148,15 +160,17 @@ services:
 
   app:
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: *app-build
     profiles: [prod]
     env_file: .env
     volumes:
       - app_storage:/app/storage/app
       # Backup marker for the Preflight BackupFreshnessCheck (read-only).
       - /var/backups/lanomat:/var/backups/lanomat:ro
+      # Native voice client builds (scripts/ops/build-client.sh). Optional: without a manifest the
+      # download page says there is no build. Run the build BEFORE `up`: a missing host directory
+      # is created by Docker as root and the script could then not write into it.
+      - ./clients-dist:/app/clients-dist:ro
     # Loopback only: Traefik is the sole public entry point. Binding to all
     # interfaces would let clients bypass TLS and forge X-Forwarded-* headers
     # (trusted in bootstrap/app.php). Docker port publishing also bypasses ufw.
@@ -216,9 +230,7 @@ services:
 
   queue:
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: *app-build
     profiles: [prod]
     command: php artisan queue:work --tries=3 --max-time=3600
     env_file: .env
@@ -241,14 +253,14 @@ services:
   # `php artisan schedule:work` in a separate terminal.
   scheduler:
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: *app-build
     profiles: [prod]
     command: php artisan schedule:work
     env_file: .env
     volumes:
       - app_storage:/app/storage/app
+      # Read-only too: the scheduler runs the Preflight `client_build` check (health-watch).
+      - ./clients-dist:/app/clients-dist:ro
     # No HTTP server — see the `queue` service.
     healthcheck:
       disable: true
@@ -266,9 +278,7 @@ services:
   # running at a time — dev xor prod).
   reverb-prod:
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: *app-build
     profiles: [prod]
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     env_file: .env

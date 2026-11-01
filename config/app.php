@@ -17,6 +17,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | The release this process runs, a `git describe --tags --always --dirty` string such as
+    | `m12-463-g0a3b6ff`. The image build bakes it in (compose build args APP_VERSION and
+    | APP_COMMIT, set by scripts/deploy/deploy.sh from scripts/ops/lib/version.sh); `dev`
+    | outside a built image. `?:` so an empty variable also falls back. The native voice client
+    | is built for exactly this string (scripts/ops/build-client.sh).
+    |
+    */
+
+    'version' => env('APP_VERSION') ?: 'dev',
+
+    'commit' => env('APP_COMMIT') ?: null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

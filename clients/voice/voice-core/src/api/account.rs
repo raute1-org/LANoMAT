@@ -12,7 +12,7 @@ use crate::error::{Error, Result};
 
 /// `null` where a plain value is expected (the real server did that once for a tournament
 /// `game`) becomes the default instead of failing the whole answer.
-fn nn<'de, D, T>(d: D) -> std::result::Result<T, D::Error>
+pub(super) fn nn<'de, D, T>(d: D) -> std::result::Result<T, D::Error>
 where
     D: Deserializer<'de>,
     T: Default + Deserialize<'de>,
@@ -40,6 +40,9 @@ pub struct Profile {
     #[serde(deserialize_with = "nn")]
     pub has_verified_steam_link: bool,
     pub verified_steam_nickname: Option<String>,
+    /// Whether the person shows where they are (voice room and game) to the other participants
+    /// of an event. `None` when the server does not report it (older server).
+    pub share_location: Option<bool>,
     /// The fields this person may change.
     #[serde(deserialize_with = "nn")]
     pub editable: Vec<String>,
@@ -77,6 +80,9 @@ pub struct ProfileUpdate {
     pub stream_url: Option<Option<String>>,
     #[serde(deserialize_with = "nullable", skip_serializing_if = "Option::is_none")]
     pub profile_color: Option<Option<String>>,
+    /// The location sharing switch (a boolean, never `null`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub share_location: Option<bool>,
 }
 
 impl ProfileUpdate {
@@ -87,6 +93,7 @@ impl ProfileUpdate {
             && self.steam_url.is_none()
             && self.stream_url.is_none()
             && self.profile_color.is_none()
+            && self.share_location.is_none()
     }
 
     fn body(&self) -> Value {
@@ -228,13 +235,29 @@ const LINK_PATH: &str = "settings/connections/link/";
 /// token, and spelled exactly as the URL parser would write it (no whitespace, no encoded dot
 /// segments). Returns the URL on success; anything else is [`Error::Usage`].
 pub fn validate_connection_link_url(base_url: &str, url: &str) -> Result<String> {
+    validate_link_url(base_url, url, false)
+}
+
+/// The same check for the headless UI smoke (`selftest` builds only): a stand-in server on
+/// loopback speaks plain http, so that one origin may use `http`. Nothing else is relaxed.
+pub fn validate_connection_link_url_loopback_http(base_url: &str, url: &str) -> Result<String> {
+    validate_link_url(base_url, url, true)
+}
+
+fn validate_link_url(base_url: &str, url: &str, loopback_http: bool) -> Result<String> {
     let no = || Error::Usage("Dieser Link ist nicht erlaubt.".into());
     let base = Url::parse(base_url).map_err(|_| no())?;
     let parsed = Url::parse(url).map_err(|_| no())?;
     let prefix = format!("{}/{LINK_PATH}", base.path().trim_end_matches('/'));
     let token = parsed.path().strip_prefix(&prefix).unwrap_or("");
-    let ok = parsed.scheme() == "https"
-        && base.scheme() == "https"
+    let scheme_ok = |u: &Url| {
+        u.scheme() == "https"
+            || (loopback_http
+                && u.scheme() == "http"
+                && matches!(u.host_str(), Some("127.0.0.1" | "localhost")))
+    };
+    let ok = scheme_ok(&parsed)
+        && scheme_ok(&base)
         && parsed.origin() == base.origin()
         && parsed.username().is_empty()
         && parsed.password().is_none()
@@ -457,6 +480,75 @@ mod tests {
         assert!(!list[0].can_link && list[0].status.is_empty());
         let r = c.friend_requests().await.unwrap();
         assert!(r.incoming.is_empty() && r.outgoing.is_empty());
+    }
+
+    #[test]
+    fn plain_http_is_only_ever_allowed_on_loopback_in_the_smoke_variant() {
+        let base = "http://127.0.0.1:8095";
+        let ok = "http://127.0.0.1:8095/settings/connections/link/demo-1";
+        // The real check never lets http through, loopback or not.
+        assert!(validate_connection_link_url(base, ok).is_err());
+        assert_eq!(
+            validate_connection_link_url_loopback_http(base, ok).unwrap(),
+            ok
+        );
+        for (b, u) in [
+            // another host than loopback
+            (
+                "http://203.0.113.5:8095",
+                "http://203.0.113.5:8095/settings/connections/link/x",
+            ),
+            // a different origin
+            (base, "http://127.0.0.1:9999/settings/connections/link/x"),
+            (base, "http://localhost:8095/settings/connections/link/x"),
+            // the other rules stay
+            (base, "http://127.0.0.1:8095/settings/connections/link/x/y"),
+            (base, "http://127.0.0.1:8095/settings/connections/link/x#f"),
+            (
+                base,
+                "http://u:p@127.0.0.1:8095/settings/connections/link/x",
+            ),
+            (base, "http://127.0.0.1:8095/other/x"),
+        ] {
+            assert!(
+                validate_connection_link_url_loopback_http(b, u).is_err(),
+                "{u}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn share_location_is_read_and_patched_as_a_boolean() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path(format!("{V1}/profile")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"profile": {"id": 7, "name": "Ada", "share_location": false,
+                 "editable": ["name", "share_location"]}}),
+            ))
+            .mount(&server)
+            .await;
+        Mock::given(method("PATCH"))
+            .and(path(format!("{V1}/profile")))
+            .and(body_json(json!({"share_location": true})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"profile": {"id": 7, "name": "Ada", "share_location": true}}),
+            ))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let c = client(&server);
+        assert_eq!(c.profile().await.unwrap().share_location, Some(false));
+        // An older server does not report it at all.
+        let old: Profile = serde_json::from_value(json!({"id": 1, "name": "x"})).unwrap();
+        assert_eq!(old.share_location, None);
+        let update: ProfileUpdate =
+            serde_json::from_value(json!({"share_location": true, "role": "admin"})).unwrap();
+        let p = c.patch_profile(&update).await.unwrap();
+        assert_eq!(p.share_location, Some(true));
+        // A switch that is null is "not sent", so it can never clear anything.
+        let none: ProfileUpdate = serde_json::from_value(json!({"share_location": null})).unwrap();
+        assert!(c.patch_profile(&none).await.is_err());
     }
 
     #[tokio::test]

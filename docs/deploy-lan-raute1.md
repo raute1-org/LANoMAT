@@ -213,6 +213,32 @@ On the host: `/opt/lanomat/scripts/deploy/deploy.sh` (or via
 waits for `app` to be healthy and runs `migrate --force`. It never touches
 volumes or `.env`.
 
+**Every application service builds its own image.** `app`, `queue`, `scheduler` and `reverb-prod` each have a
+`build:` section for the same Dockerfile, so a deploy must build and recreate ALL of them, never just `app`:
+
+```bash
+docker compose --profile prod build app queue scheduler reverb-prod
+docker compose --profile prod up -d app queue scheduler reverb-prod
+```
+
+A partial build leaves the queue worker and the scheduler on old code (failed jobs after a deploy are the
+symptom). `deploy.sh` does the right thing and also exports `APP_VERSION` / `APP_COMMIT` for the build; if you
+build by hand, `source scripts/ops/lib/version.sh` and export `APP_VERSION="$(lanomat_version .)"` and
+`APP_COMMIT="$(lanomat_commit .)"` first, otherwise the images report `dev`.
+
+**Native voice client download.** The Desktop-App is offered inside LANoMAT (`/talk/client`), always in the
+version that matches the server. After pulling and BEFORE `up -d`, build it (a few minutes with a warm cache;
+needs the docker images of `clients/voice`, see its README):
+
+```bash
+scripts/ops/build-client.sh        # refuses a dirty tree; publishes ./clients-dist (mounted read-only)
+```
+
+`./clients-dist` is mounted into `app` and `scheduler`. Build before the first `up`, because Docker creates a
+missing bind-mount directory as root. Only Linux x86_64 is built. The Preflight check `client_build` warns
+("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
+run the build script after every deploy that changes the version.
+
 ## 5. Migrate and create the admin
 
 ```bash

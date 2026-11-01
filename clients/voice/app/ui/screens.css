@@ -788,3 +788,180 @@ input[type='number'] {
     top: 0;
     left: 0;
 }
+
+/* ---- people, friends, profile: rows, monogram avatars, follow panels ---- */
+.avatar {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.pr .avatar {
+    align-self: flex-start;
+}
+.avatar.sm {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+}
+.avatar.me {
+    border-color: var(--primary);
+    color: var(--foreground);
+}
+.rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pr {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+}
+.pr.stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.pr.compact {
+    padding: 8px 12px;
+}
+.pr.self {
+    background: var(--muted);
+}
+.pr .fill {
+    width: 100%;
+    flex-wrap: nowrap;
+}
+.pr .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+.where {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+.where .muted {
+    font-size: 0.8rem;
+}
+.follow-host:empty {
+    display: none;
+}
+.follow-panel,
+.confirm {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+}
+.confirm {
+    width: 100%;
+    border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+}
+.follow-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+.follow-item .actions {
+    margin-left: auto;
+}
+.btn.small-btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+}
+.btn.small-btn.danger {
+    background: transparent;
+    color: var(--destructive);
+    border-color: color-mix(in srgb, var(--destructive) 50%, transparent);
+}
+.team-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.cols.people-view {
+    grid-template-columns: minmax(0, 1fr);
+}
+.cols.people-view .chat-col {
+    display: none;
+}
+#people-search {
+    width: 11rem;
+}
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.field label {
+    margin: 0;
+}
+.field-error {
+    font-size: 0.85rem;
+    color: var(--destructive);
+}
+input[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+    border-color: var(--destructive);
+}
+input:disabled,
+textarea:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.swatch {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+}
+.waiting {
+    padding: 10px 12px;
+    border: 1px dashed var(--primary);
+    border-radius: var(--radius);
+}
+
+/* The heading that takes focus after a change gets a ring as wide as its text, not the page. */
+.stack-sm > h2[tabindex] {
+    align-self: flex-start;
+}
+
+/* Narrow window: the action drops under the row instead of squeezing the places. */
+@media (max-width: 560px) {
+    .pr .fill {
+        flex-wrap: wrap;
+    }
+    .pr .fill > .grow {
+        flex: 1 1 calc(100% - 50px);
+    }
+    .pr .fill > .actions {
+        margin-left: 48px;
+    }
+}

@@ -47,6 +47,48 @@ Files written by the container are owned by root; `chown` them back if that both
 For a binary you can run on the host, build on the host instead (`cargo build --release -p voice-cli`
 needs `clang >= 21`, `cmake`, `pkg-config` and the ALSA development package).
 
+## Release build and download (what users get)
+
+Users download the client from LANoMAT itself (`/talk/client`), always the build that matches the server.
+The orga builds and publishes it with `scripts/ops/build-client.sh` from the repository root:
+
+```bash
+scripts/ops/build-client.sh                 # refuses a dirty tree
+scripts/ops/build-client.sh --allow-dirty   # testing only: version gets a -dirty suffix
+scripts/ops/build-client.sh --version X     # override the version string (needs --allow-dirty)
+scripts/ops/build-client.sh --out DIR       # publish somewhere else than ./clients-dist
+```
+
+It compiles `lanomat-voice` (CLI) and `lanomat-voice-app` (Tauri) in the images `lanomat-voice-dev` and
+`lanomat-voice-app-dev` (built on first use; cargo registry and target in the named volumes), with the LANoMAT
+version and commit baked in (`LANOMAT_BUILD_VERSION`, `LANOMAT_BUILD_COMMIT`; `lanomat-voice --version` prints
+`<version> (<commit>)`, the Tauri `get_environment` command returns `version` and `commit`, every API call sends
+`X-Client-Version`). Each binary is packed into a reproducible `.tar.gz` (binary, a German `LIESMICH.txt`; the app
+also a `.desktop` file and the icon). Staging happens inside the output directory, files move into place first and
+`manifest.json` is renamed last; older releases are pruned afterwards. Only **Linux x86_64** is built: there is no
+Windows or macOS builder, so the manifest lists no such file and the page says "noch kein Build". The binaries are
+linked against Debian bookworm's glibc and need GTK 3 / WebKitGTK 4.1 (app) and ALSA at runtime.
+
+`clients-dist/manifest.json` (gitignored; compose mounts the directory read-only into the app):
+
+```json
+{
+  "app_version": "m12-463-g0a3b6ff",
+  "commit": "<12 hex characters>",
+  "api_version": 1,
+  "built_at": "2026-11-01T11:49:36Z",
+  "files": [
+    {"name": "lanomat-voice-app-<version>-linux-x86_64.tar.gz", "os": "linux", "arch": "x86_64",
+     "kind": "app", "size": 22574008, "sha256": "<64 hex characters>"}
+  ]
+}
+```
+
+`os` is `linux|windows|macos`, `arch` `x86_64|aarch64`, `kind` `app|cli`. More platforms later are just more
+`files` entries; the server validates names (plain file names only), sizes and the schema before offering anything.
+The update check against the server is `voice_core::update::assess` / the `get_update_status` command
+(`docs/commands.md`).
+
 ## Use
 
 ```bash
@@ -259,7 +301,10 @@ is [`docs/ux-concept.md`](docs/ux-concept.md), the command contract
 | `voice.js`, `chat.js` | **Sprache**: rooms, the live room panel (hold-to-talk by mouse, Space or the global key, mute, roster) and the text chat beside it (history, Enter sends, 500 characters, the rate limit as a calm hint, live messages with de-duplication, `@name` mentions highlighted, delete for orga and admin, unread badge). On the other tabs a voice dock keeps talk and mute one tap away |
 | `play.js`, `matches.js` | **Spielen**: my matches (report with the tie check, confirm, dispute, withdraw, check-in, `lock_version` conflicts answered with a reload), tournaments with my enrollment, event and permanent game servers (status light, players, map, address, offline has no join button) |
 | `food.js` | **Essen**: the menu per ordering round with quantity steppers, a running total from integer cents, item-based ordering with the server's refusals shown in the line, my orders with a status timeline and cancel while open (with the reason when not) |
-| `more.js`, `polls.js`, `files.js`, `notifications.js`, `settings.js` | **Mehr**: Abstimmungen (one tap, results as the server returns them), Dateien (quota bar, download with progress and the final path, upload by drag and drop or picker with progress, pause, resume, cancel and the moderation note), Benachrichtigungen (history, mark read, a switch per category for the app list and for desktop hints, the "Ruhe" toggle), Einstellungen and Gerät und Konto. **Freunde** and **Profil** are hidden until `list_friends` / `get_profile` exist (probed once, an `unknown command` keeps them out); their pages are placeholders for the follow-up that wires them |
+| `more.js`, `polls.js`, `files.js`, `notifications.js`, `settings.js` | **Mehr**: Abstimmungen (one tap, results as the server returns them), Dateien (quota bar, download with progress and the final path, upload by drag and drop or picker with progress, pause, resume, cancel and the moderation note), Benachrichtigungen (history, mark read, a switch per category for the app list and for desktop hints, the "Ruhe" toggle), Einstellungen and Gerät und Konto. **Freunde** and **Profil** appear when the server module runs (`get_config().modules`) and the command answers (`optional.js` probes once; an `unknown command` or a `not_found` keeps them out) |
+| `friends.js` | **Freunde** (Mehr): friends, requests to you (*Annehmen*, *Ablehnen*, *Blockieren*), your own requests (*Zurückziehen*), suggestions with the server's German reason labels and one-tap *Anfrage senden*, blocked people with *Entsperren*. Removing a friend and blocking ask first inside the row (no browser dialog, focus on the safe button, Escape keeps things as they are). The server's own message is shown when it refuses (already friends, request pending, ...), and the lists are re-read after every change. A calm hint says you only see your own blocks: the server never tells who blocked you, and neither does the screen |
+| `profile.js` | **Profil** (Mehr): the profile as the server returns it; only the fields in `editable` can be changed (the avatar is Discord's and read-only), a save sends only what changed and shows the server's validation errors under each field; the privacy switch **Meinen Standort teilen** (`share_location`, saved at once, with one plain sentence on what it shares); **Verknüpfte Konten**: Discord read-only, Steam and Twitch with status, *Trennen* after a confirmation and *Verknüpfen*, which asks `connection_link_url`, hands the single-use link straight to `open_link_url` (never shown or logged), shows "Warte auf die Bestätigung im Browser" and asks `list_connections` every 3 s until the status changes (or the link is long expired), with a cancel |
+| `people.js` | **Wo ist wer**: the *Personen* view of Sprache (next to *Räume*; the chat column steps aside) and a compact **Dein Team** strip at the top of Jetzt. Each row: monogram, name, team, where the person is (voice provider chip, room, game, server, "seit 14 Min"), teammates first, filters *Alle / Team / Freunde* and a name search, refreshed every 30 s. **Hinterherjoinen** asks `follow_person` and either does the one thing there is to do or shows the parts in the row: voice (web voice joins through the normal join flow, Mumble and TeamSpeak open their link, a Discord channel link is only copied, the provider you are already on is marked) and game (*Spiel beitreten* through `open_join_url`, *Adresse kopieren*). A room or server you may not see shows only what the API gives (the game name) and cannot be followed. *Standort nicht geteilt* shows only on your own entry and only after you opted out |
 | `nav.js` | the five tabs (a tab or a Mehr entry only when `get_config().modules` says the module runs), badges, the connection indicator and offline banner, the "Ruhe" toggle, a Hilfe sheet per tab, keyboard: arrow keys between tabs, Alt+1 to Alt+5 |
 
 Every list has loading, empty, error (plain message and "Erneut versuchen") and normal states; a
@@ -276,7 +321,7 @@ Three small Rust additions came with the screens: `audio_check_start`, `audio_ch
 Screenshots of every screen in its normal, empty and error state are in
 [`docs/screenshots/voice-app/`](../../docs/screenshots/voice-app/) (names are numbered by screen:
 `01`-`06` connect and first-run guide, `10`-`16` Jetzt, `20`-`23` Sprache, `30`-`34` Spielen,
-`40`-`43` Essen, `50`-`63` Mehr, `70-empty-*`, `80-error-*`, `81`, `85-offline`, `90`/`91` modules off
+`40`-`43` Essen, `50`-`69*` Mehr (`64`-`67` Freunde, `68`-`69*` Profil), `17*`, `24`-`29` Wo ist wer (team strip and Personen), `70-empty-*`, `80-error-*`, `81`, `85-offline`, `90`/`91` modules off
 and moderation, `narrow-*`, `dark-*`, and `v*` from the voice smoke: room, talking, settings,
 overlay, denied).
 
@@ -379,12 +424,27 @@ MODE=narrow dc sh app/tests/smoke-ui.sh     # 430 px window, text at 125 %
 MODE=dark dc sh app/tests/smoke-ui.sh       # dark colour scheme
 ```
 
+The stand-in's social half is `standin_social.py` (profile with the browser's validation rules, linked
+accounts with a single-use link and a status flip four seconds later, friends with every state change,
+people and follow targets in the documented shapes, hooks `/__connection/<provider>/<status>` and
+`/__me/location/<on|off>`). The smoke puts a `xdg-open` stand-in first on the `PATH` that only records
+what the app asked to open (`opened.log`), so the evidence shows the rewritten Mumble link and the Steam
+link, and that no Discord link was opened. `SMOKE_DISPLAY`, `STANDIN_PORT`, `PUSHER_PORT` and
+`LIVEKIT_URL` move a run aside from another one on the same host.
+
 `MODE=full` pairs through the connect screen, walks the first-run guide (the meter must move), votes
 and orders on the Jetzt cards, joins the match room (needs the LiveKit dev server of the voice smoke),
 copies a server address, sends and receives a chat message (a mention raises the tab badge), runs into
 the rate limit, reports, withdraws and confirms results, orders food up to the item limit, downloads a
 file (progress, final path) and uploads one by drag and drop with the connection cut in the middle of a
-chunk, pause and resume, and checks the evidence on the stand-in side. The voice smoke
+chunk, pause and resume, follows a teammate into a web voice room on the dev LiveKit, copies a game
+address, drives Freunde (accept, decline, send, cancel, remove and block with their confirmations, the
+server's refusal) and Profil (a validation error per field, save, the location switch, a link that
+waits for the browser until the status flips, cancel, unlink), and checks the evidence on the
+stand-in side. The real `open_link_url` insists on https of the real server; a `selftest` build (never a
+release build) lets the stand-in's own plain-http loopback origin through and nothing else, so the real
+command (and its refusals of other origins, other paths and fragments) runs and the recording `xdg-open`
+shows the link it handed to the system browser. The voice smoke
 (`smoke-drive.sh`, `smoke-states.sh`) uses the new tabs; their coordinates assume the 960x760
 window.
 
@@ -403,7 +463,7 @@ commands in step.
 | `voice-core/src/realtime/` | A Pusher-protocol client over WebSocket (`tokio-tungstenite`, rustls, the shared crypto provider). Private channels are authorised per connection through `POST broadcasting/auth` with the bearer token (the socket id changes on every connect, so nothing is cached), subscribes to `private-web-voice.channel.{room}` and `private-web-voice.directory`, answers pings, detects a silent link, reconnects with backoff, re-authorises and re-subscribes, fetches what it missed, and falls back to polling `GET rooms/{room}/messages` when `realtime` is null or the socket cannot connect (it keeps trying to come back). The consumer sees a stream of `ChatEvent`. |
 | `voice-core/src/notify/` | The notification engine and its pure policy: defaults on for match, catering, direct mention and vote closing and off for the rest, at most one system notification per category per minute (the rest a count), do-not-disturb while push-to-talk is held (with an open microphone: while speaking) and by the "Ruhe" toggle (also a tray item; a fullscreen-window check is not implemented), de-duplication by id across restarts (bounded id set plus a `created_at` high-water mark in `settings.json`), the first run only records what is already unread, and a mapping from category to the target tab and card. Polling is calm: 15 s focused, 45 s otherwise, backoff on failures, a refetch only when the count changed. Delivery goes through the `Notifier` trait (`tauri-plugin-notification` in the app, a recording fake in the tests). |
 | `voice-core/src/transfer/` | Downloads: streamed to a `.part` file, resumed with HTTP `Range` on `206`, retries with backoff, atomic rename, sanitised names, never overwrites. Uploads: a tus 1.0.0 client over reqwest (creation with `Upload-Metadata`, chunked `PATCH` with an explicit length, `HEAD` to resume at the server's offset, retries like the web app's `useResumableUploads.ts`, no retry on 403, 413, 507 or `ticket_*`), a fingerprint file so an interrupted upload resumes after a restart, and a manager with progress, pause, resume and cancel. The signed link and the ticket are never logged or stored, and the bearer token is never sent to the file host. |
-| `app/src/features.rs` | The Tauri-free command layer over all of the above, unit-tested; `app/src/lib.rs` has the one-line commands. Notification, clipboard and dialog plugins are used from Rust only, so the webview gets no plugin permission (a test checks it); `open_join_url` accepts only `steam://connect/<host>:<port>[/<password>]`. |
+| `app/src/features.rs` | The Tauri-free command layer over all of the above, unit-tested; `app/src/lib.rs` has the one-line commands. Notification, clipboard and dialog plugins are used from Rust only, so the webview gets no plugin permission (a test checks it); `open_join_url` accepts only `steam://connect/<host>:<port>[/<password>]` and the `mumble://` and `ts3server://` links of a voice room (rewritten with every name percent-encoded; see `app/src/joinurl.rs` and `docs/commands.md`). People and follow (`voice-core/src/api/presence.rs`) are parsed tolerantly: every field is optional or defaulted, a room reference or port may be a number or a string. |
 
 Versions added: `tokio-tungstenite` 0.29 (already in the tree through LiveKit, `rustls-tls-native-roots`),
 `tokio-util` 0.7 and `base64` 0.22 (voice-core); `tauri-plugin-notification` 2.8, `tauri-plugin-clipboard-manager`
@@ -491,9 +551,12 @@ against the synthetic source and sink; `cpal` capture and playback behind them a
 code as before), a **real OS drag and drop** (the drop is delivered as the window event that Tauri
 sends, emitted by the script; xdotool cannot drag a file in from outside), the **file picker** and
 **folder picker** dialogs, **system notifications** and their click target, the **tray and overlay on
-Wayland**, **Windows and macOS**, the **real server** (only the stand-in), and **Friends and Profil**
-(hidden by design until the other branch's commands exist; the probe names `list_friends` and
-`get_profile` are the ones in that branch's contract).
+Wayland**, **Windows and macOS**, the **real server** (only the stand-in), and **Freunde, Profil and Wo ist wer against the real server**
+(only the stand-in speaks the documented shapes), real **Steam, Mumble and TeamSpeak** (the smoke records
+the link the app hands to the system handler, nothing is launched), the **real OS URL handlers** for
+`steam://`, `mumble://`, `ts3server://` and the browser, the real **single-use link round trip** through
+a browser (the smoke's recording `xdg-open` stands in for it, see above), and **remote avatars** (the window's content
+security policy loads nothing from the internet, so a monogram stands in).
 
 ## Next steps
 

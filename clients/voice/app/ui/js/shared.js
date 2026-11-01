@@ -178,3 +178,58 @@ export function notificationTarget(category) {
 
     return map[category] || ['mehr', 'notifications'];
 }
+
+// ---- people: the monogram avatar and the in-page confirmation ----
+
+// The avatar the server sends is a remote picture, and the window's content security policy
+// loads nothing from the internet (and a CDN would learn who looks at whom): a monogram stands
+// in, the same for everybody.
+export function initials(name) {
+    const words = String(name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (!words.length) {
+        return '?';
+    }
+
+    const first = [...words[0]][0] || '';
+    const second = words.length > 1 ? [...words[words.length - 1]][0] : '';
+
+    return (first + second).toUpperCase();
+}
+
+export function avatar(name, { me = false, small = false } = {}) {
+    return el('span', {
+        class: `avatar${me ? ' me' : ''}${small ? ' sm' : ''}`,
+        'aria-hidden': 'true',
+        text: initials(name),
+    });
+}
+
+// A confirmation that replaces the row it belongs to (no browser dialog). Escape or the
+// safe button cancel; focus starts on the safe button.
+export function inlineConfirm({ title, text, yes, no, onYes, onNo, danger }) {
+    const keep = button(no, { onclick: onNo });
+    const go = button(yes, {
+        kind: danger ? 'danger' : 'primary',
+        onclick: onYes,
+    });
+    const box = el(
+        'div',
+        { class: 'confirm stack-sm', role: 'alertdialog', 'aria-label': title },
+        el('div', { class: 'strong', text: title }),
+        text ? el('div', { class: 'small', text }) : null,
+        el('div', { class: 'row wrap' }, keep, go),
+    );
+    box.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.stopPropagation();
+            onNo();
+        }
+    });
+    queueMicrotask(() => keep.focus());
+
+    return box;
+}

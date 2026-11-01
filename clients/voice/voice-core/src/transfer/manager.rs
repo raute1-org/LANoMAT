@@ -177,7 +177,7 @@ impl TransferManager {
     ) -> Result<Self> {
         // No total timeout (large files): only connecting and stalls are bounded.
         let http = reqwest::Client::builder()
-            .user_agent(concat!("lanomat-voice/", env!("CARGO_PKG_VERSION")))
+            .user_agent(crate::buildinfo::user_agent())
             .connect_timeout(Duration::from_secs(10))
             .read_timeout(Duration::from_secs(60))
             .build()
