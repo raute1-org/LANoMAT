@@ -743,10 +743,23 @@ input[type='number'] {
     }
     .tab {
         flex: 1;
+        min-width: 0;
         justify-content: center;
-        gap: 4px;
-        padding: 8px 4px;
-        font-size: 0.9rem;
+        gap: 3px;
+        padding: 8px 2px;
+        font-size: 0.82rem;
+    }
+    .badge {
+        min-width: 1.2rem;
+        padding: 0 4px;
+        font-size: 0.65rem;
+        line-height: 1.2rem;
+    }
+    .brand .event {
+        display: none;
+    }
+    .who {
+        max-width: 6rem;
     }
     main {
         padding: 12px;

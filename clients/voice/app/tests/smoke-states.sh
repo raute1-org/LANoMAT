@@ -51,10 +51,14 @@ login
 sleep 9
 click 285 439   # first-run guide: Ueberspringen
 sleep 1
+# Without a window manager the overlay opens on top of the buttons: put it in the lower right.
+xdotool search --name 'LANoMAT Voice Overlay' windowmove 690 600 || true
 click 129 72    # tab Sprache
 sleep 1
 click 405 298   # join the Lobby
 sleep 4
+R=$(XDG_RUNTIME_DIR="$T/run" "${CLI_BIN:-target/debug/lanomat-voice}" ptt status 2>&1)
+[ "$R" = muted ] && ok "C: joined the Lobby (the control socket answers muted)" || bad "C: not in the room: $R"
 xdotool mousemove 240 600
 xdotool keydown space
 sleep 2
@@ -72,4 +76,5 @@ sleep 2.5
 shot 14-overlay
 XDG_RUNTIME_DIR="$T/run" "${CLI_BIN:-target/debug/lanomat-voice}" ptt up >/dev/null
 sh app/tests/smoke-stop.sh
-[ "$FAILED" = 0 ] && echo "STATES RESULT: done"
+[ "$FAILED" = 0 ] && echo "STATES RESULT: done" || echo "STATES RESULT: FAILURES"
+exit "$FAILED"

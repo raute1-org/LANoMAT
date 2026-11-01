@@ -22,8 +22,8 @@ let route = 'hub';
 let logoutFn = () => {};
 const optional = { friends: false, profile: false };
 
-// A command the Rust side does not have yet rejects with "unknown command". Any other answer
-// (even an error) means the command exists. Nothing is faked: the entries stay hidden otherwise.
+// A command the Rust side does not have yet rejects with "unknown command"; the server answers
+// not_found while the module is off. Any other answer (even an error) means the entry is wanted. Nothing is faked: the entries stay hidden otherwise.
 const OPTIONAL_PROBES = {
     friends: 'list_friends',
     profile: 'get_profile',
@@ -35,7 +35,10 @@ export async function probeOptional() {
             await invoke(cmd);
             optional[id] = true;
         } catch (e) {
-            optional[id] = !isUnknownCommand(normalizeError(e));
+            const err = normalizeError(e);
+
+            // Unknown command: not built yet. not_found: the server module is switched off.
+            optional[id] = !isUnknownCommand(err) && err.kind !== 'not_found';
         }
     }
 }
