@@ -40,7 +40,7 @@ struct FakePusher {
 }
 
 fn sig(socket_id: &str, channel: &str) -> String {
-    format!("app-key:sig-{socket_id}-{channel}")
+    format!("test-app:sig-{socket_id}-{channel}")
 }
 
 impl FakePusher {
@@ -115,7 +115,7 @@ impl FakePusher {
     fn config(&self) -> RealtimeConfig {
         RealtimeConfig {
             driver: "reverb".into(),
-            key: "app-key".into(),
+            key: "test-app".into(),
             host: "127.0.0.1".into(),
             port: self.port,
             scheme: "http".into(),

@@ -84,7 +84,11 @@ struct Runtime {
 
 struct TrayItems {
     mute: MenuItem<tauri::Wry>,
+    quiet: MenuItem<tauri::Wry>,
 }
+
+const QUIET_OFF: &str = "Ruhe (keine Benachrichtigungen)";
+const QUIET_ON: &str = "Ruhe aufheben";
 
 fn is_wayland() -> bool {
     std::env::var("XDG_SESSION_TYPE").is_ok_and(|v| v.eq_ignore_ascii_case("wayland"))
@@ -692,10 +696,16 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Anzeigen", true, None::<&str>)?;
     let mute = MenuItem::with_id(app, "mute", "Stumm schalten", true, None::<&str>)?;
     let overlay = MenuItem::with_id(app, "overlay", "Overlay ein/aus", true, None::<&str>)?;
+    let quiet_label = if app.state::<Arc<Features>>().quiet() {
+        QUIET_ON
+    } else {
+        QUIET_OFF
+    };
+    let quiet = MenuItem::with_id(app, "quiet", quiet_label, true, None::<&str>)?;
     let leave = MenuItem::with_id(app, "leave", "Verlassen", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &mute, &overlay, &leave, &quit])?;
-    app.manage(TrayItems { mute });
+    let menu = Menu::with_items(app, &[&show, &mute, &quiet, &overlay, &leave, &quit])?;
+    app.manage(TrayItems { mute, quiet });
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("LANoMAT Voice")
         .menu(&menu)
@@ -707,6 +717,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 "mute" => {
                     let next = !engine.is_muted();
                     engine.set_muted(next);
+                }
+                "quiet" => {
+                    // The label follows through the `quiet-changed` event the toggle sends.
+                    let f = app.state::<Arc<Features>>();
+                    let next = !f.quiet();
+                    f.set_quiet(next);
                 }
                 "overlay" => {
                     let mut s = engine.settings();
@@ -903,13 +919,19 @@ pub fn run() {
             refresh_tray(app, view);
             // Talking (push-to-talk held) silences system notifications.
             if let Some(f) = app.try_state::<Arc<Features>>() {
-                f.set_talking(view.talking);
+                f.set_talking(view.talking_for_dnd());
             }
         }
     });
     let engine = Engine::new(store, settings_path, emit, synthetic_audio());
     let event_sink: features::EventSink = Arc::new(|name, payload| {
         if let Some(app) = APP.get() {
+            if name == features::EVT_QUIET {
+                if let Some(items) = app.try_state::<TrayItems>() {
+                    let on = payload.get("quiet").and_then(|q| q.as_bool()) == Some(true);
+                    let _ = items.quiet.set_text(if on { QUIET_ON } else { QUIET_OFF });
+                }
+            }
             let _ = app.emit(name, payload);
         }
     });

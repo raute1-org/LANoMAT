@@ -96,6 +96,16 @@ impl RoomView {
         }
     }
 
+    /// Whether the person is talking right now, for do-not-disturb: push-to-talk held, or, with
+    /// an open microphone (where `talking` stays true for the whole session), actually speaking.
+    pub fn talking_for_dnd(&self) -> bool {
+        if self.open_mic {
+            self.participants.iter().any(|p| p.is_self && p.speaking)
+        } else {
+            self.talking
+        }
+    }
+
     pub fn sort(&mut self) {
         self.participants
             .sort_by_cached_key(|p| (!p.is_self, p.name.to_lowercase()));
@@ -173,6 +183,30 @@ mod tests {
             "Ich",
         );
         v
+    }
+
+    #[test]
+    fn do_not_disturb_follows_push_to_talk_but_not_a_permanently_open_microphone() {
+        // Push-to-talk: held means talking.
+        let mut v = joined();
+        assert!(!v.talking_for_dnd());
+        v.set_talking(true);
+        assert!(v.talking_for_dnd());
+        v.set_talking(false);
+        assert!(!v.talking_for_dnd());
+
+        // Open mic: `talking` is true for the whole session, only real speech counts.
+        let mut v = joined();
+        v.open_mic = true;
+        v.set_talking(true);
+        assert!(
+            !v.talking_for_dnd(),
+            "an open mic alone must not silence notifications"
+        );
+        v.apply(&SessionEvent::ActiveSpeakers(vec!["u1".into()]), "Ich");
+        assert!(v.talking_for_dnd(), "speaking does");
+        v.apply(&SessionEvent::ActiveSpeakers(vec!["u2".into()]), "Ich");
+        assert!(!v.talking_for_dnd(), "someone else speaking does not");
     }
 
     #[test]

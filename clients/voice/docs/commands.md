@@ -414,7 +414,7 @@ Result `{match: true, ...}`: the **server-side** switches (they gate the bell li
 Args `{preferences: {match: false}}` (partial). Result the effective server-side preferences.
 Do not confuse them with `Settings.notify_categories`, which only decides which items become
 **system notifications** on this machine (the engine's policy: one system notification per category
-and minute, the rest a count; quiet while push-to-talk is held or "Ruhe" is on; every id is announced
+and minute, the rest a count; quiet while push-to-talk is held (with an open microphone: while speaking) or "Ruhe" is on; every id is announced
 at most once, also across restarts; the first run only records what is already unread).
 
 ### `set_quiet`

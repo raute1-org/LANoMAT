@@ -21,7 +21,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 EVENT = "lan-party-2026"
-APP_KEY = "standin-app-key"  # the public Reverb app key (not a secret)
+REVERB_APP = "standin-app"  # the public Reverb app identifier of the stand-in
 FILE_SIZE = 6 * 1024 * 1024
 DL_CHUNK = 64 * 1024
 
@@ -56,7 +56,7 @@ class PusherServer:
 
     def sign(self, socket_id, channel):
         mac = hmac.new(self.secret, f"{socket_id}:{channel}".encode(), hashlib.sha256)
-        return f"{APP_KEY}:{mac.hexdigest()}"
+        return f"{REVERB_APP}:{mac.hexdigest()}"
 
     def publish(self, channel, event, data):
         frame = self._frame(json.dumps({"event": event, "channel": channel, "data": json.dumps(data)}))
@@ -111,7 +111,7 @@ class PusherServer:
                     return
                 head += chunk
             m = re.search(rb"Sec-WebSocket-Key:\s*(\S+)", head, re.I)
-            if not m or f"/app/{APP_KEY}".encode() not in head.split(b"\r\n")[0]:
+            if not m or f"/app/{REVERB_APP}".encode() not in head.split(b"\r\n")[0]:
                 conn.sendall(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")
                 return
             accept = base64.b64encode(
@@ -250,7 +250,7 @@ class Features:
                 "api_version": 1, "livekit_url": None, "voice_ready": False, "audio": {},
                 "modules": {"game_servers": True, "catering": True, "voting": True, "files": True,
                             "tournaments": True, "schedule": False, "lfg": False},
-                "realtime": {"driver": "reverb", "key": APP_KEY, "host": "127.0.0.1",
+                "realtime": {"driver": "reverb", "key": REVERB_APP, "host": "127.0.0.1",
                              "port": self.args.pusher_port, "scheme": "http",
                              "auth_endpoint": "/api/voice-client/v1/broadcasting/auth"},
             })

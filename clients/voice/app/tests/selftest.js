@@ -82,7 +82,7 @@
         );
         assert(c.realtime === true && c.api_version === 1, 'realtime flag');
         assert(
-            !('key' in c) && !JSON.stringify(c).includes('standin-app-key'),
+            !('key' in c) && !JSON.stringify(c).includes('standin-app'),
             'no connection details',
         );
 
