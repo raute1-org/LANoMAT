@@ -22,10 +22,14 @@ use Throwable;
  */
 class HttpReceiverClient implements ReceiverClient
 {
+    private readonly string $baseUrl;
+
     public function __construct(
-        private readonly string $baseUrl,
+        string $baseUrl,
         private readonly string $token,
-    ) {}
+    ) {
+        $this->baseUrl = rtrim($baseUrl, '/');
+    }
 
     public function state(): ReceiverState
     {
@@ -99,7 +103,7 @@ class HttpReceiverClient implements ReceiverClient
 
     private function http(): PendingRequest
     {
-        return Http::withToken($this->token)->acceptJson();
+        return Http::withToken($this->token)->acceptJson()->connectTimeout(2)->timeout(5);
     }
 
     private function readHttp(): PendingRequest

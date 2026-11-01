@@ -31,6 +31,7 @@ function receiverStatePayload(): array
         'mute' => false,
         'source' => 'DVD',
         'mode' => 'stereo',
+        'modeName' => 'Stereo',
         'sources' => [
             ['code' => 'DVD', 'name' => 'Blu-ray'],
             ['code' => 'HDMI1', 'name' => 'Game Console'],
@@ -56,6 +57,7 @@ it('maps the sidecar state payload', function () {
         ->and($state->mute)->toBeFalse()
         ->and($state->source)->toBe('DVD')
         ->and($state->mode)->toBe('stereo')
+        ->and($state->modeName)->toBe('Stereo')
         ->and($state->sources)->toBe([
             ['code' => 'DVD', 'name' => 'Blu-ray'],
             ['code' => 'HDMI1', 'name' => 'Game Console'],
@@ -228,4 +230,27 @@ it('returns an unreachable state when the sidecar answers 200 with a non-object 
     ]);
 
     expect(receiverClient()->state())->toEqual(ReceiverState::unreachable());
+});
+
+it('configures connect and total timeouts', function () {
+    $client = receiverClient();
+    $pending = (new ReflectionMethod($client, 'http'))->invoke($client);
+    $options = (fn () => $this->options)->call($pending);
+
+    expect($options['connect_timeout'])->toBe(2)
+        ->and($options['timeout'])->toBe(5);
+});
+
+it('tolerates a trailing slash on the base URL', function () {
+    Http::fake([
+        'denon-admin.test/*' => Http::response(receiverStatePayload(), 200),
+    ]);
+
+    $client = new HttpReceiverClient('http://denon-admin.test/', 'secret-token');
+
+    expect($client->state()->connected)->toBeTrue();
+    $client->setMute(true);
+
+    Http::assertSent(fn ($request) => $request->url() === 'http://denon-admin.test/state');
+    Http::assertSent(fn ($request) => $request->url() === 'http://denon-admin.test/command');
 });

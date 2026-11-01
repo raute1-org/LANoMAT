@@ -306,7 +306,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(HostKeyTrust::class, CrossCheckHostKeyTrust::class);
 
         $this->app->bind(ReceiverClient::class, fn () => new HttpReceiverClient(
-            (string) config('services.room_audio.rest_url'),
+            rtrim((string) config('services.room_audio.rest_url'), '/'),
             (string) config('services.room_audio.token'),
         ));
 

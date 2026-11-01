@@ -6,6 +6,8 @@ namespace App\Modules\RoomAudio\Support;
 
 /**
  * Snapshot of the receiver as reported by the denon-admin sidecar's GET /state.
+ * `mode` is a whitelist key ('' when the receiver reports a mode that is not
+ * in `modes`); `modeName` is the raw reply for display.
  * Free text (source and mode names) is sanitised by the sidecar before it
  * arrives here; this class only checks the shape.
  */
@@ -27,6 +29,7 @@ final readonly class ReceiverState
         public string $mode,
         public array $sources,
         public array $modes,
+        public string $modeName = '',
     ) {}
 
     public static function unreachable(): self
@@ -41,6 +44,7 @@ final readonly class ReceiverState
             mode: '',
             sources: [],
             modes: [],
+            modeName: '',
         );
     }
 
@@ -62,6 +66,7 @@ final readonly class ReceiverState
             mode: is_string($d['mode'] ?? null) ? $d['mode'] : '',
             sources: self::sources($d['sources'] ?? null),
             modes: self::modes($d['modes'] ?? null),
+            modeName: is_string($d['modeName'] ?? null) ? $d['modeName'] : '',
         );
     }
 
