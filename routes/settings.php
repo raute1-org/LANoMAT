@@ -4,6 +4,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Middleware\RedirectPasswordlessUsersFromSecurity;
 use App\Modules\Identity\Http\ConnectionsController;
+use App\Modules\Identity\Http\NativeLinkController;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,9 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::get('settings/connections', [ConnectionsController::class, 'index'])->name('connections.edit');
+
+    // Browser end of the native client's link hand-off: behind `auth`, so a guest logs in first and returns here.
+    Route::get('settings/connections/link/{token}', NativeLinkController::class)->middleware('throttle:20,1')->name('connections.native-link');
 
     Route::get('settings/connections/{provider}/redirect', [ConnectionsController::class, 'redirect'])->name('connections.redirect');
     Route::get('settings/connections/{provider}/callback', [ConnectionsController::class, 'callback'])->name('connections.callback');
