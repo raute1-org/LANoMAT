@@ -40,6 +40,7 @@ fn commands_and_events_match_the_document() {
         features::EVT_NOTIFY,
         features::EVT_QUIET,
         features::EVT_AUTH,
+        audio_check::EVT_LEVEL,
     ] {
         assert!(
             DOC.contains(&format!("`{event}`")),

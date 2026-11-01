@@ -76,6 +76,7 @@ URL.
 | `notify-event`     | a notification engine event, tagged by `type` (below)                                   |
 | `quiet-changed`    | `{quiet: bool}`: the "Ruhe" toggle changed (UI or tray)                                 |
 | `auth-expired`     | `{}`: the server rejected the token; background work stopped; show "Verbinden"          |
+| `audio-level`      | `{level: number}` from 0 to 1 while `audio_check_start` runs (about 16 per second)      |
 
 ### `chat-event` payloads
 
@@ -165,6 +166,18 @@ Args `{roomId}`. Result a `RoomView`.
 ### `leave_room`
 
 Leaves the current room.
+
+### `audio_check_start`
+
+Args `{inputDevice?}` (a device name or part of one, like the settings; `null` is the system default). Starts the microphone level meter of the first-run guide: `audio-level` events follow until `audio_check_stop`. A second start replaces the first. Refused with `local` while a room is joined. In the headless smoke (synthetic audio) a 440 Hz tone drives the meter.
+
+### `audio_check_stop`
+
+Stops the meter (sends a final `audio-level` of 0 when it was running).
+
+### `play_test_tone`
+
+Args `{outputDevice?}`. Plays one second of 440 Hz on the device and returns when it is over. Refused with `local` while a room is joined.
 
 ### `set_talking`
 

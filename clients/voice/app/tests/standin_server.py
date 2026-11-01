@@ -199,7 +199,8 @@ def make_handler(state: State):
             uid, name = user
             route = path[len("/api/voice-client/v1/"):]
             if route == "me":
-                return self.send(200, {"id": uid, "name": name, "role": "participant", "identity": f"u{uid}"})
+                return self.send(200, {"id": uid, "name": name, "role": state.args.role,
+                                       "identity": f"u{uid}"})
             if route == "config":
                 return self.send(200, {"api_version": 1, "livekit_url": state.args.livekit_url,
                                        "voice_ready": True, "audio": AUDIO})
@@ -223,6 +224,11 @@ def main():
     p.add_argument("--moderator-muted", type=int, default=0, help="user id that gets muted:true")
     p.add_argument("--features", action="store_true",
                    help="also serve the event/play/files/chat/notification routes and a Pusher server")
+    p.add_argument("--ui-demo", action="store_true",
+                   help="with --features: stateful demo data and scenario switches for the UI smoke")
+    p.add_argument("--scenario", default="normal", help="with --ui-demo: normal, empty, error or offline at start")
+    p.add_argument("--role", default="participant", help="role reported by GET me (orga shows chat moderation)")
+    p.add_argument("--modules-off", default="", help="comma list of config modules to report as off")
     p.add_argument("--pusher-port", type=int, default=8098)
     p.add_argument("--tus-chunk", type=int, default=1048576, help="chunkSize of the upload ticket")
     p.add_argument("--tus-drop-after", type=int, default=0,

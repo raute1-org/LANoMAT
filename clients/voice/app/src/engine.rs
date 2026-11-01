@@ -84,8 +84,7 @@ pub fn german(e: &Error) -> String {
         Error::NotFound(_) => "Das gibt es nicht oder du darfst es nicht sehen.".into(),
         Error::RoomArchived => "Dieser Raum ist archiviert.".into(),
         Error::Unavailable => {
-            "Sprachchat ist auf dem Server gerade nicht verfügbar. Versuche es gleich noch einmal."
-                .into()
+            "Der Server kann das gerade nicht beantworten. Versuche es gleich noch einmal.".into()
         }
         Error::RateLimited { retry_after_secs } => match retry_after_secs {
             Some(n) => format!("Zu viele Anfragen. Versuche es in {n} Sekunden erneut."),
@@ -183,6 +182,8 @@ pub struct Status {
     pub state: &'static str,
     pub server_url: String,
     pub user_name: Option<String>,
+    /// The account's role (`participant`, `orga`, `admin`); the UI shows moderation only for the last two.
+    pub role: Option<String>,
     pub message: Option<String>,
 }
 
@@ -369,6 +370,7 @@ impl Engine {
                     state: "signed_out",
                     server_url,
                     user_name: None,
+                    role: None,
                     message: None,
                 }
             }
@@ -377,6 +379,7 @@ impl Engine {
                     state: "signed_out",
                     server_url,
                     user_name: None,
+                    role: None,
                     message: Some(german(&e)),
                 }
             }
@@ -388,6 +391,7 @@ impl Engine {
                     state: "connected",
                     server_url,
                     user_name: Some(me.name),
+                    role: Some(me.role),
                     message: None,
                 }
             }
@@ -395,12 +399,14 @@ impl Engine {
                 state: "expired",
                 server_url,
                 user_name: None,
+                role: None,
                 message: Some(german(&Error::Unauthorized)),
             },
             Err(e) => Status {
                 state: "unreachable",
                 server_url,
                 user_name: None,
+                role: None,
                 message: Some(german(&e)),
             },
         }
