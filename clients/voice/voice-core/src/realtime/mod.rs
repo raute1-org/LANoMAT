@@ -166,6 +166,22 @@ struct Driver {
     fatal: bool,
 }
 
+/// The websocket handshake request: the Reverb URL plus the app's own origin as `Origin`.
+fn ws_request(
+    cfg: &RealtimeConfig,
+    base_url: &str,
+) -> std::result::Result<
+    tokio_tungstenite::tungstenite::handshake::client::Request,
+    tokio_tungstenite::tungstenite::Error,
+> {
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    let mut request = ws_url(cfg).into_client_request()?;
+    if let Ok(origin) = base_url.trim_end_matches('/').parse() {
+        request.headers_mut().insert("Origin", origin);
+    }
+    Ok(request)
+}
+
 fn ws_url(cfg: &RealtimeConfig) -> String {
     let scheme =
         if cfg.scheme.eq_ignore_ascii_case("https") || cfg.scheme.eq_ignore_ascii_case("wss") {
@@ -392,7 +408,14 @@ impl Driver {
     }
 
     async fn session(&mut self, cfg: &RealtimeConfig) -> SessionEnd {
-        let connect = tokio_tungstenite::connect_async(ws_url(cfg));
+        // Reverb checks the Origin header against its allowed hosts and refuses a handshake without
+        // one (4009 "Origin not allowed"). A browser sends the app's own origin automatically; this
+        // first-party client does the same, from the base URL it is logged in to.
+        let request = match ws_request(cfg, self.api.base_url()) {
+            Ok(r) => r,
+            Err(_) => return SessionEnd::Dropped { was_live: false },
+        };
+        let connect = tokio_tungstenite::connect_async(request);
         let ws = tokio::select! {
             _ = self.cancel.cancelled() => return SessionEnd::Cancelled,
             r = tokio::time::timeout(self.opts.connect_timeout, connect) => match r {

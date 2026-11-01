@@ -160,11 +160,11 @@ run at the same time), and `traefik` (TLS-terminating reverse proxy in front of 
     APP_DEBUG=false
     APP_URL=https://lan.example
     REVERB_SCHEME=https
-    REVERB_ALLOWED_ORIGINS=https://lan.example
+    REVERB_ALLOWED_ORIGINS=lan.example
     ```
 
     `REVERB_ALLOWED_ORIGINS` locks Reverb's websocket handshake down to the real origin(s)
-    the browser client connects from (comma-separated for more than one) — see
+    the browser client connects from (host names without a scheme, comma-separated for more than one; a native client must send its app's origin as `Origin`) — see
     `config/reverb.php`. Leaving it unset defaults to `*` (fine for dev, not for prod).
 
 2. **Bring up the stack:**

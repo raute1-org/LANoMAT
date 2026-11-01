@@ -59,7 +59,7 @@ pub struct TournamentRegistration {
 pub struct Tournament {
     pub id: u64,
     pub name: String,
-    pub game: String,
+    pub game: Option<String>,
     pub format: String,
     pub status: String,
     pub starts_at: Option<String>,
@@ -78,7 +78,7 @@ pub struct Tournament {
 pub struct MatchTournamentRef {
     pub id: u64,
     pub name: String,
-    pub game: String,
+    pub game: Option<String>,
     pub status: String,
 }
 
