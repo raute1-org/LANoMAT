@@ -122,6 +122,8 @@ use App\Modules\Provisioning\Support\PhpseclibHostKeyScanner;
 use App\Modules\Registration\Events\RegistrationCancelled;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\RoomAudio\Contracts\ReceiverClient;
+use App\Modules\RoomAudio\HttpReceiverClient;
 use App\Modules\Schedule\Contracts\ScheduleParticipantResolver;
 use App\Modules\Schedule\Events\ScheduleItemModified;
 use App\Modules\Schedule\Listeners\AlarmScheduleItemChanged;
@@ -300,6 +302,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(HypervisorClientFactory::class, HypervisorClients::class);
         $this->app->bind(HostKeyScanner::class, PhpseclibHostKeyScanner::class);
         $this->app->bind(HostKeyTrust::class, CrossCheckHostKeyTrust::class);
+
+        $this->app->bind(ReceiverClient::class, fn () => new HttpReceiverClient(
+            (string) config('services.room_audio.rest_url'),
+            (string) config('services.room_audio.token'),
+        ));
 
         $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
             (string) config('services.music_assistant.base_url'),

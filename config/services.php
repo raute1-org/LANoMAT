@@ -160,15 +160,17 @@ return [
         'strict_host_key' => (bool) env('HOSTS_STRICT_HOST_KEY', true),
     ],
 
-    // Music Assistant (M11, Jukebox). MUSIC_ASSISTANT_TOKEN is a long-lived
-    // bearer token for MA's HTTP/JSON-RPC surface at MUSIC_ASSISTANT_URL
-    // (default port 8095); MUSIC_ASSISTANT_PLAYER_ID is the MA player/queue
-    // id LANoMAT's single configured jukebox player controls.
+    // Room audio (Denon AVR, orga only): bearer-token REST access to the
+    // denon-admin sidecar (docker/denon-admin/app.py).
     'room_audio' => [
         'rest_url' => env('DENON_ADMIN_REST_URL', 'http://denon-admin:8000'),
         'token' => env('DENON_ADMIN_TOKEN'),
     ],
 
+    // Music Assistant (M11, Jukebox). MUSIC_ASSISTANT_TOKEN is a long-lived
+    // bearer token for MA's HTTP/JSON-RPC surface at MUSIC_ASSISTANT_URL
+    // (default port 8095); MUSIC_ASSISTANT_PLAYER_ID is the MA player/queue
+    // id LANoMAT's single configured jukebox player controls.
     'music_assistant' => [
         'base_url' => env('MUSIC_ASSISTANT_URL', 'http://music-assistant:8095'),
         'token' => env('MUSIC_ASSISTANT_TOKEN'),
