@@ -1,0 +1,55 @@
+# LANoMAT docs as an optional service next to the app.
+#
+# The repository's compose.yml also has a `docs` service under the `docs`
+# profile; this file is for running the docs on their own, without the app
+# stack:
+#
+#   docker compose -f docs-site/deploy/compose.docs.yml up -d --build
+#   docker compose -f docs-site/deploy/compose.docs.yml logs -f docs
+#
+# Joins the app stack's external Docker network `lanomat_default` (the name
+# compose.yml uses; Traefik's docker provider is configured for it) and needs
+# APP_DOMAIN in the environment. Adjust the network name if your stack differs.
+# For a plain local preview, use `docker run -p 4015:8080` instead (see
+# docs-site/README.md).
+
+name: lanomat-docs
+
+services:
+  docs:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    image: lanomat-docs:${APP_VERSION:-dev}
+    restart: unless-stopped
+    # Non-root nginx (uid 101) listening on 8080; /tmp is the only writable
+    # path it needs (pid + request buffers).
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    expose:
+      - "8080"
+    # The image's HEALTHCHECK runs deploy/healthcheck.sh (BusyBox wget).
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=lanomat_default"
+      - "traefik.http.routers.lanomat-docs.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/docs`)"
+      - "traefik.http.routers.lanomat-docs.priority=100"
+      - "traefik.http.routers.lanomat-docs.entrypoints=websecure"
+      - "traefik.http.routers.lanomat-docs.tls=true"
+      - "traefik.http.routers.lanomat-docs.tls.certresolver=letsencrypt"
+      - "traefik.http.services.lanomat-docs.loadbalancer.server.port=8080"
+      - "traefik.http.services.lanomat-docs.loadbalancer.healthcheck.path=/docs/"
+      - "traefik.http.services.lanomat-docs.loadbalancer.healthcheck.interval=30s"
+    networks:
+      - lanomat_default
+
+networks:
+  lanomat_default:
+    external: true
