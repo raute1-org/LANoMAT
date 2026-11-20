@@ -16,7 +16,8 @@ npm ci
 npm run dev        # http://localhost:3000/docs/
 ```
 
-Node 22.12+ (or 20.19+) is required by Zudoku.
+Node 22.22+ is required by Zudoku 0.94 (the `node:22-alpine` image used here is
+22.23).
 
 ## Build
 
