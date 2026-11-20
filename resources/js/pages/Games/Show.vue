@@ -52,6 +52,7 @@ type Game = {
     avatar_converter_url: string | null;
     license: string | null;
     requirements: {
+        key: string;
         role: string;
         label: string;
         required: boolean;
@@ -351,7 +352,7 @@ function announceRound(): void {
                         </Card>
 
                         <!-- servers -->
-                        <Card>
+                        <Card v-if="modules.game_servers">
                             <CardHeader>
                                 <CardTitle
                                     class="flex items-center gap-2 text-base"
@@ -547,7 +548,7 @@ function announceRound(): void {
                                 <ul v-else class="divide-y divide-border">
                                     <li
                                         v-for="requirement in game.requirements"
-                                        :key="requirement.label"
+                                        :key="requirement.key"
                                         class="flex flex-wrap items-center justify-between gap-2 py-2"
                                     >
                                         <div class="min-w-0">

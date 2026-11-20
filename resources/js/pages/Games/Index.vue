@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Download, Filter, Search, Server, Trophy, Users } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
@@ -45,7 +45,18 @@ const props = defineProps<{
 }>();
 
 const query = ref('');
-const onlyLan = ref(props.filters.only_lan);
+// The toggle lives in the URL (?only_lan=1) so a reload, a shared link and the
+// server-side filter all agree. A partial reload only re-fetches games+filters.
+const onlyLan = computed(() => props.filters.only_lan);
+
+function toggleOnlyLan(): void {
+    router.get('/games', onlyLan.value ? {} : { only_lan: 1 }, {
+        only: ['games', 'filters'],
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
 
 const filtered = computed(() => {
     const needle = query.value.trim().toLowerCase();
@@ -110,7 +121,7 @@ const platformLabel = (platforms: string[] | null): string =>
                         :variant="onlyLan ? 'default' : 'outline'"
                         :aria-pressed="onlyLan"
                         data-test="only-lan"
-                        @click="onlyLan = !onlyLan"
+                        @click="toggleOnlyLan"
                     >
                         <Filter class="size-4" aria-hidden="true" />
                         Nur LAN-Spiele
@@ -137,7 +148,7 @@ const platformLabel = (platforms: string[] | null): string =>
                 </p>
 
                 <p
-                    v-if="games.length === 0"
+                    v-if="games.length === 0 && !filters.only_lan"
                     class="mt-8 rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground"
                     data-test="empty-library"
                 >
@@ -149,9 +160,18 @@ const platformLabel = (platforms: string[] | null): string =>
                     class="mt-8 rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground"
                     data-test="empty-filter"
                 >
-                    Kein Spiel passt.
-                    {{ onlyLan ? 'Schalte „Nur LAN-Spiele“ aus,' : '' }}
-                    oder frag die Orga, ob die Dateien schon auf der LAN liegen.
+                    <template v-if="onlyLan">
+                        Auf der LAN liegt noch kein Spiel. Schalte „Nur
+                        LAN-Spiele“ aus, um die ganze Bibliothek zu sehen.
+                    </template>
+                    <template v-else>
+                        Kein Spiel passt.
+                        {{
+                            query.trim() !== '' ? 'Ändere den Suchbegriff,' : ''
+                        }}
+                        oder frag die Orga, ob die Dateien schon auf der LAN
+                        liegen.
+                    </template>
                 </p>
 
                 <div

@@ -52,6 +52,9 @@ return [
     'GameRecipes' => [
         0 => 'Events',
         1 => 'Files',
+        2 => 'GameServers',
+        3 => 'Lfg',
+        4 => 'Tournaments',
     ],
     'GameServers' => [
         0 => 'CustomServers',

@@ -11,6 +11,7 @@ use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Tournaments\Models\Tournament;
+use App\Support\Modules\Modules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
@@ -218,6 +219,17 @@ it('filters only LAN-ready games on the server when ?only_lan=1 is given', funct
             ->has('games', 1)
             ->where('games.0.slug', 'unreal-tournament-2004')
             ->where('filters.only_lan', true));
+
+    // Nothing LAN-ready: the filter is active, so the page must say "no LAN
+    // game" instead of "the library is empty".
+    SharedFile::query()->delete();
+
+    $this->actingAs($user)
+        ->get('/games?only_lan=1')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('games', 0)
+            ->where('filters.only_lan', true));
 });
 
 it('renders the singleplayer browser-only game without agent, files or servers', function () {
@@ -364,16 +376,26 @@ it('keeps the games library at a constant query count as the catalogue grows', f
     $this->actingAs($user)->get('/games')->assertOk();
     $small = $queries;
 
+    $queries = 0;
+    $this->actingAs($user)->get('/games/library-game-2')->assertOk();
+    $smallDetail = $queries;
+
     $seed(3, 8);
 
     $queries = 0;
     $this->actingAs($user)->get('/games')->assertOk();
     $large = $queries;
 
+    $queries = 0;
+    $this->actingAs($user)->get('/games/library-game-2')->assertOk();
+    $largeDetail = $queries;
+
     // Adding six recipes (with files, servers, tournaments and LFG posts) must
-    // not add a single query: the page batches each relation once.
+    // not add a single query on either page: each relation is batched once.
     expect($large)->toBe($small)
-        ->and($large)->toBeLessThan(25);
+        ->and($large)->toBeLessThan(25)
+        ->and($largeDetail)->toBe($smallDetail)
+        ->and($largeDetail)->toBeLessThan(25);
 });
 
 it('shows the seeded LAN image on the file panel and marks the card LAN-ready', function () {
@@ -522,4 +544,174 @@ it('exposes the avatar converter URL only when the recipe configures it', functi
         ->get('/games/unreal-tournament-2004')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->where('game.avatar_converter_url', null));
+});
+
+it('never lets an unmatched requirement steal a later exact role+label match', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+
+    // A YAML that gained a requirement without a synced row (manual edit or a
+    // partial sync). The first pass pairs exact matches, so the ISO row stays
+    // with the requirement that names it; the new requirement stays "fehlt".
+    $recipe = GameRecipe::query()->create([
+        'slug' => 'ut2004',
+        'title' => 'UT2004',
+        'status' => 'published',
+        'source' => 'bundled',
+        'platforms' => ['windows'],
+        'summary' => 'x',
+        'requirements' => [
+            ['role' => 'iso', 'label' => 'Extra disc (newly added in YAML)', 'match' => ['extra*.iso'], 'required' => true],
+            ['role' => 'iso', 'label' => 'UT2004 DVD 1', 'match' => ['ut2004*.iso'], 'required' => true],
+        ],
+        'steps' => [],
+        'metadata' => ['multiplayer' => true],
+    ]);
+
+    $row = $recipe->files()->create([
+        'role' => 'iso',
+        'label' => 'UT2004 DVD 1',
+        'match_patterns' => ['ut2004*.iso'],
+        'required' => true,
+        'sort' => 0,
+    ]);
+
+    $shared = SharedFile::factory()->approved()->create([
+        'event_id' => $event->id,
+        'original_name' => 'UT2004-DVD1.iso',
+    ]);
+    $row->update(['shared_file_id' => $shared->id]);
+
+    $this->actingAs($user)
+        ->get('/games/ut2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('game.lan_ready', true)
+            ->where('game.requirements.0.label', 'Extra disc (newly added in YAML)')
+            ->where('game.requirements.0.available_on_lan', false)
+            ->where('game.requirements.1.label', 'UT2004 DVD 1')
+            ->where('game.requirements.1.available_on_lan', true)
+            ->where('game.requirements.1.name', 'UT2004-DVD1.iso'));
+});
+
+it('gives requirements with a duplicate label distinct role-index keys', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+
+    $recipe = GameRecipe::query()->create([
+        'slug' => 'dupe',
+        'title' => 'Dupe',
+        'status' => 'published',
+        'source' => 'bundled',
+        'platforms' => ['windows'],
+        'summary' => 'x',
+        'requirements' => [
+            ['role' => 'patch', 'label' => 'Patch', 'required' => true],
+            ['role' => 'mod', 'label' => 'Patch', 'required' => false],
+        ],
+        'steps' => [],
+        'metadata' => ['multiplayer' => true],
+    ]);
+    $recipe->files()->create(['role' => 'patch', 'label' => 'Patch', 'required' => true, 'sort' => 0]);
+    $recipe->files()->create(['role' => 'mod', 'label' => 'Patch', 'required' => false, 'sort' => 1]);
+
+    $this->actingAs($user)
+        ->get('/games/dupe')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('game.requirements.0.label', 'Patch')
+            ->where('game.requirements.0.key', 'patch-0')
+            ->where('game.requirements.1.label', 'Patch')
+            ->where('game.requirements.1.key', 'mod-1'));
+});
+
+it('honours the module switches on the games pages and the LFG action', function () {
+    app()->instance(Modules::class, new Modules('full', [
+        'game_servers' => false,
+        'lfg' => false,
+        'web_voice' => false,
+    ]));
+
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'UT2004', 'slug' => 'ut2004']);
+    ServerLink::factory()->permanent()->create(['game_id' => $game->id]);
+
+    $recipe = GameRecipe::query()->create([
+        'slug' => 'ut2004',
+        'title' => 'UT2004',
+        'status' => 'published',
+        'source' => 'bundled',
+        'platforms' => ['windows'],
+        'summary' => 'x',
+        'requirements' => [['role' => 'iso', 'label' => 'DVD', 'match' => ['ut2004*.iso'], 'required' => true]],
+        'steps' => [],
+        'metadata' => ['multiplayer' => true],
+    ]);
+    $recipe->files()->create(['role' => 'iso', 'label' => 'DVD', 'match_patterns' => ['ut2004*.iso'], 'required' => true]);
+
+    gamePageLfg($event, $user, 'UT2004');
+
+    $this->actingAs($user)->get('/games')->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('modules.game_servers', false)
+            ->where('modules.lfg', false)
+            ->where('modules.web_voice', false)
+            ->where('games.0.server_count', 0)
+            ->where('games.0.open_lfg', 0));
+
+    $this->actingAs($user)->get('/games/ut2004')->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('servers', 0)
+            ->has('lfg', 0)
+            ->where('voice_url', null));
+
+    // Announcing a round while the LFG module is off must 404, not write a row.
+    $this->actingAs($user)
+        ->post('/games/ut2004/lfg')
+        ->assertNotFound();
+
+    expect(LfgPost::query()->count())->toBe(1); // the seeded baseline post only
+});
+
+it('only exposes absolute http(s) play, homepage and converter URLs', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+    $recipe = gamePageRecipe();
+
+    $recipe->update([
+        'homepage' => 'javascript:alert(1)',
+        'metadata' => [
+            'launch' => 'C:\\Games\\UT2004\\System\\UT2004.exe',
+            'multiplayer' => true,
+            'play_url' => 'javascript:alert(2)',
+            'avatar_converter_url' => 'data:text/html,<script>alert(3)</script>',
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('game.play_url', null)
+            ->where('game.homepage', null)
+            ->where('game.avatar_converter_url', null));
+
+    $recipe->update([
+        'homepage' => 'http://www.oldunreal.com',
+        'metadata' => [
+            'launch' => 'C:\\Games\\UT2004\\System\\UT2004.exe',
+            'multiplayer' => true,
+            'play_url' => 'https://play.example.test/ut2004',
+            'avatar_converter_url' => 'https://ut.raute1.org/',
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('game.play_url', 'https://play.example.test/ut2004')
+            ->where('game.homepage', 'http://www.oldunreal.com')
+            ->where('game.avatar_converter_url', 'https://ut.raute1.org/'));
 });

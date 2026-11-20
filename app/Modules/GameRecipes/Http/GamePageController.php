@@ -106,13 +106,17 @@ class GamePageController extends Controller
             'game' => $this->card($recipe, $matches, $recipeServers, $tournaments, $lfg) + [
                 'description' => $recipe->description,
                 'license' => $recipe->license,
-                'requirements' => collect($this->requirementRows($recipe))->map(function (array $pair) use ($matches): array {
+                'requirements' => collect($this->requirementRows($recipe))->map(function (array $pair, int $index) use ($matches): array {
                     $requirement = $pair['requirement'];
                     $entry = $pair['entry'];
                     $shared = $entry instanceof GameRecipeFile ? ($matches[$entry->id] ?? null) : null;
+                    $role = (string) ($requirement['role'] ?? 'content');
 
                     return [
-                        'role' => (string) ($requirement['role'] ?? 'content'),
+                        // Labels are not unique (a patch and a mod can both be
+                        // called "Patch"), so the Vue list keys on role+index.
+                        'key' => $role.'-'.$index,
+                        'role' => $role,
                         'label' => (string) ($requirement['label'] ?? 'Datei'),
                         'required' => (bool) ($requirement['required'] ?? false),
                         'match' => array_values(array_map('strval', (array) ($requirement['match'] ?? []))),
@@ -160,8 +164,10 @@ class GamePageController extends Controller
     }
 
     /** One click: announce a round for this game in the active event (and let people join the voice chat). */
-    public function createLfg(Request $request, string $slug, CreateLfgPost $create): RedirectResponse
+    public function createLfg(Request $request, string $slug, CreateLfgPost $create, Modules $modules): RedirectResponse
     {
+        abort_unless($modules->enabled(Module::Lfg), 404);
+
         $recipe = GameRecipe::query()->published()->where('slug', $slug)->firstOrFail();
         $event = $this->activeEvent();
 
@@ -434,35 +440,50 @@ class GamePageController extends Controller
     private function requirementRows(GameRecipe $recipe): array
     {
         $files = array_values($recipe->files->all());
+        $requirements = $recipe->requirements ?? [];
         $used = [];
-        $rows = [];
+        /** @var array<int, GameRecipeFile> $entries */
+        $entries = [];
 
-        foreach ($recipe->requirements ?? [] as $requirement) {
+        // Pass 1: exact role+label for every requirement, before any fallback.
+        // Otherwise an unmatched requirement (a newly added YAML entry) could
+        // steal the row that a later requirement names exactly.
+        foreach ($requirements as $index => $requirement) {
             $role = (string) ($requirement['role'] ?? 'content');
             $label = (string) ($requirement['label'] ?? '');
-            $entry = null;
 
-            foreach ($files as $index => $file) {
-                if (! isset($used[$index]) && $file->role->value === $role && $file->label === $label) {
-                    $entry = $file;
-                    $used[$index] = true;
+            foreach ($files as $fileIndex => $file) {
+                if (! isset($used[$fileIndex]) && $file->role->value === $role && $file->label === $label) {
+                    $entries[$index] = $file;
+                    $used[$fileIndex] = true;
 
                     break;
                 }
             }
+        }
 
-            if (! $entry instanceof GameRecipeFile) {
-                foreach ($files as $index => $file) {
-                    if (! isset($used[$index]) && $file->role->value === $role) {
-                        $entry = $file;
-                        $used[$index] = true;
-
-                        break;
-                    }
-                }
+        // Pass 2: same role is the only remaining hint (a renamed label).
+        foreach ($requirements as $index => $requirement) {
+            if (isset($entries[$index])) {
+                continue;
             }
 
-            $rows[] = ['requirement' => $requirement, 'entry' => $entry];
+            $role = (string) ($requirement['role'] ?? 'content');
+
+            foreach ($files as $fileIndex => $file) {
+                if (! isset($used[$fileIndex]) && $file->role->value === $role) {
+                    $entries[$index] = $file;
+                    $used[$fileIndex] = true;
+
+                    break;
+                }
+            }
+        }
+
+        $rows = [];
+
+        foreach ($requirements as $index => $requirement) {
+            $rows[] = ['requirement' => $requirement, 'entry' => $entries[$index] ?? null];
         }
 
         return $rows;
@@ -496,15 +517,12 @@ class GamePageController extends Controller
     }
 
     /**
-     * The optional avatar bridge (e.g. the VRM -> UT2004 converter). It is a
-     * convenience on top of the LAN files, so only an absolute http(s) URL is
-     * exposed — a recipe must never turn agent content into a `javascript:` or
-     * `data:` link on the games page.
+     * Only absolute http(s) URLs may reach the page. Recipe metadata is
+     * authored content (and syncable from an SMB share or git repo), so a
+     * `javascript:` or `data:` value must never become a clickable link.
      */
-    private function avatarConverterUrl(GameRecipe $recipe): ?string
+    private function absoluteHttpUrl(mixed $url): ?string
     {
-        $url = $recipe->metadata['avatar_converter_url'] ?? null;
-
         if (! is_string($url) || $url === '') {
             return null;
         }
@@ -538,14 +556,14 @@ class GamePageController extends Controller
             'summary' => $recipe->summary,
             'platforms' => $recipe->platforms,
             'status' => $recipe->status->value,
-            'homepage' => $recipe->homepage,
-            'avatar_converter_url' => $this->avatarConverterUrl($recipe),
+            'homepage' => $this->absoluteHttpUrl($recipe->homepage),
+            'avatar_converter_url' => $this->absoluteHttpUrl($recipe->metadata['avatar_converter_url'] ?? null),
             'installable' => $this->installable($recipe),
             'install_command' => $recipe->installCommand(),
             'launch_command' => $recipe->launchCommand(),
             'install_deeplink' => $recipe->installDeepLink(),
             'launch_deeplink' => $recipe->launchDeepLink(),
-            'play_url' => $recipe->playUrl(),
+            'play_url' => $this->absoluteHttpUrl($recipe->playUrl()),
             'launch_target' => $recipe->launchTarget(),
             'supports_multiplayer' => $recipe->supportsMultiplayer(),
             'lan_ready' => $this->lanReady($recipe, $matches, $servers),
