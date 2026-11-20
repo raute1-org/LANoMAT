@@ -14,6 +14,9 @@ including the files and the VRM avatars that live on the LAN server's drives.
 
 ## Install
 
+Requires **Node 22.12+ or 24** (the two LTS lines the package declares in `engines` and that CI
+tests; no Node 25+ claim) and npm 10+.
+
 ```bash
 cd clients/agent
 npm ci
@@ -21,12 +24,28 @@ npm run build
 npm link                 # puts `lanomat-agent` on your PATH
 ```
 
-Or run the container (CI/testing):
+From the packed tarball (the release artifact) instead of the checkout:
 
 ```bash
-docker build -t lanomat-agent clients/agent
-docker run --rm -it -v "$HOME/.config/lanomat:/root/.config/lanomat" lanomat-agent --help
+npm install -g ./lanomat-agent-0.1.0.tgz
+lanomat-agent --version
 ```
+
+Or run the container (CI/testing and headless LAN servers):
+
+```bash
+# from the repository root; VERSION is required and must match package.json
+docker build --build-arg VERSION="$(node -p "require('./clients/agent/package.json').version")" \
+  -t lanomat-agent clients/agent
+docker run --rm -it -v "$HOME/.config/lanomat:/home/node/.config/lanomat" lanomat-agent --help
+```
+
+The build fails without `VERSION` and when it differs from `package.json`, so an image can never
+be labelled with a version it does not contain. The image runs as the unprivileged `node` user
+(uid 1000, `HOME=/home/node`); mount the config directory there, not at `/root`. `ENTRYPOINT` is
+`node dist/cli.js`, so every command works as `docker run --rm lanomat-agent <command>`. The
+tarball is the primary distribution — the agent writes to `~/.pi`, `~/.config/lanomat` and the
+user's game installs, which is why the container is the exception and not the default.
 
 The binary is `lanomat-agent` (package `@lanomat/agent`, entry `dist/cli.js`).
 
@@ -426,6 +445,7 @@ defensive where the contract leaves room:
 npm run build     # tsc
 npm run lint      # eslint
 npm test          # vitest, 108 tests, no network
+npm run check     # lint + test + build (what CI runs per Node row)
 ```
 
 Tests cover config permissions, device-flow states, MCP merge, skills idempotence/prune, plan
@@ -441,6 +461,35 @@ source ~/.config/lanomat/venice.env
 lanomat-agent doctor
 lanomat-agent ask "say hello in one sentence"
 ```
+
+## Packaging and releases
+
+What ships is decided by the `files` list in `package.json`: `dist/` (JS, `.d.ts` declarations and
+source maps), `README.md`, `LICENSE`. Sources, tests, configs and `node_modules` never ship — the
+`package` CI job fails if the tarball contains any of them.
+
+```bash
+npm pack --dry-run   # print the file list (prepack builds dist first)
+npm pack             # writes lanomat-agent-<version>.tgz
+```
+
+`prepack` always rebuilds, so a tarball can never contain a stale `dist`. `npm publish` from the
+package directory runs `prepublishOnly` (`npm run lint && npm test`) first; publishing an already
+packed tarball (`npm publish ./lanomat-agent-<version>.tgz`, which is what the release job does)
+skips `prepublishOnly` — the tests have run in CI by then, and `prepack` does not apply either.
+
+CI (`.github/workflows/client-agent.yml`) runs on Node 22 and 24: `npm ci`, lint, test, build,
+`npm pack --dry-run`, a `--version`/`--help` smoke test, `npm audit --omit=dev`, the packed tarball
+as an artifact, and a Docker build whose `--version` smoke test also asserts the image runs as
+uid 1000. The audit ignores devDependencies (they never ship); production advisories fail the job.
+The image size is reported to the run summary with a soft budget of 500 MiB (warning) and a hard
+cap of 600 MiB (failure); the current image is ~450 MiB, dominated by the Node base and the pi
+SDK's provider SDKs.
+
+A tag `agent-v<version>` additionally creates a **draft** GitHub release with the tarball and its
+`.sha256`, after checking that the tag matches the `package.json` version. The npm registry is only
+touched when the repository secret `NPM_TOKEN` exists (`npm publish --provenance`); otherwise the
+run stays release-local and says so.
 
 ## License
 

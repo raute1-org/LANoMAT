@@ -1,4 +1,18 @@
+# Keep the build context to what the Dockerfile actually copies.
 node_modules
 dist
 coverage
+tests
+*.tgz
+*.log
+npm-debug.log*
+.env
+.env.*
 .git
+.gitignore
+.github
+# Not needed inside the image; the manifests are copied explicitly.
+eslint.config.js
+vitest.config.ts
+Dockerfile
+.dockerignore

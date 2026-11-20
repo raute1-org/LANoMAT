@@ -1,7 +1,29 @@
+# Lint, test, build, pack and containerise `clients/agent` (@lanomat/agent).
+#
+# Triggers:
+#   * push to main / pull request that touches clients/agent or this workflow
+#   * a tag `agent-v<version>` -> additionally attaches the packed tarball to a DRAFT
+#     GitHub release. Publishing to the npm registry happens only when the repository
+#     secret NPM_TOKEN is set; without it the release stays a local artifact.
+#
+# Engines (clients/agent/package.json): node >=22.12.0 <25. The matrix runs both LTS
+# lines the package claims, so an engine bump must change both the manifest and this list.
+#
+# `npm audit --omit=dev` deliberately ignores devDependencies: they never end up in the
+# shipped tarball or the runtime image, so a dev-only advisory must not block a release.
+# If one is ever accepted knowingly, list it in the `audit` job comment below with the
+# advisory id and the reason (current state: no known advisories, prod and dev are clean).
+#
+# Every `uses:` is pinned to a commit SHA with the release in a trailing comment, the
+# same style as `.github/workflows/release-client.yml` (this workflow has a job with
+# `contents: write`, so a moved tag must not be able to change what gets released).
+
 name: Client agent
 
 on:
   push:
+    branches: [main]
+    tags: ['agent-v*']
     paths:
       - 'clients/agent/**'
       - '.github/workflows/client-agent.yml'
@@ -9,36 +31,39 @@ on:
     paths:
       - 'clients/agent/**'
       - '.github/workflows/client-agent.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: client-agent-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A tag build is never cancelled by a newer main commit.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   test:
-    name: Lint, test and build
+    name: Node ${{ matrix.node }}
     runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: clients/agent
-    env:
-      # Secret reference only; tests are offline and never print it.
-      VENICE_API_KEY: ${{ secrets.VENICE_API_KEY }}
-
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Node 22
-        uses: actions/setup-node@v6
+      - name: Node ${{ matrix.node }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: clients/agent/package-lock.json
 
+      # Lockfile-exact install: fails when package.json and package-lock.json disagree.
       - name: Install
         run: npm ci --no-audit --no-fund
 
@@ -47,9 +72,250 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          # Secret reference only; the suite is offline and never prints it.
+          VENICE_API_KEY: ${{ secrets.VENICE_API_KEY }}
 
       - name: Build
         run: npm run build
 
+      # Proves the published file list without touching the registry.
+      - name: Pack dry run
+        run: npm pack --dry-run
+
       - name: CLI smoke
-        run: node dist/cli.js --help
+        run: |
+          node dist/cli.js --version
+          node dist/cli.js --help > /dev/null
+
+  audit:
+    name: Audit (production deps)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: clients/agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: clients/agent/package-lock.json
+
+      # `npm audit` reads the lockfile, no install needed. Dev-only advisories are
+      # acceptable (not shipped); production advisories fail the run.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+  package:
+    name: Pack tarball
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: clients/agent
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: clients/agent/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # `prepack` rebuilds dist, so the tarball can never contain a stale build.
+      - name: Pack
+        id: pack
+        run: |
+          set -euo pipefail
+          tarball=$(npm pack --silent)
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          sha256sum "$tarball" > "$tarball.sha256"
+          cat "$tarball.sha256"
+
+      # Guards the `files` list: the CLI and its types must be in, sources and tests out.
+      - name: Verify contents
+        run: |
+          set -euo pipefail
+          tarball=$(ls lanomat-agent-*.tgz | head -n 1)
+          listing=$(tar -tzf "$tarball")
+          printf '%s\n' "$listing"
+          for required in \
+            package/package.json \
+            package/dist/cli.js \
+            package/dist/index.js \
+            package/dist/index.d.ts \
+            package/README.md \
+            package/LICENSE; do
+            grep -qx "$required" <<<"$listing" || { echo "::error::$required missing from $tarball"; exit 1; }
+          done
+          if grep -qE '^package/(src|tests|node_modules)/' <<<"$listing"; then
+            echo "::error::$tarball contains source, tests or node_modules"
+            exit 1
+          fi
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-agent-tarball
+          path: |
+            clients/agent/lanomat-agent-*.tgz
+            clients/agent/lanomat-agent-*.tgz.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node 24 (for the version label)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Read version
+        id: version
+        run: |
+          echo "version=$(node -p "require('./clients/agent/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "revision=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Build image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: clients/agent
+          file: clients/agent/Dockerfile
+          load: true
+          tags: lanomat-agent:ci
+          build-args: |
+            NODE_IMAGE=node:24-alpine
+            VERSION=${{ steps.version.outputs.version }}
+            REVISION=${{ steps.version.outputs.revision }}
+          cache-from: type=gha,scope=client-agent
+          cache-to: type=gha,scope=client-agent,mode=max
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          docker run --rm lanomat-agent:ci --version
+          docker run --rm lanomat-agent:ci --help > /dev/null
+          # Unprivileged: the node image's node user (uid 1000), never root.
+          uid=$(docker run --rm --entrypoint id lanomat-agent:ci -u)
+          test "$uid" = "1000" || { echo "::error::image runs as uid $uid, expected 1000"; exit 1; }
+          # A writable HOME for ~/.config/lanomat and ~/.pi inside the container.
+          docker run --rm --entrypoint sh lanomat-agent:ci -c 'test -w "$HOME" && echo "HOME=$HOME writable"'
+
+      - name: Image size and labels
+        run: |
+          set -euo pipefail
+          size=$(docker image inspect lanomat-agent:ci --format '{{.Size}}')
+          mib=$((size / 1024 / 1024))
+          echo "image size: ${mib} MiB ($size bytes)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Soft budget: ~450 MiB is the honest size (Node 24 base + the pi SDK provider
+          # SDKs in prod node_modules). Warn above 500, fail above 600 so that dev deps,
+          # sources or a second install sneaking into the image is caught.
+          soft=500
+          hard=600
+          if [ "$mib" -gt "$hard" ]; then
+            echo "::error::image is ${mib} MiB, above the hard cap of ${hard} MiB"
+            exit 1
+          elif [ "$mib" -gt "$soft" ]; then
+            echo "::warning::image is ${mib} MiB, above the soft budget of ${soft} MiB"
+          fi
+          docker image inspect lanomat-agent:ci \
+            --format '{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          docker image inspect lanomat-agent:ci \
+            --format '{{json .Config.Entrypoint}}' | grep -q 'dist/cli.js'
+
+  # Tags only: the packed tarball for the release. Nothing is published unless NPM_TOKEN
+  # exists, and the GitHub release is a draft the owner publishes by hand.
+  release:
+    name: Release ${{ github.ref_name }}
+    needs: [test, audit, package, docker]
+    if: ${{ startsWith(github.ref, 'refs/tags/agent-v') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      VERSION: ${{ needs.package.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: clients/agent/package-lock.json
+          registry-url: https://registry.npmjs.org
+
+      - name: Download the tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-agent-tarball
+          path: dist
+
+      - name: Tag and manifest agree
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#agent-v}"
+          test "$tag" = "$VERSION" || {
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $VERSION"
+            exit 1
+          }
+          ls -l dist
+          (cd dist && sha256sum -c ./*.sha256)
+
+      # Draft first: the owner reviews the notes and publishes.
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<EOF
+          LANoMAT agent $VERSION (\`@lanomat/agent\`).
+
+          - Install: \`npm install -g ./lanomat-agent-$VERSION.tgz\` (Node 22 or 24) or run the
+            Docker image built from \`clients/agent\`.
+          - Prüfsumme: \`lanomat-agent-$VERSION.tgz.sha256\`.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "LANoMAT agent $VERSION" \
+            --notes-file notes.md
+
+      # Only with the registry secret; provenance needs id-token: write above.
+      - name: Publish to npm
+        if: ${{ env.NPM_TOKEN != '' }}
+        working-directory: dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish ./lanomat-agent-*.tgz --access public --provenance
+
+      - name: Publish skipped (no NPM_TOKEN)
+        if: ${{ env.NPM_TOKEN == '' }}
+        run: echo "::notice::NPM_TOKEN not set - tarball attached to the draft release only."
