@@ -14,6 +14,12 @@ return [
         'default' => 'Standard (:default GB)',
         'help' => 'Leer lassen für den Standard (:default GB).',
     ],
+    'change_role' => [
+        'action' => 'Rolle ändern',
+        'label' => 'Neue Rolle',
+        'success' => 'Rolle geändert.',
+        'failed' => 'Rolle nicht geändert',
+    ],
     'fields' => [
         'name' => 'Name',
         'email' => 'E-Mail',
