@@ -9,6 +9,8 @@ use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\RecipeValidator;
 use App\Modules\GameRecipes\Support\SkillRenderer;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Gate;
 
 /** Creates or updates a contributor's draft recipe (MCP tool and REST endpoint share this). */
 final class ContributeRecipe
@@ -22,6 +24,16 @@ final class ContributeRecipe
     public function handle(User $user, array $payload): GameRecipe
     {
         $slug = (string) ($payload['slug'] ?? '');
+        $existing = GameRecipe::query()->where('slug', $slug)->first();
+
+        if ($existing instanceof GameRecipe) {
+            // A contributor may only edit their own *draft*. Without this guard
+            // any paired participant could rewrite a curated recipe (steps are
+            // shell commands on every installer) and silently unpublish it.
+            if (Gate::forUser($user)->denies('update', $existing)) {
+                throw new AuthorizationException('You may only edit your own draft recipe.');
+            }
+        }
 
         $recipe = [
             'schema' => RecipeValidator::SCHEMA,
@@ -29,7 +41,7 @@ final class ContributeRecipe
             'title' => (string) ($payload['title'] ?? ''),
             'aliases' => array_values(array_map('strval', (array) ($payload['aliases'] ?? []))),
             'version' => isset($payload['version']) ? (string) $payload['version'] : null,
-            'status' => RecipeStatus::Draft->value,
+            'status' => $existing instanceof GameRecipe ? $existing->status->value : RecipeStatus::Draft->value,
             'platforms' => array_values(array_map('strval', (array) ($payload['platforms'] ?? ['windows']))),
             'summary' => $payload['summary'] ?? null,
             'description' => $payload['description'] ?? null,
@@ -39,7 +51,7 @@ final class ContributeRecipe
                 'name' => $slug,
                 'description' => (string) ($payload['skill_description'] ?? 'Install the game from the LAN LANoMAT recipe.'),
             ],
-            'requirements' => array_values((array) ($payload['requirements'] ?? [])),
+            'requirements' => array_values((array) ($payload['requires'] ?? $payload['requirements'] ?? [])),
             'steps' => array_values((array) ($payload['steps'] ?? [])),
             'metadata' => is_array($payload['metadata'] ?? null) ? $payload['metadata'] : ['contributed_via' => 'mcp'],
         ];
@@ -61,9 +73,9 @@ final class ContributeRecipe
                 'title' => $recipe['title'],
                 'aliases' => $recipe['aliases'],
                 'version' => $recipe['version'],
-                'status' => RecipeStatus::Draft,
-                'source' => 'contribution',
-                'source_ref' => 'mcp',
+                'status' => $existing instanceof GameRecipe ? $existing->status : RecipeStatus::Draft,
+                'source' => $existing instanceof GameRecipe ? $existing->source : 'contribution',
+                'source_ref' => $existing instanceof GameRecipe ? $existing->source_ref : 'mcp',
                 'platforms' => $recipe['platforms'],
                 'summary' => $recipe['summary'],
                 'description' => $recipe['description'],
@@ -73,7 +85,7 @@ final class ContributeRecipe
                 'requirements' => $recipe['requirements'],
                 'steps' => $recipe['steps'],
                 'metadata' => $recipe['metadata'],
-                'contributor_user_id' => $user->id,
+                'contributor_user_id' => $existing instanceof GameRecipe ? $existing->contributor_user_id : $user->id,
             ],
         );
 

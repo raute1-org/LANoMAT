@@ -79,10 +79,10 @@ final class RecipeValidator
             $problems[] = "{$origin}: skill.description must say what the skill does and when it applies (>= 20 chars)";
         }
 
-        $requirements = $data['requirements'] ?? [];
+        $requirements = $data['requires'] ?? $data['requirements'] ?? [];
 
         if (! is_array($requirements)) {
-            $problems[] = "{$origin}: requirements must be a list";
+            $problems[] = "{$origin}: requires must be a list";
             $requirements = [];
         }
 
@@ -107,7 +107,12 @@ final class RecipeValidator
             $match = $requirement['match'] ?? [];
             $url = $requirement['url'] ?? null;
 
-            if ((! is_array($match) || $match === []) && (! is_string($url) || $url === '')) {
+            $required = (bool) ($requirement['required'] ?? in_array($requirement['role'] ?? '', ['base', 'iso'], true));
+            $manual = (bool) ($requirement['manual'] ?? false);
+
+            if ($required && ! $manual && (! is_array($match) || $match === []) && (! is_string($url) || $url === '')) {
+                // An optional entry may be informational only (a tool the Orga
+                // provides, a note); a required one must name a file or a URL.
                 $problems[] = "{$where} needs match patterns, a url, or both";
             }
 

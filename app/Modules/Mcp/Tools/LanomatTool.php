@@ -6,11 +6,14 @@ namespace App\Modules\Mcp\Tools;
 
 use App\Models\User;
 use App\Modules\Events\Models\Event;
+use App\Modules\GameRecipes\Exceptions\RecipeException;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request as McpRequest;
 use Laravel\Mcp\Response;
@@ -38,14 +41,20 @@ abstract class LanomatTool extends Tool
                 static fn (array $messages): string => implode(' ', $messages),
                 $exception->errors(),
             )));
+        } catch (RecipeException $exception) {
+            return Response::error($exception->summary());
         } catch (AuthorizationException) {
             return Response::error('Forbidden: your LANoMAT account may not do that.');
         } catch (ModelNotFoundException|NotFoundHttpException) {
             return Response::error('Not found.');
         } catch (Throwable $exception) {
-            report($exception);
+            // Never echo framework/PDO/domain messages into the model
+            // context: they leak paths and SQL and turn attacker-controlled
+            // recipe titles into prompt text. The full detail stays in the log.
+            $ref = (string) Str::uuid();
+            Log::error('MCP tool failed', ['ref' => $ref, 'exception' => $exception]);
 
-            return Response::error('LANoMAT could not complete the request: '.$exception->getMessage());
+            return Response::error("LANoMAT could not complete the request (ref {$ref}).");
         }
     }
 

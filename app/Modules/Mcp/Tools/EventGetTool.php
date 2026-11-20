@@ -7,6 +7,7 @@ namespace App\Modules\Mcp\Tools;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Tournaments\Models\Tournament;
+use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -44,11 +45,13 @@ class EventGetTool extends LanomatTool
             ->orderBy('starts_at')
             ->get();
 
-        $schedule = ScheduleItem::query()
-            ->where('event_id', $event->id)
-            ->orderBy('starts_at')
-            ->orderBy('sort')
-            ->get();
+        $schedule = $this->modules()->enabled(Module::Schedule)
+            ? ScheduleItem::query()
+                ->where('event_id', $event->id)
+                ->orderBy('starts_at')
+                ->orderBy('sort')
+                ->get()
+            : collect();
 
         return $this->structured([
             'event' => [

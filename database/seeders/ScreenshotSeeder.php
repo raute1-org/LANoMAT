@@ -636,10 +636,23 @@ class ScreenshotSeeder extends Seeder
         }
 
         if ($event !== null) {
-            $shared = \App\Modules\Files\Models\SharedFile::query()->updateOrCreate(
-                ['event_id' => $event->id, 'original_name' => 'UT2004-DVD1.iso'],
-                ['user_id' => $orga->id, 'disk' => 'local', 'path' => 'event-'.$event->id.'/screenshot-ut2004.iso', 'size_bytes' => 4_500_000_000, 'mime' => 'application/octet-stream', 'visibility' => \App\Modules\Files\Enums\FileVisibility::Approved, 'reviewed_by' => $orga->id, 'reviewed_at' => now()],
-            );
+            // SharedFile's fillable list deliberately excludes disk/path/visibility
+            // (only UploadSharedFile writes them); updateOrCreate would drop them
+            // and insert a row with a null path. forceFill is the seeder path.
+            $shared = \App\Modules\Files\Models\SharedFile::query()->firstOrNew([
+                'event_id' => $event->id,
+                'original_name' => 'UT2004-DVD1.iso',
+            ]);
+            $shared->forceFill([
+                'user_id' => $orga->id,
+                'disk' => 'local',
+                'path' => 'event-'.$event->id.'/screenshot-ut2004.iso',
+                'size_bytes' => 4_500_000_000,
+                'mime' => 'application/octet-stream',
+                'visibility' => \App\Modules\Files\Enums\FileVisibility::Approved,
+                'reviewed_by' => $orga->id,
+                'reviewed_at' => now(),
+            ])->save();
             $recipe->files()->where('label', 'UT2004 DVD 1')->update(['shared_file_id' => $shared->id]);
 
             $game = \App\Modules\Games\Models\Game::query()->updateOrCreate(

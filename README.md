@@ -162,7 +162,7 @@ the disc image uploaded to the LAN file host, and the UT2004VR mod (SteamVR, Win
 **optional** step. Avatars (VRM characters) are a multi-select in the installer and are downloaded
 in parallel **from the LAN server's drives**, never from the internet. `lanomat:recipes:sync` reads
 the bundled directory, a local path, `git+https://…` or the NAS share
-(`smb://192.168.68.55/games-recipes/`, needs `smbclient`).
+(`smb://nas.local/games-recipes/`, needs `smbclient`).
 
 The full reference — every module, the MCP tool catalogue, the REST API, the agent and the recipe
 schema, with screenshots — is a Zudoku site in [`docs-site/`](docs-site/), served at `/docs` next to

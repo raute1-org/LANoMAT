@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
+import { useModules } from '@/composables/useModules';
 import { LayoutDashboard, LogOut, Settings } from '@lucide/vue';
 import Dashboard from '@/actions/Filament/Pages/Dashboard';
 import {
@@ -16,6 +17,8 @@ import type { User } from '@/types';
 type Props = {
     user: User;
 };
+
+const { has } = useModules();
 
 const handleLogout = () => {
     router.flushAll();
@@ -49,7 +52,7 @@ defineProps<Props>();
                 Einstellungen
             </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem :as-child="true">
+        <DropdownMenuItem v-if="has('mcp')" :as-child="true">
             <Link class="block w-full cursor-pointer" href="/mcp/connect">
                 Agent &amp; MCP
             </Link>

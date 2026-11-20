@@ -1,13 +1,13 @@
 ---
 title: SMB import
-description: Pull recipes and game content from the LAN share at smb://192.168.68.55/games-recipes/.
+description: Pull recipes and game content from the LAN share at smb://nas.local/games-recipes/.
 sidebar_icon: network
 ---
 
 The LAN's recipe and content staging lives on an SMB share:
 
 ```text
-smb://192.168.68.55/games-recipes/
+smb://nas.local/games-recipes/
 ```
 
 The share is the source of truth for large content: ISOs, patches, mods, avatars and the recipe
@@ -36,24 +36,24 @@ can, and use lowercase kebab-case for recipe folders.
 
 ```bash
 sudo mkdir -p /mnt/games-recipes
-sudo mount -t cifs //192.168.68.55/games-recipes /mnt/games-recipes \
+sudo mount -t cifs //nas.local/games-recipes /mnt/games-recipes \
   -o username=lanomat,uid=$(id -u),gid=$(id -g),vers=3.0
 ```
 
 **Windows**
 
 ```powershell
-net use Z: \\192.168.68.55\games-recipes /persistent:no
+net use Z: \\nas.local\games-recipes /persistent:no
 explorer Z:\
 ```
 
 **macOS**
 
 ```bash
-open "smb://192.168.68.55/games-recipes"
+open "smb://nas.local/games-recipes"
 ```
 
-`smbclient -L //192.168.68.55 -U lanomat` lists the shares if the name is not reachable. The share
+`smbclient -L //nas.local -U lanomat` lists the shares if the name is not reachable. The share
 is LAN-only; it is not exposed to the internet.
 
 ## Import a batch

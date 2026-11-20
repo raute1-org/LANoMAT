@@ -7,6 +7,7 @@ namespace App\Modules\Mcp\Http;
 use App\Models\User;
 use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Support\McpCodes;
+use App\Modules\Mcp\Support\McpConfig;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,7 +50,7 @@ class AuthenticateMcpToken
         if ($token->last_used_at === null || $token->last_used_at->copy()->addSeconds(self::TOUCH_EVERY_SECONDS)->isPast()) {
             $token->forceFill([
                 'last_used_at' => $now,
-                'expires_at' => $now->copy()->addDays(max(1, (int) config('mcp_agent.token_ttl_days', 90))),
+                'expires_at' => $now->copy()->addDays(McpConfig::tokenTtlDays()),
             ])->save();
         }
 

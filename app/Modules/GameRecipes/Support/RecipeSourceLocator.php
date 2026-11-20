@@ -71,13 +71,24 @@ final class RecipeSourceLocator
             ? ['-U', $password !== '' ? $user.'%'.$password : $user]
             : ['-N'];
 
+        $authFile = null;
+
+        if ($user !== '') {
+            // A credentials file keeps the password out of `ps` and the logs.
+            $authFile = $temp.'/.smbcredentials';
+            file_put_contents($authFile, "username={$user}\npassword={$password}\n");
+            chmod($authFile, 0600);
+            $auth = ['-A', $authFile];
+        }
+
+        $remote = $sub !== '' ? 'cd "'.$sub.'"; recurse ON; prompt OFF; mget *' : 'recurse ON; prompt OFF; mget *';
+
         $command = sprintf(
-            'cd %s && smbclient %s %s %s -c %s',
+            'cd %s && smbclient %s %s -c %s',
             escapeshellarg($temp),
             escapeshellarg('//'.$host.'/'.$share),
             implode(' ', array_map('escapeshellarg', $auth)),
-            $sub !== '' ? escapeshellarg($sub) : '',
-            escapeshellarg('recurse ON; prompt OFF; mget *'),
+            escapeshellarg($remote),
         );
 
         $process = Process::fromShellCommandline($command, timeout: 300);
@@ -89,6 +100,10 @@ final class RecipeSourceLocator
             throw RecipeException::source($source, trim($process->getErrorOutput()) ?: 'smbclient failed');
         }
 
+        if ($authFile !== null) {
+            @unlink($authFile);
+        }
+
         return ['path' => $temp, 'temporary' => true, 'ref' => $source];
     }
 
@@ -96,9 +111,17 @@ final class RecipeSourceLocator
     private function fromGit(string $source): array
     {
         $url = str_starts_with($source, 'git+') ? substr($source, 4) : $source;
+
+        // `git clone` would parse a value starting with `--` as an option
+        // (`--upload-pack=<cmd>` is code execution); `--` ends option parsing
+        // and the scheme allowlist keeps the source to transports we expect.
+        if (str_starts_with($url, '-') || preg_match('#^(https?://|ssh://|git@|file://)#', $url) !== 1) {
+            throw RecipeException::source($source, 'expected https://, ssh://, git@host:path or file:// for a git source');
+        }
+
         $temp = $this->tempDir('lanomat-recipes-git-');
 
-        $process = new Process(['git', 'clone', '--depth', '1', $url, $temp], timeout: 300);
+        $process = new Process(['git', 'clone', '--depth', '1', '--', $url, $temp], timeout: 300);
         $process->run();
 
         if (! $process->isSuccessful()) {

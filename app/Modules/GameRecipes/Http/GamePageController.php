@@ -22,6 +22,7 @@ use App\Support\Modules\Modules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -43,11 +44,18 @@ class GamePageController extends Controller
         return Inertia::render('Games/Index', [
             'games' => $recipes->map(fn (GameRecipe $recipe): array => $this->card($recipe) + [
                 'lan_ready' => $this->lanReady($recipe, $this->authUser($request), $matcher),
-                'running_tournaments' => $event === null ? [] : $this->tournamentsFor($recipe, $event),
-                'open_lfg' => $event === null ? 0 : $this->lfgFor($recipe, $event)->count(),
+                'running_tournaments' => $modules->enabled(Module::Tournaments) && $event !== null
+                    ? $this->tournamentsFor($recipe, $event)
+                    : [],
+                'open_lfg' => $modules->enabled(Module::Lfg) && $event !== null
+                    ? $this->lfgFor($recipe, $event)->count()
+                    : 0,
             ])->all(),
             'active_event' => $event === null ? null : ['slug' => $event->slug, 'name' => $event->name],
-            'modules' => [
+            // Renamed from `modules`: the shell already shares a `modules` list
+            // (enabled module keys), and an object with the same prop shadows it
+            // in the Vue pages (AppSidebar then calls .includes on an object).
+            'game_modules' => [
                 'game_servers' => $modules->enabled(Module::GameServers),
                 'web_voice' => $modules->enabled(Module::WebVoice),
                 'lfg' => $modules->enabled(Module::Lfg),
@@ -71,6 +79,12 @@ class GamePageController extends Controller
         $servers = $modules->enabled(Module::GameServers) ? $this->serversFor($recipe) : [];
         $playUrl = $recipe->playUrl();
         $event = $this->activeEvent();
+        $tournaments = $modules->enabled(Module::Tournaments) && $event !== null
+            ? $this->tournamentsFor($recipe, $event)
+            : [];
+        $lfg = $modules->enabled(Module::Lfg) && $event !== null
+            ? $this->lfgFor($recipe, $event)
+            : collect();
 
         return Inertia::render('Games/Show', [
             'game' => $this->card($recipe) + [
@@ -106,8 +120,8 @@ class GamePageController extends Controller
                 'requires_agent' => true,
             ],
             'servers' => $servers,
-            'tournaments' => $event === null ? [] : $this->tournamentsFor($recipe, $event),
-            'lfg' => $event === null ? [] : $this->lfgFor($recipe, $event)->map(fn (LfgPost $post): array => [
+            'tournaments' => $tournaments,
+            'lfg' => $lfg->map(fn (LfgPost $post): array => [
                 'id' => $post->id,
                 'title' => $post->title,
                 'body' => $post->body,
@@ -121,7 +135,10 @@ class GamePageController extends Controller
                 ->map(fn (GameRecipe $candidate): array => $this->sidebarItem($candidate, $this->lanReady($candidate, $user, $matcher)))
                 ->all(),
             'active' => $recipe->slug,
-            'modules' => [
+            // Renamed from `modules`: the shell already shares a `modules` list
+            // (enabled module keys), and an object with the same prop shadows it
+            // in the Vue pages (AppSidebar then calls .includes on an object).
+            'game_modules' => [
                 'game_servers' => $modules->enabled(Module::GameServers),
                 'web_voice' => $modules->enabled(Module::WebVoice),
                 'lfg' => $modules->enabled(Module::Lfg),
@@ -137,7 +154,10 @@ class GamePageController extends Controller
 
         abort_if($event === null, 422, 'Kein aktives Event.');
 
-        $create->handle($event, $this->authUser($request), [
+        $user = $this->authUser($request);
+        abort_if(Gate::forUser($user)->denies('create', LfgPost::class), 403);
+
+        $create->handle($event, $user, [
             'title' => 'Runde '.$recipe->title,
             'game' => $recipe->title,
             'body' => 'Schnell zusammen spielen — '.$recipe->title.'.',

@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
 done
 
 # Areas that are scanned (everything else is application code covered by gitleaks).
-SCOPE_RE='^(docs/|scripts/|ops/|README\.md$|compose[^/]*\.yml$|docker/|\.github/)'
+SCOPE_RE='^(docs/|docs-site/|scripts/|ops/|README\.md$|compose[^/]*\.yml$|docker/|\.github/)'
 SKIP_RE='(\.lock$|-lock\.json$|lock\.yaml$|\.(png|jpe?g|gif|webp|ico|svg|woff2?|ttf|zip|gz|pdf|mp3|mp4)$)'
 
 # --- patterns (PCRE) --------------------------------------------------------

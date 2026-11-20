@@ -33,6 +33,14 @@ class SharedFilePolicy
      */
     public function download(User $user, SharedFile $file): bool
     {
+        // A file of an unreleased (draft) event is not downloadable by a
+        // participant, even when the row is already approved. Without this,
+        // a sequential id from /api/v1/files/{id}/download leaked the ISO of
+        // an unannounced event to every token holder.
+        if ($file->event !== null && ! $file->event->isPubliclyVisible() && ! $user->isOrga()) {
+            return false;
+        }
+
         return match ($file->visibility) {
             FileVisibility::Approved => true,
             FileVisibility::Pending => $file->user_id === $user->id || $user->isOrga(),

@@ -22,10 +22,12 @@ class AvatarController extends Controller
         $slug = $request->string('recipe')->toString();
 
         if ($slug !== '') {
+            $needle = mb_strtolower($slug);
             $recipe = GameRecipe::query()
                 ->visibleTo($this->authUser($request))
-                ->where('slug', $slug)
-                ->first();
+                ->get()
+                ->first(fn (GameRecipe $candidate): bool => $candidate->slug === $needle
+                    || in_array($needle, $candidate->searchTerms(), true));
         }
 
         return response()->json([
