@@ -41,8 +41,6 @@ return new class extends Migration
             $table->timestamp('expires_at')->index();
             $table->timestamp('revoked_at')->nullable();
             $table->timestamps();
-
-            $table->index('user_id');
         });
     }
 

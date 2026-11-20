@@ -106,7 +106,7 @@ const props = defineProps<{
     active: string;
     active_event: { slug: string; name: string } | null;
     voice_url: string | null;
-    modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
+    game_modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
 }>();
 
 const readyServers = computed(() =>
@@ -409,7 +409,7 @@ function announceRound(): void {
                         </Card>
 
                         <!-- lfg -->
-                        <Card v-if="modules.lfg">
+                        <Card v-if="game_modules.lfg">
                             <CardHeader>
                                 <CardTitle
                                     class="flex items-center gap-2 text-base"
@@ -435,7 +435,7 @@ function announceRound(): void {
                                         Runde ankündigen
                                     </Button>
                                     <Button
-                                        v-if="voice_url && modules.web_voice"
+                                        v-if="voice_url && game_modules.web_voice"
                                         as-child
                                         size="sm"
                                         variant="outline"

@@ -102,7 +102,13 @@ class GameRecipe extends Model
     public function scopeVisibleTo(Builder $query, User $user): void
     {
         if (! $user->isOrga()) {
-            $query->whereIn('status', [RecipeStatus::Published->value]);
+            $query->where(function ($visible) use ($user): void {
+                $visible->whereIn('status', [RecipeStatus::Published->value])
+                    ->orWhere(function ($own) use ($user): void {
+                        $own->where('status', RecipeStatus::Draft->value)
+                            ->where('contributor_user_id', $user->id);
+                    });
+            });
         }
     }
 

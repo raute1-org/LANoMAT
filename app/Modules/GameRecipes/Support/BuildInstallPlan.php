@@ -82,6 +82,9 @@ final class BuildInstallPlan
                 'title' => $recipe->title,
                 'version' => $recipe->version,
                 'skill' => $this->skillName($recipe),
+                'launch_target' => $recipe->launchTarget(),
+                'launch_command' => $recipe->launchCommand(),
+                'play_url' => $recipe->playUrl(),
             ],
             'os' => $os,
             'target_dir' => $target,
@@ -130,6 +133,8 @@ final class BuildInstallPlan
     private function targetDir(GameRecipe $recipe, string $os): string
     {
         $name = trim((string) preg_replace('/[<>:"|?*\\\\\/]+/', '', $recipe->title));
+        $name = trim(str_replace(['..', '~'], '', $name));
+        $name = $name === '' ? $recipe->slug : $name;
 
         return $os === 'windows'
             ? 'C:\\Games\\'.$name

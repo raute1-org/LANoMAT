@@ -158,8 +158,6 @@ class RecipeController extends Controller
     {
         $user = $this->authUser($request);
 
-        abort_if($user->role->value === 'participant' && ! $user->isOrga(), 403);
-
         $data = $request->validate([
             'slug' => ['required', 'string', 'max:120'],
             'title' => ['required', 'string', 'max:200'],
@@ -167,6 +165,7 @@ class RecipeController extends Controller
             'description' => ['nullable', 'string'],
             'platforms' => ['nullable', 'array'],
             'aliases' => ['nullable', 'array'],
+            'requires' => ['nullable', 'array'],
             'requirements' => ['nullable', 'array'],
             'steps' => ['nullable', 'array'],
             'skill_description' => ['nullable', 'string', 'max:1024'],

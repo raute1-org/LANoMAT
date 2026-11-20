@@ -31,7 +31,7 @@ class RecipeContributeTool extends LanomatTool
             'description' => $schema->string(),
             'platforms' => $schema->array()->items($schema->string())->description('windows/linux/macos.'),
             'aliases' => $schema->array()->items($schema->string()),
-            'requirements' => $schema->array()->description('Same shape as recipe.yaml requirements: role, label, match[], required.'),
+            'requires' => $schema->array()->description('Same shape as recipe.yaml requires: role, label, match[], required.'),
             'steps' => $schema->array()->description('Same shape as recipe.yaml steps: id, title, os, optional, detail, commands[].'),
             'skill_description' => $schema->string()->description('What the skill does and when to use it.'),
         ];
@@ -47,7 +47,7 @@ class RecipeContributeTool extends LanomatTool
             'description' => $request->get('description'),
             'platforms' => (array) $request->get('platforms', ['windows']),
             'aliases' => (array) $request->get('aliases', []),
-            'requirements' => (array) $request->get('requirements', []),
+            'requirements' => (array) ($request->get('requires') ?? $request->get('requirements', [])),
             'steps' => (array) $request->get('steps', []),
             'skill_description' => $request->get('skill_description'),
         ]);

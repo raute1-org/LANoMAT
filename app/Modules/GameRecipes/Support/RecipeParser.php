@@ -58,14 +58,14 @@ final class RecipeParser
             'license' => isset($data['license']) ? (string) $data['license'] : null,
             'cover_image_path' => isset($data['cover']) && is_string($data['cover']) && $data['cover'] !== '' ? (string) $data['cover'] : null,
             'skill_markdown' => $skill,
-            'requirements' => array_values((array) ($data['requirements'] ?? [])),
+            'requirements' => array_values((array) ($data['requires'] ?? $data['requirements'] ?? [])),
             'steps' => array_values((array) ($data['steps'] ?? [])),
             'metadata' => is_array($data['metadata'] ?? null) ? $data['metadata'] : [],
         ];
 
         $files = [];
 
-        foreach (array_values((array) ($data['requirements'] ?? [])) as $index => $requirement) {
+        foreach (array_values((array) ($data['requires'] ?? $data['requirements'] ?? [])) as $index => $requirement) {
             /** @var array<string, mixed> $requirement */
             $files[] = [
                 'role' => (string) $requirement['role'],

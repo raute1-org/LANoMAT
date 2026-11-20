@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Mcp\Resources;
 
+use App\Models\User;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -39,7 +40,16 @@ class RecipeSkillResource extends Resource implements HasUriTemplate
     public function handle(Request $request): Response
     {
         $slug = (string) $request->get('slug');
-        $recipe = GameRecipe::query()->where('slug', $slug)->published()->first();
+        $user = request()->user();
+        $query = GameRecipe::query()->where('slug', $slug);
+
+        if ($user instanceof User) {
+            $query->visibleTo($user);
+        } else {
+            $query->published();
+        }
+
+        $recipe = $query->first();
 
         if (! $recipe instanceof GameRecipe) {
             return Response::error('Recipe not found.');

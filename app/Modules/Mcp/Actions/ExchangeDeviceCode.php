@@ -59,7 +59,9 @@ class ExchangeDeviceCode
             $row->last_polled_at = Carbon::now();
 
             if ($tooFast) {
-                $row->interval = (int) $row->interval + self::SLOW_DOWN_STEP;
+                // PostgreSQL's smallint is signed (max 32767), not 65535; clamping
+                // above that would 500 and brick the pairing row.
+                $row->interval = min(32767, (int) $row->interval + self::SLOW_DOWN_STEP);
                 $row->save();
                 $failure = new DeviceFlowError('slow_down', (int) $row->interval);
 

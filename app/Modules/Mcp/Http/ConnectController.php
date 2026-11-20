@@ -27,7 +27,7 @@ class ConnectController extends Controller
     public function show(Request $request, ResolveUserCode $resolve): Response
     {
         $user = $this->authUser($request);
-        $input = $request->string('code')->toString();
+        $input = mb_substr(trim($request->string('code')->toString()), 0, 32);
         $pending = $input === '' ? null : $resolve->handle($user, $input);
 
         return Inertia::render('Mcp/Connect', [

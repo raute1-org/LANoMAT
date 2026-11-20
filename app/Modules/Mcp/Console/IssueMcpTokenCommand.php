@@ -25,12 +25,19 @@ class IssueMcpTokenCommand extends Command
     public function handle(): int
     {
         $argument = $this->argument('user');
-        $needle = is_string($argument) ? $argument : '';
+        $needle = is_string($argument) ? trim($argument) : '';
+
+        if ($needle === '') {
+            $this->error('Pass a user id, email or Discord id.');
+
+            return self::FAILURE;
+        }
 
         $user = User::query()
             ->where('id', ctype_digit($needle) ? (int) $needle : 0)
-            ->orWhere('email', $needle)
+            ->orWhereRaw('lower(email) = ?', [mb_strtolower($needle)])
             ->orWhere('discord_id', $needle)
+            ->orderBy('id')
             ->first();
 
         if (! $user instanceof User) {

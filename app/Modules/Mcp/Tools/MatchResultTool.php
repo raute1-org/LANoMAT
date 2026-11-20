@@ -28,7 +28,7 @@ class MatchResultTool extends LanomatTool
             'action' => $schema->string()->enum(['report', 'confirm', 'dispute', 'withdraw'])->required(),
             'score1' => $schema->integer()->description('Own score (report only).'),
             'score2' => $schema->integer()->description('Opponent score (report only).'),
-            'lock_version' => $schema->integer()->description('Match lock_version (confirm/withdraw).'),
+            'lock_version' => $schema->integer()->description('Match lock_version (required for confirm/withdraw).'),
         ];
     }
 
@@ -56,10 +56,14 @@ class MatchResultTool extends LanomatTool
 
             abort_if($report === null, 422, 'There is no pending report for this match.');
 
+            if (in_array($action, ['confirm', 'withdraw'], true) && $request->get('lock_version') === null) {
+                abort(422, 'lock_version is required for confirm/withdraw.');
+            }
+
             if ($action === 'confirm') {
-                app(ConfirmMatchReport::class)->handle($report, $entry, (int) $request->get('lock_version', $match->lock_version));
+                app(ConfirmMatchReport::class)->handle($report, $entry, (int) $request->get('lock_version'));
             } elseif ($action === 'withdraw') {
-                app(WithdrawMatchReport::class)->handle($report, $entry, (int) $request->get('lock_version', $match->lock_version));
+                app(WithdrawMatchReport::class)->handle($report, $entry, (int) $request->get('lock_version'));
             } else {
                 app(DisputeMatchReport::class)->handle($report, $entry);
             }

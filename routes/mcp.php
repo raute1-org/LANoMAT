@@ -34,7 +34,9 @@ Route::prefix('api/v1')
     ->group(function () use ($modules): void {
         Route::get('me', MeController::class)->name('me');
 
-        Route::get('avatars', [AvatarController::class, 'index'])->name('avatars.index');
+        if ($modules->enabled(Module::GameRecipes)) {
+            Route::get('avatars', [AvatarController::class, 'index'])->name('avatars.index');
+        }
 
         if ($modules->enabled(Module::GameRecipes)) {
             Route::get('recipes', [RecipeController::class, 'index'])->name('recipes.index');
@@ -53,6 +55,8 @@ Route::prefix('api/v1')
 
 // The plan builder hands out absolute URLs with this name; keep it stable even
 // when the recipe block above is moved.
-Route::get('api/v1/files/{sharedFile}/download', [FileController::class, 'download'])
-    ->middleware([ForceJsonAccept::class, AuthenticateMcpToken::class, 'throttle:mcp-api', SubstituteBindings::class, 'throttle:60,1'])
-    ->name('mcp.files.download');
+if ($modules->enabled(Module::Files)) {
+    Route::get('api/v1/files/{sharedFile}/download', [FileController::class, 'download'])
+        ->middleware([ForceJsonAccept::class, AuthenticateMcpToken::class, 'throttle:mcp-api', SubstituteBindings::class, 'throttle:60,1'])
+        ->name('mcp.files.download');
+}

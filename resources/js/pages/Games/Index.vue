@@ -36,7 +36,7 @@ type GameCard = {
 const props = defineProps<{
     games: GameCard[];
     active_event: { slug: string; name: string } | null;
-    modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
+    game_modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
 }>();
 
 const query = ref('');
@@ -120,7 +120,7 @@ const platformLabel = (platforms: string[] | null): string =>
                     class="mt-3 font-mono text-xs text-muted-foreground"
                 >
                     ● LIVE {{ active_event.name }}
-                    <span v-if="modules.web_voice"> — Sprachchat offen</span>
+                    <span v-if="game_modules.web_voice"> — Sprachchat offen</span>
                 </p>
 
                 <p

@@ -53,7 +53,8 @@ class AdminPanelProvider extends PanelProvider
                 Action::make('agent')
                     ->label('Agent & MCP')
                     ->icon('heroicon-o-cpu-chip')
-                    ->url('/mcp/connect'),
+                    ->url('/mcp/connect')
+                    ->visible(fn (): bool => app(Modules::class)->routable(Module::Mcp)),
                 Action::make('docs')
                     ->label('Docs')
                     ->icon('heroicon-o-book-open')

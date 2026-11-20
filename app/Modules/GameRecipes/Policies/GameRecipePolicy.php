@@ -17,7 +17,7 @@ class GameRecipePolicy
 
     public function view(User $user, GameRecipe $recipe): bool
     {
-        return $user->isOrga() || $recipe->isPublic();
+        return $user->isOrga() || $recipe->isPublic() || $recipe->contributor_user_id === $user->id;
     }
 
     public function create(User $user): bool
