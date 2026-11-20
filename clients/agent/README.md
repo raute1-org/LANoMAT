@@ -40,6 +40,8 @@ lanomat-agent model setup                 # Venice provider + default model
 lanomat-agent doctor
 
 lanomat-agent install ut2004 --os windows # the one-shot installer
+lanomat-agent register                   # make the web buttons work
+lanomat-agent launch ut2004              # start the installed game
 lanomat-agent ask "install ut2004 for me on my pc"
 ```
 
@@ -274,6 +276,53 @@ lanomat-agent install ut2004 --os windows
 `--allow-external` is required for files that are not on the LAN. Such files are marked `EXTERNAL`
 in the plan and in the installer output. Only LAN files are downloaded by default.
 
+## Launch from the web games page
+
+The web games page (`/games/<slug>`) has **Installieren** and **Starten** buttons that use the
+`lanomat://` scheme. Register it once, then the buttons work from the browser:
+
+```bash
+lanomat-agent register          # Linux: writes the .desktop handler
+lanomat-agent register --yes    # Windows: executes the printed reg add command
+lanomat-agent launch ut2004     # same as the "Starten" button
+lanomat-agent open lanomat://install/ut2004
+lanomat-agent open lanomat://launch/ut2004
+lanomat-agent open lanomat://play/ut2004
+```
+
+Deep-link scheme:
+
+| Link | Action |
+|---|---|
+| `lanomat://install/<slug>` | run `install <slug>` |
+| `lanomat://launch/<slug>` | run `launch <slug>` |
+| `lanomat://play/<slug>` | alias for launch (the web **Starten** button) |
+
+`launch <slug>` first reads `GET /api/v1/recipes/{slug}`:
+
+- `play_url` set: opens it in the default browser (`xdg-open` on Linux, `open` on macOS, `start` on
+  Windows) and exits 0.
+- otherwise `launch_target` (or `launch_command`): substitutes `{{target}}` with the plan's
+  `target_dir` and `{{avatars}}` with the avatar directory, then runs it through the same command
+  runner as install steps. On Windows the command is `cmd /c start "" "<path>"` so the game starts
+  detached. `--dry-run` prints it without starting.
+- neither: prints a clear install suggestion and exits 2.
+
+The UT2004 recipe uses
+`C:\Games\Unreal Tournament 2004\System\UT2004.exe`; `lanomat-agent launch ut2004` starts it.
+`--target <dir>` and `--avatars <dir>` override the substitutions.
+
+`register` on Linux writes exactly `~/.local/share/applications/lanomat-agent.desktop` (or
+`$XDG_DATA_HOME/applications/…`) with `MimeType=x-scheme-handler/lanomat;` and
+`Exec=<node> <dist/cli.js> open %u`, then runs `update-desktop-database` when it is installed.
+Unrelated `.desktop` files are never touched. On Windows it prints the exact command:
+
+```bat
+reg add HKCU\Software\Classes\lanomat\shell\open\command /ve /d "\"<node>\" \"<cli.js>\" open \"%1\"" /f
+```
+
+It only runs it with `--yes`.
+
 ## Avatars from the LAN
 
 ```bash
@@ -313,6 +362,9 @@ and passes that path to step commands as `{{avatars}}`. This is the UT2004+VRM p
 | `recipes [--json]` | published recipe list |
 | `plan <slug> [--os] [--event] [--json]` | readable plan |
 | `install <slug> [--os] [--yes] [--avatar …] [--allow-external] [--dry-run] [--jobs] [--chat]` | installer |
+| `launch <slug> [--os] [--target] [--avatars] [--dry-run]` | play_url browser or local launch_target |
+| `open <lanomat://…>` | deep-link handler for install/launch/play |
+| `register [--yes]` | register the `lanomat://` scheme (Linux .desktop / Windows reg) |
 | `avatars [--recipe] [--all] [--avatar …] [--dest] [--jobs]` | VRM catalog + downloads |
 | `ask <prompt…> [--model] [--provider] [--print-command]` | pi session with LANoMAT MCP + skills |
 | `model setup [--key] [--model] [--provider]` | Venice/OpenAI-compatible provider |
@@ -362,6 +414,10 @@ defensive where the contract leaves room:
   always-working fallback.
 - `venice.env` is parsed as `export KEY=value` / `KEY=value` with optional quotes. It is read, never
   written, and the key is never logged.
+- Recipe-level `play_url`, `launch_target`, `launch_command` and `supports_multiplayer` are read
+  from both `GET /api/v1/recipes/{slug}` and the plan payload; the recipe value wins.
+- Launch target placeholders are `{{target}}` (plan `target_dir`) and `{{avatars}}` (avatar dir);
+  `{{slug}}` and `{{os}}` are also available.
 - No endpoints beyond the contract are invented.
 
 ## Development
@@ -369,13 +425,14 @@ defensive where the contract leaves room:
 ```bash
 npm run build     # tsc
 npm run lint      # eslint
-npm test          # vitest, 92 tests, no network
+npm test          # vitest, 108 tests, no network
 ```
 
 Tests cover config permissions, device-flow states, MCP merge, skills idempotence/prune, plan
 rendering, non-TTY avatar selection, resumable downloads, sha mismatches, parallel job caps,
 never-overwrite, manifests, command dry-run, model precedence, models.json/settings merge, key
-resolution, role merge, Venice offline fallback, tool-call probe and ask argv.
+resolution, role merge, Venice offline fallback, tool-call probe, ask argv, deep links, browser
+open, Windows launch and desktop registration.
 
 The test suite is offline. A live smoke test is optional:
 
