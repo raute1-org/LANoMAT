@@ -1,0 +1,106 @@
+---
+title: The system
+description: LANoMAT's 34 modules, the module contract, and how core and optional modules fit together.
+sidebar_icon: layout-dashboard
+---
+
+LANoMAT is a **modular monolith**. Every domain lives in `app/Modules/<Name>/` with the same shape:
+`Models`, `Actions`, `Policies`, `Filament`, `Jobs`, `Events`, `Contracts`. Modules talk through
+Laravel events and explicit contracts; no module reaches into another module's tables.
+
+<div class="stat-row">
+  <div class="stat"><span>Modules</span><strong>34</strong></div>
+  <div class="stat"><span>Core</span><strong>9</strong></div>
+  <div class="stat"><span>Optional</span><strong>25</strong></div>
+  <div class="stat"><span>Database</span><strong>Postgres 16</strong></div>
+  <div class="stat"><span>Realtime</span><strong>Reverb</strong></div>
+</div>
+
+## The module contract
+
+| Layer | Rule |
+|---|---|
+| Models | Only the owning module queries its tables. Other modules use a read-model or the model's public API. |
+| Actions | One class per use case (`RegisterForEvent`, `SubmitMatchReport`). Controllers and Filament resources stay thin. |
+| Policies | Every authorization goes through a policy. Never trust a client-supplied user id. |
+| Events | Cross-module fan-out is an event (`MatchReady`, `ServerLinkUpdated`, `GalleryUpdated`). |
+| Contracts | External systems are behind `DiscordClient`, `MumbleClient`, `PelicanClient`, `FileStore`, `RemoteExecutor`, `MusicClient`, `ReceiverClient`, `HypervisorClient`. Fakes back every test. |
+| Filament | Admin resources, pages and widgets live in the module's `Filament/` folder. |
+| Tests | Mirrored under `tests/{Feature,Unit}/<Name>/`; the bracket engine is pure domain code with exhaustive property tests. |
+
+## Core and optional
+
+`config/modules.php` resolves the deployment profile: `MODULES_PROFILE=core` (default) or `full`,
+plus per-module overrides `MODULE_<KEY>=true|false`. `php artisan lanomat:modules` prints the
+result. Disabling a module gates its routes (404), Filament resources, scheduler entries, listeners
+and Preflight probes — not the container bindings or Artisan commands.
+
+Hard dependencies (`Module::requires()`, enforced at boot):
+
+| Module | Requires |
+|---|---|
+| CustomServers, Lancache | Hosts |
+| Provisioning | Hosts, Lancache |
+| Recap | Gallery, Jukebox, Voting, Presence |
+| News | Gallery |
+| Gallery | Files |
+| Stats | Voting |
+| Friends | Presence |
+
+An enabled module whose requirement is off fails boot with a list of every violation. Core modules
+cannot be disabled.
+
+## Event as aggregate root
+
+An `Event` is one LAN edition. Its lifecycle is
+`draft → announced → registration → live → finished → archived`. Registration, seating, tournaments,
+schedule, catering, votes, LFG, gallery, jukebox, presence and recap hang off it.
+
+`User`, `Team` and `Game` are cross-event. That is why history, leaderboards and recaps across
+several LANs fall out of the model instead of needing a second schema.
+
+```text
+Event (draft … archived)
+├── Registration ── ticket, QR, check-in, arrival plan
+├── Seating ─────── grid, seat assignment, network metadata
+├── Tournaments ─── entries, matches, reports, bracket
+├── Schedule ────── slots, favourites, ICS
+├── Catering ────── menu, orders, cost split
+├── Voting ──────── polls, MVP of the night
+├── Lfg ─────────── posts per event
+├── Gallery ─────── photos, moderation, zip
+├── Files ───────── shared files, quota, file host
+├── Jukebox ─────── LAN radio queue
+├── Presence ────── who is online/playing/free
+├── Infoscreen ──── beamer scenes, tombola
+└── Recap ───────── post-LAN projection
+```
+
+## The 34 modules
+
+The group pages below are the map. Each module page has purpose, who uses it, key screens, the
+guards that matter and — where one exists — the MCP tool an agent can call.
+
+- **[Event & people](/docs/system/event-people)** — events, registration, seating, teams, friends,
+  identity, notifications, schedule, catering, LFG, voting, presence, recap, news.
+- **[Competition](/docs/system/competition)** — tournaments, games, game servers, stats, casting.
+- **[Site & ops](/docs/system/site-ops)** — game recipes, hosts, custom servers, LanCache,
+  provisioning, preflight, room audio.
+- **[Media](/docs/system/media)** — gallery, files, jukebox, infoscreen.
+- **[Integrations](/docs/system/integrations)** — Discord, Mumble voice, web voice, MCP.
+
+The participant-facing **[games library](/docs/system/games-library)** at `/games` is a view over
+the recipe catalogue, file host, server links and tournaments: install, launch, join a live server
+and announce a round without reading a single YAML file.
+
+## Deployment profiles in practice
+
+The production LAN runs the `core` profile plus the modules the venue uses. Optional modules are
+not "unfinished": they are toggles because a small LAN does not need provisioning, and a big one
+does not want to run without Discord. Turning one on is a deploy-time decision, not a code change.
+
+<div class="callout-live">
+  <strong>Reading order for operators.</strong> Start with <a href="/docs/system/event-people">Event
+  & people</a>, then <a href="/docs/system/competition">Competition</a>. Site & ops is for the
+  person who owns the venue network and the servers; Media is for the person running the beamer.
+</div>
