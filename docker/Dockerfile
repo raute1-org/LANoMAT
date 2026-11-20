@@ -103,6 +103,14 @@ RUN install-php-extensions \
     opcache \
     pcntl
 
+# Recipe sources: `lanomat:recipes:sync` reads the NAS share over SMB
+# (smbclient) and can shallow-clone a `git+https://…` catalog. Both are
+# runtime tools, not build tools, so they belong in this stage. Debian's
+# package is `smbclient` (Samba client suite).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends smbclient git \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
