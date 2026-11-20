@@ -1,50 +1,49 @@
 ---
 title: Tools & resources
-description: The 24 MCP tools, the recipe-skill resource, the install-game prompt and argument examples.
+description: The MCP tool catalogue, recipe resources, prompts and argument examples.
 sidebar_icon: list
 ---
 
-LANoMAT exposes **24 tools**, **one resource template** and **one prompt**. The tools mirror the
-participant app: events, tournaments, files, the games catalogue, the recipe catalogue and the
-everyday LAN surfaces. Tools whose module is off are not registered at all, so `tools/list` is the
-truth for a given deployment.
-
-<div class="live">LIVE 17:42 · tools/list · 24 tools · 1 resource · 1 prompt</div>
+The MCP surface is deliberately explicit: **24 tools**, **one prompt** (`install-game`) and **one
+resource template** (`lanomat://recipes/{slug}/skill`). The table below is the contract — it matches
+what the served server registers in `app/Modules/Mcp/Server/LanomatServer.php`. If a tool is not in
+this table, the server does not have it.
 
 ## Tool catalogue
 
-| Tool | Arguments | Returns |
-|---|---|---|
-| `lanomat_me` | — | User, role, server version, enabled modules and the agent default model |
-| `events_list` | `include_finished?` | Visible events with dates, status and the caller's registration |
-| `event_get` | `slug` | One event with tournaments, schedule and the caller's registration |
-| `event_register` | `slug`, `ticket_type?` | Registers the token owner (capacity and window rules apply) |
-| `teams_list` | `query?` | Cross-event teams with member count and the caller's role |
-| `tournament_list` | `event_slug` | Tournaments of an event with format, status and the caller's entry |
-| `tournament_bracket` | `tournament_id` | Rounds, entrants, scores, status and join info |
-| `tournament_checkin` | `tournament_id` | Checks the caller's own entry in (inside the window only) |
-| `match_result` | `match_id`, `action`, `score1?`, `score2?`, `lock_version?` | Reports, confirms, disputes or withdraws a match result |
-| `games_search` | `query?` | Tournament game catalogue: name, slug, team size |
-| `files_list` | `event_slug`, `query?` | Approved files of one event plus the caller's pending uploads |
-| `file_download_url` | `file_id` | Bearer-authenticated download URL for one file |
-| `servers_list` | `event_slug?` | Permanent servers, or the servers of one event |
-| `schedule_list` | `event_slug` | Ordered schedule with type, time, location and description |
-| `polls_list` | `event_slug` | Polls with options and the caller's own vote |
-| `poll_vote` | `poll_id`, `option_id` | Casts the caller's vote (one per poll) |
-| `catering_menu` | `event_slug` | Open and scheduled food orders with options and prices in cents |
-| `lfg_list` | `event_slug` | Active looking-for-group posts |
-| `lfg_create` | `event_slug`, `title`, `game`, `body?`, `slots_needed?` | Creates an LFG post for the caller |
-| `recipes_list` | `query?`, `platform?` | Published recipe summaries (aliases match too) |
-| `recipe_get` | `slug`, `include_skill?` | One recipe with requirements, steps, files and LAN matches |
-| `recipe_install_plan` | `slug`, `os?`, `event_slug?` | Ordered install plan with LAN URLs and missing content |
-| `recipe_avatars` | `slug?`, `query?` | Selectable avatar/content packs with LAN availability |
-| `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `platforms?`, `aliases?`, `requirements?`, `steps?`, `skill_description?` | A draft recipe for orga review |
-
-Tool names are flat, not prefixed with `lanomat_` (except `lanomat_me`). An MCP client may namespace
-them with the server name; the wire name is always the one in this table.
+| Tool | Arguments | Returns | REST equivalent |
+|---|---|---|---|
+| `lanomat_me` | — | User, role, enabled modules, agent default model | `GET /api/v1/me` |
+| `events_list` | `include_finished?` | Events with the caller's registration state | — |
+| `event_get` | `slug` | Event, my registration, tournaments, schedule | — |
+| `event_register` | `slug`, `ticket_type?` | Registration status | — |
+| `teams_list` | `query?` | Teams with member count and my membership | — |
+| `tournament_list` | `event_slug` | Tournaments with my entry state | — |
+| `tournament_bracket` | `tournament_id` | Tournament, matches, scores, join info | — |
+| `tournament_checkin` | `tournament_id` | My entry's check-in status | — |
+| `match_result` | `match_id`, `action`, `score1?`, `score2?`, `lock_version?` | Match and report state | — |
+| `games_search` | `query?` | Games catalogue (name, slug, team size) | — |
+| `files_list` | `event_slug`, `query?` | Files with size, visibility and download URL | `GET /api/v1/files` |
+| `file_download_url` | `file_id` | Bearer download URL for one file | `GET /api/v1/files/{file}/download` |
+| `servers_list` | `event_slug?` | Permanent or per-event game servers | — |
+| `schedule_list` | `event_slug` | Schedule items in order | — |
+| `polls_list` | `event_slug` | Polls, options and my vote | — |
+| `poll_vote` | `poll_id`, `option_id` | Cast vote | — |
+| `catering_menu` | `event_slug` | Open and scheduled food orders with prices | — |
+| `lfg_list` | `event_slug` | Active looking-for-group posts | — |
+| `lfg_create` | `event_slug`, `title`, `game`, `body?`, `slots_needed?` | The created post | — |
+| `recipes_list` | `query?`, `platform?` | Recipe summaries | `GET /api/v1/recipes` |
+| `recipe_get` | `slug`, `include_skill?` | Full recipe, requirements, steps, file matches | `GET /api/v1/recipes/{slug}` |
+| `recipe_install_plan` | `slug`, `os?`, `event_slug?` | Install plan (pure, no download) | `POST /api/v1/recipes/{slug}/plan` |
+| `recipe_avatars` | `slug?`, `query?` | Avatar/content packs with LAN status | `GET /api/v1/recipes/{slug}/avatars` |
+| `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `platforms?`, `aliases?`, `requirements?`, `steps?`, `skill_description?` | Draft recipe | `POST /api/v1/recipes` |
 
 Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `lfg_create` and
-`recipe_contribute`. Nothing publishes, deletes or edits an event.
+`recipe_contribute`; `recipe_contribute` only creates a **draft**. Nothing in the catalogue
+publishes, deletes or edits an event.
+
+Tools appear only when their module is enabled (`recipes_*` need `GameRecipes`, `files_*` need
+`Files`, `servers_list` needs `GameServers`, and so on); `lanomat_me` reports the enabled set.
 
 ## Call examples
 
@@ -55,7 +54,7 @@ Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `l
   "method": "tools/call",
   "params": {
     "name": "recipes_list",
-    "arguments": { "query": "ut2004", "platform": "windows" }
+    "arguments": { "platform": "windows", "query": "ut2004" }
   }
 }
 ```
@@ -67,79 +66,47 @@ Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `l
   "method": "tools/call",
   "params": {
     "name": "recipe_install_plan",
-    "arguments": {
-      "slug": "ut2004",
-      "os": "windows",
-      "event_slug": "lan-raute-1"
-    }
+    "arguments": { "slug": "unreal-tournament-2004", "os": "windows" }
   }
 }
 ```
-
-`slug` accepts the recipe slug or any alias, so `ut2004`, `ut2k4` and
-`unreal-tournament-2004` all resolve to the same recipe.
 
 The plan result is a structured object, not prose:
 
 ```json
 {
-  "recipe": {
-    "slug": "unreal-tournament-2004",
-    "title": "Unreal Tournament 2004",
-    "version": "3374",
-    "skill": "ut2004"
-  },
+  "recipe": { "slug": "unreal-tournament-2004", "title": "Unreal Tournament 2004", "version": "3374", "skill": "ut2004" },
   "os": "windows",
   "target_dir": "C:\\Games\\Unreal Tournament 2004",
-  "downloads_dir": "C:\\Games\\Unreal Tournament 2004/.lanomat-downloads",
-  "steps": [
-    {
-      "id": "patch-3374",
-      "title": "Apply OldUnreal patch 3374 (Windows x64)",
-      "os": "windows",
-      "optional": false,
-      "detail": "…",
-      "commands": [{ "shell": "powershell", "run": "…" }],
-      "verify": [{ "type": "file_exists", "path": "{{target}}/System/D3D11Drv.dll" }]
-    }
-  ],
+  "downloads_dir": "C:\\Games\\Unreal Tournament 2004\\.lanomat-downloads",
   "files": [
-    {
-      "recipe_file_id": 12,
-      "requirement": "iso",
-      "label": "UT2004 DVD 1 (or GOG/Steam install)",
-      "status": "matched",
-      "required": true,
-      "source": "lan",
-      "name": "ut2004-dvd1.iso",
-      "size_bytes": 4500000000,
-      "shared_file_id": 9182,
-      "download_url": "https://lan.example/api/v1/files/9182/download"
-    }
+    { "requirement": "iso", "label": "UT2004 DVD 1", "status": "matched", "source": "lan", "name": "UT2004-DVD1.iso", "size_bytes": 4500000000 },
+    { "requirement": "patch", "label": "OldUnreal UT2004 patch 3374", "status": "missing", "required": true }
   ],
-  "downloads": ["… the files with status matched or external …"],
+  "downloads": [
+    { "requirement": "iso", "name": "UT2004-DVD1.iso", "size_bytes": 4500000000 }
+  ],
   "avatars": [
-    {
-      "id": "recipe-file-18",
-      "label": "VRM avatar · Ayla (agile scout)",
-      "available_on_lan": true,
-      "download_url": "https://lan.example/api/v1/files/9201/download"
-    }
+    { "label": "VRM avatar · Ayla", "size_bytes": 18000000, "available_on_lan": true }
   ],
-  "missing": [],
-  "generated_at": "2026-11-20T19:42:00+00:00"
+  "missing": ["OldUnreal UT2004 patch 3374"],
+  "steps": [
+    { "id": "install-base", "title": "Install the base game from Disc 1", "optional": false }
+  ]
 }
 ```
 
-Files that are required but absent land in `missing`; a file with an external `url` has
-`status: "external"` and `source: "external"`. The agent must ask before downloading an external
-file. A required file that exists neither on the LAN nor at a URL makes the plan incomplete.
+(Abbreviated: every entry also carries its ids, hash and fallback URL.)
+
+A missing required file is listed in `missing` by label; the matching `files[]` entry has
+`"status": "missing"` and the requirement's glob patterns.
 
 ## Resources
 
-Resources are read with `resources/read` and a URI template. LANoMAT registers one:
+Resources are read with `resources/read` and a URI. The server registers exactly one resource
+template: the recipe's `SKILL.md`.
 
-| URI | MIME | Content |
+| URI template | MIME | Content |
 |---|---|---|
 | `lanomat://recipes/{slug}/skill` | `text/markdown` | The recipe's `SKILL.md` |
 
@@ -152,22 +119,20 @@ Resources are read with `resources/read` and a URI template. LANoMAT registers o
 }
 ```
 
-Only **published** recipes are readable; an unknown slug answers an error. The full recipe YAML is
-available through `recipe_get`; the resource exists so an agent can pull the skill text without
-spending a tool call.
+A URI for an unpublished or unknown slug returns an error, not an empty document.
 
 <div class="callout-live">
-  <strong>Read the skill before the plan.</strong> The recipe says what to fetch. The skill says how
-  to ask about VR, avatars, verification and the known failure modes.
+  <strong>Read the skill before the plan.</strong> The skill says how to ask about VR, avatars,
+  verification and the known failure modes; `recipe_get` carries the YAML facts.
 </div>
 
 ## Prompts
 
-One prompt packages the flagship conversation:
+The server registers one prompt.
 
 | Prompt | Arguments | What it does |
 |---|---|---|
-| `install-game` | `game` | Resolves the recipe from the user's words, reads the skill, plans, offers avatars, asks before external downloads |
+| `install-game` | `game` | Resolves the recipe, reads the skill, plans and asks for confirmation |
 
 ```json
 {
@@ -181,25 +146,17 @@ One prompt packages the flagship conversation:
 }
 ```
 
-## Module gating
+## Tool naming and exposure
 
-| Tool group | Registered when |
-|---|---|
-| `lanomat_me`, `games_search` | Always |
-| `events_list`, `event_get`, `event_register`, `teams_list` | Always (core modules) |
-| `tournament_list`, `tournament_bracket`, `tournament_checkin`, `match_result` | Always (core module) |
-| `files_list`, `file_download_url` | Files enabled |
-| `servers_list` | GameServers enabled |
-| `schedule_list` | Schedule enabled |
-| `polls_list`, `poll_vote` | Voting enabled |
-| `catering_menu` | Catering enabled |
-| `lfg_list`, `lfg_create` | Lfg enabled |
-| Recipe tools and the skill resource | GameRecipes enabled |
+Pi exposes each tool as `mcp__lanomat__<tool>` with the default `codemode` exposure. If you want the
+model to see the tools directly, set `"exposure": "direct"` on the server; for a large catalogue,
+keep `deferred` and let tool search find the one it needs. The server itself does not care how the
+client exposes it.
 
 ## Limits
 
-- `recipes_list`, `teams_list`, `games_search` and `files_list` return the full visible set; use the
-  query argument to narrow, there is no cursor.
-- `recipe_contribute` creates a **draft**; an orga reviews it under `/admin` before it is published.
-- Rate limit: 240 requests per minute per token and IP, `429` beyond that.
-- The token slides on use: every ~5 minutes of activity extends it to 90 days.
+- `recipes_list` returns at most 100 summaries; narrow with `query`.
+- `files_list` returns the visible files of one event (no cursor paging).
+- `file_download_url` returns a bearer-authenticated URL: fetch it with the same token, not a browser.
+- `recipe_contribute` creates a draft and validates it against the schema: 1–20 steps, unknown keys rejected.
+- Rate limit: 240 MCP API requests per minute per token and IP, `429` beyond that.

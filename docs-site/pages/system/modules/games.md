@@ -31,8 +31,7 @@ and team-size range stay stable across LANs, so stats and history accumulate.
 
 ## Docs for agents
 
-`games_search` searches the tournament game catalogue by name or slug and returns name, slug and
-team-size range. Recipe pages reference a game by slug, not by this catalogue id.
+`games_search` with an optional `query` returns the tournament game catalogue (name, slug, team sizes).
 
 <div class="callout-live">
   <strong>The catalogue is small on purpose.</strong> It is not a store. If a game needs more than a

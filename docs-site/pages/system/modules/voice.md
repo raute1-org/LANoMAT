@@ -17,7 +17,7 @@ app calls it through `MumbleClient`/`TeamSpeakClient` contracts.
 ## Key screens
 
 - Match page and team page — join links (`mumble://…`, `ts3server://…`).
-- `/voice/setup` — connection help and the server password (Mumble / TeamSpeak).
+- `/talk/connect` — connection help and the server password (Mumble).
 - Filament **Voice client installers** and provider settings.
 
 ## Guards and rules

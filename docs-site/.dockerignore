@@ -1,3 +1,8 @@
+# Build context for the docs image (docs-site/).
+#
+# Keep this list small and safe: the Dockerfile only needs the site source,
+# package files and deploy/healthcheck.sh. Everything here stays out of the
+# build cache and the final image.
 node_modules
 dist
 .git
@@ -8,5 +13,4 @@ npm-debug.log*
 .env.*
 !.env.example
 README.md
-deploy
 scripts

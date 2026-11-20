@@ -13,8 +13,7 @@ recap and a zip download.
 - **Teilnehmer** upload photos (also after the LAN, for the recap), retract their own, browse
   approved photos.
 - **Helpers / orga** approve, reject, highlight and delete.
-- **Guests** see approved photos of publicly visible events through the public photo routes and the
-  beamer; the gallery page itself requires login.
+- **Guests** see approved photos of public events and the beamer scene.
 
 ## Key screens
 

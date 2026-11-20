@@ -21,7 +21,14 @@ Participants do not read the YAML. They open the **[games library](/docs/system/
 `/games`, which lists every published recipe, marks what is already on the LAN, and connects Install,
 Launch, servers and tournaments in one page.
 
-<div class="live">LIVE 17:42 · recipe scan · 21 recipes · schema valid</div>
+<div class="live">LIVE 17:42 · recipe scan · 9 recipes · schema valid</div>
+
+<div class="callout-live">
+  <strong>Live example.</strong> The reference recipe's VR path is deployed by the operator at
+  <a href="https://ut.raute1.org/">ut.raute1.org</a>. The recipe carries that address as
+  <code>metadata.live_url</code>, so a page or agent that reads the recipe metadata can link it
+  without hardcoding a host.
+</div>
 
 ## The shape of `recipe.yaml`
 
@@ -46,6 +53,7 @@ metadata:
   genre: arena-shooter
   players: "2-32"
   lan_recommended: true
+  live_url: https://ut.raute1.org/   # optional: a deployed instance to link from the game page
   tags: [fps, vr, classic]
 ```
 
@@ -113,8 +121,8 @@ without a verification is a guess.
 6. Run the verify checks and report what failed, if anything.
 7. Write nothing outside the target and downloads folders.
 
-Planning is pure: no bytes move until the user confirms. The server records every plan it hands out,
-so an orga can see who planned which recipe on which OS; a re-plan is always a fresh resolution.
+Planning is pure: no bytes move until the user confirms. A stale plan (recipe changed after it was
+built) is rejected and rebuilt.
 
 ## Validation and contributing
 
@@ -128,9 +136,10 @@ npm install
 npm run validate
 ```
 
-The catalogue currently has **21 recipes**: two published (UT2004 and Ridge Racer Type 4) and 19
-drafts covering PS1/PS2/PS3/GameCube/Wii/N64 titles, UEVR and the Zelda remakes. Drafts are visible
-to orga and to `recipes_list` for an orga token, but not listed on `/games` until published. See
+The catalogue currently contains UT2004, Ridge Racer Type 4, F-Zero X VR, Pokémon Snap, Super Mario
+Galaxy, Super Mario Sunshine, and the three Zelda recipes (Ocarina of Time 3D, Majora's Mask 3D,
+Wind Waker). **CS 1.6** is in the catalogue as a draft: it is not listed on `/games` until it is
+published, and its game page surfaces the CS 1.6 tournament and servers once they exist. See
 [Contributing](/docs/recipes/contributing) for the workflow.
 
 <div class="callout-live">

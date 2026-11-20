@@ -5,12 +5,11 @@ sidebar_icon: history
 ---
 
 `Recap` is a pure read-model for the time after the LAN. It owns no tables; it assembles an event's
-summary from the other modules' read-models and serves a login-required page plus a beamer scene.
+summary from the other modules' read-models and serves a public page plus a beamer scene.
 
 ## Who uses it
 
-- **Teilnehmer** visit the recap after the event (login required); guests reach the same photos
-  through the beamer and the public photo routes.
+- **Guests and Teilnehmer** visit the public recap after the event.
 - **Orga** uses it as the closing slide and as a check that the event's data is complete.
 
 ## Key screens
@@ -25,8 +24,8 @@ summary from the other modules' read-models and serves a login-required page plu
 
 ## Guards and rules
 
-- The page requires login and is gated to publicly visible **and** `finished`/`archived` events. A
-  recap during the LAN would be premature.
+- The page is public only when the event is publicly visible **and** `finished`/`archived`. A recap
+  during the LAN would be premature.
 - The projection reaches facts only through `GalleryQuery`, `MvpPollQuery`, `JukeboxStats` and
   tournament models — never raw cross-module queries.
 - Photos link through the **public** gallery thumb route, never the auth-gated one.

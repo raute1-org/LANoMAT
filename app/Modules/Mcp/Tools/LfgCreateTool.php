@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Mcp\Tools;
 
 use App\Modules\Lfg\Actions\CreateLfgPost;
+use App\Modules\Lfg\Models\LfgPost;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -35,14 +37,25 @@ class LfgCreateTool extends LanomatTool
 
     protected function run(Request $request): Response|ResponseFactory
     {
-        $create = app(CreateLfgPost::class);
-        $event = $this->eventFromSlug((string) $request->get('event_slug'));
+        $data = $request->validate([
+            'event_slug' => ['required', 'string', 'max:120'],
+            'title' => ['required', 'string', 'max:120'],
+            'game' => ['required', 'string', 'max:64'],
+            'body' => ['nullable', 'string', 'max:1000'],
+            'slots_needed' => ['nullable', 'integer', 'min:1', 'max:64'],
+        ]);
 
-        $post = $create->handle($event, $this->user(), [
-            'title' => (string) $request->get('title'),
-            'game' => (string) $request->get('game'),
-            'body' => (string) $request->get('body', ''),
-            'slots_needed' => (int) $request->get('slots_needed', 1),
+        $user = $this->user();
+        abort_if(Gate::forUser($user)->denies('create', LfgPost::class), 403);
+
+        $create = app(CreateLfgPost::class);
+        $event = $this->eventFromSlug((string) $data['event_slug']);
+
+        $post = $create->handle($event, $user, [
+            'title' => (string) $data['title'],
+            'game' => (string) $data['game'],
+            'body' => (string) ($data['body'] ?? ''),
+            'slots_needed' => (int) ($data['slots_needed'] ?? 1),
         ]);
 
         return $this->structured([

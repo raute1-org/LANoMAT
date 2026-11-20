@@ -16,7 +16,7 @@ changes the table.
 
 ## Key screens
 
-- `/stats/leaderboard` — cross-event leaderboard, filterable by game.
+- `/stats` — cross-event leaderboard, filterable by game.
 - Profile — badges and placements.
 - Beamer winner scene — fed by the tournament, not by Stats.
 

@@ -124,6 +124,6 @@ curl -s  https://lan.example/docs/api | grep -o 'LANoMAT API'
 curl -sI https://lan.example/docs/screens/home-dark.png | grep -i cache-control
 ```
 
-Expect `200` for `/docs/`, the OpenAPI title in the API page, and a one-week `Cache-Control` for the
+Expect `200` for `/docs/`, the OpenAPI title in the API page, and an immutable cache header for the
 screenshot. If `/docs` returns the app instead, the Traefik priority is wrong; if assets 404, the
 `/docs` prefix was stripped.

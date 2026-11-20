@@ -17,11 +17,9 @@ per-match team rooms.
 
 ## Key screens
 
-- `/talk` — channels, participants, chat, join/leave; diagnostics, latency self-test and headset
-  mode live in the room panel.
-- `/talk/connect` — native client pairing approval and "Verbundene Geräte".
+- `/talk` — channels, participants, chat, join/leave.
+- `/talk/connect` — diagnostics, self-test, headset mode.
 - `/talk/client` and `/app` — download the native client in the server's own version.
-- `/voice/setup` — Mumble/TeamSpeak connection data and installers.
 - Filament **Web voice channels** — create, archive, moderate.
 
 | Dark | Light |

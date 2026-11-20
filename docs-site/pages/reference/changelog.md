@@ -8,24 +8,7 @@ LANoMAT has no versioned releases after the `m13` tag; work lands on `main` and 
 repository's [`CHANGELOG.md`](https://github.com/raute1-org/LANoMAT/blob/main/CHANGELOG.md). The
 phase tags `m0`–`m13` mark the MVP history.
 
-<div class="live">LIVE 17:42 · main · docs built 2026-11-21</div>
-
-## 2026-11-21
-
-**Added**
-
-- MCP server at `/mcp`: device-code pairing, 24 tools, the recipe-skill resource and the
-  `install-game` prompt, with a bearer REST surface under `/api/v1`.
-- Game recipes: `recipe.yaml` + `SKILL.md` catalogue, LAN file matching, install plans, avatar
-  selection, SMB/git import and the participant games library at `/games`.
-- `lanomat-agent`: login, skills sync, one-shot installs, avatars, deep links and the Venice model
-  default.
-- This documentation site (Zudoku) with a static container served at `/docs`.
-
-**Changed**
-
-- The games library, recipes and agent are optional modules (`GameRecipes`, `Mcp`), off in the
-  `core` profile.
+<div class="live">LIVE 17:42 · main · last merge 2026-11-20</div>
 
 ## 2026-11-20
 

@@ -12,8 +12,8 @@ and the viewer's policy.
 
 | Event status | What changes |
 |---|---|
-| `draft` | Invisible to everyone but orga (event page 404) |
-| `announced` | Event page, registration hint, no sign-up button |
+| `draft` | Invisible to everyone but orga (public page 404) |
+| `announced` | Public page, registration hint, no sign-up button |
 | `registration` | Sign-up open while `RegistrationAvailability` says `open`; seats open with the registration |
 | `live` | Walk-in registration continues while spots remain; check-in and all live modules run |
 | `finished` / `archived` | Read-only, recap link, arrival plan read-only |
@@ -25,7 +25,7 @@ of `EventStatus` scattered across controllers.
 
 | Module | What it does | Main users |
 |---|---|---|
-| [Events](/docs/system/modules/events) | Event CRUD, lifecycle, current-event context, event page | Orga, Teilnehmer |
+| [Events](/docs/system/modules/events) | Event CRUD, lifecycle, current-event context, public page | Orga, guests |
 | [Registration](/docs/system/modules/registration) | Sign-up, ticket tiers, QR ticket, check-in, arrival plan | Teilnehmer, Orga |
 | [Seating](/docs/system/modules/seating) | Grid editor, seat claim/release, per-seat network metadata | Teilnehmer, Orga |
 | [Teams](/docs/system/modules/teams) | Cross-event teams, join requests, ownership transfer | Teilnehmer |
@@ -37,7 +37,7 @@ of `EventStatus` scattered across controllers.
 | [Lfg](/docs/system/modules/lfg) | Looking-for-group posts per event | Teilnehmer |
 | [Voting](/docs/system/modules/voting) | Game votes, generic polls, MVP of the night | Teilnehmer, Orga |
 | [Presence](/docs/system/modules/presence) | Who is online, playing, free; beamer scene | Teilnehmer, beamer |
-| [Recap](/docs/system/modules/recap) | Post-LAN projection: podiums, photos, songs, MVP | Teilnehmer, Orga |
+| [Recap](/docs/system/modules/recap) | Post-LAN projection: podiums, photos, songs, MVP | Guests, Orga |
 | [News](/docs/system/modules/news) | Global orga news posts on the homepage | Orga, guests |
 
 ## The people model
@@ -46,12 +46,12 @@ of `EventStatus` scattered across controllers.
 anchor and the routing key for DMs and interactions, but never the merge anchor. A future
 user-fusion feature can repoint foreign keys; nothing depends on Discord's id as a primary key.
 
-Roles are `participant`, `helper`, `orga` and `admin`. Helpers are staff for Files/Gallery/Jukebox
-moderation; admin `Gate::before` bypasses policies for admins only — orga is explicit, not a
-superuser.
+Roles are `participant`, `orga` and `admin`. Helpers (a role used by Files/Gallery/Jukebox
+moderation) are treated as staff in those modules. Admin `Gate::before` bypasses policies for
+admins only — orga is explicit, not a superuser.
 
 <div class="callout-live">
   <strong>Screens first.</strong> The event page, seat map and bracket are the three surfaces a
   participant stands in front of. The rest of this group supports them; see the
-  <a href="/docs/start/tour">screen tour</a> for light/dark pairs.
+  <a href="/start/tour">screen tour</a> for light/dark pairs.
 </div>

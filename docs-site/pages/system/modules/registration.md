@@ -18,10 +18,9 @@ arrival plan.
 ## Key screens
 
 - `/events/{slug}/register` — the sign-up form, including the optional "Ankunft und Abreise".
-- `/dashboard` — the ticket card: QR, ticket label, seat and arrival lines.
+- `/ticket` and the dashboard ticket card — QR, ticket label, seat and arrival lines.
 - `/checkin/{token}` — phone self check-in (public QR at the entrance).
-- `/orga/events/{slug}/checkin` — scanner + token fallback; `/orga/events/{slug}/checkin-qr` is the
-  printable sheet.
+- `/orga/events/{slug}/checkin` — scanner + token fallback; `/checkin-qr` is the printable sheet.
 - Filament: registrations relation manager, **Ankunftsübersicht** with charts.
 
 ## Guards and rules
@@ -39,10 +38,8 @@ arrival plan.
 
 ## Docs for agents
 
-`events_list` / `event_get` include the caller's registration; `event_register` registers the token
-owner (`slug`, optional `ticket_type`). The action re-checks availability, capacity and the
-registration window, exactly like the web form. Recipe install plans are separate
-(`recipe_install_plan`).
+`events_list` and `event_get` include the caller's registration state; `event_register` registers the
+token owner for an event (`slug`, optional `ticket_type`). Self check-in itself has no MCP tool.
 
 <div class="callout-live">
   <strong>Privacy.</strong> The self check-in page receives only the event token. A ticket's

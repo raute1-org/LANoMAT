@@ -15,6 +15,7 @@ use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 /** The agent's REST surface for recipes: list, read, skill, plan, files, avatars, contribute. */
@@ -158,6 +159,7 @@ class RecipeController extends Controller
     public function contribute(Request $request, ContributeRecipe $contribute): JsonResponse
     {
         $user = $this->authUser($request);
+        Gate::forUser($user)->authorize('create', GameRecipe::class);
 
         $data = $request->validate([
             'slug' => ['required', 'string', 'max:120'],
