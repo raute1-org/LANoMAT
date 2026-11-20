@@ -6,6 +6,8 @@ namespace App\Modules\GameRecipes\Models;
 
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Enums\RecipeFileRole;
+use Database\Factories\GameRecipeFileFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -30,6 +32,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class GameRecipeFile extends Model
 {
+    /** @use HasFactory<GameRecipeFileFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'game_recipe_id',
         'role',
@@ -77,5 +82,10 @@ class GameRecipeFile extends Model
     public function patterns(): array
     {
         return array_values(array_filter(array_map('strval', $this->match_patterns ?? [])));
+    }
+
+    protected static function newFactory(): GameRecipeFileFactory
+    {
+        return GameRecipeFileFactory::new();
     }
 }

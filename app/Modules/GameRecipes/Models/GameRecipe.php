@@ -6,7 +6,9 @@ namespace App\Modules\GameRecipes\Models;
 
 use App\Models\User;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
+use Database\Factories\GameRecipeFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -38,6 +40,9 @@ use Illuminate\Support\Carbon;
  */
 class GameRecipe extends Model
 {
+    /** @use HasFactory<GameRecipeFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'slug',
         'title',
@@ -169,5 +174,10 @@ class GameRecipe extends Model
         return array_values($this->files->filter(
             static fn (GameRecipeFile $file): bool => $file->role->isSelectable(),
         )->values()->all());
+    }
+
+    protected static function newFactory(): GameRecipeFactory
+    {
+        return GameRecipeFactory::new();
     }
 }
