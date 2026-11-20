@@ -18,11 +18,11 @@ validator.
 
 ## Statuses
 
-| Status      | Meaning                                                                 |
-| ----------- | ----------------------------------------------------------------------- |
+| Status      | Meaning                                                                  |
+| ----------- | ------------------------------------------------------------------------ |
 | `published` | Files and steps checked against the real source; safe to offer to users. |
-| `draft`     | Authored from the collection and official docs, not yet verified on LAN.|
-| `archived`  | Kept for history; do not offer.                                         |
+| `draft`     | Authored from the collection and official docs, not yet verified on LAN. |
+| `archived`  | Kept for history; do not offer.                                          |
 
 A draft is not a stub: it has real match patterns, official emulator URLs and
 3–6 steps, and its notes say "needs verification on the LAN". Never invent a
@@ -37,7 +37,8 @@ SHA-256 or a download URL to make a draft look finished.
    (`{{downloads}}`). `{{os}}` is the detected platform.
 3. Steps run in order for the matching `os` (`windows`, `linux`, or `any`).
    Optional steps (`optional: true`) are offered, never forced.
-4. `verify` entries check the result (`file_exists`, `dir_exists`, `command`).
+4. `verify` entries check the result (`file_exists`, `dir_exists`, `command`);
+   an entry with `os` runs only on that platform.
 5. The matching `SKILL.md` tells an assistant how to ask the questions, run the
    steps and troubleshoot.
 
@@ -48,8 +49,8 @@ registry and no upload path of their own:
 
 ```yaml
 - role: avatar
-  label: "VRM avatars (multi-select from the LAN file host)"
-  match: ["*.vrm"]
+  label: 'VRM avatars (multi-select from the LAN file host)'
+  match: ['*.vrm']
   required: false
   tags: [avatar, vrm]
 ```
@@ -66,8 +67,8 @@ registry and no upload path of their own:
 
 1. Create `resources/recipes/<slug>/` with a slug matching
    `^[a-z0-9]+(-[a-z0-9]+)*$`, unique across the catalog.
-2. Write `recipe.yaml` against `schema/recipe.schema.json`. Keep `status:
-   draft` until someone has run it on the LAN hardware.
+2. Write `recipe.yaml` against `schema/recipe.schema.json`. Keep the status
+   `draft` until someone has run it on the LAN hardware.
 3. Write `SKILL.md` (60–150 lines) with `name` equal to `skill.name` and a
    `description` that says what the skill does and when to use it.
 4. Add the row to `_catalog.md`.
@@ -80,9 +81,26 @@ finds the recipe ("ut2k4", "ut 2k4", "unreal tournament" all point at
 ## Template variables and commands
 
 The installer resolves `{{target}}` (install dir), `{{downloads}}` (download
-dir) and `{{os}}`. Commands are one per entry, with no `&&` chains; use
-`powershell` on Windows, `bash` on Linux, `cmd` only when a tool requires it.
-Keep commands idempotent and safe to re-run.
+dir), `{{os}}` (platform) and `{{host}}` (the LAN address of the machine that
+hosts the game; `localhost` only works on that machine). A browser-based recipe
+points at it with `play_url`; a game with more than one way to start lists them
+under `launch_targets`. Both are documented in `schema/README.md`.
+
+Commands are one per entry, with no `&&` chains; use `powershell` on Windows,
+`bash` on Linux, `cmd` only when a tool requires it. The installer runs only
+the commands whose `shell` matches the machine, so an `os: any` step may carry
+a `powershell` set and a `bash` set side by side. Keep commands idempotent and
+safe to re-run.
+
+## Globs
+
+`match` patterns are matched literally, not case-folded. A pattern is
+case-sensitive on Linux, so list the spellings a file host may use: `*.vrm`
+and `*.VRM`, `r4.chd` and `R4.chd`, `ut2004*.iso` and `UT2004*.iso`. Keep
+patterns narrow (a sequel must not match), and use `notes` to say which title
+or disc a pattern belongs to. A required entry blocks the install when nothing
+matches, so a folder-based install (an existing GOG/Steam copy) is documented
+as a manual `{{target}}`, not as a glob.
 
 ## Licensing
 

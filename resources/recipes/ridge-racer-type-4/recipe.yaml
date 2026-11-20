@@ -5,7 +5,7 @@ aliases: ['r4', 'ridge racer 4', 'rr4', 'ridge racer type four', 'type 4']
 version: '1.0.0'
 status: published
 platforms: [windows, linux]
-summary: Run Ridge Racer Type 4 on the LAN from the user's own disc, either as a self-hosted browser arcade with 2P netplay or as the optional native recomp.
+summary: Run Ridge Racer Type 4 on the LAN from the user's own disc, either as a self-hosted browser arcade with 2P netplay or as the optional native recomp (Windows zip or Linux AppImage).
 description: |
     Ridge Racer Type 4 is the LAN's browser arcade cabinet: one Node process
     serves the disc, the BIOS, the soundtrack and a self-hosted EmulatorJS front
@@ -53,7 +53,7 @@ requires:
       size_bytes: 357817282
       sha256: ''
       url: ''
-      notes: "Serial SLUS-00797 (NTSC-U) is the only supported target; other regions are not established as compatible. The browser deck loads disc/r4.chd and the size above is the reference single-track CHD (the repo's /rom note quotes 357,817,282 B), so a CUE/BIN pair or another region has a different size. The CUE/BIN pair is what the native recomp and the repo's /lobby fallback read."
+      notes: "Serial SLUS-00797 (NTSC-U) is the only supported target; other regions are not established as compatible. The browser deck loads disc/r4.chd and the size above is the reference single-track CHD (the repo's /rom note quotes 357,817,282 B), so a CUE/BIN pair or another region has a different size. Glob matching is literal, so r4.chd and R4.chd are listed separately. The CUE/BIN pair is what the native recomp and the repo's /lobby fallback read."
     - role: base
       label: 'PlayStation BIOS (scph5501.bin, optional — OpenBIOS is bundled)'
       match: ['scph5501.bin', 'scph*.bin']
@@ -239,10 +239,10 @@ steps:
           working directory, so relative track names resolve.
 
           Verified in the repo's NATIVE-RECOMP-SETUP notes with an Xbox One pad on
-          XInput (analog). Keyboard fallback exists. Set `settings.toml`
-          `[video] fullscreen = 0` until Borderless is verified: exclusive
-          fullscreen (value 2) switched a test desktop to 1024x768, and Borderless
-          is untested. Run only one native instance at a time.
+          XInput (analog). Keyboard fallback exists. The native runtime writes
+          `settings.toml` on the first launch; keep `[video] fullscreen = 0` until
+          Borderless is verified, because exclusive fullscreen (value 2) switched
+          a test desktop to 1024x768. Run only one native instance at a time.
       commands:
           - shell: powershell
             run: 'Expand-Archive -Path "{{downloads}}/Ridge_Racer_4_Recomp_Windows.zip" -DestinationPath "{{target}}/RidgeRacer4Recomp" -Force'

@@ -282,6 +282,10 @@
                 "command": {
                     "type": "string",
                     "minLength": 1
+                },
+                "os": {
+                    "enum": ["windows", "linux", "any"],
+                    "description": "Run this check only on the given platform; omit for any platform the step runs on."
                 }
             },
             "allOf": [

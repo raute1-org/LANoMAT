@@ -33,8 +33,10 @@ R4 is the only disc with a real two-car VS Battle. Rage Racer and Ridge Racer
 - Node.js 20 or newer (`package.json` pins `engines >=20`).
 - The cabinet checkout plus `npm install`, plus the disc: a few hundred MB for
   the checkout and dependencies, and 341 MB for the CHD.
-- Windows or Linux. A controller is recommended but not required; the native
-  recomp was verified with an Xbox pad.
+- Windows or Linux. Globs match literally, so the recipe lists both `r4.chd`
+  and `R4.chd`; the installer runs `powershell` on Windows and `bash` on
+  Linux. A controller is recommended but not required; the native recomp was
+  verified with an Xbox pad.
 
 ## Steps
 
@@ -72,10 +74,9 @@ R4 is the only disc with a real two-car VS Battle. Rage Racer and Ridge Racer
 
 ## The play URL and the port
 
-`play_url` in the recipe is `http://{{host}}:8080/play?game=r4`. `{{host}}` is
-the LAN address of the PC that runs the cabinet, as printed in the server
-banner; `localhost` only works on that PC itself. If the address changes, use
-the printed one (or the dynamic `/qr.svg`).
+`play_url` is `http://{{host}}:8080/play?game=r4`: `{{host}}` is the LAN address
+printed by the server, and `localhost` only works on the host itself. If the
+address changes, use the printed URL or `/qr.svg`.
 
 The port is 8080 by default and `RR4_PORT` moves it; the console URL follows,
 but the `.bat` launchers, firewall rule and stop scripts still assume 8080.
@@ -97,8 +98,8 @@ single-player needs only inbound TCP 8080.
 ## 2P and Race Day
 
 - **2P lounge** (`/multiplayer`): room code, DISC selector, teams, READY. R4
-  starts a real split-screen VS Battle. The guest stream is video-only; the
-  guest hears the game only through the host's speakers.
+  starts a real split-screen VS Battle; the guest stream is video-only (host
+  speakers only).
 - **Race Day** (`/race-day`): one race, one shared clock, up to 50 seats in the
   MVP target. Every driver boots R4 in their own browser; the server owns the
   grid and standings, not video. The `/lobby` fallback needs ffmpeg.
@@ -110,9 +111,9 @@ single-player needs only inbound TCP 8080.
   the current one has `game.toml`, `launcher/` and `bios/`.
 - The launcher expects the EXE and `bios/` beside `launcher/`, not inside it.
   Browse to the `.cue`, never a track `.bin` or ZIP.
-- Set `settings.toml` `[video] fullscreen = 0` until Borderless is verified:
-  exclusive fullscreen (value 2) switched a test desktop to 1024x768. Run only
-  one native instance at a time.
+- The native runtime writes `settings.toml` on first launch; keep
+  `[video] fullscreen = 0` until Borderless is verified (exclusive, value 2,
+  switched a test desktop to 1024x768). Run one native instance at a time.
 - Linux AppImage: OpenBIOS is copied to `~/.local/share/RidgeRacer4Recomp`
   (`$XDG_DATA_HOME` wins, `RIDGERACER4_DATA_DIR` overrides); append
   `--bios /path/to/scph5501.bin` for a custom dump.
@@ -144,6 +145,5 @@ single-player needs only inbound TCP 8080.
 
 ## License
 
-Ridge Racer Type 4 belongs to Namco; the cabinet repo contains no game data and
-the user supplies the disc. OpenBIOS is freely licensed and bundled. The native
-recomp is an unofficial fan project and bundles OpenBIOS, not the game.
+Ridge Racer Type 4 belongs to Namco; the repo has no game data and the user
+supplies the disc. The recomp is an unofficial fan project bundling OpenBIOS.

@@ -62,10 +62,26 @@ and `url: ""` when unknown; never invent them.
 Each step needs `id`, `title`, `os` (`windows`/`linux`/`any`), `optional` and
 `detail` (markdown). `commands` are `{shell, run}` with `powershell`, `cmd` or
 `bash`; one command per entry, no `&&`. `verify` entries are `file_exists` or
-`dir_exists` (need `path`) or `command` (needs `command`).
+`dir_exists` (need `path`) or `command` (needs `command`), plus an optional
+`os` (`windows`/`linux`/`any`) for checks that only apply on one platform.
+
+The installer runs only the commands whose `shell` matches the machine:
+`powershell` on Windows, `bash` on Linux, `cmd` only when a tool needs it. An
+`os: any` step may therefore carry both a `powershell` and a `bash` set; the
+agent (or installer) filters by shell, not by reading comments.
 
 An optional step **must** set `optional: true`, and a required install must not
 depend on it.
+
+### Requirements and globs
+
+`match` globs are matched literally, not case-folded. On Linux a pattern is
+case-sensitive, so list the spellings a file host may use (`*.vrm` and
+`*.VRM`, `r4.chd` and `R4.chd`, `ut2004*.iso` and `UT2004*.iso`). Prefer narrow
+globs over a broad `*.iso`, and say in `notes` which title and disc a pattern
+belongs to. A `required` entry blocks the install when nothing matches; a
+folder-based install (for example an existing GOG/Steam copy) cannot be
+resolved by a glob, so document it as a manual `{{target}}` instead.
 
 ### Play URL and launch targets
 

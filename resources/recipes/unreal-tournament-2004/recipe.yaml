@@ -38,7 +38,7 @@ requires:
       required: true
       sha256: ''
       url: ''
-      notes: "Disc 1 is enough for the full install; Disc 2 only has extra maps. An already-installed GOG/Steam copy is fine too: use its folder as {{target}} and skip the base-install step. The disc's own Setup.exe is optional; this recipe copies the asset folders instead."
+      notes: "Disc 1 is enough for the full install; Disc 2 only has extra maps. An already-installed GOG/Steam copy is fine too, but a folder cannot match a glob: treat it as a manual target, skip this requirement and start at the patch step with {{target}} set to the existing install. The disc's own Setup.exe is optional; this recipe copies the asset folders instead."
     - role: patch
       label: 'OldUnreal UT2004 patch 3374 (Windows x64 zip / Linux x64 tar.bz2)'
       match:
@@ -99,21 +99,21 @@ steps:
           mixed in, and on Linux it stops the game from starting.
 
           This is OldUnreal's documented manual install. Disc 2 only adds maps; it
-          is optional. If the user already has a GOG/Steam install, point
-          `{{target}}` at it and skip this step.
+          is optional. An existing GOG/Steam copy is a manual target: a folder
+          cannot match the ISO glob, so skip the base requirement, point
+          `{{target}}` at that install and start at the patch step.
 
-          If Windows assigns no drive letter to the image, give it one in Disk
-          Management and rerun the copy command. The retail `Setup.exe` also works,
-          but then the install is at whatever version the disc carries (3339 or
-          3369) and OldUnreal asks for the 3369 update plus the ECE Bonus Pack
-          before a manual patch; the asset copy avoids that.
+          The drive letter comes from the mounted image, not a fixed `D:`. If
+          Windows assigns none, give it one in Disk Management and rerun the copy
+          command. The retail `Setup.exe` also works, but then the install is at
+          whatever version the disc carries (3339 or 3369) and OldUnreal asks for
+          the 3369 update plus the ECE Bonus Pack before a manual patch; the asset
+          copy avoids that.
       commands:
-          - shell: powershell
-            run: '$iso = (Get-ChildItem "{{downloads}}/ut2004*.iso" | Where-Object { $_.Name -notmatch "(dvd|disc|cd)[ _-]?2" } | Select-Object -First 1).FullName; Mount-DiskImage -ImagePath $iso'
           - shell: powershell
             run: |
                 $iso = (Get-ChildItem "{{downloads}}/ut2004*.iso" | Where-Object { $_.Name -notmatch "(dvd|disc|cd)[ _-]?2" } | Select-Object -First 1).FullName
-                $drive = (Get-DiskImage -ImagePath $iso | Get-Volume).DriveLetter
+                $drive = (Mount-DiskImage -ImagePath $iso -PassThru | Get-Volume).DriveLetter
                 Get-ChildItem "$($drive):\" -Directory | Where-Object { $_.Name -ne 'System' } | ForEach-Object { Copy-Item $_.FullName -Destination "{{target}}" -Recurse -Force }
       verify:
           - type: file_exists
@@ -151,10 +151,10 @@ steps:
       optional: false
       detail: |
           Download the Windows zip from the OldUnreal releases page, extract it and
-          copy the whole tree over `{{target}}`, merging and overwriting: `Help/`,
-          `Sounds/`, `System/`, `SystemARM64/`, `SystemLocalized/`, `Textures/` and
-          `Web/`. It is the patched game tree, not an installer, and no `Setup.exe`
-          runs.
+          copy the whole extracted tree over `{{target}}`, merging and
+          overwriting. It is not just `System/`: the archive also carries `Help/`,
+          `Sounds/`, `SystemARM64/`, `SystemLocalized/`, `Textures/` and `Web/`.
+          It is the patched game tree, not an installer, and no `Setup.exe` runs.
 
           Back up the game folder first if it was a working install. After the
           copy, `System\UT2004.exe` is the 64-bit build (x86-64), `D3D11Drv.dll` is
@@ -294,6 +294,15 @@ steps:
       verify:
           - type: file_exists
             path: '{{target}}/System/Build.ini'
+          - type: file_exists
+            path: '{{target}}/System/UT2004.exe'
+            os: windows
+          - type: file_exists
+            path: '{{target}}/System/D3D11Drv.dll'
+            os: windows
+          - type: file_exists
+            path: '{{target}}/System/ut2004-bin-amd64'
+            os: linux
 launch_targets:
     - id: flat-windows
       label: 'Flat on a monitor (Windows)'
