@@ -419,3 +419,68 @@ hooks, then run the targeted games tests plus `npm run types:check` and the Play
    documents the site for contributors — kept in the trial.
 4. Is `feat/mcp-server` still moving? It advanced 3 commits during this review; gates were run
    against `2c1d1d3`.
+
+Answers received from the coordinator (2026-11-21, binding):
+
+1. Mechanical failures (pint, import order, ESLint sub-project scope) are fixed **on the integration
+   branch**, never by reverting a content branch. Behavioural failures still block the branch.
+2. `eslint.config.js` is mine on the integration branch: ignore `clients/agent/**`, `docs-site/**`,
+   `resources/recipes/schema/**` and keep `storage/**` out. Done in `fbae418`/`085de58`.
+3. `docs-site/README.md` stays.
+4. `feat/mcp-server` keeps moving; always merge its latest head before starting the next worker.
+   Its docs win over older branch docs in conflicts (`77f15d0`, `f709b8a`); never take a worker's
+   `docs-site` wholesale.
+
+## 10. Canonical launch contract (settles W9 × W10)
+
+W9 and W10 disagreed: W9 had `launch_targets` (array of `{id,label,os,command,shell?}`) plus a
+`play_url` with `{{host}}`; W10 had `metadata.launch` as an object. The contract below is now
+implemented on the integration branch (`45f5d0f`) — **both** content branches rebase onto it.
+
+1. `metadata.launch` accepts a **string** (flat command/path) **or an object**
+   `{kind: steam|uri|exe, target, args?, shell?, notes?}`. `steam` takes the app id
+   (`steam://rungameid/<id>`), `uri` a full URI, `exe` a path plus optional args.
+2. `metadata.launch_targets` is the preferred multi-option form (`flat`, `vr`, …). It wins over
+   `launch`; `GameRecipe::launchTargets()` normalises entries (defaults for `id`/`label`/`os`, skips
+   entries without a command) and `launchTarget(?id)` picks one, falling back to the first. The legacy
+   `metadata.launch_vr` still yields a `vr` entry when the list has none.
+3. `metadata.play_url` may contain `{{host}}`; `GameRecipe::playUrlFor($host)` substitutes the request
+   host in the games page, the REST API and `recipe_get`, so no recipe hardcodes `localhost`.
+4. Kept: `metadata.live_url`, and `avatar_converter_url` where a recipe names one.
+5. Schema: `$defs.launchSpec` + `$defs.launchTarget`, `metadata.launch` is `oneOf[string, launchSpec]`;
+   documented in `resources/recipes/README.md`, `resources/recipes/schema/README.md`,
+   `docs-site/pages/recipes/contributing.md` and the agent command list.
+6. Agent: picks the OS-matching target (first as default) and supports
+   `lanomat-agent launch <slug> --variant <id>`; unknown ids exit 2 and list the available ids.
+7. Tests: `tests/Unit/GameRecipes/LaunchTargetsTest.php` (string/object/array/legacy/defaults),
+   `tests/Feature/GameRecipes/LaunchContractTest.php` (`{{host}}` substitution, target list in the
+   payload), `clients/agent/tests/launch-targets.test.ts` (selection, variant, unknown id).
+8. Recipe-side canonical shape: `requires` in YAML (not `requirements`), `status`, `platforms`.
+
+## 11. Integration branch — running log
+
+Branch `integration/mcp-agent` in this worktree, based on `swarm/r5`.
+
+| # | Ref | Commit | Result | Notes |
+|---|---|---|---|---|
+| 0 | `swarm/r5` base | `63e8a2b` + log commits | — | merge log lives here |
+| 1 | `feat/mcp-server` | `838275f` | clean | whole slice; later re-merged twice as the branch moved (`ea42b90`, `62328e5`) |
+| 2 | green-base fixes | `fbae418` | — | pint on `ScreenshotSeeder` + both architecture baselines, ESLint sub-project ignores, one `import/order` fix. Pint and Pest green afterwards (3 471 passed) |
+| 3 | `swarm/w7` (R8) | `36a30f1` | 6 conflicts, all "ours == base" | `clients/agent/{package.json,package-lock.json,README.md,Dockerfile,.dockerignore}` + `.github/workflows/client-agent.yml` taken from w7; agent gates `npm ci` / `lint` / `test` (108) / `build` green |
+| 4 | launch contract | `45f5d0f` | — | § 10 |
+| 5 | `feat/mcp-server` @ `62328e5` | `3ee5cbc` | 2 conflicts | `eslint.config.js` union of the identical ignore sets; `docs-site/pages/agent/install.md` keeps mcp's newer command list + the `--variant` line |
+| 6 | `swarm/w3` (R10) | `eabf3fd` | 3 conflicts | `ExchangeDeviceCode`: keep HEAD's smallint comment, clamp via `min(self::MAX_INTERVAL, …)`; `IssueMcpTokenCommand`: HEAD's empty-needle guard **plus** w3's grouped `where()` closure (no `orWhere` leak); `docs-site/pages/mcp/security.md` keeps our newer wording (w3's row is the same fact, older phrasing) |
+
+Deferred at this point (review not approved / re-review pending): w2 (attempted, 3 conflicts forecast,
+merge aborted), w1, w4, w5, w6, w8, w16, w17, w9–w11, w12–w15, w22.
+
+### 11.1 The w2 attempt and its planned resolution
+
+`swarm/w2` (head `9d928ce`) was merged and **aborted** again after R13 reopened it. Its three
+conflicts against the slice are all "both hardened the same code":
+
+| File | Resolution |
+|---|---|
+| `RecipeValidator.php` | keep w2's `match must be a list` check, keep HEAD's `required`/`manual` default and its message |
+| `RecipeFileMatcher.php` | use w2's `$this->query($event)->whereKey(...)` — the helper carries the same visibility + non-draft + event filters as HEAD's inline query |
+| `RecipeSourceLocator.php` | keep HEAD's credentials file (`-A`, password out of `ps`) **and** w2's `-D <sub>` argv form; git branch keeps HEAD's `--`+scheme allowlist and w2's `ExecutableFinder` try/catch |
