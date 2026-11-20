@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,8 @@ use Laravel\Mcp\Request as McpRequest;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tool;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
@@ -34,14 +37,37 @@ abstract class LanomatTool extends Tool
         try {
             return $this->run($request);
         } catch (ValidationException $exception) {
+            // Prefix each message with the machine field name: the locale
+            // translates the text (and may capitalise the attribute), but the
+            // model must know exactly which argument it has to fix.
+            $errors = $exception->errors();
+
             return Response::error(implode(' ', array_map(
-                static fn (array $messages): string => implode(' ', $messages),
-                $exception->errors(),
+                static fn (int|string $field, array $messages): string => (string) $field.': '.implode(' ', $messages),
+                array_keys($errors),
+                array_values($errors),
             )));
         } catch (AuthorizationException) {
             return Response::error('Forbidden: your LANoMAT account may not do that.');
         } catch (ModelNotFoundException|NotFoundHttpException) {
             return Response::error('Not found.');
+        } catch (AccessDeniedHttpException) {
+            return Response::error('Forbidden: your LANoMAT account may not do that.');
+        } catch (DomainException $exception) {
+            // Domain rules (registration window, full event, closed poll,
+            // stale lock_version, ...) are expected answers, not bugs: hand the
+            // model the message so it can react instead of reporting a 500.
+            return Response::error($exception->getMessage());
+        } catch (HttpExceptionInterface $exception) {
+            if ($exception->getStatusCode() >= 500) {
+                report($exception);
+
+                return Response::error('LANoMAT could not complete the request.');
+            }
+
+            return Response::error(
+                $exception->getMessage() !== '' ? $exception->getMessage() : 'The request could not be completed.',
+            );
         } catch (Throwable $exception) {
             report($exception);
 

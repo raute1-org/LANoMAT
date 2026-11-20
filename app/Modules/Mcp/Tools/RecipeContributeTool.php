@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Mcp\Tools;
 
 use App\Modules\GameRecipes\Actions\ContributeRecipe;
+use App\Modules\GameRecipes\Exceptions\RecipeException;
+use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -39,18 +42,29 @@ class RecipeContributeTool extends LanomatTool
 
     protected function run(Request $request): Response|ResponseFactory
     {
+        $user = $this->user();
+
+        Gate::forUser($user)->authorize('create', GameRecipe::class);
+
         $contribute = app(ContributeRecipe::class);
-        $recipe = $contribute->handle($this->user(), [
-            'slug' => (string) $request->get('slug'),
-            'title' => (string) $request->get('title'),
-            'summary' => $request->get('summary'),
-            'description' => $request->get('description'),
-            'platforms' => (array) $request->get('platforms', ['windows']),
-            'aliases' => (array) $request->get('aliases', []),
-            'requirements' => (array) $request->get('requirements', []),
-            'steps' => (array) $request->get('steps', []),
-            'skill_description' => $request->get('skill_description'),
-        ]);
+
+        try {
+            $recipe = $contribute->handle($user, [
+                'slug' => (string) $request->get('slug'),
+                'title' => (string) $request->get('title'),
+                'summary' => $request->get('summary'),
+                'description' => $request->get('description'),
+                'platforms' => (array) $request->get('platforms', ['windows']),
+                'aliases' => (array) $request->get('aliases', []),
+                'requirements' => (array) $request->get('requirements', []),
+                'steps' => (array) $request->get('steps', []),
+                'skill_description' => $request->get('skill_description'),
+            ]);
+        } catch (RecipeException $exception) {
+            // The validator collects every problem in one pass; give the model
+            // the whole list so it can fix the payload in one round.
+            return Response::error($exception->summary());
+        }
 
         return $this->structured([
             'recipe' => [

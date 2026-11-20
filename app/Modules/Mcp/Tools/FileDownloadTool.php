@@ -36,7 +36,7 @@ class FileDownloadTool extends LanomatTool
     {
         $file = SharedFile::query()->findOrFail((int) $request->get('file_id'));
 
-        abort_if(Gate::forUser($this->user())->denies('download', $file), 403);
+        Gate::forUser($this->user())->authorize('download', $file);
 
         return $this->structured([
             'file' => [
