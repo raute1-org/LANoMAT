@@ -15,7 +15,7 @@ prices; participants place one order each; the kitchen gets a list; the group se
 
 ## Key screens
 
-- `/events/{slug}/food` — open menus, place or change an order, my total.
+- `/events/{slug}/catering` — open menus, place or change an order, my total.
 - Filament **Food orders** — menu editor, open/close, per-option counts, CSV export.
 - Dashboard card — "Essen ist da" when an order is ready.
 
@@ -37,7 +37,8 @@ prices; participants place one order each; the kitchen gets a list; the group se
 
 ## Docs for agents
 
-No MCP tool yet.
+`catering_menu` returns the open and scheduled food orders of one event with their options and
+prices in cents. Placing or changing an order stays a human action in the app.
 
 <div class="callout-live">
   <strong>Kitchen list.</strong> The CSV export and the per-option counts come from the same

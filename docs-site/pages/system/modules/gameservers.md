@@ -12,7 +12,8 @@ to the match page, Discord embed and native client.
 
 - **Orga** configures nodes, presets, the port pool and permanent servers.
 - **Teilnehmer** click a join link on the match page; the server is already warm.
-- **Agents** can read the server list through the API (no dedicated MCP tool yet).
+- **Agents** read the server list with `servers_list` and print the same join string the match page
+  shows.
 
 ## Key screens
 
@@ -32,7 +33,8 @@ to the match page, Discord embed and native client.
 
 ## Docs for agents
 
-No MCP tool yet.
+`servers_list` returns the permanent LAN servers (no argument) or the servers of one event
+(`event_slug`), with game, status, permanent/manual flags and the join info.
 
 <div class="callout-live">
   <strong>Server down is not LAN down.</strong> A failed provision degrades one match; the bracket,

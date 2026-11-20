@@ -11,12 +11,13 @@ data.
 ## Who uses it
 
 - **Orga / streamer** configures the stream URL and adds overlays to OBS.
-- **Guests** watch the stream through the link on the event page.
+- **Everyone at the venue** watches the stream through the link on the event page.
 
 ## Key screens
 
 - `/events/{slug}` — stream link when configured.
-- `/overlay/{event}/{scene}` — OBS browser source (transparent, no auth).
+- `/overlay/tournament/{tournament}/bracket` — OBS browser source (transparent, no auth).
+- `/overlay/match/{match}/scoreboard` — per-match scoreboard overlay.
 - Filament event form — stream URL field.
 
 ## Guards and rules
