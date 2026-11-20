@@ -17,6 +17,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Fixed
 
+- `gameservers:import-eggs` works in the production image: `symfony/yaml` is now a runtime dependency (#150)
 - Venue entry: the TCP `HostSNI` rule no longer uses a wildcard (Traefik rejects it and disabled the router); it lists the app and the `ws.` name (#149)
 
 ### Changed
