@@ -151,7 +151,9 @@ services:
     profiles: [venue-entry]
     labels:
       traefik.enable: 'true'
-      traefik.tcp.routers.venue.rule: 'HostSNI(`${APP_DOMAIN}`) || HostSNI(`*.${APP_DOMAIN}`)'
+      # Traefik's TCP HostSNI matcher does not accept wildcards (a `*.name` rule is rejected and the router is
+      # disabled), so every name that must reach the venue is listed: the app and the Reverb host.
+      traefik.tcp.routers.venue.rule: 'HostSNI(`${APP_DOMAIN}`) || HostSNI(`ws.${APP_DOMAIN}`)'
       traefik.tcp.routers.venue.entrypoints: 'websecure'
       traefik.tcp.routers.venue.tls.passthrough: 'true'
       traefik.tcp.routers.venue.service: 'venue'

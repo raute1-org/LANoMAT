@@ -31,8 +31,8 @@ LAN client ───────────────────────
 ```
 
 - **TLS is not terminated on the cloud server.** Its Traefik passes the TLS
-  connection through by SNI (`<LAN_DOMAIN>` and its subdomains, so the Reverb
-  name is covered). One certificate lives at the venue: the DNS-01 wildcard from
+  connection through by SNI (`<LAN_DOMAIN>` and `ws.<LAN_DOMAIN>` for Reverb; the
+  TCP `HostSNI` matcher rejects wildcards, so every name is listed). One certificate lives at the venue: the DNS-01 wildcard from
   [lan-tls-certificates.md](lan-tls-certificates.md). Inside and outside see the
   same certificate and the same routers.
 - **The real client address survives** through a PROXY protocol v2 header that
@@ -82,6 +82,33 @@ label-only router for the test name), a request from outside through the cloud s
 
 The first attempt used `server.address` and failed with "connection refused" to the container's own address.
 The `socat` forwarder passes the PROXY header and the TLS bytes through unchanged.
+
+## Verified in a real cut-over
+
+The cut-over was run on real hosts: the cloud app stack stopped, a final dump restored at the venue, the venue stack
+started, the entry started on the cloud server, the venue name pointed at `<VENUE_SERVER_IP>` inside the LAN.
+
+| Check                                              | Result                                                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Certificate at the venue                           | DNS-01 through the DNS provider, real certificate for the app and the Reverb name                 |
+| Public path through the cloud entry and the tunnel | the app answers, a valid certificate chain is served, the websocket upgrade returns 101           |
+| LAN path through local DNS                         | the app answers directly, the websocket upgrade returns 101                                       |
+| Data move                                          | row counts equal on both sides before the venue stack started; sessions (database driver) survive |
+| Preflight and backup at the venue                  | green after `scripts/ops/install-backup-cron.sh` and one manual `backup.sh` run                   |
+
+Things that went wrong and the fix:
+
+- **`HostSNI(*.<LAN_DOMAIN>)` is rejected by Traefik.** The `venue` router was disabled ("not a valid hostname") and the
+  public name answered 404. The compose label now lists `<LAN_DOMAIN>` and `ws.<LAN_DOMAIN>`; add every further public
+  name the same way.
+- **Local DNS for the LanCache DNS:** the LanCache DNS image includes `/etc/bind/cache/custom.db` into its response
+  policy zone. Mount a file there with `<LAN_DOMAIN> IN A <VENUE_SERVER_IP>` and `*.<LAN_DOMAIN> IN A <VENUE_SERVER_IP>`
+  and recreate the DNS container; nothing else needs to be patched and the image update does not overwrite it.
+- **Activate the local DNS record only at the cut-over.** Earlier, the LAN would write into the copy of the database
+  while the cloud stack is still live.
+- Build the images at the venue before the event; during an event the shared uplink can stall `composer install` and
+  image pulls. Check IPv6 first when a download hangs on some hosts only (see
+  [venue-network-crs354.md](venue-network-crs354.md)).
 
 ## Repository support
 
@@ -179,7 +206,7 @@ on a small ARM CPU: check the datasheet of the exact model before relying on any
 - **Link.** One 40G port (a QSFP+ DAC cable to a QSFP+ port of the switch), or the two 10G ports bonded to two SFP+
   ports. Clients on the 48 gigabit ports are limited to 1G each, so one 10G link already carries a full house of
   LanCache downloads. Keep one 1G port of the server as a separate management port.
-- **Keep heavy work off the switch.** The CRS line is a switch first: bridging and VLANs run in hardware, while
+- **Keep heavy work off the switch** (measured: [venue-network-crs354.md](venue-network-crs354.md)). The CRS line is a switch first: bridging and VLANs run in hardware, while
   routing, NAT and WireGuard run on its small CPU and are slow. Terminate the WireGuard tunnel on the server (the
   `<VENUE_SERVER>` variant in [wireguard-tunnel.md](wireguard-tunnel.md)), not on the switch, and use the switch for
   DHCP, the static DNS entry and bridging only. The "tunnel on the venue router" variant stays valid for a router

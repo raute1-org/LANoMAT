@@ -13,6 +13,16 @@ lives in the git log, the roadmap
 ([`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md))
 and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-10-30.
 
+## 2026-11-20
+
+### Fixed
+
+- Venue entry: the TCP `HostSNI` rule no longer uses a wildcard (Traefik rejects it and disabled the router); it lists the app and the `ws.` name (#149)
+
+### Changed
+
+- Docs: venue network runbook for the CRS354 (flat LAN, LACP server link, LanCache DNS, WireGuard on the switch, measured routing limits and traps) and a verified cut-over section in the app-at-the-venue runbook (#149)
+
 ## 2026-11-01
 
 ### Added
