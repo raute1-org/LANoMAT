@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Command, Option } from 'commander';
 import {
     configPath,
@@ -724,7 +726,21 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isEntryPoint(): boolean {
+    const entry = process.argv[1];
+
+    if (!entry) {
+        return false;
+    }
+
+    try {
+        return fileURLToPath(import.meta.url) === realpathSync(entry);
+    } catch {
+        return false;
+    }
+}
+
+if (isEntryPoint()) {
     void main();
 }
 
