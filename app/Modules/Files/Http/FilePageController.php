@@ -4,6 +4,7 @@ namespace App\Modules\Files\Http;
 
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Actions\DeleteSharedFile;
 use App\Modules\Files\Actions\UploadSharedFile;
@@ -44,7 +45,7 @@ class FilePageController extends Controller
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'files' => $files->map(fn (SharedFile $file): array => $this->fileDto($file, $userId))->all(),
             'labels' => trans('files.page'),
-            'quota' => $this->quotaDto($event, $userId),
+            'quota' => $this->quotaDto($event, $request->user()),
             'upload' => $this->uploadDto($event),
         ]);
     }
@@ -118,15 +119,15 @@ class FilePageController extends Controller
      *
      * @return array{usedBytes: int, capBytes: int}|null
      */
-    private function quotaDto(Event $event, ?int $userId): ?array
+    private function quotaDto(Event $event, ?User $user): ?array
     {
-        if ($userId === null) {
+        if ($user === null) {
             return null;
         }
 
         return [
-            'usedBytes' => UploadQuota::usedBytes($event->id, $userId),
-            'capBytes' => UploadQuota::capBytes(),
+            'usedBytes' => UploadQuota::usedBytes($event->id, $user->id),
+            'capBytes' => UploadQuota::capBytes($user),
         ];
     }
 

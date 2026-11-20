@@ -13,6 +13,12 @@ lives in the git log, the roadmap
 ([`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md))
 and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-10-30.
 
+## 2026-11-21
+
+### Added
+
+- Files: admins can set an upload quota per user (user page, "Dateikontingent"); empty keeps the default `FILES_PER_USER_QUOTA_MB`. New nullable `users.files_quota_mb`, not mass assignable; the quota check, the page readout and the native client API use it
+
 ## 2026-11-20
 
 ### Fixed

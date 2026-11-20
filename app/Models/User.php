@@ -50,6 +50,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $steam_url
  * @property string|null $stream_url
  * @property string|null $profile_color
+ * @property int|null $files_quota_mb Admin-set upload quota in MB per event; null = the configured default (never mass assignable).
  * @property bool $share_location Whether other participants may see where this user is (voice room, game server).
  * @property array<string, bool>|null $notification_prefs
  * @property Carbon|null $created_at
@@ -94,6 +95,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, PasskeyUs
             'role' => Role::class,
             'notification_prefs' => 'array',
             'share_location' => 'boolean',
+            'files_quota_mb' => 'integer',
             'avatar_checked_at' => 'datetime',
             'last_login_at' => 'datetime',
         ];

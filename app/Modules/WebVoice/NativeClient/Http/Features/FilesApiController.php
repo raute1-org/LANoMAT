@@ -148,7 +148,7 @@ class FilesApiController extends NativeFeatureController
     private function quotaDto(Event $event, User $user): array
     {
         $used = UploadQuota::usedBytes($event->id, $user->id);
-        $cap = UploadQuota::capBytes();
+        $cap = UploadQuota::capBytes($user);
 
         return [
             'used_bytes' => $used,

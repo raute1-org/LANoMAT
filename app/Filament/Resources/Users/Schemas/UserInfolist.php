@@ -29,6 +29,11 @@ class UserInfolist
                     ->label(__('users.fields.role'))
                     ->badge()
                     ->formatStateUsing(fn (Role $state) => $state->label()),
+                TextEntry::make('files_quota_mb')
+                    ->label(__('users.fields.files_quota_mb'))
+                    ->formatStateUsing(fn (?int $state): string => $state === null
+                        ? __('users.files_quota.default', ['default' => intdiv((int) config('files.per_user_quota_mb'), 1024)])
+                        : number_format($state / 1024, 0, ',', '.').' GB'),
                 TextEntry::make('created_at')
                     ->label(__('users.fields.created_at'))
                     ->dateTime(),

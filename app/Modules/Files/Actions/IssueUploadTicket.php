@@ -78,7 +78,7 @@ class IssueUploadTicket
                 return $existing;
             }
 
-            if (UploadQuota::usedBytes($event->id, $actor->id) + $size > UploadQuota::capBytes()) {
+            if (UploadQuota::usedBytes($event->id, $actor->id) + $size > UploadQuota::capBytes($actor)) {
                 throw FileException::quotaExceeded();
             }
 
