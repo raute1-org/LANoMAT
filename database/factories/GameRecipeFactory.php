@@ -57,12 +57,38 @@ class GameRecipeFactory extends Factory
         ]);
     }
 
-    /** A published recipe, as it looks after an orga released it through the panel. */
+    /** Released through the panel: a reviewer and the release timestamp are recorded. */
     public function published(): static
     {
         return $this->state([
             'status' => RecipeStatus::Published,
+            'reviewed_by' => User::factory()->orga(),
             'reviewed_at' => now(),
+        ]);
+    }
+
+    /** Released by a specific orga, for assertions about the stamp. */
+    public function publishedBy(User $user): static
+    {
+        return $this->state([
+            'status' => RecipeStatus::Published,
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+        ]);
+    }
+
+    /**
+     * A recipe published by a synced source (YAML status=published): the file
+     * on disk released it, so there is no panel reviewer or stamp.
+     */
+    public function syncedFromBundle(): static
+    {
+        return $this->state([
+            'status' => RecipeStatus::Published,
+            'source' => 'bundled',
+            'source_ref' => 'resources/recipes',
+            'reviewed_by' => null,
+            'reviewed_at' => null,
         ]);
     }
 
@@ -70,6 +96,7 @@ class GameRecipeFactory extends Factory
     {
         return $this->state([
             'status' => RecipeStatus::Archived,
+            'reviewed_by' => User::factory()->orga(),
             'reviewed_at' => now(),
         ]);
     }
@@ -80,6 +107,7 @@ class GameRecipeFactory extends Factory
         return $this->state([
             'status' => RecipeStatus::Draft,
             'source' => 'contribution',
+            'source_ref' => 'mcp',
             'contributor_user_id' => $user->id,
         ]);
     }

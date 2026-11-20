@@ -23,6 +23,8 @@ class GameRecipePolicy
 
     public function create(User $user): bool
     {
+        // Anyone may propose a draft (MCP recipe_contribute). Panel entry is
+        // gated by viewAny(), so this alone never opens the admin resource.
         return true;
     }
 
@@ -44,6 +46,12 @@ class GameRecipePolicy
     }
 
     public function review(User $user, GameRecipe $recipe): bool
+    {
+        return $user->isOrga();
+    }
+
+    /** Class-level form of review(), for gates that decide before a record exists. */
+    public function reviewAny(User $user): bool
     {
         return $user->isOrga();
     }

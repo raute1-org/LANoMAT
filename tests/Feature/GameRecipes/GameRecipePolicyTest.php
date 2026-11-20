@@ -52,17 +52,19 @@ it('keeps publishing, reviewing and deleting for orga', function () {
         ->and($orga->can('view', $recipe))->toBeTrue()
         ->and($orga->can('update', $recipe))->toBeTrue()
         ->and($orga->can('review', $recipe))->toBeTrue()
+        ->and($orga->can('reviewAny', GameRecipe::class))->toBeTrue()
         ->and($orga->can('delete', $recipe))->toBeTrue()
         ->and($orga->can('deleteAny', GameRecipe::class))->toBeTrue();
 });
 
-it('keeps contributors from deleting or reviewing recipes', function () {
+it('keeps contributors from deleting, reviewing or running the review queue', function () {
     $contributor = User::factory()->create();
     $recipe = GameRecipe::factory()->contributedBy($contributor)->create();
 
     expect($contributor->can('delete', $recipe))->toBeFalse()
         ->and($contributor->can('deleteAny', GameRecipe::class))->toBeFalse()
-        ->and($contributor->can('review', $recipe))->toBeFalse();
+        ->and($contributor->can('review', $recipe))->toBeFalse()
+        ->and($contributor->can('reviewAny', GameRecipe::class))->toBeFalse();
 });
 
 it('lets an admin do everything through the gate-before pass', function () {
@@ -72,6 +74,7 @@ it('lets an admin do everything through the gate-before pass', function () {
     expect($admin->can('viewAny', GameRecipe::class))->toBeTrue()
         ->and($admin->can('update', $recipe))->toBeTrue()
         ->and($admin->can('review', $recipe))->toBeTrue()
+        ->and($admin->can('reviewAny', GameRecipe::class))->toBeTrue()
         ->and($admin->can('delete', $recipe))->toBeTrue()
         ->and($admin->can('deleteAny', GameRecipe::class))->toBeTrue();
 });

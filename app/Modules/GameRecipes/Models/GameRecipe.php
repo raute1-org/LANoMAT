@@ -43,6 +43,9 @@ class GameRecipe extends Model
     /** @use HasFactory<GameRecipeFactory> */
     use HasFactory;
 
+    /** Recipes authored in the admin panel (as opposed to a synced source kind). */
+    public const SOURCE_PANEL = 'panel';
+
     protected $fillable = [
         'slug',
         'title',

@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class RecipeResource extends Resource
@@ -48,6 +49,17 @@ class RecipeResource extends Resource
     public static function table(Table $table): Table
     {
         return RecipesTable::configure($table);
+    }
+
+    /** @return Builder<GameRecipe> */
+    public static function getEloquentQuery(): Builder
+    {
+        // The list shows the contributor of contributed drafts; eager-load it
+        // so the review queue does not issue one query per row.
+        /** @var Builder<GameRecipe> $query */
+        $query = parent::getEloquentQuery()->with('contributor');
+
+        return $query;
     }
 
     public static function getPages(): array
