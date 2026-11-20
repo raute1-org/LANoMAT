@@ -46,13 +46,30 @@ final class RecipeFileMatcher
             return null;
         }
 
+        // First the honest glob->LIKE pass, then a contains fallback for
+        // uploads that added a suffix. They are separate queries so a busy
+        // share's contains-hits can never crowd the real match out of the
+        // limit(50) window (review R13).
         $candidates = $this->query($event)
             ->where(function (Builder $query) use ($patterns): void {
                 foreach ($patterns as $pattern) {
                     $query->orWhere('original_name', 'ilike', $this->sqlLike($pattern));
+                }
+            })
+            ->orderByDesc('size_bytes')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
 
-                    // Some uploads keep the extension in a different case or add a
-                    // suffix ("... (1).iso"); a contains-match catches those too.
+        foreach ($candidates as $candidate) {
+            if ($this->nameMatches($candidate->original_name, $patterns)) {
+                return $candidate;
+            }
+        }
+
+        $fallback = $this->query($event)
+            ->where(function (Builder $query) use ($patterns): void {
+                foreach ($patterns as $pattern) {
                     $bare = preg_replace('/[*?].*$/', '', $pattern);
 
                     if (is_string($bare) && strlen($bare) >= 3) {
@@ -65,7 +82,7 @@ final class RecipeFileMatcher
             ->limit(50)
             ->get();
 
-        foreach ($candidates as $candidate) {
+        foreach ($fallback as $candidate) {
             if ($this->nameMatches($candidate->original_name, $patterns)) {
                 return $candidate;
             }
@@ -125,6 +142,18 @@ final class RecipeFileMatcher
 
     private function sqlLike(string $pattern): string
     {
-        return str_replace(['%', '_'], ['\\%', '\\_'], mb_strtolower($pattern));
+        $pattern = mb_strtolower($pattern);
+        $out = '';
+
+        foreach (str_split($pattern) as $char) {
+            $out .= match ($char) {
+                '*' => '%',
+                '?' => '_',
+                '%', '_', '\\' => '\\'.$char,
+                default => $char,
+            };
+        }
+
+        return $out;
     }
 }

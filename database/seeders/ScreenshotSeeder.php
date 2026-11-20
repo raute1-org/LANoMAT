@@ -8,8 +8,15 @@ use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
+use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Gallery\Models\EventPhoto;
+use App\Modules\GameRecipes\Enums\RecipeStatus;
+use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Enums\ServerLinkStatus;
+use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Infoscreen\Domain\SceneConfig;
 use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
@@ -597,15 +604,15 @@ class ScreenshotSeeder extends Seeder
     private function seedGameLibrary(): void
     {
         $orga = $this->seededOrga();
-        $event = \App\Modules\Events\Models\Event::query()->where('slug', 'screenshot-demo')->first();
+        $event = Event::query()->where('slug', 'screenshot-demo')->first();
 
-        $recipe = \App\Modules\GameRecipes\Models\GameRecipe::query()->updateOrCreate(
+        $recipe = GameRecipe::query()->updateOrCreate(
             ['slug' => 'unreal-tournament-2004'],
             [
                 'title' => 'Unreal Tournament 2004',
                 'aliases' => ['ut2004', 'ut2k4', 'ut 2k4', 'unreal tournament'],
                 'version' => '3374',
-                'status' => \App\Modules\GameRecipes\Enums\RecipeStatus::Published,
+                'status' => RecipeStatus::Published,
                 'source' => 'bundled',
                 'platforms' => ['windows', 'linux'],
                 'summary' => 'Arena shooter from the LAN disc image, with the optional UT2004VR mod.',
@@ -639,7 +646,7 @@ class ScreenshotSeeder extends Seeder
             // SharedFile's fillable list deliberately excludes disk/path/visibility
             // (only UploadSharedFile writes them); updateOrCreate would drop them
             // and insert a row with a null path. forceFill is the seeder path.
-            $shared = \App\Modules\Files\Models\SharedFile::query()->firstOrNew([
+            $shared = SharedFile::query()->firstOrNew([
                 'event_id' => $event->id,
                 'original_name' => 'UT2004-DVD1.iso',
             ]);
@@ -649,27 +656,27 @@ class ScreenshotSeeder extends Seeder
                 'path' => 'event-'.$event->id.'/screenshot-ut2004.iso',
                 'size_bytes' => 4_500_000_000,
                 'mime' => 'application/octet-stream',
-                'visibility' => \App\Modules\Files\Enums\FileVisibility::Approved,
+                'visibility' => FileVisibility::Approved,
                 'reviewed_by' => $orga->id,
                 'reviewed_at' => now(),
             ])->save();
             $recipe->files()->where('label', 'UT2004 DVD 1')->update(['shared_file_id' => $shared->id]);
 
-            $game = \App\Modules\Games\Models\Game::query()->updateOrCreate(
+            $game = Game::query()->updateOrCreate(
                 ['slug' => 'unreal-tournament-2004'],
                 ['name' => 'Unreal Tournament 2004', 'min_team_size' => 1, 'max_team_size' => 16],
             );
 
-            $link = \App\Modules\GameServers\Models\ServerLink::query()->firstOrNew([
+            $link = ServerLink::query()->firstOrNew([
                 'event_id' => $event->id,
                 'title' => 'UT2004 · DM-Antalus',
             ]);
             $link->forceFill([
                 'game_id' => $game->id,
-                'status' => \App\Modules\GameServers\Enums\ServerLinkStatus::Ready,
+                'status' => ServerLinkStatus::Ready,
                 'manual' => true,
                 'permanent' => false,
-                'join_info' => new \App\Modules\GameServers\Domain\JoinInfo(address: 'lan.raute1.org', port: 7777, connectString: 'unreal://lan.raute1.org:7777'),
+                'join_info' => new JoinInfo(address: 'lan.raute1.org', port: 7777, connectString: 'unreal://lan.raute1.org:7777'),
             ])->save();
         }
     }

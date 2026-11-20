@@ -92,19 +92,28 @@ final class RecipeSourceLocator
         );
 
         $process = Process::fromShellCommandline($command, timeout: 300);
-        $process->run();
 
-        if (! $process->isSuccessful()) {
+        try {
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                throw RecipeException::source($source, trim($process->getErrorOutput()) ?: 'smbclient failed');
+            }
+        } catch (RecipeException $exception) {
             $this->remove($temp);
 
-            throw RecipeException::source($source, trim($process->getErrorOutput()) ?: 'smbclient failed');
+            throw $exception;
+        } catch (\Throwable $exception) {
+            $this->remove($temp);
+
+            throw RecipeException::source($source, 'smbclient failed: '.$exception::class);
+        } finally {
+            if ($authFile !== null) {
+                @unlink($authFile);
+            }
         }
 
-        if ($authFile !== null) {
-            @unlink($authFile);
-        }
-
-        return ['path' => $temp, 'temporary' => true, 'ref' => $source];
+        return ['path' => $temp, 'temporary' => true, 'ref' => $this->redact($source)];
     }
 
     /** @return array{path: string, temporary: bool, ref: string} */
@@ -130,7 +139,13 @@ final class RecipeSourceLocator
             throw RecipeException::source($source, trim($process->getErrorOutput()) ?: 'git clone failed');
         }
 
-        return ['path' => $temp, 'temporary' => true, 'ref' => $source];
+        return ['path' => $temp, 'temporary' => true, 'ref' => $this->redact($source)];
+    }
+
+    private function redact(string $source): string
+    {
+        // Never persist or log credentials embedded in a source URL.
+        return (string) preg_replace('#//[^/@\s]+@#', '//***@', $source);
     }
 
     private function tempDir(string $prefix): string
