@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('tournament_bracket')]
-#[Description('The bracket/matches of one tournament: rounds, entrants, scores, status and any live server join info.')]
+#[Description('The bracket/matches of one tournament: rounds, entrants, scores and status.')]
 #[IsReadOnly]
 class TournamentBracketTool extends LanomatTool
 {
