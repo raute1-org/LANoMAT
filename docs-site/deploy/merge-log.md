@@ -324,32 +324,90 @@ In the real run, write down `git rev-parse --short HEAD` before each merge and a
 table. `git reflog` on the target branch is the fallback. Because `rerere` is on, a revert + re-merge
 replays the same resolutions.
 
-## 8. Worker branches (`swarm/w1`–`swarm/w19`)
+## 8. Worker branches — first-pass conflict forecast
 
-As of this writing **all 19 worker branches still sit on their base commit** (no commits yet), so
-there is nothing to merge; their bases are:
+Simulated on `scratch/r5-sim` (= the validated slice `be3a88b`) by merging each worker head with
+`--no-commit`, in card order, committing the clean ones. Workers are still moving; treat the table as
+a forecast, not a contract, and re-run the simulation before the real wave.
 
-| Base | Worker branches |
-|---|---|
-| `feat/mcp-server` `63e8a2b` | `swarm/w1`–`w5`, `w16`–`w19` |
-| `feat/game-recipes` `753a665` | `swarm/w9`–`w11` |
-| `feat/agent-client` `fd5ab6e` | `swarm/w6`–`w8` |
-| `docs/zudoku` `c35225d` | `swarm/w12`–`w15` |
+| Card | Branch | Head | Merge onto the slice | Conflicts / notes |
+|---|---|---|---|---|
+| 1 | `swarm/w1` | `dea4571` | clean, 12 files | recipes factories/policy/Filament tests |
+| 2 | `swarm/w2` | `9d928ce` | clean, 10 files | sync pruning, sources, export |
+| 3 | `swarm/w3` | `a818d15` | clean, 10 files | MCP device flow hardening |
+| 4 | `swarm/w4` | `faf7586` | clean, 15 files | MCP tool contracts + gating |
+| 5 | `swarm/w5` | `678023c` | clean, 8 files | games page queries, indexes |
+| 6 | `swarm/w6` | `46008b4` | clean, 9 files | agent launch/deep links |
+| 7 | `swarm/w7` | `b5c2f3a` | **1 conflict** | `clients/agent/README.md` — w6 and w7 both appended sections; keep both |
+| 8 | `swarm/w8` | `b36c4c3` | clean, 10 files | runner quoting + config migration |
+| 9 | `swarm/w9` | `753a665` | still at base | no commits yet |
+| 10 | `swarm/w10` | `0b127a3` | **28 conflicts** | `resources/recipes/**` — see 8.1 |
+| 11 | `swarm/w11` | `746b1a7` | **3 conflicts** | `resources/recipes/{README.md,schema/recipe.schema.json,schema/validate.mjs}` — see 8.2 |
+| 12 | `swarm/w12` | `c35225d` | still at base | no commits yet |
+| 13 | `swarm/w13` | `24d031f` | clean, 21 files | screenshots for games library + MCP pairing |
+| 14 | `swarm/w14` | `c35225d` | still at base | no commits yet |
+| 15 | `swarm/w15` | `1dce109` | **1 conflict** | `compose.yml` — see 8.3 |
+| 16 | `swarm/w16` | `63e8a2b` | still at base | its work sits on `review/w16` (`b36c4c3`, identical to `swarm/w8`) — coordinator must say which ref is the deliverable |
+| 17 | `swarm/w17` | `33d803b` | **2 conflicts** | `.env.example`, `README.md` — see 8.4 |
+| 18 | `swarm/w18` | `e7db357` | clean, 5 files | seeded end-to-end script |
+| 19 | `swarm/w19` | `dfb841d` | **3 conflicts** | `GamePageController.php`, `Games/Index.vue`, `Games/Show.vue` — see 8.5 |
 
-Consequences for later waves:
+General rules for the worker wave:
 
-- Merge order follows the cards: recipes cards 9–11 and backend cards 1–5 first, then agent 6–8,
-  docs 12–15, then 16–19, CI/ops (17) last. A worker branch based on `feat/game-recipes` must merge
-  **after** `feat/game-recipes` itself, otherwise its recipe edits conflict with the reformat again.
-- Cards 1–5 all write into `app/Modules/GameRecipes`, `app/Modules/Mcp`, `routes/`, `tests/Feature/*`
-  of the same base: expect conflicts between **w1/w2** (recipes support/actions), **w3/w4** (MCP
-  actions vs tools), and any two cards that both touch `config/recipes.php` or
-  `config/mcp_agent.php`. Those are the files to diff by hand, not to resolve with `--ours`.
-- Card 7 (`clients/agent` packaging) and card 17 (`.github/workflows`) touch
-  `.github/workflows/client-agent.yml`, which already exists with blob `a892a33` — a second edit is
-  a normal modify/modify conflict.
+- Merge in card order so review dependencies hold; a `feat/game-recipes`-based branch (w9–w11) must
+  merge after `feat/game-recipes`, and its recipes then need the reformat step below.
+- **After every recipe/schema merge** run
+  `npx prettier --write resources/recipes && npx prettier --check resources/ &&
+  node resources/recipes/schema/validate.mjs` — the worker branches were cut from the
+  non-reformatted `feat/game-recipes` tree, so they reintroduce style drift.
 - Any worker that adds a PHP class needs `composer dump-autoload` in the **real** vendor
   (`lanomat-app` image) or the class is invisible to PHPStan/Pest.
+- Workers that touch `config/recipes.php`, `config/mcp_agent.php`, `routes/mcp.php`,
+  `routes/web.php`, `AppServiceProvider.php` or `Module.php` get a normal modify/modify conflict
+  with the slice; resolve by keeping both sides and re-running R1's architecture checks.
+
+### 8.1 `swarm/w10` (recipes normalization + CS 1.6) — 28 conflicts, content trap
+
+The branch was cut from `feat/game-recipes`, so it carries the **old formatting** plus real content
+work (normalised drafts, `counter-strike-1-6`). Resolution:
+
+1. `git checkout --theirs -- resources/recipes` (w10 is the newer content).
+2. **Re-add the launch metadata the slice added** — w10's copies of
+   `unreal-tournament-2004/recipe.yaml` and `ridge-racer-type-4/recipe.yaml` have no
+   `metadata.launch`, `launch_vr`, `play_url`, `multiplayer`, `install_size`. Without them the games
+   page launch button and the agent deep link silently die for the two published recipes.
+3. `npx prettier --write resources/recipes`, then the validator.
+4. Verify: `grep -l "metadata:" -A6` on both files, and `git diff be3a88b -- resources/recipes | grep '^-.*launch'` must be empty.
+
+### 8.2 `swarm/w11` (VRM avatar catalog) — 3 conflicts
+
+Same base problem (old formatting) with a real addition: an `avatars` recipe plus ~15 lines of JSON
+schema and ~79 lines of validator. Resolution: take the branch side for the three files, then
+`npx prettier --write resources/recipes` (this reproduces the slice's formatting), keep both sides of
+`resources/recipes/README.md`, run the validator.
+
+### 8.3 `swarm/w15` (docs deployment) — `compose.yml`
+
+Both sides add a `docs:` service; w15's is the hardened superset (`image: lanomat-docs:${APP_VERSION}`,
+`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`, `no-new-privileges`, `expose: 8080`, own healthcheck,
+and it deliberately does **not** attach the app's `secure-headers@file` middleware because the image
+sets its own headers). Take **theirs**, then check: profile `docs`, the `/docs` prefix is not
+stripped by Traefik, and `docs-site/README.md` still describes the command that now exists.
+
+### 8.4 `swarm/w17` (CI/ops) — `.env.example`, `README.md`
+
+Both sides rewrite the recipe-source block. Resolution: keep w17's `<NAS_HOST>` placeholder, keep
+both README sections, and **fix one stale claim**: w17 writes "smbclient, which is not in the app
+image", but `c238734` now installs `smbclient` and `git` in the runtime stage
+(`docker/Dockerfile`, prod stage). The comment must say the image ships them, otherwise ops will
+mount a share for no reason. w17 also adds `docs/infra/mcp-ops.md`, which its `.env.example` comment
+links to — the merge must land both, never one without the other.
+
+### 8.5 `swarm/w19` (games page E2E) — 3 conflicts
+
+w19 changes `GamePageController` and the two `Games/*.vue` pages for test hooks; w5 (merged earlier)
+changed the same files for batching/indexes. Resolve by hand, keeping w5's query work and w19's
+hooks, then run the targeted games tests plus `npm run types:check` and the Playwright/browser run.
 
 ## 9. Open questions for the coordinator
 
