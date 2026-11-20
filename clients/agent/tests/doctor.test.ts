@@ -145,7 +145,8 @@ describe('doctor', () => {
         const offlineCheck = check(offline, 'Server');
 
         expect(offlineCheck.ok).toBe(false);
-        expect(offlineCheck.detail).toContain('offline — cannot reach http://lan.local');
+        expect(offlineCheck.detail).toBe('offline — cannot reach http://lan.local: fetch failed');
+        expect(offlineCheck.detail).not.toContain('Cannot reach http://lan.local: Cannot reach');
         expect(offlineCheck.detail).not.toContain('401');
     });
 

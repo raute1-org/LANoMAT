@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ChecksumError, downloadFile, downloadMany, DownloadTimeoutError } from '../src/download.js';
+import { ChecksumError, downloadFile, downloadMany, DownloadSizeError, DownloadTimeoutError } from '../src/download.js';
 import { removeDir, tempDir } from './helpers.js';
 
 const payload = Buffer.from('hello world');
@@ -222,5 +222,92 @@ describe('download engine', () => {
         expect(signals).toHaveLength(1);
         expect(signals[0]).toBeInstanceOf(AbortSignal);
         expect(signals[0]?.aborted).toBe(false);
+    });
+
+    it('enforces task.size_bytes mid-stream and keeps the .part file', async () => {
+        const big = Buffer.alloc(1024 * 1024, 1);
+
+        await expect(
+            downloadFile(
+                { url: 'http://lan.local/capped.bin', filename: 'capped.bin', destDir: dir, size_bytes: 10 },
+                { fetchImpl: async () => new Response(big) },
+            ),
+        ).rejects.toBeInstanceOf(DownloadSizeError);
+
+        await expect(access(join(dir, 'capped.bin'))).rejects.toThrow();
+        expect(await readdir(dir)).toEqual(['capped.bin.part']);
+    });
+
+    it('enforces an absolute maxBytes cap', async () => {
+        await expect(
+            downloadFile(
+                { url: 'http://lan.local/capped.bin', filename: 'capped.bin', destDir: dir },
+                {
+                    maxBytes: 10,
+                    fetchImpl: async () =>
+                        new Response(Buffer.alloc(4096, 2), {
+                            headers: { 'content-length': '4096' },
+                        }),
+                },
+            ),
+        ).rejects.toBeInstanceOf(DownloadSizeError);
+
+        await expect(access(join(dir, 'capped.bin'))).rejects.toThrow();
+    });
+
+    it('rejects an announced content-length above the limit before writing', async () => {
+        await expect(
+            downloadFile(
+                { url: 'http://lan.local/capped.bin', filename: 'capped.bin', destDir: dir, size_bytes: 10 },
+                {
+                    fetchImpl: async () =>
+                        new Response(Buffer.from('12345'), {
+                            headers: { 'content-length': '100' },
+                        }),
+                },
+            ),
+        ).rejects.toBeInstanceOf(DownloadSizeError);
+
+        await expect(access(join(dir, 'capped.bin'))).rejects.toThrow();
+    });
+
+    it('discards a .part that is already larger than the limit', async () => {
+        await writeFile(join(dir, 'capped.bin.part'), Buffer.alloc(20));
+
+        const result = await downloadFile(
+            { url: 'http://lan.local/capped.bin', filename: 'capped.bin', destDir: dir, size_bytes: 10 },
+            { fetchImpl: async () => new Response(Buffer.from('12345')) },
+        );
+
+        expect(result.resumed).toBe(false);
+        expect(result.bytes).toBe(5);
+        expect(await readFile(join(dir, 'capped.bin'), 'utf8')).toBe('12345');
+    });
+
+    it('arms the watchdog only after a resumed .part is hashed', async () => {
+        await writeFile(join(dir, 'resume.bin.part'), Buffer.from('abcd'));
+        let abortedAtRequest: boolean | null = null;
+
+        const result = await downloadFile(
+            { url: 'http://lan.local/resume.bin', filename: 'resume.bin', destDir: dir, size_bytes: 8 },
+            {
+                timeoutMs: 40,
+                hashPart: async () => {
+                    await new Promise((resolve) => setTimeout(resolve, 120));
+                },
+                fetchImpl: async (_url, init) => {
+                    abortedAtRequest = init?.signal?.aborted ?? null;
+
+                    return new Response(Buffer.from('xyzw'), {
+                        status: 206,
+                        headers: { 'content-length': '4' },
+                    });
+                },
+            },
+        );
+
+        expect(abortedAtRequest).toBe(false);
+        expect(result.resumed).toBe(true);
+        expect(await readFile(join(dir, 'resume.bin'), 'utf8')).toBe('abcdxyzw');
     });
 });

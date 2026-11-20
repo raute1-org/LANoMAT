@@ -81,6 +81,7 @@ Environment overrides: `LANOMAT_CONFIG_DIR`, `XDG_CONFIG_HOME`, `LANOMAT_PI_DIR`
 |---|---|
 | v1 file (no `version`, legacy `expires_at` / `user_name`) | migrated in memory and written back as v2; unrelated keys survive |
 | Corrupt JSON | renamed to `agent.json.corrupt-<timestamp>`, then `agent.json.bak` is restored if it is valid |
+| Newer `version` than this agent understands | refused with `written by a newer lanomat-agent (version X)` instead of downgrading the file |
 | Unreadable/corrupt without a backup | the corrupt file is quarantined and `loadConfig` returns "not logged in" |
 | Group/other permission bits set | chmodded back to `0700` (dir) and `0600` (file) on load |
 | Normal save | previous valid file copied to `agent.json.bak` (0600), new file written atomically via temp file + rename |
@@ -324,7 +325,8 @@ lanomat-agent install ut2004 --os windows
 4. downloads every LAN file first (resume-safe `.part`, HTTP Range, sha256 verification when the
    server sends one) and then the avatars in parallel (default `--jobs 4`), to the plan's
    `target_dir` and to `{{avatars}}`; a transfer that delivers no bytes for 60 s is aborted and the
-   `.part` file is kept for the next attempt;
+   `.part` file is kept for the next attempt, and a body larger than the announced `size_bytes`
+   (or an absolute `maxBytes` cap) is refused without producing the final file;
 5. runs the plan's `commands` for the OS (`powershell`, `cmd`, `bash`) in the target directory,
    substitutes `{{avatars}}`, `{{target_dir}}`, `{{os}}`, `{{slug}}`, `{{event}}` and
    `{{recipe_dir}}`, asks before optional steps unless `--yes`, and runs the `verify` checks after
@@ -351,14 +353,17 @@ Every `commands[].run` string is handed to the shell named in the plan:
 | `cmd` | `cmd /d /s /c "<script>"` with verbatim args |
 
 Quote rules are per shell, so a command built from an executable and arguments keeps paths with
-spaces intact (`'/opt/My Games/run.sh' '--dir' '/opt/My Games'`, `"C:\My Games\run.bat"`). `&&`
-chains stay as written for `bash`, `cmd` and PowerShell 7; on Windows PowerShell 5.1 (`powershell`)
-they are rewritten to nested `if ($?) { … }` guards with the same short-circuit behaviour.
+spaces intact (`'/opt/My Games/run.sh' '--dir' '/opt/My Games'`, `& 'C:\My Games\run.ps1'` in
+PowerShell, `"C:\My Games\run.bat"` in cmd). Backslashes before a closing cmd quote are doubled so
+`C:\My Games\` survives as one argument. `&&` chains stay as written for `bash`, `cmd` and
+PowerShell 7; on Windows PowerShell 5.1 (`powershell`) they are rewritten to nested
+`if ($?) { … }` guards with the same short-circuit behaviour.
 
 The executor inherits the agent's environment and merges any step-specific entries over it. A
-command that does not finish within **30 minutes** is killed and reported as exit code **124**.
-Any non-zero exit stops the step with the real code and stderr; `--dry-run` prompts for nothing,
-downloads nothing and runs no verify check.
+command that does not finish within **30 minutes** is killed (POSIX: the whole process group,
+`SIGTERM` then `SIGKILL`; Windows: `taskkill /T`) and reported as exit code **124**, even if a
+grandchild keeps the output pipe open. Any non-zero exit stops the step with the real code and
+stderr; `--dry-run` prompts for nothing, downloads nothing and runs no verify check.
 
 ## Launch from the web games page
 

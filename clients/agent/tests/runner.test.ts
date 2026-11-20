@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { access, chmod, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -177,6 +178,38 @@ describe('command runner', () => {
         expect(result.verify[0]).toMatchObject({ ok: true });
     });
 
+    it('runs a PowerShell command verify through the call operator', async () => {
+        let command = '';
+        const result = await runPlanStep(
+            {
+                id: 'x',
+                title: 'X',
+                verify: [
+                    {
+                        type: 'command',
+                        shell: 'powershell',
+                        command: 'C:\\My Tools\\check.ps1',
+                        args: ['--dir', 'C:\\My Games'],
+                    },
+                ],
+            },
+            {
+                cwd: dir,
+                platform: 'win32',
+                executor: async (name, args) => {
+                    command = `${name} ${args.join(' ')}`;
+
+                    return ok;
+                },
+            },
+        );
+
+        expect(command).toBe(
+            "powershell -NoProfile -Command & 'C:\\My Tools\\check.ps1' '--dir' 'C:\\My Games'",
+        );
+        expect(result.verify[0]).toMatchObject({ ok: true });
+    });
+
     it('throws a typed error with the exit code and stderr', async () => {
         const error = await runPlanStep(
             { id: 'x', title: 'X', commands: [{ shell: 'bash', run: 'false' }] },
@@ -230,13 +263,13 @@ describe('per-shell quoting', () => {
         );
     });
 
-    it('quotes PowerShell arguments with literal single-quoted strings', () => {
+    it('quotes PowerShell arguments with literal single-quoted strings and a call operator', () => {
         expect(shellQuote('powershell', 'C:\\My Games\\UT2004.exe')).toBe(
             "'C:\\My Games\\UT2004.exe'",
         );
         expect(shellQuote('powershell', "C:\\Games\\it's")).toBe("'C:\\Games\\it''s'");
         expect(buildShellCommand('powershell', 'C:\\Program Files\\tool.exe', ['--dir', 'C:\\My Games'])).toBe(
-            "'C:\\Program Files\\tool.exe' '--dir' 'C:\\My Games'",
+            "& 'C:\\Program Files\\tool.exe' '--dir' 'C:\\My Games'",
         );
     });
 
@@ -248,6 +281,13 @@ describe('per-shell quoting', () => {
         expect(buildShellCommand('cmd', 'C:\\My Games\\run.bat', ['--dir', 'C:\\My Games'])).toBe(
             '"C:\\My Games\\run.bat" "--dir" "C:\\My Games"',
         );
+    });
+
+    it('doubles a trailing backslash before the closing cmd quote', () => {
+        expect(shellQuote('cmd', 'C:\\Program Files\\My Game\\')).toBe(
+            '"C:\\Program Files\\My Game\\\\"',
+        );
+        expect(shellQuote('cmd', 'C:\\a\\\\')).toBe('"C:\\a\\\\\\\\"');
     });
 
     it('hands an object command through the shell with quoted args', () => {
@@ -280,6 +320,11 @@ describe('&& chains', () => {
         expect(normalizeShellScript('powershell', "echo 'a && b' && echo c", 'win32')).toBe(
             "echo 'a && b'; if ($?) { echo c }",
         );
+    });
+
+    it('honours the PowerShell backtick escape when splitting &&', () => {
+        expect(splitTopLevel('"a `" && b" && c', '&&', '`')).toEqual(['"a `" && b" ', ' c']);
+        expect(splitTopLevel('"a \\" && b" && c', '&&')).toEqual(['"a \\" && b" ', ' c']);
     });
 });
 
@@ -336,6 +381,38 @@ describe('default executor', () => {
         expect(Date.now() - started).toBeLessThan(2_000);
     });
 
+    it('kills the whole process group and settles within the hard ceiling', async () => {
+        const started = Date.now();
+        const result = await defaultExecutor('bash', ['-c', 'sleep 30 && true'], {
+            cwd: dir,
+            timeoutMs: 100,
+        });
+
+        expect(result.code).toBe(TIMEOUT_EXIT_CODE);
+        expect(result.timedOut).toBe(true);
+        expect(Date.now() - started).toBeLessThan(3_000);
+    });
+
+    const hasSetsid =
+        spawnSync('setsid', ['true'], { stdio: 'ignore' }).status === 0;
+
+    it.skipIf(!hasSetsid)(
+        'settles at the hard ceiling even when an orphan keeps the pipe open',
+        async () => {
+            const started = Date.now();
+            // The setsid'd grandchild leaves the process group, survives SIGTERM/SIGKILL and holds
+            // the stdout pipe, so only the hard settle timer can resolve the promise.
+            const result = await defaultExecutor('bash', ['-c', 'setsid sleep 5 & sleep 30'], {
+                cwd: dir,
+                timeoutMs: 100,
+            });
+
+            expect(result.code).toBe(TIMEOUT_EXIT_CODE);
+            expect(result.timedOut).toBe(true);
+            expect(Date.now() - started).toBeLessThan(4_000);
+        },
+    );
+
     it('works from a working directory that contains spaces', async () => {
         const spaced = join(dir, 'My Games');
         await mkdir(spaced, { recursive: true });
@@ -343,6 +420,41 @@ describe('default executor', () => {
         const result = await defaultExecutor('bash', ['-c', 'pwd'], { cwd: spaced });
 
         expect(result.stdout.trim()).toBe(spaced);
+    });
+});
+
+const hasPwsh = spawnSync('pwsh', ['-NoProfile', '-Command', 'exit 0'], { stdio: 'ignore' }).status === 0;
+
+describe.skipIf(!hasPwsh)('pwsh execution', () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await tempDir();
+    });
+
+    afterEach(async () => {
+        await removeDir(dir);
+    });
+
+    it('runs a quoted executable path through the call operator', async () => {
+        const script = join(dir, 'my tool.sh');
+        await writeFile(script, '#!/bin/sh\nprintf reached\n');
+        await chmod(script, 0o755);
+
+        const invocation = shellInvocation('powershell', { command: script, args: ['--flag'] }, 'linux');
+        const result = await defaultExecutor(invocation.command, invocation.args, { cwd: dir });
+
+        expect(result.code).toBe(0);
+        expect(result.stdout).toContain('reached');
+    });
+
+    it('keeps && short-circuiting on pwsh', async () => {
+        const script = 'false && Write-Output unreachable; Write-Output done';
+        const invocation = shellInvocation('powershell', script, 'linux');
+        const result = await defaultExecutor(invocation.command, invocation.args, { cwd: dir });
+
+        expect(result.stdout).toContain('done');
+        expect(result.stdout).not.toContain('unreachable');
     });
 });
 

@@ -165,6 +165,33 @@ describe('install', () => {
         expect(await readFile(join(target, 'game.iso'), 'utf8')).toBe('ISO');
     });
 
+    it('does not prompt for avatars in a dry run, even on a TTY', async () => {
+        const lines: string[] = [];
+        const result = await runInstall({
+            api: apiFor(
+                plan({
+                    avatars: [
+                        {
+                            id: 'a',
+                            label: 'A',
+                            download_url: 'http://lan.local/api/v1/avatars/a/download',
+                        },
+                    ],
+                }),
+            ),
+            slug: 'ut2004',
+            os: 'linux',
+            dryRun: true,
+            interactive: true,
+            log: (line) => lines.push(line),
+            warn: () => undefined,
+        });
+
+        expect(result.code).toBe(0);
+        expect(result.downloadedAvatars).toEqual([]);
+        expect(lines.join('\n')).toContain('[dry-run] Target dir');
+    });
+
     it('rejects a path-traversal slug before calling the API', async () => {
         let planned = false;
         const api = {

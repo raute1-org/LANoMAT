@@ -224,6 +224,13 @@ function normalizeDocument(document: ConfigDocument, path: string): NormalizedDo
     }
 
     const fromVersion = typeof document.version === 'number' ? document.version : 1;
+
+    if (fromVersion > CONFIG_VERSION) {
+        throw new Error(
+            `Config at ${path} was written by a newer lanomat-agent (version ${fromVersion}; this agent understands ${CONFIG_VERSION}). Upgrade lanomat-agent or move the file away.`,
+        );
+    }
+
     const expires =
         typeof document.token_expires_at === 'string'
             ? document.token_expires_at

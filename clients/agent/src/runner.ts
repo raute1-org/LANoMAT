@@ -80,6 +80,40 @@ export class StepVerificationError extends Error {
     }
 }
 
+/** Grace between SIGTERM and SIGKILL when a command times out. */
+export const KILL_GRACE_MS = 1_000;
+
+/** Hard ceiling for a timed-out command, even if the process never reports `close`. */
+export const TIMEOUT_SETTLE_MS = 2_500;
+
+function killProcessTree(child: ReturnType<typeof spawn>, signal: 'SIGTERM' | 'SIGKILL'): void {
+    if (process.platform === 'win32') {
+        const args = ['/pid', String(child.pid ?? 0), '/T'];
+
+        if (signal === 'SIGKILL') {
+            args.push('/F');
+        }
+
+        try {
+            const killer = spawn('taskkill', args, { stdio: 'ignore', windowsHide: true });
+
+            killer.on('error', () => child.kill(signal));
+        } catch {
+            child.kill(signal);
+        }
+
+        return;
+    }
+
+    // detached: true makes the child the leader of its own process group, so the negative pid
+    // reaches bash and everything bash started (installers, sleep, nested helpers).
+    try {
+        process.kill(-(child.pid ?? 0), signal);
+    } catch {
+        child.kill(signal);
+    }
+}
+
 export const defaultExecutor: CommandExecutor = (command, args, options) =>
     new Promise((resolve, reject) => {
         const child = spawn(command, args, {
@@ -87,27 +121,21 @@ export const defaultExecutor: CommandExecutor = (command, args, options) =>
             env: options.env ? { ...process.env, ...options.env } : process.env,
             stdio: [options.input === 'inherit' ? 'inherit' : 'ignore', 'pipe', 'pipe'],
             windowsHide: true,
+            // POSIX: own process group so the timeout can kill the whole tree. The executor always
+            // waits for the child, so this does not leak a daemon.
+            detached: process.platform !== 'win32',
             // Node's libuv re-quoting would fight cmd.exe's own quote handling.
             windowsVerbatimArguments: options.windowsVerbatimArguments ?? false,
         });
         let stdout = '';
         let stderr = '';
         let timedOut = false;
+        let settled = false;
         let timer: NodeJS.Timeout | undefined;
         let killTimer: NodeJS.Timeout | undefined;
+        let settleTimer: NodeJS.Timeout | undefined;
 
         const timeoutMs = options.timeoutMs ?? 0;
-
-        if (timeoutMs > 0) {
-            timer = setTimeout(() => {
-                timedOut = true;
-                child.kill('SIGTERM');
-                // Windows installers sometimes ignore SIGTERM; make sure the tree ends.
-                killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
-                killTimer.unref?.();
-            }, timeoutMs);
-            timer.unref?.();
-        }
 
         const cleanup = (): void => {
             if (timer) {
@@ -117,7 +145,40 @@ export const defaultExecutor: CommandExecutor = (command, args, options) =>
             if (killTimer) {
                 clearTimeout(killTimer);
             }
+
+            if (settleTimer) {
+                clearTimeout(settleTimer);
+            }
         };
+
+        const settle = (code: number | null, signal: NodeJS.Signals | null): void => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            cleanup();
+            resolve({
+                code: code ?? (timedOut ? TIMEOUT_EXIT_CODE : 1),
+                stdout,
+                stderr,
+                signal: signal ?? null,
+                ...(timedOut ? { timedOut: true } : {}),
+            });
+        };
+
+        if (timeoutMs > 0) {
+            timer = setTimeout(() => {
+                timedOut = true;
+                killProcessTree(child, 'SIGTERM');
+                killTimer = setTimeout(() => killProcessTree(child, 'SIGKILL'), KILL_GRACE_MS);
+                killTimer.unref?.();
+                // A grandchild can hold the stdout pipe open forever; settle without `close`.
+                settleTimer = setTimeout(() => settle(null, 'SIGKILL'), TIMEOUT_SETTLE_MS);
+                settleTimer.unref?.();
+            }, timeoutMs);
+            timer.unref?.();
+        }
 
         child.stdout?.on('data', (chunk: Buffer) => {
             const text = chunk.toString();
@@ -130,19 +191,15 @@ export const defaultExecutor: CommandExecutor = (command, args, options) =>
             process.stderr.write(text);
         });
         child.on('error', (error) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
             cleanup();
             reject(error);
         });
-        child.on('close', (code, signal) => {
-            cleanup();
-            resolve({
-                code: code ?? (timedOut ? TIMEOUT_EXIT_CODE : 1),
-                stdout,
-                stderr,
-                signal: signal ?? null,
-                ...(timedOut ? { timedOut: true } : {}),
-            });
-        });
+        child.on('close', (code, signal) => settle(code, signal));
     });
 
 export interface ShellCommand {
@@ -171,9 +228,15 @@ export function shellQuote(shell: Shell, value: string): string {
         case 'powershell':
             // PowerShell single quotes are literal; a literal quote is doubled.
             return `'${value.replace(/'/g, `''`)}'`;
-        case 'cmd':
-            // cmd has no backslash escapes; a quote inside a quoted value is doubled.
-            return `"${value.replace(/"/g, '""')}"`;
+        case 'cmd': {
+            // cmd has no backslash escapes; a quote inside a quoted value is doubled. A run of
+            // backslashes before the closing quote is doubled too, otherwise the argument parser
+            // treats `"C:\Games\"` as an escaped quote.
+            const quoted = value.replace(/"/g, '""');
+            const safeTail = quoted.replace(/\\+$/, (run) => `${run}${run}`);
+
+            return `"${safeTail}"`;
+        }
         default:
             throw new Error(`Unsupported shell: ${String(shell)}`);
     }
@@ -181,14 +244,23 @@ export function shellQuote(shell: Shell, value: string): string {
 
 /** Build a shell script from an executable and its arguments, quoting each part per shell. */
 export function buildShellCommand(shell: Shell, command: string, args: string[] = []): string {
-    return [command, ...args].map((part) => shellQuote(shell, part)).join(' ');
+    const quoted = [command, ...args].map((part) => shellQuote(shell, part)).join(' ');
+
+    // `'C:\path\tool.exe' '--x'` is a string expression in PowerShell, not a call. The call
+    // operator makes a quoted executable path actually run, with each argument kept intact.
+    return shell === 'powershell' ? `& ${quoted}` : quoted;
 }
 
 /**
  * Split a script on a top-level operator (`&&`) while respecting single and double quotes.
- * `'a && b' && c` yields `["'a && b'", ' c']`.
+ * `'a && b' && c` yields `["'a && b'", ' c']`. Inside double quotes PowerShell escapes with a
+ * backtick, POSIX shells with a backslash; pass the matching escape character.
  */
-export function splitTopLevel(script: string, operator: string): string[] {
+export function splitTopLevel(
+    script: string,
+    operator: string,
+    escapeChar: '\\' | '`' = '\\',
+): string[] {
     const parts: string[] = [];
     let current = '';
     let quote: "'" | '"' | null = null;
@@ -218,7 +290,7 @@ export function splitTopLevel(script: string, operator: string): string[] {
         if (quote === '"') {
             current += char;
 
-            if (char === '\\' && script[index + 1] !== undefined) {
+            if (char === escapeChar && script[index + 1] !== undefined) {
                 current += script[index + 1];
                 index += 2;
                 continue;
@@ -268,7 +340,9 @@ export function normalizeShellScript(
         return script;
     }
 
-    const parts = splitTopLevel(script, '&&').map((part) => part.trim());
+    const parts = splitTopLevel(script, '&&', shell === 'powershell' ? '`' : '\\').map((part) =>
+        part.trim(),
+    );
 
     if (parts.length === 1) {
         return script;

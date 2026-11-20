@@ -120,6 +120,23 @@ describe('config', () => {
         expect(again.config?.token).toBe('v1-token');
     });
 
+    it('refuses a config written by a newer agent instead of downgrading it', async () => {
+        const env = envFor(dir);
+        const path = configPath({ env });
+        await mkdir(join(dir, 'cfg'), { recursive: true, mode: 0o700 });
+        await writeFile(
+            path,
+            JSON.stringify({ ...config, version: 99, futureOnly: { nested: true } }),
+            { mode: 0o600 },
+        );
+
+        await expect(loadConfigDetailed({ env })).rejects.toThrow(
+            'written by a newer lanomat-agent (version 99',
+        );
+        expect((await readJson(path)).version).toBe(99);
+        expect((await readdir(join(dir, 'cfg'))).some((name) => name.includes('.corrupt-'))).toBe(false);
+    });
+
     it('preserves unrelated keys when saving over an existing file', async () => {
         const env = envFor(dir);
         const path = configPath({ env });

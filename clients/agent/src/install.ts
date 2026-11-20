@@ -169,7 +169,8 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
         avatars,
         avatarIds: options.avatarIds,
         yes: options.yes,
-        interactive: options.interactive,
+        // A dry run must never sit at the avatar prompt on a TTY.
+        interactive: options.dryRun ? false : options.interactive,
     });
 
     for (const unknown of selection.unknown) {

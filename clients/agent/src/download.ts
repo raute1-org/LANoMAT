@@ -44,6 +44,24 @@ export class DownloadError extends Error {
     }
 }
 
+export class DownloadSizeError extends Error {
+    readonly task: DownloadTask;
+    readonly limit: number;
+    readonly announced?: number;
+
+    constructor(task: DownloadTask, limit: number, announced?: number) {
+        super(
+            `Download exceeds the size limit for ${task.filename}: ${limit} bytes${
+                announced !== undefined ? `, transfer announced ${announced} bytes` : ''
+            }`,
+        );
+        this.name = 'DownloadSizeError';
+        this.task = task;
+        this.limit = limit;
+        this.announced = announced;
+    }
+}
+
 export interface DownloadEngineOptions {
     fetchImpl?: FetchLike;
     onProgress?: (progress: DownloadProgress) => void;
@@ -51,8 +69,12 @@ export interface DownloadEngineOptions {
     /** Delay before the single no-Range retry after a 416. */
     sleep?: (ms: number) => Promise<void>;
     hashFile?: (path: string) => Promise<string>;
+    /** Hash an existing `.part` before the request; injectable so tests can order the watchdog. */
+    hashPart?: (path: string, hash: ReturnType<typeof createHash>) => Promise<void>;
     /** Abort when no bytes arrive for this long. Defaults to 60 s; 0 disables the watchdog. */
     timeoutMs?: number;
+    /** Absolute cap in bytes, applied on top of `task.size_bytes`. */
+    maxBytes?: number;
 }
 
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 60_000;
@@ -72,8 +94,8 @@ async function updateHashFromFile(hash: ReturnType<typeof createHash>, path: str
 }
 
 /**
- * Resume-safe single download. The final file only appears after the checksum passes; a failed
- * or stalled download leaves `<file>.part` behind for the next attempt.
+ * Resume-safe single download. The final file only appears after the checksum passes; a failed,
+ * stalled or oversized download leaves `<file>.part` behind for the next attempt.
  */
 export async function downloadFile(
     task: DownloadTask,
@@ -82,14 +104,23 @@ export async function downloadFile(
     const fetchImpl = options.fetchImpl ?? fetch;
     const clock = options.clock ?? (() => Date.now());
     const hashFile = options.hashFile ?? sha256File;
+    const hashPart =
+        options.hashPart ?? ((path: string, hash: ReturnType<typeof createHash>) => updateHashFromFile(hash, path));
     const destDir = task.destDir;
     const finalPath = join(destDir, sanitizeName(task.filename));
     const partPath = `${finalPath}.part`;
     const timeoutMs = options.timeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS;
+    const limit = Math.min(
+        task.size_bytes ?? Number.POSITIVE_INFINITY,
+        options.maxBytes ?? Number.POSITIVE_INFINITY,
+    );
+    const sizeLimit = Number.isFinite(limit) ? limit : undefined;
     const controller = new AbortController();
     let watchdog: NodeJS.Timeout | undefined;
+    let timedOut = false;
 
-    // Idle watchdog: every received chunk re-arms it, so only a stalled transfer aborts.
+    // Idle watchdog: armed directly before a request and re-armed by every chunk, never while an
+    // existing `.part` is hashed (that work is local and can legitimately take a while).
     const arm = (): void => {
         if (timeoutMs <= 0) {
             return;
@@ -99,7 +130,10 @@ export async function downloadFile(
             clearTimeout(watchdog);
         }
 
-        watchdog = setTimeout(() => controller.abort(), timeoutMs);
+        watchdog = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, timeoutMs);
         watchdog.unref?.();
     };
     const disarm = (): void => {
@@ -108,8 +142,6 @@ export async function downloadFile(
             watchdog = undefined;
         }
     };
-
-    arm();
 
     try {
         await ensureDir(destDir, 0o755);
@@ -131,21 +163,39 @@ export async function downloadFile(
 
                     return { task, path: finalPath, bytes: finalSize, skipped: true, resumed: false };
                 }
-            } else if (task.size_bytes === undefined || finalSize === task.size_bytes) {
+            } else if (
+                (task.size_bytes === undefined || finalSize === task.size_bytes) &&
+                (sizeLimit === undefined || finalSize <= sizeLimit)
+            ) {
                 return { task, path: finalPath, bytes: finalSize, skipped: true, resumed: false };
             }
         }
 
         let partSize = await existingSize(partPath);
+
+        if (sizeLimit !== undefined && partSize > sizeLimit) {
+            await rm(partPath, { force: true });
+            partSize = 0;
+        }
+
         let resumed = partSize > 0;
-        let response = await request(task, fetchImpl, partSize, controller.signal);
+        let hash = createHash('sha256');
+
+        if (partSize > 0) {
+            await hashPart(partPath, hash);
+        }
+
         let append = resumed;
+
+        arm();
+        let response = await request(task, fetchImpl, partSize, controller.signal);
 
         if (response.status === 416 && partSize > 0) {
             await rm(partPath, { force: true });
             partSize = 0;
             resumed = false;
             append = false;
+            hash = createHash('sha256');
             arm();
             response = await request(task, fetchImpl, 0, controller.signal);
 
@@ -162,6 +212,7 @@ export async function downloadFile(
             partSize = 0;
             resumed = false;
             append = false;
+            hash = createHash('sha256');
         }
 
         if (response.status !== 206 && response.status !== 200) {
@@ -175,13 +226,13 @@ export async function downloadFile(
         }
 
         const contentLength = Number(response.headers.get('content-length') ?? '0');
-        const total = contentLength > 0 ? partSize + contentLength : task.size_bytes;
-        const hash = createHash('sha256');
+        const announced = contentLength > 0 ? partSize + contentLength : undefined;
 
-        if (partSize > 0) {
-            await updateHashFromFile(hash, partPath);
+        if (sizeLimit !== undefined && announced !== undefined && announced > sizeLimit) {
+            throw new DownloadSizeError(task, sizeLimit, announced);
         }
 
+        const total = announced ?? task.size_bytes ?? sizeLimit;
         const stream = createWriteStream(partPath, { flags: append ? 'a' : 'w' });
         const started = clock();
         const startedBytes = partSize;
@@ -195,6 +246,13 @@ export async function downloadFile(
                 arm();
                 hash.update(buffer);
                 received += buffer.length;
+
+                if (sizeLimit !== undefined && received > sizeLimit) {
+                    // The server lied about (or omitted) its length: stop before writing the
+                    // offending bytes and keep the valid `.part` for a later attempt.
+                    controller.abort();
+                    throw new DownloadSizeError(task, sizeLimit, received);
+                }
 
                 if (!stream.write(buffer)) {
                     await once(stream, 'drain');
@@ -242,7 +300,7 @@ export async function downloadFile(
 
         return { task, path: finalPath, bytes: received, skipped: false, resumed };
     } catch (error) {
-        if (controller.signal.aborted) {
+        if (timedOut) {
             throw new DownloadTimeoutError(task, timeoutMs);
         }
 

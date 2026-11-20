@@ -24,7 +24,6 @@ import {
     type ModelsConfig,
 } from './models.js';
 import { resolvePiBinary } from './ask.js';
-import type { isDirectory } from './util.js';
 
 /**
  * Stable identifier for `lanomat-agent doctor --json`. Additive fields may appear in a later
@@ -74,7 +73,6 @@ export interface DoctorOptions extends PathEnvironment {
     fs?: {
         existsSync?: typeof existsSync;
         readdir?: typeof readdir;
-        isDirectory?: typeof isDirectory;
         access?: typeof access;
     };
 }
@@ -125,7 +123,14 @@ function serverFailure(error: unknown, url: string): { ok: false; detail: string
         }
 
         if (error.status === 0 || error.code === 'network_error') {
-            return { ok: false, detail: `offline — cannot reach ${target}: ${error.message}` };
+            // ApiClient already prefixes its message with "Cannot reach <url>"; strip it so the
+            // doctor line does not repeat the target twice.
+            const cause =
+                error.message.startsWith('Cannot reach ') && error.message.includes(': ')
+                    ? error.message.slice(error.message.indexOf(': ') + 2)
+                    : error.message;
+
+            return { ok: false, detail: `offline — cannot reach ${target}: ${cause}` };
         }
 
         return {
