@@ -13,6 +13,10 @@
 # shipped tarball or the runtime image, so a dev-only advisory must not block a release.
 # If one is ever accepted knowingly, list it in the `audit` job comment below with the
 # advisory id and the reason (current state: no known advisories, prod and dev are clean).
+#
+# Every `uses:` is pinned to a commit SHA with the release in a trailing comment, the
+# same style as `.github/workflows/release-client.yml` (this workflow has a job with
+# `contents: write`, so a moved tag must not be able to change what gets released).
 
 name: Client agent
 
@@ -48,15 +52,12 @@ jobs:
       fail-fast: false
       matrix:
         node: ['22', '24']
-    env:
-      # Secret reference only; the suite is offline and never prints it.
-      VENICE_API_KEY: ${{ secrets.VENICE_API_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Node ${{ matrix.node }}
-        uses: actions/setup-node@v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -71,6 +72,9 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          # Secret reference only; the suite is offline and never prints it.
+          VENICE_API_KEY: ${{ secrets.VENICE_API_KEY }}
 
       - name: Build
         run: npm run build
@@ -92,10 +96,10 @@ jobs:
         working-directory: clients/agent
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Node 22
-        uses: actions/setup-node@v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -116,10 +120,10 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Node 24
-        uses: actions/setup-node@v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
@@ -164,7 +168,7 @@ jobs:
           fi
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: client-agent-tarball
           path: |
@@ -178,10 +182,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Node 24 (for the version label)
-        uses: actions/setup-node@v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -192,10 +196,10 @@ jobs:
           echo "revision=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Build image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: clients/agent
           file: clients/agent/Dockerfile
@@ -223,7 +227,19 @@ jobs:
         run: |
           set -euo pipefail
           size=$(docker image inspect lanomat-agent:ci --format '{{.Size}}')
-          echo "image size: $((size / 1024 / 1024)) MiB ($size bytes)" | tee -a "$GITHUB_STEP_SUMMARY"
+          mib=$((size / 1024 / 1024))
+          echo "image size: ${mib} MiB ($size bytes)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Soft budget: ~450 MiB is the honest size (Node 24 base + the pi SDK provider
+          # SDKs in prod node_modules). Warn above 500, fail above 600 so that dev deps,
+          # sources or a second install sneaking into the image is caught.
+          soft=500
+          hard=600
+          if [ "$mib" -gt "$hard" ]; then
+            echo "::error::image is ${mib} MiB, above the hard cap of ${hard} MiB"
+            exit 1
+          elif [ "$mib" -gt "$soft" ]; then
+            echo "::warning::image is ${mib} MiB, above the soft budget of ${soft} MiB"
+          fi
           docker image inspect lanomat-agent:ci \
             --format '{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' \
             | tee -a "$GITHUB_STEP_SUMMARY"
@@ -245,10 +261,10 @@ jobs:
       VERSION: ${{ needs.package.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Node 24
-        uses: actions/setup-node@v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
@@ -256,7 +272,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Download the tarball
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: client-agent-tarball
           path: dist
