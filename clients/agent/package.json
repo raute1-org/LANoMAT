@@ -8,22 +8,48 @@
         "lanomat-agent": "dist/cli.js"
     },
     "exports": {
-        ".": "./dist/index.js"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
     },
+    "types": "./dist/index.d.ts",
     "files": [
         "dist",
         "README.md",
         "LICENSE"
     ],
     "engines": {
-        "node": ">=22.12.0"
+        "node": ">=22.12.0 <25",
+        "npm": ">=10"
+    },
+    "keywords": [
+        "lanomat",
+        "lan-party",
+        "installer",
+        "mcp",
+        "pi",
+        "cli"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/raute1-org/LANoMAT.git",
+        "directory": "clients/agent"
+    },
+    "homepage": "https://github.com/raute1-org/LANoMAT/tree/main/clients/agent#readme",
+    "bugs": {
+        "url": "https://github.com/raute1-org/LANoMAT/issues"
     },
     "scripts": {
         "build": "tsc -p tsconfig.json",
+        "clean": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
         "lint": "eslint .",
         "test": "vitest run",
         "test:watch": "vitest",
-        "prepublishOnly": "npm run build"
+        "check": "npm run lint && npm test && npm run build",
+        "audit:prod": "npm audit --omit=dev",
+        "prepack": "npm run build",
+        "prepublishOnly": "npm run lint && npm test"
     },
     "dependencies": {
         "@earendil-works/pi-coding-agent": "^1.6.0",
