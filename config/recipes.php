@@ -9,7 +9,7 @@ return [
     |
     | Where `lanomat:recipes:sync` reads from when no source is given. The
     | bundled recipes ship with the app; the NAS share is the live catalogue
-    | the user maintains (smb://192.168.68.55/games-recipes in the LAN).
+    | the user maintains (smb://nas.local/games-recipes in the LAN).
     | Credentials are optional: a guest-readable share needs none.
     |
     */
