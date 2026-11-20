@@ -1,7 +1,16 @@
+# The `lanomat-agent` installer (clients/agent): lint, offline tests, build and
+# a CLI smoke. No network, no real home directory, no key printed.
+#
+# GitHub Actions is currently DISABLED for this repository by hand
+# (Settings -> Actions -> Disable). Prepared and validated locally, not enabled.
+#
+# Path-filtered on purpose: the agent is a self-contained npm package and the
+# backend suite (ci.yml) ignores it. Changes to the recipe catalogue do not
+# affect the agent's tests (it uses its own fixtures).
 name: Client agent
-
 on:
   push:
+    branches: [main]
     paths:
       - 'clients/agent/**'
       - '.github/workflows/client-agent.yml'
@@ -14,13 +23,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: client-agent-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: client-agent-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     name: Lint, test and build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: clients/agent
@@ -30,10 +40,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Node 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -53,3 +63,10 @@ jobs:
 
       - name: CLI smoke
         run: node dist/cli.js --help
+
+      # The token file is 0600 and lives under the user's config dir; the
+      # tests assert both offline. This only proves the built CLI starts
+      # without a home directory it cannot write.
+      - name: CLI smoke (isolated HOME)
+        run: |
+          HOME="$(mktemp -d)" node dist/cli.js --version

@@ -162,7 +162,7 @@ the disc image uploaded to the LAN file host, and the UT2004VR mod (SteamVR, Win
 **optional** step. Avatars (VRM characters) are a multi-select in the installer and are downloaded
 in parallel **from the LAN server's drives**, never from the internet. `lanomat:recipes:sync` reads
 the bundled directory, a local path, `git+https://…` or the NAS share
-(`smb://192.168.68.55/games-recipes/`, needs `smbclient`).
+(`smb://<NAS_HOST>/games-recipes/`, via `smbclient` or a host mount).
 
 The full reference — every module, the MCP tool catalogue, the REST API, the agent and the recipe
 schema, with screenshots — is a Zudoku site in [`docs-site/`](docs-site/), served at `/docs` next to
@@ -171,6 +171,9 @@ the app:
 ```bash
 docker compose --profile docs up -d docs   # http://localhost/docs on a prod stack
 ```
+
+Operations — endpoints, token issue/revoke, the recipe-sync cron, SMB credentials, the docs deploy,
+preflight probes and backups — are in [`docs/infra/mcp-ops.md`](docs/infra/mcp-ops.md).
 
 ## Production deployment
 
@@ -522,7 +525,11 @@ Everything above is tested against fakes, headless containers or a test VM. Stil
 
 **Deliberately not built:** an offline login QR (a Discord outage means no login; risk accepted), a
 load test (about 50 participants do not need one), macOS builds of the client, and a Tauri auto-updater.
-CI is currently disabled manually; the gates run locally and a sharded CI is prepared in draft PR #47.
+CI (GitHub Actions) is currently disabled manually; the gates run locally. The workflows are
+prepared and validated — `ci.yml` (pint, PHPStan, four Pest shards with Postgres/Redis, frontend),
+`docs.yml` (Zudoku build, link check, nginx image smoke), `gitleaks.yml` (full history, `lmcp_` /
+`lvc_` / Venice key shapes), `client-agent.yml` and `public-safety.yml` — but stay off until they are
+re-enabled in the repository settings.
 
 ## Acknowledgements
 

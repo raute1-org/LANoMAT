@@ -3,13 +3,61 @@
 # Run locally:
 #   docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
 #     detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+#
+# Full history (what the gitleaks workflow runs on every PR):
+#   git fetch --unshallow   # or clone with full depth
+#   docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+#     detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner
 title = "LANoMAT gitleaks config"
 
 [extend]
 useDefault = true
 
-# Exactly two known false positives are allowlisted. Anything else, including
-# any OTHER private key, must still fail.
+# --- LANoMAT-specific token shapes -----------------------------------------
+# The default ruleset does not know our prefixes. These are bearer credentials:
+# a leaked one is a usable login for /mcp and /api/v1, so they must fail the
+# scan even when the surrounding text looks harmless.
+
+# MCP bearer token: `lmcp_` + 48 alphanumerics (Str::random(48)), see
+# app/Modules/Mcp/Support/McpCodes.php. 40 is the floor so an example in docs
+# that is obviously truncated (`lmcp_…`) is not a finding, while a real token
+# always matches.
+[[rules]]
+id = "lanomat-mcp-token"
+description = "LANoMAT MCP bearer token (lmcp_ prefix)"
+regex = '''\blmcp_[A-Za-z0-9]{40,}\b'''
+keywords = ["lmcp_"]
+
+# Native voice client access token: `lvc_` + 48 alphanumerics, see
+# app/Modules/WebVoice/NativeClient/Support/DeviceCodes.php.
+[[rules]]
+id = "lanomat-voice-client-token"
+description = "LANoMAT native voice client access token (lvc_ prefix)"
+regex = '''\blvc_[A-Za-z0-9]{40,}\b'''
+keywords = ["lvc_"]
+
+# Venice AI inference keys are printed with this prefix. The agent keeps the
+# key in `venice.env` next to its config, but people paste it into shell
+# history, notes and issue comments — all of which end up in a diff eventually.
+[[rules]]
+id = "venice-inference-key"
+description = "Venice AI inference key (VENICE_INFERENCE_KEY_ prefix)"
+regex = '''\bVENICE_INFERENCE_KEY_[A-Za-z0-9_+/=-]{16,}'''
+keywords = ["VENICE_INFERENCE_KEY_"]
+
+# `VENICE_API_KEY=` with a non-empty value. The generic rule catches high-entropy
+# values, this one also catches short/low-entropy keys that would slip through.
+# Anchored to dotenv assignments (`=`); TypeScript object literals such as
+# `{ VENICE_API_KEY: 'super-secret-key' }` in tests would otherwise match.
+[[rules]]
+id = "venice-api-key-env"
+description = "Venice API key assigned to VENICE_API_KEY"
+regex = '''(?im)^\s*VENICE_API_KEY\s*=\s*['"]?[A-Za-z0-9_\-]{16,}'''
+keywords = ["VENICE_API_KEY"]
+
+# --- allowlists -------------------------------------------------------------
+# Known false positives are allowlisted narrowly (path + the exact token). A
+# real secret in the same file still fails.
 
 # (a) Documentation template for the unattended VM session. Every secret value
 # in the file is empty by design; nothing real lives here (history included).
@@ -30,3 +78,25 @@ condition = "AND"
 regexTarget = "match"
 paths = ['''^tests/Unit/Hosts/RegisterHostTest\.php$''']
 regexes = ['''QyNTUxOQAAACCE4M2ej63S3''']
+
+# (c) docs/infra/venue-network-crs354.md: prose that lists WireGuard's
+# `persistent-keepalive=25s` next to the word "key". Matched on the exact
+# value, not the path, so a real key on the same page still fails.
+[[allowlists]]
+description = "venue-network-crs354.md: persistent-keepalive=25s prose false positive"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^docs/infra/venue-network-crs354\.md$''']
+regexes = ['''^persistent-keepalive=25s$''']
+
+# (d) docs-site/apis/lanomat.openapi.yaml: the documented example access token.
+# It is a made-up `lmt_` value (the real prefix is `lmcp_`), used to show the
+# token response shape. Matched exactly on the value.
+[[allowlists]]
+description = "lanomat.openapi.yaml: example access token lmt_9b2f4c1d7e6a8f3c5d0b"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^docs-site/apis/lanomat\.openapi\.yaml$''']
+regexes = ['''^lmt_9b2f4c1d7e6a8f3c5d0b$''']

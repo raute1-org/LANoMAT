@@ -1,3 +1,13 @@
+# Backend + frontend CI.
+#
+# GitHub Actions is currently DISABLED for this repository by hand
+# (Settings -> Actions -> Disable). These workflows are prepared and validated
+# locally (actionlint, YAML parse, a dry run); re-enable in Settings once the
+# coordinator says so. Nothing here depends on that switch — a disabled
+# workflow is simply never scheduled.
+#
+# `ci` is the aggregate gate: keep its name stable for branch protection and
+# `gh pr checks`, whatever the job split underneath.
 name: CI
 on:
   push:
@@ -5,6 +15,8 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'docs-site/**'
+      - 'clients/agent/**'
       - 'LICENSE'
       - '.github/ISSUE_TEMPLATE/**'
   pull_request:
@@ -12,8 +24,13 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'docs-site/**'
+      - 'clients/agent/**'
       - 'LICENSE'
       - '.github/ISSUE_TEMPLATE/**'
+
+permissions:
+  contents: read
 
 # A newer push to the same PR supersedes the running one; runs on main are
 # never cancelled (every merge commit gets a full result).
@@ -22,22 +39,77 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  php:
-    name: php
+  # Pint + PHPStan need no services and no built frontend: fail fast on style
+  # and types before the (much slower) sharded test matrix starts.
+  static:
+    name: static (pint, phpstan)
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env: { POSTGRES_USER: lanomat, POSTGRES_PASSWORD: lanomat, POSTGRES_DB: lanomat_test }
-        ports: ['5434:5432']
-        options: >-
-          --health-cmd "pg_isready -U lanomat" --health-interval 5s --health-retries 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       # '8.4' resolves to the newest 8.4.x patch available on the runner.
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
+        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium', coverage: none }
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - run: composer install --no-interaction --prefer-dist
+
+      - run: ./vendor/bin/pint --test
+      - run: ./vendor/bin/phpstan analyse --memory-limit=1G
+
+      # The module tests (isolation matrix, profile reports) spawn their own
+      # core/full processes and run in the pest shards; the in-process guard
+      # tests assume `full`, so the whole suite is not re-run under core.
+      # This step just proves a plain core boot on CI.
+      - name: Core-profile smoke (boot)
+        run: |
+          cp .env.testing .env
+          php artisan key:generate
+          php artisan lanomat:modules
+          php artisan route:list > /dev/null
+          php artisan schedule:list > /dev/null
+          php artisan event:list > /dev/null
+        env:
+          MODULES_PROFILE: core
+
+  # The suite is split across four runners. Each shard gets its own Postgres
+  # and Redis service container, so `RefreshDatabase` never deadlocks across
+  # jobs (the failure mode of pointing two suites at one database).
+  pest:
+    name: pest (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lanomat
+          POSTGRES_PASSWORD: lanomat
+          POSTGRES_DB: lanomat_test
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U lanomat" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6380:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium', coverage: none }
 
       - uses: actions/setup-node@v7.1.0
         with: { node-version: 22, cache: npm }
@@ -53,42 +125,27 @@ jobs:
       - run: cp .env.testing .env && php artisan key:generate
 
       # The feature tests render Inertia pages through the Vite-powered root
-      # view, which needs public/build/manifest.json (the Vite plugin also runs
-      # wayfinder:generate itself). The frontend job runs the same build as its
-      # own check; this one only produces the manifest for the tests.
+      # view, which needs public/build/manifest.json; the Vite plugin also runs
+      # wayfinder:generate itself. The frontend job runs the same build as its
+      # own check — here it only produces the manifest the tests need.
       - run: npm ci
       - run: npm run build
 
-      - run: ./vendor/bin/pint --test
-      - run: ./vendor/bin/phpstan analyse --memory-limit=1G
-
       - run: php artisan migrate --force
-      - name: Tests (full profile)
-        run: ./vendor/bin/pest
+      - name: Tests (shard ${{ matrix.shard }}/4, full profile)
+        run: ./vendor/bin/pest --shard=${{ matrix.shard }}/4
         env:
           MODULES_PROFILE: full
-
-      # The module tests (isolation matrix, profile reports) spawn their own
-      # core/full processes and run in the full pest step above; the in-process
-      # guard tests assume `full`, so the whole suite is not re-run under core.
-      # This step just proves a plain core boot on CI.
-      - name: Core-profile smoke (boot)
-        run: |
-          php artisan lanomat:modules
-          php artisan route:list > /dev/null
-          php artisan schedule:list > /dev/null
-          php artisan event:list > /dev/null
-        env:
-          MODULES_PROFILE: core
 
   frontend:
     name: frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium' }
+        with: { php-version: '8.4', extensions: 'pgsql, redis, sodium', coverage: none }
 
       # '22' resolves to the newest 22.x LTS patch; `cache: npm` caches ~/.npm.
       - uses: actions/setup-node@v7.1.0
@@ -116,15 +173,16 @@ jobs:
       - run: npm run format:check
       - run: npm run types:check
 
-  # Aggregate gate: keeps the single required-check name `ci` stable for
-  # branch protection / `gh pr checks`, whatever the job split underneath.
+  # Aggregate gate: one required check name regardless of the job matrix.
   ci:
     name: ci
-    needs: [php, frontend]
+    needs: [static, pest, frontend]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs to pass
         run: |
-          echo "php=${{ needs.php.result }} frontend=${{ needs.frontend.result }}"
-          [ "${{ needs.php.result }}" = "success" ] && [ "${{ needs.frontend.result }}" = "success" ]
+          echo "static=${{ needs.static.result }} pest=${{ needs.pest.result }} frontend=${{ needs.frontend.result }}"
+          [ "${{ needs.static.result }}" = "success" ] \
+            && [ "${{ needs.pest.result }}" = "success" ] \
+            && [ "${{ needs.frontend.result }}" = "success" ]

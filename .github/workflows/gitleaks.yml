@@ -1,0 +1,59 @@
+# Secret scanning with the full commit history on every pull request.
+#
+# GitHub Actions is currently DISABLED for this repository by hand
+# (Settings -> Actions -> Disable). Prepared and validated locally, not enabled.
+#
+# Why a separate workflow (and not a job in ci.yml):
+#   - ci.yml skips docs-only changes via paths-ignore, and docs are exactly
+#     where a pasted key lands;
+#   - full-history scanning wants `fetch-depth: 0`, which no other job needs;
+#   - the check is independent of the PHP/Node toolchain and finishes in
+#     seconds, so it can run on every PR without being cancelled by a newer
+#     push to a different area.
+#
+# The scanner is the official image, pinned by tag and digest (the
+# license-gated gitleaks-action is deliberately not used). Rules live in
+# .gitleaks.toml: the default set plus LANoMAT's `lmcp_` / `lvc_` /
+# `VENICE_INFERENCE_KEY_` token shapes.
+name: gitleaks
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitleaks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gitleaks:
+    name: gitleaks (full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # every commit, not just the merge base
+
+      - name: gitleaks
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+
+      # Fail loudly if the config ever loses the LANoMAT token rules: a green
+      # scan with an empty config is worse than a red one.
+      - name: Config sanity (LANoMAT token rules present)
+        run: |
+          set -euo pipefail
+          for rule in lanomat-mcp-token lanomat-voice-client-token venice-inference-key; do
+            grep -q "id = \"$rule\"" .gitleaks.toml || {
+              echo "::error::.gitleaks.toml is missing rule $rule"
+              exit 1
+            }
+          done
