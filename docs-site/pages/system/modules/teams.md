@@ -32,7 +32,7 @@ The module owns the roster, join requests, the logo and the ownership rules.
 
 ## Docs for agents
 
-No MCP tool yet.
+`teams_list` with an optional `query` returns teams, member counts and the caller's membership.
 
 <div class="callout-live">
   <strong>Roster snapshots.</strong> When a tournament starts, the roster is frozen into the entry's

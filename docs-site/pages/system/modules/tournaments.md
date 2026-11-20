@@ -43,7 +43,7 @@ fan-out on `MatchReady` and `MatchCompleted`.
 
 ## Docs for agents
 
-No MCP tool yet.
+`tournament_list` by event, `tournament_bracket` and `tournament_checkin` by tournament id, and `match_result` (`report`, `confirm`, `dispute`, `withdraw`) for the caller's match.
 
 <div class="callout-live">
   <strong>Live bracket.</strong> <code>TournamentStarted</code>, <code>MatchReady</code>,

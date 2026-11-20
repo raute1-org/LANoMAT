@@ -14,10 +14,15 @@ tool catalogue — no imaginary tools, no magic.
 
 | You say | The agent does |
 |---|---|
-| "Set up my PC for the LAN." | `lanomat_me`, `lanomat_list_recipes`, proposes a short list, asks which game |
-| "Install UT2004 for me." | reads `skill://unreal-tournament-2004`, plans, asks about VR and avatars |
-| "Which avatars are on the LAN?" | `lanomat_list_recipe_avatars`, presents a multi-select, never invents files |
-| "What's missing for the install?" | `lanomat_plan_recipe`, reports the failed role and glob |
+| "Set up my PC for the LAN." | `lanomat_me`, `recipes_list`, proposes a short list, asks which game |
+| "Install UT2004 for me." | reads `lanomat://recipes/unreal-tournament-2004/skill`, plans with `recipe_install_plan`, asks about VR and avatars |
+| "Which avatars are on the LAN?" | `recipe_avatars`, presents a multi-select, never invents files |
+| "What's missing for the install?" | `recipe_install_plan`, reports the failed role and glob |
+
+<div class="callout-live">
+  <strong>Live example.</strong> The operator runs the deployed UT2004VR/VRM instance for this recipe
+  at <a href="https://ut.raute1.org/">ut.raute1.org</a> — a live counterpart to the prompts below.
+</div>
 
 ## Install a game
 
@@ -71,7 +76,7 @@ Plan the UT2004 install for Windows and show me every required and optional file
 Do not download anything yet.
 ```
 
-`lanomat_plan_recipe` is pure. This is the safe way to check whether the LAN has the disc before
+`recipe_install_plan` is pure. This is the safe way to check whether the LAN has the disc before
 promising a friend an install.
 
 ## Pick avatars
@@ -91,19 +96,19 @@ Find the UT2004 ISO on the LAN file host. Show the file name, size and upload da
 Give me a download URL only after I confirm.
 ```
 
-`lanomat_list_files` searches by name; `lanomat_file_download_url` returns a short-lived signed URL.
-The "after I confirm" clause keeps the URL from expiring before it is used.
+`files_list` searches by name; `file_download_url` returns a bearer-authenticated download URL.
+The "after I confirm" clause keeps the agent from fetching before the human has seen the size.
 
 ## Draft a recipe
 
 ```text
 Draft a LANoMAT recipe for a game called "Trackmania Nations Forever".
-Read skill://unreal-tournament-2004 as the template.
+Read lanomat://recipes/unreal-tournament-2004/skill as the template.
 Base game required, one optional mod, no avatars yet.
 Validate the shape and submit it as a draft.
 ```
 
-`lanomat_contribute_recipe` creates a draft, not a published recipe. The orga reviews it, runs the
+`recipe_contribute` creates a draft, not a published recipe. The orga reviews it, runs the
 JSON Schema validator and publishes.
 
 ## Troubleshoot
@@ -120,15 +125,15 @@ applied to the wrong folder, or the game was started from the old 32-bit shortcu
 
 ```text
 You: I have a headset and 30 minutes. What can I install?
-Agent: [lanomat_list_recipes platform=windows]
+Agent: [recipes_list platform=windows]
        UT2004 (base + optional VR), Ridge Racer Type 4 (browser cabinet), F-Zero X VR…
        UT2004VR needs SteamVR and OldUnreal 3374. Ridge Racer needs a disc and Node 20.
 You: UT2004 with VR, no avatars. Plan it first.
-Agent: [skill://unreal-tournament-2004] [lanomat_plan_recipe …]
+Agent: [lanomat://recipes/unreal-tournament-2004/skill] [recipe_install_plan …]
        4.72 GB: ISO 4.50 GB, patch 183 MB, UT2004VR 24 MB. 6 steps, 4 checks.
        Download now?
 You: Yes.
-Agent: [lanomat_file_download_url …] downloads, verifies, runs the steps, reports the bot match check.
+Agent: [file_download_url …] downloads, verifies, runs the steps, reports the bot match check.
 ```
 
 <div class="callout-live">

@@ -37,7 +37,7 @@ sidebar and the public event page.
 
 ## Docs for agents
 
-No MCP tool yet. The event context is reachable through `lanomat_me` (current event and role).
+`events_list` with `include_finished`, `event_get` by slug (event, my registration, tournaments, schedule) and `event_register` with `slug` plus an optional `ticket_type`.
 
 <div class="callout-live">
   <strong>One current event.</strong> The sidebar's "Aktuelle LAN" group appears only when a current

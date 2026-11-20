@@ -38,8 +38,8 @@ arrival plan.
 
 ## Docs for agents
 
-No MCP tool yet. Registration state appears through `lanomat_me`; recipe install plans are
-separate (`lanomat_plan_recipe`).
+`events_list` and `event_get` include the caller's registration state; `event_register` registers the
+token owner for an event (`slug`, optional `ticket_type`). Self check-in itself has no MCP tool.
 
 <div class="callout-live">
   <strong>Privacy.</strong> The self check-in page receives only the event token. A ticket's

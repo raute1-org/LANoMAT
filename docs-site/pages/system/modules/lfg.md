@@ -37,7 +37,7 @@ to Discord.
 
 ## Docs for agents
 
-No MCP tool yet.
+`lfg_list` with `event_slug` returns active posts; `lfg_create` (`event_slug`, `title`, `game`, optional `body` and `slots_needed`) creates one for the token's user.
 
 <div class="callout-live">
   <strong>Right-now tool.</strong> LFG is intentionally ephemeral. If a post is older than the

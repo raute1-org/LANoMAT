@@ -33,12 +33,12 @@ three things:
 
 | Ask | It uses |
 |---|---|
-| "Install UT2004 for me." | `skill://unreal-tournament-2004`, `lanomat_plan_recipe`, signed file URLs |
-| "Which avatars are on the LAN?" | `lanomat_list_recipe_avatars` |
-| "Plan Ridge Racer, don't download." | `lanomat_plan_recipe` (pure) |
+| "Install UT2004 for me." | `lanomat://recipes/unreal-tournament-2004/skill`, `recipe_install_plan`, bearer-authenticated download URLs |
+| "Which avatars are on the LAN?" | `recipe_avatars` |
+| "Plan Ridge Racer, don't download." | `recipe_install_plan` (pure) |
 | "Who am I on this LAN?" | `lanomat_me` |
-| "Find the UT2004 ISO." | `lanomat_list_files` |
-| "Draft a recipe for Trackmania." | `skill://…` as template, `lanomat_contribute_recipe` |
+| "Find the UT2004 ISO." | `files_list` |
+| "Draft a recipe for Trackmania." | `lanomat://recipes/{slug}/skill` as template, `recipe_contribute` |
 
 It does not register you for a tournament, claim a seat, vote or change an event. Those remain
 human actions in the app.
@@ -85,7 +85,7 @@ the privacy note.
 - **The model needs a path.** A cloud model needs internet; a local model (`http://host:11434/v1`)
   works fully offline. Without either, the agent can still list skills and files but cannot reason
   about them.
-- **Tokens expire.** A 30-day token is fine for a LAN weekend. If `ask` says unauthorized, run
+- **Tokens expire.** A 90-day token (sliding on use) covers a LAN weekend and the run-up to it. If `ask` says unauthorized, run
   `lanomat-agent login` again.
 
 ## Safety

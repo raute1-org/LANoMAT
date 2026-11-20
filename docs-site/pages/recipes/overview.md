@@ -23,6 +23,13 @@ Launch, servers and tournaments in one page.
 
 <div class="live">LIVE 17:42 · recipe scan · 9 recipes · schema valid</div>
 
+<div class="callout-live">
+  <strong>Live example.</strong> The reference recipe's VR path is deployed by the operator at
+  <a href="https://ut.raute1.org/">ut.raute1.org</a>. The recipe carries that address as
+  <code>metadata.live_url</code>, so a page or agent that reads the recipe metadata can link it
+  without hardcoding a host.
+</div>
+
 ## The shape of `recipe.yaml`
 
 ```yaml
@@ -46,6 +53,7 @@ metadata:
   genre: arena-shooter
   players: "2-32"
   lan_recommended: true
+  live_url: https://ut.raute1.org/   # optional: a deployed instance to link from the game page
   tags: [fps, vr, classic]
 ```
 

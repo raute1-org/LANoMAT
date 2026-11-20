@@ -47,7 +47,7 @@ lanomat-agent login --server https://lan.example
 ```
 
 The agent prints a code and the URL `https://lan.example/mcp/connect`. Open it while
-logged in, compare the code, approve. The agent stores a 30-day bearer token and exits.
+logged in, compare the code, approve. The agent stores a 90-day bearer token (sliding on use) and exits.
 
 ```text
 Device code: K7QF-2M9R
@@ -112,7 +112,7 @@ What happens:
 
 1. The agent resolves the alias to `unreal-tournament-2004`.
 2. It reads the skill and asks about VR and avatars.
-3. It calls `lanomat_plan_recipe` and shows the plan: required files, optional picks, target,
+3. It calls `recipe_install_plan` and shows the plan: required files, optional picks, target,
    estimated bytes.
 4. On confirmation it downloads from the LAN file host, verifies, runs the steps and reports the
    verification checks.
@@ -131,7 +131,7 @@ Avatars are not a yes/no question. The interactive prompt lists every LAN match:
 ```
 
 In a script, pass a comma-separated list with `--avatars ayla,brutus`, or `--no-avatars` to skip the
-question. The agent never invents a file; it only offers what `lanomat_list_recipe_avatars` returned.
+question. The agent never invents a file; it only offers what `recipe_avatars` returned.
 
 ## 6. Day-to-day commands
 

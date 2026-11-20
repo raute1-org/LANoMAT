@@ -37,7 +37,7 @@ state.
 
 ## Docs for agents
 
-No MCP tool yet.
+`polls_list` with `event_slug` returns polls, options and the caller's vote; `poll_vote` takes `poll_id` and `option_id`.
 
 <div class="callout-live">
   <strong>Beamer reveal.</strong> The MVP reveal uses the existing synthetic winner scene with an

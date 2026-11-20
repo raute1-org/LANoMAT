@@ -32,7 +32,7 @@ to the match page, Discord embed and native client.
 
 ## Docs for agents
 
-No MCP tool yet.
+`servers_list` with an optional `event_slug`; without it, the permanent servers are returned.
 
 <div class="callout-live">
   <strong>Server down is not LAN down.</strong> A failed provision degrades one match; the bracket,

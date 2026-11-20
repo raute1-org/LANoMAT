@@ -142,6 +142,15 @@ MODULE_MCP=true
 Empty (`MODULE_FOO=`) counts as unset, not as a disable. `php artisan lanomat:modules` prints the
 result. A module whose `requires()` is off fails boot.
 
+## MCP server
+
+| Variable | Default | Note |
+|---|---|---|
+| `MCP_CODE_TTL` | `600` | Device-code lifetime in seconds |
+| `MCP_POLL_INTERVAL` | `5` | Minimum seconds between token exchanges |
+| `MCP_TOKEN_TTL_DAYS` | `90` | Bearer token lifetime; slid on use |
+| `MCP_DEFAULT_MODEL` | `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` | Advertised by `lanomat_me` for the agent |
+
 ## Agent and model variables (client side)
 
 These are **not** read by the LANoMAT server; they configure the pi agent on a participant's PC:

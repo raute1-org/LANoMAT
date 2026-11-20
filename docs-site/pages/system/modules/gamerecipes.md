@@ -15,7 +15,7 @@ and optionally adds mods and avatars.
 
 - **Teilnehmer** browse recipes, pick avatars, and run the install through the pi agent.
 - **Orga** publishes recipes, uploads ISOs/files, and keeps the SMB import in sync.
-- **Agents** read the recipe skill and call `lanomat_plan_recipe` before downloading anything.
+- **Agents** read the recipe skill and call `recipe_install_plan` before downloading anything.
 
 ## Key screens
 
@@ -29,7 +29,7 @@ and optionally adds mods and avatars.
 ## Guards and rules
 
 - The **base game is required**; a mod is optional and must declare `requires` on the base.
-- Every downloadable byte comes from the LAN file host through a signed URL. No recipe embeds a
+- Every downloadable byte comes from the LAN file host through a bearer-authenticated download URL. No recipe embeds a
   public internet link as its primary source.
 - `plan` is pure: it resolves files and sizes but downloads nothing. The agent confirms before the
   transfer.
@@ -40,9 +40,8 @@ and optionally adds mods and avatars.
 
 ## Docs for agents
 
-`lanomat_list_recipes`, `lanomat_get_recipe`, `lanomat_get_recipe_skill`,
-`lanomat_plan_recipe`, `lanomat_list_recipe_files`, `lanomat_list_recipe_avatars`,
-`lanomat_contribute_recipe`.
+`recipes_list`, `recipe_get`, `recipe_install_plan`, `recipe_avatars`, `recipe_contribute`;
+the skill itself is the resource `lanomat://recipes/{slug}/skill`.
 
 <div class="callout-live">
   <strong>Read the skill first.</strong> The YAML is metadata; the SKILL.md carries the install

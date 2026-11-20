@@ -8,7 +8,7 @@ LANoMAT exposes a **Model Context Protocol** server at `/mcp`. It speaks streama
 bearer token, and gives an agent a small, deliberate surface: identity, game recipes, recipe skills,
 files and a contribution draft. It does not expose a generic database or shell.
 
-<div class="live">LIVE 17:42 · MCP connected · 10 tools · 2 resources · 4 prompts</div>
+<div class="live">LIVE 17:42 · MCP connected · 24 tools · 1 resource · 1 prompt</div>
 
 ## Endpoint
 
@@ -65,10 +65,9 @@ curl -s https://lan.example/api/mcp/token \
 
 ```json
 {
-  "access_token": "lmt_…",
+  "access_token": "lmcp_…",
   "token_type": "Bearer",
-  "expires_in": 2592000,
-  "scope": "lanomat.read lanomat.recipes.contribute"
+  "expires_in": 7776000
 }
 ```
 
@@ -84,7 +83,7 @@ the approving user and carries their role; revoking the device in the browser in
 ## Connect pi
 
 ```bash
-export LANOMAT_TOKEN="lmt_…"
+export LANOMAT_TOKEN="lmcp_…"
 pi mcp add lanomat \
   --url https://lan.example/mcp \
   --bearer-token-env-var LANOMAT_TOKEN \
@@ -143,7 +142,7 @@ themselves. The server answers with `application/json` or an SSE stream, as requ
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "lanomat_list_recipes",
+    "name": "recipes_list",
     "arguments": { "platform": "windows" }
   }
 }
@@ -153,28 +152,28 @@ themselves. The server answers with `application/json` or an SSE stream, as requ
 
 | Surface | Count | Examples |
 |---|---|---|
-| Tools | 10 | `lanomat_me`, `lanomat_list_recipes`, `lanomat_plan_recipe`, `lanomat_list_files` |
-| Resources | 2 | `recipe://<slug>`, `skill://<slug>` |
-| Prompts | 4 | `install_game`, `pick_avatars`, `contribute_recipe`, `troubleshoot_install` |
+| Tools | 24 | `lanomat_me`, `recipes_list`, `recipe_install_plan`, `files_list` |
+| Resources | 1 | `lanomat://recipes/{slug}/skill` |
+| Prompts | 1 | `install-game` |
 
 The full catalogue, argument schemas and examples are on [Tools & resources](/docs/mcp/tools).
 
 ## What is deliberately not exposed
 
 - No SQL, no arbitrary file paths, no shell.
-- No writes to events, matches, seats or registrations.
+- Writes are limited to your own registration, match result, vote, LFG post and a draft recipe. No seat, event or tournament edits, no publish.
 - No other user's private data: every call is scoped to the token's user and their role.
 - No publish action: a contributed recipe is a **draft** for orga review.
 
 ## Errors you will see
 
-| HTTP | JSON-RPC | Meaning |
-|---|---|---|
-| `401` | — | Missing/expired token; pair again |
-| `403` | `-32003` | The user's role may not call this tool |
-| `404` | `-32601` | Unknown tool, resource or prompt |
-| `422` | `-32602` | Invalid arguments (wrong slug, unknown avatar) |
-| `429` | `-32029` | Rate limited; back off and retry |
+| Case | What you get |
+|---|---|
+| Missing or expired token | HTTP `401` with `WWW-Authenticate: Bearer`; pair again |
+| Unknown tool, resource or prompt, or bad arguments | JSON-RPC `-32602` (invalid params) |
+| Policy refusal or an unknown id inside a tool | A tool result with an error text (the model can react); never a stack trace |
+| Rate limited | HTTP `429` (240 requests per minute per token and IP); back off and retry |
+| Unexpected server error | JSON-RPC `-32603` or a `Response::error` text |
 
 <div class="callout-live">
   <strong>LAN-only is fine.</strong> The MCP server works on the venue network without internet. The

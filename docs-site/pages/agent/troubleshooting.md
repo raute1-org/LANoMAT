@@ -14,11 +14,11 @@ lanomat-agent doctor
 ```text
 ✓ config        ~/.config/lanomat-agent/config.json (0600)
 ✓ login         lan.example, user rene, expires in 29 days
-✓ mcp           connected, 10 tools, protocol 2025-06-18
+✓ mcp           connected, 24 tools, protocol 2025-06-18
 ✓ model         venice/e2ee-deepseek-v4-1-flash-1017-abliterated
 ✓ tool calls    lanomat_me → ok (412 ms)
 ✓ disk          84 GB free in ~/.cache/lanomat-agent
-✓ file host     reachable, signed URL accepted
+✓ file host     reachable, bearer-authenticated download URL accepted
 ```
 
 ## Pairing and token
@@ -66,7 +66,7 @@ lets you reconnect. After editing `mcp.json` outside a session, run `/reload`.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Download URL `403` | Tampered or wrong signature | Ask for a fresh URL (`lanomat_file_download_url`) |
+| Download URL `403` | Tampered or wrong signature | Ask for a fresh URL (`file_download_url`) |
 | Download URL `410` | Expired | Request again immediately before use |
 | Download stalls at 0 | File host unreachable from this PC | Check `https://files.<lan>.example:8443` reachability |
 | Works on Wi-Fi, not Ethernet | Different VLAN / no route to the file host | Put the PC on the LAN segment that reaches the file host |

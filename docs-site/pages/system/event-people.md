@@ -53,5 +53,5 @@ admins only — orga is explicit, not a superuser.
 <div class="callout-live">
   <strong>Screens first.</strong> The event page, seat map and bracket are the three surfaces a
   participant stands in front of. The rest of this group supports them; see the
-  <a href="/docs/start/tour">screen tour</a> for light/dark pairs.
+  <a href="/start/tour">screen tour</a> for light/dark pairs.
 </div>

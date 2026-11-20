@@ -12,6 +12,13 @@ Open it at `/games`; a game has its own page at `/games/<slug>`, for example
 
 <div class="live">LIVE 17:42 · UT2004 server up · 6 players · CS 1.6 tournament in round 2</div>
 
+<div class="callout-live">
+  <strong>Live example.</strong> The operator runs the UT2004VR/VRM instance for this catalogue at
+  <a href="https://ut.raute1.org/">ut.raute1.org</a>. Recipes carry a deployed instance as
+  <code>metadata.live_url</code>; a game page that reads the recipe metadata can link it next to
+  Install and Start.
+</div>
+
 ## The list at `/games`
 
 The left sidebar lists every **published** recipe, with a LAN dot when the game is ready to play on

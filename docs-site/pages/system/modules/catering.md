@@ -37,7 +37,7 @@ prices; participants place one order each; the kitchen gets a list; the group se
 
 ## Docs for agents
 
-No MCP tool yet.
+`catering_menu` with `event_slug` lists the event's open and scheduled orders, their menu options and prices in cents.
 
 <div class="callout-live">
   <strong>Kitchen list.</strong> The CSV export and the per-option counts come from the same

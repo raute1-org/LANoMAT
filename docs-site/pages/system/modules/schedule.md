@@ -38,7 +38,7 @@ that are synced automatically. Participants can favourite items and export the p
 
 ## Docs for agents
 
-No MCP tool yet.
+`schedule_list` with `event_slug` returns the event's schedule in order.
 
 <div class="callout-live">
   <strong>Now/next is a read-model.</strong> The schedule projection owns "what is now" and "what is

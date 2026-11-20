@@ -42,7 +42,7 @@ LanCache file host (nginx + tusd), where bytes never pass through the app.
 
 ## Docs for agents
 
-`lanomat_list_files` and `lanomat_file_download_url`.
+`files_list` and `file_download_url`.
 
 <div class="callout-live">
   <strong>LAN-only by design.</strong> The file host is reachable on the venue network. A download
