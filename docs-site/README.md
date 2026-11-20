@@ -105,7 +105,7 @@ flags works too.
 | File | What |
 |---|---|
 | `Dockerfile` | Node 22 build stage (`npm ci && npm run build`), unprivileged nginx runtime, `HEALTHCHECK` on `/docs/` |
-| `nginx.conf` | canonical `/docs` base path, real 404s (no SPA catch-all), immutable hashed assets, gzip, security headers |
+| `nginx.conf` | canonical `/docs` base path, real 404s (no SPA catch-all), immutable hashed assets, one-hour screenshots, gzip, security headers |
 | `deploy/nginx-security-headers.conf` | the header set, included at server level and in the assets location |
 | `deploy/healthcheck.sh` | the Docker healthcheck; BusyBox `wget`, no curl |
 | `deploy/verify.sh` | the curl matrix (`BASE_URL=... deploy/verify.sh`) |
@@ -120,26 +120,36 @@ is `/docs`, so every asset and link in the built HTML is absolute under `/docs`.
 
 | Request | Answer |
 |---|---|
-| `/docs/` | `200`, entry page (client-side redirect to the intro) |
+| `/docs/` | `200`; serves the introduction page directly (real HTML, no JS redirect) |
 | `/docs` | `301 → /docs/` (path-relative, no `:8080` leaked) |
 | `/` | `302 → /docs/` (also makes a docs subdomain work) |
+| `/docs/games` | `301 → /docs/system/games-library` (the app's `/games` short path) |
+| `/docs/mcp`, `/docs/agent` | `301 → /docs/mcp/overview`, `/docs/agent/overview` |
 | `/docs/api`, `/docs/recipes/ut2004` | `200` (prerendered `.html` behind the extensionless link) |
 | `/docs/nope`, `/docs/assets/nope.js`, `/nope` | `404` with the docs' own not-found page |
 | `/docs/assets/<hashed>` | `200`, `Cache-Control: public, max-age=31536000, immutable` |
-| `/docs/screens/*.png` | `200`, one-day cache |
+| `/docs/screens/*.png` | `200`, unhashed, `max-age=3600` (a deploy is visible within the hour) |
 | `*.html`, `.md`, `llms.txt`, OpenAPI `.yaml` | revalidate / one hour |
 
 Headers on every response: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
 `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `Strict-Transport-Security`; no CSP yet (the
-inline theme-boot script needs a planned rollout, same decision as the app). gzip is on for text,
-CSS, JS, JSON, YAML, Markdown, SVG and fonts.
+inline theme-boot script needs a planned rollout, same decision as the app). Screenshots keep stable
+file names, so they cannot be immutable without a build-time hash; one hour is the compromise
+between repeat visits and deploy freshness. gzip is on for text, CSS, JS, JSON, YAML, Markdown, SVG
+and fonts.
 
 ### Compose and Traefik
 
 The repository's `compose.yml` has the docs as an optional profile, next to the app:
 
 ```bash
-docker compose --profile docs up -d docs     # https://${APP_DOMAIN}/docs
+# Standalone preview (loopback only, no Traefik needed):
+docker compose --profile docs up -d docs
+curl -I http://127.0.0.1:4015/docs/
+
+# Next to the app, behind Traefik (the docs router shares the app's network):
+docker compose --profile prod --profile docs up -d traefik docs
+# https://${APP_DOMAIN}/docs
 ```
 
 The service builds `./docs-site`, publishes nothing to the host, runs read-only with
@@ -171,9 +181,18 @@ is a `docs.example.com` resource without a path matcher — the app stays untouc
 ### Authoring links
 
 Markdown links may be written as `/start/quickstart` or `/docs/start/quickstart`; `check:links`
-normalises both. Raw HTML anchors (`<a href="...">` inside MDX) must **not** include the prefix —
-write `/system/overview`. The MDX pipeline prefixes `basePath` to raw anchors, so
-`href="/docs/system/overview"` becomes `/docs/docs/system/overview` and 404s.
+normalises both. Raw HTML anchors behave differently per file type:
+
+| File | Raw `<a href>` |
+|---|---|
+| `.md` | write the route **without** the prefix (`/system/overview`); Zudoku's rehype pass prefixes `basePath` |
+| `.mdx` | keep the deployed URL (`/docs/system/overview`); the MDX compiler passes it through unchanged |
+
+So `href="/docs/system/overview"` in a `.md` page becomes `/docs/docs/system/overview` and 404s.
+This bit four anchors, now fixed: `system/overview.md` → `/system/event-people` and
+`/system/competition`; `system/event-people.md` → `/start/tour`; `system/integrations.md` →
+`/mcp/overview`. The docs build fails on a regression (`grep -R '/docs/docs/' dist/docs` in the
+Dockerfile) and `deploy/verify.sh` greps the served pages for the same pattern.
 
 ## Checks
 
@@ -181,8 +200,8 @@ write `/system/overview`. The MDX pipeline prefixes `basePath` to raw anchors, s
 |---|---|
 | `npm run build` | Zudoku build, MDX, OpenAPI, all routes |
 | `npm run check:links` | Internal links, images and nav entries resolve |
-| `docker build .` | The production image, including `nginx -t` and the healthcheck |
-| `deploy/verify.sh` | The deployed URL: status matrix, caching, gzip, security headers |
+| `docker build .` | The production image, including `nginx -t`, the mime.types grep and the healthcheck |
+| `deploy/verify.sh` | The deployed URL: status matrix, redirects, caching, gzip, security headers, doubled basePath |
 
 The docs are English (repo convention); product nouns stay German where the UI uses them
 (Teilnehmer, Orga, Spielserver, Anmeldung).

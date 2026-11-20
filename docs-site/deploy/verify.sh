@@ -81,14 +81,32 @@ echo "Docs deployment check against $BASE_URL"
 echo
 
 # --- entry points ---------------------------------------------------------
-expect_code "docs root is 200" /docs/ 200
-expect_content_type "docs root is HTML" /docs/ text/html
+WANT_BODY=1 fetch /docs/
+rctype="$(header Content-Type)"
+if [ "$CODE" = "200" ] && printf '%s' "$BODY" | grep -q 'Run the LAN, not the spreadsheet'; then
+    pass "docs root is 200 with the introduction page ($rctype)"
+else
+    fail "docs root is not the rendered introduction (status $CODE, ${#BODY} bytes)"
+fi
+WANT_BODY=0
 expect_code "docs root deep-links into the intro" /docs/start/introduction 200
 expect_redirect "prefix without slash redirects" /docs 301 /docs/
 expect_redirect "host root redirects into the docs" / 302 /docs/
+expect_redirect "short /docs/games redirects to the library" /docs/games 301 /docs/system/games-library
+expect_redirect "short /docs/mcp redirects to the overview" /docs/mcp 301 /docs/mcp/overview
 expect_code "OpenAPI reference" /docs/api 200
 expect_code "recipe deep link" /docs/recipes/ut2004 200
 expect_code "module deep link" /docs/system/overview 200
+
+# HTML is revalidated on every request so a deploy is visible immediately.
+for p in /docs/ /docs/api; do
+    fetch "$p"
+    hcc="$(header Cache-Control)"
+    case "$hcc" in
+        *no-cache*) pass "HTML is no-cache ($p: $hcc)" ;;
+        *) fail "HTML Cache-Control for $p is '${hcc:-missing}'" ;;
+    esac
+done
 
 # Redirects must stay path-relative: an absolute Location built from the
 # container's own :8080 would leak into the browser behind Traefik.
@@ -104,6 +122,7 @@ expect_code "unknown page under /docs is 404" /docs/nope 404
 expect_code "unknown nested page is 404" /docs/api/nope 404
 expect_code "unknown path outside /docs is 404" /nope 404
 expect_code "unknown asset is 404 (never the shell)" /docs/assets/nope.js 404
+expect_code "stock nginx index.html is gone" /index.html 404
 
 fetch /docs/nope
 ncc="$(header Cache-Control)"
@@ -111,6 +130,34 @@ case "$ncc" in
     *no-cache*) pass "404 responses are not cached ($ncc)" ;;
     *) fail "404 Cache-Control is '${ncc:-missing}'" ;;
 esac
+
+# --- redirects keep query strings ----------------------------------------
+fetch '/docs/games?from=app'
+gloc="$(header Location)"
+if [ "$CODE" = 301 ] && [ "$gloc" = "/docs/system/games-library?from=app" ]; then
+    pass "short-path redirect keeps the query string ($gloc)"
+else
+    fail "/docs/games?from=app -> $CODE '${gloc:-none}' (want 301 with ?from=app)"
+fi
+
+fetch '/docs?utm_source=test'
+ploc="$(header Location)"
+if [ "$CODE" = 301 ] && [ "$ploc" = "/docs/?utm_source=test" ]; then
+    pass "prefix redirect keeps the query string ($ploc)"
+else
+    fail "/docs?utm_source=test -> $CODE '${ploc:-none}' (want 301 /docs/?utm_source=test)"
+fi
+
+# --- built output has no doubled basePath --------------------------------
+for p in /docs/system/overview /docs/system/event-people /docs/system/integrations; do
+    WANT_BODY=1 fetch "$p"
+    if printf '%s' "$BODY" | grep -q '/docs/docs/'; then
+        fail "$p contains a doubled basePath (/docs/docs/...)"
+    else
+        pass "$p has no doubled basePath"
+    fi
+    WANT_BODY=0
+done
 
 # --- assets, caching, compression ----------------------------------------
 WANT_BODY=1 fetch /docs/start/introduction
@@ -146,7 +193,7 @@ fi
 fetch /docs/screens/home-dark.png
 scache="$(header Cache-Control)"
 case "$(header Content-Type)/$scache" in
-    "image/png"*"max-age=86400"*) pass "screenshot: image/png, one-day cache ($scache)" ;;
+    "image/png"*"max-age=3600"*) pass "screenshot: image/png, one-hour cache ($scache)" ;;
     *) fail "screenshot: type=$(header Content-Type) cache=$scache" ;;
 esac
 
@@ -162,7 +209,7 @@ for h in "X-Content-Type-Options: nosniff" \
          "Referrer-Policy: strict-origin-when-cross-origin" \
          "Permissions-Policy: camera" \
          "Cross-Origin-Opener-Policy: same-origin" \
-         "Strict-Transport-Security: max-age=31536000"; do
+         "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload"; do
     name="${h%%:*}"
     want="${h#*: }"
     got="$(header "$name")"
@@ -183,11 +230,16 @@ if [ -n "$asset_css" ]; then
     if [ -z "$missing" ]; then pass "security headers on hashed assets"; else fail "missing on assets:$missing"; fi
 fi
 
-server="$(fetch /docs/ >/dev/null 2>&1; header Server)"
-case "$server" in
-    *[0-9]*) fail "Server header leaks a version: $server" ;;
-    *) pass "Server header hides the version (${server:-none})" ;;
-esac
+fetch /docs/
+server="$(header Server)"
+if [ "$CODE" = "200" ] && [ -n "$server" ]; then
+    case "$server" in
+        *[0-9]*) fail "Server header leaks a version: $server" ;;
+        *) pass "Server header hides the version ($server)" ;;
+    esac
+else
+    fail "could not read the Server header (status $CODE, value '${server:-none}')"
+fi
 
 echo
 if [ "$fails" -eq 0 ]; then

@@ -7,9 +7,11 @@
 #   docker compose -f docs-site/deploy/compose.docs.yml up -d --build
 #   docker compose -f docs-site/deploy/compose.docs.yml logs -f docs
 #
-# Requires an external Traefik network named `traefik` (adjust to yours) and
-# APP_DOMAIN in the environment. For a plain local preview, use
-# `docker run -p 4015:8080` instead (see docs-site/README.md).
+# Joins the app stack's external Docker network `lanomat_default` (the name
+# compose.yml uses; Traefik's docker provider is configured for it) and needs
+# APP_DOMAIN in the environment. Adjust the network name if your stack differs.
+# For a plain local preview, use `docker run -p 4015:8080` instead (see
+# docs-site/README.md).
 
 name: lanomat-docs
 
@@ -36,7 +38,7 @@ services:
     # The image's HEALTHCHECK runs deploy/healthcheck.sh (BusyBox wget).
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=traefik"
+      - "traefik.docker.network=lanomat_default"
       - "traefik.http.routers.lanomat-docs.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/docs`)"
       - "traefik.http.routers.lanomat-docs.priority=100"
       - "traefik.http.routers.lanomat-docs.entrypoints=websecure"
@@ -46,8 +48,8 @@ services:
       - "traefik.http.services.lanomat-docs.loadbalancer.healthcheck.path=/docs/"
       - "traefik.http.services.lanomat-docs.loadbalancer.healthcheck.interval=30s"
     networks:
-      - traefik
+      - lanomat_default
 
 networks:
-  traefik:
+  lanomat_default:
     external: true

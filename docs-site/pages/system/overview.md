@@ -100,7 +100,7 @@ not "unfinished": they are toggles because a small LAN does not need provisionin
 does not want to run without Discord. Turning one on is a deploy-time decision, not a code change.
 
 <div class="callout-live">
-  <strong>Reading order for operators.</strong> Start with <a href="/docs/system/event-people">Event
-  & people</a>, then <a href="/docs/system/competition">Competition</a>. Site & ops is for the
+  <strong>Reading order for operators.</strong> Start with <a href="/system/event-people">Event
+  & people</a>, then <a href="/system/competition">Competition</a>. Site & ops is for the
   person who owns the venue network and the servers; Media is for the person running the beamer.
 </div>

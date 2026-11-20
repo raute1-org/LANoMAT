@@ -14,7 +14,7 @@
 
 labels:
   traefik.enable: "true"
-  traefik.docker.network: "traefik"
+  traefik.docker.network: "lanomat_default"
 
   # Router: host + path, higher priority than the app catch-all.
   traefik.http.routers.lanomat-docs.rule: "Host(`lan.example`) && PathPrefix(`/docs`)"

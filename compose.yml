@@ -500,10 +500,14 @@ services:
       traefik.http.services.livekit.loadbalancer.server.port: '7880'
 
   # Docs site (Zudoku, docs-site/). Optional and static: no database, no
-  # Redis, no secrets, no volume. Start it with
+  # Redis, no secrets, no volume. It can run on its own for a preview:
   #   docker compose --profile docs up -d docs
-  # and it is served at https://${APP_DOMAIN}/docs next to the app. The
-  # container always serves the /docs prefix (Zudoku's basePath), so the
+  #   curl -I http://127.0.0.1:4015/docs/
+  # or next to the app + Traefik (the docs router needs the app's Traefik):
+  #   docker compose --profile prod --profile docs up -d traefik docs
+  # and it is served at https://${APP_DOMAIN}/docs.
+  #
+  # The container always serves the /docs prefix (Zudoku's basePath), so the
   # Traefik router must NOT strip it. Its own image sets the security and
   # cache headers; the app's `secure-headers@file` middleware is deliberately
   # not attached here (it would duplicate X-Frame-Options with DENY vs
@@ -512,6 +516,11 @@ services:
   # The image runs as uid 101 and listens on 8080 (nginx-unprivileged).
   # read_only + tmpfs: nginx only needs /tmp for pid and request buffers;
   # the document root is never written at runtime.
+  #
+  # Loopback preview is published on 4015 (non-default, mirroring the app's
+  # 8000 convention) so the profile is usable without Traefik. Nothing is
+  # exposed off-box; public traffic goes through Traefik when the prod
+  # profile is active.
   docs:
     restart: unless-stopped
     build:
@@ -528,6 +537,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    ports: ['127.0.0.1:${DOCS_HOST_PORT:-4015}:8080']
     expose: ['8080']
     # The image's HEALTHCHECK probes /docs/ with BusyBox wget (no curl).
     labels:
