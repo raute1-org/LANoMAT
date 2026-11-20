@@ -41,7 +41,7 @@ curl -s https://lan.example/api/mcp/device -X POST
 {
   "device_code": "dc_6f1c…",
   "user_code": "K7QF-2M9R",
-  "verification_uri": "https://lan.example/settings/connections",
+  "verification_uri": "https://lan.example/mcp/connect",
   "expires_in": 600,
   "interval": 5
 }
@@ -49,6 +49,11 @@ curl -s https://lan.example/api/mcp/device -X POST
 
 Open `verification_uri`, confirm the code matches the one the agent shows, and approve. The agent
 polls:
+
+| Dark | Light |
+|---|---|
+| ![Pairing approval, dark](/screens/mcp-connect-pending-dark.png) | ![Pairing approval, light](/screens/mcp-connect-pending-light.png) |
+| `Agent & MCP verbinden · DARK` — agent name, code, approve/deny, connected agents | `Agent & MCP verbinden · LIGHT` |
 
 ```bash
 # 2. Exchange the approved code for a token

@@ -46,12 +46,12 @@ Node 22+ is required for the source path only; the native installer bundles its 
 lanomat-agent login --server https://lan.example
 ```
 
-The agent prints a code and the URL `https://lan.example/settings/connections`. Open it while
+The agent prints a code and the URL `https://lan.example/mcp/connect`. Open it while
 logged in, compare the code, approve. The agent stores a 30-day bearer token and exits.
 
 ```text
 Device code: K7QF-2M9R
-Open:        https://lan.example/settings/connections
+Open:        https://lan.example/mcp/connect
 Waiting for approval… done. Token stored for lan.example.
 ```
 
@@ -64,6 +64,11 @@ The token lives in:
 
 It is scoped to your user. Revoke it in the app's connections settings; the next call answers `401`
 and you pair again.
+
+| Dark | Light |
+|---|---|
+| ![MCP code entry, dark](/screens/mcp-connect-dark.png) | ![MCP code entry, light](/screens/mcp-connect-light.png) |
+| `Agent & MCP verbinden · DARK` — code entry and the agents already paired | `Agent & MCP verbinden · LIGHT` |
 
 ## 3. Choose a model
 

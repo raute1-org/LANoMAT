@@ -138,6 +138,22 @@ The Tauri desktop app lives in `clients/voice/`. These screens come from the par
 
 <span class="shot-caption">NATIVE CLIENT · screenshots from the app's own walkthrough</span>
 
+## These docs
+
+The docs site you are reading is a Zudoku build under `/docs`, generated from `docs-site/pages` and
+served from the same host as the app. It uses the Signalpult palette, so a screenshot in the docs and
+the page it describes share one look.
+
+| Dark | Light |
+|---|---|
+| ![Docs, games library, dark](/screens/docs-games-library-dark.png) | ![Docs, games library, light](/screens/docs-games-library-light.png) |
+| `DOCS · DARK` — the games library page with its screenshot pair | `DOCS · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Docs, MCP, dark](/screens/docs-mcp-dark.png) | ![Docs, MCP, light](/screens/docs-mcp-light.png) |
+| `DOCS · DARK` — the MCP page, pairing section | `DOCS · LIGHT` |
+
 ## Reading a screenshot
 
 Two details repeat everywhere and are worth learning once:

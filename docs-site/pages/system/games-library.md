@@ -29,7 +29,17 @@ supplied disc, but the LAN dot tells you whether the fast path exists.
 | Search | Title, alias, genre and tags ("ut2k4", "racing", "vr") |
 | Nur LAN-Spiele | Hide everything that would need a download from the internet |
 
+| Dark | Light |
+|---|---|
+| ![Games library, dark](/screens/games-dark.png) | ![Games library, light](/screens/games-light.png) |
+| `Spiele · DARK` — published catalogue, LAN dot on UT2004, search and filter | `Spiele · LIGHT` |
+
 ## The game page at `/games/<slug>`
+
+| Dark | Light |
+|---|---|
+| ![UT2004 game page, dark](/screens/game-ut2004-dark.png) | ![UT2004 game page, light](/screens/game-ut2004-light.png) |
+| `Spiel · DARK` — Install/Start, join string, "Runde ankündigen", install steps | `Spiel · LIGHT` |
 
 ### Install
 
