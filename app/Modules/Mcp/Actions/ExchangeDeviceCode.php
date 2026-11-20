@@ -25,9 +25,10 @@ class ExchangeDeviceCode
 {
     private const SLOW_DOWN_STEP = 5;
 
-    /** `mcp_device_codes.interval` is an unsigned smallint, so the RFC 8628
-     *  increment must stop there instead of failing the poll with a DB error. */
-    private const MAX_INTERVAL = 65535;
+    /** `mcp_device_codes.interval` is a PostgreSQL *signed* smallint, so the
+     *  RFC 8628 increment must stop at 32767 instead of failing the poll with a
+     *  DB error. */
+    private const MAX_INTERVAL = 32767;
 
     /**
      * @return array{access_token: string, token_type: string, expires_in: int}

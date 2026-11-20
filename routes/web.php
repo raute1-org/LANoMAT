@@ -65,7 +65,9 @@ if ($modules->routable(Module::GameRecipes)) {
 if ($modules->routable(Module::Mcp)) {
     // Browser end of the agent pairing flow and the connected-agent list.
     Route::middleware(['auth'])->prefix('mcp')->name('mcp.')->group(function () {
-        Route::get('connect', [App\Modules\Mcp\Http\ConnectController::class, 'show'])->name('connect');
+        Route::get('connect', [App\Modules\Mcp\Http\ConnectController::class, 'show'])
+            ->middleware('throttle:30,1')
+            ->name('connect');
         Route::post('connect', [App\Modules\Mcp\Http\ConnectController::class, 'decide'])
             ->middleware('throttle:mcp-approve')
             ->name('connect.decide');

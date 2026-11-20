@@ -60,16 +60,17 @@ curl -s https://lan.example/api/mcp/token \
 
 ```json
 {
-  "access_token": "lmt_…",
+  "access_token": "lmcp_…",
   "token_type": "Bearer",
-  "expires_in": 2592000,
-  "scope": "lanomat.read lanomat.recipes.contribute"
+  "expires_in": 7776000
 }
 ```
 
 While the human has not approved yet, the exchange answers `400` with
 `{"error":"authorization_pending"}`. An expired code answers `expired_token`. The token belongs to
 the approving user and carries their role; revoking the device in the browser invalidates it.
+The response carries no scope: a reserved `abilities` column exists on the token row, but no mint
+path sets it and no request enforces it yet.
 
 <div class="callout-live">
   <strong>No password in a file.</strong> The token is the credential. Store it in an environment
@@ -79,7 +80,7 @@ the approving user and carries their role; revoking the device in the browser in
 ## Connect pi
 
 ```bash
-export LANOMAT_TOKEN="lmt_…"
+export LANOMAT_TOKEN="lmcp_…"
 pi mcp add lanomat \
   --url https://lan.example/mcp \
   --bearer-token-env-var LANOMAT_TOKEN \

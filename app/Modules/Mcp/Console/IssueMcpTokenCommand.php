@@ -11,7 +11,6 @@ use App\Modules\Mcp\Support\McpCodes;
 use App\Modules\Mcp\Support\McpConfig;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Str;
 
 /**
  * Mint a token without the browser for headless setups (CI, a kiosk, an orga
@@ -32,14 +31,14 @@ class IssueMcpTokenCommand extends Command
 
         $user = User::query()
             ->where(function (Builder $query) use ($needle): void {
-                $query->where('email', $needle)
-                    ->orWhere('email', Str::lower($needle))
+                $query->whereRaw('lower(email) = ?', [mb_strtolower($needle)])
                     ->orWhere('discord_id', $needle);
 
                 if (ctype_digit($needle)) {
                     $query->orWhere('id', (int) $needle);
                 }
             })
+            ->orderBy('id')
             ->first();
 
         if (! $user instanceof User) {

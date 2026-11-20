@@ -130,6 +130,39 @@ it('keeps growing and persisting the slow_down interval across polls', function 
     expect(mcpSecurityPoll($pair['device_code'])->error)->toBe('authorization_pending');
 });
 
+it('clamps slow_down at the signed smallint limit instead of failing', function () {
+    Carbon::setTestNow('2026-11-21 18:00:00');
+    $pair = mcpSecurityPair();
+
+    McpDeviceCode::query()->sole()
+        ->forceFill(['interval' => 32760, 'last_polled_at' => now()])
+        ->save();
+
+    $grow = mcpSecurityPoll($pair['device_code']);
+    expect($grow->error)->toBe('slow_down')
+        ->and($grow->interval)->toBe(32765)
+        ->and(McpDeviceCode::query()->sole()->interval)->toBe(32765);
+
+    $clamped = mcpSecurityPoll($pair['device_code']);
+    expect($clamped->error)->toBe('slow_down')
+        ->and($clamped->interval)->toBe(32767)
+        ->and(McpDeviceCode::query()->sole()->interval)->toBe(32767);
+
+    // further fast polls stay at the limit and never hit a DB error
+    $again = mcpSecurityPoll($pair['device_code']);
+    expect($again->error)->toBe('slow_down')->and($again->interval)->toBe(32767);
+
+    // over HTTP that is a 400 slow_down, never a 500
+    $this->postJson('/api/mcp/token', ['device_code' => $pair['device_code']])
+        ->assertStatus(400)
+        ->assertJson(['error' => 'slow_down', 'interval' => 32767]);
+
+    // the row is not stuck: after waiting out the interval polls work again
+    McpDeviceCode::query()->sole()->forceFill(['expires_at' => now()->addDay()])->save();
+    Carbon::setTestNow(now()->addSeconds(32767));
+    expect(mcpSecurityPoll($pair['device_code'])->error)->toBe('authorization_pending');
+});
+
 it('reports access_denied and invalid_grant to the agent and forgets the code', function () {
     $user = User::factory()->create();
     $pair = mcpSecurityPair();

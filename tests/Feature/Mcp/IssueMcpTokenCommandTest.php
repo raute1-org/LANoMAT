@@ -67,6 +67,25 @@ it('looks a user up by email (any case) and by Discord id', function () {
         ->and($rows->every(fn (McpToken $token): bool => $token->user_id === $user->id))->toBeTrue();
 });
 
+it('matches a mixed-case stored email case-insensitively', function () {
+    $user = User::factory()->create(['email' => 'Mixed@Case.Example']);
+
+    expect(Artisan::call('lanomat:mcp-token', ['user' => 'mixed@case.example']))->toBe(0);
+
+    expect(McpToken::query()->sole()->user_id)->toBe($user->id);
+});
+
+it('resolves id, email and Discord collisions deterministically by id', function () {
+    $byEmail = User::factory()->create(['email' => '4242']);
+    $byDiscord = User::factory()->create(['discord_id' => '4242']);
+
+    expect($byEmail->id)->toBeLessThan($byDiscord->id);
+
+    expect(Artisan::call('lanomat:mcp-token', ['user' => '4242']))->toBe(0);
+
+    expect(McpToken::query()->sole()->user_id)->toBe($byEmail->id);
+});
+
 it('fails cleanly for an unknown user and creates nothing', function () {
     $this->artisan('lanomat:mcp-token', ['user' => 'nobody@lan.example'])
         ->expectsOutputToContain('No user matches that id, email or Discord id.')

@@ -1,6 +1,6 @@
 ---
 title: Security
-description: Tokens, device pairing, scopes, prompt injection and what the MCP server deliberately cannot do.
+description: Tokens, device pairing, reserved abilities, prompt injection and what the MCP server deliberately cannot do.
 sidebar_icon: shield
 ---
 
@@ -11,10 +11,10 @@ user, a read-mostly tool set, no shell, no SQL, and a draft-only write path for 
 
 | Item | Rule |
 |---|---|
-| Token | `lmt_…`, bearer only; no cookie session on `/mcp` |
+| Token | `lmcp_…`, bearer only; no cookie session on `/mcp` |
 | Pairing | Device code approved by a logged-in human; code expires after 10 minutes |
-| Scope | `lanomat.read` plus `lanomat.recipes.contribute`; no admin scope |
-| Lifetime | 30 days by default; revocable per device |
+| Abilities | Reserved `abilities` column; nothing sets or enforces it yet — the approver's role decides every call |
+| Lifetime | 90 days by default, sliding on use; revocable per device |
 | Storage | The MCP client's secret store or `LANOMAT_TOKEN`; never in git or a recipe |
 | Transport | HTTPS. On the venue LAN, the venue wildcard certificate; never plain HTTP across a shared network |
 

@@ -207,7 +207,10 @@ it('stores no plaintext token in the database', function () {
         ->and($flat)->not->toContain($plain);
 });
 
-it('honours the reserved ability list without bypassing it', function () {
+it('exposes the reserved ability list (not yet enforced)', function () {
+    // No mint path writes `abilities` and no middleware or tool reads
+    // hasAbility(); the column exists so scopes can be added later without a
+    // migration. Effective permissions are always the user's role/policies.
     $user = User::factory()->create();
     [$scopedPlain, $scoped] = mintMcpToken($user, ['abilities' => ['read']]);
     [$fullPlain, $full] = mintMcpToken($user, ['abilities' => null]);
@@ -222,6 +225,7 @@ it('honours the reserved ability list without bypassing it', function () {
 
 it('throttles the agent API per token without punishing another token', function () {
     $user = User::factory()->create();
+
     [$plain] = mintMcpToken($user);
 
     for ($i = 0; $i < 240; $i++) {
@@ -232,4 +236,15 @@ it('throttles the agent API per token without punishing another token', function
 
     [$otherPlain] = mintMcpToken($user);
     $this->withToken($otherPlain)->getJson('/api/v1/me')->assertOk();
+});
+
+it('throttles the connect page per user', function () {
+    $user = User::factory()->create();
+    $this->withoutVite();
+
+    for ($i = 0; $i < 30; $i++) {
+        $this->actingAs($user)->get('/mcp/connect')->assertOk();
+    }
+
+    $this->actingAs($user)->get('/mcp/connect')->assertStatus(429);
 });
