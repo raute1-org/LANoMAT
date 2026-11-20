@@ -88,7 +88,7 @@ class UploadSharedFile
             // Open resumable-upload reservations hold quota too.
             $existingBytes += UploadQuota::reservedBytes($event->id, $actor->id);
 
-            $quotaBytes = UploadQuota::capBytes();
+            $quotaBytes = UploadQuota::capBytes($actor);
             $sizeBytes = $file->getSize();
 
             if ($sizeBytes === false) {

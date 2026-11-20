@@ -275,7 +275,7 @@ there is exactly one code path per mode.
 | Setting                      | Default | Where else it must match                                                              |
 | ---------------------------- | ------- | ------------------------------------------------------------------------------------- |
 | `FILES_MAX_FILE_GB`          | 50      | `FILES_MAX_FILE_BYTES` in the file host's `.env` (tusd `-max-size`) = GB × 1073741824 |
-| `FILES_PER_USER_QUOTA_MB`    | 102400  | disk sizing below; the page shows used and cap                                        |
+| `FILES_PER_USER_QUOTA_MB`    | 102400  | default per user and event; an admin can override it per user (user page, "Dateikontingent") |
 | `FILES_TUS_UPLOAD_TTL_HOURS` | 24      | how long a half-finished upload may sit before the sweep deletes it                   |
 
 The upload area shows the per-file maximum, and the quota readout counts files plus open reservations, from the same
