@@ -26,9 +26,8 @@ state.
 
 ## Guards and rules
 
-- One vote per user per poll (`UNIQUE(poll_id, user_id)`); a second vote is rejected, not silently
-  replaced.
-- Voting requires an open poll and a logged-in user; it does not additionally require a registration.
+- One vote per user per poll (`UNIQUE(poll_id, user_id)`); changing a vote replaces it.
+- Voting requires an open poll and a non-cancelled event registration.
 - `PollKind::Mvp` is a special flavour: `SeedMvpPoll` creates one option per registered participant,
   linked by `subject_user_id` (not mass-assignable).
 - `RevealMvp` re-checks that the poll really is the event's closed MVP poll; a stray id cannot
@@ -38,8 +37,7 @@ state.
 
 ## Docs for agents
 
-`polls_list` returns one event's polls with options and the caller's own vote; `poll_vote` casts or
-changes that vote in an open poll. Results are only included where the web page would show them.
+`polls_list` with `event_slug` returns polls, options and the caller's vote; `poll_vote` takes `poll_id` and `option_id`.
 
 <div class="callout-live">
   <strong>Beamer reveal.</strong> The MVP reveal uses the existing synthetic winner scene with an

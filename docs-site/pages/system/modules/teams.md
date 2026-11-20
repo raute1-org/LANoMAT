@@ -32,8 +32,7 @@ The module owns the roster, join requests, the logo and the ownership rules.
 
 ## Docs for agents
 
-`teams_list` returns cross-event teams with member count and the caller's own role; an optional
-`query` filters by name or tag. Roster changes and join requests stay human actions in the app.
+`teams_list` with an optional `query` returns teams, member counts and the caller's membership.
 
 <div class="callout-live">
   <strong>Roster snapshots.</strong> When a tournament starts, the roster is frozen into the entry's

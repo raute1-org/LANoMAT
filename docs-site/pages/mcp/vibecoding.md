@@ -5,8 +5,8 @@ sidebar_icon: sparkles
 ---
 
 "Vibecoding" here means something practical: you say what you want, the agent reads the right skill,
-plans, asks the one question that matters and then acts. These prompts work with the real tool
-catalogue — no imaginary tools.
+plans, asks the one question that matters and then acts. These are prompt recipes that work with the
+tool catalogue — no imaginary tools, no magic.
 
 <div class="live">LIVE 17:42 · agent session · 2 installs planned · 1 running</div>
 
@@ -15,9 +15,14 @@ catalogue — no imaginary tools.
 | You say | The agent does |
 |---|---|
 | "Set up my PC for the LAN." | `lanomat_me`, `recipes_list`, proposes a short list, asks which game |
-| "Install UT2004 for me." | reads `lanomat://recipes/unreal-tournament-2004/skill`, plans, asks about VR and avatars |
+| "Install UT2004 for me." | reads `lanomat://recipes/unreal-tournament-2004/skill`, plans with `recipe_install_plan`, asks about VR and avatars |
 | "Which avatars are on the LAN?" | `recipe_avatars`, presents a multi-select, never invents files |
-| "What's missing for the install?" | `recipe_install_plan`, reports the `missing` entries |
+| "What's missing for the install?" | `recipe_install_plan`, reports the failed role and glob |
+
+<div class="callout-live">
+  <strong>Live example.</strong> The operator runs the deployed UT2004VR/VRM instance for this recipe
+  at <a href="https://ut.raute1.org/">ut.raute1.org</a> — a live counterpart to the prompts below.
+</div>
 
 ## Install a game
 
@@ -26,8 +31,8 @@ Install UT2004 for me on this PC. Base game and patch only, no VR.
 Use the LAN copy, not the internet. Tell me the download size before you start.
 ```
 
-Why it works: the recipe marks the base and patch as required, VR as optional, and the plan lists
-every file with `source: lan` or `source: external` before anything moves.
+Why it works: the recipe marks the base and patch as required, VR as optional, and the agent has to
+report the plan's byte count before moving anything.
 
 With an explicit avatar choice:
 
@@ -36,8 +41,7 @@ Install UT2004 with the VR mod and the Ayla and Brutus avatars.
 If those avatars are not on the LAN, show me what is and let me pick.
 ```
 
-The agent calls `recipe_avatars` with the recipe slug and offers only entries with
-`available_on_lan: true`. The second sentence forbids inventing a URL for a catalogue entry that has
+The second sentence matters: it forbids inventing a download URL for a catalogue entry that has
 none.
 
 ## Games library prompts
@@ -46,12 +50,9 @@ The `/games` page speaks the same vocabulary; these prompts are what people actu
 are standing in front of it.
 
 ```text
-Install F-Zero X VR for me. It is a draft recipe — if it is not published yet, tell me
-and use the UT2004 recipe as the fallback.
+Install CS 1.6 for me. It is a draft recipe on the server — if it is not published yet,
+tell me and use the UT2004 recipe as the fallback.
 ```
-
-A draft recipe is invisible to participants, so `recipes_list` will not return it; the agent must
-say so rather than plan against a hidden slug.
 
 ```text
 Join the UT2004 server. Find the live server, print the join string, and tell me the map
@@ -63,8 +64,9 @@ Announce a round of UT2004 for tonight. Use the game page's Runde ankündigen, t
 the voice link for /talk.
 ```
 
-The agent resolves the recipe and may call `servers_list` for the event; the announcement itself is
-a web action on the game page, so it should not invent an LFG post. See
+The agent should resolve the recipe, read the skill and show the plan; for the server prompt it
+reads the live server read-model and prints the same join string the game page shows; for the
+announcement it opens the game page flow rather than inventing an LFG post. See
 [Games library](/docs/system/games-library) for the exact buttons.
 
 ## Plan without downloading
@@ -94,19 +96,8 @@ Find the UT2004 ISO on the LAN file host. Show the file name, size and upload da
 Give me a download URL only after I confirm.
 ```
 
-`files_list` searches one event by file name; `file_download_url` returns a bearer-authenticated
-download URL. The "after I confirm" clause keeps the URL from being fetched before the human is
-ready. Pass the event slug — `files_list` is event-scoped.
-
-## Check the event
-
-```text
-What is running tonight? Show the schedule, the open tournaments and who is looking for a group.
-```
-
-The agent calls `events_list` → `event_get` → `schedule_list` → `tournament_list` → `lfg_list` with
-the same event slug. `event_get` already carries tournaments and schedule, so a good agent does not
-repeat every call.
+`files_list` searches by name; `file_download_url` returns a bearer-authenticated download URL.
+The "after I confirm" clause keeps the agent from fetching before the human has seen the size.
 
 ## Draft a recipe
 
@@ -117,8 +108,8 @@ Base game required, one optional mod, no avatars yet.
 Validate the shape and submit it as a draft.
 ```
 
-`recipe_contribute` creates a draft, not a published recipe. The orga reviews it under `/admin`,
-runs the JSON Schema validator and publishes.
+`recipe_contribute` creates a draft, not a published recipe. The orga reviews it, runs the
+JSON Schema validator and publishes.
 
 ## Troubleshoot
 
@@ -134,17 +125,15 @@ applied to the wrong folder, or the game was started from the old 32-bit shortcu
 
 ```text
 You: I have a headset and 30 minutes. What can I install?
-Agent: [lanomat_me] [recipes_list platform=windows]
+Agent: [recipes_list platform=windows]
        UT2004 (base + optional VR), Ridge Racer Type 4 (browser cabinet), F-Zero X VR…
        UT2004VR needs SteamVR and OldUnreal 3374. Ridge Racer needs a disc and Node 20.
 You: UT2004 with VR, no avatars. Plan it first.
-Agent: [resource lanomat://recipes/unreal-tournament-2004/skill]
-       [recipe_install_plan slug=ut2004 os=windows]
-       4.72 GB: ISO 4.50 GB, patch 183 MB, UT2004VR 24 MB. 6 steps, checks included.
+Agent: [lanomat://recipes/unreal-tournament-2004/skill] [recipe_install_plan …]
+       4.72 GB: ISO 4.50 GB, patch 183 MB, UT2004VR 24 MB. 6 steps, 4 checks.
        Download now?
 You: Yes.
-Agent: [file_download_url] downloads with the bearer token, verifies, runs the steps,
-       reports the bot match check.
+Agent: [file_download_url …] downloads, verifies, runs the steps, reports the bot match check.
 ```
 
 <div class="callout-live">

@@ -10,7 +10,7 @@ that is bigger than the current LAN: the date of the next one, a venue change, a
 ## Who uses it
 
 - **Orga** writes, publishes and unpublishes posts in Filament.
-- **Teilnehmer** read the latest posts on the homepage/event page.
+- **Guests and Teilnehmer** read the latest posts on the homepage/event page.
 
 ## Key screens
 

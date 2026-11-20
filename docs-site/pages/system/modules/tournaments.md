@@ -43,10 +43,7 @@ fan-out on `MatchReady` and `MatchCompleted`.
 
 ## Docs for agents
 
-`tournament_list` (by event slug) shows status, format and the caller's entry; `tournament_bracket`
-returns rounds, entrants, scores and join info; `tournament_checkin` checks the caller's own entry
-in inside the window; `match_result` reports, confirms, disputes or withdraws the caller's match
-result, using the current `lock_version` for confirm and withdraw.
+`tournament_list` by event, `tournament_bracket` and `tournament_checkin` by tournament id, and `match_result` (`report`, `confirm`, `dispute`, `withdraw`) for the caller's match.
 
 <div class="callout-live">
   <strong>Live bracket.</strong> <code>TournamentStarted</code>, <code>MatchReady</code>,

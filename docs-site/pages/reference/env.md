@@ -111,20 +111,6 @@ Reverb refuses a handshake without an `Origin`. A native client must send its se
 | `GALLERY_MAX_UPLOAD_MB` / `_MAX_EDGE` / `_THUMB_WIDTH` / `_JPEG_QUALITY` | Upload pipeline |
 | `IMAGE_DRIVER` | Leave empty for GD; GD's re-encode strips EXIF/GPS |
 
-## Request and domain limits
-
-| Variable | Default | Note |
-|---|---|---|
-| `LIMIT_BODY_DEFAULT_MB` | `10` | Request body cap for ordinary routes |
-| `LIMIT_BODY_GALLERY_MB` | `100` | Gallery uploads (25 MB per photo, several per request) |
-| `LIMIT_BODY_FILES_MB` | `210` | Shared-file uploads |
-| `LIMIT_BODY_LARGE_MB` | `1032` | Livewire temporary uploads, including voice installers |
-| `LIMIT_FOOD_ITEMS_PER_USER` | `10` | Food items one person may hold across open orders |
-| `LIVEWIRE_MAX_UPLOAD_KB` | see `.env.example` | Livewire's own temporary-upload ceiling |
-
-The three body caps are mirrored in `docker/traefik/dynamic.yml` and enforced again by
-`LimitRequestBodySize`; a test keeps the numbers in sync.
-
 ## Music, room audio, provisioning
 
 | Variable | Note |
@@ -150,12 +136,20 @@ The three body caps are mirrored in `docker/traefik/dynamic.yml` and enforced ag
 MODULES_PROFILE=core          # or full
 MODULE_JUKEBOX=true           # per-module override
 MODULE_CUSTOM_SERVERS=false
-MODULE_GAME_RECIPES=true
 MODULE_MCP=true
 ```
 
 Empty (`MODULE_FOO=`) counts as unset, not as a disable. `php artisan lanomat:modules` prints the
 result. A module whose `requires()` is off fails boot.
+
+## MCP server
+
+| Variable | Default | Note |
+|---|---|---|
+| `MCP_CODE_TTL` | `600` | Device-code lifetime in seconds |
+| `MCP_POLL_INTERVAL` | `5` | Minimum seconds between token exchanges |
+| `MCP_TOKEN_TTL_DAYS` | `90` | Bearer token lifetime; slid on use |
+| `MCP_DEFAULT_MODEL` | `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` | Advertised by `lanomat_me` for the agent |
 
 ## Agent and model variables (client side)
 
@@ -166,23 +160,9 @@ These are **not** read by the LANoMAT server; they configure the pi agent on a p
 | `VENICE_API_KEY` | Venice key; never stored by LANoMAT |
 | `LANOMAT_AGENT_MODEL` | Full `provider/model`, e.g. `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` |
 | `OPENAI_MODEL_BASE_URL` / `_API_KEY` / `_NAME` / `_PROVIDER` | Generic OpenAI-compatible endpoint |
-| `LANOMAT_TOKEN` | Paired MCP bearer token (used by `pi mcp` and `ask`) |
-| `LANOMAT_CONFIG_DIR` / `LANOMAT_PI_DIR` / `LANOMAT_SKILLS_DIR` / `LANOMAT_AVATARS_DIR` | Override the agent's config, pi, skills and avatar directories |
+| `LANOMAT_TOKEN` | Paired MCP bearer token |
 
 See [Models & fuel](/docs/agent/venice) for precedence.
-
-## MCP server tuning
-
-These are server-side and optional; the defaults are what the docs describe:
-
-| Variable | Default | Note |
-|---|---|---|
-| `MCP_CODE_TTL` | `600` | Device-code lifetime in seconds |
-| `MCP_POLL_INTERVAL` | `5` | Minimum seconds between token polls |
-| `MCP_TOKEN_TTL_DAYS` | `90` | Bearer lifetime; slides on use |
-| `MCP_DEFAULT_MODEL` | `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` | Advertised by `lanomat_me` and `doctor` |
-
-`MODULE_MCP=true` (or `MODULES_PROFILE=full`) is what enables the module at all.
 
 ## Runbooks for the values above
 

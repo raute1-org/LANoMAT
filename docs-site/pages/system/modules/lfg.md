@@ -27,21 +27,17 @@ to Discord.
 
 ## Guards and rules
 
-- Posting requires a logged-in account and a publicly visible event; no registration or check-in gate
-  (the board is deliberately low-friction).
-- A post has an expiry; `lanomat:prune-lfg` closes expired posts and the scheduler runs it every
-  five minutes.
+- Posting requires a non-cancelled event registration.
+- A post has an expiry; `lanomat:prune-expired-lfg-posts` closes expired posts and the scheduler runs
+  it regularly.
 - The owner or orga can delete a post; deletion is soft in the sense that the announcement stays in
   Discord.
-- `slots_needed` is a validated integer, not free text; the game is a plain label so people can
-  look for a round the catalogue does not know.
+- `players_needed` and `skill_level` are validated enums, not free text.
 - No direct messages are sent by the module; interested people answer in Discord or in person.
 
 ## Docs for agents
 
-`lfg_list` returns the active posts of one event; `lfg_create` creates a post for the caller
-(`event_slug`, `title`, `game`, optional `body` and `slots_needed`). Expiry and moderation are the
-same rules as the web board.
+`lfg_list` with `event_slug` returns active posts; `lfg_create` (`event_slug`, `title`, `game`, optional `body` and `slots_needed`) creates one for the token's user.
 
 <div class="callout-live">
   <strong>Right-now tool.</strong> LFG is intentionally ephemeral. If a post is older than the

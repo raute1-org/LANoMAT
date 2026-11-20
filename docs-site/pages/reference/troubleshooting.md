@@ -95,7 +95,7 @@ down, work from the outside in: Traefik → app container → database/Redis →
 ## Collecting a report
 
 ```bash
-php artisan lanomat:preflight > preflight.txt
+php artisan lanomat:preflight --json > preflight.json
 docker compose --profile prod logs --since=30m app queue scheduler reverb-prod > stack.log
 ```
 

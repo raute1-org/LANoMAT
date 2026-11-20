@@ -19,8 +19,7 @@ place where amber, scale and motion are allowed to be loud.
 ## Key screens
 
 - `/screen/{event}` — the beamer.
-- `/overlay/tournament/{tournament}/bracket` — OBS browser source.
-- `/overlay/match/{match}/scoreboard` — per-match scoreboard overlay.
+- `/overlay/{event}/{scene}` — OBS browser source.
 - Filament **Infoscreen** — scenes, order, duration, enable/disable, announcement, tombola.
 
 | Dark | Light |

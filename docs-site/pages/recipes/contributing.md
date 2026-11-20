@@ -89,7 +89,7 @@ optional, say so in `notes` and keep `required: false`.
 - [ ] `SKILL.md` names the aliases, the optional questions and the failure modes.
 - [ ] Commands are one per entry, quoted, and use `{{target}}`/`{{downloads}}`.
 - [ ] No game file, BIOS, ROM or key is in the repository.
-- [ ] The recipe appears on `/games/<slug>` after it is published.
+- [ ] The recipe page renders (the docs build includes it).
 - [ ] The pull request says which platforms you actually tested.
 
 <div class="callout-live">

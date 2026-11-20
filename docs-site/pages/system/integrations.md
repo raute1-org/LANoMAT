@@ -35,5 +35,5 @@ timer.
 
 <div class="callout-live">
   <strong>Agents use MCP, not Discord.</strong> The MCP server at <code>/mcp</code> is a separate
-  interface with its own bearer tokens and device pairing. See <a href="/docs/mcp/overview">MCP</a>.
+  interface with its own bearer tokens and device pairing. See <a href="/mcp/overview">MCP</a>.
 </div>

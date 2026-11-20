@@ -8,9 +8,16 @@ The games library is the participant-facing front door to the recipe catalogue. 
 questions in one place: *what can I install, what is running right now, and who wants to play?*
 
 Open it at `/games`; a game has its own page at `/games/<slug>`, for example
-`https://lan.example/games/ut2k4`.
+`https://lan.raute1.org/games/ut2k4`.
 
 <div class="live">LIVE 17:42 · UT2004 server up · 6 players · CS 1.6 tournament in round 2</div>
+
+<div class="callout-live">
+  <strong>Live example.</strong> The operator runs the UT2004VR/VRM instance for this catalogue at
+  <a href="https://ut.raute1.org/">ut.raute1.org</a>. Recipes carry a deployed instance as
+  <code>metadata.live_url</code>; a game page that reads the recipe metadata can link it next to
+  Install and Start.
+</div>
 
 ## The list at `/games`
 
@@ -26,10 +33,20 @@ supplied disc, but the LAN dot tells you whether the fast path exists.
 | Element | Meaning |
 |---|---|
 | LAN dot | Required content is present on the file host and/or a server is live |
-| Search | Title, summary and slug; a recipe alias such as `ut2k4` works in the URL (`/games/ut2k4`) but not in the search box |
+| Search | Title, alias, genre and tags ("ut2k4", "racing", "vr") |
 | Nur LAN-Spiele | Hide everything that would need a download from the internet |
 
+| Dark | Light |
+|---|---|
+| ![Games library, dark](/screens/games-dark.png) | ![Games library, light](/screens/games-light.png) |
+| `Spiele · DARK` — published catalogue, LAN dot on UT2004, search and filter | `Spiele · LIGHT` |
+
 ## The game page at `/games/<slug>`
+
+| Dark | Light |
+|---|---|
+| ![UT2004 game page, dark](/screens/game-ut2004-dark.png) | ![UT2004 game page, light](/screens/game-ut2004-light.png) |
+| `Spiel · DARK` — Install/Start, join string, "Runde ankündigen", install steps | `Spiel · LIGHT` |
 
 ### Install
 
@@ -61,11 +78,10 @@ value, not a dead button.
 
 ### Running tournaments
 
-Tournaments for the game are listed with status, start time and a link to the bracket. Matching is
-by the game's name and slug against the recipe's search terms, so a tournament created for the
-catalogue entry "Unreal Tournament 2004" shows up on the UT2004 game page. Only tournaments in
-`announced`, `enrollment`, `check_in` or `live` are listed; a finished one drops off. A draft recipe
-is not listed to participants until it is published.
+Tournaments for the game are listed with status, round and a link to the bracket. **CS 1.6** is the
+canonical example: it is a draft recipe in the catalogue, and once it is published and the event has
+a CS 1.6 tournament, its game page surfaces the tournament and the provisioned servers in the same
+view. A draft recipe is not listed to participants until it is published.
 
 ### Runde ankündigen
 
@@ -76,9 +92,8 @@ It is the shortest path from "we should play" to "everyone is in the room":
 2. The voice link opens the event's general room.
 3. The post expires like every LFG post; the orga can remove it.
 
-The action requires a logged-in account and a publicly visible event; it does not require a
-registration (the board is deliberately low-friction). It does not create a tournament, start a
-server or reserve a seat.
+The action requires a non-cancelled event registration, like every LFG post. It does not create a
+tournament, start a server or reserve a seat.
 
 ## What the page never does
 
