@@ -125,7 +125,7 @@ git commit                                   # "Merge branch 'feat/game-recipes'
 
 | File | Resolution | Why |
 |---|---|---|
-| `docs-site/pages/recipes/smb.md` | **ours** (`git checkout --ours`) | mcp carries the public-safe placeholder fix `smb://192.168.68.55` → `smb://nas.local` (`2ffc930`); the zudoku side still has the real LAN IP |
+| `docs-site/pages/recipes/smb.md` | **ours** (`git checkout --ours`) | mcp carries the public-safe placeholder fix `smb://<LAN-IP>` → `smb://nas.local` (`2ffc930`); the zudoku side still has the real LAN IP |
 | `docs-site/zudoku.config.tsx` | **ours** (only at `feat/mcp-server` ≥ `2c1d1d3`) | ours = zudoku's config **plus** redirects `/games`, `/mcp`, `/agent`; the branch side is a strict subset |
 | `docs-site/README.md` | **take theirs** (clean add) | only file the zudoku branch has that mcp does not |
 

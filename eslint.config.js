@@ -90,7 +90,9 @@ export default defineConfigWithVueTs(
             // them and their style is not the app's.
             'clients/agent/**',
             'docs-site/**',
-            'resources/recipes/**',
+            'resources/recipes/schema/**',
+            // Runtime output (framework cache/views/tests) is not source.
+            'storage/**',
         ],
     },
     prettier,
