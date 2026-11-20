@@ -148,6 +148,11 @@
                     "type": "string",
                     "minLength": 1
                 },
+                "avatar_converter_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                },
                 "multiplayer": {
                     "type": "boolean"
                 },

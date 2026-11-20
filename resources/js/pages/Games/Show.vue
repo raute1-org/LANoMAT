@@ -49,6 +49,7 @@ type Game = {
     version: string | null;
     platforms: string[] | null;
     homepage: string | null;
+    avatar_converter_url: string | null;
     license: string | null;
     requirements: {
         role: string;
@@ -662,12 +663,54 @@ function announceRound(): void {
                                         />
                                     </a>
                                 </template>
-                                <p
-                                    v-if="game.avatars > 0"
-                                    class="font-mono text-xs text-live"
+                                <div
+                                    v-if="
+                                        game.avatars > 0 ||
+                                        game.avatar_converter_url
+                                    "
+                                    class="space-y-2"
                                 >
-                                    {{ game.avatars }} Avatare zur Auswahl
-                                </p>
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <p
+                                            v-if="game.avatars > 0"
+                                            class="font-mono text-xs text-live"
+                                        >
+                                            {{ game.avatars }} Avatare zur
+                                            Auswahl
+                                        </p>
+                                        <Button
+                                            v-if="game.avatar_converter_url"
+                                            as-child
+                                            size="sm"
+                                            variant="secondary"
+                                            data-test="avatar-converter"
+                                        >
+                                            <a
+                                                :href="
+                                                    game.avatar_converter_url
+                                                "
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <ExternalLink
+                                                    class="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Avatare konvertieren
+                                            </a>
+                                        </Button>
+                                    </div>
+                                    <p
+                                        v-if="game.avatar_converter_url"
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        VRM wählen → konvertieren → fertiges
+                                        UT2004-Modell herunterladen; die
+                                        VRM-Dateien kommen aus dem LAN.
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
 

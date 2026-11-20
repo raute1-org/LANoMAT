@@ -23,6 +23,7 @@ type GameCard = {
     version: string | null;
     lan_ready: boolean;
     installable: boolean;
+    avatar_converter_url: string | null;
     server_count: number;
     running_tournaments: {
         id: number;

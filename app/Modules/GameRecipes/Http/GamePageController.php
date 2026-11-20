@@ -496,6 +496,25 @@ class GamePageController extends Controller
     }
 
     /**
+     * The optional avatar bridge (e.g. the VRM -> UT2004 converter). It is a
+     * convenience on top of the LAN files, so only an absolute http(s) URL is
+     * exposed — a recipe must never turn agent content into a `javascript:` or
+     * `data:` link on the games page.
+     */
+    private function avatarConverterUrl(GameRecipe $recipe): ?string
+    {
+        $url = $recipe->metadata['avatar_converter_url'] ?? null;
+
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+
+        return is_string($scheme) && in_array(mb_strtolower($scheme), ['http', 'https'], true) ? $url : null;
+    }
+
+    /**
      * @param  array<int, SharedFile>  $matches
      * @param  list<array<string, mixed>>  $servers
      * @param  Collection<int, Tournament>  $tournaments
@@ -520,6 +539,7 @@ class GamePageController extends Controller
             'platforms' => $recipe->platforms,
             'status' => $recipe->status->value,
             'homepage' => $recipe->homepage,
+            'avatar_converter_url' => $this->avatarConverterUrl($recipe),
             'installable' => $this->installable($recipe),
             'install_command' => $recipe->installCommand(),
             'launch_command' => $recipe->launchCommand(),

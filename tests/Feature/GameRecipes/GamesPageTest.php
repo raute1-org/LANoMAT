@@ -481,3 +481,45 @@ it('pairs requirements with file rows by role and label, not by list position', 
             ->where('game.requirements.2.label', 'VRM avatar · Alyx')
             ->where('game.requirements.2.available_on_lan', false));
 });
+
+it('exposes the avatar converter URL only when the recipe configures it', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+    $recipe = gamePageRecipe();
+
+    // Not configured: no link, so the page never renders an empty button.
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('game.avatar_converter_url', null));
+
+    $recipe->update(['metadata' => [
+        'launch' => 'C:\\Games\\UT2004\\System\\UT2004.exe',
+        'multiplayer' => true,
+        'avatar_converter_url' => 'https://ut.raute1.org/',
+    ]]);
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('games.0.avatar_converter_url', 'https://ut.raute1.org/'));
+
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('game.avatar_converter_url', 'https://ut.raute1.org/'));
+
+    // A non-http(s) scheme is ignored instead of becoming a clickable link.
+    $recipe->update(['metadata' => [
+        'launch' => 'C:\\Games\\UT2004\\System\\UT2004.exe',
+        'multiplayer' => true,
+        'avatar_converter_url' => 'javascript:alert(1)',
+    ]]);
+
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('game.avatar_converter_url', null));
+});
