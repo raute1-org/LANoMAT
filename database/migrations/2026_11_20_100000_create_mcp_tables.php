@@ -33,9 +33,11 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('name', 60);
             $table->char('token_hash', 64)->unique();
-            // Reserved for narrower agent tokens ("read", "install", ...). The
-            // policies still decide every request; this list only lets a token
-            // be scoped down later without another migration.
+            // Reserved, currently unenforced: no mint path (device flow or
+            // `lanomat:mcp-token`) fills this column and no request checks it.
+            // Every call is decided by the approver's role through the normal
+            // policies. The column exists so scopes can be introduced later
+            // without another migration.
             $table->jsonb('abilities')->nullable();
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->index();

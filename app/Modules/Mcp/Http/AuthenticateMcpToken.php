@@ -35,7 +35,7 @@ class AuthenticateMcpToken
         $hash = McpCodes::hash($plain);
         $token = McpToken::query()->where('token_hash', $hash)->first();
 
-        if (! $token instanceof McpToken || ! hash_equals($token->token_hash, $hash) || ! $token->isActive()) {
+        if (! $token instanceof McpToken || ! McpCodes::matches($plain, $token->token_hash) || ! $token->isActive()) {
             return $this->unauthenticated();
         }
 

@@ -74,6 +74,8 @@ curl -s https://lan.example/api/mcp/token \
 While the human has not approved yet, the exchange answers `400` with
 `{"error":"authorization_pending"}`. An expired code answers `expired_token`. The token belongs to
 the approving user and carries their role; revoking the device in the browser invalidates it.
+The response carries no scope: a reserved `abilities` column exists on the token row, but no mint
+path sets it and no request enforces it yet.
 
 <div class="callout-live">
   <strong>No password in a file.</strong> The token is the credential. Store it in an environment

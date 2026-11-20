@@ -17,7 +17,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $user_id
  * @property string $name
- * @property array<int, string>|null $abilities
+ * @property array<int, string>|null $abilities Reserved `abilities` list; no mint path sets it and no request enforces it yet — authorization is the user's role through the policies.
  * @property Carbon|null $last_used_at
  * @property Carbon $expires_at
  * @property Carbon|null $revoked_at

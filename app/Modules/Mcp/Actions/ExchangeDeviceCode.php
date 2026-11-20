@@ -25,6 +25,11 @@ class ExchangeDeviceCode
 {
     private const SLOW_DOWN_STEP = 5;
 
+    /** `mcp_device_codes.interval` is a PostgreSQL *signed* smallint, so the
+     *  RFC 8628 increment must stop at 32767 instead of failing the poll with a
+     *  DB error. */
+    private const MAX_INTERVAL = 32767;
+
     /**
      * @return array{access_token: string, token_type: string, expires_in: int}
      *
@@ -37,10 +42,10 @@ class ExchangeDeviceCode
         $failure = null;
         $result = null;
 
-        DB::transaction(function () use ($hash, &$failure, &$result): void {
+        DB::transaction(function () use ($deviceCode, $hash, &$failure, &$result): void {
             $row = McpDeviceCode::query()->where('device_code_hash', $hash)->lockForUpdate()->first();
 
-            if (! $row instanceof McpDeviceCode || ! hash_equals($row->device_code_hash, $hash)) {
+            if (! $row instanceof McpDeviceCode || ! McpCodes::matches($deviceCode, $row->device_code_hash)) {
                 $failure = new DeviceFlowError('invalid_grant');
 
                 return;
@@ -61,7 +66,7 @@ class ExchangeDeviceCode
             if ($tooFast) {
                 // PostgreSQL's smallint is signed (max 32767), not 65535; clamping
                 // above that would 500 and brick the pairing row.
-                $row->interval = min(32767, (int) $row->interval + self::SLOW_DOWN_STEP);
+                $row->interval = min(self::MAX_INTERVAL, (int) $row->interval + self::SLOW_DOWN_STEP);
                 $row->save();
                 $failure = new DeviceFlowError('slow_down', (int) $row->interval);
 
