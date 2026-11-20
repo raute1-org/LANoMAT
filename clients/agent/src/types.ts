@@ -131,6 +131,8 @@ export interface RecipeDetail {
     play_url?: string | null;
     /** Local command or executable path, e.g. `C:\Games\...\UT2004.exe`. */
     launch_target?: string | null;
+    /** Named ways to start the game (flat, vr, …); `launch_target` is the default. */
+    launch_targets?: LaunchTarget[] | null;
     supports_multiplayer?: boolean;
     install_command?: string | null;
     launch_command?: string | null;
@@ -139,6 +141,16 @@ export interface RecipeDetail {
     files?: unknown[];
     avatars?: Avatar[];
     [key: string]: unknown;
+}
+
+/** One entry of `metadata.launch_targets` (server-normalised). */
+export interface LaunchTarget {
+    id: string;
+    label?: string;
+    os?: string;
+    command: string;
+    shell?: string | null;
+    notes?: string | null;
 }
 
 export interface RecipePlan {

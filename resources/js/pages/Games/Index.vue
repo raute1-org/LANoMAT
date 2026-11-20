@@ -120,7 +120,9 @@ const platformLabel = (platforms: string[] | null): string =>
                     class="mt-3 font-mono text-xs text-muted-foreground"
                 >
                     ● LIVE {{ active_event.name }}
-                    <span v-if="game_modules.web_voice"> — Sprachchat offen</span>
+                    <span v-if="game_modules.web_voice">
+                        — Sprachchat offen</span
+                    >
                 </p>
 
                 <p

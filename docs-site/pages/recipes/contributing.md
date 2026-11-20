@@ -47,6 +47,10 @@ Hard requirements for a merge:
   optional.
 - At least one step with a `detail`; every non-optional step should end in a `verify` check.
 - `metadata` with genre, players, `lan_recommended` and tags.
+- Launch data when the game has an installed or browser start: `metadata.launch` (a string, or
+  `{kind: steam|uri|exe, target, args?}`) or `metadata.launch_targets` (ids such as `flat` and `vr`,
+  first entry is the default). `metadata.play_url` uses `{{host}}`, never `localhost`; `live_url`
+  names a live deployment. See `resources/recipes/README.md` § Launching.
 
 ## 3. Write `SKILL.md`
 

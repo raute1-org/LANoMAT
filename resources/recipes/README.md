@@ -84,6 +84,36 @@ dir) and `{{os}}`. Commands are one per entry, with no `&&` chains; use
 `powershell` on Windows, `bash` on Linux, `cmd` only when a tool requires it.
 Keep commands idempotent and safe to re-run.
 
+## Launching
+
+A recipe says how the game starts and where it is played. Two forms are
+interchangeable for a client, the multi-target one is preferred when a game has
+more than one way to start:
+
+```yaml
+metadata:
+    launch: 'C:\Games\Unreal Tournament 2004\System\UT2004.exe' # one flat command …
+    # or, for several options (flat, VR):
+    launch_targets:
+        - id: flat
+          label: Flat on a monitor
+          os: windows
+          command: '{{target}}/System/UT2004.exe'
+        - id: vr
+          label: VR in a SteamVR headset
+          os: windows
+          command: '{{target}}/System/Play-VR.bat'
+    play_url: http://{{host}}:8080/play?game=r4 # {{host}} is replaced by the request host
+```
+
+- `launch` accepts a string or `{kind: steam|uri|exe, target, args?}`; `steam`
+  takes the app id, `exe` a path, `uri` a full URI.
+- `launch_targets` wins over `launch`; the first entry is the default and each
+  `id` is what `lanomat-agent launch <slug> --variant <id>` asks for.
+- `launch_vr` is the legacy shortcut for a `vr` target.
+- `play_url` must use `{{host}}`, never `localhost`: the app substitutes the host
+  that serves the game. `live_url` names a live deployment, if one exists.
+
 ## Licensing
 
 Recipes ship **data only**. Game files, discs, BIOS dumps, ROMs and firmware are

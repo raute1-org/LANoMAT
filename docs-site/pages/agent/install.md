@@ -155,6 +155,7 @@ lanomat-agent recipes                   # list visible recipes
 lanomat-agent plan ut2004 --os windows  # plan only, no downloads
 lanomat-agent install ut2004            # same as the game page's Install button
 lanomat-agent launch ut2004             # start an installed game
+lanomat-agent launch ut2004 --variant vr  # pick a launch_targets entry (flat, vr, …)
 lanomat-agent avatars --recipe ut2004   # download avatar/content packs
 lanomat-agent ask "plan ridge racer type 4"
 lanomat-agent ask --print-command "install ut2004"   # show the exact pi argv

@@ -77,7 +77,7 @@ class GamePageController extends Controller
         $user = $this->authUser($request);
         $matches = $matcher->matchesFor($recipe, $user);
         $servers = $modules->enabled(Module::GameServers) ? $this->serversFor($recipe) : [];
-        $playUrl = $recipe->playUrl();
+        $playUrl = $recipe->playUrlFor($request->getHost());
         $event = $this->activeEvent();
         $tournaments = $modules->enabled(Module::Tournaments) && $event !== null
             ? $this->tournamentsFor($recipe, $event)
@@ -115,6 +115,7 @@ class GamePageController extends Controller
                 'avatars' => $recipe->files->filter(fn (GameRecipeFile $file): bool => $file->isAvatar())->count(),
                 'play_url' => $playUrl,
                 'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => $recipe->launchTargets(),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'lan_ready' => $this->lanReady($recipe, $user, $matcher),
                 'requires_agent' => true,
@@ -313,8 +314,9 @@ class GamePageController extends Controller
             'launch_command' => $recipe->launchCommand(),
             'install_deeplink' => $recipe->installDeepLink(),
             'launch_deeplink' => $recipe->launchDeepLink(),
-            'play_url' => $recipe->playUrl(),
+            'play_url' => $recipe->playUrlFor(request()->getHost()),
             'launch_target' => $recipe->launchTarget(),
+            'launch_targets' => $recipe->launchTargets(),
             'supports_multiplayer' => $recipe->supportsMultiplayer(),
             'install_button' => 'Installieren',
             'launch_button' => 'Starten',

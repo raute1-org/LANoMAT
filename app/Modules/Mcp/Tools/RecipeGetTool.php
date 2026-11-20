@@ -61,8 +61,11 @@ class RecipeGetTool extends LanomatTool
                 'aliases' => $recipe->aliases,
                 'homepage' => $recipe->homepage,
                 'license' => $recipe->license,
-                'play_url' => $recipe->playUrl(),
+                // The MCP request wrapper has no host; the HTTP request does, and a
+                // tool always runs inside one (streamable HTTP transport).
+                'play_url' => $recipe->playUrlFor(request()->getHost()),
                 'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => $recipe->launchTargets(),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),

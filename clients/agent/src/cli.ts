@@ -457,11 +457,12 @@ export function buildProgram(): Command {
         .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
         .option('--target <dir>', 'install dir substituted for {{target}}')
         .option('--avatars <dir>', 'avatar dir substituted for {{avatars}}')
+        .option('--variant <id>', 'launch target id from the recipe (flat, vr, …)')
         .option('--dry-run', 'print the launch command without running it')
         .action(
             async (
                 slug: string,
-                opts: { os: string; target?: string; avatars?: string; dryRun?: boolean },
+                opts: { os: string; target?: string; avatars?: string; variant?: string; dryRun?: boolean },
             ) => {
                 const { logger, paths } = context();
                 const config = await requireConfig(paths);
@@ -471,6 +472,7 @@ export function buildProgram(): Command {
                     os: parseOs(opts.os),
                     targetDir: opts.target,
                     avatarsDir: opts.avatars,
+                    variant: opts.variant,
                     dryRun: opts.dryRun,
                     log: (line) => logger.line(line),
                     warn: (line) => logger.warn(line),

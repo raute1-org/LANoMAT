@@ -435,7 +435,9 @@ function announceRound(): void {
                                         Runde ankündigen
                                     </Button>
                                     <Button
-                                        v-if="voice_url && game_modules.web_voice"
+                                        v-if="
+                                            voice_url && game_modules.web_voice
+                                        "
                                         as-child
                                         size="sm"
                                         variant="outline"

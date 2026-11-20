@@ -1,5 +1,5 @@
 import type { ApiClient } from './http.js';
-import type { Os, RecipeDetail, RecipePlan } from './types.js';
+import type { LaunchTarget, Os, RecipeDetail, RecipePlan } from './types.js';
 import { openBrowser } from './auth.js';
 import { defaultAvatarsDir } from './config.js';
 import { runPlanStep, substituteVariables, type CommandExecutor } from './runner.js';
@@ -11,6 +11,8 @@ export interface LaunchOptions {
     dryRun?: boolean;
     targetDir?: string;
     avatarsDir?: string;
+    /** Launch target id from `metadata.launch_targets` (flat, vr, …). */
+    variant?: string;
     platform?: NodeJS.Platform;
     openUrl?: (url: string) => void;
     executor?: CommandExecutor;
@@ -41,14 +43,35 @@ function looksLikePath(value: string): boolean {
 }
 
 /** The plan carries the recipe-level launch fields too; use it only when needed. */
-function launchFields(recipe: RecipeDetail, plan: RecipePlan | null): {
+function launchFields(recipe: RecipeDetail, plan: RecipePlan | null, target: LaunchTarget | null): {
     playUrl?: string | null;
     target?: string | null;
 } {
     return {
         playUrl: recipe.play_url ?? plan?.play_url ?? null,
-        target: recipe.launch_target ?? recipe.launch_command ?? plan?.launch_target ?? plan?.launch_command ?? null,
+        target: target?.command ?? recipe.launch_target ?? recipe.launch_command ?? plan?.launch_target ?? plan?.launch_command ?? null,
     };
+}
+
+/**
+ * Choose the launch target: an explicit `--variant <id>` wins, otherwise the
+ * first entry that runs on this OS, otherwise the first entry (the server sorts
+ * them most-useful-first). `null` when the recipe declares no targets.
+ */
+export function pickLaunchTarget(
+    targets: LaunchTarget[] | null | undefined,
+    os: Os,
+    variant?: string,
+): LaunchTarget | null {
+    if (!targets || targets.length === 0) {
+        return null;
+    }
+
+    if (variant) {
+        return targets.find((entry) => entry.id === variant) ?? null;
+    }
+
+    return targets.find((entry) => !entry.os || entry.os === 'any' || entry.os === os) ?? targets[0] ?? null;
 }
 
 export function buildLaunchCommand(
@@ -73,11 +96,22 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
     const openUrl = options.openUrl ?? ((url: string) => openBrowser(url, platform));
     const recipe = await options.api.getRecipe(options.slug);
     let plan: RecipePlan | null = null;
-    let fields = launchFields(recipe, plan);
+    const chosen = pickLaunchTarget(recipe.launch_targets ?? null, options.os, options.variant);
+
+    if (options.variant && chosen === null && (recipe.launch_targets?.length ?? 0) > 0) {
+        const available = (recipe.launch_targets ?? []).map((entry) => entry.id).join(', ');
+
+        warn(`Unknown launch target "${options.variant}" for "${options.slug}".`);
+        warn(`Available targets: ${available}.`);
+
+        return { code: 2, kind: 'missing' };
+    }
+
+    let fields = launchFields(recipe, plan, chosen);
 
     if (!fields.playUrl && !fields.target) {
         plan = await options.api.createPlan(options.slug, options.os, { includeAvatars: false });
-        fields = launchFields(recipe, plan);
+        fields = launchFields(recipe, plan, chosen);
     }
 
     if (fields.playUrl) {

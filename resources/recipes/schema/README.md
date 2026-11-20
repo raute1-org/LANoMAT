@@ -68,6 +68,42 @@ depend on it.
 detected platform. The installer resolves them; the schema only stores the
 strings.
 
+### Launching
+
+`metadata` carries how the installed game starts and where it is played. The
+forms are interchangeable for a client, but a recipe should pick the richest one
+it can support:
+
+| Key              | Shape                                               | Meaning                                                                                                                                                                                                                                           |
+| ---------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `launch`         | string **or** object                                | One way to start an installed copy. A string is a flat command or executable path. The object is `{kind: steam\|uri\|exe, target, args?, shell?, notes?}`; `steam` takes the app id (`13210`), `uri` a full URI, `exe` a path plus optional args. |
+| `launch_targets` | array of `{id, label, os, command, shell?, notes?}` | Several ways to start the same install, most useful first (`flat`, `vr`, …). Wins over `launch` when present; `id` is what `lanomat-agent launch --variant <id>` asks for. `os` is `windows`, `linux`, `macos` or `any`.                          |
+| `launch_vr`      | string                                              | Legacy shortcut for a second VR command; equivalent to a `launch_targets` entry with `id: vr`. Do not combine both.                                                                                                                               |
+| `play_url`       | string                                              | Browser game or web front end. Use `{{host}}` for the LAN address of the serving machine — the app replaces it with the request host, so never hardcode `localhost`.                                                                              |
+| `live_url`       | string                                              | A live deployment of this game (for example an event's public server).                                                                                                                                                                            |
+
+Commands and `play_url` may use `{{target}}` (install dir) and `{{avatars}}`
+(avatar dir); the client substitutes them like the step variables.
+
+```yaml
+metadata:
+    genre: arena-shooter
+    players: 2-32
+    lan_recommended: true
+    tags: [fps, vr]
+    play_url: http://{{host}}:8080/
+    launch_targets:
+        - id: flat
+          label: Flat on a monitor
+          os: windows
+          command: '{{target}}/System/UT2004.exe'
+        - id: vr
+          label: VR in a SteamVR headset
+          os: windows
+          shell: powershell
+          command: 'Start-Process "{{target}}/System/Play-VR.bat"'
+```
+
 ## Design rules
 
 - Prefer first-party/official project URLs. Do not deep-link a moving asset
