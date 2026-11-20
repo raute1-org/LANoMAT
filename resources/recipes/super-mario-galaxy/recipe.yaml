@@ -1,0 +1,129 @@
+schema: lanomat.recipe/v1
+slug: super-mario-galaxy
+title: Super Mario Galaxy
+aliases: ['smg', 'mario galaxy', 'super mario galaxy']
+version: '1.0.0'
+status: draft
+platforms: [windows, linux]
+summary: Play Super Mario Galaxy on the LAN in Dolphin with the user's own Wii disc, an emulated Wii Remote plus Nunchuk and pointer control.
+description: |
+    Super Mario Galaxy is the Wii gravity-platformer with small planets, star
+    bits and a pointer-controlled Star Cursor. Dolphin runs the user's own Wii
+    disc image and emulates the Wii Remote and Nunchuk; a real Wii Remote works
+    through Bluetooth or a DolphinBar.
+
+    The game needs a pointer: the Star Cursor, pull stars and some menu actions
+    are aimed at the screen. A mouse or a mapped right stick is the usual
+    keyboard/desktop substitute.
+
+    The LAN collection also has a native "Nebula" recomp build; this recipe uses
+    Dolphin as the portable baseline.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://dolphin-emu.org/
+license: 'Nintendo; disc image user-supplied'
+cover: ''
+skill:
+    name: super-mario-galaxy
+    description: "Install Super Mario Galaxy with Dolphin, import the user's Wii disc image, configure an emulated Wii Remote plus Nunchuk and pointer control, then verify it boots. Use when the user says install Super Mario Galaxy or SMG for the LAN."
+    compatibility: 'Windows 10/11 or Linux; Dolphin; ~1.5 GB disk; Wii Remote/Nunchuk or Xbox pad with pointer mapping'
+requires:
+    - role: iso
+      label: 'Super Mario Galaxy (USA) disc image'
+      match:
+          [
+              '*Super Mario Galaxy*.iso',
+              '*super*mario*galaxy*.iso',
+              '*Super Mario Galaxy*.rvz',
+              '*super*mario*galaxy*.rvz',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: "USA ISO or a lossless RVZ. Galaxy 2 is a separate game; keep it out of this recipe's disc match."
+    - role: tool
+      label: 'Dolphin emulator'
+      match: ['Dolphin*.zip', 'dolphin-*.tar.xz', 'dolphin*.AppImage']
+      required: true
+      url: https://dolphin-emu.org/download/
+      notes: 'Use the current stable/beta. A portable build keeps the LAN install self-contained.'
+    - role: base
+      label: 'Wii Remote profile (optional real remote)'
+      match: []
+      required: false
+      url: ''
+      notes: 'A real Wii Remote needs Bluetooth (or a DolphinBar); an emulated Wii Remote with Nunchuk is enough for the baseline.'
+steps:
+    - id: install-dolphin
+      title: 'Install Dolphin'
+      os: windows
+      optional: false
+      detail: |
+          Extract the portable Dolphin build to `{{target}}`, or install the Linux
+          package/AppImage. Launch once so the user folder exists.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/Dolphin-x64-*.zip" -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/Dolphin.exe'
+    - id: import-disc
+      title: 'Import the Wii disc'
+      os: any
+      optional: false
+      detail: |
+          Copy the ISO/RVZ into `{{target}}/Games` and add the folder in
+          Config → Paths. Confirm the game ID and region.
+
+          Galaxy is a dual-layer Wii disc; a scrubbed or badly converted ISO can
+          lose the second layer and crash later in the game.
+      commands:
+          - shell: powershell
+            run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/Super Mario Galaxy (USA).iso" -Destination "{{target}}/Games/" -Force'
+          - shell: bash
+            run: 'mkdir -p "{{target}}/Games"'
+          - shell: bash
+            run: 'cp "{{downloads}}/Super Mario Galaxy (USA).iso" "{{target}}/Games/"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/Games/Super Mario Galaxy (USA).iso'
+    - id: configure-wii-remote
+      title: 'Configure the Wii Remote and pointer'
+      os: any
+      optional: false
+      detail: |
+          Set Controller 1 to "Emulated Wii Remote" with a Nunchuk attached. Map
+          the pointer to the mouse or the right stick, A to jump, B to the Star
+          Spin, and the Nunchuk stick to movement.
+
+          For a real Wii Remote, pair it over Bluetooth (or use a DolphinBar) and
+          enable "Continuous Scanning"; set the speaker to "Emulated" to avoid
+          audio glitches.
+    - id: configure-graphics
+      title: 'Configure graphics'
+      os: any
+      optional: false
+      detail: |
+          Use 3x–4x native resolution, VSync, and the Vulkan backend where it is
+          stable. Enable widescreen only with a tested Gecko/AR code; Galaxy's
+          pointer and UI are 16:9-aware, but cutscenes need a check.
+
+          Leave EFB copies at the default that the current Dolphin recommends; the
+          game relies on them for the Star Cursor and some effects.
+    - id: verify
+      title: 'Reach the Comet Observatory'
+      os: any
+      optional: false
+      detail: |
+          Boot the game, play the first level (Gateway Galaxy), collect a star and
+          return to the observatory. Check the pointer, the Star Spin and the save.
+
+          Draft recipe: verify the pointer mapping and a real Wii Remote on the LAN
+          hardware.
+metadata:
+    genre: platformer
+    players: '1-2 (co-op star bits)'
+    lan_recommended: false
+    tags: [platformer, wii, nintendo, dolphin]

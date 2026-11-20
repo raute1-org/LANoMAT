@@ -1,0 +1,141 @@
+schema: lanomat.recipe/v1
+slug: zelda-ocarina-of-time-3d
+title: 'The Legend of Zelda: Ocarina of Time 3D'
+aliases: ['oot3d', 'ocarina of time 3d', 'zelda ocarina of time 3d']
+version: '1.0.0'
+status: draft
+platforms: [windows, linux]
+summary: Play Ocarina of Time 3D on the LAN with Azahar and the user's own decrypted 3DS dump, mapped to a normal gamepad.
+description: |
+    Ocarina of Time 3D is the Nintendo 3DS remake of the N64 classic: sharper
+    models, a touch-screen inventory and the Master Quest. Azahar (the Citra
+    successor) runs it from the user's decrypted `.3ds`, `.cia` or `.cci` dump.
+
+    The 3DS has two screens. Azahar can stack or separate them; the touch items
+    and the map need a layout that a controller can reach. A texture pack is
+    optional and separate from the game dump.
+
+    The LAN collection also holds an Ocarina of Time 3D dump and a TriAevum
+    runtime build; this recipe uses Azahar as the portable baseline.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://azahar-emu.org/
+license: 'Nintendo; 3DS dump user-supplied'
+cover: ''
+skill:
+    name: zelda-ocarina-of-time-3d
+    description: "Install Ocarina of Time 3D with Azahar, import the user's decrypted 3DS dump, set up the two-screen layout, a gamepad and optional HD textures, and verify the game boots. Use when the user says install Ocarina of Time 3D or OOT3D for the LAN."
+    compatibility: 'Windows 10/11 or Linux; Azahar; ~2 GB disk; gamepad; Vulkan/OpenGL GPU'
+requires:
+    - role: base
+      label: 'Ocarina of Time 3D (USA) dump'
+      match:
+          [
+              '*Ocarina*of*Time*3D*.3ds',
+              '*Ocarina*of*Time*3D*.cia',
+              '*Ocarina*of*Time*3D*.cci',
+              '*oot3d*.3ds',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: "Decrypted USA dump preferred. A retail `.cia` needs the console's `aes_keys.txt`; a decrypted `.3ds`/`.cci` does not."
+    - role: tool
+      label: 'Azahar emulator'
+      match: ['Azahar*.zip', 'azahar-*.AppImage', 'azahar*.tar.*']
+      required: true
+      url: https://azahar-emu.org/
+      notes: 'Azahar is the maintained Citra successor. Use a current release; Citra itself is discontinued.'
+    - role: base
+      label: '3DS keys (aes_keys.txt, optional for decrypted dumps)'
+      match: ['aes_keys.txt', '*aes*keys*.txt']
+      required: false
+      sha256: ''
+      url: ''
+      notes: "Only needed for encrypted CIAs or system files. Place it in Azahar's sysdata folder; never download keys for the user."
+steps:
+    - id: install-azahar
+      title: 'Install Azahar'
+      os: windows
+      optional: false
+      detail: |
+          Download the current Azahar release and extract it to `{{target}}`, or
+          install the Linux AppImage/package. Launch it once so it creates its
+          user directory (`%APPDATA%\Azahar` on Windows,
+          `~/.local/share/azahar` on Linux).
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/Azahar-*.zip" -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/azahar.exe'
+    - id: import-game
+      title: 'Import the dump'
+      os: any
+      optional: false
+      detail: |
+          Put the dump in `{{target}}/Games` and add that folder in Azahar
+          (File → Open Azahar Folder, or drag the file onto the window). The game
+          list should show Ocarina of Time 3D with the USA region and the expected
+          title ID.
+
+          A decrypted `.3ds`/`.cci` is the simplest path; a `.cia` must be
+          installed through Azahar's CIA installer.
+      commands:
+          - shell: powershell
+            run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/The Legend of Zelda - Ocarina of Time 3D (USA).3ds" -Destination "{{target}}/Games/" -Force'
+          - shell: bash
+            run: 'mkdir -p "{{target}}/Games"'
+          - shell: bash
+            run: 'cp "{{downloads}}/The Legend of Zelda - Ocarina of Time 3D (USA).3ds" "{{target}}/Games/"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/Games/The Legend of Zelda - Ocarina of Time 3D (USA).3ds'
+    - id: system-files
+      title: 'Add keys and system files if needed'
+      os: any
+      optional: true
+      detail: |
+          For an encrypted `.cia` or a retail system dump, place `aes_keys.txt` in
+          Azahar's `sysdata` folder (`%APPDATA%\Azahar\sysdata\aes_keys.txt` on
+          Windows). A decrypted `.3ds` boots without it.
+
+          If the game complains about a missing shared font or Mii data, install
+          the corresponding system files from the user's own console.
+    - id: layout-and-graphics
+      title: 'Set the two-screen layout and graphics'
+      os: any
+      optional: false
+      detail: |
+          Choose a screen layout that keeps the touch inventory reachable: stacked
+          screens on a single monitor, or the large screen plus a small touch
+          panel. Raise the internal resolution to 3x–4x if the GPU holds it.
+
+          Enable VSync. Leave frame limits at the game's 30 fps unless a tested
+          60 fps cheat is available for the exact revision.
+    - id: configure-controller
+      title: 'Map a gamepad'
+      os: any
+      optional: false
+      detail: |
+          Map the 3DS buttons to an Xbox/PlayStation pad: A/B, the D-pad for the
+          inventory, L/R for targeting and shield, and the touch screen to a
+          mouse or a mapped button. Save the profile as "LAN pad".
+
+          Test the ocarina and the item menu; both use the touch layout.
+    - id: verify
+      title: 'Boot Kokiri Forest'
+      os: any
+      optional: false
+      detail: |
+          Start a new game, leave Link's house and reach Kokiri Forest. Check the
+          two screens, the item menu, the ocarina and a save.
+
+          Draft recipe: the touch layout and texture packs still need a LAN check.
+metadata:
+    genre: action-adventure
+    players: '1'
+    lan_recommended: false
+    tags: [adventure, 3ds, nintendo, zelda, azahar]

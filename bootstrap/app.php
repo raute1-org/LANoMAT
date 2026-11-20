@@ -9,6 +9,7 @@ use App\Http\Middleware\LimitRequestBodySize;
 use App\Modules\Discord\Http\Middleware\VerifyDiscordSignature;
 use App\Modules\Discord\Http\Middleware\VerifyGatewaySecret;
 use App\Modules\Files\Http\Middleware\VerifyTusHookSecret;
+use App\Modules\Mcp\Http\AuthenticateMcpToken;
 use App\Modules\WebVoice\NativeClient\Http\AddServerVersionHeader;
 use App\Modules\WebVoice\NativeClient\Http\AuthenticateVoiceClient;
 use App\Support\Modules\Module;
@@ -34,6 +35,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 Route::middleware(AddServerVersionHeader::class)->group(base_path('routes/voice-client.php'));
             }
 
+            // LANoMAT agent API + MCP device flow: bearer tokens, no session,
+            // no cookies, no CSRF (the `web` group is deliberately not
+            // applied). The MCP endpoint itself lives in routes/ai.php, which
+            // laravel/mcp loads.
+            if (app(Modules::class)->routable(Module::Mcp)) {
+                Route::middleware(AddServerVersionHeader::class)->group(base_path('routes/mcp.php'));
+            }
+
             // CSP violation reports: browsers POST these on their own, so no
             // session, cookies or CSRF (the `web` group is deliberately not
             // applied); size-limited in the controller and throttled here.
@@ -48,7 +57,9 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/Identity/Console',
         __DIR__.'/../app/Modules/GameServers/Console',
         __DIR__.'/../app/Modules/Jukebox/Console',
+        __DIR__.'/../app/Modules/GameRecipes/Console',
         __DIR__.'/../app/Modules/Lfg/Console',
+        __DIR__.'/../app/Modules/Mcp/Console',
         __DIR__.'/../app/Modules/Preflight/Console',
         __DIR__.'/../app/Modules/Presence/Console',
         __DIR__.'/../app/Modules/Provisioning/Console',
@@ -61,6 +72,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // resolved user, not the IP) and before implicit route-model binding (otherwise an
         // unauthenticated caller could tell existing ids from missing ones by 404 vs 401).
         $middleware->prependToPriorityList(before: ThrottleRequests::class, prepend: AuthenticateVoiceClient::class);
+
+        // The same ordering rule for the MCP/agent bearer tokens: resolve the
+        // user before the per-token throttle and before implicit bindings, so
+        // 401 and 404 never leak object existence.
+        $middleware->prependToPriorityList(before: ThrottleRequests::class, prepend: AuthenticateMcpToken::class);
 
         // Traefik terminates TLS and forwards plain HTTP on the compose network.
         // Trust its X-Forwarded-* headers so generated URLs (OAuth redirects,
