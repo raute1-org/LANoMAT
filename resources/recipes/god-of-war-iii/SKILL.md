@@ -1,12 +1,12 @@
 ---
-name: god-of-war-iii-remastered
+name: god-of-war-iii
 description: "Install God of War III with RPCS3, install PS3 firmware, add the user's PS3 disc, configure Vulkan and a controller, and verify the game boots. Use when the user says install God of War 3, GOW3 or God of War III for the LAN."
 ---
 
-# God of War III Remastered
+# God of War III
 
-Kratos' PS3 finale, running in RPCS3. The title says "Remastered", but RPCS3
-runs the **PS3** game; the PS4 Remastered release is a different build.
+Kratos' PS3 finale, running in RPCS3. "Remastered" is the PS4 release;
+RPCS3 runs the **PS3** game (BCUS98111 / BCES00510).
 
 ## When to use
 
@@ -33,14 +33,14 @@ Not for the PS4 Remastered build (shadPS4, unverified) or God of War (2018).
 2. **Install firmware.** File → Install Firmware, or drag `PS3UPDAT.PUP` onto
    the window. Wait for it to finish; a game cannot boot without it.
 3. **Add the game.** Point RPCS3 at the `PS3_GAME` folder or the ISO, confirm
-   the serial, and install any game update it offers.
+   the serial is BCUS98111 or BCES00510, and install any game update it
+   offers.
 4. **Graphics.** Vulkan, SPU LLVM, 150–200% resolution scale, VSync. Use the
-   game patch list for the recommended settings.
-5. **Optional 60 fps patch.** Enable only for the exact serial and test the
-   cutscenes.
-6. **Controller.** Map both sticks, triggers and the touchpad click; save the
+   game patch list for the recommended settings; the 60 fps patch is optional
+   and serial-specific.
+5. **Controller.** Map both sticks, triggers and the touchpad click; save the
    profile and test a combat encounter.
-7. **Verify.** Play the intro to the first boss.
+6. **Verify.** Play the intro to the first boss.
 
 ## Verification
 

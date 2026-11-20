@@ -1,105 +1,115 @@
 schema: lanomat.recipe/v1
 slug: azeroth-survivors
-title: "Azeroth Survivors"
-aliases: ["azeroth survivors", "azeroth", "warcraft 3 azeroth survivors"]
-version: "1.0.0"
+title: 'Azeroth Survivors'
+aliases: ['azeroth survivors', 'azeroth', 'warcraft 3 azeroth survivors']
+version: '1.0.0'
 status: draft
 platforms: [windows]
 summary: Play the Warcraft III custom map Azeroth Survivors on the LAN with a legal Warcraft III install and the map from the file host.
 description: |
-  Azeroth Survivors is a Warcraft III custom map: a hero-survival scenario
-  played on a Warcraft III map, not a standalone game. It needs a legal
-  Warcraft III: Reforged install (which includes the classic maps) and the
-  `.w3x` map file.
+    Azeroth Survivors is a Warcraft III custom map: a hero-survival scenario
+    played on a Warcraft III map, not a standalone game. It needs a legal
+    Warcraft III: Reforged install (which includes the classic maps) and the
+    `.w3x` map file.
 
-  The LAN collection's folder contains `AzerothSurvivors.exe` plus
-  `Data/patch.MPQ`, which looks like a prebuilt WC3 launcher/wrapper rather
-  than a plain map. If that is what the user has, run that build and treat it
-  as the same game; verify its version before the LAN.
+    The LAN collection's folder contains `AzerothSurvivors.exe` plus
+    `Data/patch.MPQ`, which looks like a prebuilt WC3 launcher/wrapper rather
+    than a plain map. If that is what the user has, run that build and treat it
+    as the same game; verify its version before the LAN.
 
-  Warcraft III custom maps are usually played with 1–4 players in a private
-  lobby. Confirm the map's player count in the lobby before promising seats.
-  Needs verification on the LAN before this recipe leaves draft status.
+    Warcraft III custom maps are usually played with 1–4 players in a private
+    lobby. Confirm the map's player count in the lobby before promising seats.
+    Needs verification on the LAN before this recipe leaves draft status.
 
-homepage: https://us.shop.battle.net/en-us/product/warcraft-iii-reforged
-license: "Blizzard; Warcraft III and the map are user-supplied"
-cover: ""
+homepage: https://warcraft3.blizzard.com/en-us/
+license: 'Blizzard; Warcraft III and the map are user-supplied'
+cover: ''
 skill:
-  name: azeroth-survivors
-  description: "Install and launch the Warcraft III custom map Azeroth Survivors on Windows: verify Warcraft III, copy the .w3x into the Maps folder, start a custom game or LAN lobby, and verify the map loads. Use when the user says install Azeroth Survivors or the WC3 survival map for the LAN."
-  compatibility: "Windows 10/11; Warcraft III: Reforged (latest patch); ~30 GB for WC3; map file a few MB"
+    name: azeroth-survivors
+    description: 'Install and launch the Warcraft III custom map Azeroth Survivors on Windows: verify Warcraft III, copy the .w3x into the Maps folder, start a custom game or LAN lobby, and verify the map loads. Use when the user says install Azeroth Survivors or the WC3 survival map for the LAN.'
+    compatibility: 'Windows 10/11; Warcraft III: Reforged (latest patch); ~30 GB for WC3; map file a few MB'
 requires:
-  - role: tool
-    label: "Warcraft III: Reforged"
-    match: ["Warcraft III*", "*Reforged*", "Warcraft III.exe"]
-    required: true
-    url: https://us.shop.battle.net/en-us/product/warcraft-iii-reforged
-    notes: "Legal Battle.net install, patched to the current version. Classic Warcraft III (pre-Reforged) is not supported by the current Battle.net client."
-  - role: content
-    label: "Azeroth Survivors map"
-    match: ["*Azeroth*Survivors*.w3x", "*Azeroth*Survivors*.w3m", "AzerothSurvivors.exe"]
-    required: true
-    sha256: ""
-    url: ""
-    notes: "The `.w3x` from the LAN file host. The collection also has a folder with AzerothSurvivors.exe and Data/patch.MPQ; that is a prebuilt wrapper, not a plain map."
+    - role: tool
+      label: 'Warcraft III: Reforged'
+      match: ['Warcraft III*', '*Reforged*', 'Warcraft III.exe']
+      required: true
+      url: https://warcraft3.blizzard.com/en-us/
+      notes: 'Legal Battle.net install, patched to the current version. Classic Warcraft III (pre-Reforged) is not supported by the current Battle.net client.'
+    - role: content
+      label: 'Azeroth Survivors map'
+      match:
+          [
+              '*Azeroth*Survivors*.w3x',
+              '*Azeroth*Survivors*.w3m',
+              'AzerothSurvivors.exe',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'The `.w3x` from the LAN file host. The collection also has a folder with AzerothSurvivors.exe and Data/patch.MPQ; that is a prebuilt wrapper, not a plain map.'
 steps:
-  - id: install-warcraft
-    title: "Install Warcraft III: Reforged"
-    os: windows
-    optional: false
-    detail: |
-      Install Warcraft III through Battle.net and let it patch to the current
-      version. Launch it once and sign in so the game creates its Documents
-      folders.
+    - id: install-warcraft
+      title: 'Install Warcraft III: Reforged'
+      os: windows
+      optional: false
+      detail: |
+          Install Warcraft III through Battle.net and let it patch to the current
+          version. Launch it once and sign in so the game creates its Documents
+          folders.
 
-      `{{target}}` is the Warcraft III install folder (for example
-      `C:\Program Files (x86)\Warcraft III`). The maps live under the user's
-      Documents folder, not the install folder.
-    verify:
-      - type: file_exists
-        path: '{{target}}/Warcraft III.exe'
-  - id: place-map
-    title: "Copy the map into the Maps folder"
-    os: windows
-    optional: false
-    detail: |
-      Copy the `.w3x` into `Documents\Warcraft III\Maps\` (create the folder
-      if it is missing). Keep the original archive on the file host; the game
-      reads the map from this folder.
+          `{{target}}` is the Warcraft III install folder (for example
+          `C:\Program Files (x86)\Warcraft III`). The maps live under the user's
+          Documents folder, not the install folder.
+      verify:
+          - type: file_exists
+            path: '{{target}}/Warcraft III.exe'
+    - id: place-map
+      title: 'Copy the map into the Maps folder'
+      os: windows
+      optional: false
+      detail: |
+          Copy the `.w3x` into `Documents\Warcraft III\Maps\` (create the folder
+          if it is missing). Keep the original archive on the file host; the game
+          reads the map from this folder.
 
-      If the user has the `AzerothSurvivors.exe` wrapper, extract it to its own
-      folder and use its launcher instead of the Maps folder.
-    commands:
-      - shell: powershell
-        run: 'New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\Documents\Warcraft III\Maps" | Out-Null'
-      - shell: powershell
-        run: 'Copy-Item -Path "{{downloads}}/Azeroth Survivors.w3x" -Destination "$env:USERPROFILE\Documents\Warcraft III\Maps\" -Force'
-    verify:
-      - type: command
-        command: 'Test-Path "$env:USERPROFILE\Documents\Warcraft III\Maps\Azeroth Survivors.w3x"'
-  - id: launch-map
-    title: "Start a custom game or LAN lobby"
-    os: windows
-    optional: false
-    detail: |
-      In Warcraft III choose Single Player → Custom Game, or Multiplayer →
-      Local Area Network to host. Select Azeroth Survivors, set the player
-      slots and start.
+          If the user has the `AzerothSurvivors.exe` wrapper, extract it to its own
+          folder and use its launcher instead of the Maps folder.
+      commands:
+          - shell: powershell
+            run: 'New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\Documents\Warcraft III\Maps" | Out-Null'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/Azeroth Survivors.w3x" -Destination "$env:USERPROFILE\Documents\Warcraft III\Maps\" -Force'
+      verify:
+          - type: command
+            command: 'Test-Path "$env:USERPROFILE\Documents\Warcraft III\Maps\Azeroth Survivors.w3x"'
+    - id: launch-map
+      title: 'Start a custom game or LAN lobby'
+      os: windows
+      optional: false
+      detail: |
+          In Warcraft III choose Single Player → Custom Game, or Multiplayer →
+          Local Area Network to host. Select Azeroth Survivors, set the player
+          slots and start.
 
-      For a LAN lobby, all players need the same map version; a version
-      mismatch shows as a different map checksum.
-  - id: verify
-    title: "Load the map and finish the first wave"
-    os: windows
-    optional: false
-    detail: |
-      Confirm the map loads without a missing-asset error, the hero selection
-      works and the first wave starts. Save if the map supports saves.
+          For a LAN lobby, all players need the same map version; a version
+          mismatch shows as a different map checksum.
+    - id: verify
+      title: 'Load the map and finish the first wave'
+      os: windows
+      optional: false
+      detail: |
+          Confirm the map loads without a missing-asset error, the hero selection
+          works and the first wave starts. Save if the map supports saves.
 
-      Draft recipe: verify the wrapper build, the map version and the player
-      count on the LAN hardware.
+          Draft recipe: verify the wrapper build, the map version and the player
+          count on the LAN hardware.
 metadata:
-  genre: survival
-  players: "1-4 (verify in lobby)"
-  lan_recommended: true
-  tags: [warcraft3, custom-map, survival, blizzard]
+    genre: survival
+    players: '1-4 (verify in lobby)'
+    players_max: 4
+    lan_recommended: true
+    tags: [warcraft3, custom-map, survival, blizzard]
+    launch:
+        kind: exe
+        target: '{{target}}/Warcraft III.exe'
+        notes: 'Start the map from Single Player → Custom Game or Multiplayer → Local Area Network.'

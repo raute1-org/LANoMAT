@@ -1,6 +1,6 @@
 ---
 name: ut2004
-description: "Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, and optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN."
+description: 'Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, and optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN.'
 ---
 
 # Unreal Tournament 2004

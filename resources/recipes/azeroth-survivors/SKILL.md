@@ -1,6 +1,6 @@
 ---
 name: azeroth-survivors
-description: "Install and launch the Warcraft III custom map Azeroth Survivors on Windows: verify Warcraft III, copy the .w3x into the Maps folder, start a custom game or LAN lobby, and verify the map loads. Use when the user says install Azeroth Survivors or the WC3 survival map for the LAN."
+description: 'Install and launch the Warcraft III custom map Azeroth Survivors on Windows: verify Warcraft III, copy the .w3x into the Maps folder, start a custom game or LAN lobby, and verify the map loads. Use when the user says install Azeroth Survivors or the WC3 survival map for the LAN.'
 ---
 
 # Azeroth Survivors

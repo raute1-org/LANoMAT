@@ -1,250 +1,254 @@
 schema: lanomat.recipe/v1
 slug: unreal-tournament-2004
 title: Unreal Tournament 2004
-aliases: ["ut2004", "ut2k4", "ut 2k4", "unreal tournament", "ut 2004"]
-version: "3374"
+aliases: ['ut2004', 'ut2k4', 'ut 2k4', 'unreal tournament', 'ut 2004']
+version: '3374'
 status: published
 platforms: [windows, linux]
 summary: Install Unreal Tournament 2004 from the LAN disc image, apply the OldUnreal 3374 64-bit patch, and optionally add UT2004VR plus VRM avatars.
 description: |
-  Unreal Tournament 2004 is the arena shooter the LAN still measures every
-  other deathmatch against: Onslaught, Assault, Bombing Run, CTF and plain DM,
-  all playable against bots or over the LAN with up to 32 players.
+    Unreal Tournament 2004 is the arena shooter the LAN still measures every
+    other deathmatch against: Onslaught, Assault, Bombing Run, CTF and plain DM,
+    all playable against bots or over the LAN with up to 32 players.
 
-  The base game is user-supplied. On the LAN disc it is the UT2004 DVD (Disc 1
-  is enough for the full install; Disc 2 only adds maps and bonus content), or
-  an existing GOG/Steam install. The OldUnreal patch 3374 is required on modern
-  Windows and Linux: it is the 64-bit, current-driver build, it removes the disc
-  check, and it is the version UT2004VR expects.
+    The base game is user-supplied. On the LAN disc it is the UT2004 DVD (Disc 1
+    is enough for the full install; Disc 2 only adds maps and bonus content), or
+    an existing GOG/Steam install. The OldUnreal patch 3374 is required on modern
+    Windows and Linux: it is the 64-bit, current-driver build, it removes the disc
+    check, and it is the version UT2004VR expects.
 
-  Optional extras, both matched from the LAN file host: UT2004VR by jmkokko
-  (MIT) turns the game into a SteamVR shooter with the gun in your hand, and
-  vrm2ut2004 (private repo, built on the LAN server) converts VRM avatars into
-  UT2004 characters.
+    Optional extras, both matched from the LAN file host: UT2004VR by jmkokko
+    (MIT) turns the game into a SteamVR shooter with the gun in your hand, and
+    vrm2ut2004 (private repo, built on the LAN server) converts VRM avatars into
+    UT2004 characters.
 homepage: https://www.oldunreal.com
-license: "Epic Games; base game files are user-supplied (UT2004VR: MIT)"
-cover: ""
+license: 'Epic Games; base game files are user-supplied (UT2004VR: MIT)'
+cover: ''
 skill:
-  name: ut2004
-  description: "Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, and optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN."
-  compatibility: "Windows 10/11 or Linux (Wine/Proton); ~5 GB disk; VR needs Windows + SteamVR"
+    name: ut2004
+    description: 'Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, and optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN.'
+    compatibility: 'Windows 10/11 or Linux (Wine/Proton); ~5 GB disk; VR needs Windows + SteamVR'
 requires:
-  - role: iso
-    label: "UT2004 DVD 1 (or GOG/Steam install)"
-    match: ["ut2004*.iso", "ut2004*dvd*.iso", "UT2004*.iso"]
-    required: true
-    size_bytes: 4500000000
-    sha256: ""
-    url: ""
-    notes: "Either DVD is enough for the base install; Disc 2 has the extra maps. An already-installed GOG/Steam copy is fine too: use its folder as {{target}} and skip the base-install step."
-  - role: patch
-    label: "OldUnreal UT2004 patch 3374 (Windows x64 zip / Linux tar.bz2)"
-    match: ["OldUnreal-UT2004Patch3374-*.zip", "OldUnreal-UT2004Patch3374-*.tar.bz2"]
-    required: true
-    sha256: ""
-    url: https://github.com/OldUnreal/UT2004Patches/releases
-    notes: "Latest release is tag 3374-rc3 (2026-11-03): patch 3374 is feature-complete. The archive is a drop-in tree (Help/, Sounds/, System/), not an installer; extract it over the game folder. The patch replaces UT2004.exe with a 64-bit build and adds D3D11Drv.dll."
-  - role: mod
-    label: "UT2004VR (optional SteamVR mod)"
-    match: ["UT2004VR-*.zip"]
-    required: false
-    url: https://github.com/jmkokko/ut2004-vr/releases/latest
-    notes: "MIT. Requires OldUnreal patch 3374 64-bit Preview 23 or newer (Release Candidate 3 is tested) and SteamVR. Offline play against bots only; joining online servers drops back to a flat screen."
-  - role: tool
-    label: "vrm2ut2004 (optional VRM avatar bridge)"
-    match: []
-    required: false
-    url: https://github.com/jawa-solutions/vrm2ut2004
-    notes: "Private repository. Clone and build it on the LAN server, then copy the generated UT2004 character packages to the clients. Exact build steps live in its README."
-  - role: avatar
-    label: "VRM avatars (multi-select from the LAN file host)"
-    match: ["*.vrm"]
-    required: false
-    tags: [avatar, vrm]
-    notes: "Any VRM 0.x/1.0 avatar can be offered. The installer shows every matching LAN file as a multi-select; prefer LAN copies over downloads."
-  - role: avatar
-    label: "VRM avatar · Ayla (agile scout)"
-    match: ["*ayla*.vrm", "*Ayla*.vrm"]
-    required: false
-    tags: [avatar, vrm]
-    notes: "Example catalog entry, matched against LAN SharedFiles. Leave url empty; the installer fills the local path."
-  - role: avatar
-    label: "VRM avatar · Brutus (heavy assault)"
-    match: ["*brutus*.vrm", "*Brutus*.vrm"]
-    required: false
-    tags: [avatar, vrm]
-    notes: "Example catalog entry, matched against LAN SharedFiles."
-  - role: avatar
-    label: "VRM avatar · Kestrel (shock rifle)"
-    match: ["*kestrel*.vrm", "*Kestrel*.vrm"]
-    required: false
-    tags: [avatar, vrm]
-    notes: "Example catalog entry, matched against LAN SharedFiles."
-  - role: avatar
-    label: "VRM avatar · Mako (arena duelist)"
-    match: ["*mako*.vrm", "*Mako*.vrm"]
-    required: false
-    tags: [avatar, vrm]
-    notes: "Example catalog entry, matched against LAN SharedFiles."
-  - role: avatar
-    label: "VRM avatar · Sable (night ops)"
-    match: ["*sable*.vrm", "*Sable*.vrm"]
-    required: false
-    tags: [avatar, vrm]
-    notes: "Example catalog entry, matched against LAN SharedFiles."
+    - role: iso
+      label: 'UT2004 DVD 1 (or GOG/Steam install)'
+      match: ['ut2004*.iso', 'ut2004*dvd*.iso', 'UT2004*.iso']
+      required: true
+      size_bytes: 4500000000
+      sha256: ''
+      url: ''
+      notes: 'Either DVD is enough for the base install; Disc 2 has the extra maps. An already-installed GOG/Steam copy is fine too: use its folder as {{target}} and skip the base-install step.'
+    - role: patch
+      label: 'OldUnreal UT2004 patch 3374 (Windows x64 zip / Linux tar.bz2)'
+      match:
+          [
+              'OldUnreal-UT2004Patch3374-*.zip',
+              'OldUnreal-UT2004Patch3374-*.tar.bz2',
+          ]
+      required: true
+      sha256: ''
+      url: https://github.com/OldUnreal/UT2004Patches/releases
+      notes: 'Latest release is tag 3374-rc3 (2026-11-03): patch 3374 is feature-complete. The archive is a drop-in tree (Help/, Sounds/, System/), not an installer; extract it over the game folder. The patch replaces UT2004.exe with a 64-bit build and adds D3D11Drv.dll.'
+    - role: mod
+      label: 'UT2004VR (optional SteamVR mod)'
+      match: ['UT2004VR-*.zip']
+      required: false
+      url: https://github.com/jmkokko/ut2004-vr/releases/latest
+      notes: 'MIT. Requires OldUnreal patch 3374 64-bit Preview 23 or newer (Release Candidate 3 is tested) and SteamVR. Offline play against bots only; joining online servers drops back to a flat screen.'
+    - role: tool
+      label: 'vrm2ut2004 (optional VRM avatar bridge)'
+      match: []
+      required: false
+      url: https://github.com/jawa-solutions/vrm2ut2004
+      notes: 'Private repository. Clone and build it on the LAN server, then copy the generated UT2004 character packages to the clients. Exact build steps live in its README.'
+    - role: avatar
+      label: 'VRM avatars (multi-select from the LAN file host)'
+      match: ['*.vrm']
+      required: false
+      tags: [avatar, vrm]
+      notes: 'Any VRM 0.x/1.0 avatar can be offered. The installer shows every matching LAN file as a multi-select; prefer LAN copies over downloads.'
+    - role: avatar
+      label: 'VRM avatar · Ayla (agile scout)'
+      match: ['*ayla*.vrm', '*Ayla*.vrm']
+      required: false
+      tags: [avatar, vrm]
+      notes: 'Example catalog entry, matched against LAN SharedFiles. Leave url empty; the installer fills the local path.'
+    - role: avatar
+      label: 'VRM avatar · Brutus (heavy assault)'
+      match: ['*brutus*.vrm', '*Brutus*.vrm']
+      required: false
+      tags: [avatar, vrm]
+      notes: 'Example catalog entry, matched against LAN SharedFiles.'
+    - role: avatar
+      label: 'VRM avatar · Kestrel (shock rifle)'
+      match: ['*kestrel*.vrm', '*Kestrel*.vrm']
+      required: false
+      tags: [avatar, vrm]
+      notes: 'Example catalog entry, matched against LAN SharedFiles.'
+    - role: avatar
+      label: 'VRM avatar · Mako (arena duelist)'
+      match: ['*mako*.vrm', '*Mako*.vrm']
+      required: false
+      tags: [avatar, vrm]
+      notes: 'Example catalog entry, matched against LAN SharedFiles.'
+    - role: avatar
+      label: 'VRM avatar · Sable (night ops)'
+      match: ['*sable*.vrm', '*Sable*.vrm']
+      required: false
+      tags: [avatar, vrm]
+      notes: 'Example catalog entry, matched against LAN SharedFiles.'
 steps:
-  - id: install-base
-    title: "Install the base game from Disc 1"
-    os: windows
-    optional: false
-    detail: |
-      Mount the DVD image, run `Setup.exe` from the mounted drive and choose a
-      full install. Install to a short path without spaces, for example
-      `C:\Games\UT2004` (this recipe's `{{target}}`).
+    - id: install-base
+      title: 'Install the base game from Disc 1'
+      os: windows
+      optional: false
+      detail: |
+          Mount the DVD image, run `Setup.exe` from the mounted drive and choose a
+          full install. Install to a short path without spaces, for example
+          `C:\Games\UT2004` (this recipe's `{{target}}`).
 
-      Disc 1 contains the complete game. Disc 2 is optional and only adds maps
-      and bonus content. Keep the image mounted until the OldUnreal patch has
-      been applied: the retail install still asks for the disc. The example
-      command assumes the mounted drive is `D:`; use the drive letter Windows
-      assigned.
-    commands:
-      - shell: powershell
-        run: 'Mount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"'
-      - shell: powershell
-        run: 'Start-Process "D:\Setup.exe"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/System/UT2004.exe'
-  - id: install-base-linux
-    title: "Install the base game with Wine/Proton (Linux)"
-    os: linux
-    optional: false
-    detail: |
-      The retail installer is a Windows program. Mount the ISO, then run
-      `Setup.exe` through Wine or Proton and point it at `{{target}}`
-      (`~/Games/UT2004` is a good choice).
+          Disc 1 contains the complete game. Disc 2 is optional and only adds maps
+          and bonus content. Keep the image mounted until the OldUnreal patch has
+          been applied: the retail install still asks for the disc. The example
+          command assumes the mounted drive is `D:`; use the drive letter Windows
+          assigned.
+      commands:
+          - shell: powershell
+            run: 'Mount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"'
+          - shell: powershell
+            run: 'Start-Process "D:\Setup.exe"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/UT2004.exe'
+    - id: install-base-linux
+      title: 'Install the base game with Wine/Proton (Linux)'
+      os: linux
+      optional: false
+      detail: |
+          The retail installer is a Windows program. Mount the ISO, then run
+          `Setup.exe` through Wine or Proton and point it at `{{target}}`
+          (`~/Games/UT2004` is a good choice).
 
-      Faster alternative: copy a working Windows install (Steam/GOG or a
-      patched DVD install) into `{{target}}` and run the Linux patch step
-      afterwards.
-    commands:
-      - shell: bash
-        run: 'mkdir -p "{{target}}"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/System/UT2004.exe'
-  - id: patch-3374
-    title: "Apply OldUnreal patch 3374 (Windows x64)"
-    os: windows
-    optional: false
-    detail: |
-      Download the Windows zip from the OldUnreal releases page (latest tag
-      `3374-rc3`, asset `OldUnreal-UT2004Patch3374-Windows-d906d39a.zip`),
-      extract it, and copy its `Help/`, `Sounds/` and `System/` folders over
-      `{{target}}`, merging and overwriting. The hash suffix changes with each
-      release; use the exact asset name from the release page.
+          Faster alternative: copy a working Windows install (Steam/GOG or a
+          patched DVD install) into `{{target}}` and run the Linux patch step
+          afterwards.
+      commands:
+          - shell: bash
+            run: 'mkdir -p "{{target}}"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/UT2004.exe'
+    - id: patch-3374
+      title: 'Apply OldUnreal patch 3374 (Windows x64)'
+      os: windows
+      optional: false
+      detail: |
+          Download the Windows zip from the OldUnreal releases page (latest tag
+          `3374-rc3`, asset `OldUnreal-UT2004Patch3374-Windows-d906d39a.zip`),
+          extract it, and copy its `Help/`, `Sounds/` and `System/` folders over
+          `{{target}}`, merging and overwriting. The hash suffix changes with each
+          release; use the exact asset name from the release page.
 
-      The zip has no setup program: it is the patched game tree itself. After
-      the copy `System\UT2004.exe` is the 64-bit build and `System\D3D11Drv.dll`
-      is the modern renderer. The patch also removes the disc check, so the ISO
-      can be dismounted afterwards.
-    commands:
-      - shell: powershell
-        run: 'Expand-Archive -Path "{{downloads}}/OldUnreal-UT2004Patch3374-Windows-d906d39a.zip" -DestinationPath "{{downloads}}/UT2004Patch3374" -Force'
-      - shell: powershell
-        run: 'Copy-Item -Path "{{downloads}}/UT2004Patch3374/*" -Destination "{{target}}" -Recurse -Force'
-      - shell: powershell
-        run: 'Dismount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/System/UT2004.exe'
-      - type: file_exists
-        path: '{{target}}/System/D3D11Drv.dll'
-  - id: patch-3374-linux
-    title: "Apply OldUnreal patch 3374 (Linux x64)"
-    os: linux
-    optional: false
-    detail: |
-      Download `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2`, extract it directly
-      into `{{target}}` and make sure `System/ut2004-bin-amd64` and the
-      `System/UT2004` launcher are executable.
+          The zip has no setup program: it is the patched game tree itself. After
+          the copy `System\UT2004.exe` is the 64-bit build and `System\D3D11Drv.dll`
+          is the modern renderer. The patch also removes the disc check, so the ISO
+          can be dismounted afterwards.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/OldUnreal-UT2004Patch3374-Windows-d906d39a.zip" -DestinationPath "{{downloads}}/UT2004Patch3374" -Force'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/UT2004Patch3374/*" -Destination "{{target}}" -Recurse -Force'
+          - shell: powershell
+            run: 'Dismount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/UT2004.exe'
+          - type: file_exists
+            path: '{{target}}/System/D3D11Drv.dll'
+    - id: patch-3374-linux
+      title: 'Apply OldUnreal patch 3374 (Linux x64)'
+      os: linux
+      optional: false
+      detail: |
+          Download `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2`, extract it directly
+          into `{{target}}` and make sure `System/ut2004-bin-amd64` and the
+          `System/UT2004` launcher are executable.
 
-      The archive contains the 64-bit binary, the OpenAL libraries and the
-      patched UnrealScript packages. Start the game with
-      `{{target}}/System/UT2004` (or through the `ut2004` script if the package
-      provides one).
-    commands:
-      - shell: bash
-        run: 'tar -xjf "{{downloads}}/OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2" -C "{{target}}"'
-      - shell: bash
-        run: 'chmod +x "{{target}}/System/ut2004-bin-amd64" "{{target}}/System/UT2004"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/System/ut2004-bin-amd64'
-  - id: ut2004vr
-    title: "UT2004VR (optional, SteamVR)"
-    os: windows
-    optional: true
-    detail: |
-      Optional VR mod by jmkokko (MIT): https://github.com/jmkokko/ut2004-vr
+          The archive contains the 64-bit binary, the OpenAL libraries and the
+          patched UnrealScript packages. Start the game with
+          `{{target}}/System/UT2004` (or through the `ut2004` script if the package
+          provides one).
+      commands:
+          - shell: bash
+            run: 'tar -xjf "{{downloads}}/OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2" -C "{{target}}"'
+          - shell: bash
+            run: 'chmod +x "{{target}}/System/ut2004-bin-amd64" "{{target}}/System/UT2004"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/ut2004-bin-amd64'
+    - id: ut2004vr
+      title: 'UT2004VR (optional, SteamVR)'
+      os: windows
+      optional: true
+      detail: |
+          Optional VR mod by jmkokko (MIT): https://github.com/jmkokko/ut2004-vr
 
-      Needs OldUnreal 3374 64-bit Preview 23+ and SteamVR with motion
-      controllers. Download the latest `UT2004VR-<version>.zip` release, unzip
-      it, then run `Install.bat`. It finds the UT2004 folder (or asks for it),
-      checks the game version, copies the mod into `System` and offers a desktop
-      shortcut.
+          Needs OldUnreal 3374 64-bit Preview 23+ and SteamVR with motion
+          controllers. Download the latest `UT2004VR-<version>.zip` release, unzip
+          it, then run `Install.bat`. It finds the UT2004 folder (or asks for it),
+          checks the game version, copies the mod into `System` and offers a desktop
+          shortcut.
 
-      Keep a backup of an existing `System\d3d9.dll` (ReShade, dgVoodoo): the
-      mod needs that file name and replaces it. Remove the mod with
-      `System\UT2004VR-Uninstall.bat`. Start SteamVR first, then launch the
-      `UT2004 VR` shortcut or `System\Play-VR.bat`; starting UT2004 normally
-      still gives the flat game.
-    commands:
-      - shell: powershell
-        run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/UT2004VR-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{downloads}}/UT2004VR" -Force'
-      - shell: powershell
-        run: '& "{{downloads}}/UT2004VR/Install.bat"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/System/UT2004VR-Uninstall.bat'
-  - id: vrm2ut2004
-    title: "Build the VRM avatar bridge (optional)"
-    os: linux
-    optional: true
-    detail: |
-      Optional bridge by jawa-solutions: https://github.com/jawa-solutions/vrm2ut2004
-      The repository is private, so clone it on the LAN server (not on every
-      client) and follow its README to build it there.
+          Keep a backup of an existing `System\d3d9.dll` (ReShade, dgVoodoo): the
+          mod needs that file name and replaces it. Remove the mod with
+          `System\UT2004VR-Uninstall.bat`. Start SteamVR first, then launch the
+          `UT2004 VR` shortcut or `System\Play-VR.bat`; starting UT2004 normally
+          still gives the flat game.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/UT2004VR-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{downloads}}/UT2004VR" -Force'
+          - shell: powershell
+            run: '& "{{downloads}}/UT2004VR/Install.bat"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/UT2004VR-Uninstall.bat'
+    - id: vrm2ut2004
+      title: 'Build the VRM avatar bridge (optional)'
+      os: linux
+      optional: true
+      detail: |
+          Optional bridge by jawa-solutions: https://github.com/jawa-solutions/vrm2ut2004
+          The repository is private, so clone it on the LAN server (not on every
+          client) and follow its README to build it there.
 
-      Feed it the VRM files the user selected, then copy the generated UT2004
-      character packages into `{{target}}` on each client. VRM avatars are
-      optional: the base game and UT2004VR work without them.
-    commands:
-      - shell: bash
-        run: 'git clone https://github.com/jawa-solutions/vrm2ut2004.git "{{target}}/Tools/vrm2ut2004"'
-    verify:
-      - type: dir_exists
-        path: '{{target}}/Tools/vrm2ut2004'
-  - id: check-install
-    title: "Check the install and start a bot match"
-    os: any
-    optional: false
-    detail: |
-      Start the game once and confirm the main menu reports the OldUnreal
-      build. Then run a quick offline match: Instant Action → Deathmatch →
-      DM-Rankin → 4 bots. This proves the renderer, audio and input work before
-      the LAN night.
+          Feed it the VRM files the user selected, then copy the generated UT2004
+          character packages into `{{target}}` on each client. VRM avatars are
+          optional: the base game and UT2004VR work without them.
+      commands:
+          - shell: bash
+            run: 'git clone https://github.com/jawa-solutions/vrm2ut2004.git "{{target}}/Tools/vrm2ut2004"'
+      verify:
+          - type: dir_exists
+            path: '{{target}}/Tools/vrm2ut2004'
+    - id: check-install
+      title: 'Check the install and start a bot match'
+      os: any
+      optional: false
+      detail: |
+          Start the game once and confirm the main menu reports the OldUnreal
+          build. Then run a quick offline match: Instant Action → Deathmatch →
+          DM-Rankin → 4 bots. This proves the renderer, audio and input work before
+          the LAN night.
 
-      On Windows the patched executable is `System\UT2004.exe`; on Linux start
-      `System/UT2004`. If the game asks for the DVD, the patch was not copied
-      over the right folder.
-    verify:
-      - type: file_exists
-        path: '{{target}}/System/UT2004.exe'
-      - type: file_exists
-        path: '{{target}}/System/D3D11Drv.dll'
+          On Windows the patched executable is `System\UT2004.exe`; on Linux start
+          `System/UT2004`. If the game asks for the DVD, the patch was not copied
+          over the right folder.
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/UT2004.exe'
+          - type: file_exists
+            path: '{{target}}/System/D3D11Drv.dll'
 metadata:
-  genre: arena-shooter
-  players: "2-32"
-  lan_recommended: true
-  tags: [fps, vr, classic, arena-shooter]
+    genre: arena-shooter
+    players: '2-32'
+    lan_recommended: true
+    tags: [fps, vr, classic, arena-shooter]

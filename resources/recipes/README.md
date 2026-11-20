@@ -18,11 +18,11 @@ validator.
 
 ## Statuses
 
-| Status      | Meaning                                                                 |
-| ----------- | ----------------------------------------------------------------------- |
+| Status      | Meaning                                                                  |
+| ----------- | ------------------------------------------------------------------------ |
 | `published` | Files and steps checked against the real source; safe to offer to users. |
-| `draft`     | Authored from the collection and official docs, not yet verified on LAN.|
-| `archived`  | Kept for history; do not offer.                                         |
+| `draft`     | Authored from the collection and official docs, not yet verified on LAN. |
+| `archived`  | Kept for history; do not offer.                                          |
 
 A draft is not a stub: it has real match patterns, official emulator URLs and
 3–6 steps, and its notes say "needs verification on the LAN". Never invent a
@@ -48,8 +48,8 @@ registry and no upload path of their own:
 
 ```yaml
 - role: avatar
-  label: "VRM avatars (multi-select from the LAN file host)"
-  match: ["*.vrm"]
+  label: 'VRM avatars (multi-select from the LAN file host)'
+  match: ['*.vrm']
   required: false
   tags: [avatar, vrm]
 ```
@@ -66,8 +66,8 @@ registry and no upload path of their own:
 
 1. Create `resources/recipes/<slug>/` with a slug matching
    `^[a-z0-9]+(-[a-z0-9]+)*$`, unique across the catalog.
-2. Write `recipe.yaml` against `schema/recipe.schema.json`. Keep `status:
-   draft` until someone has run it on the LAN hardware.
+2. Write `recipe.yaml` against `schema/recipe.schema.json`. Keep the status
+   `draft` until someone has run it on the LAN hardware.
 3. Write `SKILL.md` (60–150 lines) with `name` equal to `skill.name` and a
    `description` that says what the skill does and when to use it.
 4. Add the row to `_catalog.md`.

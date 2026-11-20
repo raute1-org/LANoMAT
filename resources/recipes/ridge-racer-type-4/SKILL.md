@@ -43,10 +43,10 @@ of play (shared car or ghost) and not part of this setup.
 2. **Install dependencies.** `npm --prefix {{target}}/_server install`. There
    is no build step for the browser cabinet.
 3. **Place the disc.** Copy the user's dump to `{{target}}/disc/`:
-   - Browser: `disc/r4.chd`, served from `/rom/r4.chd`.
-   - Native: the CUE/BIN pair, with the CUE kept beside its `.bin`.
-   Do not rename tracks inside a CUE, and do not use a different region as the
-   baseline.
+    - Browser: `disc/r4.chd`, served from `/rom/r4.chd`.
+    - Native: the CUE/BIN pair, with the CUE kept beside its `.bin`.
+      Do not rename tracks inside a CUE, and do not use a different region as the
+      baseline.
 4. **Place the BIOS.** Copy `scph5501.bin` to
    `{{target}}/_server/game/bios/`. The deck can select it with
    `?bios=/bios/scph5501.bin`; `?bios=hle` forces the built-in fallback.

@@ -1,226 +1,227 @@
 schema: lanomat.recipe/v1
 slug: ridge-racer-type-4
 title: Ridge Racer Type 4
-aliases: ["r4", "ridge racer 4", "rr4", "ridge racer type four", "type 4"]
-version: "1.0.0"
+aliases: ['r4', 'ridge racer 4', 'rr4', 'ridge racer type four', 'type 4']
+version: '1.0.0'
 status: published
 platforms: [windows, linux]
 summary: Run Ridge Racer Type 4 on the LAN from the user's own disc, either as a self-hosted browser arcade with 2P netplay or as the native Windows recomp.
 description: |
-  Ridge Racer Type 4 is the LAN's browser arcade cabinet: one Node process
-  serves the disc, the BIOS, the soundtrack and a self-hosted EmulatorJS front
-  end, so every player runs their own PCSX-Rearmed core in the page. The 2P
-  lounge adds real split-screen VS Battle on R4, and Race Day puts up to 50
-  drivers on one shared clock. The same repository also serves Rage Racer and
-  Ridge Racer (1994) when their discs are present.
+    Ridge Racer Type 4 is the LAN's browser arcade cabinet: one Node process
+    serves the disc, the BIOS, the soundtrack and a self-hosted EmulatorJS front
+    end, so every player runs their own PCSX-Rearmed core in the page. The 2P
+    lounge adds real split-screen VS Battle on R4, and Race Day puts up to 50
+    drivers on one shared clock. The same repository also serves Rage Racer and
+    Ridge Racer (1994) when their discs are present.
 
-  The repo is https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer.
-  The disc image and BIOS are user-supplied. The browser path expects the disc
-  as `disc/r4.chd` (about 341 MB); the native path reads the CUE/BIN dump from
-  the same `disc/` folder. The cabinet ships OpenBIOS and can boot without a
-  retail BIOS, but a `scph5501.bin` dump is the recommended baseline.
+    The repo is https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer.
+    The disc image and BIOS are user-supplied. The browser path expects the disc
+    as `disc/r4.chd` (about 341 MB); the native path reads the CUE/BIN dump from
+    the same `disc/` folder. The cabinet ships OpenBIOS and can boot without a
+    retail BIOS, but a `scph5501.bin` dump is the recommended baseline.
 
-  Open http://localhost:8080/ on the host, or `http://<host-lan-ip>:8080/` from
-  another device. The Zudoku field manual is at http://localhost:8080/docs.
+    Open http://localhost:8080/ on the host, or `http://<host-lan-ip>:8080/` from
+    another device. The Zudoku field manual is at http://localhost:8080/docs.
 homepage: https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer
-license: "Namco; disc and BIOS are user-supplied"
-cover: ""
+license: 'Namco; disc and BIOS are user-supplied'
+cover: ''
 skill:
-  name: ridge-racer-type-4
-  description: "Set up Ridge Racer Type 4 on the LAN from the user's own disc: clone the self-hosted browser cabinet, install Node dependencies, place r4.chd and the BIOS, start the server on port 8080, and optionally install the native Windows recomp. Use when the user says install Ridge Racer Type 4, R4, RR4, or type 4 for the LAN."
-  compatibility: "Windows 10/11 or Linux with Node.js 20+; ~1 GB for the cabinet plus the disc; native recomp is Windows-only"
+    name: ridge-racer-type-4
+    description: "Set up Ridge Racer Type 4 on the LAN from the user's own disc: clone the self-hosted browser cabinet, install Node dependencies, place r4.chd and the BIOS, start the server on port 8080, and optionally install the native Windows recomp. Use when the user says install Ridge Racer Type 4, R4, RR4, or type 4 for the LAN."
+    compatibility: 'Windows 10/11 or Linux with Node.js 20+; ~1 GB for the cabinet plus the disc; native recomp is Windows-only'
 requires:
-  - role: iso
-    label: "Ridge Racer Type 4 (USA) disc image"
-    match: ["*ridge*racer*4*.bin", "*R4*.cue", "*ridge*racer*4*.chd", "R4.chd"]
-    required: true
-    size_bytes: 357817282
-    sha256: ""
-    url: ""
-    notes: "Serial SLUS-00797 (NTSC-U) is the only supported target. The browser deck loads disc/r4.chd (341 MB, the size above is the reference CHD); the native recomp reads the CUE/BIN pair from the same disc/ folder."
-  - role: base
-    label: "PlayStation BIOS (scph5501.bin, NTSC-U)"
-    match: ["scph5501.bin", "scph*.bin"]
-    required: true
-    sha256: ""
-    url: ""
-    notes: "Recommended, not strictly required: the cabinet serves OpenBIOS and PCSX-Rearmed falls back to HLE, so the browser path boots without a retail dump. A real scph5501.bin gives better compatibility. Place it in _server/game/bios/."
-  - role: tool
-    label: "Node.js 20 or newer"
-    match: []
-    required: true
-    url: https://nodejs.org/en/download
-    notes: "The cabinet is one Node process plus a WebSocket relay. Install the current LTS; the repo pins engines >=20."
-  - role: tool
-    label: "Ridge Racer 4 Recomp (optional native bundle)"
-    match: ["Ridge_Racer_4_Recomp_Windows*.zip", "RidgeRacer4Recomp*.zip"]
-    required: false
-    url: https://github.com/omegakatana92/RidgeRacer4Recomp
-    notes: "Optional native Windows build (v1.0.0). Bundles OpenBIOS, reads the user's CUE/BIN, and needs the same disc/ folder. The browser cabinet is the primary LAN path."
+    - role: iso
+      label: 'Ridge Racer Type 4 (USA) disc image'
+      match:
+          ['*ridge*racer*4*.bin', '*R4*.cue', '*ridge*racer*4*.chd', 'R4.chd']
+      required: true
+      size_bytes: 357817282
+      sha256: ''
+      url: ''
+      notes: 'Serial SLUS-00797 (NTSC-U) is the only supported target. The browser deck loads disc/r4.chd (341 MB, the size above is the reference CHD); the native recomp reads the CUE/BIN pair from the same disc/ folder.'
+    - role: base
+      label: 'PlayStation BIOS (scph5501.bin, NTSC-U)'
+      match: ['scph5501.bin', 'scph*.bin']
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'Recommended, not strictly required: the cabinet serves OpenBIOS and PCSX-Rearmed falls back to HLE, so the browser path boots without a retail dump. A real scph5501.bin gives better compatibility. Place it in _server/game/bios/.'
+    - role: tool
+      label: 'Node.js 20 or newer'
+      match: []
+      required: true
+      url: https://nodejs.org/en/download
+      notes: 'The cabinet is one Node process plus a WebSocket relay. Install the current LTS; the repo pins engines >=20.'
+    - role: tool
+      label: 'Ridge Racer 4 Recomp (optional native bundle)'
+      match: ['Ridge_Racer_4_Recomp_Windows*.zip', 'RidgeRacer4Recomp*.zip']
+      required: false
+      url: https://github.com/omegakatana92/RidgeRacer4Recomp
+      notes: "Optional native Windows build (v1.0.0). Bundles OpenBIOS, reads the user's CUE/BIN, and needs the same disc/ folder. The browser cabinet is the primary LAN path."
 steps:
-  - id: install-cabinet
-    title: "Clone the cabinet and install its Node dependencies (Windows)"
-    os: windows
-    optional: false
-    detail: |
-      Clone the repository into `{{target}}` (for example
-      `C:\Games\RidgeRacer4`) and install the `_server` dependencies. The repo
-      is a Node 20+ Express app; no build step is needed for the browser
-      cabinet. Re-running the npm command is safe when the repo is already
-      there.
-    commands:
-      - shell: powershell
-        run: 'git clone https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer.git "{{target}}"'
-      - shell: powershell
-        run: 'npm --prefix "{{target}}/_server" install'
-    verify:
-      - type: file_exists
-        path: '{{target}}/_server/package.json'
-  - id: install-cabinet-linux
-    title: "Clone the cabinet and install its Node dependencies (Linux)"
-    os: linux
-    optional: false
-    detail: |
-      Same repository, same `_server` app. Node 20+ is required. The Windows
-      `.bat` helpers are not used on Linux; start the server with
-      `node _server/src/server.js` or `npm --prefix _server start`.
-    commands:
-      - shell: bash
-        run: 'git clone https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer.git "{{target}}"'
-      - shell: bash
-        run: 'npm --prefix "{{target}}/_server" install'
-    verify:
-      - type: file_exists
-        path: '{{target}}/_server/package.json'
-  - id: place-disc
-    title: "Place the disc image in disc/"
-    os: any
-    optional: false
-    detail: |
-      Put the user's USA dump in `{{target}}/disc/`. The browser deck serves
-      `disc/r4.chd`; if the user has a CUE/BIN dump instead, keep the pair
-      (`R4 - Ridge Racer Type 4 (USA).cue` plus the `.bin`) and convert it to
-      CHD for the browser path, or use it directly with the native recomp.
+    - id: install-cabinet
+      title: 'Clone the cabinet and install its Node dependencies (Windows)'
+      os: windows
+      optional: false
+      detail: |
+          Clone the repository into `{{target}}` (for example
+          `C:\Games\RidgeRacer4`) and install the `_server` dependencies. The repo
+          is a Node 20+ Express app; no build step is needed for the browser
+          cabinet. Re-running the npm command is safe when the repo is already
+          there.
+      commands:
+          - shell: powershell
+            run: 'git clone https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer.git "{{target}}"'
+          - shell: powershell
+            run: 'npm --prefix "{{target}}/_server" install'
+      verify:
+          - type: file_exists
+            path: '{{target}}/_server/package.json'
+    - id: install-cabinet-linux
+      title: 'Clone the cabinet and install its Node dependencies (Linux)'
+      os: linux
+      optional: false
+      detail: |
+          Same repository, same `_server` app. Node 20+ is required. The Windows
+          `.bat` helpers are not used on Linux; start the server with
+          `node _server/src/server.js` or `npm --prefix _server start`.
+      commands:
+          - shell: bash
+            run: 'git clone https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer.git "{{target}}"'
+          - shell: bash
+            run: 'npm --prefix "{{target}}/_server" install'
+      verify:
+          - type: file_exists
+            path: '{{target}}/_server/package.json'
+    - id: place-disc
+      title: 'Place the disc image in disc/'
+      os: any
+      optional: false
+      detail: |
+          Put the user's USA dump in `{{target}}/disc/`. The browser deck serves
+          `disc/r4.chd`; if the user has a CUE/BIN dump instead, keep the pair
+          (`R4 - Ridge Racer Type 4 (USA).cue` plus the `.bin`) and convert it to
+          CHD for the browser path, or use it directly with the native recomp.
 
-      The example command copies `{{downloads}}/r4.chd`; if the matched file
-      has another name, rename it to `r4.chd` in `{{downloads}}` first (or
-      adjust the command). Do not rename the tracks inside a CUE. Serial
-      SLUS-00797 is the supported target; other regions may boot but are not
-      the tested path.
-    commands:
-      - shell: powershell
-        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/disc" | Out-Null'
-      - shell: powershell
-        run: 'Copy-Item -Path "{{downloads}}/r4.chd" -Destination "{{target}}/disc/r4.chd" -Force'
-      - shell: bash
-        run: 'mkdir -p "{{target}}/disc"'
-      - shell: bash
-        run: 'cp "{{downloads}}/r4.chd" "{{target}}/disc/r4.chd"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/disc/r4.chd'
-  - id: install-bios
-    title: "Add the PlayStation BIOS (or use the bundled OpenBIOS)"
-    os: any
-    optional: false
-    detail: |
-      Copy the user's `scph5501.bin` to `{{target}}/_server/game/bios/`. The
-      cabinet ships `openbios.bin` and works without a retail dump; a real
-      NTSC-U BIOS is the recommended baseline for compatibility.
+          The example command copies `{{downloads}}/r4.chd`; if the matched file
+          has another name, rename it to `r4.chd` in `{{downloads}}` first (or
+          adjust the command). Do not rename the tracks inside a CUE. Serial
+          SLUS-00797 is the supported target; other regions may boot but are not
+          the tested path.
+      commands:
+          - shell: powershell
+            run: 'New-Item -ItemType Directory -Force -Path "{{target}}/disc" | Out-Null'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/r4.chd" -Destination "{{target}}/disc/r4.chd" -Force'
+          - shell: bash
+            run: 'mkdir -p "{{target}}/disc"'
+          - shell: bash
+            run: 'cp "{{downloads}}/r4.chd" "{{target}}/disc/r4.chd"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/disc/r4.chd'
+    - id: install-bios
+      title: 'Add the PlayStation BIOS (or use the bundled OpenBIOS)'
+      os: any
+      optional: false
+      detail: |
+          Copy the user's `scph5501.bin` to `{{target}}/_server/game/bios/`. The
+          cabinet ships `openbios.bin` and works without a retail dump; a real
+          NTSC-U BIOS is the recommended baseline for compatibility.
 
-      In the browser deck a retail dump can be selected with
-      `?bios=/bios/scph5501.bin`; `?bios=hle` forces the built-in HLE path.
-      Never download a BIOS for the user.
-    commands:
-      - shell: powershell
-        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/_server/game/bios" | Out-Null'
-      - shell: powershell
-        run: 'Copy-Item -Path "{{downloads}}/scph5501.bin" -Destination "{{target}}/_server/game/bios/scph5501.bin" -Force'
-      - shell: bash
-        run: 'mkdir -p "{{target}}/_server/game/bios"'
-      - shell: bash
-        run: 'cp "{{downloads}}/scph5501.bin" "{{target}}/_server/game/bios/scph5501.bin"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/_server/game/bios/scph5501.bin'
-  - id: run-cabinet
-    title: "Start the cabinet and open the LAN URL (Windows)"
-    os: windows
-    optional: false
-    detail: |
-      Run `_server\start-test.bat` in its own window. It serves the cabinet on
-      port 8080; open http://localhost:8080/ on the host, and
-      `http://<host-lan-ip>:8080/` on any other device on the LAN. The field
-      manual is at http://localhost:8080/docs.
+          In the browser deck a retail dump can be selected with
+          `?bios=/bios/scph5501.bin`; `?bios=hle` forces the built-in HLE path.
+          Never download a BIOS for the user.
+      commands:
+          - shell: powershell
+            run: 'New-Item -ItemType Directory -Force -Path "{{target}}/_server/game/bios" | Out-Null'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/scph5501.bin" -Destination "{{target}}/_server/game/bios/scph5501.bin" -Force'
+          - shell: bash
+            run: 'mkdir -p "{{target}}/_server/game/bios"'
+          - shell: bash
+            run: 'cp "{{downloads}}/scph5501.bin" "{{target}}/_server/game/bios/scph5501.bin"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/_server/game/bios/scph5501.bin'
+    - id: run-cabinet
+      title: 'Start the cabinet and open the LAN URL (Windows)'
+      os: windows
+      optional: false
+      detail: |
+          Run `_server\start-test.bat` in its own window. It serves the cabinet on
+          port 8080; open http://localhost:8080/ on the host, and
+          `http://<host-lan-ip>:8080/` on any other device on the LAN. The field
+          manual is at http://localhost:8080/docs.
 
-      Leave the window open: the host PC is the cabinet and must stay awake
-      while people play. `firewall.bat` opens the Windows firewall for LAN
-      devices; the optional netplay relay uses TCP 3010.
-    commands:
-      - shell: powershell
-        run: 'Start-Process "{{target}}/_server/start-test.bat"'
-    verify:
-      - type: command
-        command: 'curl.exe -fsS http://localhost:8080/'
-  - id: run-cabinet-linux
-    title: "Start the cabinet and open the LAN URL (Linux)"
-    os: linux
-    optional: false
-    detail: |
-      Start the server with `node {{target}}/_server/src/server.js` (or
-      `npm --prefix {{target}}/_server start`). Open http://localhost:8080/ on
-      the host and `http://<host-lan-ip>:8080/` on the LAN.
+          Leave the window open: the host PC is the cabinet and must stay awake
+          while people play. `firewall.bat` opens the Windows firewall for LAN
+          devices; the optional netplay relay uses TCP 3010.
+      commands:
+          - shell: powershell
+            run: 'Start-Process "{{target}}/_server/start-test.bat"'
+      verify:
+          - type: command
+            command: 'curl.exe -fsS http://localhost:8080/'
+    - id: run-cabinet-linux
+      title: 'Start the cabinet and open the LAN URL (Linux)'
+      os: linux
+      optional: false
+      detail: |
+          Start the server with `node {{target}}/_server/src/server.js` (or
+          `npm --prefix {{target}}/_server start`). Open http://localhost:8080/ on
+          the host and `http://<host-lan-ip>:8080/` on the LAN.
 
-      For 2P and Race Day, allow TCP 8080 and the netplay relay on TCP 3010
-      through the host firewall.
-    commands:
-      - shell: bash
-        run: 'node "{{target}}/_server/src/server.js"'
-    verify:
-      - type: command
-        command: 'curl -fsS http://localhost:8080/'
-  - id: native-recomp
-    title: "Ridge Racer 4 Recomp (optional native Windows build)"
-    os: windows
-    optional: true
-    detail: |
-      Optional alternative to the browser cabinet, from
-      https://github.com/omegakatana92/RidgeRacer4Recomp (v1.0.0). Extract
-      `Ridge_Racer_4_Recomp_Windows.zip` to `{{target}}/RidgeRacer4Recomp` and
-      launch `launcher\ridgeRacer4.bat`; the launcher verifies the disc and lets
-      you pick the pad and OpenBIOS.
+          For 2P and Race Day, allow TCP 8080 and the netplay relay on TCP 3010
+          through the host firewall.
+      commands:
+          - shell: bash
+            run: 'node "{{target}}/_server/src/server.js"'
+      verify:
+          - type: command
+            command: 'curl -fsS http://localhost:8080/'
+    - id: native-recomp
+      title: 'Ridge Racer 4 Recomp (optional native Windows build)'
+      os: windows
+      optional: true
+      detail: |
+          Optional alternative to the browser cabinet, from
+          https://github.com/omegakatana92/RidgeRacer4Recomp (v1.0.0). Extract
+          `Ridge_Racer_4_Recomp_Windows.zip` to `{{target}}/RidgeRacer4Recomp` and
+          launch `launcher\ridgeRacer4.bat`; the launcher verifies the disc and lets
+          you pick the pad and OpenBIOS.
 
-      The recomp reads `{{target}}/disc/` (CUE/BIN), bundles OpenBIOS, and
-      expects the USA serial SLUS-00797. Set `settings.toml` `[video]
-      fullscreen = 0` until Borderless mode has been verified: exclusive
-      fullscreen can switch the desktop to 1024x768. Run only one native
-      instance at a time.
-    commands:
-      - shell: powershell
-        run: 'Expand-Archive -Path "{{downloads}}/Ridge_Racer_4_Recomp_Windows.zip" -DestinationPath "{{target}}/RidgeRacer4Recomp" -Force'
-      - shell: powershell
-        run: '& "{{target}}/RidgeRacer4Recomp/launcher/ridgeRacer4.bat"'
-    verify:
-      - type: file_exists
-        path: '{{target}}/RidgeRacer4Recomp/Ridge_Racer_4_Recompiled.exe'
-  - id: check-cabinet
-    title: "Check the cabinet before the LAN night"
-    os: any
-    optional: false
-    detail: |
-      Open http://localhost:8080/play?game=r4 and boot the disc once: the
-      intro should play and the car select should accept input. Check
-      `_server/PLAY-QA.md` for the known QA state, and run
-      `node _server/verify-mp.mjs` for the fast 2P transport checks.
+          The recomp reads `{{target}}/disc/` (CUE/BIN), bundles OpenBIOS, and
+          expects the USA serial SLUS-00797. Set `settings.toml` `[video]
+          fullscreen = 0` until Borderless mode has been verified: exclusive
+          fullscreen can switch the desktop to 1024x768. Run only one native
+          instance at a time.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/Ridge_Racer_4_Recomp_Windows.zip" -DestinationPath "{{target}}/RidgeRacer4Recomp" -Force'
+          - shell: powershell
+            run: '& "{{target}}/RidgeRacer4Recomp/launcher/ridgeRacer4.bat"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/RidgeRacer4Recomp/Ridge_Racer_4_Recompiled.exe'
+    - id: check-cabinet
+      title: 'Check the cabinet before the LAN night'
+      os: any
+      optional: false
+      detail: |
+          Open http://localhost:8080/play?game=r4 and boot the disc once: the
+          intro should play and the car select should accept input. Check
+          `_server/PLAY-QA.md` for the known QA state, and run
+          `node _server/verify-mp.mjs` for the fast 2P transport checks.
 
-      Race Day is at http://localhost:8080/race-day; the 50-seat figure is an
-      MVP target verified with synthetic WebSocket clients, not 50 humans. The
-      guest stream carries video only, so expect no guest audio.
-    verify:
-      - type: command
-        command: 'curl -fsS http://localhost:8080/play?game=r4'
+          Race Day is at http://localhost:8080/race-day; the 50-seat figure is an
+          MVP target verified with synthetic WebSocket clients, not 50 humans. The
+          guest stream carries video only, so expect no guest audio.
+      verify:
+          - type: command
+            command: 'curl -fsS http://localhost:8080/play?game=r4'
 metadata:
-  genre: racing
-  players: "1-50 (2P split-screen on R4)"
-  lan_recommended: true
-  tags: [racing, arcade, psx, 2-player, browser]
+    genre: racing
+    players: '1-50 (2P split-screen on R4)'
+    lan_recommended: true
+    tags: [racing, arcade, psx, 2-player, browser]

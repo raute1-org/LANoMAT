@@ -24,19 +24,23 @@ Not for the N64 original, Ocarina of Time 3D (Azahar), or Ship of Harkinian
 - The exact supported game dump: program `0400486024DEC000`, update
   `v131072`, build `e0f3ccfa`. A `.nup`, an `.nx` packed to `.nup`, or
   `romfs` + `exefs`.
-- Hookshot's builder/release from hookshotrecomp.wiki or
-  git.notrexed.dev/Hookshot/Hookshot.
-- Windows 10/11 or Linux x64, Vulkan, about 10 GB of disk.
-- Time for the build.
+- Hookshot Builder: `HookshotBuilder.exe` (Windows) or
+  `Hookshot-<version>-x86_64.AppImage` (Linux), from
+  git.notrexed.dev/Hookshot/Hookshot/releases.
+- Windows 10/11 or Linux x64 with glibc 2.35+ and AVX2; Vulkan 1.3 with mesh
+  shaders; 16 GB RAM.
+- About 60 GB free while the build runs (about 10 GB afterwards) and
+  10–45 minutes of build time.
 
 ## Steps
 
-1. **Get Hookshot.** Download from hookshotrecomp.wiki (the GitHub repo moved;
-   old links 404) and extract to `{{target}}`.
-2. **Place the dump.** Put the `.nup` or `romfs`/`exefs` in the game folder.
+1. **Get Hookshot Builder.** Put `HookshotBuilder.exe` in `{{target}}` and run
+   it once so it downloads its parts; on Linux make the AppImage executable
+   and run it.
+2. **Place the dump.** Choose the `.nup` or `romfs`/`exefs` in the builder.
    Convert an `.nx` with NXFormat's `nxconvert pack-nup`.
-3. **Build.** Use Hookshot Builder or `nx2/make_game.py` from the extracted
-   tree. The build lifts the code to C, compiles it with the host layer, and
+3. **Build.** Set the install folder to `{{target}}`, pick the language and
+   press Build. It lifts the code to C, compiles it with the host layer, and
    writes `hookshot.exe`.
 4. **Run.** Start `hookshot.exe`, set resolution/fullscreen, map a pad or
    keyboard, and let the shader cache build.

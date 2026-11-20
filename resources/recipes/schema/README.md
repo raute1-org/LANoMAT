@@ -20,30 +20,53 @@ The validator exits non-zero and prints every error. It checks:
 4. `SKILL.md` exists, has YAML frontmatter, and its `name`/`description` agree
    with the recipe (description ≤ 1024 chars);
 5. no command contains an `&&` chain;
-6. every `SKILL.md` is 60–150 lines.
+6. every `SKILL.md` is 60–150 lines;
+7. drafts have 3–6 steps and say "needs verification on the LAN";
+8. a draft that carries a `sha256` gets a warning (confirm it or leave it empty).
 
 Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 
 ## Shape
 
-| Key | Required | Notes |
-| --- | --- | --- |
-| `schema` | yes | Always `lanomat.recipe/v1`. |
-| `slug` | yes | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name. |
-| `title` | yes | Display name; quote it if it contains `: `. |
-| `aliases` | yes | Chat phrases that resolve to this recipe; unique. |
-| `version` | yes | String. Patch, port or release the recipe targets. |
-| `status` | yes | `draft`, `published` or `archived`. |
-| `platforms` | yes | Non-empty subset of `windows`, `linux`, `macos`. |
-| `summary` | yes | One sentence, ≤ 200 chars. |
-| `description` | yes | Multi-line markdown: what it is, why LAN, what the files are. |
-| `homepage` | no | URI (official project/emulator page). |
-| `license` | yes | Who owns the game; what the user supplies; mod license. |
-| `cover` | no | Docs image name; may be empty. |
-| `skill` | yes | `name` (slug rules, ≤ 64) and `description` (≤ 1024). |
-| `requires` | yes | File groups; see below. May be empty for pure tools. |
-| `steps` | yes | 1–20 ordered steps. |
-| `metadata` | yes | `genre`, `players`, `lan_recommended`, `tags`. |
+| Key           | Required | Notes                                                                            |
+| ------------- | -------- | -------------------------------------------------------------------------------- |
+| `schema`      | yes      | Always `lanomat.recipe/v1`.                                                      |
+| `slug`        | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                           |
+| `title`       | yes      | Display name; quote it if it contains `: `.                                      |
+| `aliases`     | yes      | Chat phrases that resolve to this recipe; unique.                                |
+| `version`     | yes      | String. Patch, port or release the recipe targets.                               |
+| `status`      | yes      | `draft`, `published` or `archived`.                                              |
+| `platforms`   | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                 |
+| `summary`     | yes      | One sentence, ≤ 200 chars.                                                       |
+| `description` | yes      | Multi-line markdown: what it is, why LAN, what the files are.                    |
+| `homepage`    | no       | URI (official project/emulator page).                                            |
+| `license`     | yes      | Who owns the game; what the user supplies; mod license.                          |
+| `cover`       | no       | Docs image name; may be empty.                                                   |
+| `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                            |
+| `requires`    | yes      | File groups; see below. May be empty for pure tools.                             |
+| `steps`       | yes      | 1–20 ordered steps.                                                              |
+| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`. |
+
+### Metadata
+
+`players` stays the human string ("2-32", "1-4 (split-screen)"). `players_max`
+is the numeric upper bound the games page filters and sorts on (1 for a
+single-player game). `launch` is how a launcher starts the game after the
+install:
+
+```yaml
+metadata:
+    players_max: 32
+    launch:
+        kind: steam
+        target: 'steam://rungameid/10'
+        notes: 'Server join: steam://connect/<host>:27015'
+```
+
+`kind` is `steam` (Steam URL), `uri` (another registered protocol) or `exe`
+(executable inside `{{target}}`, optional `args`). Omit `launch` when there is
+no single sensible entry point, for example an installer whose executable name
+still needs verification.
 
 ### Requirements
 

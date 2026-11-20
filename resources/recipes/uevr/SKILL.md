@@ -1,6 +1,6 @@
 ---
 name: uevr
-description: "Install the UEVR injector on Windows, start an OpenXR runtime, inject into a running Unreal Engine 4/5 game, and save a per-game profile. Use when the user says install UEVR, inject VR into an Unreal game, or asks for VR in a UE4/UE5 title on the LAN."
+description: 'Install the UEVR injector on Windows, start an OpenXR runtime, inject into a running Unreal Engine 4/5 game, and save a per-game profile. Use when the user says install UEVR, inject VR into an Unreal game, or asks for VR in a UE4/UE5 title on the LAN.'
 ---
 
 # UEVR
