@@ -1,13 +1,13 @@
 ---
 name: ut2004
-description: "Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, and optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN."
+description: 'Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, then start it flat or optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Always ask flat or VR before installing. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN.'
 ---
 
 # Unreal Tournament 2004
 
 UT2004 is the LAN's baseline arena shooter. This skill puts a working 64-bit
-install on the PC from the LAN disc image, applies the required OldUnreal patch,
-and offers two optional extras: the UT2004VR mod and VRM avatars.
+install on the PC from the LAN disc image, applies the required OldUnreal
+patch, and offers two optional extras: the UT2004VR mod and VRM avatars.
 
 ## When to use
 
@@ -20,89 +20,130 @@ Use this skill when the user says any of:
 - "install the VR mod for UT2004"
 
 Do not use it for Unreal Tournament 1999 (different game and patch line) or for
-a dedicated UT2004 server on the game-server host.
+the dedicated server on the game-server host.
+
+## Ask first: flat or VR
+
+Ask one question **before** installing: "Flat on a monitor, or VR?"
+
+- **Flat** is the default and needs nothing beyond the base game and patch. It
+  works on Windows and Linux.
+- **VR** is Windows 10/11 only and needs SteamVR plus motion controllers. VR is
+  offline bots only; joining an online server drops back to a flat screen.
+
+Do not assume VR from a plugged-in headset, and never install VR on Linux.
 
 ## What you need
 
-- The UT2004 DVD 1 image from the LAN file host (`ut2004*.iso`), or an existing
-  GOG/Steam install. The user supplies the game files.
+- The UT2004 DVD 1 image on the LAN file host (`ut2004*.iso`), or an existing
+  GOG/Steam install. Disc 2 only adds maps. The user supplies the game files.
 - The OldUnreal 3374 archive for the target OS:
   `OldUnreal-UT2004Patch3374-Windows-*.zip` or
-  `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2`.
-- About 5 GB of disk, a GPU with a current driver, and a mouse and keyboard.
-- For VR: Windows 10/11, SteamVR, a headset with motion controllers, and the
-  `UT2004VR-*.zip` release.
-- For avatars: one or more `.vrm` files, and the private `vrm2ut2004` repo on
-  the LAN server if the user wants them converted.
+  `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2`. The latest release is
+  `3374-rc3` (2026-11-03).
+- About 5 GB of disk and a current GPU driver. Patch 3374 is 64-bit only:
+  Windows 7+ or 64-bit Linux, and no Wine is needed.
+- For VR: Windows 10/11, SteamVR, a headset with motion controllers and the
+  `UT2004VR-*.zip` release (v0.1.1 is verified).
 
 ## Steps
 
 1. **Pick the install folder.** `{{target}}` should be short and writable, for
    example `C:\Games\UT2004` or `~/Games/UT2004`. Avoid `Program Files`.
-2. **Install the base game.** Windows: mount the ISO, run `Setup.exe`, choose a
-   full install. Linux: run the same installer through Wine/Proton, or copy a
-   working install. Keep the disc mounted for now.
-3. **Apply OldUnreal patch 3374.** Extract the archive and merge its `Help/`,
-   `Sounds/` and `System/` folders into `{{target}}`. The Windows zip has no
-   installer; the Linux tarball is the same drop-in tree with
-   `System/ut2004-bin-amd64`. Confirm `System/UT2004.exe` is the 64-bit build
-   and `System/D3D11Drv.dll` exists.
-4. **Dismount the ISO.** The patch removes the disc check, so the game no longer
-   needs the image. If it still asks for the DVD, the patch went to the wrong
-   folder.
-5. **Ask about VR.** If the user has a headset, install UT2004VR: unzip the
-   release, run `Install.bat`, and let it find `{{target}}`. Back up an existing
-   `System\d3d9.dll` first. Start SteamVR before the `UT2004 VR` shortcut.
-6. **Ask about avatars.** See the next section. This is a multi-select, not a
-   yes/no question.
-7. **Smoke test.** Start the game, then Instant Action → Deathmatch → DM-Rankin
+2. **Copy the base game assets from Disc 1.** Mount the ISO and copy every
+   disc folder except `System` into `{{target}}`. OldUnreal's patch brings the
+   complete `System` tree, and a retail `System` mixed in keeps the patched
+   game from starting (on Linux it fails outright). On Linux, unpack the ISO
+   with `bsdtar` and copy the same folders; no Wine. If the user already has a
+   GOG/Steam install, use it as `{{target}}` and skip this.
+3. **Apply OldUnreal patch 3374.** Extract the Windows zip and copy the whole
+   tree (`Help/`, `Sounds/`, `System/`, `SystemARM64/`, `SystemLocalized/`,
+   `Textures/`, `Web/`) over `{{target}}`, merging. On Linux extract the
+   `.tar.bz2` into `{{target}}` and `chmod +x System/UT2004`. Check that
+   `System/UT2004.exe` is x86-64 (Windows), `System/D3D11Drv.dll` exists and
+   `System/Build.ini` reports `v3374`.
+4. **Dismount the ISO.** The patched client does not ask for the DVD. If it
+   still does, the patch landed in the wrong folder.
+5. **Install UT2004VR if the user chose VR.** Unzip the release and call
+   `Installer/Install.ps1` with `-GameDir "{{target}}" -Unattended
+-NoShortcut`. `Install.bat` is the interactive wrapper and ends in `pause`.
+   The installer checks the 64-bit build and the `v3374` build date
+   (2026-07-18 or later, so rc3 passes) and refuses to run while UT2004 is
+   running.
+6. **Handle `d3d9.dll` before the VR install.** That file name is the mod's
+   SteamVR bridge. If ReShade or dgVoodoo already owns it, move it to
+   `System\d3d9.dll.pre-UT2004VR` first; the installer would otherwise stop at
+   its unattended "Continue?" prompt (default: no). The uninstaller restores
+   the backup and the other tool is off while the mod is installed.
+7. **Ask about avatars.** This is a multi-select, not a yes/no question. See
+   the next section.
+8. **Smoke test.** Start the game, then Instant Action → Deathmatch → DM-Rankin
    with 4 bots. Confirm video, audio and mouse input.
+
+## Starting the game
+
+- **Flat, Windows:** `System\UT2004.exe`.
+- **Flat, Linux:** `System/ut2004-bin-amd64` (a symlink to the 64-bit
+  `System/UT2004`).
+- **VR, Windows:** start SteamVR, then run the `UT2004 VR` shortcut or
+  `System\Play-VR.bat`. VR is on only when started from `Play-VR.bat`; a normal
+  start stays flat. `Play-VR.bat DM-Antalus` skips the menus.
+
+VR settings live in `System\UT2004VR_Game.ini`, made from `UT2004.ini` on the
+first VR start. Delete it to start over. `RenderScale` in
+`System\UT2004VR_proxy.ini` (for example `0.7`) is the frame-rate lever.
 
 ## Asking about avatars
 
-Avatars are `role: avatar` requirements in the recipe, matched against the LAN
-file host. The installer shows every match as a multi-select:
+Avatars are `role: avatar` requirements matched against the LAN file host. The
+installer shows every `.vrm` match as a multi-select:
 
-1. List the LAN matches first and recommend them ("Ayla, Brutus, Kestrel, Mako,
-   Sable are on the file host"). Prefer LAN copies over downloads.
+1. List the LAN matches first and recommend them. Prefer LAN copies; do not
+   invent download URLs for an avatar.
 2. Ask: "Which avatars should I install? Pick any number, or none."
-3. If the user picks files that are not on the LAN, ask for the `.vrm` paths or
-   let them drop the files into `{{downloads}}`.
-4. Only build with `vrm2ut2004` if the user wants converted characters. Clone
-   the private repo on the LAN server, follow its README, and copy the built
-   packages to each client.
-5. Avatars are optional. Never block the base install on them, and never invent
-   download URLs for a catalog entry that has none.
+3. Only build with `vrm2ut2004` if the user wants converted characters. The
+   repo is private: clone it on the LAN server with an account that can read
+   it, follow its README, and feed it the local `.vrm` paths.
+4. Copy the generated UT2004 character packages to each client's `System`
+   folder.
+5. Avatars are optional. Never block the base install or UT2004VR on them.
+
+Live example: the operator's UT2004VR/VRM deployment, "Raute1 | VRM-UT2004", at
+https://ut.raute1.org/ (HTTP/2 200 on 2026-11-21) runs this path in production.
 
 ## Verification
 
-- `{{target}}/System/UT2004.exe` exists (Windows) or
-  `{{target}}/System/ut2004-bin-amd64` (Linux).
-- `{{target}}/System/D3D11Drv.dll` exists after the patch.
-- The main menu starts without the DVD and shows the OldUnreal build.
-- A bot match runs at the expected frame rate.
-- If installed: `{{target}}/System/UT2004VR-Uninstall.bat` exists, and the VR
-  shortcut opens the intro in the headset.
+- `{{target}}/System/Build.ini` reports `v3374`.
+- Windows: `System/UT2004.exe` and `System/D3D11Drv.dll` exist; Linux:
+  `System/ut2004-bin-amd64` exists and runs.
+- The main menu starts without the DVD and shows the OldUnreal build, and a bot
+  match runs at the expected frame rate.
+- If VR was installed: `System/UT2004VR-Uninstall.bat` exists and the VR
+  shortcut opens in the headset.
 
 ## Troubleshooting
 
 - **"Please insert the UT2004 CD"**: the patch was not applied to the folder
-  that contains `System/`. Copy the patch tree over `{{target}}` again.
-- **Launcher starts the old 32-bit build**: start `System\UT2004.exe` directly,
-  or recreate the shortcut after patching.
+  that contains `System/`, or a retail `System` was copied from the disc.
+  Copy the patch tree over `{{target}}` again.
+- **Launcher starts the old 32-bit build**: start `System\UT2004.exe` directly
+  and recreate the shortcut after patching.
+- **UT2004VR says the game is 32-bit or not 3374**: the patch step was skipped
+  or landed elsewhere. VR needs 3374 64-bit Preview 23 or newer.
+- **UT2004VR stops on "Continue?"**: an existing `d3d9.dll` from ReShade or
+  dgVoodoo was found. Move it to `d3d9.dll.pre-UT2004VR` and run the install
+  again.
 - **Black screen or missing renderer**: select the D3D11 renderer in
-  Settings → Video; update the GPU driver.
-- **VR shows nothing**: start SteamVR first and launch through the `UT2004 VR`
-  shortcut or `System\Play-VR.bat`. Hold left Y for a second to recenter.
-- **VR stutters**: lower `RenderScale` in `System\UT2004VR_proxy.ini` (for
-  example 0.7).
-- **Antivirus flags `d3d9.dll`**: it is the UT2004VR SteamVR bridge, not a
-  virus. The source is in the mod repository.
-- **Linux binary will not start**: check `chmod +x` on `System/UT2004` and
-  `System/ut2004-bin-amd64`; install the 64-bit OpenAL libraries shipped in the
-  patch archive.
+  Settings → Video (best on Windows 11); update the GPU driver.
+- **VR shows nothing**: start SteamVR first and launch through `Play-VR.bat`.
+  Hold left Y for about a second to recenter.
+- **Antivirus flags `d3d9.dll`**: it is the unsigned UT2004VR SteamVR bridge,
+  not a virus; the source is in the mod repository.
+- **Linux binary will not start**: check `chmod +x System/UT2004`; the patch
+  ships its own OpenAL and SDL3 libraries.
 
 ## License
 
-Unreal Tournament 2004 belongs to Epic Games. No game files ship with this
-recipe; the user supplies the disc or store copy. UT2004VR is MIT-licensed.
+UT2004 belongs to Epic Games; no game files ship, the user supplies the disc.
+OldUnreal's patch is free and Epic-approved. UT2004VR is MIT; OpenVR is
+BSD-3-Clause.

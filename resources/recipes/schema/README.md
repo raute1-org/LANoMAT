@@ -19,31 +19,36 @@ The validator exits non-zero and prints every error. It checks:
    (aliases case-insensitively);
 4. `SKILL.md` exists, has YAML frontmatter, and its `name`/`description` agree
    with the recipe (description ≤ 1024 chars);
-5. no command contains an `&&` chain;
-6. every `SKILL.md` is 60–150 lines.
+5. no step command or launch target command contains an `&&` chain, and launch
+   target ids are unique within a recipe;
+6. a published recipe's `play_url` does not use `localhost` (warning only: it
+   would only work on the host itself);
+7. every `SKILL.md` is 60–150 lines.
 
 Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 
 ## Shape
 
-| Key | Required | Notes |
-| --- | --- | --- |
-| `schema` | yes | Always `lanomat.recipe/v1`. |
-| `slug` | yes | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name. |
-| `title` | yes | Display name; quote it if it contains `: `. |
-| `aliases` | yes | Chat phrases that resolve to this recipe; unique. |
-| `version` | yes | String. Patch, port or release the recipe targets. |
-| `status` | yes | `draft`, `published` or `archived`. |
-| `platforms` | yes | Non-empty subset of `windows`, `linux`, `macos`. |
-| `summary` | yes | One sentence, ≤ 200 chars. |
-| `description` | yes | Multi-line markdown: what it is, why LAN, what the files are. |
-| `homepage` | no | URI (official project/emulator page). |
-| `license` | yes | Who owns the game; what the user supplies; mod license. |
-| `cover` | no | Docs image name; may be empty. |
-| `skill` | yes | `name` (slug rules, ≤ 64) and `description` (≤ 1024). |
-| `requires` | yes | File groups; see below. May be empty for pure tools. |
-| `steps` | yes | 1–20 ordered steps. |
-| `metadata` | yes | `genre`, `players`, `lan_recommended`, `tags`. |
+| Key              | Required | Notes                                                                                                                |
+| ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `schema`         | yes      | Always `lanomat.recipe/v1`.                                                                                          |
+| `slug`           | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                                                               |
+| `title`          | yes      | Display name; quote it if it contains `: `.                                                                          |
+| `aliases`        | yes      | Chat phrases that resolve to this recipe; unique.                                                                    |
+| `version`        | yes      | String. Patch, port or release the recipe targets.                                                                   |
+| `status`         | yes      | `draft`, `published` or `archived`.                                                                                  |
+| `platforms`      | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                                                     |
+| `summary`        | yes      | One sentence, ≤ 200 chars.                                                                                           |
+| `description`    | yes      | Multi-line markdown: what it is, why LAN, what the files are.                                                        |
+| `homepage`       | no       | URI (official project/emulator page).                                                                                |
+| `license`        | yes      | Who owns the game; what the user supplies; mod license.                                                              |
+| `cover`          | no       | Docs image name; may be empty.                                                                                       |
+| `play_url`       | no       | Page a player opens on the LAN, e.g. `http://{{host}}:8080/play?game=r4`. Use `{{host}}` for the host's LAN address. |
+| `launch_targets` | no       | Ordered ways to start the game when they differ (flat vs VR, Windows vs Linux). First entry is the default.          |
+| `skill`          | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                                                                |
+| `requires`       | yes      | File groups; see below. May be empty for pure tools.                                                                 |
+| `steps`          | yes      | 1–20 ordered steps.                                                                                                  |
+| `metadata`       | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `live_url` for a live deployment.                            |
 
 ### Requirements
 
@@ -62,11 +67,39 @@ Each step needs `id`, `title`, `os` (`windows`/`linux`/`any`), `optional` and
 An optional step **must** set `optional: true`, and a required install must not
 depend on it.
 
+### Play URL and launch targets
+
+`play_url` is the page a player opens on the LAN. It is not a download and not
+a launcher: the browser cabinet, the server status page or a hosted game page.
+Use `{{host}}` for the LAN address of the machine that hosts the game
+(`http://{{host}}:8080/play?game=r4`); `localhost` only resolves on that
+machine. The recipe still works when the address changes, because the
+installer substitutes the current LAN address. Document any port switch and
+how to change it.
+
+`launch_targets` lists the ways to start an installed game, in preference
+order:
+
+```yaml
+launch_targets:
+    - id: flat-windows
+      label: 'Flat on a monitor (Windows)'
+      os: windows
+      shell: powershell
+      command: 'Start-Process -FilePath "{{target}}/System/UT2004.exe"'
+      notes: 'Starting this way is always the flat game.'
+```
+
+Required keys are `id` (unique within the recipe), `label`, `os` and
+`command`; `shell` and `notes` are optional. Use it only when there is a real
+choice (flat vs VR, per-OS binaries); one obvious way to start the game belongs
+in `steps`.
+
 ### Template variables
 
 `{{target}}` install directory, `{{downloads}}` download directory, `{{os}}`
-detected platform. The installer resolves them; the schema only stores the
-strings.
+detected platform and `{{host}}` the LAN address of the machine that hosts the
+game. The installer resolves them; the schema only stores the strings.
 
 ## Design rules
 

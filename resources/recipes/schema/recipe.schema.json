@@ -1,312 +1,368 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lanomat.local/schema/lanomat.recipe/v1.json",
-  "title": "LANoMAT game recipe v1",
-  "description": "A LANoMAT game recipe: one game, its LAN files, and the ordered steps an assistant or installer follows to put it on a PC.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schema",
-    "slug",
-    "title",
-    "aliases",
-    "version",
-    "status",
-    "platforms",
-    "summary",
-    "description",
-    "license",
-    "skill",
-    "requires",
-    "steps",
-    "metadata"
-  ],
-  "properties": {
-    "schema": {
-      "const": "lanomat.recipe/v1"
-    },
-    "slug": {
-      "$ref": "#/$defs/slug"
-    },
-    "title": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 120
-    },
-    "aliases": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 80
-      },
-      "uniqueItems": true,
-      "default": []
-    },
-    "version": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 40
-    },
-    "status": {
-      "enum": ["draft", "published", "archived"]
-    },
-    "platforms": {
-      "type": "array",
-      "minItems": 1,
-      "uniqueItems": true,
-      "items": {
-        "enum": ["windows", "linux", "macos"]
-      }
-    },
-    "summary": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 200
-    },
-    "description": {
-      "type": "string",
-      "minLength": 1
-    },
-    "homepage": {
-      "type": "string",
-      "format": "uri"
-    },
-    "license": {
-      "type": "string",
-      "minLength": 1
-    },
-    "cover": {
-      "type": "string"
-    },
-    "skill": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "description"],
-      "properties": {
-        "name": {
-          "$ref": "#/$defs/slug"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://lanomat.local/schema/lanomat.recipe/v1.json",
+    "title": "LANoMAT game recipe v1",
+    "description": "A LANoMAT game recipe: one game, its LAN files, and the ordered steps an assistant or installer follows to put it on a PC.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema",
+        "slug",
+        "title",
+        "aliases",
+        "version",
+        "status",
+        "platforms",
+        "summary",
+        "description",
+        "license",
+        "skill",
+        "requires",
+        "steps",
+        "metadata"
+    ],
+    "properties": {
+        "schema": {
+            "const": "lanomat.recipe/v1"
         },
-        "description": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 1024
-        },
-        "compatibility": {
-          "type": "string",
-          "maxLength": 200
-        }
-      }
-    },
-    "requires": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/requirement"
-      }
-    },
-    "steps": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 20,
-      "items": {
-        "$ref": "#/$defs/step"
-      }
-    },
-    "metadata": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["genre", "players", "lan_recommended", "tags"],
-      "properties": {
-        "genre": {
-          "type": "string",
-          "minLength": 1
-        },
-        "players": {
-          "type": "string",
-          "minLength": 1
-        },
-        "lan_recommended": {
-          "type": "boolean"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
-        }
-      }
-    }
-  },
-  "$defs": {
-    "slug": {
-      "type": "string",
-      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-      "maxLength": 64
-    },
-    "glob": {
-      "type": "string",
-      "minLength": 1
-    },
-    "requirement": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["role", "label", "match", "required"],
-      "properties": {
-        "role": {
-          "enum": ["base", "iso", "patch", "mod", "tool", "avatar", "content", "config"]
-        },
-        "label": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 160
-        },
-        "match": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/glob"
-          },
-          "uniqueItems": true
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "size_bytes": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^$|^[a-f0-9]{64}$"
-        },
-        "url": {
-          "type": "string",
-          "pattern": "^$|^https?://"
-        },
-        "notes": {
-          "type": "string"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
-        }
-      }
-    },
-    "command": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["shell", "run"],
-      "properties": {
-        "shell": {
-          "enum": ["powershell", "cmd", "bash"]
-        },
-        "run": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
-    "verification": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type"],
-      "properties": {
-        "type": {
-          "enum": ["file_exists", "dir_exists", "command"]
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "command": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "enum": ["file_exists", "dir_exists"]
-              }
-            },
-            "required": ["type"]
-          },
-          "then": {
-            "required": ["path"],
-            "properties": {
-              "path": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "command"
-              }
-            },
-            "required": ["type"]
-          },
-          "then": {
-            "required": ["command"],
-            "properties": {
-              "command": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          }
-        }
-      ]
-    },
-    "step": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "title", "os", "optional", "detail"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-          "maxLength": 64
+        "slug": {
+            "$ref": "#/$defs/slug"
         },
         "title": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 160
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
         },
-        "os": {
-          "enum": ["windows", "linux", "any"]
+        "aliases": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+            },
+            "uniqueItems": true,
+            "default": []
         },
-        "optional": {
-          "type": "boolean"
+        "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
         },
-        "detail": {
-          "type": "string",
-          "minLength": 1
+        "status": {
+            "enum": ["draft", "published", "archived"]
         },
-        "commands": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/command"
-          }
+        "platforms": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+                "enum": ["windows", "linux", "macos"]
+            }
         },
-        "verify": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/verification"
-          }
+        "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+        },
+        "description": {
+            "type": "string",
+            "minLength": 1
+        },
+        "homepage": {
+            "type": "string",
+            "format": "uri"
+        },
+        "license": {
+            "type": "string",
+            "minLength": 1
+        },
+        "cover": {
+            "type": "string"
+        },
+        "play_url": {
+            "type": "string",
+            "pattern": "^$|^https?://",
+            "description": "Page a player opens to play on the LAN. Use the {{host}} template variable for the LAN address of the machine that hosts the game; localhost is only correct on that machine itself."
+        },
+        "launch_targets": {
+            "type": "array",
+            "description": "Ways to start the installed game, when they differ (for example flat versus VR). The first entry is the default.",
+            "items": {
+                "$ref": "#/$defs/launchTarget"
+            }
+        },
+        "skill": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description"],
+            "properties": {
+                "name": {
+                    "$ref": "#/$defs/slug"
+                },
+                "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                },
+                "compatibility": {
+                    "type": "string",
+                    "maxLength": 200
+                }
+            }
+        },
+        "requires": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/requirement"
+            }
+        },
+        "steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+                "$ref": "#/$defs/step"
+            }
+        },
+        "metadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["genre", "players", "lan_recommended", "tags"],
+            "properties": {
+                "genre": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "players": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "lan_recommended": {
+                    "type": "boolean"
+                },
+                "live_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "A live deployment of this recipe, when one exists (for example a LAN event's public UT2004VR server)."
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                }
+            }
         }
-      }
+    },
+    "$defs": {
+        "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 64
+        },
+        "glob": {
+            "type": "string",
+            "minLength": 1
+        },
+        "launchTarget": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "os", "command"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                    "maxLength": 64
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                },
+                "os": {
+                    "enum": ["windows", "linux", "any"]
+                },
+                "command": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "shell": {
+                    "enum": ["powershell", "cmd", "bash"]
+                },
+                "notes": {
+                    "type": "string"
+                }
+            }
+        },
+        "requirement": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "label", "match", "required"],
+            "properties": {
+                "role": {
+                    "enum": [
+                        "base",
+                        "iso",
+                        "patch",
+                        "mod",
+                        "tool",
+                        "avatar",
+                        "content",
+                        "config"
+                    ]
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                },
+                "match": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/glob"
+                    },
+                    "uniqueItems": true
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "sha256": {
+                    "type": "string",
+                    "pattern": "^$|^[a-f0-9]{64}$"
+                },
+                "url": {
+                    "type": "string",
+                    "pattern": "^$|^https?://"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                }
+            }
+        },
+        "command": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["shell", "run"],
+            "properties": {
+                "shell": {
+                    "enum": ["powershell", "cmd", "bash"]
+                },
+                "run": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "verification": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+                "type": {
+                    "enum": ["file_exists", "dir_exists", "command"]
+                },
+                "path": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "command": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "enum": ["file_exists", "dir_exists"]
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["path"],
+                        "properties": {
+                            "path": {
+                                "type": "string",
+                                "minLength": 1
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "command"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["command"],
+                        "properties": {
+                            "command": {
+                                "type": "string",
+                                "minLength": 1
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "step": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "title", "os", "optional", "detail"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                    "maxLength": 64
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                },
+                "os": {
+                    "enum": ["windows", "linux", "any"]
+                },
+                "optional": {
+                    "type": "boolean"
+                },
+                "detail": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/command"
+                    }
+                },
+                "verify": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/verification"
+                    }
+                }
+            }
+        }
     }
-  }
 }
