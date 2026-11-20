@@ -1,0 +1,130 @@
+schema: lanomat.recipe/v1
+slug: hookshot
+title: Hookshot
+aliases: ['hookshot', 'oot switch 2', 'ocarina of time switch 2']
+version: '2.3.2'
+status: draft
+platforms: [windows, linux]
+summary: Build and run Hookshot, the native Ocarina of Time (Switch 2) recompilation, from the user's own supported game dump on Windows or Linux.
+description: |
+    Hookshot is a static recompilation of The Legend of Zelda: Ocarina of Time
+    (Nintendo Switch 2). The game's ARM64 code is translated to C, compiled on
+    the user's PC with the reimplemented system software, and drawn with a
+    Vulkan renderer. No emulator and no game data are shipped.
+
+    It needs one exact game version: program `0400486024DEC000`, update
+    `v131072`, build `e0f3ccfa`. A `.nup` file, an `.nx` converted to `.nup`
+    with NXFormat's `nxconvert pack-nup`, or the `romfs` and `exefs` folders all
+    work. Other versions do not.
+
+    The project moved off GitHub; releases and source live at
+    git.notrexed.dev and hookshotrecomp.wiki. The LAN collection has a built
+    `hookshot.exe` with a `game` folder and `mods`; this recipe describes the
+    generic build.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://hookshotrecomp.wiki/
+license: 'Nintendo; game dump user-supplied (Hookshot: GPL-3.0)'
+cover: ''
+skill:
+    name: hookshot
+    description: "Build and run Hookshot, the native Ocarina of Time Switch 2 recompilation, from the user's own supported .nup/romfs dump on Windows or Linux, and verify it boots. Use when the user says install Hookshot or the native Ocarina of Time Switch 2 port."
+    compatibility: 'Windows 10/11 or Linux x64; Vulkan; supported OoT Switch 2 dump; ~10 GB disk; build takes a while'
+requires:
+    - role: base
+      label: 'Ocarina of Time (Switch 2) supported dump'
+      match: ['*.nup', '*.nx', '*romfs*', '*exefs*']
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'Exact supported version: program 0400486024DEC000, update v131072, build e0f3ccfa. A .nup, an .nx packed to .nup, or romfs+exefs. Other versions do not work.'
+    - role: tool
+      label: 'Hookshot release / builder'
+      match: ['Hookshot*.zip', 'hookshot*.tar.*']
+      required: true
+      url: https://git.notrexed.dev/Hookshot/Hookshot
+      notes: 'Releases and the builder are at hookshotrecomp.wiki and the Forgejo repo. The GitHub repo moved; old links return 404.'
+    - role: mod
+      label: 'Hookshot RomFS mods (optional)'
+      match: ['*OoT*Mod*.zip', '*OOT*Mod*.zip', '*hookshot*mod*.zip']
+      required: false
+      url: ''
+      notes: 'Mods live in mods/<name>/romfs/... beside hookshot.exe. ExeFS patches (.ips/.pchtxt) are only applied when the game is rebuilt.'
+steps:
+    - id: install-hookshot
+      title: 'Get Hookshot and the builder'
+      os: windows
+      optional: false
+      detail: |
+          Download the current Hookshot release/builder from hookshotrecomp.wiki
+          (or the Forgejo repository) and extract it to `{{target}}`. Keep the
+          `nx2/`, `host/` and `gpu/` layout intact if you build from source.
+
+          The GitHub repository moved; use the Forgejo or the site, not an old
+          GitHub release link.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/Hookshot*.zip" -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: dir_exists
+            path: '{{target}}'
+    - id: place-game
+      title: 'Place the supported game dump'
+      os: any
+      optional: false
+      detail: |
+          Put the `.nup` (or the `romfs` and `exefs` folders) in the game folder
+          beside the builder. If you only have an `.nx`, convert it with NXFormat:
+          `nxconvert pack-nup`.
+
+          Check the program ID, update and build ID before building; a mismatched
+          dump produces a game that will not start.
+    - id: build
+      title: 'Build the game'
+      os: any
+      optional: false
+      detail: |
+          Use Hookshot Builder, or run the build script from the extracted tree
+          (`nx2/make_game.py`, with its documented arguments). The build lifts the
+          ARM64 code to C, compiles it against the host layer and writes
+          `hookshot.exe` plus the caches into the game folder.
+
+          This takes a while and needs disk space; the log names the lifted code,
+          shader compilation and any mods applied.
+    - id: run
+      title: 'Run and configure'
+      os: any
+      optional: false
+      detail: |
+          Start `hookshot.exe`. Set the resolution, fullscreen mode and graphics
+          options, and map a gamepad or keyboard. The first launch compiles
+          shaders; later launches use the cache.
+
+          If the build produced no executable, the game version was wrong or the
+          build stopped before linking; read the log.
+    - id: mods
+      title: 'Add RomFS mods (optional)'
+      os: any
+      optional: true
+      detail: |
+          Put mods in `mods/<name>/romfs/...` beside `hookshot.exe`, or point
+          `HOS_MODS` at another folder. A folder starting with `-` or `_` is off;
+          the in-game Mods tab orders and switches them.
+
+          ExeFS patches are different: they are applied at build time, so rebuild
+          the same folder after adding or changing an `.ips`/`.pchtxt` patch.
+    - id: verify
+      title: 'Boot the game'
+      os: any
+      optional: false
+      detail: |
+          Confirm the intro, a save and the controller. Check `hookshot_log.txt`
+          for the dump version and any mod that failed to load.
+
+          Draft recipe: the exact builder steps change between releases; record
+          the Hookshot version and the game build that worked.
+metadata:
+    genre: action-adventure
+    players: '1'
+    lan_recommended: false
+    tags: [adventure, switch2, nintendo, zelda, recomp]

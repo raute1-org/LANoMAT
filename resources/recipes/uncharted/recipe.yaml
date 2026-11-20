@@ -1,0 +1,123 @@
+schema: lanomat.recipe/v1
+slug: uncharted
+title: "Uncharted: Drake's Fortune"
+aliases: ['uncharted 1', 'uncharted drakes fortune', 'nathan drake']
+version: '1.0.0'
+status: draft
+platforms: [windows, linux]
+summary: "Play Uncharted: Drake's Fortune on the LAN in RPCS3 with the user's PS3 disc and PS3 firmware."
+description: |
+    Uncharted: Drake's Fortune is the PS3 treasure-hunting action game: Nathan
+    Drake, Elena, Sully and a lost Spanish colony. RPCS3 runs the PS3 disc from
+    the user's own dump with PS3 firmware installed.
+
+    The LAN collection's Uncharted folder is the PS4 Nathan Drake Collection
+    (`CUSA02320`), which is a PS4 package: RPCS3 cannot run it. If the user has
+    that copy, use shadPS4 and treat it as unverified; this recipe is the PS3
+    game.
+
+    The whole trilogy runs in RPCS3, but only Drake's Fortune is covered here.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://rpcs3.net/
+license: 'Sony/Naughty Dog; game and firmware user-supplied'
+cover: ''
+skill:
+    name: uncharted
+    description: "Install Uncharted: Drake's Fortune with RPCS3, install PS3 firmware, add the user's PS3 disc, configure Vulkan and a controller, and verify the game boots. Use when the user says install Uncharted or Uncharted 1 for the LAN."
+    compatibility: 'Windows 10/11 or Linux; RPCS3; ~25 GB disk; PS3 firmware; gamepad'
+requires:
+    - role: iso
+      label: "Uncharted: Drake's Fortune PS3 disc or game folder"
+      match:
+          [
+              '*Uncharted*Drake*.iso',
+              '*Uncharted*Drake*',
+              '*Uncharted*.iso',
+              '*Uncharted*',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'PS3 version only. A folder containing PS3_GAME or an ISO works. The PS4 Nathan Drake Collection (CUSA02320) is a different build and does not run in RPCS3.'
+    - role: base
+      label: 'PS3 firmware (PS3UPDAT.PUP)'
+      match: ['PS3UPDAT.PUP', 'PS3UPDAT*.PUP']
+      required: true
+      sha256: ''
+      url: ''
+      notes: "From the user's own PS3 or Sony's official update file."
+    - role: tool
+      label: 'RPCS3 emulator'
+      match: ['rpcs3-*.zip', 'RPCS3*.zip', 'rpcs3*.AppImage']
+      required: true
+      url: https://rpcs3.net/download
+      notes: 'Current release; the Qt build is supported.'
+steps:
+    - id: install-rpcs3
+      title: 'Install RPCS3'
+      os: windows
+      optional: false
+      detail: |
+          Extract RPCS3 to `{{target}}` or install the Linux build. Launch once so
+          the config and `dev_flash` folders are created.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/rpcs3-*.zip" -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/rpcs3.exe'
+    - id: install-firmware
+      title: 'Install PS3 firmware'
+      os: any
+      optional: false
+      detail: |
+          File → Install Firmware, or drag `PS3UPDAT.PUP` onto the window. Wait
+          for completion; RPCS3 will not boot a retail game without firmware.
+
+          Use the user's own firmware or Sony's official update.
+    - id: import-game
+      title: 'Add the game'
+      os: any
+      optional: false
+      detail: |
+          Add the folder that contains `PS3_GAME` (or the ISO) to RPCS3's game
+          list. Confirm the title is Drake's Fortune, not Among Thieves or
+          Drake's Deception.
+
+          The PS4 Collection folder will not appear as a PS3 game; that is the
+          expected behaviour.
+    - id: configure-graphics
+      title: 'Configure graphics'
+      os: any
+      optional: false
+      detail: |
+          Use Vulkan, SPU LLVM, 150–200% resolution scale where the GPU holds it,
+          and VSync. Naughty Dog's engine streams heavily; keep the default
+          texture cache settings and use RPCS3's recommended patches.
+
+          Check the cutscenes for audio/video desync on the chosen build.
+    - id: configure-controller
+      title: 'Map a controller'
+      os: any
+      optional: false
+      detail: |
+          Map both sticks, the face buttons, L1/L2/R1/R2 and the touchpad click.
+          Uncharted uses cover, blind fire and grenade arcs; test them all.
+
+          Save the profile as "LAN pad".
+    - id: verify
+      title: 'Reach the first firefight'
+      os: any
+      optional: false
+      detail: |
+          Boot the game, play the jungle intro and finish the first firefight.
+          Check the audio, the cover controls and a checkpoint save.
+
+          Draft recipe: the PS3/PS4 version split and the shader cache still need
+          a LAN check.
+metadata:
+    genre: action-adventure
+    players: '1'
+    lan_recommended: false
+    tags: [action, ps3, playstation, rpcs3, uncharted]
