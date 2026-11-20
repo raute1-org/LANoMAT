@@ -1,0 +1,48 @@
+# Traefik routing for the docs container.
+#
+# Copy these labels onto the `docs` service (compose) or set them as the
+# container labels in Coolify/Portainer. The app keeps its own router with a
+# LOWER priority for the same host; this one wins only for /docs.
+#
+# Replace `lan.example` with ${APP_DOMAIN}. Do NOT strip the /docs prefix:
+# Zudoku's basePath is /docs, and assets, links and the OpenAPI reference all
+# live below it.
+
+labels:
+  traefik.enable: "true"
+  traefik.docker.network: "traefik"
+
+  # Router: host + path, higher priority than the app catch-all.
+  traefik.http.routers.lanomat-docs.rule: "Host(`lan.example`) && PathPrefix(`/docs`)"
+  traefik.http.routers.lanomat-docs.priority: "100"
+  traefik.http.routers.lanomat-docs.entrypoints: "websecure"
+  traefik.http.routers.lanomat-docs.tls: "true"
+  traefik.http.routers.lanomat-docs.tls.certresolver: "letsencrypt"
+
+  # Service: the container listens on :80.
+  traefik.http.services.lanomat-docs.loadbalancer.server.port: "80"
+
+  # Health: Traefik only routes to a container that answers /docs/.
+  traefik.http.services.lanomat-docs.loadbalancer.healthcheck.path: "/docs/"
+  traefik.http.services.lanomat-docs.loadbalancer.healthcheck.interval: "30s"
+  traefik.http.services.lanomat-docs.loadbalancer.healthcheck.timeout: "5s"
+
+# Equivalent dynamic file-provider config (if you do not use Docker labels):
+#
+# http:
+#   routers:
+#     lanomat-docs:
+#       rule: "Host(`lan.example`) && PathPrefix(`/docs`)"
+#       priority: 100
+#       entryPoints: [websecure]
+#       service: lanomat-docs
+#       tls:
+#         certResolver: letsencrypt
+#   services:
+#     lanomat-docs:
+#       loadBalancer:
+#         servers:
+#           - url: "http://docs:80"
+#         healthCheck:
+#           path: /docs/
+#           interval: 30s

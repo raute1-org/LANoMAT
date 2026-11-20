@@ -1,0 +1,93 @@
+---
+title: Introduction
+description: What LANoMAT is, how the modules fit together, and where to start.
+sidebar_icon: home
+---
+
+**LANoMAT** is the control desk for a LAN party: registration and tickets, seating, tournaments
+with live brackets, schedule, catering, voting, LFG, files, gallery, voice and game servers. One
+Laravel monolith, one Vue participant app, one Filament admin panel, a beamer surface — and, since
+this docs site, an MCP server and a native agent so a machine can operate the LAN with you.
+
+The design idea is simple: **the app is a quiet control desk, the beamer is the stage.** Amber is
+rationed to the primary action and to what is live right now.
+
+<div className="live">LIVE 17:42 · Event "Lan Raute 1" · Tournament: UT2004 · Match ready</div>
+
+<div className="hero">
+  <span className="eyebrow">Documentation · v2</span>
+  <h1>Run the LAN, not the spreadsheet.</h1>
+  <p className="lede">
+    Everything the orga needs, everything Teilnehmer see, and the interfaces a pi agent can drive:
+    modules, game recipes, the MCP server, the REST API.
+  </p>
+  <div className="hero-actions">
+    <a className="primary" href="/docs/start/quickstart">Quickstart</a>
+    <a href="/docs/system/overview">The 34 modules</a>
+    <a href="/docs/recipes/overview">Game recipes</a>
+    <a href="/docs/mcp/overview">MCP for agents</a>
+  </div>
+  <div className="hero-meta">
+    <span className="live">LIVE 17:42</span>
+    <span className="status status-ok">OK 34/34 probes</span>
+    <span className="status status-warn">WARN backup 3 h old</span>
+  </div>
+</div>
+
+## Two apps, one shell
+
+The participant app (Inertia v2 + Vue 3 + Tailwind v4 + shadcn-vue) and the admin panel (Filament
+v5 at `/admin`) share the same brand, tokens and navigation grammar. Same logo mark, same mono
+data, same amber signal. A change to the shell reaches both in the same pull request.
+
+<div className="feature-grid">
+  <div className="feature">
+    <h3>Events are the aggregate root</h3>
+    <p>Registration, seating, tournaments, schedule, catering and votes hang off one event. Users,
+    teams and games stay cross-event, so history works across LANs.</p>
+  </div>
+  <div className="feature">
+    <h3>Every action has a policy</h3>
+    <p>Participant, helper, orga, admin. Authorization never trusts a client-supplied user id, and
+    optional modules are gated by <code>MODULES_PROFILE=core|full</code>.</p>
+  </div>
+  <div className="feature">
+    <h3>Live where it matters</h3>
+    <p>Reverb pushes bracket, presence and scene updates. Every page stays correct after a plain
+    reload — realtime is an enhancement, not a dependency.</p>
+  </div>
+  <div className="feature">
+    <h3>Agents are first-class</h3>
+    <p>A streamable-HTTP MCP server, recipes as Agent Skills, and a pi agent that can plan a game
+    install, download from the LAN file host and talk to the API with a paired token.</p>
+  </div>
+</div>
+
+## The shape of the docs
+
+| Section | What is inside |
+|---|---|
+| **Start** | What LANoMAT is, how to run it locally, how to deploy the app and this docs container |
+| **The system** | One page per module (34), grouped into event & people, competition, site & ops, media, integrations |
+| **Game recipes** | How `recipe.yaml` + `SKILL.md` describe an install, the UT2004/UT2004VR reference, Ridge Racer, contributing, SMB import |
+| **MCP** | Endpoint, device pairing, tool catalogue, resources, prompts, security, vibecoding |
+| **pi agent** | Install, login, skills sync, avatars, offline behaviour, models and fuel |
+| **API** | The hand-written OpenAPI 3.1 reference for the REST and MCP endpoints |
+| **Reference** | Artisan commands, environment variables, troubleshooting, changelog |
+
+## A first look
+
+![LANoMAT home, dark](</screens/home-dark.png>)
+
+<span className="shot-caption">DASHBOARD · DARK · a calm control desk: next match, ticket, bell, seat</span>
+
+The participant home answers one question — *what is next for me?* — and nothing else. The event
+page, the seating grid and the bracket are the three surfaces people actually stand in front of.
+Screenshots in these docs come from the app's own screenshot set and are shown as light/dark pairs
+where both exist.
+
+<div className="callout-live">
+  <strong>New to the system?</strong> Read <a href="/docs/start/quickstart">Quickstart</a> for a
+  local install with seeded demo data, then <a href="/docs/system/overview">the module map</a>.
+  If you are an agent or building one, start at <a href="/docs/mcp/overview">MCP</a>.
+</div>
