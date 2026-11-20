@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Mcp\Tools;
 
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Support\SafeText;
+use App\Modules\Mcp\Support\AccessibleFiles;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
@@ -37,11 +39,12 @@ class FileDownloadTool extends LanomatTool
         $file = SharedFile::query()->findOrFail((int) $request->get('file_id'));
 
         abort_if(Gate::forUser($this->user())->denies('download', $file), 403);
+        AccessibleFiles::ensureVisible($file, $this->user());
 
         return $this->structured([
             'file' => [
                 'id' => $file->id,
-                'name' => $file->original_name,
+                'name' => SafeText::fileName($file->original_name),
                 'size_bytes' => $file->size_bytes,
                 'download_url' => route('mcp.files.download', ['sharedFile' => $file->id], true),
                 'auth' => 'Authorization: Bearer <LANoMAT token>',

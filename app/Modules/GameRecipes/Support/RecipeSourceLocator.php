@@ -53,9 +53,13 @@ final class RecipeSourceLocator
         }
 
         $url = parse_url($source);
-        $host = $url['host'] ?? '';
+        $host = (string) ($url['host'] ?? '');
         $share = ltrim((string) ($url['path'] ?? ''), '/');
         $sub = '';
+
+        if ($host === '' || preg_match('/[\s\x00-\x1F\x7F]/', $host) === 1) {
+            throw RecipeException::source($source, 'expected smb://host/share[/path]');
+        }
 
         if ($share === '') {
             throw RecipeException::source($source, 'expected smb://host/share[/path]');
@@ -63,22 +67,17 @@ final class RecipeSourceLocator
 
         [$share, $sub] = array_pad(explode('/', $share, 2), 2, '');
 
+        if ($share === '' || $share === '.' || $share === '..') {
+            throw RecipeException::source($source, 'expected smb://host/share[/path]');
+        }
+
+        $sub = (string) preg_replace('/[\x00-\x1F\x7F]/', '', $sub);
+
         $temp = $this->tempDir('lanomat-recipes-smb-');
         $user = (string) config('recipes.smb.user', '');
         $password = (string) config('recipes.smb.password', '');
 
-        $auth = $user !== ''
-            ? ['-U', $password !== '' ? $user.'%'.$password : $user]
-            : ['-N'];
-
-        $command = sprintf(
-            'cd %s && smbclient %s %s %s -c %s',
-            escapeshellarg($temp),
-            escapeshellarg('//'.$host.'/'.$share),
-            implode(' ', array_map('escapeshellarg', $auth)),
-            $sub !== '' ? escapeshellarg($sub) : '',
-            escapeshellarg('recurse ON; prompt OFF; mget *'),
-        );
+        $command = $this->smbCommand($temp, $host, $share, $sub, $user, $password);
 
         $process = Process::fromShellCommandline($command, timeout: 300);
         $process->run();
@@ -92,13 +91,44 @@ final class RecipeSourceLocator
         return ['path' => $temp, 'temporary' => true, 'ref' => $source];
     }
 
+    /**
+     * The smbclient invocation as one shell string.
+     *
+     * Every value that comes from a source URL or the environment is passed
+     * through escapeshellarg and the options themselves are literals, so a
+     * host like "-oProxyCommand=..." or a share containing "; rm -rf /" is an
+     * argument, never a second command.
+     */
+    public function smbCommand(string $temp, string $host, string $share, string $sub, string $user, string $password): string
+    {
+        $command = 'cd '.escapeshellarg($temp)
+            .' && smbclient '.escapeshellarg('//'.$host.'/'.$share);
+
+        $command .= $user !== ''
+            ? ' -U '.escapeshellarg($password !== '' ? $user.'%'.$password : $user)
+            : ' -N';
+
+        if ($sub !== '') {
+            $command .= ' '.escapeshellarg($sub);
+        }
+
+        return $command.' -c '.escapeshellarg('recurse ON; prompt OFF; mget *');
+    }
+
     /** @return array{path: string, temporary: bool, ref: string} */
     private function fromGit(string $source): array
     {
-        $url = str_starts_with($source, 'git+') ? substr($source, 4) : $source;
+        $url = $this->gitUrl($source);
         $temp = $this->tempDir('lanomat-recipes-git-');
 
-        $process = new Process(['git', 'clone', '--depth', '1', $url, $temp], timeout: 300);
+        // `--` ends option parsing: a URL that starts with "-" must never be
+        // read as a git option (e.g. --upload-pack=..., which runs a command).
+        // The env keeps git from blocking on an interactive credential prompt.
+        $process = new Process(
+            ['git', 'clone', '--depth', '1', '--', $url, $temp],
+            timeout: 300,
+            env: ['GIT_TERMINAL_PROMPT' => '0', 'GIT_ASKPASS' => 'true'],
+        );
         $process->run();
 
         if (! $process->isSuccessful()) {
@@ -108,6 +138,31 @@ final class RecipeSourceLocator
         }
 
         return ['path' => $temp, 'temporary' => true, 'ref' => $source];
+    }
+
+    /**
+     * A git source must name a remote over a known transport. Everything else
+     * (a bare path, `file://`, a leading "-", ext:: helpers) is either a local
+     * read or a command execution vector in git's own URL parser.
+     */
+    public function gitUrl(string $source): string
+    {
+        $url = str_starts_with($source, 'git+') ? substr($source, 4) : $source;
+        $url = trim($url);
+
+        if ($url === '' || str_starts_with($url, '-') || preg_match('/[\x00-\x1F\x7F\s]/', $url) === 1) {
+            throw RecipeException::source($source, 'git sources must be a URL without spaces or a leading "-"');
+        }
+
+        $allowed = preg_match('~^(https?://|ssh://|git://)~i', $url) === 1
+            || preg_match('~^[a-z0-9._-]+@[a-z0-9._-]+:~i', $url) === 1
+            || str_starts_with($url, '/');
+
+        if (! $allowed) {
+            throw RecipeException::source($source, 'git sources must use https://, ssh://, git:// or scp-style git@host:path');
+        }
+
+        return $url;
     }
 
     private function tempDir(string $prefix): string

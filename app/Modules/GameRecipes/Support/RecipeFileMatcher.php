@@ -31,6 +31,7 @@ final class RecipeFileMatcher
             $pinned = SharedFile::query()
                 ->whereKey($entry->shared_file_id)
                 ->where('visibility', FileVisibility::Approved->value)
+                ->whereHas('event', fn (Builder $query) => $query->where('status', '!=', EventStatus::Draft->value))
                 ->when(($eventId = $event?->getKey()) !== null, fn (Builder $query) => $query->where('event_id', $eventId))
                 ->first();
 

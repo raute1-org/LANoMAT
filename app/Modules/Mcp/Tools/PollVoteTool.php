@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Mcp\Tools;
 
+use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Voting\Actions\CastVote;
 use App\Modules\Voting\Models\Poll;
 use App\Modules\Voting\Models\PollOption;
@@ -35,7 +36,11 @@ class PollVoteTool extends LanomatTool
     protected function run(Request $request): Response|ResponseFactory
     {
         $castVote = app(CastVote::class);
-        $poll = Poll::query()->findOrFail((int) $request->get('poll_id'));
+        // A poll of a draft event is not public: the id must not become a
+        // vote-anything oracle for participants.
+        $poll = Poll::query()
+            ->whereHas('event', fn ($query) => $query->where('status', '!=', EventStatus::Draft->value))
+            ->findOrFail((int) $request->get('poll_id'));
         $option = PollOption::query()
             ->where('poll_id', $poll->id)
             ->findOrFail((int) $request->get('option_id'));

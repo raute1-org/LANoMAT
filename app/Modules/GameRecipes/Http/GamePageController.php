@@ -12,6 +12,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\GameRecipes\Support\SafeText;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\ServerListProjection;
 use App\Modules\Lfg\Actions\CreateLfgPost;
@@ -87,7 +88,7 @@ class GamePageController extends Controller
                         'required' => (bool) ($requirement['required'] ?? false),
                         'match' => array_values(array_map('strval', (array) ($requirement['match'] ?? []))),
                         'available_on_lan' => $shared !== null,
-                        'name' => $shared?->original_name,
+                        'name' => SafeText::fileName($shared?->original_name),
                         'size_bytes' => $shared?->size_bytes,
                     ];
                 })->all(),

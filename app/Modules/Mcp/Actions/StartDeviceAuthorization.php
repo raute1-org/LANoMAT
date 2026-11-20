@@ -16,6 +16,11 @@ class StartDeviceAuthorization
      */
     public function handle(string $deviceName): array
     {
+        // The endpoint is unauthenticated: without a sweep, expired rows would
+        // accumulate forever (the rows are the only state an anonymous caller
+        // can create). A cheap indexed delete per start keeps the table bounded.
+        McpDeviceCode::query()->where('expires_at', '<', now())->delete();
+
         $deviceCode = McpCodes::deviceCode();
         $userCode = McpCodes::userCode();
         $formatted = McpCodes::format($userCode);

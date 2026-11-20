@@ -7,6 +7,7 @@ namespace App\Modules\Mcp\Tools;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\GameRecipes\Support\SafeText;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -78,7 +79,7 @@ class RecipeGetTool extends LanomatTool
                     'url' => $file->url,
                     'lan_match' => isset($matches[$file->id]) ? [
                         'shared_file_id' => $matches[$file->id]->id,
-                        'name' => $matches[$file->id]->original_name,
+                        'name' => SafeText::fileName($matches[$file->id]->original_name),
                         'size_bytes' => $matches[$file->id]->size_bytes,
                     ] : null,
                 ])->all(),

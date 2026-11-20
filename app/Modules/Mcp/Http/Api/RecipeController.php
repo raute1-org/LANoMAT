@@ -13,6 +13,7 @@ use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\GameRecipes\Support\SafeText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -85,7 +86,7 @@ class RecipeController extends Controller
                     'url' => $file->url,
                     'lan_match' => isset($matches[$file->id]) ? [
                         'shared_file_id' => $matches[$file->id]->id,
-                        'name' => $matches[$file->id]->original_name,
+                        'name' => SafeText::fileName($matches[$file->id]->original_name),
                         'size_bytes' => $matches[$file->id]->size_bytes,
                     ] : null,
                 ])->all(),
@@ -135,7 +136,7 @@ class RecipeController extends Controller
                 'required' => $file->required,
                 'match' => $file->patterns(),
                 'status' => isset($matches[$file->id]) ? 'matched' : ($file->url !== null ? 'external' : 'missing'),
-                'name' => $matches[$file->id]->original_name ?? null,
+                'name' => SafeText::fileName($matches[$file->id]->original_name ?? null),
                 'size_bytes' => $matches[$file->id]->size_bytes ?? $file->size_bytes,
                 'sha256' => $file->sha256,
                 'download_url' => isset($matches[$file->id])
@@ -164,13 +165,15 @@ class RecipeController extends Controller
             'slug' => ['required', 'string', 'max:120'],
             'title' => ['required', 'string', 'max:200'],
             'summary' => ['nullable', 'string', 'max:500'],
-            'description' => ['nullable', 'string'],
-            'platforms' => ['nullable', 'array'],
-            'aliases' => ['nullable', 'array'],
-            'requirements' => ['nullable', 'array'],
-            'steps' => ['nullable', 'array'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'platforms' => ['nullable', 'array', 'max:3'],
+            'platforms.*' => ['string', 'in:windows,linux,macos'],
+            'aliases' => ['nullable', 'array', 'max:20'],
+            'aliases.*' => ['string', 'max:60'],
+            'requirements' => ['nullable', 'array', 'max:50'],
+            'steps' => ['nullable', 'array', 'max:50'],
             'skill_description' => ['nullable', 'string', 'max:1024'],
-            'skill_markdown' => ['nullable', 'string'],
+            'skill_markdown' => ['nullable', 'string', 'max:65535'],
         ]);
 
         $recipe = $contribute->handle($user, $data);
