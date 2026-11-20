@@ -45,4 +45,14 @@ class IdentityException extends DomainException
             'identity.errors.account_already_linked',
         );
     }
+
+    public static function cannotChangeOwnRole(): self
+    {
+        return new self('An admin cannot change their own role.', 'identity.errors.cannot_change_own_role');
+    }
+
+    public static function lastAdmin(): self
+    {
+        return new self('The last remaining admin cannot be demoted.', 'identity.errors.last_admin');
+    }
 }

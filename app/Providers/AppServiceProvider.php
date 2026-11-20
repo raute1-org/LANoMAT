@@ -66,6 +66,7 @@ use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Identity\Policies\AvatarPolicy;
 use App\Modules\Identity\Policies\LinkedAccountPolicy;
+use App\Modules\Identity\Policies\UserPolicy;
 use App\Modules\Identity\Support\LinkedAccountConnectors;
 use App\Modules\Infoscreen\Listeners\BroadcastScoreboardOnScoreUpdated;
 use App\Modules\Infoscreen\Listeners\BroadcastWinnerMoment;
@@ -513,6 +514,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(GameMatch::class, TournamentPolicy::class);
         Gate::policy(MatchReport::class, TournamentPolicy::class);
         Gate::policy(LinkedAccount::class, LinkedAccountPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
         // A named ability, not a User policy: a policy on User would also switch on Filament's UserResource authorization.
         Gate::define('view-avatar', [AvatarPolicy::class, 'view']);
 
