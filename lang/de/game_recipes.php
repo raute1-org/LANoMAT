@@ -33,6 +33,8 @@ return [
         'match' => 'Dateinamen-Muster',
         'url' => 'Externe URL',
         'sha256' => 'SHA-256',
+        'size_bytes' => 'Größe (Bytes)',
+        'size_bytes_help' => 'Optional: Dateigröße für die Anzeige im Installationsplan.',
         'shared_file' => 'LAN-Datei-ID',
         'shared_file_help' => 'Optional eine konkrete hochgeladene Datei festnageln (statt Muster-Matching).',
         'required' => 'Pflicht',
@@ -43,6 +45,8 @@ return [
         'detail' => 'Anleitung',
         'commands' => 'Befehle',
         'files' => 'Dateien',
+        'contributor' => 'Beitrag von',
+        'reviewed' => 'Zuletzt geprüft',
         'updated' => 'Aktualisiert',
     ],
 

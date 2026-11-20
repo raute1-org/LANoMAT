@@ -14,6 +14,26 @@ class EditRecipe extends EditRecord
 {
     protected static string $resource = RecipeResource::class;
 
+    /**
+     * The status can also be set through the form. Whichever path an orga
+     * takes, releasing a recipe records who reviewed it and when.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $status = $data['status'] ?? null;
+        $status = $status instanceof RecipeStatus ? $status->value : $status;
+
+        if ($status === RecipeStatus::Published->value && $this->record instanceof GameRecipe && $this->record->reviewed_at === null) {
+            $data['reviewed_by'] = auth()->id();
+            $data['reviewed_at'] = now();
+        }
+
+        return $data;
+    }
+
     protected function afterSave(): void
     {
         if ($this->record instanceof GameRecipe) {
@@ -27,6 +47,7 @@ class EditRecipe extends EditRecord
             Action::make('publish')
                 ->label(__('game_recipes.actions.publish'))
                 ->visible(fn (GameRecipe $record): bool => $record->status !== RecipeStatus::Published)
+                ->authorize('review')
                 ->requiresConfirmation()
                 ->action(function (GameRecipe $record): void {
                     $record->forceFill([
@@ -40,6 +61,7 @@ class EditRecipe extends EditRecord
             Action::make('archive')
                 ->label(__('game_recipes.actions.archive'))
                 ->visible(fn (GameRecipe $record): bool => $record->status === RecipeStatus::Published)
+                ->authorize('review')
                 ->requiresConfirmation()
                 ->action(function (GameRecipe $record): void {
                     $record->forceFill(['status' => RecipeStatus::Archived])->save();

@@ -22,7 +22,8 @@ class RecipeForm
                 ->label(__('game_recipes.fields.slug'))
                 ->required()
                 ->maxLength(120)
-                ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/'),
+                ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/')
+                ->unique(ignoreRecord: true),
             TextInput::make('title')
                 ->label(__('game_recipes.fields.title'))
                 ->required()
@@ -37,6 +38,7 @@ class RecipeForm
             Select::make('status')
                 ->label(__('game_recipes.fields.status'))
                 ->options(collect(RecipeStatus::cases())->mapWithKeys(fn (RecipeStatus $s) => [$s->value => $s->label()])->all())
+                ->default(RecipeStatus::Draft->value)
                 ->required(),
             CheckboxList::make('platforms')
                 ->label(__('game_recipes.fields.platforms'))
@@ -76,9 +78,17 @@ class RecipeForm
                     TextInput::make('sha256')
                         ->label(__('game_recipes.fields.sha256'))
                         ->maxLength(64),
+                    TextInput::make('size_bytes')
+                        ->label(__('game_recipes.fields.size_bytes'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(0)
+                        ->helperText(__('game_recipes.fields.size_bytes_help')),
                     TextInput::make('shared_file_id')
                         ->label(__('game_recipes.fields.shared_file'))
                         ->numeric()
+                        ->integer()
+                        ->minValue(1)
                         ->helperText(__('game_recipes.fields.shared_file_help')),
                     Toggle::make('required')
                         ->label(__('game_recipes.fields.required')),
