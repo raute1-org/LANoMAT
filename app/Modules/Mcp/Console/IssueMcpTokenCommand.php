@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Mcp\Console;
 
 use App\Models\User;
+use App\Modules\Mcp\Actions\StartDeviceAuthorization;
 use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Support\McpCodes;
 use App\Modules\Mcp\Support\McpConfig;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * Mint a token without the browser for headless setups (CI, a kiosk, an orga
@@ -25,12 +28,18 @@ class IssueMcpTokenCommand extends Command
     public function handle(): int
     {
         $argument = $this->argument('user');
-        $needle = is_string($argument) ? $argument : '';
+        $needle = is_string($argument) ? trim($argument) : '';
 
         $user = User::query()
-            ->where('id', ctype_digit($needle) ? (int) $needle : 0)
-            ->orWhere('email', $needle)
-            ->orWhere('discord_id', $needle)
+            ->where(function (Builder $query) use ($needle): void {
+                $query->where('email', $needle)
+                    ->orWhere('email', Str::lower($needle))
+                    ->orWhere('discord_id', $needle);
+
+                if (ctype_digit($needle)) {
+                    $query->orWhere('id', (int) $needle);
+                }
+            })
             ->first();
 
         if (! $user instanceof User) {
@@ -42,9 +51,14 @@ class IssueMcpTokenCommand extends Command
         $plain = McpCodes::bearerToken();
         $ttl = McpConfig::tokenTtlDays();
 
+        $rawName = $this->option('name');
+        $name = is_string($rawName) && trim($rawName) !== ''
+            ? StartDeviceAuthorization::cleanName($rawName, 'CLI')
+            : 'CLI';
+
         (new McpToken)->forceFill([
             'user_id' => $user->getKey(),
-            'name' => is_string($name = $this->option('name')) ? $name : 'CLI',
+            'name' => $name,
             'token_hash' => McpCodes::hash($plain),
             'expires_at' => now()->addDays($ttl),
         ])->save();

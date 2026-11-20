@@ -10,6 +10,11 @@ use Illuminate\Support\Str;
  * Generation and hashing for the agent pairing flow. Mirrors the native voice
  * client's DeviceCodes: user-friendly alphabet without look-alikes, only
  * SHA-256 digests at rest, constant-time comparisons at the call sites.
+ *
+ * SHA-256 (not bcrypt/argon) is deliberate: every hashed value is a random
+ * machine-generated secret with roughly 40 bits of entropy or more and a short
+ * life (the 8-character user code), never a human password — so the digest only
+ * has to make a database dump useless, not slow down a guesser indefinitely.
  */
 final class McpCodes
 {
@@ -23,6 +28,16 @@ final class McpCodes
     public static function hash(string $secret): string
     {
         return hash('sha256', $secret);
+    }
+
+    /**
+     * Constant-time comparison of a presented secret against a stored digest.
+     * Never compare digests with `===` at a call site: the comparison itself
+     * must not leak how many leading characters matched.
+     */
+    public static function matches(string $secret, string $storedHash): bool
+    {
+        return hash_equals($storedHash, self::hash($secret));
     }
 
     public static function deviceCode(): string

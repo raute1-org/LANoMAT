@@ -41,12 +41,12 @@ class StartDeviceAuthorization
         ];
     }
 
-    public static function cleanName(string $name): string
+    public static function cleanName(string $name, string $fallback = 'LANoMAT agent'): string
     {
         $clean = trim((string) preg_replace('/[\x00-\x1F\x7F]/u', '', $name));
 
         if ($clean === '') {
-            return 'LANoMAT agent';
+            return $fallback;
         }
 
         return mb_substr($clean, 0, 60);
