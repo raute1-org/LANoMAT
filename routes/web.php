@@ -14,6 +14,7 @@ use App\Modules\Files\Http\UploadTicketController;
 use App\Modules\Friends\Http\FriendsController;
 use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
+use App\Modules\GameRecipes\Http\GamePageController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerPageController;
@@ -48,6 +49,29 @@ use App\Support\Modules\Modules;
 use Illuminate\Support\Facades\Route;
 
 $modules = app(Modules::class);
+
+if ($modules->routable(Module::GameRecipes)) {
+    // The participant games library: install/launch, live servers, running
+    // tournaments and a one-click "Runde" into the event's voice chat.
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/games', [GamePageController::class, 'index'])->name('games.index');
+        Route::get('/games/{slug}', [GamePageController::class, 'show'])->name('games.show');
+        Route::post('/games/{slug}/lfg', [GamePageController::class, 'createLfg'])
+            ->middleware('throttle:20,1')
+            ->name('games.lfg');
+    });
+}
+
+if ($modules->routable(Module::Mcp)) {
+    // Browser end of the agent pairing flow and the connected-agent list.
+    Route::middleware(['auth'])->prefix('mcp')->name('mcp.')->group(function () {
+        Route::get('connect', [App\Modules\Mcp\Http\ConnectController::class, 'show'])->name('connect');
+        Route::post('connect', [App\Modules\Mcp\Http\ConnectController::class, 'decide'])
+            ->middleware('throttle:mcp-approve')
+            ->name('connect.decide');
+        Route::delete('devices/{device}', [App\Modules\Mcp\Http\ConnectController::class, 'revoke'])->name('devices.revoke');
+    });
+}
 
 // ---- core (always) ----
 

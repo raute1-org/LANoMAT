@@ -499,6 +499,27 @@ services:
       traefik.http.routers.livekit.tls.certresolver: 'letsencrypt'
       traefik.http.services.livekit.loadbalancer.server.port: '7880'
 
+  # Docs site (Zudoku, docs-site/). Same host as the app, path-routed at
+  # /docs so devs can vibecode against the MCP without another DNS name:
+  #   docker compose --profile docs up -d docs
+  # The app's /docs link and the Traefik router use the same prefix. This is
+  # a static build; it never touches the database or the app's secrets.
+  docs:
+    restart: unless-stopped
+    build:
+      context: ./docs-site
+    profiles: [docs]
+    labels:
+      traefik.enable: 'true'
+      # Higher priority than the app's catch-all Host rule.
+      traefik.http.routers.docs.rule: 'Host(`${APP_DOMAIN}`) && PathPrefix(`/docs`)'
+      traefik.http.routers.docs.priority: '1000'
+      traefik.http.routers.docs.entrypoints: 'websecure'
+      traefik.http.routers.docs.tls: 'true'
+      traefik.http.routers.docs.tls.certresolver: 'letsencrypt'
+      traefik.http.routers.docs.middlewares: 'secure-headers@file'
+      traefik.http.services.docs.loadbalancer.server.port: '80'
+
 volumes:
   pgdata:
   # User uploads (avatars, shared files, gallery photos): storage/app on the

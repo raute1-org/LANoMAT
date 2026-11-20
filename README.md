@@ -131,6 +131,47 @@ php artisan db:seed --class=ScreenshotSeeder
 
 Then open `/login` and pick a demo role.
 
+## MCP server, pi agent & game recipes
+
+LANoMAT ships its own **MCP server** so the LAN party can be driven from an AI client:
+
+- `POST /mcp` — streamable HTTP MCP endpoint (bearer token), tools for events, teams, tournaments,
+  matches, files, servers, schedule, polls, catering and LFG, plus the game recipes.
+- `POST /api/mcp/device` + `POST /api/mcp/token` — OAuth-style device pairing; approve the code at
+  `/mcp/connect`, the agent stores the token.
+- `lanomat:mcp-token <user>` mints a token headlessly.
+
+The bundled **`lanomat-agent`** (in [`clients/agent/`](clients/agent/)) wires that server and the
+recipe skills into [pi](https://pi.dev), so this works by chatting:
+
+```bash
+lanomat-agent login --url http://lanomat.local
+lanomat-agent mcp install
+lanomat-agent skills sync
+lanomat-agent ask "install ut2004 (ut 2k4 or unreal tournament) for me on my pc"
+```
+
+The agent is fueled by **Venice AI** by default
+(`venice/e2ee-deepseek-v4-1-flash-1017-abliterated`, OpenAI-compatible at
+`https://api.venice.ai/api/v1`); `OPENAI_MODEL_BASE_URL` / `OPENAI_MODEL_API_KEY` /
+`OPENAI_MODEL_NAME` point it at any other OpenAI-compatible endpoint. The key never reaches LANoMAT.
+
+**Game recipes** (`resources/recipes/`, `lanomat:recipes:sync`) are YAML + `SKILL.md` pairs. Each
+recipe is a pi sub-skill. The flagship is Unreal Tournament 2004: the base game is installed from
+the disc image uploaded to the LAN file host, and the UT2004VR mod (SteamVR, Windows) is an
+**optional** step. Avatars (VRM characters) are a multi-select in the installer and are downloaded
+in parallel **from the LAN server's drives**, never from the internet. `lanomat:recipes:sync` reads
+the bundled directory, a local path, `git+https://…` or the NAS share
+(`smb://192.168.68.55/games-recipes/`, needs `smbclient`).
+
+The full reference — every module, the MCP tool catalogue, the REST API, the agent and the recipe
+schema, with screenshots — is a Zudoku site in [`docs-site/`](docs-site/), served at `/docs` next to
+the app:
+
+```bash
+docker compose --profile docs up -d docs   # http://localhost/docs on a prod stack
+```
+
 ## Production deployment
 
 > **Testing it once (with Discord):** [`docs/prod-test.md`](docs/prod-test.md) is a full step-by-step walkthrough for a one-time end-to-end test of the prod stack — including complete Discord setup (OAuth login, bot, guild/channel IDs, interactions endpoint + public key, slash-command registration) and smoke tests for realtime/queue/scheduler.

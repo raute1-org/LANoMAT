@@ -1,0 +1,140 @@
+schema: lanomat.recipe/v1
+slug: zelda-wind-waker
+title: 'The Legend of Zelda: The Wind Waker'
+aliases: ['wind waker', 'ww', 'tww', 'zelda wind waker']
+version: '1.0.0'
+status: draft
+platforms: [windows, linux]
+summary: Sail The Wind Waker on the LAN in Dolphin with the user's own GameCube disc, optional widescreen and an HD texture pack.
+description: |
+    The Wind Waker is the GameCube Zelda with the Great Sea, cel shading and the
+    Korok dungeons. Dolphin runs the user's own USA disc image, with a GameCube
+    pad mapping and optional widescreen/HD texture packs.
+
+    The LAN collection also contains `BlueWake`, a native recomp of the game, and
+    a Hypatia WWHD texture pack. This recipe keeps Dolphin as the portable
+    baseline and treats the native build as an alternative for machines that
+    already have it.
+
+    Draft: the widescreen and 60 fps codes need a per-version check on the LAN.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://dolphin-emu.org/
+license: 'Nintendo; disc image user-supplied'
+cover: ''
+skill:
+    name: zelda-wind-waker
+    description: "Install The Legend of Zelda: The Wind Waker with Dolphin, import the user's GameCube disc, configure widescreen and an optional HD texture pack, map a controller and verify the game boots. Use when the user says install Wind Waker, WW or TWW for the LAN."
+    compatibility: 'Windows 10/11 or Linux; Dolphin; ~1.5 GB disk; GameCube pad or Xbox pad'
+requires:
+    - role: iso
+      label: 'The Wind Waker (USA) disc image'
+      match:
+          [
+              '*wind*waker*.iso',
+              '*Wind Waker*.iso',
+              '*wind*waker*.rvz',
+              '*Wind Waker*.rvz',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'USA ISO or RVZ. The widescreen and 60 fps codes are version-specific; note the disc revision before enabling them.'
+    - role: tool
+      label: 'Dolphin emulator'
+      match: ['Dolphin*.zip', 'dolphin-*.tar.xz', 'dolphin*.AppImage']
+      required: true
+      url: https://dolphin-emu.org/download/
+      notes: 'Use the current stable/beta; the LAN collection has Dolphin 2609a as a reference build.'
+    - role: mod
+      label: 'Hypatia WWHD texture pack (optional)'
+      match: ['*Hypatia*WWHD*.7z', '*Hypatia*WWHD*.zip']
+      required: false
+      url: ''
+      notes: 'Optional HD texture pack from the LAN collection, made for the Wii U HD version but loadable as a Dolphin texture pack when its folder layout matches the GameCube texture path.'
+steps:
+    - id: install-dolphin
+      title: 'Install Dolphin'
+      os: windows
+      optional: false
+      detail: |
+          Extract a portable Dolphin build to `{{target}}`, or install the Linux
+          package/AppImage. Launch once to create the user directory, then keep the
+          portable user folder beside the executable for LAN machines.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/Dolphin-x64-*.zip" -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/Dolphin.exe'
+    - id: import-disc
+      title: 'Import the disc'
+      os: any
+      optional: false
+      detail: |
+          Copy the user's ISO or RVZ into `{{target}}/Games` and add that folder in
+          Config → Paths. Confirm the game ID and region in the game list.
+
+          Keep a clean, unmodified dump; scrubbed ISOs can break the audio stream.
+      commands:
+          - shell: powershell
+            run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/The Legend of Zelda - The Wind Waker (USA).iso" -Destination "{{target}}/Games/" -Force'
+          - shell: bash
+            run: 'mkdir -p "{{target}}/Games"'
+          - shell: bash
+            run: 'cp "{{downloads}}/The Legend of Zelda - The Wind Waker (USA).iso" "{{target}}/Games/"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/Games/The Legend of Zelda - The Wind Waker (USA).iso'
+    - id: graphics
+      title: 'Configure graphics and widescreen'
+      os: any
+      optional: false
+      detail: |
+          Use 3x–4x native resolution and VSync. For widescreen, enable the
+          version-matched AR/Gecko code and check the sea chart, the HUD and the
+          letterboxed cutscenes.
+
+          A 60 fps code exists but changes the game's timing; leave it off by
+          default.
+    - id: hd-textures
+      title: 'HD texture pack (optional)'
+      os: any
+      optional: true
+      detail: |
+          Extract the Hypatia pack into Dolphin's `Load/Textures/<game-id>/` folder
+          and enable "Load Custom Textures" in Graphics → Advanced. The exact
+          folder name depends on the disc ID; the pack's README or the LAN note
+          names it.
+
+          Watch VRAM use: a full 4K pack can exceed a small GPU. Disable it if the
+          game stutters while loading new islands.
+    - id: configure-controller
+      title: 'Configure the controller'
+      os: any
+      optional: false
+      detail: |
+          Map a pad to GameCube Port 1. The Wind Waker uses the C-stick for the
+          camera and the analog triggers for the shield and targeting; test both.
+
+          Save the profile as "LAN pad" for reuse.
+    - id: verify
+      title: 'Sail out of Outset'
+      os: any
+      optional: false
+      detail: |
+          Boot the game, leave Outset Island, open the sea chart and save. Check
+          the intro, the wind direction and the camera.
+
+          Draft recipe: the texture pack and widescreen code still need a
+          real-venue check.
+      verify:
+          - type: file_exists
+            path: '{{target}}/Games/The Legend of Zelda - The Wind Waker (USA).iso'
+metadata:
+    genre: action-adventure
+    players: '1'
+    lan_recommended: false
+    tags: [adventure, gamecube, nintendo, dolphin, zelda]

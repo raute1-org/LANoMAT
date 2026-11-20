@@ -1,0 +1,128 @@
+schema: lanomat.recipe/v1
+slug: uevr
+title: UEVR
+aliases: ['uevr', 'unreal engine vr injector', 'ue vr']
+version: 'nightly'
+status: draft
+platforms: [windows]
+summary: Inject VR into Unreal Engine 4/5 games with UEVR, turning a flatscreen title into a head-tracked stereo game on a PC headset.
+description: |
+    UEVR by praydog is a universal VR injector for Unreal Engine 4 and UE5
+    games. It injects into a running game, builds stereo rendering and motion
+    controls from the engine's own data, and exposes a per-game profile system.
+
+    It is a tool, not a game: the recipe installs the injector, verifies the
+    OpenXR runtime, and documents the inject/configure/verify loop. Not every UE
+    title works; anti-cheat games are unsupported and can ban an account.
+
+    The LAN collection has a UEVR folder with `UEVRInjector.exe`, per-game
+    profiles under `_profiles` and a custom HOTAS helper. Treat it as the
+    reference install; this recipe describes the generic path.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://github.com/praydog/UEVR
+license: 'MIT (UEVR); games are user-supplied'
+cover: ''
+skill:
+    name: uevr
+    description: 'Install the UEVR injector on Windows, start an OpenXR runtime, inject into a running Unreal Engine 4/5 game, and save a per-game profile. Use when the user says install UEVR, inject VR into an Unreal game, or asks for VR in a UE4/UE5 title on the LAN.'
+    compatibility: 'Windows 10/11, OpenXR runtime (SteamVR), a UE4/UE5 game; VR headset with tracked controllers'
+requires:
+    - role: tool
+      label: 'UEVR injector release'
+      match: ['UEVR*.zip', 'UEVR*.7z']
+      required: true
+      url: https://github.com/praydog/UEVR/releases
+      notes: 'Nightly builds are at github.com/praydog/UEVR-nightly. The zip contains UEVRInjector.exe and the backend DLLs.'
+    - role: tool
+      label: 'OpenXR runtime (SteamVR)'
+      match: []
+      required: true
+      url: https://store.steampowered.com/app/250820/SteamVR/
+      notes: 'UEVR injects an OpenXR layer into the game. Set the runtime before launching the game.'
+    - role: content
+      label: 'A UE4/UE5 game to inject into'
+      match: []
+      required: true
+      url: ''
+      notes: 'User-supplied. Anti-cheat titles (EAC/BattlEye) are unsupported and unsafe to inject into. Verify the game is UE4/UE5 before promising VR.'
+steps:
+    - id: install-uevr
+      title: 'Install UEVR'
+      os: windows
+      optional: false
+      detail: |
+          Extract the UEVR release to `{{target}}`. Keep the folder stable: the
+          injector writes per-game profiles next to itself and expects the backend
+          DLLs beside `UEVRInjector.exe`.
+
+          The LAN reference install also has `_profiles`, `openxr_loader.dll` and
+          `openvr_api.dll`; do not mix files from different UEVR builds.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/UEVR.zip" -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/UEVRInjector.exe'
+    - id: start-openxr
+      title: 'Start the OpenXR runtime'
+      os: windows
+      optional: false
+      detail: |
+          Start SteamVR (or the headset's OpenXR runtime) and confirm the headset
+          and controllers are tracking. UEVR injects into the game's OpenXR layer;
+          a runtime started after the game usually means no stereo image.
+
+          If the headset uses Virtual Desktop, connect it before the game.
+    - id: launch-game
+      title: 'Launch the game to its main menu'
+      os: windows
+      optional: false
+      detail: |
+          Start the UE4/UE5 game normally and leave it at the main menu. Use
+          windowed or borderless mode for the first injection; exclusive fullscreen
+          can hide the injector's dialogs.
+
+          Confirm the game is UE4/UE5 (the injector lists the process) and that it
+          has no anti-cheat.
+    - id: inject
+      title: 'Inject into the game process'
+      os: windows
+      optional: false
+      detail: |
+          Run `UEVRInjector.exe`, select the game's process, choose the OpenXR
+          runtime and press Inject. The headset should switch to stereo; the UEVR
+          menu opens with Insert (or the controller binding).
+
+          If the process list is empty, start the game first and run the injector
+          as the same user (not elevated unless the game is).
+      commands:
+          - shell: powershell
+            run: 'Start-Process "{{target}}/UEVRInjector.exe"'
+    - id: configure-profile
+      title: 'Tune and save a per-game profile'
+      os: windows
+      optional: false
+      detail: |
+          In the UEVR menu set the render mode (native stereo or alternating),
+          resolution scale, snap turn and controller bindings. Save the profile so
+          the next launch can reuse it.
+
+          Test a menu, a gameplay section and a cutscene; UE games often need
+          per-game tweaks for the HUD and the camera.
+    - id: verify
+      title: 'Verify stereo and comfort'
+      os: windows
+      optional: false
+      detail: |
+          Confirm head tracking, stereo depth, controller aiming and a stable frame
+          rate. If the image is flat, the injection did not attach or the runtime
+          was not OpenXR.
+
+          Draft recipe: a tool with per-game results; record the game, UE version,
+          UEVR build and profile that worked.
+metadata:
+    genre: tool
+    players: '1'
+    lan_recommended: false
+    tags: [vr, tool, unreal-engine, injector]

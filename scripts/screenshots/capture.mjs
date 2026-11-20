@@ -46,6 +46,8 @@ const ROUTES = [
     { name: 'home', path: '/' },
     { name: 'event-page', path: `/events/${EVENT_SLUG}` },
     { name: 'countdown', path: `/events/${UPCOMING_SLUG}` },
+    { name: 'games', path: '/games' },
+    { name: 'game-detail', path: '/games/unreal-tournament-2004' },
     { name: 'seating', path: `/events/${EVENT_SLUG}/seating` },
     { name: 'tournaments', path: `/events/${EVENT_SLUG}/tournaments` },
     { name: 'schedule', path: `/events/${EVENT_SLUG}/schedule` },

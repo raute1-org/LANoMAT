@@ -49,6 +49,22 @@ defineProps<Props>();
                 Einstellungen
             </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem :as-child="true">
+            <Link class="block w-full cursor-pointer" href="/mcp/connect">
+                Agent &amp; MCP
+            </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem :as-child="true">
+            <!-- The docs site is a separate static container behind Traefik (/docs). -->
+            <a
+                class="block w-full cursor-pointer"
+                href="/docs"
+                target="_blank"
+                rel="noreferrer"
+            >
+                Docs
+            </a>
+        </DropdownMenuItem>
     </DropdownMenuGroup>
     <DropdownMenuSeparator />
     <DropdownMenuItem :as-child="true">

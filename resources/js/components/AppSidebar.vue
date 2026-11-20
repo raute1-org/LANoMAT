@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    Gamepad2,
     CalendarClock,
     CalendarDays,
     FolderOpen,
@@ -96,6 +97,7 @@ const generalItems = computed<NavItem[]>(() => [
         ...(currentEvent.value ? { isActive: false } : {}),
     },
     { title: 'Events', href: eventsIndex(), icon: CalendarDays },
+    { title: 'Spiele', href: '/games', icon: Gamepad2 },
     { title: 'Teams', href: teamsIndex(), icon: Users, prefix: true },
     ...(has('stats')
         ? [{ title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy }]

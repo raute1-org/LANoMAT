@@ -275,6 +275,7 @@ class ScreenshotSeeder extends Seeder
         $this->seedRecapEvent();
         $this->seedUpcomingEvent();
         $this->seedNews();
+        $this->seedGameLibrary();
     }
 
     /**
@@ -585,6 +586,78 @@ class ScreenshotSeeder extends Seeder
                     'published_at' => now()->subDays($data['days']),
                 ])->save();
             }
+        }
+    }
+
+    /**
+     * Demo rows for the participant games library (/games + /games/{slug}).
+     * One published recipe with a real LAN match and one ready server so the
+     * page shows all four states of the UI (install, start, server, files).
+     */
+    private function seedGameLibrary(): void
+    {
+        $orga = $this->seededOrga();
+        $event = \App\Modules\Events\Models\Event::query()->where('slug', 'screenshot-demo')->first();
+
+        $recipe = \App\Modules\GameRecipes\Models\GameRecipe::query()->updateOrCreate(
+            ['slug' => 'unreal-tournament-2004'],
+            [
+                'title' => 'Unreal Tournament 2004',
+                'aliases' => ['ut2004', 'ut2k4', 'ut 2k4', 'unreal tournament'],
+                'version' => '3374',
+                'status' => \App\Modules\GameRecipes\Enums\RecipeStatus::Published,
+                'source' => 'bundled',
+                'platforms' => ['windows', 'linux'],
+                'summary' => 'Arena shooter from the LAN disc image, with the optional UT2004VR mod.',
+                'description' => 'Der LAN-Klassiker: Base Game vom Disc-Image, OldUnreal-Patch 3374 und optional UT2004VR (SteamVR).',
+                'homepage' => 'https://www.oldunreal.com',
+                'license' => 'Epic Games; base game files are user-supplied',
+                'skill_markdown' => "---\nname: ut2004\ndescription: Install Unreal Tournament 2004 from the LAN.\n---\n# UT2004\n",
+                'requirements' => [
+                    ['role' => 'iso', 'label' => 'UT2004 DVD 1', 'match' => ['ut2004*.iso'], 'required' => true],
+                    ['role' => 'patch', 'label' => 'OldUnreal 3374', 'match' => ['ut2004patch*.zip'], 'required' => true],
+                    ['role' => 'avatar', 'label' => 'VRM avatar · Alyx', 'match' => ['alyx*.vrm'], 'required' => false],
+                ],
+                'steps' => [
+                    ['id' => 'install', 'title' => 'Base Game installieren', 'os' => 'windows', 'optional' => false, 'detail' => 'Disc mounten, Setup starten, nach C:\Games\Unreal Tournament 2004 installieren.', 'commands' => [], 'verify' => []],
+                    ['id' => 'vr', 'title' => 'UT2004VR (optional)', 'os' => 'windows', 'optional' => true, 'detail' => 'SteamVR-Mod von jmkokko installieren.', 'commands' => [], 'verify' => []],
+                ],
+                'metadata' => ['launch' => 'C:\Games\Unreal Tournament 2004\System\UT2004.exe', 'multiplayer' => true, 'players' => '2-32', 'players_max' => 32, 'genre' => 'arena-shooter', 'lan_recommended' => true, 'tags' => ['fps', 'vr']],
+            ],
+        );
+
+        $recipe->files()->delete();
+        foreach ([
+            ['role' => 'iso', 'label' => 'UT2004 DVD 1', 'match_patterns' => ['ut2004*.iso'], 'required' => true, 'sort' => 0],
+            ['role' => 'patch', 'label' => 'OldUnreal 3374', 'match_patterns' => ['ut2004patch*.zip'], 'required' => true, 'sort' => 1],
+            ['role' => 'avatar', 'label' => 'VRM avatar · Alyx', 'match_patterns' => ['alyx*.vrm'], 'required' => false, 'sort' => 2, 'metadata' => ['author' => 'Valve', 'license' => 'CC-BY']],
+        ] as $file) {
+            $recipe->files()->create($file);
+        }
+
+        if ($event !== null) {
+            $shared = \App\Modules\Files\Models\SharedFile::query()->updateOrCreate(
+                ['event_id' => $event->id, 'original_name' => 'UT2004-DVD1.iso'],
+                ['user_id' => $orga->id, 'disk' => 'local', 'path' => 'event-'.$event->id.'/screenshot-ut2004.iso', 'size_bytes' => 4_500_000_000, 'mime' => 'application/octet-stream', 'visibility' => \App\Modules\Files\Enums\FileVisibility::Approved, 'reviewed_by' => $orga->id, 'reviewed_at' => now()],
+            );
+            $recipe->files()->where('label', 'UT2004 DVD 1')->update(['shared_file_id' => $shared->id]);
+
+            $game = \App\Modules\Games\Models\Game::query()->updateOrCreate(
+                ['slug' => 'unreal-tournament-2004'],
+                ['name' => 'Unreal Tournament 2004', 'min_team_size' => 1, 'max_team_size' => 16],
+            );
+
+            $link = \App\Modules\GameServers\Models\ServerLink::query()->firstOrNew([
+                'event_id' => $event->id,
+                'title' => 'UT2004 · DM-Antalus',
+            ]);
+            $link->forceFill([
+                'game_id' => $game->id,
+                'status' => \App\Modules\GameServers\Enums\ServerLinkStatus::Ready,
+                'manual' => true,
+                'permanent' => false,
+                'join_info' => new \App\Modules\GameServers\Domain\JoinInfo(address: 'lan.raute1.org', port: 7777, connectString: 'unreal://lan.raute1.org:7777'),
+            ])->save();
         }
     }
 

@@ -1,0 +1,73 @@
+schema: lanomat.recipe/v1
+slug: counter-strike-1-6
+title: Counter-Strike 1.6
+aliases: ['cs1.6', 'cs 1.6', 'cstrike', 'counter strike', 'counter-strike 16']
+version: '1.6'
+status: draft
+platforms: [windows, linux]
+summary: 'Der LAN-Klassiker: Half-Life mit Counter-Strike 1.6, Server und Client von der LAN.'
+description: |
+    Counter-Strike 1.6 läuft auf Half-Life (GoldSrc). Für die LAN braucht jede
+    Person den Client; ein Server läuft auf dem LANoMAT-Spielserver oder auf
+    einem Teilnehmer-PC. Die Dateien kommen aus dem LAN-Dateispeicher, nicht aus
+    dem Internet.
+homepage: https://www.counter-strike.net
+license: 'Valve; base game files are user-supplied'
+skill:
+    name: counter-strike-1-6
+    description: 'Install Counter-Strike 1.6 on the player PC and join the LAN server. Use when the user says install cs 1.6, counter-strike or cstrike.'
+    compatibility: 'Windows or Linux (Wine/Proton); ~1 GB disk'
+requires:
+    - role: base
+      label: 'Half-Life base (Steam/GOG or retail)'
+      match: ['half-life*.iso', 'hl*.iso', 'HalfLife*.exe']
+      required: true
+    - role: mod
+      label: 'Counter-Strike 1.6 (cstrike folder or installer)'
+      match: ['cstrike*.zip', 'counter-strike*.exe', 'cs16*.exe', 'cstrike*.7z']
+      required: true
+    - role: config
+      label: 'LAN config (autoexec.cfg, server.cfg)'
+      match: ['autoexec*.cfg', 'server*.cfg']
+      required: false
+steps:
+    - id: install-half-life
+      title: 'Half-Life installieren'
+      os: windows
+      optional: false
+      detail: |
+          Steam: Half-Life installieren. Retail: von der LAN-Datei installieren.
+      commands:
+          - shell: powershell
+            run: 'Start-Process "steam://install/70"'
+      verify:
+          - type: dir_exists
+            path: 'C:\Program Files (x86)\Steam\steamapps\common\Half-Life'
+    - id: install-cstrike
+      title: 'Counter-Strike 1.6 installieren'
+      os: windows
+      optional: false
+      detail: |
+          Installer ausführen oder cstrike.zip nach Half-Life entpacken.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/cstrike.zip" -DestinationPath "C:\Program Files (x86)\Steam\steamapps\common\Half-Life" -Force'
+    - id: launch
+      title: 'Spiel starten'
+      os: windows
+      optional: false
+      detail: |
+          Starte Half-Life und wähle Counter-Strike. Auf dem LAN-Server verbinden
+          (Serverliste auf der LANoMAT-Spielseite).
+      commands:
+          - shell: powershell
+            run: 'Start-Process "steam://rungameid/70"'
+metadata:
+    launch: 'C:\Program Files (x86)\Steam\steamapps\common\Half-Life\hl.exe -game cstrike'
+    multiplayer: true
+    players: '2-10'
+    players_max: 10
+    genre: tactical-shooter
+    lan_recommended: true
+    tags: [fps, classic, steam, lan]
+    note: 'Draft — verify the cstrike archive layout and the server start on the LAN before publishing.'

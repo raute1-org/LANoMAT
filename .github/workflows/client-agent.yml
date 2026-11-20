@@ -1,0 +1,55 @@
+name: Client agent
+
+on:
+  push:
+    paths:
+      - 'clients/agent/**'
+      - '.github/workflows/client-agent.yml'
+  pull_request:
+    paths:
+      - 'clients/agent/**'
+      - '.github/workflows/client-agent.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-agent-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint, test and build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: clients/agent
+    env:
+      # Secret reference only; tests are offline and never print it.
+      VENICE_API_KEY: ${{ secrets.VENICE_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: clients/agent/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: CLI smoke
+        run: node dist/cli.js --help
