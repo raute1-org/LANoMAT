@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Download, Filter, Search, Users } from '@lucide/vue';
+import { Download, Filter, Search, Server, Trophy, Users } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
 import PageContainer from '@/components/PageContainer.vue';
@@ -22,12 +22,15 @@ type GameCard = {
     platforms: string[] | null;
     version: string | null;
     lan_ready: boolean;
+    installable: boolean;
+    server_count: number;
     running_tournaments: {
         id: number;
         name: string;
         status: string;
         url: string;
     }[];
+    running_tournaments_count: number;
     open_lfg: number;
     play_url: string | null;
     supports_multiplayer: boolean;
@@ -36,11 +39,12 @@ type GameCard = {
 const props = defineProps<{
     games: GameCard[];
     active_event: { slug: string; name: string } | null;
+    filters: { only_lan: boolean };
     modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
 }>();
 
 const query = ref('');
-const onlyLan = ref(false);
+const onlyLan = ref(props.filters.only_lan);
 
 const filtered = computed(() => {
     const needle = query.value.trim().toLowerCase();
@@ -122,10 +126,27 @@ const platformLabel = (platforms: string[] | null): string =>
                     ● LIVE {{ active_event.name }}
                     <span v-if="modules.web_voice"> — Sprachchat offen</span>
                 </p>
+                <p
+                    v-else
+                    class="mt-3 font-mono text-xs text-muted-foreground"
+                    data-test="no-active-event"
+                >
+                    Kein Event aktiv — die Bibliothek bleibt offen. Server und
+                    Runden erscheinen, sobald die LAN läuft.
+                </p>
 
                 <p
-                    v-if="filtered.length === 0"
+                    v-if="games.length === 0"
                     class="mt-8 rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground"
+                    data-test="empty-library"
+                >
+                    Noch keine Spiele in der Bibliothek. Die Orga pflegt sie
+                    über die Rezepte.
+                </p>
+                <p
+                    v-else-if="filtered.length === 0"
+                    class="mt-8 rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground"
+                    data-test="empty-filter"
                 >
                     Kein Spiel passt.
                     {{ onlyLan ? 'Schalte „Nur LAN-Spiele“ aus,' : '' }}
@@ -178,11 +199,20 @@ const platformLabel = (platforms: string[] | null): string =>
 
                             <div class="flex flex-wrap gap-2 text-xs">
                                 <Badge
-                                    v-if="game.running_tournaments.length > 0"
+                                    v-if="game.running_tournaments_count > 0"
                                     variant="outline"
                                     class="border-primary/40 text-primary"
                                 >
+                                    <Trophy class="size-3" aria-hidden="true" />
                                     Turnier läuft
+                                </Badge>
+                                <Badge
+                                    v-if="game.server_count > 0"
+                                    variant="outline"
+                                    class="border-live/40 text-live"
+                                >
+                                    <Server class="size-3" aria-hidden="true" />
+                                    {{ game.server_count }} Server
                                 </Badge>
                                 <Badge
                                     v-if="game.open_lfg > 0"
@@ -192,16 +222,35 @@ const platformLabel = (platforms: string[] | null): string =>
                                     <Users class="size-3" aria-hidden="true" />
                                     {{ game.open_lfg }} suchen
                                 </Badge>
+                                <Badge
+                                    v-if="!game.supports_multiplayer"
+                                    variant="outline"
+                                    class="border-border text-muted-foreground"
+                                >
+                                    Solo
+                                </Badge>
                             </div>
 
                             <div class="mt-auto flex flex-wrap gap-2">
-                                <Button as-child size="sm" class="flex-1">
+                                <Button
+                                    as-child
+                                    size="sm"
+                                    class="flex-1"
+                                    :variant="
+                                        game.installable ? 'default' : 'outline'
+                                    "
+                                >
                                     <Link :href="`/games/${game.slug}`">
                                         <Download
+                                            v-if="game.installable"
                                             class="size-4"
                                             aria-hidden="true"
                                         />
-                                        Installieren
+                                        {{
+                                            game.installable
+                                                ? 'Installieren'
+                                                : 'Details'
+                                        }}
                                     </Link>
                                 </Button>
                                 <Button

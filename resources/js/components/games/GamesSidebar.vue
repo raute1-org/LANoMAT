@@ -39,6 +39,7 @@ const platformLabel = (platforms: string[] | null): string =>
                 v-for="game in games"
                 :key="game.slug"
                 :href="`/games/${game.slug}`"
+                :aria-current="game.slug === active ? 'page' : undefined"
                 class="group flex items-start gap-2 rounded-sm border border-transparent px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 :class="
                     game.slug === active

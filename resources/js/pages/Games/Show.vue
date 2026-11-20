@@ -71,6 +71,10 @@ type Game = {
     launch_target: string | null;
     supports_multiplayer: boolean;
     lan_ready: boolean;
+    installable: boolean;
+    requires_agent: boolean;
+    server_count: number;
+    running_tournaments_count: number;
     install_command: string;
     launch_command: string;
     install_deeplink: string;
@@ -185,6 +189,14 @@ function announceRound(): void {
                                 ● AUF DER LAN
                             </Badge>
                             <Badge
+                                v-else
+                                variant="outline"
+                                class="border-border font-mono text-[10px] text-muted-foreground"
+                                data-test="not-lan-ready"
+                            >
+                                NOCH NICHT AUF DER LAN
+                            </Badge>
+                            <Badge
                                 variant="outline"
                                 class="font-mono text-[10px]"
                             >
@@ -198,17 +210,28 @@ function announceRound(): void {
                                 v{{ game.version }}
                             </Badge>
                             <Badge
-                                v-if="tournaments.length > 0"
+                                v-if="game.running_tournaments_count > 0"
                                 variant="outline"
                                 class="border-primary/40 font-mono text-[10px] text-primary"
                             >
                                 Turnier läuft
                             </Badge>
+                            <Badge
+                                v-if="!game.supports_multiplayer"
+                                variant="outline"
+                                class="border-border font-mono text-[10px] text-muted-foreground"
+                            >
+                                Solo
+                            </Badge>
                         </div>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        <Button as-child data-test="install">
+                        <Button
+                            v-if="game.installable"
+                            as-child
+                            data-test="install"
+                        >
                             <a :href="game.install_deeplink">
                                 <Download class="size-4" aria-hidden="true" />
                                 Installieren
@@ -233,7 +256,7 @@ function announceRound(): void {
                             </a>
                         </Button>
                         <Button
-                            v-else
+                            v-else-if="game.requires_agent"
                             as-child
                             variant="outline"
                             data-test="launch"
@@ -246,8 +269,12 @@ function announceRound(): void {
                     </div>
                 </header>
 
-                <div class="mt-4 flex flex-wrap gap-2 text-xs">
+                <div
+                    v-if="game.installable || game.requires_agent"
+                    class="mt-4 flex flex-wrap gap-2 text-xs"
+                >
                     <Button
+                        v-if="game.installable"
                         type="button"
                         size="sm"
                         variant="outline"
@@ -264,6 +291,7 @@ function announceRound(): void {
                         }}</span>
                     </Button>
                     <Button
+                        v-if="game.requires_agent"
                         type="button"
                         size="sm"
                         variant="ghost"
@@ -276,6 +304,14 @@ function announceRound(): void {
                         }}</span>
                     </Button>
                 </div>
+                <p
+                    v-else
+                    class="mt-4 text-xs text-muted-foreground"
+                    data-test="browser-only"
+                >
+                    Kein Installer nötig — {{ game.title }} läuft direkt im
+                    Browser. Der Agent ist optional.
+                </p>
 
                 <Separator class="my-8" />
 
@@ -330,6 +366,7 @@ function announceRound(): void {
                                 <div
                                     v-if="servers.length === 0"
                                     class="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
+                                    data-test="no-servers"
                                 >
                                     Kein Server aktiv.
                                     <span v-if="game.supports_multiplayer">
@@ -424,6 +461,7 @@ function announceRound(): void {
                             <CardContent class="space-y-3">
                                 <div class="flex flex-wrap gap-2">
                                     <Button
+                                        v-if="active_event"
                                         size="sm"
                                         type="button"
                                         @click="announceRound"
@@ -450,7 +488,15 @@ function announceRound(): void {
                                     </Button>
                                 </div>
                                 <p
-                                    v-if="lfg.length === 0"
+                                    v-if="!active_event"
+                                    class="text-sm text-muted-foreground"
+                                    data-test="lfg-no-event"
+                                >
+                                    Kein Event aktiv — Runden lassen sich erst
+                                    ankündigen, wenn die LAN läuft.
+                                </p>
+                                <p
+                                    v-else-if="lfg.length === 0"
                                     class="text-sm text-muted-foreground"
                                 >
                                     Noch keine Runde angekündigt. Ein Klick
@@ -482,7 +528,22 @@ function announceRound(): void {
                                 <CardTitle class="text-base">Dateien</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ul class="divide-y divide-border">
+                                <p
+                                    v-if="game.requirements.length === 0"
+                                    class="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
+                                    data-test="no-files"
+                                >
+                                    Keine Dateien nötig.
+                                    <span v-if="game.play_url">
+                                        {{ game.title }} läuft direkt im
+                                        Browser.</span
+                                    >
+                                    <span v-else>
+                                        Alles Weitere steht in der
+                                        Installationsanleitung.</span
+                                    >
+                                </p>
+                                <ul v-else class="divide-y divide-border">
                                     <li
                                         v-for="requirement in game.requirements"
                                         :key="requirement.label"
@@ -549,28 +610,58 @@ function announceRound(): void {
                             <CardContent
                                 class="space-y-2 text-sm text-muted-foreground"
                             >
-                                <p>
-                                    Der Agent installiert das Spiel auf deinem
-                                    PC und lädt die Dateien direkt aus dem LAN.
-                                </p>
-                                <ol
-                                    class="list-decimal space-y-1 pl-4 font-mono text-xs"
-                                >
-                                    <li
-                                        v-for="step in game.steps"
-                                        :key="step.id"
-                                        :class="
-                                            step.optional
-                                                ? 'text-muted-foreground/70'
-                                                : ''
-                                        "
+                                <template v-if="game.requires_agent">
+                                    <p v-if="game.installable">
+                                        Der Agent installiert das Spiel auf
+                                        deinem PC und lädt die Dateien direkt
+                                        aus dem LAN.
+                                    </p>
+                                    <p v-else>
+                                        Der Agent startet das Spiel aus deinem
+                                        bestehenden Install — eine Installation
+                                        ist nicht nötig.
+                                    </p>
+                                    <ol
+                                        v-if="game.steps.length > 0"
+                                        class="list-decimal space-y-1 pl-4 font-mono text-xs"
                                     >
-                                        {{ step.title }}
-                                        <span v-if="step.optional">
-                                            (optional)</span
+                                        <li
+                                            v-for="step in game.steps"
+                                            :key="step.id"
+                                            :class="
+                                                step.optional
+                                                    ? 'text-muted-foreground/70'
+                                                    : ''
+                                            "
                                         >
-                                    </li>
-                                </ol>
+                                            {{ step.title }}
+                                            <span v-if="step.optional">
+                                                (optional)</span
+                                            >
+                                        </li>
+                                    </ol>
+                                </template>
+                                <template v-else>
+                                    <p data-test="no-install">
+                                        Kein Installer nötig:
+                                        {{ game.title }} läuft direkt im
+                                        Browser. Ein Agent ist nicht
+                                        erforderlich.
+                                    </p>
+                                    <a
+                                        v-if="game.play_url"
+                                        :href="game.play_url"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        class="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                                    >
+                                        {{ game.play_url }}
+                                        <ExternalLink
+                                            class="size-3"
+                                            aria-hidden="true"
+                                        />
+                                    </a>
+                                </template>
                                 <p
                                     v-if="game.avatars > 0"
                                     class="font-mono text-xs text-live"
