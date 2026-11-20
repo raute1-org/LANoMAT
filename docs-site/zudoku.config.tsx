@@ -203,7 +203,13 @@ const config: ZudokuConfig = {
       ],
     },
   ],
-  redirects: [{ from: "/", to: "/start/introduction" }],
+  redirects: [
+    { from: "/", to: "/start/introduction" },
+    // The app's games library lives at /games; the docs page is under /system.
+    { from: "/games", to: "/system/games-library" },
+    { from: "/mcp", to: "/mcp/overview" },
+    { from: "/agent", to: "/agent/overview" },
+  ],
   apis: {
     type: "file",
     input: "./apis/lanomat.openapi.yaml",
