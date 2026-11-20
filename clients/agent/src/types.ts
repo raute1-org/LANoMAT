@@ -119,6 +119,28 @@ export interface Avatar {
     required?: boolean;
 }
 
+export interface RecipeDetail {
+    slug: string;
+    title: string;
+    summary?: string;
+    version?: string;
+    platforms?: string[];
+    status?: string;
+    updated_at?: string;
+    /** Web game (browser) launch target. Takes precedence over local launch_target. */
+    play_url?: string | null;
+    /** Local command or executable path, e.g. `C:\Games\...\UT2004.exe`. */
+    launch_target?: string | null;
+    supports_multiplayer?: boolean;
+    install_command?: string | null;
+    launch_command?: string | null;
+    requirements?: unknown[];
+    steps?: unknown[];
+    files?: unknown[];
+    avatars?: Avatar[];
+    [key: string]: unknown;
+}
+
 export interface RecipePlan {
     recipe: { slug: string; title: string; version?: string };
     os: Os;
@@ -129,6 +151,12 @@ export interface RecipePlan {
     missing?: string[];
     /** Not in the base contract; used when a recipe stores avatars somewhere else. */
     avatars_dir?: string;
+    /** Recipe-level launch fields are repeated on the plan payload. */
+    play_url?: string | null;
+    launch_target?: string | null;
+    supports_multiplayer?: boolean;
+    install_command?: string | null;
+    launch_command?: string | null;
 }
 
 export interface AvatarCatalog {

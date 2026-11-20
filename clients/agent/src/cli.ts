@@ -26,6 +26,9 @@ import { formatExportLine, installMcpServer, piCommandLine, type McpExposure } f
 import { syncSkills } from './skills.js';
 import { formatPlan, formatRecipeList } from './recipes.js';
 import { runInstall, installChatPrompt } from './install.js';
+import { launchRecipe } from './launch.js';
+import { parseDeepLink } from './deeplink.js';
+import { registerAgentScheme } from './register.js';
 import { downloadAvatars, parseAvatarSelection, pickAvatars } from './avatars.js';
 import { createProgressRenderer, promptSecret, promptYesNo, Logger } from './ui.js';
 import { createAskService, buildAskArgv, resolvePiBinary, SpawnPiAdapter } from './ask.js';
@@ -446,6 +449,130 @@ export function buildProgram(): Command {
                 }
             },
         );
+
+    program
+        .command('launch')
+        .argument('<slug>', 'recipe slug')
+        .description('Launch an installed game, or open its web play_url')
+        .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
+        .option('--target <dir>', 'install dir substituted for {{target}}')
+        .option('--avatars <dir>', 'avatar dir substituted for {{avatars}}')
+        .option('--dry-run', 'print the launch command without running it')
+        .action(
+            async (
+                slug: string,
+                opts: { os: string; target?: string; avatars?: string; dryRun?: boolean },
+            ) => {
+                const { logger, paths } = context();
+                const config = await requireConfig(paths);
+                const result = await launchRecipe({
+                    api: apiFor(config),
+                    slug,
+                    os: parseOs(opts.os),
+                    targetDir: opts.target,
+                    avatarsDir: opts.avatars,
+                    dryRun: opts.dryRun,
+                    log: (line) => logger.line(line),
+                    warn: (line) => logger.warn(line),
+                });
+
+                process.exitCode = result.code;
+            },
+        );
+
+    program
+        .command('open')
+        .argument('<url>', 'lanomat://install/<slug>, lanomat://launch/<slug> or lanomat://play/<slug>')
+        .description('Handle a LANoMAT deep link (install or launch)')
+        .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
+        .option('-y, --yes', 'no prompts for install')
+        .option('--avatar <id>', 'avatar id for install (repeatable, or "all")', collect)
+        .option('--allow-external', 'allow internet fallbacks for install')
+        .option('--dry-run', 'print the plan/launch command only')
+        .action(
+            async (
+                input: string,
+                opts: {
+                    os: string;
+                    yes?: boolean;
+                    avatar?: string[];
+                    allowExternal?: boolean;
+                    dryRun?: boolean;
+                },
+            ) => {
+                const { logger, paths } = context();
+                const link = parseDeepLink(input);
+                const config = await requireConfig(paths);
+                const api = apiFor(config);
+
+                if (link.action === 'launch') {
+                    const result = await launchRecipe({
+                        api,
+                        slug: link.slug,
+                        os: parseOs(opts.os),
+                        dryRun: opts.dryRun,
+                        log: (line) => logger.line(line),
+                        warn: (line) => logger.warn(line),
+                    });
+
+                    process.exitCode = result.code;
+
+                    return;
+                }
+
+                const progress = createProgressRenderer(logger);
+                const result = await runInstall({
+                    api,
+                    slug: link.slug,
+                    os: parseOs(opts.os),
+                    yes: opts.yes,
+                    avatarIds: opts.avatar,
+                    allowExternal: opts.allowExternal,
+                    dryRun: opts.dryRun,
+                    interactive: process.stdin.isTTY,
+                    log: (line) => logger.line(line),
+                    warn: (line) => logger.warn(line),
+                    confirm: promptYesNo,
+                    onProgress: (update) =>
+                        progress.update({
+                            ...update,
+                            state: update.percent === 100 ? 'done' : 'downloading',
+                        }),
+                });
+
+                progress.finish();
+                process.exitCode = result.code;
+            },
+        );
+
+    program
+        .command('register')
+        .description('Register the lanomat:// scheme for the web games page')
+        .option('-y, --yes', 'execute the Windows registry command (Linux always writes)')
+        .action(async (opts: { yes?: boolean }) => {
+            const { logger } = context();
+            const cliPath = (() => {
+                try {
+                    return realpathSync(process.argv[1] ?? '');
+                } catch {
+                    return process.argv[1] ?? '';
+                }
+            })();
+            const result = await registerAgentScheme({
+                yes: opts.yes,
+                cliPath,
+                log: (line) => logger.line(line),
+                warn: (line) => logger.warn(line),
+            });
+
+            if (result.path) {
+                logger.success(`Registered lanomat:// in ${result.path}`);
+            } else if (result.written) {
+                logger.success('Registered lanomat://.');
+            } else if (result.platform === 'win32') {
+                logger.dim('Windows registry command printed; use --yes to execute it.');
+            }
+        });
 
     program
         .command('avatars')

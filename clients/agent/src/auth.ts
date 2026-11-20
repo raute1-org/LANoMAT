@@ -106,12 +106,16 @@ export function deviceName(hostname: string, platform: NodeJS.Platform = process
 }
 
 /** Best-effort browser open. Never fails the login when xdg-open/start is unavailable. */
-export function openBrowser(url: string, platform: NodeJS.Platform = process.platform): void {
+export function openBrowser(
+    url: string,
+    platform: NodeJS.Platform = process.platform,
+    spawnImpl: typeof spawn = spawn,
+): void {
     const command = platform === 'win32' ? 'cmd' : platform === 'darwin' ? 'open' : 'xdg-open';
     const args = platform === 'win32' ? ['/c', 'start', '', url] : [url];
 
     try {
-        const child = spawn(command, args, { detached: true, stdio: 'ignore' });
+        const child = spawnImpl(command, args, { detached: true, stdio: 'ignore' });
 
         child.on('error', () => undefined);
         child.unref();

@@ -4,6 +4,7 @@ import type {
     DeviceToken,
     MeResponse,
     Os,
+    RecipeDetail,
     RecipePlan,
     RecipeSummary,
 } from './types.js';
@@ -208,8 +209,8 @@ export class ApiClient {
         return Array.isArray(response) ? response : (response.data ?? []);
     }
 
-    async getRecipe(slug: string): Promise<Record<string, unknown>> {
-        return this.request<Record<string, unknown>>(`/api/v1/recipes/${encodeURIComponent(slug)}`);
+    async getRecipe(slug: string): Promise<RecipeDetail> {
+        return this.request<RecipeDetail>(`/api/v1/recipes/${encodeURIComponent(slug)}`);
     }
 
     async getSkill(slug: string): Promise<string> {
