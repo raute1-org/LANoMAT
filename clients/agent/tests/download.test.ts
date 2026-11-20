@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ChecksumError, downloadFile, downloadMany } from '../src/download.js';
+import { ChecksumError, downloadFile, downloadMany, DownloadTimeoutError } from '../src/download.js';
 import { removeDir, tempDir } from './helpers.js';
 
 const payload = Buffer.from('hello world');
@@ -158,5 +158,69 @@ describe('download engine', () => {
         );
 
         expect(await readFile(join(nested, 'x.bin'), 'utf8')).toBe('x');
+    });
+
+    it('aborts a stalled body after the idle timeout and keeps the .part file', async () => {
+        await expect(
+            downloadFile(
+                { url: 'http://lan.local/stalled.zip', filename: 'stalled.zip', destDir: dir },
+                {
+                    timeoutMs: 30,
+                    fetchImpl: async (_url, init) => {
+                        const stream = new ReadableStream<Uint8Array>({
+                            start(controller) {
+                                init?.signal?.addEventListener('abort', () =>
+                                    controller.error(new Error('aborted')),
+                                );
+                            },
+                        });
+
+                        return new Response(stream, { headers: { 'content-length': '100' } });
+                    },
+                },
+            ),
+        ).rejects.toBeInstanceOf(DownloadTimeoutError);
+
+        expect(await readdir(dir)).toEqual(['stalled.zip.part']);
+        await expect(access(join(dir, 'stalled.zip'))).rejects.toThrow();
+    });
+
+    it('aborts when the server never sends response headers', async () => {
+        const started = Date.now();
+
+        await expect(
+            downloadFile(
+                { url: 'http://lan.local/slow.zip', filename: 'slow.zip', destDir: dir },
+                {
+                    timeoutMs: 30,
+                    fetchImpl: async (_url, init) =>
+                        new Promise<Response>((_resolve, reject) => {
+                            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+                        }),
+                },
+            ),
+        ).rejects.toBeInstanceOf(DownloadTimeoutError);
+
+        expect(Date.now() - started).toBeLessThan(2_000);
+    });
+
+    it('passes an abort signal to every request', async () => {
+        const signals: Array<AbortSignal | undefined> = [];
+
+        await downloadFile(
+            { url: 'http://lan.local/file', filename: 'signal.bin', destDir: dir },
+            {
+                timeoutMs: 5_000,
+                fetchImpl: async (_url, init) => {
+                    signals.push(init?.signal ?? undefined);
+
+                    return responseFor(Buffer.from('x'));
+                },
+            },
+        );
+
+        expect(signals).toHaveLength(1);
+        expect(signals[0]).toBeInstanceOf(AbortSignal);
+        expect(signals[0]?.aborted).toBe(false);
     });
 });

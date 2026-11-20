@@ -21,6 +21,18 @@ export class ChecksumError extends Error {
     }
 }
 
+export class DownloadTimeoutError extends Error {
+    readonly task: DownloadTask;
+    readonly timeoutMs: number;
+
+    constructor(task: DownloadTask, timeoutMs: number) {
+        super(`Download stalled for ${Math.round(timeoutMs / 1000)}s: ${task.filename}`);
+        this.name = 'DownloadTimeoutError';
+        this.task = task;
+        this.timeoutMs = timeoutMs;
+    }
+}
+
 export class DownloadError extends Error {
     readonly task: DownloadTask;
 
@@ -39,7 +51,11 @@ export interface DownloadEngineOptions {
     /** Delay before the single no-Range retry after a 416. */
     sleep?: (ms: number) => Promise<void>;
     hashFile?: (path: string) => Promise<string>;
+    /** Abort when no bytes arrive for this long. Defaults to 60 s; 0 disables the watchdog. */
+    timeoutMs?: number;
 }
+
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 async function existingSize(path: string): Promise<number> {
     try {
@@ -57,7 +73,7 @@ async function updateHashFromFile(hash: ReturnType<typeof createHash>, path: str
 
 /**
  * Resume-safe single download. The final file only appears after the checksum passes; a failed
- * download leaves `<file>.part` behind for the next attempt.
+ * or stalled download leaves `<file>.part` behind for the next attempt.
  */
 export async function downloadFile(
     task: DownloadTask,
@@ -69,144 +85,186 @@ export async function downloadFile(
     const destDir = task.destDir;
     const finalPath = join(destDir, sanitizeName(task.filename));
     const partPath = `${finalPath}.part`;
+    const timeoutMs = options.timeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS;
+    const controller = new AbortController();
+    let watchdog: NodeJS.Timeout | undefined;
 
-    await ensureDir(destDir, 0o755);
-
-    const finalSize = await existingSize(finalPath);
-
-    if (finalSize > 0) {
-        if (task.sha256) {
-            const actual = await hashFile(finalPath);
-
-            if (actual.toLowerCase() === task.sha256.toLowerCase()) {
-                options.onProgress?.({
-                    filename: task.filename,
-                    received: finalSize,
-                    total: finalSize,
-                    percent: 100,
-                    bytesPerSecond: 0,
-                });
-
-                return { task, path: finalPath, bytes: finalSize, skipped: true, resumed: false };
-            }
-        } else if (task.size_bytes === undefined || finalSize === task.size_bytes) {
-            return { task, path: finalPath, bytes: finalSize, skipped: true, resumed: false };
+    // Idle watchdog: every received chunk re-arms it, so only a stalled transfer aborts.
+    const arm = (): void => {
+        if (timeoutMs <= 0) {
+            return;
         }
-    }
 
-    let partSize = await existingSize(partPath);
-    let resumed = partSize > 0;
-    let response = await request(task, fetchImpl, partSize);
-    let append = resumed;
-
-    if (response.status === 416 && partSize > 0) {
-        await rm(partPath, { force: true });
-        partSize = 0;
-        resumed = false;
-        append = false;
-        response = await request(task, fetchImpl, 0);
-
-        if (response.status === 416) {
-            throw new Error('Server rejected the download range');
+        if (watchdog) {
+            clearTimeout(watchdog);
         }
-    }
 
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
-    }
+        watchdog = setTimeout(() => controller.abort(), timeoutMs);
+        watchdog.unref?.();
+    };
+    const disarm = (): void => {
+        if (watchdog) {
+            clearTimeout(watchdog);
+            watchdog = undefined;
+        }
+    };
 
-    if (response.status === 200 && partSize > 0) {
-        partSize = 0;
-        resumed = false;
-        append = false;
-    }
-
-    if (response.status !== 206 && response.status !== 200) {
-        throw new Error(`Unexpected HTTP status ${response.status}`);
-    }
-
-    const body = response.body;
-
-    if (!body) {
-        throw new Error('Empty response body');
-    }
-
-    const contentLength = Number(response.headers.get('content-length') ?? '0');
-    const total = contentLength > 0 ? partSize + contentLength : task.size_bytes;
-    const hash = createHash('sha256');
-
-    if (partSize > 0) {
-        await updateHashFromFile(hash, partPath);
-    }
-
-    const stream = createWriteStream(partPath, { flags: append ? 'a' : 'w' });
-    const started = clock();
-    const startedBytes = partSize;
-    let received = partSize;
-    let lastReport = 0;
+    arm();
 
     try {
-        for await (const chunk of body as unknown as AsyncIterable<Uint8Array>) {
-            const buffer = Buffer.from(chunk);
+        await ensureDir(destDir, 0o755);
 
-            hash.update(buffer);
-            received += buffer.length;
+        const finalSize = await existingSize(finalPath);
 
-            if (!stream.write(buffer)) {
-                await once(stream, 'drain');
-            }
+        if (finalSize > 0) {
+            if (task.sha256) {
+                const actual = await hashFile(finalPath);
 
-            const now = clock();
+                if (actual.toLowerCase() === task.sha256.toLowerCase()) {
+                    options.onProgress?.({
+                        filename: task.filename,
+                        received: finalSize,
+                        total: finalSize,
+                        percent: 100,
+                        bytesPerSecond: 0,
+                    });
 
-            if (options.onProgress && (now - lastReport > 150 || (total !== undefined && received >= total))) {
-                lastReport = now;
-                const elapsed = Math.max(1, now - started) / 1000;
-
-                options.onProgress({
-                    filename: task.filename,
-                    received,
-                    total,
-                    percent: total ? Math.min(100, Math.floor((received / total) * 100)) : undefined,
-                    bytesPerSecond: (received - startedBytes) / elapsed,
-                });
+                    return { task, path: finalPath, bytes: finalSize, skipped: true, resumed: false };
+                }
+            } else if (task.size_bytes === undefined || finalSize === task.size_bytes) {
+                return { task, path: finalPath, bytes: finalSize, skipped: true, resumed: false };
             }
         }
 
-        stream.end();
-        await once(stream, 'finish');
+        let partSize = await existingSize(partPath);
+        let resumed = partSize > 0;
+        let response = await request(task, fetchImpl, partSize, controller.signal);
+        let append = resumed;
+
+        if (response.status === 416 && partSize > 0) {
+            await rm(partPath, { force: true });
+            partSize = 0;
+            resumed = false;
+            append = false;
+            arm();
+            response = await request(task, fetchImpl, 0, controller.signal);
+
+            if (response.status === 416) {
+                throw new Error('Server rejected the download range');
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
+        }
+
+        if (response.status === 200 && partSize > 0) {
+            partSize = 0;
+            resumed = false;
+            append = false;
+        }
+
+        if (response.status !== 206 && response.status !== 200) {
+            throw new Error(`Unexpected HTTP status ${response.status}`);
+        }
+
+        const body = response.body;
+
+        if (!body) {
+            throw new Error('Empty response body');
+        }
+
+        const contentLength = Number(response.headers.get('content-length') ?? '0');
+        const total = contentLength > 0 ? partSize + contentLength : task.size_bytes;
+        const hash = createHash('sha256');
+
+        if (partSize > 0) {
+            await updateHashFromFile(hash, partPath);
+        }
+
+        const stream = createWriteStream(partPath, { flags: append ? 'a' : 'w' });
+        const started = clock();
+        const startedBytes = partSize;
+        let received = partSize;
+        let lastReport = 0;
+
+        try {
+            for await (const chunk of body as unknown as AsyncIterable<Uint8Array>) {
+                const buffer = Buffer.from(chunk);
+
+                arm();
+                hash.update(buffer);
+                received += buffer.length;
+
+                if (!stream.write(buffer)) {
+                    await once(stream, 'drain');
+                }
+
+                const now = clock();
+
+                if (options.onProgress && (now - lastReport > 150 || (total !== undefined && received >= total))) {
+                    lastReport = now;
+                    const elapsed = Math.max(1, now - started) / 1000;
+
+                    options.onProgress({
+                        filename: task.filename,
+                        received,
+                        total,
+                        percent: total ? Math.min(100, Math.floor((received / total) * 100)) : undefined,
+                        bytesPerSecond: (received - startedBytes) / elapsed,
+                    });
+                }
+            }
+
+            stream.end();
+            await once(stream, 'finish');
+        } catch (error) {
+            stream.destroy();
+            throw error;
+        }
+
+        const actual = hash.digest('hex');
+
+        if (task.sha256 && actual.toLowerCase() !== task.sha256.toLowerCase()) {
+            await rm(partPath, { force: true });
+            throw new ChecksumError(finalPath, task.sha256, actual);
+        }
+
+        await rename(partPath, finalPath);
+
+        options.onProgress?.({
+            filename: task.filename,
+            received,
+            total: total ?? received,
+            percent: 100,
+            bytesPerSecond: 0,
+        });
+
+        return { task, path: finalPath, bytes: received, skipped: false, resumed };
     } catch (error) {
-        stream.destroy();
+        if (controller.signal.aborted) {
+            throw new DownloadTimeoutError(task, timeoutMs);
+        }
+
         throw error;
+    } finally {
+        disarm();
     }
-
-    const actual = hash.digest('hex');
-
-    if (task.sha256 && actual.toLowerCase() !== task.sha256.toLowerCase()) {
-        await rm(partPath, { force: true });
-        throw new ChecksumError(finalPath, task.sha256, actual);
-    }
-
-    await rename(partPath, finalPath);
-
-    options.onProgress?.({
-        filename: task.filename,
-        received,
-        total: total ?? received,
-        percent: 100,
-        bytesPerSecond: 0,
-    });
-
-    return { task, path: finalPath, bytes: received, skipped: false, resumed };
 }
 
-async function request(task: DownloadTask, fetchImpl: FetchLike, offset: number): Promise<Response> {
+async function request(
+    task: DownloadTask,
+    fetchImpl: FetchLike,
+    offset: number,
+    signal?: AbortSignal,
+): Promise<Response> {
     const headers: Record<string, string> = { ...(task.headers ?? {}) };
 
     if (offset > 0) {
         headers.Range = `bytes=${offset}-`;
     }
 
-    return fetchImpl(task.url, { headers, redirect: 'follow' });
+    return fetchImpl(task.url, { headers, redirect: 'follow', ...(signal ? { signal } : {}) });
 }
 
 export interface DownloadManyResult {

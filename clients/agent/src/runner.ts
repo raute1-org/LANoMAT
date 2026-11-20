@@ -1,19 +1,72 @@
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import type { PlanStep, VerifyCheck } from './types.js';
 import { fileExists, isDirectory } from './util.js';
+
+export type Shell = 'powershell' | 'cmd' | 'bash';
+
+/** Exit code used when a command was killed by the step timeout (same as GNU `timeout`). */
+export const TIMEOUT_EXIT_CODE = 124;
+
+/** Guard against an installer that never returns. Steps can override it with `timeoutMs`. */
+export const DEFAULT_COMMAND_TIMEOUT_MS = 30 * 60_000;
 
 export interface CommandResult {
     code: number;
     stdout: string;
     stderr: string;
+    /** Signal that terminated the process, if any. */
+    signal?: NodeJS.Signals | null;
+    /** True when the step timeout killed the command; `code` is then 124. */
+    timedOut?: boolean;
+}
+
+export interface CommandRunOptions {
+    cwd: string;
+    /** Extra environment entries; the default executor merges them over `process.env`. */
+    env?: NodeJS.ProcessEnv;
+    /** Kill the command after this many milliseconds. 0 disables the watchdog. */
+    timeoutMs?: number;
+    /** `inherit` lets an installer read from the terminal; the default is `ignore`. */
+    input?: 'ignore' | 'inherit';
+    /** cmd.exe needs verbatim args so its `/s /c "…"` stripping matches what we built. */
+    windowsVerbatimArguments?: boolean;
 }
 
 export type CommandExecutor = (
     command: string,
     args: string[],
-    options: { cwd: string },
+    options: CommandRunOptions,
 ) => Promise<CommandResult>;
+
+export class CommandFailedError extends Error {
+    readonly run: string;
+    readonly shell: Shell;
+    readonly code: number;
+    readonly stdout: string;
+    readonly stderr: string;
+    readonly timedOut: boolean;
+
+    constructor(options: {
+        run: string;
+        shell: Shell;
+        result: CommandResult;
+        timeoutMs?: number;
+    }) {
+        const prefix = options.result.timedOut
+            ? `Command timed out after ${options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS}ms (exit ${options.result.code}): ${options.run}`
+            : `Command failed (exit ${options.result.code}): ${options.run}`;
+
+        super(`${prefix}${options.result.stderr ? `\n${options.result.stderr.trim()}` : ''}`);
+        this.name = 'CommandFailedError';
+        this.run = options.run;
+        this.shell = options.shell;
+        this.code = options.result.code;
+        this.stdout = options.result.stdout;
+        this.stderr = options.result.stderr;
+        this.timedOut = Boolean(options.result.timedOut);
+    }
+}
 
 export class StepVerificationError extends Error {
     readonly step: PlanStep;
@@ -31,11 +84,40 @@ export const defaultExecutor: CommandExecutor = (command, args, options) =>
     new Promise((resolve, reject) => {
         const child = spawn(command, args, {
             cwd: options.cwd,
-            stdio: ['ignore', 'pipe', 'pipe'],
+            env: options.env ? { ...process.env, ...options.env } : process.env,
+            stdio: [options.input === 'inherit' ? 'inherit' : 'ignore', 'pipe', 'pipe'],
             windowsHide: true,
+            // Node's libuv re-quoting would fight cmd.exe's own quote handling.
+            windowsVerbatimArguments: options.windowsVerbatimArguments ?? false,
         });
         let stdout = '';
         let stderr = '';
+        let timedOut = false;
+        let timer: NodeJS.Timeout | undefined;
+        let killTimer: NodeJS.Timeout | undefined;
+
+        const timeoutMs = options.timeoutMs ?? 0;
+
+        if (timeoutMs > 0) {
+            timer = setTimeout(() => {
+                timedOut = true;
+                child.kill('SIGTERM');
+                // Windows installers sometimes ignore SIGTERM; make sure the tree ends.
+                killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+                killTimer.unref?.();
+            }, timeoutMs);
+            timer.unref?.();
+        }
+
+        const cleanup = (): void => {
+            if (timer) {
+                clearTimeout(timer);
+            }
+
+            if (killTimer) {
+                clearTimeout(killTimer);
+            }
+        };
 
         child.stdout?.on('data', (chunk: Buffer) => {
             const text = chunk.toString();
@@ -47,30 +129,185 @@ export const defaultExecutor: CommandExecutor = (command, args, options) =>
             stderr += text;
             process.stderr.write(text);
         });
-        child.on('error', reject);
-        child.on('close', (code) => resolve({ code: code ?? 1, stdout, stderr }));
+        child.on('error', (error) => {
+            cleanup();
+            reject(error);
+        });
+        child.on('close', (code, signal) => {
+            cleanup();
+            resolve({
+                code: code ?? (timedOut ? TIMEOUT_EXIT_CODE : 1),
+                stdout,
+                stderr,
+                signal: signal ?? null,
+                ...(timedOut ? { timedOut: true } : {}),
+            });
+        });
     });
+
+export interface ShellCommand {
+    command: string;
+    args?: string[];
+}
 
 export interface ShellInvocation {
     command: string;
     args: string[];
+    /** The script that was handed to the shell, after per-shell normalisation. */
+    script: string;
+    /** Only set for cmd.exe; pass through to `spawn`. */
+    windowsVerbatimArguments?: boolean;
+}
+
+/**
+ * Quote one argument for the target shell. The value is always wrapped, so paths with spaces,
+ * `&`, `;`, `$` or quotes survive verbatim.
+ */
+export function shellQuote(shell: Shell, value: string): string {
+    switch (shell) {
+        case 'bash':
+            // End the single-quoted string, emit an escaped quote, reopen it: 'it'\''s'.
+            return `'${value.replace(/'/g, `'\\''`)}'`;
+        case 'powershell':
+            // PowerShell single quotes are literal; a literal quote is doubled.
+            return `'${value.replace(/'/g, `''`)}'`;
+        case 'cmd':
+            // cmd has no backslash escapes; a quote inside a quoted value is doubled.
+            return `"${value.replace(/"/g, '""')}"`;
+        default:
+            throw new Error(`Unsupported shell: ${String(shell)}`);
+    }
+}
+
+/** Build a shell script from an executable and its arguments, quoting each part per shell. */
+export function buildShellCommand(shell: Shell, command: string, args: string[] = []): string {
+    return [command, ...args].map((part) => shellQuote(shell, part)).join(' ');
+}
+
+/**
+ * Split a script on a top-level operator (`&&`) while respecting single and double quotes.
+ * `'a && b' && c` yields `["'a && b'", ' c']`.
+ */
+export function splitTopLevel(script: string, operator: string): string[] {
+    const parts: string[] = [];
+    let current = '';
+    let quote: "'" | '"' | null = null;
+    let index = 0;
+
+    while (index < script.length) {
+        const char = script[index] as string;
+
+        if (quote === "'") {
+            current += char;
+
+            if (char === "'") {
+                // A doubled quote stays inside the literal in PowerShell; harmless for bash too.
+                if (script[index + 1] === "'") {
+                    current += "'";
+                    index += 2;
+                    continue;
+                }
+
+                quote = null;
+            }
+
+            index += 1;
+            continue;
+        }
+
+        if (quote === '"') {
+            current += char;
+
+            if (char === '\\' && script[index + 1] !== undefined) {
+                current += script[index + 1];
+                index += 2;
+                continue;
+            }
+
+            if (char === '"') {
+                quote = null;
+            }
+
+            index += 1;
+            continue;
+        }
+
+        if (char === "'" || char === '"') {
+            quote = char;
+            current += char;
+            index += 1;
+            continue;
+        }
+
+        if (script.startsWith(operator, index)) {
+            parts.push(current);
+            current = '';
+            index += operator.length;
+            continue;
+        }
+
+        current += char;
+        index += 1;
+    }
+
+    parts.push(current);
+
+    return parts;
+}
+
+/**
+ * Windows PowerShell 5.1 (the `powershell` binary on win32) has no `&&`. Rewrite a chain into
+ * nested `if ($?)` blocks, which keep the same short-circuit behaviour. PowerShell 7 keeps `&&`.
+ */
+export function normalizeShellScript(
+    shell: Shell,
+    script: string,
+    platform: NodeJS.Platform = process.platform,
+): string {
+    if (shell !== 'powershell' || platform !== 'win32' || !script.includes('&&')) {
+        return script;
+    }
+
+    const parts = splitTopLevel(script, '&&').map((part) => part.trim());
+
+    if (parts.length === 1) {
+        return script;
+    }
+
+    return parts.reduceRight((next, part, index) =>
+        index === parts.length - 1 ? part : `${part}; if ($?) { ${next} }`,
+    );
 }
 
 export function shellInvocation(
-    shell: 'powershell' | 'cmd' | 'bash',
-    run: string,
+    shell: Shell,
+    run: string | ShellCommand,
     platform: NodeJS.Platform = process.platform,
 ): ShellInvocation {
+    const script = normalizeShellScript(
+        shell,
+        typeof run === 'string' ? run : buildShellCommand(shell, run.command, run.args),
+        platform,
+    );
+
     switch (shell) {
         case 'powershell':
             return {
                 command: platform === 'win32' ? 'powershell' : 'pwsh',
-                args: ['-NoProfile', '-Command', run],
+                args: ['-NoProfile', '-Command', script],
+                script,
             };
         case 'cmd':
-            return { command: platform === 'win32' ? 'cmd' : 'cmd', args: ['/d', '/s', '/c', run] };
+            // cmd /s /c strips exactly the first and last quote, so wrapping is the safe form for
+            // paths with spaces as well as for `&&` chains. Verbatim args keep our quoting intact.
+            return {
+                command: 'cmd',
+                args: ['/d', '/s', '/c', `"${script}"`],
+                script,
+                windowsVerbatimArguments: true,
+            };
         case 'bash':
-            return { command: 'bash', args: ['-c', run] };
+            return { command: 'bash', args: ['-c', script], script };
         default:
             throw new Error(`Unsupported shell: ${String(shell)}`);
     }
@@ -119,6 +356,13 @@ export interface RunStepOptions {
     confirm?: (question: string) => Promise<boolean>;
     log?: (line: string) => void;
     warn?: (line: string) => void;
+    /** Extra environment for every command in the step; merged over the inherited environment. */
+    env?: NodeJS.ProcessEnv;
+    /** Per-command watchdog; defaults to `DEFAULT_COMMAND_TIMEOUT_MS`. 0 disables it. */
+    timeoutMs?: number;
+    /** `inherit` lets an installer prompt on the terminal. */
+    input?: 'ignore' | 'inherit';
+    platform?: NodeJS.Platform;
 }
 
 export interface RunStepResult {
@@ -135,8 +379,12 @@ function checkLabel(check: VerifyCheck): string {
         case 'dir_exists':
             return `dir_exists ${check.path}`;
         case 'command':
-            return `command ${check.command}`;
+            return `command ${[check.command, ...(check.args ?? [])].join(' ')}`;
     }
+}
+
+function resolveCheckPath(path: string, cwd: string): string {
+    return isAbsolute(path) ? path : join(cwd, path);
 }
 
 async function runCheck(
@@ -146,26 +394,42 @@ async function runCheck(
 ): Promise<{ check: VerifyCheck; ok: boolean; detail: string }> {
     switch (check.type) {
         case 'file_exists': {
-            const path = check.path.startsWith('/') ? check.path : join(options.cwd, check.path);
+            const path = resolveCheckPath(check.path, options.cwd);
             const ok = await fileExists(path);
 
             return { check, ok, detail: `${path} ${ok ? 'exists' : 'is missing'}` };
         }
         case 'dir_exists': {
-            const path = check.path.startsWith('/') ? check.path : join(options.cwd, check.path);
+            const path = resolveCheckPath(check.path, options.cwd);
             const ok = await isDirectory(path);
 
             return { check, ok, detail: `${path} ${ok ? 'exists' : 'is missing'}` };
         }
         case 'command': {
             const executor = options.executor ?? defaultExecutor;
-            const invocation = shellInvocation(check.shell ?? 'bash', check.command);
+            const invocation = shellInvocation(
+                check.shell ?? 'bash',
+                { command: check.command, args: check.args },
+                options.platform,
+            );
 
             log(`  verify: ${checkLabel(check)}`);
 
-            const result = await executor(invocation.command, invocation.args, { cwd: options.cwd });
+            const result = await executor(invocation.command, invocation.args, {
+                cwd: options.cwd,
+                env: options.env,
+                timeoutMs: options.timeoutMs,
+                input: 'ignore',
+                windowsVerbatimArguments: invocation.windowsVerbatimArguments,
+            });
 
-            return { check, ok: result.code === 0, detail: `exit code ${result.code}` };
+            return {
+                check,
+                ok: result.code === 0,
+                detail: result.timedOut
+                    ? `timed out after ${options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS}ms`
+                    : `exit code ${result.code}`,
+            };
         }
     }
 }
@@ -176,6 +440,25 @@ export async function runPlanStep(step: PlanStep, options: RunStepOptions): Prom
     const variables = options.variables ?? {};
     const resolved = applyStepVariables(step, variables);
     const result: RunStepResult = { step: resolved, skipped: false, commands: [], verify: [] };
+
+    // A dry run has no side effects: no prompt, no download, no process, no filesystem check.
+    if (options.dryRun) {
+        log(`${step.optional ? '[optional] ' : ''}${step.title}`);
+
+        for (const command of resolved.commands ?? []) {
+            log(`  [dry-run] ${command.shell}: ${command.run}`);
+        }
+
+        for (const download of resolved.downloads ?? []) {
+            log(`  [dry-run] download: ${download.filename} ← ${download.url}`);
+        }
+
+        for (const check of resolved.verify ?? []) {
+            log(`  [dry-run] verify: ${checkLabel(check)}`);
+        }
+
+        return result;
+    }
 
     if (step.optional) {
         const run = options.yes
@@ -192,19 +475,8 @@ export async function runPlanStep(step: PlanStep, options: RunStepOptions): Prom
 
     log(`${step.optional ? '[optional] ' : ''}${step.title}`);
 
-    if (options.dryRun) {
-        for (const command of resolved.commands ?? []) {
-            log(`  [dry-run] ${command.shell}: ${command.run}`);
-        }
-
-        for (const check of resolved.verify ?? []) {
-            log(`  [dry-run] verify: ${checkLabel(check)}`);
-        }
-
-        return result;
-    }
-
     const executor = options.executor ?? defaultExecutor;
+    const timeoutMs = options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
 
     for (const command of resolved.commands ?? []) {
         if (command.optional && !options.yes) {
@@ -218,26 +490,31 @@ export async function runPlanStep(step: PlanStep, options: RunStepOptions): Prom
             }
         }
 
-        const invocation = shellInvocation(command.shell, command.run);
+        const invocation = shellInvocation(command.shell, command.run, options.platform);
         log(`  $ ${command.shell}: ${command.run}`);
 
         const commandResult = await executor(invocation.command, invocation.args, {
             cwd: options.cwd,
+            env: options.env,
+            timeoutMs,
+            input: options.input ?? 'ignore',
+            windowsVerbatimArguments: invocation.windowsVerbatimArguments,
         });
 
         result.commands.push(commandResult);
 
         if (commandResult.code !== 0) {
-            throw new Error(
-                `Command failed (exit ${commandResult.code}): ${command.run}${
-                    commandResult.stderr ? `\n${commandResult.stderr.trim()}` : ''
-                }`,
-            );
+            throw new CommandFailedError({
+                run: command.run,
+                shell: command.shell,
+                result: commandResult,
+                timeoutMs,
+            });
         }
     }
 
     for (const check of resolved.verify ?? []) {
-        const verified = await runCheck(check, options, log);
+        const verified = await runCheck(check, { ...options, timeoutMs }, log);
 
         result.verify.push(verified);
 

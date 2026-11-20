@@ -73,6 +73,21 @@ The token is never printed. `logout` deletes only this file; MCP configuration a
 Environment overrides: `LANOMAT_CONFIG_DIR`, `XDG_CONFIG_HOME`, `LANOMAT_PI_DIR`,
 `LANOMAT_SKILLS_DIR`, `LANOMAT_AVATARS_DIR`.
 
+#### Config file lifecycle
+
+`agent.json` carries `"version": 2`. Loading is self-healing:
+
+| Situation | What happens |
+|---|---|
+| v1 file (no `version`, legacy `expires_at` / `user_name`) | migrated in memory and written back as v2; unrelated keys survive |
+| Corrupt JSON | renamed to `agent.json.corrupt-<timestamp>`, then `agent.json.bak` is restored if it is valid |
+| Unreadable/corrupt without a backup | the corrupt file is quarantined and `loadConfig` returns "not logged in" |
+| Group/other permission bits set | chmodded back to `0700` (dir) and `0600` (file) on load |
+| Normal save | previous valid file copied to `agent.json.bak` (0600), new file written atomically via temp file + rename |
+
+`logout` removes the config, its `.bak` and every `agent.json.corrupt-*` file so no token survives
+in a backup. Unrelated keys (written by a future agent version) are preserved by every save.
+
 ### pi setup: MCP server
 
 ```bash
@@ -181,6 +196,48 @@ lanomat-agent model setup --model venice/zai-org-glm-5
 `doctor` performs a tiny **tool-call probe** (64 output tokens, because reasoning models spend the first tokens on thinking) against the configured model and reports whether
 `tool_calls` came back — without printing the key.
 
+### Doctor
+
+```bash
+lanomat-agent doctor            # human-readable
+lanomat-agent doctor --json     # stable machine-readable report
+```
+
+Checks (in this order; optional ones only warn): `Config`, `Config permissions`, `Token`, `Server`,
+`MCP endpoint`, `pi`, `Skills`, `smbclient` (Linux only), `Venice key`, `models.json`,
+`Model catalog`, `Tool calls` and `Tool calls (fallback)`. The server check distinguishes a
+**rejected token** (`HTTP 401` → run `lanomat-agent login`) from an **offline server**
+(`offline — cannot reach …`), so a LAN outage does not look like an expired session. The
+`Skills` check verifies the directory is writable, not just present.
+
+Exit code: `0` when every required check passes, `1` otherwise (`--json` included).
+
+`--json` prints exactly this shape. The field names and order are stable; additive fields may
+appear under a future `schema` value:
+
+```json
+{
+  "schema": "lanomat-agent-doctor/1",
+  "generated_at": "2026-11-21T10:00:00.000Z",
+  "ok": false,
+  "summary": { "total": 10, "passed": 3, "failed": 2, "warnings": 5 },
+  "checks": [
+    {
+      "name": "Server",
+      "ok": false,
+      "required": true,
+      "detail": "offline — cannot reach http://lanomat.local: fetch failed"
+    }
+  ],
+  "model": { "provider": "venice", "model": "venice/…", "source": "default" },
+  "roles": [{ "name": "chat", "value": "venice/…", "source": "default" }]
+}
+```
+
+`required` marks a check that can fail the whole report; `ok` is the check result. The token, the
+Venice API key, `LANOMAT_TOKEN`, and credentials inside URLs are redacted from every `detail`, so
+the JSON is safe to paste into a ticket.
+
 ### Bring your own OpenAI-compatible endpoint
 
 No LANoMAT account or Venice key is needed for the provider setup. Any OpenAI-compatible chat
@@ -266,7 +323,8 @@ lanomat-agent install ut2004 --os windows
    `--avatar` is given;
 4. downloads every LAN file first (resume-safe `.part`, HTTP Range, sha256 verification when the
    server sends one) and then the avatars in parallel (default `--jobs 4`), to the plan's
-   `target_dir` and to `{{avatars}}`;
+   `target_dir` and to `{{avatars}}`; a transfer that delivers no bytes for 60 s is aborted and the
+   `.part` file is kept for the next attempt;
 5. runs the plan's `commands` for the OS (`powershell`, `cmd`, `bash`) in the target directory,
    substitutes `{{avatars}}`, `{{target_dir}}`, `{{os}}`, `{{slug}}`, `{{event}}` and
    `{{recipe_dir}}`, asks before optional steps unless `--yes`, and runs the `verify` checks after
@@ -275,6 +333,26 @@ lanomat-agent install ut2004 --os windows
 
 `--allow-external` is required for files that are not on the LAN. Such files are marked `EXTERNAL`
 in the plan and in the installer output. Only LAN files are downloaded by default.
+
+#### How step commands are run
+
+Every `commands[].run` string is handed to the shell named in the plan:
+
+| `shell` | Invocation |
+|---|---|
+| `bash` | `bash -c '<script>'` |
+| `powershell` | `powershell -NoProfile -Command '<script>'` (win32) / `pwsh` (elsewhere) |
+| `cmd` | `cmd /d /s /c "<script>"` with verbatim args |
+
+Quote rules are per shell, so a command built from an executable and arguments keeps paths with
+spaces intact (`'/opt/My Games/run.sh' '--dir' '/opt/My Games'`, `"C:\My Games\run.bat"`). `&&`
+chains stay as written for `bash`, `cmd` and PowerShell 7; on Windows PowerShell 5.1 (`powershell`)
+they are rewritten to nested `if ($?) { … }` guards with the same short-circuit behaviour.
+
+The executor inherits the agent's environment and merges any step-specific entries over it. A
+command that does not finish within **30 minutes** is killed and reported as exit code **124**.
+Any non-zero exit stops the step with the real code and stderr; `--dry-run` prompts for nothing,
+downloads nothing and runs no verify check.
 
 ## Launch from the web games page
 
@@ -345,8 +423,9 @@ Local download directory:
 
 Override with `--dest <dir>` or `LANOMAT_AVATARS_DIR`. The directory keeps a `manifest.json` with
 the source server URL, `fetched_at`, and the downloaded avatar records. Downloads support resume via
-HTTP Range + `.part`, sha256 verification, and never overwrite a verified existing file. The
-progress display is compact: bytes, percentage, speed, per-file state.
+HTTP Range + `.part`, sha256 verification, and never overwrite a verified existing file; a stalled
+transfer is aborted after 60 s without bytes. The progress display is compact: bytes, percentage,
+speed, per-file state.
 
 `install` places avatars in `plan.avatars_dir` when the server sends it, else the default directory,
 and passes that path to step commands as `{{avatars}}`. This is the UT2004+VRM path.
@@ -369,7 +448,7 @@ and passes that path to step commands as `{{avatars}}`. This is the UT2004+VRM p
 | `ask <prompt…> [--model] [--provider] [--print-command]` | pi session with LANoMAT MCP + skills |
 | `model setup [--key] [--model] [--provider]` | Venice/OpenAI-compatible provider |
 | `model roles [--set role=model]` | chat/decision/stt/tts config |
-| `doctor [--json]` | config, server, MCP, pi, skills, smbclient, Venice key/models, tool-call probe |
+| `doctor [--json]` | config, permissions, token, server (401 vs offline), MCP, pi, skills, smbclient, Venice key/models, tool-call probe; `--json` is the stable `lanomat-agent-doctor/1` report |
 
 ## Troubleshooting
 

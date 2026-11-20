@@ -85,7 +85,8 @@ describe('launch', () => {
         expect(result.code).toBe(0);
         expect(calls[0]).toMatchObject({
             command: 'cmd',
-            args: ['/d', '/s', '/c', `start "" "${target}"`],
+            // cmd /s /c strips exactly the outer pair, so the runner wraps the whole script.
+            args: ['/d', '/s', '/c', `"start "" "${target}""`],
         });
     });
 
