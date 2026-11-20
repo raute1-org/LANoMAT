@@ -1,0 +1,142 @@
+schema: lanomat.recipe/v1
+slug: crash-team-racing
+title: Crash Team Racing
+aliases: ["ctr", "crash team racing"]
+version: "1.0.0"
+status: draft
+platforms: [windows, linux]
+summary: Race Crash Team Racing on the LAN in DuckStation with the user's own PS1 disc, a scph5501 BIOS and a four-player-capable pad setup.
+description: |
+  Crash Team Racing is the PlayStation kart racer with adventure mode, relic
+  races and up to four players on one screen. DuckStation runs the user's own
+  USA disc with a PlayStation BIOS.
+
+  The LAN baseline is one PC per screen with local split-screen, or one PC per
+  player over the venue's own linking rules. CTR has no native LAN mode; treat
+  four-player split-screen as the verified path.
+
+  The LAN collection also has "Crash Team Racing: High Octane", a native
+  recomp build. This recipe keeps DuckStation as the portable baseline.
+  Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://www.duckstation.org/
+license: "Sony/Naughty Dog; disc and BIOS user-supplied"
+cover: ""
+skill:
+  name: crash-team-racing
+  description: "Install Crash Team Racing with DuckStation, add the user's PS1 disc and scph5501 BIOS, configure enhancement settings and up to four controllers, and verify the game boots. Use when the user says install CTR or Crash Team Racing for the LAN."
+  compatibility: "Windows 10/11 or Linux; DuckStation; ~700 MB disk; one pad per player"
+requires:
+  - role: iso
+    label: "Crash Team Racing (USA) disc image"
+    match: ["*Crash*Team*Racing*.bin", "*Crash*Team*Racing*.cue", "*Crash*Team*Racing*.chd"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "USA disc preferred. Keep the CUE beside its BIN; a CHD is a single-file alternative."
+  - role: base
+    label: "PlayStation BIOS (scph5501.bin, NTSC-U)"
+    match: ["scph5501.bin", "scph*.bin"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "DuckStation needs a BIOS. NTSC-U scph5501.bin matches the USA disc; PAL discs want scph5502.bin."
+  - role: tool
+    label: "DuckStation emulator"
+    match: ["duckstation-*.zip", "DuckStation*.zip", "duckstation*.AppImage"]
+    required: true
+    url: https://www.duckstation.org/
+    notes: "Use a current release. The emulator is portable; keep the BIOS folder beside it."
+steps:
+  - id: install-duckstation
+    title: "Install DuckStation"
+    os: windows
+    optional: false
+    detail: |
+      Extract the DuckStation release to `{{target}}`, or install the Linux
+      AppImage/package. Launch once so it creates its settings and `bios`
+      folder.
+    commands:
+      - shell: powershell
+        run: 'Expand-Archive -Path "{{downloads}}/duckstation-windows-x64-release.zip" -DestinationPath "{{target}}" -Force'
+    verify:
+      - type: file_exists
+        path: '{{target}}/duckstation-qt-x64-ReleaseLTCG.exe'
+  - id: install-bios
+    title: "Add the PlayStation BIOS"
+    os: any
+    optional: false
+    detail: |
+      Copy `scph5501.bin` into DuckStation's `bios` folder and select it in
+      Settings → BIOS. Never download a BIOS for the user.
+
+      If the folder is different, point DuckStation at the user's BIOS path in
+      the same settings page.
+    commands:
+      - shell: powershell
+        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/bios" | Out-Null'
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/scph5501.bin" -Destination "{{target}}/bios/scph5501.bin" -Force'
+      - shell: bash
+        run: 'mkdir -p "{{target}}/bios"'
+      - shell: bash
+        run: 'cp "{{downloads}}/scph5501.bin" "{{target}}/bios/scph5501.bin"'
+    verify:
+      - type: file_exists
+        path: '{{target}}/bios/scph5501.bin'
+  - id: import-disc
+    title: "Import the disc"
+    os: any
+    optional: false
+    detail: |
+      Put the CUE/BIN or CHD in `{{target}}/Games` and add the folder in
+      DuckStation's game list. Confirm the serial and region before starting.
+
+      Do not rename a CUE's referenced BIN.
+    commands:
+      - shell: powershell
+        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/Crash Team Racing (USA).cue" -Destination "{{target}}/Games/" -Force'
+      - shell: bash
+        run: 'mkdir -p "{{target}}/Games"'
+      - shell: bash
+        run: 'cp "{{downloads}}/Crash Team Racing (USA).cue" "{{target}}/Games/"'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Games/Crash Team Racing (USA).cue'
+  - id: configure-graphics
+    title: "Configure enhancements"
+    os: any
+    optional: false
+    detail: |
+      Set the internal resolution to 4x–6x, enable PGXP geometry correction and
+      texture filtering for clean edges, and keep the aspect ratio at 4:3.
+
+      CTR's split-screen is sensitive to frame pacing; enable VSync and leave
+      the frame limit at the game's native rate.
+  - id: configure-controllers
+    title: "Configure up to four pads"
+    os: any
+    optional: false
+    detail: |
+      Map Port 1 to a pad, then Port 2–4 for local multiplayer. CTR uses
+      accelerate, brake, hop/drift and items; verify the drift and the boost
+      timing, which are the parts a generic mapping gets wrong.
+
+      Save one profile per port and test a four-player race before the LAN.
+  - id: verify
+    title: "Race one cup"
+    os: any
+    optional: false
+    detail: |
+      Boot the game, start Adventure or Arcade, finish one race and save to a
+      memory card. Check the intro, the split-screen and the controller ports.
+
+      Draft recipe: the four-player mapping and the native High Octane build
+      still need a LAN check.
+metadata:
+  genre: racing
+  players: "1-4 (split-screen)"
+  lan_recommended: true
+  tags: [racing, kart, psx, 4-player, duckstation]

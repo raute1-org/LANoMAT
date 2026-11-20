@@ -1,0 +1,141 @@
+schema: lanomat.recipe/v1
+slug: dragon-ball-z-budokai-tenkaichi-3
+title: "Dragon Ball Z: Budokai Tenkaichi 3"
+aliases: ["bt3", "budokai tenkaichi 3", "tenkaichi 3", "dbz bt3"]
+version: "1.0.0"
+status: draft
+platforms: [windows, linux]
+summary: Play Budokai Tenkaichi 3 on the LAN in PCSX2 with the user's own PS2 disc, a BIOS dump and two controllers for local versus.
+description: |
+  Budokai Tenkaichi 3 is the PS2 arena fighter with the largest roster of the
+  Tenkaichi line: 3D flight, beam clashes and local two-player versus. PCSX2
+  runs the user's own PS2 disc with a BIOS dump from the user's console.
+
+  The LAN collection also has "BT3 - Tenkaichi3Decomp", a native decompilation
+  build, and a `BT3 - Tenkaichi3Decomp.lnk`. This recipe keeps PCSX2 as the
+  portable baseline; the native build is a separate path.
+
+  A 60 fps patch is common for this game. It changes the game's speed feel, so
+  enable it only after both players agree and test the input timing.
+  Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://pcsx2.net/
+license: "Bandai Namco; disc and BIOS user-supplied"
+cover: ""
+skill:
+  name: dragon-ball-z-budokai-tenkaichi-3
+  description: "Install Dragon Ball Z: Budokai Tenkaichi 3 with PCSX2, add the user's PS2 disc and BIOS, configure two controllers and graphics, and verify a local versus match. Use when the user says install Budokai Tenkaichi 3, BT3 or Tenkaichi 3 for the LAN."
+  compatibility: "Windows 10/11 or Linux; PCSX2; ~4 GB disk; two gamepads for versus"
+requires:
+  - role: iso
+    label: "Budokai Tenkaichi 3 (USA) PS2 disc image"
+    match: ["*Budokai*Tenkaichi*3*.iso", "*budokai*tenkaichi*3*.iso", "*Budokai*Tenkaichi*3*.chd"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "USA disc preferred. The PAL release and the Wii version are different builds; this recipe is the PS2 game."
+  - role: base
+    label: "PlayStation 2 BIOS"
+    match: ["scph*.bin", "*bios*.bin"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "Dumped from the user's own PS2; region should match the disc."
+  - role: tool
+    label: "PCSX2 emulator"
+    match: ["pcsx2-*.zip", "PCSX2*.zip", "pcsx2*.AppImage"]
+    required: true
+    url: https://pcsx2.net/
+    notes: "Current stable Qt build."
+steps:
+  - id: install-pcsx2
+    title: "Install PCSX2"
+    os: windows
+    optional: false
+    detail: |
+      Extract PCSX2 to `{{target}}` or install the Linux build, then run the
+      first-start wizard.
+    commands:
+      - shell: powershell
+        run: 'Expand-Archive -Path "{{downloads}}/pcsx2-*.zip" -DestinationPath "{{target}}" -Force'
+    verify:
+      - type: file_exists
+        path: '{{target}}/pcsx2-qt.exe'
+  - id: install-bios
+    title: "Add the PS2 BIOS"
+    os: any
+    optional: false
+    detail: |
+      Copy the user's BIOS dump into `{{target}}/bios` and select it in
+      Settings → BIOS. Do not download a BIOS for the user.
+
+      A mismatched region can boot but break saves; keep the USA BIOS with the
+      USA disc.
+    commands:
+      - shell: powershell
+        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/bios" | Out-Null'
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/scph70012.bin" -Destination "{{target}}/bios/" -Force'
+      - shell: bash
+        run: 'mkdir -p "{{target}}/bios"'
+      - shell: bash
+        run: 'cp "{{downloads}}/scph70012.bin" "{{target}}/bios/"'
+    verify:
+      - type: file_exists
+        path: '{{target}}/bios/scph70012.bin'
+  - id: import-disc
+    title: "Import the disc"
+    os: any
+    optional: false
+    detail: |
+      Put the ISO or CHD in `{{target}}/Games`, add the folder in PCSX2, and
+      confirm the serial. The game list should show Budokai Tenkaichi 3, not
+      Tenkaichi 2 or the Wii release.
+    commands:
+      - shell: powershell
+        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/Dragon Ball Z - Budokai Tenkaichi 3 (USA).iso" -Destination "{{target}}/Games/" -Force'
+      - shell: bash
+        run: 'mkdir -p "{{target}}/Games"'
+      - shell: bash
+        run: 'cp "{{downloads}}/Dragon Ball Z - Budokai Tenkaichi 3 (USA).iso" "{{target}}/Games/"'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Games/Dragon Ball Z - Budokai Tenkaichi 3 (USA).iso'
+  - id: configure-graphics
+    title: "Configure graphics and the 60 fps patch"
+    os: any
+    optional: false
+    detail: |
+      Use Vulkan, 3x–4x resolution and the default frame limit. The game's
+      effects are heavy; drop to 2x if the GPU drops frames during beam
+      clashes.
+
+      The 60 fps patch is optional. Enable it in PCSX2's patch manager only for
+      the exact disc revision, and test the input timing in a mirror match.
+  - id: configure-controllers
+    title: "Configure two controllers"
+    os: any
+    optional: false
+    detail: |
+      Map Port 1 and Port 2 to two pads. Verify movement, melee, ki blast,
+      guard and transformation, then run a local versus match to check both
+      ports.
+
+      Save the profiles as "LAN pad 1" and "LAN pad 2".
+  - id: verify
+    title: "Fight a versus match"
+    os: any
+    optional: false
+    detail: |
+      Boot the game, start a two-player versus match, finish it and save. Check
+      the intro, the character select and the memory card.
+
+      Draft recipe: the 60 fps patch and the native decomp build still need a
+      LAN check.
+metadata:
+  genre: fighting
+  players: "1-2 (local versus)"
+  lan_recommended: true
+  tags: [fighting, ps2, anime, 2-player, pcsx2]
