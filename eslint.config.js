@@ -84,6 +84,13 @@ export default defineConfigWithVueTs(
             'resources/js/components/ui/*',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
+            // Separate sub-projects with their own toolchains and tsconfigs:
+            // the agent (`npm run lint` there), the Zudoku docs site and the
+            // recipe schema validator. The root project service cannot parse
+            // them and their style is not the app's.
+            'clients/agent/**',
+            'docs-site/**',
+            'resources/recipes/**',
         ],
     },
     prettier,

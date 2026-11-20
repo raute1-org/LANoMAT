@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { useModules } from '@/composables/useModules';
 import { LayoutDashboard, LogOut, Settings } from '@lucide/vue';
 import Dashboard from '@/actions/Filament/Pages/Dashboard';
 import {
@@ -10,6 +9,7 @@ import {
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
+import { useModules } from '@/composables/useModules';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
