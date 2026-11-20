@@ -143,10 +143,13 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     });
     const steps = plan.steps.filter((step) => stepAppliesToOs(step, options.os));
     const planForDownloads: RecipePlan = { ...plan, steps };
-    const targetDir = options.targetDir ?? expandTargetDir(plan.target_dir || process.cwd(), {
-        home: process.env.HOME ?? '',
-    });
     const avatarDir = avatarDestDir(plan, options, env);
+    const targetDir =
+        options.targetDir ??
+        expandTargetDir(plan.target_dir || process.cwd(), {
+            home: process.env.HOME ?? '',
+            avatars: avatarDir,
+        });
     const missing = missingRequiredFiles(plan);
     const empty: InstallResult = {
         code: 0,
