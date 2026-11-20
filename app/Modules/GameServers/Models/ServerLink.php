@@ -100,6 +100,26 @@ class ServerLink extends Model
     }
 
     /**
+     * Whether this link points at a server on the Pelican panel (both ids set).
+     *
+     * A permanent server of `source=External` can carry this link too ("adopted"):
+     * it stays External (registered address, A2S probing, and removing the entry
+     * never touches the panel) but LANoMAT may then read/write its startup
+     * variables and files, run console commands and send power signals through
+     * the Pelican API. A `source=Pelican` server is always linked.
+     */
+    public function hasPelicanLink(): bool
+    {
+        return $this->pelican_server_id !== null && $this->pelican_server_identifier !== null;
+    }
+
+    /** Whether an admin can start/stop/restart it from LANoMAT. */
+    public function canBeControlled(): bool
+    {
+        return $this->source->canControl() || $this->hasPelicanLink();
+    }
+
+    /**
      * Permanent servers only (see the `permanent` column).
      *
      * @param  Builder<ServerLink>  $query

@@ -17,6 +17,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Added
 
+- Game servers: settings page `Server-Einstellungen` (admin panel, orga and admin) for permanent CS2 servers: name, map (allowlist or workshop id), mode, max players and password written to the Pelican startup variables, save and restart, live map change and start/stop/restart, plus the GunGame plugin form (settings and weapon order, merged into the server files). External servers are adopted into Pelican management with `php artisan gameservers:link-pelican` (stay `source=External`, new `PelicanClient` methods `updateStartupVariables`, `sendCommand`, `readFile`, `writeFile`); see `docs/infra/permanent-server-settings.md`
 - Admin: admins can change another user's role from the user page ("Rolle ändern"); an admin cannot change their own role and the last admin cannot be demoted; changes are logged
 - Files: uploads by an admin are approved on arrival (the admin is recorded as reviewer); uploads of everyone else still wait for approval
 - Files: admins can set an upload quota per user (user page, "Dateikontingent"); empty keeps the default `FILES_PER_USER_QUOTA_MB`. New nullable `users.files_quota_mb`, not mass assignable; the quota check, the page readout and the native client API use it

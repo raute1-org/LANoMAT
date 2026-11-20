@@ -243,6 +243,48 @@ class HttpPelicanClient implements PelicanClient
         $this->send(false, 'POST', "/api/application/servers/{$serverId}/reinstall", retry: false, what: "server {$serverId}");
     }
 
+    public function updateStartupVariables(string $serverId, array $variables): void
+    {
+        $response = $this->send(false, 'GET', "/api/application/servers/{$serverId}", what: "server {$serverId}");
+        $attributes = $this->attributes($response);
+
+        /** @var array<string, mixed> $container */
+        $container = is_array($attributes['container'] ?? null) ? $attributes['container'] : [];
+        $image = $container['image'] ?? null;
+        $egg = $attributes['egg'] ?? null;
+
+        if (! is_string($image) || $image === '' || ! (is_int($egg) || (is_string($egg) && $egg !== ''))) {
+            throw GameServerException::pelicanUnavailable(null, 'Unexpected response shape.');
+        }
+
+        $environment = is_array($container['environment'] ?? null) ? $container['environment'] : [];
+        $payload = [
+            'startup' => (string) ($container['startup_command'] ?? ''),
+            'environment' => [...$environment, ...$variables],
+            'egg' => (int) $egg,
+            'image' => $image,
+            'skip_scripts' => true,
+        ];
+
+        // PATCH, no retry: the panel re-validates the whole startup definition.
+        $this->send(false, 'PATCH', "/api/application/servers/{$serverId}/startup", json: $payload, retry: false, what: "server {$serverId}");
+    }
+
+    public function sendCommand(string $identifier, string $command): void
+    {
+        $this->send(true, 'POST', "/api/client/servers/{$identifier}/command", json: ['command' => $command], retry: false, what: "server {$identifier}");
+    }
+
+    public function readFile(string $identifier, string $path): string
+    {
+        return $this->send(true, 'GET', "/api/client/servers/{$identifier}/files/contents", ['file' => $path], what: "file {$path}")->body();
+    }
+
+    public function writeFile(string $identifier, string $path, string $contents): void
+    {
+        $this->send(true, 'POST', "/api/client/servers/{$identifier}/files/write", ['file' => $path], retry: false, what: "file {$path}", body: $contents, bodyContentType: 'text/plain');
+    }
+
     // -- transport ----------------------------------------------------------
 
     /**
@@ -251,7 +293,7 @@ class HttpPelicanClient implements PelicanClient
      *
      * @throws GameServerException
      */
-    private function send(bool $clientApi, string $method, string $path, array $query = [], ?array $json = null, bool $retry = true, string $what = '', ?string $body = null): Response
+    private function send(bool $clientApi, string $method, string $path, array $query = [], ?array $json = null, bool $retry = true, string $what = '', ?string $body = null, string $bodyContentType = 'application/yaml'): Response
     {
         $token = $clientApi ? $this->clientToken : $this->applicationToken;
 
@@ -272,7 +314,7 @@ class HttpPelicanClient implements PelicanClient
 
         try {
             $response = $body !== null
-                ? $request->withBody($body, 'application/yaml')->post($url)
+                ? $request->withBody($body, $bodyContentType)->post($url.($query === [] ? '' : '?'.http_build_query($query)))
                 : $this->dispatch($request, $method, $url, $query, $json);
         } catch (ConnectionException $e) {
             throw GameServerException::pelicanUnavailable(null, 'Connection failed.');
@@ -294,6 +336,7 @@ class HttpPelicanClient implements PelicanClient
         return match ($method) {
             'GET' => $request->get($url, $query),
             'DELETE' => $request->delete($url, $json ?? []),
+            'PATCH' => $request->patch($url, $json ?? []),
             default => $request->post($url, $json ?? []),
         };
     }
