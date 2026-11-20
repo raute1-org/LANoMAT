@@ -492,3 +492,42 @@ it('sends additional allocations and the allocation feature limit on create', fu
         && $r['allocation'] === ['default' => 2, 'additional' => [3]]
         && $r['feature_limits']['allocations'] === 2);
 });
+
+it('patches the startup with egg, image, command and the whole environment', function () {
+    Http::fake([
+        PANEL.'/api/application/servers/12' => Http::response(['object' => 'server', 'attributes' => pelicanServerAttributes([
+            'container' => ['startup_command' => './run.sh', 'image' => 'ghcr.io/example/cs2:latest', 'installed' => 1, 'environment' => ['SERVER_NAME' => 'Old', 'KEEP' => 'x']],
+        ])]),
+        PANEL.'/api/application/servers/12/startup' => Http::response(['object' => 'server', 'attributes' => pelicanServerAttributes()]),
+    ]);
+
+    pelicanClient()->updateStartupVariables('12', ['SERVER_NAME' => 'New']);
+
+    Http::assertSent(fn (Request $r) => $r->method() === 'PATCH'
+        && $r->url() === PANEL.'/api/application/servers/12/startup'
+        && $r->hasHeader('Authorization', 'Bearer papp_FAKE_APPLICATION')
+        && $r->data() === ['startup' => './run.sh', 'environment' => ['SERVER_NAME' => 'New', 'KEEP' => 'x'], 'egg' => 4, 'image' => 'ghcr.io/example/cs2:latest', 'skip_scripts' => true]);
+});
+
+it('sends console commands and file reads/writes through the client API', function () {
+    Http::fake([
+        PANEL.'/api/client/servers/abcd1234/command' => Http::response('', 204),
+        PANEL.'/api/client/servers/abcd1234/files/contents*' => Http::response("{\n  \"a\": 1\n}\n", 200, ['Content-Type' => 'text/plain']),
+        PANEL.'/api/client/servers/abcd1234/files/write*' => Http::response('', 204),
+    ]);
+    $client = pelicanClient();
+
+    $client->sendCommand('abcd1234', 'changelevel de_dust2');
+    expect($client->readFile('abcd1234', 'game/csgo/cfg/gungame/gungame.json'))->toBe("{\n  \"a\": 1\n}\n");
+    $client->writeFile('abcd1234', 'game/csgo/cfg/gungame/gungame.json', '{"a": 2}');
+
+    Http::assertSent(fn (Request $r) => $r->method() === 'POST' && str_ends_with($r->url(), '/command') && $r->data() === ['command' => 'changelevel de_dust2'] && $r->hasHeader('Authorization', 'Bearer pacc_FAKE_CLIENT'));
+    Http::assertSent(fn (Request $r) => $r->method() === 'GET' && str_contains($r->url(), '/files/contents?file=game%2Fcsgo%2Fcfg%2Fgungame%2Fgungame.json'));
+    Http::assertSent(fn (Request $r) => $r->method() === 'POST' && str_contains($r->url(), '/files/write?file=game%2Fcsgo%2Fcfg%2Fgungame%2Fgungame.json') && $r->body() === '{"a": 2}' && str_starts_with($r->header('Content-Type')[0] ?? '', 'text/plain'));
+});
+
+it('maps a missing file to a not-found error', function () {
+    Http::fake([PANEL.'/api/client/servers/abcd1234/files/contents*' => Http::response(['errors' => [['code' => 'NotFound', 'status' => '404', 'detail' => 'x']]], 404)]);
+
+    pelicanClient()->readFile('abcd1234', 'nope.json');
+})->throws(GameServerException::class);
