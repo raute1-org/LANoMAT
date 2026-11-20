@@ -8,7 +8,7 @@ import type {
     RecipePlan,
     RecipeSummary,
 } from './types.js';
-import { joinUrl, normalizeBaseUrl } from './util.js';
+import { joinUrl, normalizeBaseUrl, validateRecipeSlug } from './util.js';
 
 export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -210,11 +210,11 @@ export class ApiClient {
     }
 
     async getRecipe(slug: string): Promise<RecipeDetail> {
-        return this.request<RecipeDetail>(`/api/v1/recipes/${encodeURIComponent(slug)}`);
+        return this.request<RecipeDetail>(`/api/v1/recipes/${encodeURIComponent(validateRecipeSlug(slug))}`);
     }
 
     async getSkill(slug: string): Promise<string> {
-        return this.request<string>(`/api/v1/recipes/${encodeURIComponent(slug)}/skill`, {
+        return this.request<string>(`/api/v1/recipes/${encodeURIComponent(validateRecipeSlug(slug))}/skill`, {
             headers: { Accept: 'text/markdown, text/plain;q=0.9' },
             raw: true,
         });
@@ -231,12 +231,15 @@ export class ApiClient {
             body.event_slug = options.eventSlug;
         }
 
-        return this.request<RecipePlan>(`/api/v1/recipes/${encodeURIComponent(slug)}/plan`, { body });
+        return this.request<RecipePlan>(
+            `/api/v1/recipes/${encodeURIComponent(validateRecipeSlug(slug))}/plan`,
+            { body },
+        );
     }
 
     async listRecipeAvatars(slug: string): Promise<Avatar[]> {
         const response = await this.request<{ data?: Avatar[] } | Avatar[]>(
-            `/api/v1/recipes/${encodeURIComponent(slug)}/avatars`,
+            `/api/v1/recipes/${encodeURIComponent(validateRecipeSlug(slug))}/avatars`,
         );
 
         return Array.isArray(response) ? response : (response.data ?? []);
@@ -246,7 +249,7 @@ export class ApiClient {
         const params = new URLSearchParams();
 
         if (options.recipe) {
-            params.set('recipe', options.recipe);
+            params.set('recipe', validateRecipeSlug(options.recipe));
         }
 
         if (options.q) {

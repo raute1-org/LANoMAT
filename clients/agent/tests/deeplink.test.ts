@@ -32,4 +32,11 @@ describe('LANoMAT deep links', () => {
         expect(() => parseDeepLink('lanomat://install/%2E%2E')).toThrow('Invalid recipe slug');
         expect(() => parseDeepLink('not a url')).toThrow('Invalid LANoMAT link');
     });
+
+    it('rejects encoded path traversal and separators', () => {
+        expect(() => parseDeepLink('lanomat://install/%2e%2e%2fetc')).toThrow('path traversal');
+        expect(() => parseDeepLink('lanomat://install/a%2Fb')).toThrow('path traversal');
+        expect(() => parseDeepLink('lanomat://launch/a%5Cb')).toThrow('path traversal');
+        expect(() => parseDeepLink('lanomat://install/ut%20004')).toThrow('whitespace');
+    });
 });

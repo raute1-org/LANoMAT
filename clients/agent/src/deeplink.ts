@@ -1,3 +1,5 @@
+import { validateRecipeSlug } from './util.js';
+
 export type DeepLinkAction = 'install' | 'launch';
 
 export interface DeepLink {
@@ -40,8 +42,16 @@ export function parseDeepLink(input: string): DeepLink {
         throw new Error(`Unknown LANoMAT action "${action}" (use install, launch or play)`);
     }
 
-    if (!slug || !/^[A-Za-z0-9._-]+$/.test(slug)) {
+    if (!slug) {
         throw new Error(`Invalid recipe slug in LANoMAT link: ${input}`);
+    }
+
+    try {
+        validateRecipeSlug(slug);
+    } catch (error) {
+        throw new Error(`Invalid recipe slug in LANoMAT link: ${input} (${(error as Error).message})`, {
+            cause: error,
+        });
     }
 
     return { action, slug, url: input };

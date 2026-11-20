@@ -5,7 +5,7 @@ import { collectPlanDownloads, missingRequiredFiles, formatPlan, stepAppliesToOs
 import { avatarTasks, downloadAvatars, isAvatarOnLan, parseAvatarSelection, pickAvatars } from './avatars.js';
 import { downloadMany, type DownloadEngineOptions } from './download.js';
 import { runPlanStep, type CommandExecutor } from './runner.js';
-import { ensureDir, joinUrl, sanitizeName } from './util.js';
+import { ensureDir, joinUrl, sanitizeName, validateRecipeSlug } from './util.js';
 
 export interface InstallOptions {
     api: ApiClient;
@@ -134,6 +134,7 @@ function expandTargetDir(value: string, vars: Record<string, string>): string {
  * Exit code 2 means "ask the Orga to upload the missing files".
  */
 export async function runInstall(options: InstallOptions): Promise<InstallResult> {
+    validateRecipeSlug(options.slug);
     const log = options.log ?? (() => undefined);
     const warn = options.warn ?? (() => undefined);
     const env = process.env;

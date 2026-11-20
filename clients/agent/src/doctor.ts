@@ -69,6 +69,8 @@ export interface DoctorOptions extends PathEnvironment {
     clock?: () => Date;
     /** Resolves whether `@earendil-works/pi-coding-agent` is importable. Injectable for tests. */
     sdkAvailable?: () => Promise<boolean>;
+    /** MCP handshake seam; defaults to the real SDK transport. Injectable for tests. */
+    mcpConnector?: McpConnector;
     fs?: {
         existsSync?: typeof existsSync;
         readdir?: typeof readdir;
@@ -135,40 +137,104 @@ function serverFailure(error: unknown, url: string): { ok: false; detail: string
     return { ok: false, detail: `cannot reach ${target}: ${(error as Error).message}` };
 }
 
-async function checkMcpEndpoint(api: ApiClient): Promise<{ ok: boolean; detail: string }> {
+async function checkMcpEndpoint(
+    api: ApiClient,
+    connector: McpConnector = defaultMcpConnector,
+): Promise<{ ok: boolean; detail: string }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
 
     try {
-        const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
-        const { StreamableHTTPClientTransport } = await import(
-            '@modelcontextprotocol/sdk/client/streamableHttp.js'
-        );
-        const transport = new StreamableHTTPClientTransport(new URL(`${api.baseUrl}/mcp`), {
-            requestInit: {
-                headers: api.authHeaders(),
-                signal: controller.signal,
-            },
-            redirectPolicy: 'follow',
+        const tools = await connector({
+            url: new URL(`${api.baseUrl}/mcp`),
+            headers: api.authHeaders(),
+            signal: controller.signal,
         });
-        const client = new Client({ name: 'lanomat-agent-doctor', version: '0.1.0' });
 
-        await client.connect(transport);
-        const tools = await client.listTools();
-        await client.close();
-
-        return { ok: true, detail: `${tools.tools.length} MCP tool(s) available` };
+        return { ok: true, detail: `${tools} MCP tool(s) available` };
     } catch (error) {
-        const message = (error as Error).message;
-
-        if (((error as { status?: number }).status ?? 0) === 401 || /\b401\b|unauthori[sz]ed/i.test(message)) {
-            return { ok: false, detail: 'MCP handshake rejected the token (HTTP 401) — run "lanomat-agent login"' };
-        }
-
-        return { ok: false, detail: `MCP handshake failed: ${message}` };
+        return { ok: false, detail: mcpFailureDetail(error, api.baseUrl) };
     } finally {
         clearTimeout(timer);
     }
+}
+
+export interface McpConnectorRequest {
+    /** `<baseUrl>/mcp`. */
+    url: URL;
+    headers: Record<string, string>;
+    signal: AbortSignal;
+}
+
+/** Resolves with the number of tools the MCP endpoint listed. Injectable for tests. */
+export type McpConnector = (request: McpConnectorRequest) => Promise<number>;
+
+const defaultMcpConnector: McpConnector = async ({ url, headers, signal }) => {
+    const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+    const { StreamableHTTPClientTransport } = await import(
+        '@modelcontextprotocol/sdk/client/streamableHttp.js'
+    );
+    const transport = new StreamableHTTPClientTransport(url, {
+        requestInit: { headers, signal },
+        redirectPolicy: 'follow',
+    });
+    const client = new Client({ name: 'lanomat-agent-doctor', version: '0.1.0' });
+
+    try {
+        await client.connect(transport);
+        const tools = await client.listTools();
+
+        return tools.tools.length;
+    } finally {
+        await client.close().catch(() => undefined);
+    }
+};
+
+type McpErrorShape = {
+    status?: number;
+    code?: number | string;
+    message?: string;
+    cause?: { code?: string; message?: string };
+};
+
+/**
+ * Turn an MCP handshake failure into the same 401/offline distinction the REST server check uses.
+ * The SDK throws plain errors, sometimes with a numeric `code`; network failures arrive as
+ * `TypeError: fetch failed` with an undici cause code.
+ */
+export function mcpFailureDetail(error: unknown, baseUrl: string): string {
+    const target = mcpTarget(baseUrl);
+    const candidate = (error ?? {}) as McpErrorShape;
+    const status =
+        typeof candidate.status === 'number'
+            ? candidate.status
+            : typeof candidate.code === 'number'
+              ? candidate.code
+              : 0;
+    const message = candidate.message ?? String(error);
+    const causeCode = candidate.cause?.code ?? '';
+    const haystack = `${message} ${causeCode}`;
+
+    if (status === 401 || /\b401\b|unauthori[sz]ed|invalid[ _-]?token/i.test(haystack)) {
+        return 'MCP endpoint rejected the token (HTTP 401) — run "lanomat-agent login"';
+    }
+
+    if (/abort|timed? ?out/i.test(haystack)) {
+        return `MCP endpoint timed out (${target})`;
+    }
+
+    if (
+        status === 0 &&
+        /fetch failed|econnrefused|econnreset|enotfound|eai_again|network|socket hang up/i.test(haystack)
+    ) {
+        return `offline — cannot reach ${target}: ${message}`;
+    }
+
+    return `MCP handshake failed at ${target}: ${message}`;
+}
+
+function mcpTarget(baseUrl: string): string {
+    return `${safeUrl(baseUrl)}/mcp`;
 }
 
 async function canImportPiSdk(): Promise<boolean> {
@@ -289,7 +355,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
     }
 
     if (config && api && options.checkMcp !== false) {
-        const mcp = await checkMcpEndpoint(api);
+        const mcp = await checkMcpEndpoint(api, options.mcpConnector);
 
         checks.push({ name: 'MCP endpoint', ok: mcp.ok, required: false, detail: mcp.detail });
     }

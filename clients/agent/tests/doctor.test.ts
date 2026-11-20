@@ -295,6 +295,90 @@ describe('doctor', () => {
         expect(check(report, 'Server').detail).toContain('http://lan.local');
     });
 
+    it('reports the MCP 401 vs offline distinction', async () => {
+        const rejectUnauthorized = async (): Promise<number> => {
+            const error = Object.assign(new Error('Error POSTing to endpoint (HTTP 401): Unauthorized'), {
+                code: 401,
+            });
+
+            throw error;
+        };
+        const offline = async (): Promise<number> => {
+            const error = Object.assign(new TypeError('fetch failed'), {
+                cause: { code: 'ECONNREFUSED' },
+            });
+
+            throw error;
+        };
+
+        const rejected = await runDoctor(
+            baseOptions({ config, fetchImpl: async () => meResponse(), checkMcp: true, mcpConnector: rejectUnauthorized }),
+        );
+        const rejectedCheck = check(rejected, 'MCP endpoint');
+
+        expect(rejectedCheck.ok).toBe(false);
+        expect(rejectedCheck.required).toBe(false);
+        expect(rejectedCheck.detail).toContain('MCP endpoint rejected the token (HTTP 401)');
+        expect(rejectedCheck.detail).toContain('lanomat-agent login');
+
+        const unreachable = await runDoctor(
+            baseOptions({ config, fetchImpl: async () => meResponse(), checkMcp: true, mcpConnector: offline }),
+        );
+        const offlineCheck = check(unreachable, 'MCP endpoint');
+
+        expect(offlineCheck.ok).toBe(false);
+        expect(offlineCheck.detail).toBe('offline — cannot reach http://lan.local/mcp: fetch failed');
+        expect(offlineCheck.detail).not.toContain('401');
+
+        const healthy = await runDoctor(
+            baseOptions({
+                config,
+                fetchImpl: async () => meResponse(),
+                checkMcp: true,
+                mcpConnector: async () => 7,
+            }),
+        );
+
+        expect(check(healthy, 'MCP endpoint')).toMatchObject({ ok: true });
+        expect(check(healthy, 'MCP endpoint').detail).toBe('7 MCP tool(s) available');
+    });
+
+    it('redacts the token when the MCP error text leaks it', async () => {
+        const report = await runDoctor(
+            baseOptions({
+                config,
+                fetchImpl: async () => meResponse(),
+                checkMcp: true,
+                mcpConnector: async () => {
+                    throw new Error(`handshake exploded while using ${config.token}`);
+                },
+            }),
+        );
+        const json = formatDoctorJson(report);
+
+        expect(check(report, 'MCP endpoint').ok).toBe(false);
+        expect(json).not.toContain(config.token);
+        expect(json).toContain('«redacted»');
+    });
+
+    it('does not echo the token from a 401 MCP error', async () => {
+        const report = await runDoctor(
+            baseOptions({
+                config,
+                fetchImpl: async () => meResponse(),
+                checkMcp: true,
+                mcpConnector: async () => {
+                    throw new Error(`401 Unauthorized: bearer ${config.token} was rejected`);
+                },
+            }),
+        );
+
+        expect(check(report, 'MCP endpoint').detail).toBe(
+            'MCP endpoint rejected the token (HTTP 401) — run "lanomat-agent login"',
+        );
+        expect(formatDoctorJson(report)).not.toContain(config.token);
+    });
+
     it('strips credentials from URLs it prints', () => {
         expect(safeUrl('http://user:pass@lan.local/?token=x#y')).toBe('http://lan.local');
         expect(safeUrl('not a url')).toBe('not a url');

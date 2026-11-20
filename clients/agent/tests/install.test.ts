@@ -165,6 +165,26 @@ describe('install', () => {
         expect(await readFile(join(target, 'game.iso'), 'utf8')).toBe('ISO');
     });
 
+    it('rejects a path-traversal slug before calling the API', async () => {
+        let planned = false;
+        const api = {
+            baseUrl: 'http://lan.local',
+            resolve: (path: string) => `http://lan.local${path}`,
+            createPlan: async () => {
+                planned = true;
+
+                return plan();
+            },
+            listRecipeAvatars: async () => [],
+            headersFor: () => ({}),
+        } as unknown as ApiClient;
+
+        await expect(runInstall({ api, slug: '../../etc/passwd', os: 'linux' })).rejects.toThrow(
+            'Invalid recipe slug "../../etc/passwd": path traversal is not allowed',
+        );
+        expect(planned).toBe(false);
+    });
+
     it('selects no avatars with --yes unless --avatar is given', async () => {
         expect(await selectInstallAvatars({ avatars: [], yes: true })).toEqual({ ids: [], unknown: [] });
         expect(

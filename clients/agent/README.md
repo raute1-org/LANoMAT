@@ -205,8 +205,8 @@ lanomat-agent doctor --json     # stable machine-readable report
 
 Checks (in this order; optional ones only warn): `Config`, `Config permissions`, `Token`, `Server`,
 `MCP endpoint`, `pi`, `Skills`, `smbclient` (Linux only), `Venice key`, `models.json`,
-`Model catalog`, `Tool calls` and `Tool calls (fallback)`. The server check distinguishes a
-**rejected token** (`HTTP 401` → run `lanomat-agent login`) from an **offline server**
+`Model catalog`, `Tool calls` and `Tool calls (fallback)`. The `Server` and `MCP endpoint` checks
+distinguish a **rejected token** (`HTTP 401` → run `lanomat-agent login`) from an **offline server**
 (`offline — cannot reach …`), so a LAN outage does not look like an expired session. The
 `Skills` check verifies the directory is writable, not just present.
 
@@ -333,6 +333,12 @@ lanomat-agent install ut2004 --os windows
 
 `--allow-external` is required for files that are not on the LAN. Such files are marked `EXTERNAL`
 in the plan and in the installer output. Only LAN files are downloaded by default.
+
+Recipe slugs (`plan`, `install`, `launch`, `open`, `avatars --recipe`) are validated before any
+request: letters, digits, `.`, `_` and `-`, at most 64 characters, starting with a letter or digit.
+Path separators, `.`/`..`, percent escapes and whitespace are rejected with
+`Invalid recipe slug "…": path traversal is not allowed` (or a more specific reason), so
+`lanomat-agent install ../../etc` never reaches a URL or the filesystem.
 
 #### How step commands are run
 

@@ -149,6 +149,24 @@ describe('launch', () => {
         expect(warnings.join('\n')).toContain('lanomat-agent install missing');
     });
 
+    it('rejects a path-traversal slug before fetching the recipe', async () => {
+        let fetched = false;
+        const api = {
+            baseUrl: 'http://lan.local',
+            resolve: (path: string) => `http://lan.local${path}`,
+            getRecipe: async () => {
+                fetched = true;
+
+                return { slug: 'x', title: 'X' };
+            },
+        } as unknown as ApiClient;
+
+        await expect(launchRecipe({ api, slug: '..', os: 'linux' })).rejects.toThrow(
+            'path traversal is not allowed',
+        );
+        expect(fetched).toBe(false);
+    });
+
     it('builds a quoted Linux path and a raw command', () => {
         expect(buildLaunchCommand('linux', '/opt/UT2004/ut2004')).toEqual({
             shell: 'bash',

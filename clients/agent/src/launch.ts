@@ -3,6 +3,7 @@ import type { Os, RecipeDetail, RecipePlan } from './types.js';
 import { openBrowser } from './auth.js';
 import { defaultAvatarsDir } from './config.js';
 import { runPlanStep, substituteVariables, type CommandExecutor } from './runner.js';
+import { validateRecipeSlug } from './util.js';
 
 export interface LaunchOptions {
     api: ApiClient;
@@ -67,6 +68,7 @@ export function buildLaunchCommand(
  * command runner as install steps. A missing target is exit code 2 with an install suggestion.
  */
 export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult> {
+    validateRecipeSlug(options.slug);
     const log = options.log ?? (() => undefined);
     const warn = options.warn ?? (() => undefined);
     const platform = options.platform ?? process.platform;
