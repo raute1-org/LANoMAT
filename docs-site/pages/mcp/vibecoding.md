@@ -5,8 +5,8 @@ sidebar_icon: sparkles
 ---
 
 "Vibecoding" here means something practical: you say what you want, the agent reads the right skill,
-plans, asks the one question that matters and then acts. These are prompt recipes that work with the
-tool catalogue — no imaginary tools, no magic.
+plans, asks the one question that matters and then acts. These prompts work with the real tool
+catalogue — no imaginary tools.
 
 <div class="live">LIVE 17:42 · agent session · 2 installs planned · 1 running</div>
 
@@ -14,10 +14,10 @@ tool catalogue — no imaginary tools, no magic.
 
 | You say | The agent does |
 |---|---|
-| "Set up my PC for the LAN." | `lanomat_me`, `lanomat_list_recipes`, proposes a short list, asks which game |
-| "Install UT2004 for me." | reads `skill://unreal-tournament-2004`, plans, asks about VR and avatars |
-| "Which avatars are on the LAN?" | `lanomat_list_recipe_avatars`, presents a multi-select, never invents files |
-| "What's missing for the install?" | `lanomat_plan_recipe`, reports the failed role and glob |
+| "Set up my PC for the LAN." | `lanomat_me`, `recipes_list`, proposes a short list, asks which game |
+| "Install UT2004 for me." | reads `lanomat://recipes/unreal-tournament-2004/skill`, plans, asks about VR and avatars |
+| "Which avatars are on the LAN?" | `recipe_avatars`, presents a multi-select, never invents files |
+| "What's missing for the install?" | `recipe_install_plan`, reports the `missing` entries |
 
 ## Install a game
 
@@ -26,8 +26,8 @@ Install UT2004 for me on this PC. Base game and patch only, no VR.
 Use the LAN copy, not the internet. Tell me the download size before you start.
 ```
 
-Why it works: the recipe marks the base and patch as required, VR as optional, and the agent has to
-report the plan's byte count before moving anything.
+Why it works: the recipe marks the base and patch as required, VR as optional, and the plan lists
+every file with `source: lan` or `source: external` before anything moves.
 
 With an explicit avatar choice:
 
@@ -36,7 +36,8 @@ Install UT2004 with the VR mod and the Ayla and Brutus avatars.
 If those avatars are not on the LAN, show me what is and let me pick.
 ```
 
-The second sentence matters: it forbids inventing a download URL for a catalogue entry that has
+The agent calls `recipe_avatars` with the recipe slug and offers only entries with
+`available_on_lan: true`. The second sentence forbids inventing a URL for a catalogue entry that has
 none.
 
 ## Games library prompts
@@ -45,9 +46,12 @@ The `/games` page speaks the same vocabulary; these prompts are what people actu
 are standing in front of it.
 
 ```text
-Install CS 1.6 for me. It is a draft recipe on the server — if it is not published yet,
-tell me and use the UT2004 recipe as the fallback.
+Install F-Zero X VR for me. It is a draft recipe — if it is not published yet, tell me
+and use the UT2004 recipe as the fallback.
 ```
+
+A draft recipe is invisible to participants, so `recipes_list` will not return it; the agent must
+say so rather than plan against a hidden slug.
 
 ```text
 Join the UT2004 server. Find the live server, print the join string, and tell me the map
@@ -59,9 +63,8 @@ Announce a round of UT2004 for tonight. Use the game page's Runde ankündigen, t
 the voice link for /talk.
 ```
 
-The agent should resolve the recipe, read the skill and show the plan; for the server prompt it
-reads the live server read-model and prints the same join string the game page shows; for the
-announcement it opens the game page flow rather than inventing an LFG post. See
+The agent resolves the recipe and may call `servers_list` for the event; the announcement itself is
+a web action on the game page, so it should not invent an LFG post. See
 [Games library](/docs/system/games-library) for the exact buttons.
 
 ## Plan without downloading
@@ -71,7 +74,7 @@ Plan the UT2004 install for Windows and show me every required and optional file
 Do not download anything yet.
 ```
 
-`lanomat_plan_recipe` is pure. This is the safe way to check whether the LAN has the disc before
+`recipe_install_plan` is pure. This is the safe way to check whether the LAN has the disc before
 promising a friend an install.
 
 ## Pick avatars
@@ -91,20 +94,31 @@ Find the UT2004 ISO on the LAN file host. Show the file name, size and upload da
 Give me a download URL only after I confirm.
 ```
 
-`lanomat_list_files` searches by name; `lanomat_file_download_url` returns a short-lived signed URL.
-The "after I confirm" clause keeps the URL from expiring before it is used.
+`files_list` searches one event by file name; `file_download_url` returns a bearer-authenticated
+download URL. The "after I confirm" clause keeps the URL from being fetched before the human is
+ready. Pass the event slug — `files_list` is event-scoped.
+
+## Check the event
+
+```text
+What is running tonight? Show the schedule, the open tournaments and who is looking for a group.
+```
+
+The agent calls `events_list` → `event_get` → `schedule_list` → `tournament_list` → `lfg_list` with
+the same event slug. `event_get` already carries tournaments and schedule, so a good agent does not
+repeat every call.
 
 ## Draft a recipe
 
 ```text
 Draft a LANoMAT recipe for a game called "Trackmania Nations Forever".
-Read skill://unreal-tournament-2004 as the template.
+Read lanomat://recipes/unreal-tournament-2004/skill as the template.
 Base game required, one optional mod, no avatars yet.
 Validate the shape and submit it as a draft.
 ```
 
-`lanomat_contribute_recipe` creates a draft, not a published recipe. The orga reviews it, runs the
-JSON Schema validator and publishes.
+`recipe_contribute` creates a draft, not a published recipe. The orga reviews it under `/admin`,
+runs the JSON Schema validator and publishes.
 
 ## Troubleshoot
 
@@ -120,15 +134,17 @@ applied to the wrong folder, or the game was started from the old 32-bit shortcu
 
 ```text
 You: I have a headset and 30 minutes. What can I install?
-Agent: [lanomat_list_recipes platform=windows]
+Agent: [lanomat_me] [recipes_list platform=windows]
        UT2004 (base + optional VR), Ridge Racer Type 4 (browser cabinet), F-Zero X VR…
        UT2004VR needs SteamVR and OldUnreal 3374. Ridge Racer needs a disc and Node 20.
 You: UT2004 with VR, no avatars. Plan it first.
-Agent: [skill://unreal-tournament-2004] [lanomat_plan_recipe …]
-       4.72 GB: ISO 4.50 GB, patch 183 MB, UT2004VR 24 MB. 6 steps, 4 checks.
+Agent: [resource lanomat://recipes/unreal-tournament-2004/skill]
+       [recipe_install_plan slug=ut2004 os=windows]
+       4.72 GB: ISO 4.50 GB, patch 183 MB, UT2004VR 24 MB. 6 steps, checks included.
        Download now?
 You: Yes.
-Agent: [lanomat_file_download_url …] downloads, verifies, runs the steps, reports the bot match check.
+Agent: [file_download_url] downloads with the bearer token, verifies, runs the steps,
+       reports the bot match check.
 ```
 
 <div class="callout-live">

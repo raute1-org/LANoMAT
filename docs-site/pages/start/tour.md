@@ -22,7 +22,7 @@ the amber signal only for *now*.
 
 ### Event page and countdown
 
-The public event page switches with the event lifecycle: `announced` shows the date and a hint,
+The event page switches with the event lifecycle: `announced` shows the date and a hint,
 `registration` shows the primary "Jetzt anmelden", `live` keeps walk-in registration open while
 spots remain. The countdown is a display-only payload, recomputed on every load.
 

@@ -43,6 +43,20 @@ final class RecipeParser
         $skillPath = $dir.'/SKILL.md';
         $skill = is_file($skillPath) ? (string) file_get_contents($skillPath) : $this->skills->render($data);
 
+        // A recipe source is untrusted data. Resolve symlinks and keep the
+        // skill text inside the recipe directory, so a git/SMB source cannot
+        // read /etc/shadow into a public SKILL.md.
+        if (is_file($skillPath)) {
+            $realDir = realpath($dir);
+            $realSkill = realpath($skillPath);
+
+            if ($realDir === false || $realSkill === false || ! str_starts_with($realSkill, $realDir.DIRECTORY_SEPARATOR)) {
+                throw RecipeException::file($skillPath, 'SKILL.md resolves outside the recipe directory');
+            }
+
+            $skill = (string) file_get_contents($realSkill);
+        }
+
         $recipe = [
             'slug' => (string) $data['slug'],
             'title' => (string) $data['title'],

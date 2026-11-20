@@ -34,8 +34,9 @@ Twitch accounts on top.
 
 ## Docs for agents
 
-`lanomat_me` returns the authenticated identity, role and current event. This is the first call an
-agent makes after pairing.
+`lanomat_me` returns the authenticated identity, role, enabled modules and the server version. It
+does not guess a "current event"; use `events_list` for that. This is the first call an agent makes
+after pairing.
 
 <div class="callout-live">
   <strong>One accent, one identity.</strong> Profile colours exist, but the app's amber is reserved

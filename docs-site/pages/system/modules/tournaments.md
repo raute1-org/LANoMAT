@@ -43,7 +43,10 @@ fan-out on `MatchReady` and `MatchCompleted`.
 
 ## Docs for agents
 
-No MCP tool yet.
+`tournament_list` (by event slug) shows status, format and the caller's entry; `tournament_bracket`
+returns rounds, entrants, scores and join info; `tournament_checkin` checks the caller's own entry
+in inside the window; `match_result` reports, confirms, disputes or withdraws the caller's match
+result, using the current `lock_version` for confirm and withdraw.
 
 <div class="callout-live">
   <strong>Live bracket.</strong> <code>TournamentStarted</code>, <code>MatchReady</code>,

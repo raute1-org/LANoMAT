@@ -18,9 +18,10 @@ arrival plan.
 ## Key screens
 
 - `/events/{slug}/register` — the sign-up form, including the optional "Ankunft und Abreise".
-- `/ticket` and the dashboard ticket card — QR, ticket label, seat and arrival lines.
+- `/dashboard` — the ticket card: QR, ticket label, seat and arrival lines.
 - `/checkin/{token}` — phone self check-in (public QR at the entrance).
-- `/orga/events/{slug}/checkin` — scanner + token fallback; `/checkin-qr` is the printable sheet.
+- `/orga/events/{slug}/checkin` — scanner + token fallback; `/orga/events/{slug}/checkin-qr` is the
+  printable sheet.
 - Filament: registrations relation manager, **Ankunftsübersicht** with charts.
 
 ## Guards and rules
@@ -38,8 +39,10 @@ arrival plan.
 
 ## Docs for agents
 
-No MCP tool yet. Registration state appears through `lanomat_me`; recipe install plans are
-separate (`lanomat_plan_recipe`).
+`events_list` / `event_get` include the caller's registration; `event_register` registers the token
+owner (`slug`, optional `ticket_type`). The action re-checks availability, capacity and the
+registration window, exactly like the web form. Recipe install plans are separate
+(`recipe_install_plan`).
 
 <div class="callout-live">
   <strong>Privacy.</strong> The self check-in page receives only the event token. A ticket's

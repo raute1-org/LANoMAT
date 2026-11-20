@@ -65,11 +65,16 @@ is LAN-only; it is not exposed to the internet.
    ```
 
 2. Copy candidate recipe folders into `resources/recipes/<slug>/` in the repository.
-3. Run the validator:
+3. Run the validator, or import the folder straight into the catalogue (the sync command reads an
+   SMB path without mounting it):
 
    ```bash
+   php artisan lanomat:recipes:sync smb://nas.lan/games-recipes/recipes --prune
    cd resources/recipes/schema && npm run validate
    ```
+
+   `--prune` removes recipes that vanished from that source; it never touches another source.
+   `--only=<slug>` imports one recipe.
 
 4. Open the recipe in the docs/recipe catalogue, check the content list, and run a plan for one
    platform before publishing.

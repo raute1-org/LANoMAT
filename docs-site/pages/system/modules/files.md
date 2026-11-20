@@ -20,7 +20,7 @@ LanCache file host (nginx + tusd), where bytes never pass through the app.
 
 - `/events/{slug}/files` — list, upload, download progress, quota.
 - Filament **Shared files** — moderation, visibility, delete.
-- Download route — 302 to a short-lived signed URL on the file host.
+- Download route — file host: 302 to a short-lived signed URL; local store: an attachment stream.
 
 | Dark | Light |
 |---|---|
@@ -35,14 +35,16 @@ LanCache file host (nginx + tusd), where bytes never pass through the app.
 - Uploads are moderated; a pending file is visible to its uploader and staff only.
 - With `FILES_STORE=host` + `FILES_TUS_URL`, uploads are resumable tus uploads straight to tusd.
   The app issues a single-use ticket (`file_upload_reservations`) and answers tusd's hooks.
-- Downloads are policy-checked, then redirected to a signed URL with an expiry; tampering answers
-  403, expiry 410.
+- Downloads are policy-checked; the local store streams the attachment, the host store redirects to a
+  signed URL with an expiry (tampering answers 403, expiry 410).
 - `lanomat:sweep-file-uploads` releases abandoned reservations.
 - A row remembers its store (`local` or `filehost`), so switching stores never strands files.
 
 ## Docs for agents
 
-`lanomat_list_files` and `lanomat_file_download_url`.
+`files_list` (event slug plus optional name filter) returns approved files and the caller's pending
+uploads; `file_download_url` returns a bearer-authenticated download URL for one file id. The policy
+is re-checked on the download route itself.
 
 <div class="callout-live">
   <strong>LAN-only by design.</strong> The file host is reachable on the venue network. A download

@@ -53,6 +53,26 @@ const stripCode = (text) =>
 
 const failures = [];
 
+/** GitHub-style heading slug, which is what Zudoku and the rendered pages use. */
+const slugify = (heading) =>
+  heading
+    .toLowerCase()
+    .replace(/<[^>]+>/g, "")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .trim()
+    .replace(/\s/g, "-");
+
+const anchorCache = new Map();
+const computeAnchors = (text) => {
+  const anchors = new Set();
+  const title = text.match(/^---\n[\s\S]*?^title:\s*(.+)$/m)?.[1];
+  if (title) anchors.add(slugify(title.replace(/^["']|["']$/g, "")));
+  for (const match of stripCode(text).matchAll(/^#{1,6}\s+(.+)$/gm)) {
+    anchors.add(slugify(match[1]));
+  }
+  return anchors;
+};
+
 const checkTarget = (raw, source, line) => {
   let target = raw.trim();
   if (!target) return;
@@ -61,11 +81,26 @@ const checkTarget = (raw, source, line) => {
   target = target.split(/\s+/)[0];
   if (!target) return;
 
-  if (/^(https?:|mailto:|tel:|smb:|magnet:|#)/i.test(target)) return;
+  if (/^(https?:|mailto:|tel:|smb:|magnet:)/i.test(target)) return;
   if (target.startsWith("//")) return;
 
-  const [pathPart, hash] = target.split("#");
-  if (!pathPart) return; // pure anchor
+  const [pathPart, rawHash] = target.split("#");
+  const hash = rawHash ? decodeURIComponent(rawHash) : "";
+
+  const checkAnchor = (file) => {
+    if (!hash || !file) return;
+    const anchors = anchorCache.get(file) ?? new Set();
+    if (!anchors.has(hash.toLowerCase())) {
+      failures.push(
+        `${toPosix(relative(siteRoot, source))}:${line}: no heading #${hash} in ${toPosix(relative(siteRoot, file))}`,
+      );
+    }
+  };
+
+  if (!pathPart) {
+    checkAnchor(source); // pure anchor: same page
+    return;
+  }
 
   let decoded = pathPart;
   try {
@@ -93,9 +128,12 @@ const checkTarget = (raw, source, line) => {
   }
 
   if (route.startsWith("/")) {
-    if (!routes.has(route.replace(/\/$/, "") || "/")) {
+    const file = routes.get(route.replace(/\/$/, "") || "/");
+    if (!file) {
       failures.push(`${toPosix(relative(siteRoot, source))}:${line}: no page for ${target}`);
+      return;
     }
+    checkAnchor(file);
     return;
   }
 
@@ -103,11 +141,18 @@ const checkTarget = (raw, source, line) => {
   const baseDir = dirname(source);
   const resolved = normalize(join(baseDir, route));
   const candidates = [resolved, `${resolved}.md`, `${resolved}.mdx`, join(resolved, "index.md"), join(resolved, "index.mdx")];
-  const exists = candidates.some((candidate) => [...routes.values()].includes(candidate));
-  if (!exists) {
+  const match = candidates.find((candidate) => [...routes.values()].includes(candidate));
+  if (!match) {
     failures.push(`${toPosix(relative(siteRoot, source))}:${line}: no page for relative link ${target}`);
+  } else {
+    checkAnchor(match);
   }
 };
+
+// Pre-read every page's headings once; the anchor check is then synchronous.
+for (const file of pageFiles) {
+  anchorCache.set(file, computeAnchors(await readFile(file, "utf8")));
+}
 
 for (const file of pageFiles) {
   const text = stripCode(await readFile(file, "utf8"));

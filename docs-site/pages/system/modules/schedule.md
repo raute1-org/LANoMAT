@@ -38,7 +38,8 @@ that are synced automatically. Participants can favourite items and export the p
 
 ## Docs for agents
 
-No MCP tool yet.
+`schedule_list` returns one event's timeline in order, with type, time, location and description.
+Favouriting and ICS export stay in the app.
 
 <div class="callout-live">
   <strong>Now/next is a read-model.</strong> The schedule projection owns "what is now" and "what is

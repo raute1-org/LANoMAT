@@ -8,7 +8,7 @@ The agent is only as good as the model behind it. LANoMAT's default is **Venice 
 OpenAI-compatible, has a model with a large context and tool calling, and can run in a TEE. But the
 agent is pi underneath: any pi provider works, including a local LLM on the LAN.
 
-<div class="live">LIVE 17:42 · venice · e2ee-deepseek-v4-1-flash-1017-abliterated · tools ok</div>
+<div class="live">LIVE 17:42 · venice · e2ee-deepseek-v4-1-flash-1017-abliterated · tool calls ok</div>
 
 ## Venice in one minute
 
@@ -28,7 +28,8 @@ export VENICE_API_KEY="…"
 lanomat-agent model setup
 ```
 
-`model setup` writes `~/.pi/agent/models.json` with a `venice` provider and a default model:
+`model setup` merges a `venice` provider into `~/.pi/agent/models.json` and writes the default into
+`~/.pi/agent/settings.json`:
 
 ```json
 {
@@ -38,20 +39,25 @@ lanomat-agent model setup
       "baseUrl": "https://api.venice.ai/api/v1",
       "apiKey": "$VENICE_API_KEY",
       "models": [
-        {
-          "id": "e2ee-deepseek-v4-1-flash-1017-abliterated",
-          "name": "DeepSeek V4.1 Flash 1017 Abliterated (E2EE)"
-        }
+        { "id": "e2ee-deepseek-v4-1-flash-1017-abliterated" },
+        { "id": "zai-org-glm-5" }
       ]
     }
-  },
-  "defaultModel": "venice/e2ee-deepseek-v4-1-flash-1017-abliterated"
+  }
 }
 ```
 
 The provider reads the key from the environment; `$VENICE_API_KEY` is a reference, not the secret.
-The model list is fetched live on `model setup` and on `model list`; the JSON above only records the
-selection.
+The model list is fetched live during `model setup`; if the requested id is missing from the
+account, the setup falls back to the first available chat model and says so. Offline, the requested
+or default model is kept.
+
+Get the live list without a separate CLI command:
+
+```bash
+curl -s https://api.venice.ai/api/v1/models \
+  -H "Authorization: Bearer $VENICE_API_KEY" | jq -r '.data[].id'
+```
 
 ## The default model
 
@@ -65,9 +71,9 @@ DeepSeek V4.1 Flash 1017 Abliterated, served by Venice with E2EE/TEE:
 |---|---|
 | Context | 1M tokens |
 | Max output | 128K tokens |
-| Price | $0.375 / 1M input, $1.50 / 1M output |
 | API | OpenAI-compatible |
 | Tool calling | Yes (probe it with `lanomat-agent doctor`) |
+| Price | See the live Venice model page; it changes |
 
 Use it directly:
 
@@ -81,38 +87,38 @@ plain OpenAI-compatible API and cannot send Venice's E2EE envelope. Requests are
 **TEE-only**: they run in a trusted execution environment at Venice, while the transport is ordinary
 TLS. That is a strong privacy property, not the same as E2EE from the pi process to the model.
 
-**Tool-calling probe.** Some models accept chat but fail tool calls. `lanomat-agent doctor` runs a
-real tool-calling round trip (a `lanomat_me` call) and names the failure. If the default model fails
-the probe, switch to the documented fallback:
+**Tool-calling probe.** Some models accept chat but fail tool calls. `lanomat-agent doctor` sends a
+tiny `ping` tool definition (64 output tokens, because reasoning models spend the first tokens on
+thinking) and reports whether `tool_calls` came back — without printing the key. If the default
+model fails the probe, switch to the documented fallback:
 
 ```bash
 lanomat-agent ask --model venice/zai-org-glm-5 "install ut2004 for me"
-# or persist it
-lanomat-agent model use venice/zai-org-glm-5
+# or persist it for every ask and for pi
+lanomat-agent model setup --model venice/zai-org-glm-5
 ```
 
 ## Other models (alternatives, not defaults)
 
-IDs change. Always read the live list (`GET /models`, `lanomat-agent model list`) instead of copying
-a catalogue from a blog post.
+IDs change. Always read the live list (`GET /models`) instead of copying a catalogue from a blog
+post. Venice's own id is bare; pi's provider qualifier makes it `venice/<id>`.
 
 | Model ID | Note |
 |---|---|
-| `zai-org/glm-5` → `venice/zai-org-glm-5` | Documented fallback if tool calls fail |
-| `kimi-k2-6` → `venice/kimi-k2-6` | Long context alternative |
-| `claude-opus-4-8` → `venice/claude-opus-4-8` | Strong reasoning, different price |
-| `venice-uncensored-1-2` → `venice/venice-uncensored-1-2` | Uncensored, for content work |
-
-The `venice/` prefix is pi's provider qualifier. The bare id is what Venice's API returns.
+| `venice/zai-org-glm-5` | Documented fallback if tool calls fail |
+| `venice/kimi-k2-6` | Long context alternative |
+| `venice/claude-opus-4-8` | Strong reasoning, different price |
+| `venice/venice-uncensored-1-2` | Uncensored, for content work |
 
 ## Precedence
 
 The agent resolves the model in this order, first match wins:
 
-1. **CLI** — `--model provider/model` on `ask`, `pi --model …`, or `lanomat-agent model use`.
+1. **CLI** — `--model provider/model` on `ask` or `model setup`, `pi --model …`.
 2. **`LANOMAT_AGENT_MODEL`** — a full provider/model, e.g. `venice/zai-org-glm-5`.
 3. **`OPENAI_MODEL_*`** — a generic OpenAI-compatible endpoint (see below).
-4. **Saved config** — the model chosen by `lanomat-agent model setup` / `model use`.
+4. **Saved config** — the model chosen by `lanomat-agent model setup` (`modelRoles.chat`, then the
+   legacy `model` key).
 5. **Venice default** — `venice/e2ee-deepseek-v4-1-flash-1017-abliterated`.
 
 `LANOMAT_AGENT_MODEL` is a single full id. The `OPENAI_MODEL_*` variables describe an endpoint, not
@@ -148,8 +154,8 @@ Or pin it explicitly:
 export LANOMAT_AGENT_MODEL="local/qwen2.5-coder:32b"
 ```
 
-A local model makes the agent fully offline: skills are on disk, recipes and files come from the LAN,
-and no prompt leaves the venue.
+A local model makes the agent fully offline: skills are on disk, recipes and files come from the
+LAN, and no prompt leaves the venue.
 
 ### Another hosted provider
 
@@ -162,6 +168,15 @@ export OPENAI_MODEL_PROVIDER="example"
 
 Any pi-native provider also works without these variables: `pi /login` for a subscription, then
 `--model <provider>/<model>` on the CLI.
+
+### Text is the only implemented role
+
+```bash
+lanomat-agent model roles                                  # show
+lanomat-agent model roles --set chat=venice/zai-org-glm-5  # edit
+```
+
+`chat` is used at runtime. `decision`, `stt` and `tts` are stored for later; nothing calls them yet.
 
 ## Privacy
 
