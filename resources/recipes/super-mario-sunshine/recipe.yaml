@@ -1,0 +1,129 @@
+schema: lanomat.recipe/v1
+slug: super-mario-sunshine
+title: Super Mario Sunshine
+aliases: ["sms", "mario sunshine", "super mario sunshine"]
+version: "1.0.0"
+status: draft
+platforms: [windows, linux]
+summary: Play Super Mario Sunshine on the LAN through Dolphin with the user's own GameCube disc image, a GameCube pad mapping and optional widescreen.
+description: |
+  Super Mario Sunshine is the GameCube island platformer: FLUDD, shine sprites
+  and Delfino Plaza. On the LAN it runs in Dolphin from the user's own USA disc
+  image, with a GameCube controller (or an Xbox pad mapped to one).
+
+  Dolphin is the portable baseline. The LAN collection also has a native
+  `SMS-Launcher` build of the game; treat it as an optional alternative, not
+  the default, because it needs its own launcher and saves.
+
+  The game runs at 30 fps natively. A 60 fps cheat exists but changes physics
+  timing; only enable it when the user asks for it and verify it on the LAN.
+  Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://dolphin-emu.org/
+license: "Nintendo; disc image user-supplied"
+cover: ""
+skill:
+  name: super-mario-sunshine
+  description: "Install Super Mario Sunshine with Dolphin on Windows or Linux, import the user's GameCube disc image, configure a GameCube controller and optional widescreen, and verify it boots. Use when the user says install Super Mario Sunshine or SMS for the LAN."
+  compatibility: "Windows 10/11 or Linux; Dolphin; ~1.5 GB disk; GameCube pad or Xbox pad"
+requires:
+  - role: iso
+    label: "Super Mario Sunshine (USA) disc image"
+    match: ["*super*mario*sunshine*.iso", "*Super Mario Sunshine*.iso", "*super*mario*sunshine*.rvz", "*Super Mario Sunshine*.rvz"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "USA ISO or a lossless RVZ converted from it. Other regions work but the 60 fps cheat and save files differ."
+  - role: tool
+    label: "Dolphin emulator"
+    match: ["Dolphin*.zip", "dolphin-*.tar.xz", "dolphin*.AppImage"]
+    required: true
+    url: https://dolphin-emu.org/download/
+    notes: "Use the current stable or beta release. A portable zip keeps the LAN install self-contained."
+  - role: content
+    label: "GameCube BIOS (optional IPL.bin)"
+    match: ["IPL.bin", "gc-*.bin"]
+    required: false
+    url: ""
+    notes: "Dolphin emulates the GameCube IPL and boots most games without a BIOS dump. A real IPL.bin only helps the boot animation and a few edge cases."
+steps:
+  - id: install-dolphin
+    title: "Install Dolphin"
+    os: windows
+    optional: false
+    detail: |
+      Download the current Dolphin release for the OS and extract it to
+      `{{target}}`. A portable build is preferred on LAN PCs: no installer, no
+      admin rights, and the user directory can live beside the executable.
+
+      On Linux use the AppImage or the distribution package; the settings below
+      are the same.
+    commands:
+      - shell: powershell
+        run: 'Expand-Archive -Path "{{downloads}}/Dolphin-x64-*.zip" -DestinationPath "{{target}}" -Force'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Dolphin.exe'
+  - id: import-disc
+    title: "Import the disc image"
+    os: any
+    optional: false
+    detail: |
+      Put the user's ISO or RVZ in a games folder, for example
+      `{{target}}/Games`, then add that folder in Dolphin under
+      Config → Paths → Add. The game list should show Super Mario Sunshine with
+      the correct region and disc ID.
+
+      Do not unzip an RVZ and do not rename the file extension; Dolphin reads
+      the container, not the name.
+    commands:
+      - shell: powershell
+        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/Super Mario Sunshine (USA).iso" -Destination "{{target}}/Games/" -Force'
+      - shell: bash
+        run: 'mkdir -p "{{target}}/Games"'
+      - shell: bash
+        run: 'cp "{{downloads}}/Super Mario Sunshine (USA).iso" "{{target}}/Games/"'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Games/Super Mario Sunshine (USA).iso'
+  - id: configure-graphics
+    title: "Configure graphics and widescreen"
+    os: any
+    optional: false
+    detail: |
+      Set the internal resolution to 3x or 4x native, enable VSync, and keep
+      the aspect ratio at 4:3 unless the user wants widescreen. Widescreen is
+      an AR/Gecko code, not a Dolphin checkbox: enable it per game and check
+      that cutscenes and FLUDD's HUD still line up.
+
+      Leave the 60 fps cheat off by default; it is not the console's timing.
+  - id: configure-controller
+    title: "Configure a GameCube controller"
+    os: any
+    optional: false
+    detail: |
+      Map an Xbox/PlayStation pad to GameCube Port 1, or use a real GameCube
+      adapter (Dolphin's adapter support needs the official Wii U adapter or
+      Zadig/WinUSB on Windows). Verify the analog triggers: FLUDD's spray is
+      pressure-sensitive.
+
+      Save the profile as "LAN pad" so every machine can reuse it.
+  - id: verify
+    title: "Boot Delfino Plaza"
+    os: any
+    optional: false
+    detail: |
+      Start the game and reach Delfino Plaza. Check the intro video, the FLUDD
+      spray, the pause menu and a save to the memory card.
+
+      This recipe is a draft and has not been verified on the LAN hardware.
+    verify:
+      - type: file_exists
+        path: '{{target}}/Games/Super Mario Sunshine (USA).iso'
+metadata:
+  genre: platformer
+  players: "1"
+  lan_recommended: false
+  tags: [platformer, gamecube, nintendo, dolphin]

@@ -1,0 +1,131 @@
+schema: lanomat.recipe/v1
+slug: zelda-majoras-mask-3d
+title: "The Legend of Zelda: Majora's Mask 3D"
+aliases: ["mm3d", "majoras mask 3d", "majora's mask 3d"]
+version: "1.0.0"
+status: draft
+platforms: [windows, linux]
+summary: Play Majora's Mask 3D on the LAN with Azahar and the user's own decrypted 3DS dump, with a two-screen layout and a normal gamepad.
+description: |
+  Majora's Mask 3D is the 3DS remake of the three-day-cycle Zelda. Azahar runs
+  it from the user's decrypted `.3ds`, `.cia` or `.cci` dump. The touch
+  inventory, the Bombers' Notebook and the map need a layout that works with a
+  controller.
+
+  The LAN collection also has a native PC port (`MM3D-PC`, TriAevum runtime)
+  which is a separate recipe. This one uses Azahar as the portable baseline.
+
+  Draft: the two-screen layout and the game's timing-sensitive 30 fps logic
+  still need a real-venue check.
+  Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://azahar-emu.org/
+license: "Nintendo; 3DS dump user-supplied"
+cover: ""
+skill:
+  name: zelda-majoras-mask-3d
+  description: "Install Majora's Mask 3D with Azahar, import the user's decrypted 3DS dump, arrange the two screens, map a gamepad and optional HD textures, and verify the game boots. Use when the user says install Majora's Mask 3D or MM3D (emulator) for the LAN."
+  compatibility: "Windows 10/11 or Linux; Azahar; ~2 GB disk; gamepad; Vulkan/OpenGL GPU"
+requires:
+  - role: base
+    label: "Majora's Mask 3D (USA) dump"
+    match: ["*Majora*Mask*3D*.3ds", "*Majora*Mask*3D*.cia", "*Majora*Mask*3D*.cci", "*mm3d*.3ds"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "Decrypted USA dump preferred. The native MM3D-PC port requires USA v1.1 specifically; Azahar is less strict, but keep the revision noted."
+  - role: tool
+    label: "Azahar emulator"
+    match: ["Azahar*.zip", "azahar-*.AppImage", "azahar*.tar.*"]
+    required: true
+    url: https://azahar-emu.org/
+    notes: "Azahar is the maintained Citra successor. Citra itself is discontinued."
+  - role: base
+    label: "3DS keys (aes_keys.txt, optional for decrypted dumps)"
+    match: ["aes_keys.txt", "*aes*keys*.txt"]
+    required: false
+    sha256: ""
+    url: ""
+    notes: "Only needed for encrypted CIAs or system files. Place it in Azahar's sysdata folder."
+steps:
+  - id: install-azahar
+    title: "Install Azahar"
+    os: windows
+    optional: false
+    detail: |
+      Download the current Azahar release and extract it to `{{target}}`, or
+      install the Linux AppImage/package. Launch once so the user folder is
+      created (`%APPDATA%\Azahar` on Windows).
+    commands:
+      - shell: powershell
+        run: 'Expand-Archive -Path "{{downloads}}/Azahar-*.zip" -DestinationPath "{{target}}" -Force'
+    verify:
+      - type: file_exists
+        path: '{{target}}/azahar.exe'
+  - id: import-game
+    title: "Import the dump"
+    os: any
+    optional: false
+    detail: |
+      Copy the `.3ds`/`.cci` to `{{target}}/Games`, add the folder in Azahar,
+      and confirm the title ID and USA region in the list.
+
+      For a `.cia`, use Azahar's CIA installer instead of adding the file to
+      the game folder.
+    commands:
+      - shell: powershell
+        run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/The Legend of Zelda - Majora''s Mask 3D (USA).3ds" -Destination "{{target}}/Games/" -Force'
+      - shell: bash
+        run: 'mkdir -p "{{target}}/Games"'
+      - shell: bash
+        run: 'cp "{{downloads}}/The Legend of Zelda - Majora''s Mask 3D (USA).3ds" "{{target}}/Games/"'
+    verify:
+      - type: file_exists
+        path: "{{target}}/Games/The Legend of Zelda - Majora's Mask 3D (USA).3ds"
+  - id: system-files
+    title: "Add keys and system files if needed"
+    os: any
+    optional: true
+    detail: |
+      For an encrypted CIA, put `aes_keys.txt` in Azahar's `sysdata` folder.
+      A decrypted `.3ds` boots without it.
+
+      Install shared fonts or Mii data only from the user's own console dump.
+  - id: layout-and-graphics
+    title: "Arrange the two screens"
+    os: any
+    optional: false
+    detail: |
+      Majora's Mask uses the touch screen for items, masks, the Bombers'
+      Notebook and the map. Use a stacked layout or a large screen plus a
+      reachable touch panel; test the notebook before the first cycle.
+
+      Set 3x–4x internal resolution and VSync. Keep the game's 30 fps logic;
+      only use a version-matched 60 fps cheat if the user accepts the risk.
+  - id: configure-controller
+    title: "Map a gamepad"
+    os: any
+    optional: false
+    detail: |
+      Map A/B, L/R, the D-pad for masks and items, and a button or the mouse
+      for the touch screen. Test the ocarina, the Bombers' Notebook and the
+      three-day save.
+
+      Save the profile as "LAN pad".
+  - id: verify
+    title: "Reach Clock Town"
+    os: any
+    optional: false
+    detail: |
+      Start a new game, reach Clock Town, open the Bombers' Notebook and save
+      at an owl statue. Check the moon timer and the first night.
+
+      Draft recipe: verify the two-screen layout and save behaviour on the LAN
+      hardware.
+metadata:
+  genre: action-adventure
+  players: "1"
+  lan_recommended: false
+  tags: [adventure, 3ds, nintendo, zelda, azahar]

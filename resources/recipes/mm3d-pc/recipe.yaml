@@ -1,0 +1,124 @@
+schema: lanomat.recipe/v1
+slug: mm3d-pc
+title: "Majora's Mask 3D PC"
+aliases: ["mm3d pc", "majoras mask 3d pc", "mm3dpc"]
+version: "0.1.9"
+status: draft
+platforms: [windows, linux]
+summary: Build and play the native Majora's Mask 3D PC port from the user's own decrypted USA v1.1 3DS ROM, with widescreen and a single-screen layout.
+description: |
+  MM3D-PC is a native Windows/Linux port of Majora's Mask 3D on the TriAevum
+  runtime. It translates the game's ARM code on the user's PC from their own
+  decrypted USA v1.1 ROM and renders the 3DS GPU stream with Vulkan. No
+  Nintendo code is downloaded or distributed.
+
+  The port adds higher resolutions, widescreen, frame interpolation above the
+  30 Hz game logic and a single-screen layout, so the touch inventory and the
+  Bombers' Notebook work on one screen with a controller. Setup downloads a
+  compiler on first run and takes 10–40 minutes.
+
+  This is a different path from the Azahar recipe (`zelda-majoras-mask-3d`),
+  which emulates the 3DS. MM3D-PC needs the USA v1.1 ROM specifically.
+  Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://github.com/Volpe34/MM3D-PC
+license: "Nintendo; decrypted USA v1.1 ROM user-supplied (port: GPL-3.0+)"
+cover: ""
+skill:
+  name: mm3d-pc
+  description: "Install the native Majora's Mask 3D PC port (MM3D-PC) on Windows or Linux, run Setup with the user's decrypted USA v1.1 ROM, configure resolution and the single-screen layout, and verify the game boots. Use when the user says install MM3D-PC or the native Majora's Mask 3D port."
+  compatibility: "Windows 10/11 x64 or Linux x64 (glibc 2.38+); Vulkan 1.2; 4 GB disk, 8 GB RAM; 10-40 min setup"
+requires:
+  - role: base
+    label: "Majora's Mask 3D USA v1.1 decrypted ROM"
+    match: ["*Majora*Mask*3D*.3ds", "*Majora*Mask*3D*.cci", "*mm3d*.3ds", "*mm3d*.cci"]
+    required: true
+    sha256: ""
+    url: ""
+    notes: "USA v1.1 only, decrypted. The setup extracts it and checks the code.bin hash; other regions or revisions are rejected."
+  - role: tool
+    label: "MM3D-PC release"
+    match: ["MM3D-PC-Windows*.zip", "MM3D-PC-Linux*.tar.*"]
+    required: true
+    url: https://github.com/Volpe34/MM3D-PC/releases/latest
+    notes: "Windows zip or Linux tar.xz. The release contains no game data; Setup builds the game module from the ROM."
+steps:
+  - id: install-port
+    title: "Extract the port"
+    os: windows
+    optional: false
+    detail: |
+      Download `MM3D-PC-Windows.zip` and extract it to a short, writable path
+      such as `C:\Games\MM3D`. Do not use `Program Files`: Setup writes,
+      compiles and caches beside the executable.
+
+      On Linux use `MM3D-PC-Linux.tar.xz` and extract it to a writable folder.
+    commands:
+      - shell: powershell
+        run: 'Expand-Archive -Path "{{downloads}}/MM3D-PC-Windows.zip" -DestinationPath "{{target}}" -Force'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Setup.bat'
+  - id: run-setup
+    title: "Run Setup with the ROM"
+    os: windows
+    optional: false
+    detail: |
+      Put the decrypted USA v1.1 ROM in `{{target}}`, then run `Setup.bat` (or
+      drag the ROM onto it). Setup extracts the ROM, translates the code and
+      builds the game module; it takes 10–40 minutes and needs internet the
+      first time to download the compiler.
+
+      The log is `logs\setup.log`. Windows may warn about an unsigned script;
+      "More info" → "Run anyway" is expected. The example uses a dump named
+      `(USA) (v1.1).3ds`; adjust the filename to the user's actual ROM.
+    commands:
+      - shell: powershell
+        run: 'Copy-Item -Path "{{downloads}}/The Legend of Zelda - Majora''s Mask 3D (USA) (v1.1).3ds" -Destination "{{target}}/" -Force'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Play.bat'
+  - id: run-setup-linux
+    title: "Run Setup with the ROM (Linux)"
+    os: linux
+    optional: false
+    detail: |
+      Put the ROM in the extracted folder and run `./Setup.sh` (or
+      `./Setup.sh /path/to/rom.3ds`). It needs `python3`, which every desktop
+      distribution provides, and internet for the first build.
+
+      The build takes 10–40 minutes; the log is `logs/setup.log`.
+    commands:
+      - shell: bash
+        run: '"{{target}}/Setup.sh"'
+    verify:
+      - type: file_exists
+        path: '{{target}}/Play.sh'
+  - id: configure
+    title: "Configure resolution, frame interpolation and layout"
+    os: any
+    optional: false
+    detail: |
+      Start the game with `Play.bat`/`Play.sh`, then press F1. Raise the
+      resolution, enable frame interpolation if the GPU holds it, and choose
+      the single-screen layout for the touch inventory, map and Bombers'
+      Notebook.
+
+      Optional: copy a texture pack into `data/textures` (Azahar/Citra format)
+      and enable custom textures. F11 toggles fullscreen.
+  - id: verify
+    title: "Reach Clock Town"
+    os: any
+    optional: false
+    detail: |
+      Create a save, reach Clock Town, open the Bombers' Notebook, play the
+      ocarina and save at an owl statue. Check the frame interpolation and the
+      single-screen item layout.
+
+      Draft recipe: performance varies and the port is a personal project;
+      verify on the LAN hardware and record the release.
+metadata:
+  genre: action-adventure
+  players: "1"
+  lan_recommended: false
+  tags: [adventure, 3ds, nintendo, zelda, native-port]
