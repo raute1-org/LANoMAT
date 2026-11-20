@@ -1,29 +1,39 @@
 # LANoMAT docs as an optional service next to the app.
 #
-# The repository's compose.yml is deliberately unchanged: the docs are
-# independent infrastructure, not part of the app stack. Use this file as a
-# separate compose project, or copy the service into your own stack.
+# The repository's compose.yml also has a `docs` service under the `docs`
+# profile; this file is for running the docs on their own, without the app
+# stack:
 #
 #   docker compose -f docs-site/deploy/compose.docs.yml up -d --build
+#   docker compose -f docs-site/deploy/compose.docs.yml logs -f docs
 #
 # Requires an external Traefik network named `traefik` (adjust to yours) and
-# APP_DOMAIN in the environment.
+# APP_DOMAIN in the environment. For a plain local preview, use
+# `docker run -p 4015:8080` instead (see docs-site/README.md).
+
+name: lanomat-docs
 
 services:
   docs:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: lanomat-docs:local
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    image: lanomat-docs:${APP_VERSION:-dev}
     restart: unless-stopped
+    # Non-root nginx (uid 101) listening on 8080; /tmp is the only writable
+    # path it needs (pid + request buffers).
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     expose:
-      - "80"
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/docs/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      - "8080"
+    # The image's HEALTHCHECK runs deploy/healthcheck.sh (BusyBox wget).
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
@@ -32,7 +42,7 @@ services:
       - "traefik.http.routers.lanomat-docs.entrypoints=websecure"
       - "traefik.http.routers.lanomat-docs.tls=true"
       - "traefik.http.routers.lanomat-docs.tls.certresolver=letsencrypt"
-      - "traefik.http.services.lanomat-docs.loadbalancer.server.port=80"
+      - "traefik.http.services.lanomat-docs.loadbalancer.server.port=8080"
       - "traefik.http.services.lanomat-docs.loadbalancer.healthcheck.path=/docs/"
       - "traefik.http.services.lanomat-docs.loadbalancer.healthcheck.interval=30s"
     networks:

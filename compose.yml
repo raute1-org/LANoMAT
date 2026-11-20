@@ -499,6 +499,50 @@ services:
       traefik.http.routers.livekit.tls.certresolver: 'letsencrypt'
       traefik.http.services.livekit.loadbalancer.server.port: '7880'
 
+  # Docs site (Zudoku, docs-site/). Optional and static: no database, no
+  # Redis, no secrets, no volume. Start it with
+  #   docker compose --profile docs up -d docs
+  # and it is served at https://${APP_DOMAIN}/docs next to the app. The
+  # container always serves the /docs prefix (Zudoku's basePath), so the
+  # Traefik router must NOT strip it. Its own image sets the security and
+  # cache headers; the app's `secure-headers@file` middleware is deliberately
+  # not attached here (it would duplicate X-Frame-Options with DENY vs
+  # SAMEORIGIN). Details: docs-site/README.md, docs-site/deploy/traefik.docs.yml.
+  #
+  # The image runs as uid 101 and listens on 8080 (nginx-unprivileged).
+  # read_only + tmpfs: nginx only needs /tmp for pid and request buffers;
+  # the document root is never written at runtime.
+  docs:
+    restart: unless-stopped
+    build:
+      context: ./docs-site
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    image: lanomat-docs:${APP_VERSION:-dev}
+    profiles: [docs]
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    expose: ['8080']
+    # The image's HEALTHCHECK probes /docs/ with BusyBox wget (no curl).
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.docs.rule: 'Host(`${APP_DOMAIN}`) && PathPrefix(`/docs`)'
+      # Explicit: longer than the app's Host-only rule, but never rely on
+      # Traefik's default rule-length priority for a correctness decision.
+      traefik.http.routers.docs.priority: '100'
+      traefik.http.routers.docs.entrypoints: 'websecure'
+      traefik.http.routers.docs.tls: 'true'
+      traefik.http.routers.docs.tls.certresolver: 'letsencrypt'
+      traefik.http.services.docs.loadbalancer.server.port: '8080'
+      traefik.http.services.docs.loadbalancer.healthcheck.path: '/docs/'
+      traefik.http.services.docs.loadbalancer.healthcheck.interval: '30s'
+
 volumes:
   pgdata:
   # User uploads (avatars, shared files, gallery photos): storage/app on the

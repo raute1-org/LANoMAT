@@ -91,31 +91,89 @@ from the app's canonical `public/logo-mark.svg`; `favicon.svg`, `favicon.ico` an
 ## Deploy
 
 ```bash
-docker build -t lanomat-docs .
-docker run --rm -p 8080:80 lanomat-docs
-# http://localhost:8080/docs/
+docker build -t lanomat-docs docs-site
+docker run --rm -p 4015:8080 lanomat-docs
+# http://localhost:4015/docs/
 ```
 
-- `Dockerfile` — Node build stage, `nginx:1.27-alpine` runtime, healthcheck on `/docs/`.
-- `nginx.conf` — SPA fallback only under `/docs`, immutable caching for hashed assets, one-week
-  cache for screenshots, gzip, security headers.
-- `deploy/compose.docs.yml` — a standalone compose service with Traefik labels.
-- `deploy/traefik.docs.yml` — the router/service labels and the dynamic-config equivalent.
-- `deploy/coolify.md` — the Coolify resource, domain and verification steps.
+The image is a **non-root** static server: `nginx-unprivileged` (uid 101) on **port 8080**, no
+Node, no npm and no source in the final layer, source maps and build-only output pruned — about
+**45 MB** `docker image ls` size. The document root is never written at runtime, so
+`--read-only --tmpfs /tmp` is supported (the compose service uses it). Running it without those
+flags works too.
 
-The repository's `compose.yml` is deliberately unchanged. The docs are optional infrastructure and
-deploy independently of the app.
+| File | What |
+|---|---|
+| `Dockerfile` | Node 22 build stage (`npm ci && npm run build`), unprivileged nginx runtime, `HEALTHCHECK` on `/docs/` |
+| `nginx.conf` | canonical `/docs` base path, real 404s (no SPA catch-all), immutable hashed assets, gzip, security headers |
+| `deploy/nginx-security-headers.conf` | the header set, included at server level and in the assets location |
+| `deploy/healthcheck.sh` | the Docker healthcheck; BusyBox `wget`, no curl |
+| `deploy/verify.sh` | the curl matrix (`BASE_URL=... deploy/verify.sh`) |
+| `deploy/compose.docs.yml` | standalone compose service with Traefik labels |
+| `deploy/traefik.docs.yml` | the router/service labels and the dynamic-config equivalent |
+| `deploy/coolify.md` | the Coolify resource, path-prefix vs subdomain, verification and troubleshooting |
+
+### URL contract
+
+The container always serves the `/docs` prefix; Traefik must **not** strip it. Zudoku's `basePath`
+is `/docs`, so every asset and link in the built HTML is absolute under `/docs`.
+
+| Request | Answer |
+|---|---|
+| `/docs/` | `200`, entry page (client-side redirect to the intro) |
+| `/docs` | `301 → /docs/` (path-relative, no `:8080` leaked) |
+| `/` | `302 → /docs/` (also makes a docs subdomain work) |
+| `/docs/api`, `/docs/recipes/ut2004` | `200` (prerendered `.html` behind the extensionless link) |
+| `/docs/nope`, `/docs/assets/nope.js`, `/nope` | `404` with the docs' own not-found page |
+| `/docs/assets/<hashed>` | `200`, `Cache-Control: public, max-age=31536000, immutable` |
+| `/docs/screens/*.png` | `200`, one-day cache |
+| `*.html`, `.md`, `llms.txt`, OpenAPI `.yaml` | revalidate / one hour |
+
+Headers on every response: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy`, `Cross-Origin-Opener-Policy`, `Strict-Transport-Security`; no CSP yet (the
+inline theme-boot script needs a planned rollout, same decision as the app). gzip is on for text,
+CSS, JS, JSON, YAML, Markdown, SVG and fonts.
+
+### Compose and Traefik
+
+The repository's `compose.yml` has the docs as an optional profile, next to the app:
+
+```bash
+docker compose --profile docs up -d docs     # https://${APP_DOMAIN}/docs
+```
+
+The service builds `./docs-site`, publishes nothing to the host, runs read-only with
+`cap_drop: [ALL]` and routes through Traefik with these labels:
+
+```yaml
+traefik.enable: "true"
+traefik.http.routers.docs.rule: "Host(`${APP_DOMAIN}`) && PathPrefix(`/docs`)"
+traefik.http.routers.docs.priority: "100"
+traefik.http.routers.docs.entrypoints: "websecure"
+traefik.http.routers.docs.tls: "true"
+traefik.http.routers.docs.tls.certresolver: "letsencrypt"
+traefik.http.services.docs.loadbalancer.server.port: "8080"
+traefik.http.services.docs.loadbalancer.healthcheck.path: "/docs/"
+```
+
+No `StripPrefix` and no `secure-headers@file` middleware: the container sets its own headers, and
+the app middleware would add a conflicting `X-Frame-Options: DENY` next to the docs' `SAMEORIGIN`.
+For a subdomain, use `Host(docs.example.com)` instead of the path matcher — `/` then redirects to
+`/docs/`. See `deploy/traefik.docs.yml` and `deploy/coolify.md`.
 
 ### Coolify in one paragraph
 
-New resource → Dockerfile → base directory `docs-site`, port `80`, health path `/docs/`, domain
+New resource → Dockerfile → base directory `docs-site`, port **8080**, health path `/docs/`, domain
 `https://lan.example/docs`, strip prefix **off**. Traefik routes `Host(lan.example) &&
-PathPrefix(/docs)` with priority 100; the app keeps the lower-priority host router.
+PathPrefix(/docs)` with priority 100; the app keeps the lower-priority host router. The alternative
+is a `docs.example.com` resource without a path matcher — the app stays untouched either way.
 
-### Traefik in one paragraph
+### Authoring links
 
-Use `deploy/traefik.docs.yml`: `PathPrefix(`/docs`)` with `priority=100`, `entrypoints=websecure`,
-`tls.certresolver=letsencrypt`, service port 80. Never strip the prefix.
+Markdown links may be written as `/start/quickstart` or `/docs/start/quickstart`; `check:links`
+normalises both. Raw HTML anchors (`<a href="...">` inside MDX) must **not** include the prefix —
+write `/system/overview`. The MDX pipeline prefixes `basePath` to raw anchors, so
+`href="/docs/system/overview"` becomes `/docs/docs/system/overview` and 404s.
 
 ## Checks
 
@@ -123,7 +181,8 @@ Use `deploy/traefik.docs.yml`: `PathPrefix(`/docs`)` with `priority=100`, `entry
 |---|---|
 | `npm run build` | Zudoku build, MDX, OpenAPI, all routes |
 | `npm run check:links` | Internal links, images and nav entries resolve |
-| `docker build .` | The production image, including the healthcheck |
+| `docker build .` | The production image, including `nginx -t` and the healthcheck |
+| `deploy/verify.sh` | The deployed URL: status matrix, caching, gzip, security headers |
 
 The docs are English (repo convention); product nouns stay German where the UI uses them
 (Teilnehmer, Orga, Spielserver, Anmeldung).
