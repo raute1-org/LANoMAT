@@ -649,7 +649,14 @@ export function buildProgram(): Command {
                     updates[role as 'chat'] = value.includes('/') ? value : `venice/${value}`;
                 }
 
-                const merged = models.mergeModelRoles(config.modelRoles, updates);
+                const baseRoles = {
+                    ...config.modelRoles,
+                    chat:
+                        config.modelRoles?.chat ??
+                        config.model ??
+                        models.resolveModel({ env: process.env }).full,
+                };
+                const merged = models.mergeModelRoles(baseRoles, updates);
                 const next: AgentConfig = {
                     ...config,
                     modelRoles: merged,
