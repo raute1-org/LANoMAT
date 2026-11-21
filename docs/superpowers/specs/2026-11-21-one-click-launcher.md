@@ -1,7 +1,21 @@
 # One-Click Agent-First Launcher — program spec (2026-11-21)
 
-Status: **active program**, 32-agent design swarm. First target: Unreal Tournament 2004.
+Status: **UT2004 pilot** (scope cut 2026-11-21). 32-agent design swarm, but only the
+Unreal Tournament 2004 pilot ships now. Every other recipe and every other game is deferred to the
+next session. **Flat only: VR is not surfaced at all** (no UT2004VR, no flat-vs-VR question, no VR
+launch target, no VR chat/docs copy).
+
 Working name: **LANoMAT Launcher** (UT2004/Epic-inspired brand world, not Signalpult).
+
+## Pilot scope
+
+- One game: `unreal-tournament-2004`. One mode: flat.
+- Preferred install source: a ready-to-copy portable folder archive
+  (`ut2004-portable-3374.zip`: patched 3374, x86-64, no Steam, no ISO mount). ISO remains a fallback.
+- The existing `ut2k4+keygen.zip` is a nosTEAM **installer EXE**, not a portable folder; a clean
+  portable archive is being built from the working install + OldUnreal 3374.
+- Everything else (other recipes, macOS if it delays the pilot, sponsorship tiers beyond the pilot
+  key, in-game hugs) is backlog unless it blocks the UT2004 pilot.
 
 ## Why
 
@@ -32,13 +46,13 @@ the browser and in the launcher.
    **Fragen** (chat). No launcher installed → the button downloads the launcher.
 2. One launcher download (`LANoMAT-Setup.exe` / `.AppImage` / `.dmg`) → first run provisions via a
    one-time install ticket (website session/donation cookie) or one-click browser approval.
-3. Launcher asks flat vs VR, shows collected avatars, then a Sims-like install window:
-   ISO download → mount/extract → base assets → OldUnreal 3374 → UT2004VR (optional) → avatars →
-   verify. Per-file/per-step progress, speed/ETA, resume, cancel.
+3. Launcher shows collected avatars, then a Sims-like install window:
+   portable archive download → extract → patch/verify → avatars → verify. ISO is the fallback path
+   (download → mount/extract → patch). Per-file/per-step progress, speed/ETA, resume, cancel.
 4. Launcher installs OpenCode silently, writes `opencode.json` with Venice provider alias `ds41f`
    and LANoMAT MCP, syncs recipe skills, then opens the default LANoMAT chat: greeting, "you can
    install UT2004", links to game pages and server browsers, inline install buttons.
-5. Play. Launch targets: flat, VR. Deep links `lanomat://install|launch|play/<slug>`.
+5. Play flat. Deep links `lanomat://install|launch|play/<slug>`.
 
 ### Live vs. experimental catalogue
 
@@ -74,8 +88,9 @@ the browser and in the launcher.
   `/api/launcher/v1/provision`; never in a shared static file or cookie.
 - **Venice sponsorship:** LANoMAT holds an Admin key, mints per-user Inference keys with USD cap,
   period, expiry, description; revoke/rotate; donor wall and usage. Fallback to user key/local model.
-- **ISO-first:** LANoMAT file host owns UT2004 Disc 1 ISO, patch 3374, UT2004VR, converted VRM
-  packages. Steam is only an optional existing target, never required.
+- **Pilot install:** portable `ut2004-portable-3374.zip` first (one download, extract, verify,
+  done); ISO + patch is the fallback. No Steam, no ISO mount in the happy path, no UT2004VR.
+  Converted VRM packages come from the avatar inventory.
 - **Avatars:** canonical `avatars` entity + per-user `avatar_inventory_items`; collect via hug in
   the VRM explorer; stable slug, not `game_recipe_file_id`; launcher installs only selected.
 - **Chat:** new browser + launcher chat surface backed by OpenCode (or pi as fallback) with LANoMAT
