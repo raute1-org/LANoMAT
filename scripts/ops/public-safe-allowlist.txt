@@ -46,3 +46,4 @@ docs/ops/announcements/2026-11-first-lineup.md:^.*$
 tests/Feature/GameRecipes/LauncherLineupTest.php:^.*$
 docs-site/pages/recipes/nfsu2.md:^.*$
 docs/ops/nfsu2-package.md:^.*$
+docs/ops/ADMIN-HANDOFF-MSG.md:^.*$
