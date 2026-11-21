@@ -10,15 +10,11 @@ use App\Modules\Friends\Support\FriendService;
 use App\Modules\Presence\Contracts\GameServerDirectory;
 use App\Modules\Presence\Domain\GameLocation;
 use App\Modules\Presence\Domain\VoiceLocation;
-use App\Modules\Presence\Jobs\RefreshLocationSnapshotJob;
-use App\Modules\Registration\Enums\RegistrationStatus;
-use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Teams\Models\TeamMember;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\Support\VoiceJoinLink;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
-use Illuminate\Support\Collection;
 
 /**
  * The read side of "where is everybody": the participants of one event with the locations the
@@ -41,10 +37,10 @@ final class PeopleDirectory
     public const int MAX_PER_PAGE = 100;
 
     public function __construct(
-        private readonly LocationSnapshotStore $store,
         private readonly GameServerDirectory $servers,
         private readonly Modules $modules,
         private readonly FriendService $friends,
+        private readonly PresenceVisibility $visibility,
     ) {}
 
     /**
@@ -53,19 +49,14 @@ final class PeopleDirectory
      */
     public function list(User $viewer, Event $event, array $filters = []): array
     {
-        $snapshot = $this->snapshot();
-        $users = $this->participants($event);
+        $snapshot = $this->visibility->snapshot();
+        $users = $this->visibility->visibleParticipants($event, $viewer);
         $context = $this->context($viewer, $event, array_values($users->pluck('id')->map(fn ($id): int => (int) $id)->all()));
-        $blocked = $this->blockedIds($viewer);
 
         $items = [];
 
         foreach ($users as $user) {
             if ($user->id === $viewer->id) {
-                continue;
-            }
-
-            if (! $user->share_location || in_array($user->id, $blocked, true)) {
                 continue;
             }
 
@@ -119,13 +110,13 @@ final class PeopleDirectory
             return null;
         }
 
-        $target = $this->participants($event)->firstWhere('id', $targetId);
+        $target = $this->visibility->visibleParticipants($event, $viewer)->firstWhere('id', $targetId);
 
-        if (! $target instanceof User || ! $target->share_location || in_array($target->id, $this->blockedIds($viewer), true)) {
+        if (! $target instanceof User) {
             return null;
         }
 
-        $snapshot = $this->snapshot();
+        $snapshot = $this->visibility->snapshot();
         $context = $this->context($viewer, $event, [$viewer->id, $target->id]);
         $location = $snapshot?->people[$target->id] ?? null;
         $mine = $snapshot?->people[$viewer->id] ?? null;
@@ -183,44 +174,7 @@ final class PeopleDirectory
 
     public function isParticipant(Event $event, int $userId): bool
     {
-        return $this->participants($event)->contains('id', $userId);
-    }
-
-    private function snapshot(): ?LocationSnapshot
-    {
-        $snapshot = $this->store->get();
-
-        if ($snapshot === null) {
-            // Cold cache: have it built (inline on a sync queue, in the background otherwise).
-            RefreshLocationSnapshotJob::dispatch();
-            $snapshot = $this->store->get();
-        }
-
-        return $snapshot;
-    }
-
-    /**
-     * @return Collection<int, User>
-     */
-    private function participants(Event $event): Collection
-    {
-        return EventRegistration::query()
-            ->where('event_id', $event->id)
-            ->where('status', '!=', RegistrationStatus::Cancelled->value)
-            ->with('user')
-            ->get()
-            ->map(fn (EventRegistration $registration): ?User => $registration->user)
-            ->filter()
-            ->unique('id')
-            ->values();
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function blockedIds(User $viewer): array
-    {
-        return $this->modules->enabled(Module::Friends) ? $this->friends->blockedUserIdsEitherWay($viewer) : [];
+        return $this->visibility->participants($event)->contains('id', $userId);
     }
 
     /**
