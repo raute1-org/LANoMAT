@@ -23,7 +23,7 @@ const toneClass: Record<Tone, string> = {
 
 function fileStep(share: GameShareShare): { label: string; tone: Tone } {
     if (share.file === null) {
-        return { label: 'Datei fehlt', tone: 'down' };
+        return { label: 'fehlt', tone: 'down' };
     }
 
     switch (share.file.visibility) {

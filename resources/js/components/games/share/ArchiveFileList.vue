@@ -81,7 +81,9 @@ function visibilityLabel(file: GameShareFile): string {
                         >
                             {{ formatBytes(file.sizeBytes) }}
                         </span>
-                        <span aria-hidden="true" class="text-border">·</span>
+                        <span aria-hidden="true" class="text-muted-foreground"
+                            >·</span
+                        >
                         <span
                             :class="
                                 file.visibility === 'pending'
@@ -96,9 +98,8 @@ function visibilityLabel(file: GameShareFile): string {
                         v-if="!file.usable"
                         class="mt-0.5 block text-xs text-muted-foreground"
                     >
-                        Kein Archiv — erlaubt sind
-                        {{ archiveExtensions.join(' oder ') }}, gepackt als
-                        Ordner.
+                        Kein Archiv — lade den entpackten Spielordner als
+                        {{ archiveExtensions.join(' oder ') }} hoch.
                     </span>
                 </span>
             </label>

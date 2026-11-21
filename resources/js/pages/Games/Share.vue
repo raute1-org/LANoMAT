@@ -390,6 +390,7 @@ function submit(): void {
 
                         <fieldset
                             class="grid gap-2"
+                            aria-required="true"
                             :aria-describedby="
                                 form.errors.platforms
                                     ? 'share-platforms-error'
@@ -745,7 +746,7 @@ function submit(): void {
                                 v-if="!selectedUsable"
                                 class="text-xs text-muted-foreground sm:text-right"
                             >
-                                Wähle oben ein Archiv als .zip oder .tar.bz2.
+                                Wähle oben ein Archiv als {{ archiveList }}.
                             </p>
                             <p
                                 v-else-if="!titleReady"
