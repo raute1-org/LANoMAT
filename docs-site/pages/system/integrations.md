@@ -33,6 +33,32 @@ TeamSpeak). Web voice uses a self-hosted LiveKit SFU. LANoMAT issues room tokens
 bytes never pass through the app. Rooms are cleaned up when the last person leaves, not on a blind
 timer.
 
+## Accounts on other platforms
+
+Discord is the way in. Steam and Twitch are optional links a participant adds in settings, so orga
+can match a nickname to a person on another platform. The same page offers the desktop client.
+
+| Dark | Light |
+|---|---|
+| ![Settings, connections tab with Steam, Twitch and the desktop client, dark](/screens/connections-dark.png) | ![Settings, connections tab with Steam, Twitch and the desktop client, light](/screens/connections-light.png) |
+| `CONNECTIONS · DARK` — Steam and Twitch links; Discord is the login | `CONNECTIONS · LIGHT` |
+
+## Machines behind a contract
+
+The same rule — a contract plus a fake in tests — covers the machines at the other end. `Hosts`
+keeps the address, SSH user, write-only key and pinned fingerprint; `Files` can put bytes on the
+LAN file host instead of the app's disk.
+
+| Dark | Light |
+|---|---|
+| ![Remote hosts, empty registry with address, key and role columns, dark](/screens/admin-remote-hosts-dark.png) | ![Remote hosts, empty registry with address, key and role columns, light](/screens/admin-remote-hosts-light.png) |
+| `REMOTE HOSTS · DARK` — empty registry: address, SSH user, key, role, last probe | `REMOTE HOSTS · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Shared files, event files with size, status and store, dark](/screens/admin-shared-files-dark.png) | ![Shared files, event files with size, status and store, light](/screens/admin-shared-files-light.png) |
+| `SHARED FILES · DARK` — uploader, size, moderation status, store per row | `SHARED FILES · LIGHT` |
+
 <div class="callout-live">
   <strong>Agents use MCP, not Discord.</strong> The MCP server at <code>/mcp</code> is a separate
   interface with its own bearer tokens and device pairing. See <a href="/mcp/overview">MCP</a>.
