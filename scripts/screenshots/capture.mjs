@@ -635,7 +635,6 @@ async function captureTerminal(kind, scheme) {
 async function exists(file) {
     try {
         await stat(file);
-
         return true;
     } catch {
         return false;
