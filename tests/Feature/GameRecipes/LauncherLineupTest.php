@@ -211,7 +211,7 @@ it('parses, normalizes and ignores malformed lineup entries', function () {
     ])->and($lineup->allows('apocalypse'))->toBeFalse();
 });
 
-it('registers the browser server once without touching other servers', function () {
+it('registers the browser and native servers once without touching other servers', function () {
     $user = User::factory()->create();
 
     $this->seed(LauncherLineupSeeder::class);
@@ -221,9 +221,12 @@ it('registers the browser server once without touching other servers', function 
         ->get('/servers')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->has('permanent', 1)
+            ->has('permanent', 2)
             ->where('permanent.0.title', 'NFSU2 (Browser)')
             ->where('permanent.0.address', 'nfsu2.xyz')
             ->where('permanent.0.port', 443)
-            ->where('permanent.0.connectString', 'https://nfsu2.xyz/'));
+            ->where('permanent.0.connectString', 'https://nfsu2.xyz/')
+            ->where('permanent.1.title', 'NFSU2 (NFS-Online, unser Server)')
+            ->where('permanent.1.address', '10.23.3.220')
+            ->where('permanent.1.port', 20922));
 });

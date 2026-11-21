@@ -8,6 +8,8 @@
 **UT2004 läuft:** `10.23.0.40:7777` (UT2004 VRM, Raute1 LAN).
 Beitreten im Serverbrowser oder direkt per `ut2004://10.23.0.40:7777` – den Link-Handler kann der Launcher einrichten.
 
+**Unser NFSU2-Server (NFS-Online):** `10.23.3.220:20922` (Test) · Ziel `10.23.0.12:20922`; Client und Launcher-Eintrag folgen.
+
 **NFSU2 im Browser:** https://nfsu2.xyz
 Das ist der Community-Port „Underground 2 Revived“ – nicht unser Server. Chrome oder Firefox mit WebGPU, kein Account nötig: Nickname eintragen, auf den einen Server joinen, fahren, am Ende wieder leaven. Bei vollem Server gibt es eine Warteschlange.
 

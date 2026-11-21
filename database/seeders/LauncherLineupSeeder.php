@@ -55,5 +55,36 @@ final class LauncherLineupSeeder extends Seeder
                 connectString: 'https://nfsu2.xyz/',
             ),
         ])->save();
+
+        // Our own native NFSU2 server (NFS-Online). The event address is
+        // 10.23.0.12; 10.23.3.220 is the tested laptop fallback. Override it
+        // with NFS_SERVER_HOST before seeding on the venue server.
+        $nativeGame = Game::query()->updateOrCreate(
+            ['slug' => 'need-for-speed-underground-2'],
+            [
+                'name' => 'Need for Speed: Underground 2',
+                'min_team_size' => 1,
+                'max_team_size' => 6,
+            ],
+        );
+
+        $nativeLink = ServerLink::query()->firstOrNew([
+            'title' => 'NFSU2 (NFS-Online, unser Server)',
+            'permanent' => true,
+        ]);
+
+        $nativeLink->forceFill([
+            'game_id' => $nativeGame->id,
+            'status' => ServerLinkStatus::Ready,
+            'manual' => true,
+            'permanent' => true,
+            'source' => ServerSource::External,
+            'query_protocol' => null,
+            'join_info' => new JoinInfo(
+                address: env('NFS_SERVER_HOST', '10.23.3.220'),
+                port: 20922,
+                connectString: env('NFS_SERVER_HOST', '10.23.3.220'),
+            ),
+        ])->save();
     }
 }

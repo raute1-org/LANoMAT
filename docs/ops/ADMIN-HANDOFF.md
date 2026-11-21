@@ -58,12 +58,11 @@ MCP pagination must work after deploy (`per_page=100`, all 24 tools, `nextCursor
 `config/launcher.php`:
 
 ```conf
-LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2-browser
+LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser
 ```
 
 That hides every other recipe from the launcher, `/games`, the home chat and the
-MCP `recipes_list`; the database is untouched. To show the **native NFSU2**
-install instead of the browser card:
+MCP `recipes_list`; the database is untouched. The native NFSU2 card and the browser card are both in the first lineup; the native one is first. To keep only the native install:
 
 ```conf
 LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2

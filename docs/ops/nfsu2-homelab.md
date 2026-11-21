@@ -1,5 +1,7 @@
 # NFS Online Server (NFS:U2) — Hosting-Test Homelab
 
+Zentrales Runbook: [`nfsu2.md`](nfsu2.md). Event-Server: [`nfsu2-server.md`](nfsu2-server.md).
+
 Stand: **2026-11-21**. Getestet wurde der Community-Server
 NFS-Online-Server 1.1.3 (Python, `--games u2`; Quelle
 `/home/reneil1337/Downloads/nfsu2/NFS-Online-Server`) als Container auf dem

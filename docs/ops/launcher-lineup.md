@@ -6,11 +6,12 @@ Runbook.
 
 ## 1. Was die Lineup ist
 
-Die erste Lineup sind die zwei getesteten Spiele:
+Die erste Lineup sind die drei getesteten Spiele:
 
 | Slug | Weg | Install |
 | --- | --- | --- |
 | `unreal-tournament-2004` | Launcher (Single-Click), Serverbrowser | ja, `System/`-Verifier + OldUnreal-Patch |
+| `need-for-speed-underground-2` | Launcher (Single-Click), NFS-Online-Server | ja, Basis-ZIP + NFS-Online-ASI; Wine auf Linux |
 | `need-for-speed-underground-2-browser` | Browser `https://nfsu2.xyz/` | nein, nur „Spielen“ |
 
 Alles andere (Apocalypse, Azeroth, Zelda, CS, Ridge Racer, …) bleibt in der
@@ -28,7 +29,7 @@ Die Rezepte bleiben synchronisierbar; die Lineup ist nur ein Read-Filter.
 
 ```dotenv
 # config/launcher.php -> lineup
-LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2-browser
+LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser
 ```
 
 - Komma-getrennte Slugs, Leerzeichen werden getrimmt, Kleinschreibung ist

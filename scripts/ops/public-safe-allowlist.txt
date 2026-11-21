@@ -40,3 +40,7 @@ docs/ops/discord-agent.md:^.*$
 resources/recipes/need-for-speed-underground-2/recipe.yaml:^.*$
 docker/nfs-online/compose.yml:^.*$
 docs/ops/nfsu2-homelab.md:^.*$
+database/seeders/LauncherLineupSeeder.php:^.*$
+docs/ops/announcements/2026-11-first-lineup.md:^10\.23\.0\.12$
+docs/ops/announcements/2026-11-first-lineup.md:^.*$
+tests/Feature/GameRecipes/LauncherLineupTest.php:^.*$

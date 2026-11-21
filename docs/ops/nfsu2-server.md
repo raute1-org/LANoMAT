@@ -1,5 +1,7 @@
 # NFS Underground 2 Online-Server — Betriebs-Runbook
 
+Zentrales Runbook: [`nfsu2.md`](nfsu2.md).
+
 Stand: **2026-11-21**. Getestet auf dem Laptop `10.23.3.220` mit
 NFS Online Server **1.1.3** (Classic V958, Client 0.2.22), Python 3.14.8,
 Docker 29.9.2 / Compose 5.6.1 und Python 3.12.16 im Container.
