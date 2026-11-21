@@ -88,7 +88,7 @@ it('exposes availability and free spots on the registration page', function () {
             ->where('freeSpots', 2));
 });
 
-it('exposes availability on event page, dashboard, shared currentEvent and seating', function () {
+it('exposes availability on event page, Jetzt page, shared currentEvent and seating', function () {
     $event = Event::factory()->live()->create(['max_participants' => 1]);
     EventRegistration::factory()->for($event)->create();
     $user = User::factory()->create();

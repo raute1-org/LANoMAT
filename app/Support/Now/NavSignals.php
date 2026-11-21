@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\Cache;
 /**
  * The small live hints the sidebar shows next to its items (shared Inertia prop `navSignals`).
  * Every field is null when its module is off or there is no current event; the whole bundle is
- * cached per user for {@see self::TTL} seconds because it rides on every page response.
+ * cached per user for {@see self::TTL} seconds because it rides on every page response (except
+ * `registered`, which is always fresh, and the food hint, which a new or cancelled order item drops
+ * through {@see self::forget()}).
  */
 final class NavSignals
 {
@@ -37,14 +39,38 @@ final class NavSignals
      */
     public function for(User $user): array
     {
-        /** @var array{serversOnline: int|null, tournament: 'ready'|'checkin'|null, foodClosesAt: string|null, seat: string|null, present: int|null, registered: bool|null} $signals */
-        $signals = Cache::remember('nav-signals:'.$user->id, self::TTL, fn (): array => $this->build($user));
+        /** @var array{serversOnline: int|null, tournament: 'ready'|'checkin'|null, foodClosesAt: string|null, seat: string|null, present: int|null} $cached */
+        $cached = Cache::remember(self::key($user->id), self::TTL, fn (): array => $this->build($user));
 
-        return $signals;
+        // Whether the viewer is registered must be fresh right after registering (the sidebar
+        // drops its "Anmeldung" hint), so it is one cheap exists() outside the cached bundle.
+        return [...$cached, 'registered' => $this->registered($user)];
+    }
+
+    /** Drops the cached bundle of a user whose state just changed (e.g. after ordering food). */
+    public static function forget(int $userId): void
+    {
+        Cache::forget(self::key($userId));
+    }
+
+    private static function key(int $userId): string
+    {
+        return 'nav-signals:'.$userId;
+    }
+
+    private function registered(User $user): ?bool
+    {
+        $event = $this->current->get();
+
+        return $event === null ? null : EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $user->id)
+            ->where('status', '!=', RegistrationStatus::Cancelled->value)
+            ->exists();
     }
 
     /**
-     * @return array{serversOnline: int|null, tournament: 'ready'|'checkin'|null, foodClosesAt: string|null, seat: string|null, present: int|null, registered: bool|null}
+     * @return array{serversOnline: int|null, tournament: 'ready'|'checkin'|null, foodClosesAt: string|null, seat: string|null, present: int|null}
      */
     private function build(User $user): array
     {
@@ -55,12 +81,7 @@ final class NavSignals
             'tournament' => $event === null ? null : $this->tournament($user, $event),
             'foodClosesAt' => $event === null || ! $this->modules->enabled(Module::Catering) ? null : $this->foodClosesAt($user, $event),
             'seat' => $event === null || ! $this->modules->enabled(Module::Seating) ? null : $this->seat($user, $event),
-            'present' => $event === null ? null : $this->present($event),
-            'registered' => $event === null ? null : EventRegistration::query()
-                ->where('event_id', $event->id)
-                ->where('user_id', $user->id)
-                ->where('status', '!=', RegistrationStatus::Cancelled->value)
-                ->exists(),
+            'present' => $event === null || ! $this->modules->enabled(Module::Presence) ? null : $this->present($event),
         ];
     }
 
@@ -94,7 +115,7 @@ final class NavSignals
     {
         $open = FoodNow::for($event, $user)['open'];
 
-        return $open !== null && $open['mine'] === null ? $open['closesAt'] : null;
+        return $open !== null && $open['orderable'] && $open['mine'] === null ? $open['closesAt'] : null;
     }
 
     private function seat(User $user, Event $event): ?string

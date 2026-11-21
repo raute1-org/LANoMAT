@@ -10,8 +10,11 @@ use App\Modules\Catering\Support\FoodNow;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
+use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\ServerGameSummary;
 use App\Modules\GameServers\Support\ServerListProjection;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Support\LinkedProviders;
 use App\Modules\Lfg\Support\WantToPlayBoard;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Support\NewsQuery;
@@ -29,11 +32,12 @@ use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The "Jetzt" home page of a signed-in user (GET /, see EventPageController::home). It composes
+ * The "Jetzt" home page of a signed-in user (GET /, see HomeController). It composes
  * read models only and sits outside the module graph, so every optional module is reached
  * behind a `Modules::enabled()` guard; a block of an off module is null and the page hides it.
  */
@@ -63,16 +67,19 @@ class NowController extends Controller
                 'registration' => MyRegistration::summary($event, $user),
                 'seat' => MySeat::for($event, $user)['label'] ?? null,
                 'team' => MyTeams::for($user)[0]['name'] ?? null,
+                'steamLinked' => LinkedProviders::has($user, LinkedAccountProvider::Steam),
             ],
             'news' => $modules->enabled(Module::News) ? $this->news() : [],
-            'permanent' => $state !== 'live' && $modules->enabled(Module::GameServers)
+            'permanent' => $state !== 'live' && $modules->enabled(Module::GameServers) && $this->mayViewServers($user)
                 ? array_slice(array_map($this->permanentDto(...), ServerListProjection::forPermanent()), 0, self::PERMANENT_ROWS)
                 : null,
             'labels' => trans('now'),
             'clientHint' => trans('web_voice.client_hint'),
         ];
 
-        $playing = $modules->enabled(Module::GameServers) || ($modules->enabled(Module::Presence) && $event !== null);
+        // Only a running event has anything to show here; the block is not part of the other states.
+        $playing = $state === 'live'
+            && ($modules->enabled(Module::GameServers) || $modules->enabled(Module::Presence));
         $props['nowPlaying'] = $playing ? Inertia::defer(fn (): array => $this->nowPlaying($modules, $user, $event)) : null;
 
         $props['wantToPlay'] = $event !== null && $modules->enabled(Module::Lfg)
@@ -170,6 +177,12 @@ class NowController extends Controller
         return is_numeric($id) ? (int) $id : null;
     }
 
+    /** The same gate the /servers page applies to servers and permanent servers. */
+    private function mayViewServers(User $user): bool
+    {
+        return Gate::forUser($user)->allows('viewPermanent', ServerLink::class);
+    }
+
     /**
      * Servers (GameServers) merged with the located participants (Presence) per game.
      *
@@ -179,7 +192,7 @@ class NowController extends Controller
     {
         $rows = [];
 
-        if ($modules->enabled(Module::GameServers)) {
+        if ($modules->enabled(Module::GameServers) && $this->mayViewServers($user)) {
             foreach (ServerGameSummary::forEvent($event) as $summary) {
                 $rows[mb_strtolower($summary['game'])] = [
                     'game' => $summary['game'],
@@ -193,6 +206,7 @@ class NowController extends Controller
         }
 
         if ($event !== null && $modules->enabled(Module::Presence)) {
+            // The located counts stay ungated on purpose: aggregates without names, like the beamer scene.
             foreach (app(LocatedGames::class)->countsFor($event, $user) as $game => $located) {
                 $key = mb_strtolower($game);
                 $rows[$key] ??= ['game' => $game, 'people' => 0, 'servers' => 0, 'players' => 0, 'maxPlayers' => 0, 'join' => null];

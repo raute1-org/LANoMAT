@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DevLoginController;
+use App\Http\Controllers\HomeController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\GatewayIngressController;
@@ -77,7 +78,7 @@ if ($modules->routable(Module::Mcp)) {
 
 // ---- core (always) ----
 
-Route::get('/', [EventPageController::class, 'home'])->name('home');
+Route::get('/', HomeController::class)->name('home');
 Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.show');
 
 Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
@@ -88,7 +89,7 @@ Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show')
 Route::post('dev/login/{role}', DevLoginController::class)->name('dev.login');
 
 Route::middleware(['auth'])->group(function () {
-    Route::redirect('dashboard', '/')->name('dashboard');
+    Route::get('dashboard', fn () => redirect('/'))->name('dashboard');
 
     // Local avatar copies (Identity, core): every logged-in user, immutable per content hash.
     Route::get('avatars/{user}/{hash}', [AvatarController::class, 'show'])
@@ -99,7 +100,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Nobody who is not logged in may see ANY event data: the event list, the
     // event page and every event-scoped participant page require login. Guests
-    // only get the event-free landing at `/` (EventPageController::home).
+    // only get the event-free landing at `/` (HomeController).
     Route::get('/events', [EventPageController::class, 'archive'])->name('events.index');
     Route::get('/events/{event:slug}', [EventPageController::class, 'show'])->name('events.show');
     Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');

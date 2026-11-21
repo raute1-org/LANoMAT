@@ -13,7 +13,7 @@ it('requires auth to view the registration page', function () {
     $event = Event::factory()->registration()->create();
 
     // Standard Laravel `auth` middleware redirect target (no custom redirectTo
-    // configured in bootstrap/app.php); matches DashboardTest's expectation.
+    // configured in bootstrap/app.php).
     $this->get("/events/{$event->slug}/register")->assertRedirect(route('login'));
 });
 

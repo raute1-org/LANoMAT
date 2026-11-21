@@ -8,21 +8,35 @@ use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\Identity\Enums\LinkedAccountProvider;
+use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Lfg\Actions\ToggleWantToPlay;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Notifications\Notifications\RegistrationConfirmed;
+use App\Modules\Presence\Domain\GameLocation;
+use App\Modules\Presence\Domain\PersonLocation;
+use App\Modules\Presence\Support\LocationSnapshot;
+use App\Modules\Presence\Support\LocationSnapshotStore;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Seating\Models\Seat;
 use App\Modules\Seating\Models\SeatAssignment;
 use App\Modules\Teams\Actions\CreateTeam;
 use App\Modules\Teams\Models\Team;
+use App\Modules\Tournaments\Actions\SubmitMatchReport;
+use App\Modules\Tournaments\Enums\MatchStatus;
+use App\Modules\Tournaments\Models\Tournament;
+use App\Modules\Voting\Models\Poll;
+use App\Modules\Voting\Models\PollOption;
 use App\Support\Modules\Modules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
+
+require_once __DIR__.'/../WebVoice/NativeClient/PlayHelpers.php';
 
 /** Reloads only the given props, as the page does for its deferred blocks. */
 function nowPartial(User $user, array $props): AssertableInertia|TestResponse
@@ -44,6 +58,7 @@ it('still renders the guest landing at the root', function () {
 it('redirects /dashboard to the root and keeps it behind login', function () {
     $this->get('/dashboard')->assertRedirect(route('login'));
     $this->actingAs(User::factory()->create())->get('/dashboard')->assertRedirect('/');
+    $this->actingAs(User::factory()->create())->post('/dashboard')->assertStatus(405);
 });
 
 it('renders the none state without a current event', function () {
@@ -203,4 +218,191 @@ it('hides optional blocks when their modules are off', function () {
     $props = nowPartial($user, ['nowPlaying', 'wantToPlay'])->assertOk()->json('props');
     expect($props['nowPlaying'] ?? null)->toBeNull()
         ->and($props['wantToPlay'] ?? null)->toBeNull();
+});
+
+/** @return array<string, mixed> the props of the first page load for $user */
+function nowProps(User $user): array
+{
+    return test()->actingAs($user)->get('/')->assertOk()->viewData('page')['props'];
+}
+
+/** Fills the presence snapshot: one registered, visible person per entry of $games (a game name each). */
+function nowLocated(Event $event, array $games): User
+{
+    $viewer = User::factory()->create();
+    playRegister($viewer, $event);
+    $people = [];
+
+    foreach ($games as $index => $game) {
+        $user = $index === 0 ? $viewer : User::factory()->create();
+
+        if ($index !== 0) {
+            playRegister($user, $event);
+        }
+
+        $people[$user->id] = new PersonLocation($user->id, [], new GameLocation(GameLocation::SOURCE_STEAM, $game, null, null, null, null, now()->toIso8601String()));
+    }
+
+    app(LocationSnapshotStore::class)->put(new LocationSnapshot(now()->toIso8601String(), $people));
+
+    return $viewer;
+}
+
+function nowServer(Event $event, string $game, int $players): void
+{
+    ServerLink::factory()->create([
+        'event_id' => $event->id,
+        'game_id' => Game::firstOrCreate(['name' => $game], Game::factory()->raw(['name' => $game]))->id,
+        'status' => ServerLinkStatus::Ready,
+        'join_info' => new JoinInfo(address: '198.51.100.1', port: 27015, connectString: 'steam://connect/198.51.100.1:27015'),
+        'query_info' => ['name' => 'S', 'map' => 'm', 'players' => $players, 'max_players' => 16],
+    ]);
+}
+
+it('merges servers and located people per game: people is the larger, located-only rows have no server', function () {
+    $event = Event::factory()->live()->create();
+    nowServer($event, 'CS2', 3);
+    nowServer($event, 'UT2004', 7);
+    // Five people on "cs2" (merges case-insensitively into the CS2 server row), one on UT2004
+    // (fewer than its 7 players), two on Quake and two on Anno (located only).
+    $viewer = nowLocated($event, ['cs2', 'cs2', 'cs2', 'cs2', 'cs2', 'UT2004', 'Quake', 'Quake', 'Anno', 'Anno']);
+
+    $rows = nowPartial($viewer, ['nowPlaying'])->assertOk()->json('props.nowPlaying');
+
+    expect(array_column($rows, 'game'))->toBe(['UT2004', 'CS2', 'Anno', 'Quake'])
+        ->and($rows[0])->toMatchArray(['people' => 7, 'servers' => 1, 'players' => 7])
+        ->and($rows[1])->toMatchArray(['game' => 'CS2', 'people' => 5, 'servers' => 1, 'players' => 3, 'maxPlayers' => 16])
+        ->and($rows[1]['join'])->not->toBeNull()
+        ->and($rows[2])->toMatchArray(['people' => 2, 'servers' => 0, 'players' => 0, 'maxPlayers' => 0, 'join' => null])
+        ->and($rows[3])->toMatchArray(['people' => 2, 'servers' => 0, 'join' => null]);
+});
+
+it('caps nowPlaying at eight rows', function () {
+    $event = Event::factory()->live()->create();
+    $viewer = nowLocated($event, array_map(fn (int $i): string => sprintf('Game %02d', $i), range(1, 10)));
+
+    $rows = nowPartial($viewer, ['nowPlaying'])->assertOk()->json('props.nowPlaying');
+
+    expect($rows)->toHaveCount(8)
+        ->and($rows[0]['game'])->toBe('Game 01')
+        ->and($rows[7]['game'])->toBe('Game 08');
+});
+
+it('only offers nowPlaying while the event is live', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    nowServer($event, 'CS2', 3);
+
+    $this->actingAs($user)->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('state', 'upcoming')->where('nowPlaying', null));
+    expect(nowPartial($user, ['nowPlaying'])->json('props.nowPlaying') ?? null)->toBeNull();
+});
+
+it('hides the servers of a game from people who may not view them but keeps located counts', function () {
+    $event = Event::factory()->live()->create();
+    nowServer($event, 'CS2', 3);
+    $viewer = nowLocated($event, ['Quake', 'Quake']);
+
+    Gate::policy(ServerLink::class, (new class
+    {
+        public function viewPermanent(User $user): bool
+        {
+            return false;
+        }
+    })::class);
+
+    $rows = nowPartial($viewer, ['nowPlaying'])->assertOk()->json('props.nowPlaying');
+
+    expect(array_column($rows, 'game'))->toBe(['Quake'])
+        ->and($rows[0])->toMatchArray(['people' => 2, 'servers' => 0, 'join' => null]);
+});
+
+it('reports whether the viewer has linked Steam', function () {
+    $event = Event::factory()->live()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create();
+
+    expect(nowProps($user)['me']['steamLinked'])->toBeFalse();
+
+    LinkedAccount::factory()->create(['user_id' => $user->id, 'provider' => LinkedAccountProvider::Steam]);
+
+    expect(nowProps($user)['me']['steamLinked'])->toBeTrue();
+});
+
+it('links a match card to its tournament with the label of each match state', function (string $state) {
+    $event = Event::factory()->live()->create();
+    $me = User::factory()->create();
+    $them = User::factory()->create();
+    playRegister($me, $event);
+    $tournament = Tournament::factory()->live()->create(['event_id' => $event->id]);
+
+    if ($state === 'checkin_open') {
+        $tournament = Tournament::factory()->checkIn()->create([
+            'event_id' => $event->id,
+            'checkin_opens_at' => now()->subMinutes(5), 'checkin_closes_at' => now()->addMinutes(30),
+        ]);
+        playEntry($tournament, $me);
+        $expected = ['card_action_match_checkin'];
+    } else {
+        playMatch($event, $me, $them, $state === 'ready' ? MatchStatus::Ready : MatchStatus::Live, $tournament);
+        $expected = [$state === 'ready' ? 'card_action_match' : 'card_action_match_report'];
+    }
+
+    $card = collect(nowProps($me)['forYou']['cards'])->firstWhere('kind', 'match');
+
+    expect($card['state'])->toBe($state)
+        ->and($card['href'])->toBe(route('tournaments.show', $tournament->id))
+        ->and($card['data']['actionLabel'])->toBe(trans('now.'.$expected[0]));
+})->with(['ready', 'live', 'checkin_open']);
+
+it('links a result-confirmation card to its tournament with the report label', function () {
+    $event = Event::factory()->live()->create();
+    $me = User::factory()->create();
+    $them = User::factory()->create();
+    playRegister($me, $event);
+    $match = playMatch($event, $me, $them, MatchStatus::Live);
+    app(SubmitMatchReport::class)->handle($match, $match->entry2, 2, 0);
+
+    $card = collect(nowProps($me)['forYou']['cards'])->firstWhere('kind', 'match');
+
+    expect($card['state'])->toBe('confirm_result')
+        ->and($card['href'])->toBe(route('tournaments.show', $match->tournament_id))
+        ->and($card['data']['actionLabel'])->toBe(trans('now.card_action_match_report'));
+});
+
+it('links vote and order cards to the poll and the catering page', function () {
+    $event = Event::factory()->live()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create();
+    $poll = Poll::factory()->open()->create(['event_id' => $event->id, 'question' => 'Welche Map?']);
+    PollOption::factory()->create(['poll_id' => $poll->id, 'label' => 'Dust', 'sort' => 1]);
+    PollOption::factory()->create(['poll_id' => $poll->id, 'label' => 'Mirage', 'sort' => 2]);
+    FoodOrder::factory()->for($event)->open()->create(['closes_at' => now()->addMinutes(20), 'menu' => [new MenuOption(key: 'cola', name: 'Cola', priceCents: 200)]]);
+
+    $cards = collect(nowProps($user)['forYou']['cards']);
+
+    expect($cards->firstWhere('kind', 'vote')['href'])->toBe(route('polls.show', $poll->id))
+        ->and($cards->firstWhere('kind', 'vote')['data']['actionLabel'])->toBe(trans('now.card_action_vote'))
+        ->and($cards->firstWhere('kind', 'order')['href'])->toBe(route('catering.show', $event))
+        ->and($cards->firstWhere('kind', 'order')['data']['actionLabel'])->toBe(trans('now.card_action_order'));
+});
+
+it('hides the permanent servers from people who may not view them', function () {
+    Event::factory()->registration()->create();
+    ServerLink::factory()->permanent()->create(['status' => ServerLinkStatus::Ready]);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('permanent', 1));
+
+    Gate::policy(ServerLink::class, (new class
+    {
+        public function viewPermanent(User $user): bool
+        {
+            return false;
+        }
+    })::class);
+
+    $this->actingAs($user)->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('permanent', null));
 });

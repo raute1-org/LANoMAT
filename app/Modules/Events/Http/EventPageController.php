@@ -2,7 +2,6 @@
 
 namespace App\Modules\Events\Http;
 
-use App\Http\Controllers\NowController;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\News\Models\NewsPost;
@@ -21,20 +20,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class EventPageController
 {
-    public function home(Request $request): Response
-    {
-        // Guests get an event-free landing: no event data may leave the server
-        // for anyone who is not logged in.
-        if ($request->user() === null) {
-            return Inertia::render('Welcome', [
-                'labels' => trans('welcome'),
-            ]);
-        }
-
-        // Signed-in users get the "Jetzt" page (outside the module graph; see NowController).
-        return app()->call([app(NowController::class), '__invoke']);
-    }
-
     public function show(Request $request, Event $event): Response
     {
         if (! $event->isPubliclyVisible()) {

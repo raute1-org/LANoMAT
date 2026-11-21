@@ -193,6 +193,7 @@ use App\Modules\WebVoice\Support\WebVoiceSightings;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use App\Support\Now\NavSignals;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Schemas\Schema;
@@ -642,6 +643,13 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Event::listen(MatchReady::class, NotifyRosterOnMatchReady::class);
+
+        if ($this->on(Module::Catering)) {
+            // The sidebar's "order food" hint hides once the viewer ordered; drop the cached hint
+            // the moment an item is placed or cancelled instead of waiting out the TTL.
+            FoodOrderItem::created(fn (FoodOrderItem $item) => NavSignals::forget($item->user_id));
+            FoodOrderItem::deleted(fn (FoodOrderItem $item) => NavSignals::forget($item->user_id));
+        }
 
         if ($this->on(Module::Infoscreen)) {
             Event::listen(MatchCompleted::class, BroadcastWinnerMoment::class);
