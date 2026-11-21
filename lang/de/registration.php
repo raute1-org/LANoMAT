@@ -141,6 +141,11 @@ return [
             'title' => 'Check-in geöffnet',
             'body' => 'Der Check-in für :event ist jetzt geöffnet.',
         ],
+        'payment_reminder' => [
+            'title' => 'Zahlung ausstehend',
+            'body_after_registration' => 'Dein Ticket „:ticket“ für :event ist noch nicht bezahlt (:amount). Alle Infos zum Bezahlen: :url',
+            'body_before_event' => ':event rückt näher und dein Ticket „:ticket“ ist noch nicht bezahlt (:amount). Alle Infos zum Bezahlen: :url',
+        ],
     ],
 
     'checkin' => [
