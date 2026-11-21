@@ -6,6 +6,7 @@ namespace App\Modules\Mcp\Http\Api;
 
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Actions\ContributeRecipe;
 use App\Modules\GameRecipes\Models\GameRecipe;
@@ -13,6 +14,7 @@ use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\LauncherLineup;
+use App\Modules\GameRecipes\Support\LauncherSupport;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\Mcp\Support\SafeText;
 use Illuminate\Http\JsonResponse;
@@ -50,7 +52,24 @@ class RecipeController extends Controller
         return in_array($slug, self::LAUNCHER_SUPPORTED_SLUGS, true);
     }
 
-    public function index(Request $request, LauncherLineup $lineup): JsonResponse
+    /**
+     * The metadata keys a contribution may set through the REST surface. The
+     * rest of a recipe's metadata document belongs to the orga and to the
+     * recipe source; `launcher_supported` in particular is an orga override.
+     *
+     * @var list<string>
+     */
+    private const CONTRIBUTION_METADATA_KEYS = [
+        'portable',
+        'genre',
+        'players',
+        'players_max',
+        'lan_recommended',
+        'tags',
+        'multiplayer',
+    ];
+
+    public function index(Request $request, LauncherLineup $lineup, LauncherSupport $support): JsonResponse
     {
         $user = $this->authUser($request);
         $query = mb_strtolower($request->string('query')->toString());
@@ -79,18 +98,22 @@ class RecipeController extends Controller
                 'installable' => $this->installable($recipe),
                 // A browser recipe has no install path, but the launcher can
                 // still open its `play_url`; the shell uses that as "Spielen".
-                'launcher_supported' => self::supportsLauncher($recipe->slug)
-                    || $recipe->playUrl($request->getHost()) !== null,
+                'launcher_supported' => $support->supports($recipe),
+                'in_lineup' => $recipe->in_lineup,
+                // A draft is only visible to its contributor (or the orga), so
+                // its pull request travels with the row they see.
+                'pull_request' => $this->pullRequestFor($recipe, $user),
                 'play_url' => $recipe->playUrl($request->getHost()),
                 'updated_at' => $recipe->updated_at?->toIso8601String(),
             ])->all(),
         ], 200, ['Cache-Control' => 'no-store, private']);
     }
 
-    public function show(Request $request, string $slug, RecipeFileMatcher $matcher): JsonResponse
+    public function show(Request $request, string $slug, RecipeFileMatcher $matcher, LauncherSupport $support): JsonResponse
     {
+        $user = $this->authUser($request);
         $recipe = $this->findRecipe($request, $slug);
-        $matches = $matcher->matchesFor($recipe, $this->authUser($request));
+        $matches = $matcher->matchesFor($recipe, $user);
 
         return response()->json([
             'recipe' => [
@@ -107,6 +130,9 @@ class RecipeController extends Controller
                 // {{host}} is substituted with the address the agent reached,
                 // so a recipe never hands localhost to a player.
                 'play_url' => $recipe->playUrl($request->getHost()),
+                'launcher_supported' => $support->supports($recipe),
+                'portable' => $support->isPortable($recipe),
+                'pull_request' => $this->pullRequestFor($recipe, $user),
                 'launch_target' => $recipe->launchTarget(),
                 'launch_targets' => $this->launchTargets($recipe),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
@@ -199,13 +225,17 @@ class RecipeController extends Controller
     public function avatars(Request $request, string $slug, AvatarCatalog $catalog): JsonResponse
     {
         $recipe = $this->findRecipe($request, $slug);
+        // `query` is the current name; `q` stays accepted for old clients.
+        $query = $request->input('query');
+        $legacy = $request->input('q');
+        $search = is_string($query) ? $query : (is_string($legacy) ? $legacy : '');
 
         return response()->json([
-            'data' => $catalog->forRecipe($recipe, $this->authUser($request), $request->string('q')->toString()),
+            'data' => $catalog->forRecipe($recipe, $this->authUser($request), $search),
         ], 200, ['Cache-Control' => 'no-store, private']);
     }
 
-    public function contribute(Request $request, ContributeRecipe $contribute): JsonResponse
+    public function contribute(Request $request, ContributeRecipe $contribute, LauncherSupport $support): JsonResponse
     {
         $user = $this->authUser($request);
 
@@ -217,16 +247,76 @@ class RecipeController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'summary' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string', 'max:10000'],
+            'version' => ['nullable', 'string', 'max:40'],
+            'homepage' => ['nullable', 'url:http,https', 'max:500'],
+            'license' => ['nullable', 'string', 'max:200'],
+            'play_url' => ['nullable', 'url:http,https', 'max:500'],
             'platforms' => ['nullable', 'array', 'max:3'],
             'platforms.*' => ['string', 'in:windows,linux,macos'],
             'aliases' => ['nullable', 'array', 'max:20'],
-            'aliases.*' => ['string', 'max:60'],
+            'aliases.*' => ['string', 'max:64'],
             'requires' => ['nullable', 'array', 'max:50'],
+            'requires.*' => ['array'],
+            'requires.*.shared_file_id' => ['nullable', 'integer'],
+            'requires.*.role' => ['nullable', 'string', 'max:40'],
+            'requires.*.label' => ['nullable', 'string', 'max:200'],
+            'requires.*.match' => ['nullable', 'array', 'max:20'],
+            'requires.*.match.*' => ['string', 'max:200'],
+            'requires.*.required' => ['nullable', 'boolean'],
+            'requires.*.os' => ['nullable', 'string', 'in:windows,linux,macos,any'],
+            'requires.*.notes' => ['nullable', 'string', 'max:1000'],
+            'requires.*.size_bytes' => ['nullable', 'integer', 'min:0'],
+            'requires.*.sha256' => ['nullable', 'string', 'max:64'],
+            'requires.*.url' => ['nullable', 'url:http,https', 'max:1000'],
             'requirements' => ['nullable', 'array', 'max:50'],
+            'requirements.*' => ['array'],
+            'requirements.*.shared_file_id' => ['nullable', 'integer'],
+            'requirements.*.role' => ['nullable', 'string', 'max:40'],
+            'requirements.*.label' => ['nullable', 'string', 'max:200'],
+            'requirements.*.match' => ['nullable', 'array', 'max:20'],
+            'requirements.*.match.*' => ['string', 'max:200'],
+            'requirements.*.required' => ['nullable', 'boolean'],
+            'requirements.*.os' => ['nullable', 'string', 'in:windows,linux,macos,any'],
+            'requirements.*.notes' => ['nullable', 'string', 'max:1000'],
+            'requirements.*.size_bytes' => ['nullable', 'integer', 'min:0'],
+            'requirements.*.sha256' => ['nullable', 'string', 'max:64'],
+            'requirements.*.url' => ['nullable', 'url:http,https', 'max:1000'],
+            'launch_targets' => ['nullable', 'array', 'max:10'],
+            'launch_targets.*' => ['array'],
+            'launch_targets.*.id' => ['nullable', 'string', 'max:64'],
+            'launch_targets.*.label' => ['nullable', 'string', 'max:160'],
+            'launch_targets.*.os' => ['nullable', 'string', 'in:windows,linux,macos,any'],
+            'launch_targets.*.command' => ['required', 'string', 'max:2000'],
+            'launch_targets.*.shell' => ['nullable', 'string', 'in:powershell,cmd,bash'],
+            'launch_targets.*.notes' => ['nullable', 'string', 'max:1000'],
+            'metadata' => ['nullable', 'array'],
+            'metadata.portable' => ['nullable', 'boolean'],
+            'metadata.genre' => ['nullable', 'string', 'max:80'],
+            'metadata.players' => ['nullable', 'string', 'max:20'],
+            'metadata.players_max' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'metadata.lan_recommended' => ['nullable', 'boolean'],
+            'metadata.tags' => ['nullable', 'array', 'max:20'],
+            'metadata.tags.*' => ['string', 'max:40'],
+            'metadata.multiplayer' => ['nullable', 'boolean'],
             'steps' => ['nullable', 'array', 'max:50'],
             'skill_description' => ['nullable', 'string', 'max:1024'],
             'skill_markdown' => ['nullable', 'string', 'max:65535'],
         ]);
+
+        // Only the keys a contribution may set reach the action; the rest of a
+        // metadata document (notably the orga's `launcher_supported` switch)
+        // stays what the recipe already carries.
+        if (is_array($data['metadata'] ?? null)) {
+            $metadata = array_intersect_key($data['metadata'], array_flip(self::CONTRIBUTION_METADATA_KEYS));
+
+            if ($metadata !== []) {
+                $data['metadata'] = $metadata;
+            } else {
+                unset($data['metadata']);
+            }
+        }
+
+        $data['via'] = 'api';
 
         $recipe = $contribute->handle($user, $data);
 
@@ -235,8 +325,25 @@ class RecipeController extends Controller
                 'slug' => $recipe->slug,
                 'title' => $recipe->title,
                 'status' => $recipe->status->value,
+                'launcher_supported' => $support->supports($recipe),
+                'pull_request' => $recipe->pullRequest(),
             ],
         ], 201, ['Cache-Control' => 'no-store, private']);
+    }
+
+    /**
+     * The pull request of a recipe, for its contributor and for the orga. A
+     * participant never learns whether somebody else's draft was proposed.
+     *
+     * @return array{number: int|null, url: string|null, state: string, label: string}|null
+     */
+    private function pullRequestFor(GameRecipe $recipe, User $user): ?array
+    {
+        if (! $user->isOrga() && $recipe->contributor_user_id !== $user->id) {
+            return null;
+        }
+
+        return $recipe->pullRequest();
     }
 
     /** @return list<array<string, mixed>> */

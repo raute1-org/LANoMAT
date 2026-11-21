@@ -37,10 +37,11 @@ class RecipesListTool extends LanomatTool
     {
         $query = mb_strtolower(trim((string) $request->get('query', '')));
         $platform = $request->get('platform');
+        $user = $this->user();
 
         $recipes = app(LauncherLineup::class)
             ->filter(GameRecipe::query()
-                ->visibleTo($this->user())
+                ->visibleTo($user)
                 ->orderBy('title')
                 ->get())
             ->when($query !== '', fn ($collection) => $collection->filter(
@@ -54,7 +55,7 @@ class RecipesListTool extends LanomatTool
             ->values();
 
         return $this->structured([
-            'recipes' => $recipes->map(static fn (GameRecipe $recipe): array => [
+            'recipes' => $recipes->map(fn (GameRecipe $recipe): array => [
                 'slug' => $recipe->slug,
                 'title' => $recipe->title,
                 'summary' => $recipe->summary,
@@ -62,6 +63,12 @@ class RecipesListTool extends LanomatTool
                 'status' => $recipe->status->value,
                 'platforms' => $recipe->platforms,
                 'aliases' => $recipe->aliases,
+                'in_lineup' => $recipe->in_lineup,
+                // A contribution's pull request travels only with the caller's
+                // own draft; another participant's is none of their business.
+                'pull_request' => $recipe->contributor_user_id === $user->id
+                    ? $recipe->pullRequest()
+                    : null,
             ])->all(),
         ]);
     }
