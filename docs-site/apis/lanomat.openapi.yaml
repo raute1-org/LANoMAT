@@ -1668,27 +1668,6 @@ components:
           type: integer
           nullable: true
 
-    LaunchTarget:
-      type: object
-      properties:
-        id:
-          type: string
-        label:
-          type: string
-        os:
-          type: string
-          enum: [windows, linux, macos, any]
-        shell:
-          type: string
-          enum: [powershell, cmd, bash]
-        target:
-          type: string
-        command:
-          type: string
-        notes:
-          type: string
-          nullable: true
-
     RecipeFile:
       type: object
       required: [role, label, file, required, present]
