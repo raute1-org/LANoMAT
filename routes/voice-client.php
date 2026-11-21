@@ -10,6 +10,7 @@ use App\Modules\WebVoice\NativeClient\Http\Features\EventsApiController;
 use App\Modules\WebVoice\NativeClient\Http\Features\FilesApiController;
 use App\Modules\WebVoice\NativeClient\Http\Features\PollsApiController;
 use App\Modules\WebVoice\NativeClient\Http\ForceJsonAccept;
+use App\Modules\WebVoice\NativeClient\Http\RecipesApiController;
 use App\Modules\WebVoice\NativeClient\Http\VoiceClientApiController;
 use App\Modules\WebVoice\NativeClient\Http\VoiceClientBroadcastingController;
 use App\Modules\WebVoice\NativeClient\Http\VoiceClientChatController;
@@ -107,6 +108,18 @@ Route::prefix('api/voice-client/v1')
             ->where('hash', AvatarStore::HASH_PATTERN)
             ->name('avatars.show');
     });
+
+// Recipes block (game library and install plan, GameRecipes module): only while that module is routable.
+if (app(Modules::class)->routable(Module::GameRecipes)) {
+    Route::prefix('api/voice-client/v1')
+        ->middleware([ForceJsonAccept::class, AuthenticateVoiceClient::class, 'throttle:voice-client-api', SubstituteBindings::class])
+        ->name('voice-client.v1.')
+        ->group(function () {
+            Route::get('recipes', [RecipesApiController::class, 'index'])->name('recipes.index');
+            Route::get('recipes/{slug}', [RecipesApiController::class, 'show'])->where('slug', RecipesApiController::SLUG_PATTERN)->name('recipes.show');
+            Route::get('recipes/{slug}/plan', [RecipesApiController::class, 'plan'])->where('slug', RecipesApiController::SLUG_PATTERN)->middleware('throttle:30,1')->name('recipes.plan');
+        });
+}
 
 // Play block (now feed, tournaments/matches, game servers): kept in its own file.
 require __DIR__.'/voice-client-play.php';
