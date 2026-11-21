@@ -25,6 +25,16 @@ sidebar and the public event page.
 | ![Event page, dark](/screens/event-page-dark.png) | ![Event page, light](/screens/event-page-light.png) |
 | `EVENT · DARK` — status, spots, arrival info | `EVENT · LIGHT` — same state |
 
+| Dark | Light |
+|---|---|
+| ![Event page countdown before the LAN, dark](/screens/countdown-dark.png) | ![Event page countdown before the LAN, light](/screens/countdown-light.png) |
+| `COUNTDOWN · DARK` — days, hours, minutes to doors | `COUNTDOWN · LIGHT` — same block |
+
+| Dark | Light |
+|---|---|
+| ![Filament event list with lifecycle badges, dark](/screens/admin-events-dark.png) | ![Filament event list with lifecycle badges, light](/screens/admin-events-light.png) |
+| `ADMIN · EVENTS · DARK` — draft, registration open, live, finished | `ADMIN · EVENTS · LIGHT` — same list |
+
 ## Guards and rules
 
 - Lifecycle is `draft → announced → registration → live → finished → archived`; transitions are

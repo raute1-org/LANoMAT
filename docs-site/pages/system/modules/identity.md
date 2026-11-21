@@ -21,6 +21,16 @@ Twitch accounts on top.
 - `/settings/connections` — linked accounts, unlink and re-auth.
 - `/users/{user}` — public profile; guests see no avatar picture.
 
+| Dark | Light |
+|---|---|
+| ![Settings page with linked Steam and Twitch accounts, dark](/screens/connections-dark.png) | ![Settings page with linked Steam and Twitch accounts, light](/screens/connections-light.png) |
+| `CONNECTIONS · DARK` — Steam and Twitch, not linked | `CONNECTIONS · LIGHT` — same cards |
+
+| Dark | Light |
+|---|---|
+| ![Filament user list with role badges, dark](/screens/admin-users-dark.png) | ![Filament user list with role badges, light](/screens/admin-users-light.png) |
+| `ADMIN · USERS · DARK` — one role per user | `ADMIN · USERS · LIGHT` — same list |
+
 ## Guards and rules
 
 - `users.discord_id` is unique-nullable and the only authentication anchor.
