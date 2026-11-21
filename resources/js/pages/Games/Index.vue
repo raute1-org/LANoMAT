@@ -601,7 +601,6 @@ function absoluteTime(iso: string): string {
                         </CardHeader>
                         <CardContent class="flex flex-1 flex-col gap-3">
                             <p
-                                lang="en"
                                 class="line-clamp-3 text-sm text-muted-foreground"
                             >
                                 {{ game.summary }}

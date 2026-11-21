@@ -273,10 +273,7 @@ function announceRound(): void {
                         <h1 class="mt-1 text-3xl font-semibold tracking-tight">
                             {{ game.title }}
                         </h1>
-                        <p
-                            lang="en"
-                            class="mt-2 max-w-2xl text-sm text-muted-foreground"
-                        >
+                        <p class="mt-2 max-w-2xl text-sm text-muted-foreground">
                             {{ game.summary }}
                         </p>
                         <p
@@ -903,7 +900,6 @@ function announceRound(): void {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent
-                                lang="en"
                                 class="text-sm whitespace-pre-line text-muted-foreground"
                             >
                                 {{ game.description }}
