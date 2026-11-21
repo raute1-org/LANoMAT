@@ -19,6 +19,7 @@ or observe the stack and report a traffic light.
 | [Provisioning](/docs/system/modules/provisioning) | Proxmox test-VM setup with dry-run plans and queued runs | Orga |
 | [Preflight](/docs/system/modules/preflight) | Health-check registry, `lanomat:preflight`, Filament tile, update watch | Orga |
 | [RoomAudio](/docs/system/modules/roomaudio) | Denon AV receiver control from the admin panel | Orga |
+| [Lighting](/docs/system/modules/lighting) | DMX room lights, scenes and event rules from the admin panel | Orga |
 
 ## The remote-host pattern
 

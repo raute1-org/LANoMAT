@@ -167,6 +167,16 @@ return [
         'token' => env('DENON_ADMIN_TOKEN'),
     ],
 
+    // Lighting (DMX light bridge, orga only): REST access to the venue's light
+    // bridge. The bridge lives on an internal network, so the base URL is
+    // deployment config. `enabled` is a master switch on top of the module toggle.
+    'lighting' => [
+        'enabled' => (bool) env('LIGHTING_ENABLED', false),
+        'base_url' => env('LIGHTING_URL'),
+        'token' => env('LIGHTING_TOKEN'),
+        'timeout' => 2,
+    ],
+
     // Music Assistant (M11, Jukebox). MUSIC_ASSISTANT_TOKEN is a long-lived
     // bearer token for MA's HTTP/JSON-RPC surface at MUSIC_ASSISTANT_URL
     // (default port 8095); MUSIC_ASSISTANT_PLAYER_ID is the MA player/queue

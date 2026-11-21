@@ -59,6 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/Jukebox/Console',
         __DIR__.'/../app/Modules/GameRecipes/Console',
         __DIR__.'/../app/Modules/Lfg/Console',
+        __DIR__.'/../app/Modules/Lighting/Console',
         __DIR__.'/../app/Modules/Mcp/Console',
         __DIR__.'/../app/Modules/Preflight/Console',
         __DIR__.'/../app/Modules/Presence/Console',

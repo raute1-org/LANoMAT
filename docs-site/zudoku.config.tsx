@@ -28,6 +28,7 @@ const moduleDocs = {
     "provisioning",
     "preflight",
     "roomaudio",
+    "lighting",
   ],
   media: ["gallery", "files", "jukebox", "infoscreen"],
   integrations: ["discord", "voice", "webvoice", "mcp"],
