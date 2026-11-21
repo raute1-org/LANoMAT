@@ -15,8 +15,10 @@ use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Http\Requests\RegisterRequest;
 use App\Modules\Registration\Http\Requests\UpdateArrivalPlanRequest;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Policies\RegistrationPolicy;
 use App\Modules\Registration\Support\ArrivalPlanView;
+use App\Modules\Registration\Support\PaymentDue;
 use App\Modules\Registration\Support\QrCode;
 use App\Modules\Registration\Support\TicketLabel;
 use App\Modules\Registration\ValueObjects\ArrivalPlan;
@@ -42,12 +44,12 @@ class RegistrationController extends Controller
             'event' => ['name' => $event->name, 'slug' => $event->slug, 'status' => $event->status->value],
             ...RegistrationAvailability::summary($event),
             'tickets' => $this->tickets($event),
-            'ticketLabels' => TicketLabel::map($this->tickets($event)),
             'registration' => $registration === null ? null : [
                 'ticketType' => $registration->ticket_type,
                 'ticketLabel' => TicketLabel::for($registration->ticket_type),
                 'status' => $registration->status->value,
                 'paid' => $registration->paid_at !== null,
+                'payment' => PaymentDue::forRegistration($registration),
                 'checkedIn' => $registration->checked_in_at !== null,
                 'canCancel' => RegistrationPolicy::cancelBlockedReason($registration) === null,
                 'cancelBlockedReason' => RegistrationPolicy::cancelBlockedReason($registration),
@@ -132,10 +134,18 @@ class RegistrationController extends Controller
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, array{key: string, name: string, description: ?string, priceCents: int}>
      */
     private function tickets(Event $event): array
     {
-        return RegisterForEvent::allowedTickets($event);
+        return TicketType::activeFor($event)
+            ->map(fn (TicketType $ticket): array => [
+                'key' => $ticket->key,
+                'name' => $ticket->name,
+                'description' => $ticket->description,
+                'priceCents' => $ticket->price_cents,
+            ])
+            ->values()
+            ->all();
     }
 }
