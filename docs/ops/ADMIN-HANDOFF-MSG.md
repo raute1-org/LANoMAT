@@ -58,4 +58,4 @@ Bot: `DISCORD_AGENT_ENABLED=true`, `LANOMAT_URL=https://lan.raute1.org`, `LANOMA
 3. Nativ: `nfsu2-portable.zip` entpacken, `start-nfsu2-linux.sh` (Proton) bzw. `SPEED2.EXE`; Lobby `10.23.3.220:20922` (Test).
 4. Launcher-Serverbrowser: nach Seed erscheint `NFSU2 (NFS-Online, unser Server)`; UT2004 bleibt.
 
-**Offen:** NFSU2-Recipe live **Draft 25** (`version: null`/`launch_targets: []`, `missing: []`; Datei 20 matcht); NFSU2-Server-Zeile noch nicht geseedet; Filehost-Uploads; Zwei-Client-Login/Race; Split-Screen-2P-Rennen; Discord-Webhook. Details: `docs/ops/ADMIN-HANDOFF.md`.
+**Offen:** NFSU2-Recipe live **Draft 25** (`version: null`/`launch_targets: []`, `missing: []`; Datei 20 matcht); Ein-Client-Login/Lobby ist verifiziert, Race-UDP mit zwei Clients offen; NFSU2-Server-Zeile noch nicht geseedet; Filehost-Uploads; Ein-Client-Login/Lobby **verifiziert** (bootstrap → ToS → auth/pers → gsea); Zwei-Client-/Race-UDP und Split-Screen-2P noch offen; Discord-Webhook. Details: `docs/ops/ADMIN-HANDOFF.md`.
