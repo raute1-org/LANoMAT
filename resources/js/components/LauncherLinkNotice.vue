@@ -4,10 +4,12 @@ import { X } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
 /**
- * What a participant reads when a `lanomat://` click took nobody over: the
- * launcher did not respond, the most likely reason, and the ways on. It sits
- * directly under the action that was clicked and is announced politely, so a
- * screen reader gets the same sentence as everybody else.
+ * What a participant reads when a `lanomat://` click took nobody over: a
+ * question, not a verdict. The page cannot know whether the launcher came up
+ * (a window that opens behind the browser never takes the focus), so the text
+ * holds in both cases: the likely reason when nothing opened, and where to
+ * look when it did. It sits directly under the action that was clicked and is
+ * announced politely, so a screen reader gets the same sentence as everybody.
  *
  * The box is built from inline-level elements only (`span`, `a`, `button`), so
  * it stays valid inside the small text paragraphs where some deep links live.
@@ -39,12 +41,13 @@ const emit = defineEmits<{
                 class="block min-w-0 space-y-1"
             >
                 <span class="block font-medium text-foreground"
-                    >Der Launcher hat nicht reagiert.</span
+                    >Kein Launcher-Fenster aufgegangen?</span
                 >
                 <span class="block text-muted-foreground"
-                    >Meist ist der LANoMAT Launcher auf diesem PC noch nicht
-                    installiert — oder er wurde nach der Installation noch nie
-                    gestartet.</span
+                    >Dann ist der LANoMAT Launcher auf diesem PC meist noch
+                    nicht installiert, oder er wurde nach der Installation noch
+                    nie gestartet. Läuft er schon, schau in die Taskleiste: Er
+                    kann sich hinter dem Browser geöffnet haben.</span
                 >
                 <span v-if="manualHint" class="block text-muted-foreground">{{
                     manualHint
