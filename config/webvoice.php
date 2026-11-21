@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\WebVoice\NativeClient\Support\NativeClientConfig;
+
 /*
 | Browser voice chat (WebVoice module, self-hosted LiveKit SFU). Design note:
 | docs/superpowers/specs/2026-10-31-web-voice-design.md, runbook:
@@ -61,6 +63,10 @@ return [
     // Native desktop client (device authorization flow + bearer API). Runbook:
     // docs/infra/native-voice-client-api.md.
     'native' => [
+        // The native-client API version this server speaks. A published client build is compatible when it was
+        // built for the same value (ClientBuilds::matchesServer()); Preflight reads it from here so it does
+        // not have to import the WebVoice module.
+        'api_version' => NativeClientConfig::API_VERSION,
         // Lifetime of a device/user code pair and the polling interval handed to the client.
         'code_ttl' => 600,
         'poll_interval' => 5,

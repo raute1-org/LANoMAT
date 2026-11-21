@@ -196,17 +196,29 @@ it('verifies the sha256 on request and notices a swapped file of the same size',
     expect($builds->verified($build))->toBeFalse();
 });
 
-it('matches the server only on the same version and, when known, commit', function () {
+it('is compatible with the server on the same API version, whatever the server version or commit', function () {
     expect((new ClientBuilds(distDir()))->matchesServer())->toBeTrue();
 
     config(['app.version' => 'v2']);
-    expect((new ClientBuilds(distDir()))->matchesServer())->toBeFalse();
+    expect((new ClientBuilds(distDir()))->matchesServer())->toBeTrue();
 
     config(['app.version' => 'v1', 'app.commit' => 'fffffffffff0']);
-    expect((new ClientBuilds(distDir()))->matchesServer())->toBeFalse();
-
-    config(['app.version' => 'v1', 'app.commit' => null]);
     expect((new ClientBuilds(distDir()))->matchesServer())->toBeTrue();
 
     expect((new ClientBuilds('/nonexistent/x'))->matchesServer())->toBeFalse();
+});
+
+it('matches exactly only on the same version and, when known, commit', function () {
+    expect((new ClientBuilds(distDir()))->matchesExactly())->toBeTrue();
+
+    config(['app.version' => 'v2']);
+    expect((new ClientBuilds(distDir()))->matchesExactly())->toBeFalse();
+
+    config(['app.version' => 'v1', 'app.commit' => 'fffffffffff0']);
+    expect((new ClientBuilds(distDir()))->matchesExactly())->toBeFalse();
+
+    config(['app.version' => 'v1', 'app.commit' => null]);
+    expect((new ClientBuilds(distDir()))->matchesExactly())->toBeTrue();
+
+    expect((new ClientBuilds('/nonexistent/x'))->matchesExactly())->toBeFalse();
 });

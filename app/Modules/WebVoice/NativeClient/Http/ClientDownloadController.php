@@ -32,8 +32,9 @@ class ClientDownloadController extends Controller
         $matches = $hasBuilds && $builds->matchesServer();
 
         return Inertia::render('WebVoice/ClientDownload', [
-            // none: nothing published | mismatch: published for another server version | current
+            // none: nothing published | mismatch: built for another native-client API version | current (compatible)
             'state' => ! $hasBuilds ? 'none' : ($matches ? 'current' : 'mismatch'),
+            'exact' => $hasBuilds && $builds->matchesExactly(),
             'server' => ['version' => ClientBuilds::serverVersion(), 'commit' => ClientBuilds::serverCommit()],
             'release' => $manifest === null ? null : [
                 'version' => $manifest->appVersion,

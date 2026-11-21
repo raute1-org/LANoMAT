@@ -17,7 +17,7 @@ const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1';
 
 /** Publishes a manifest with one build per given os ('app' kind unless $kind says otherwise). */
-function publishClientFor(array $oses = ['linux'], string $version = 'v1', string $kind = 'app'): string
+function publishClientFor(array $oses = ['linux'], string $version = 'v1', string $kind = 'app', int $api = 1): string
 {
     $dir = sys_get_temp_dir().'/lanomat-entry-'.bin2hex(random_bytes(6));
     mkdir($dir);
@@ -30,7 +30,7 @@ function publishClientFor(array $oses = ['linux'], string $version = 'v1', strin
     }
 
     file_put_contents($dir.'/manifest.json', json_encode([
-        'app_version' => $version, 'commit' => 'abc123def456', 'api_version' => 1,
+        'app_version' => $version, 'commit' => 'abc123def456', 'api_version' => $api,
         'built_at' => '2026-11-01T10:00:00Z', 'files' => $files,
     ]));
     test()->entryDirs = [...test()->entryDirs, $dir];
@@ -85,11 +85,19 @@ it('never offers the app on phones and tablets', function (string $agent) {
         ->assertInertia(fn ($page) => $page->where('desktopClient.available', false));
 })->with(['android' => ANDROID_UA, 'iphone' => IPHONE_UA]);
 
-it('does not offer a build published for another server version', function () {
+it('offers a build published for another server version when it speaks the same API', function () {
     publishClientFor(['linux'], 'v0');
 
     $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')->assertInertia(
-        fn ($page) => $page->where('desktopClient.available', false)->where('desktopClient.version', 'v0'),
+        fn ($page) => $page->where('desktopClient.available', true)->where('desktopClient.version', 'v0'),
+    );
+});
+
+it('does not offer a build for another native-client API version', function () {
+    publishClientFor(['linux'], 'v1', 'app', 2);
+
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')->assertInertia(
+        fn ($page) => $page->where('desktopClient.available', false),
     );
 });
 

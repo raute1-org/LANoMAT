@@ -3,12 +3,12 @@
 use App\Modules\Preflight\Checks\ClientBuildCheck;
 use Illuminate\Support\Facades\File;
 
-function manifestDir(?string $version, string $commit = 'abc123def456'): string
+function manifestDir(?string $version, string $commit = 'abc123def456', ?int $api = null): string
 {
     $dir = sys_get_temp_dir().'/lanomat-pf-'.bin2hex(random_bytes(6));
     mkdir($dir);
     if ($version !== null) {
-        file_put_contents($dir.'/manifest.json', json_encode(['app_version' => $version, 'commit' => $commit, 'files' => []]));
+        file_put_contents($dir.'/manifest.json', json_encode(array_filter(['app_version' => $version, 'commit' => $commit, 'api_version' => $api, 'files' => []], fn ($v) => $v !== null)));
     }
     test()->pfDirs = [...test()->pfDirs, $dir];
     config(['webvoice.native.dist_path' => $dir]);
@@ -70,6 +70,20 @@ it('warns when the build is for another version or commit', function () {
 it('warns on an unreadable manifest', function () {
     $dir = manifestDir(null);
     file_put_contents($dir.'/manifest.json', '{broken');
+
+    expect(app(ClientBuildCheck::class)->run()->status->value)->toBe('warn');
+});
+
+it('is ok, with a note, when the build is for another version but the same native-client API', function () {
+    manifestDir('m12-4-g1111111', 'fffffffffff0', 1);
+
+    $result = app(ClientBuildCheck::class)->run();
+
+    expect($result->status->value)->toBe('ok')->and($result->message)->toContain('m12-4-g1111111')->toContain('kompatibel');
+});
+
+it('warns when the build speaks another native-client API version', function () {
+    manifestDir('m12-4-g1111111', 'fffffffffff0', 99);
 
     expect(app(ClientBuildCheck::class)->run()->status->value)->toBe('warn');
 });
