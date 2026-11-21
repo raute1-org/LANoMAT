@@ -19,7 +19,7 @@ function date(iso: string | null): string {
     <Panel :title="t('news')">
         <p
             v-if="news.length === 0"
-            class="border-t border-border px-4 py-4 text-sm text-muted-foreground"
+            class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
         >
             {{ t('news_empty') }}
         </p>

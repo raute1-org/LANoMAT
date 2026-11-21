@@ -189,7 +189,9 @@ const nowItems = computed<NavItem[]>(() => {
             withBadge(
                 { title: 'Leute', href: presenceShow(ev.slug), icon: Radio },
                 mutedBadge(
-                    typeof present === 'number' ? `${present} da` : null,
+                    typeof present === 'number' && present > 0
+                        ? `${present} da`
+                        : null,
                 ),
             ),
         );

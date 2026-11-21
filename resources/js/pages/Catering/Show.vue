@@ -202,7 +202,7 @@ function menuOptionName(
                 <Panel :title="labels.my_order" :level="3">
                     <p
                         v-if="foodOrder.myItems.length === 0"
-                        class="border-t border-border p-4 text-sm text-muted-foreground"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
                     >
                         {{ labels.my_order_empty }}
                     </p>

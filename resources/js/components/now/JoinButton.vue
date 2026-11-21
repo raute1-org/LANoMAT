@@ -22,20 +22,13 @@ async function copy() {
         await navigator.clipboard.writeText(props.connectString);
         copied.value = true;
         failed.value = false;
+        timer = setTimeout(() => (copied.value = false), 2000);
     } catch {
         // Clipboard unavailable (insecure context, denied): show the address
-        // so it can be copied by hand.
+        // so it can be copied by hand; it stays until the next click.
         copied.value = false;
         failed.value = true;
     }
-
-    timer = setTimeout(
-        () => {
-            copied.value = false;
-            failed.value = false;
-        },
-        failed.value ? 8000 : 2000,
-    );
 }
 
 onUnmounted(() => clearTimeout(timer));
@@ -55,15 +48,18 @@ onUnmounted(() => clearTimeout(timer));
             type="button"
             size="sm"
             :variant="primary ? 'default' : 'outline'"
-            :aria-label="t('copy_address')"
             :title="t('copy_address')"
             @click="copy"
         >
             {{ label ?? t('join') }}
+            <span class="sr-only">: {{ t('copy_address') }}</span>
         </Button>
         <span
             class="font-mono text-xs tabular-nums"
-            :class="failed ? 'text-foreground' : 'text-ok'"
+            :class="[
+                failed ? 'text-foreground' : 'text-ok',
+                !copied && !failed && 'sr-only',
+            ]"
             role="status"
             aria-live="polite"
         >

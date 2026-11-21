@@ -88,7 +88,7 @@ return [
 
     // Upcoming
     'register_open' => 'Die Anmeldung ist offen.',
-    'register_spots' => 'Noch :count Plätze frei.',
+    'register_spots' => 'Freie Plätze: :count',
     'register_cta' => 'Jetzt anmelden',
     'who_comes' => 'Wer kommt',
     'who_comes_of' => 'von :total Plätzen vergeben',

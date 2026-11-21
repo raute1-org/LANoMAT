@@ -144,7 +144,7 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 | State   | Pattern                                                                                                                           | Component                                                                                                            |
 | ------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | empty   | `rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground`, says what to do next                           | plain markup, copy in `lang/de/<area>.php`                                                                           |
-| loading | skeletons mirroring the final layout, shown while `router` `start`…`finish`                                                       | `@/components/ui/skeleton` + router listeners (see `components/now/NowPlayingPanel.vue`, `settings/Connections.vue`) |
+| loading | skeletons mirroring the final layout, shown while `router` `start`…`finish`                                                       | `@/components/ui/skeleton` + `usePageLoadState` (see `settings/Connections.vue`) |
 | error   | `rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center text-destructive`, names the failure and the next step | `router.on('error')` flag                                                                                            |
 | normal  | the content                                                                                                                       | —                                                                                                                    |
 
@@ -258,7 +258,7 @@ Single definition: `App\Support\Brand\ShellParity`. Canonical logo geometry: `pu
 
 **Rule: a change to any row of the contract touches both apps in the same PR.**
 
-**Verify visually:** log in with the dev "Als Demo-Orga" button, then look at both `/dashboard` (participant) and `/admin`, in light and dark. Tailwind-only changes can look right in one and broken in the other.
+**Verify visually:** log in with the dev "Als Demo-Orga" button, then look at both `/` (participant) and `/admin`, in light and dark. Tailwind-only changes can look right in one and broken in the other.
 
 **The net:** `tests/Feature/ShellParity/ShellParityTest.php` fails if the logo copies drift, the panel config leaves the contract, the user-menu labels change, the admin marker/back link disappear or leak into the app, or a Filament view uses app-only Tailwind utilities (a regex heuristic over `class="..."` in `resources/views/filament/**`; `fi-*` is allowed). The PR template carries the matching checklist item.
 

@@ -202,7 +202,7 @@ function openSpotsLabel(openSpots: number | null): string {
                 <Panel :title="t('participants', 'heading')">
                     <p
                         v-if="visibleParticipants.length === 0"
-                        class="border-t border-border p-4 text-center text-sm text-muted-foreground"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
                     >
                         {{ t('participants', 'empty') }}
                     </p>
@@ -276,7 +276,7 @@ function openSpotsLabel(openSpots: number | null): string {
                 <Panel v-if="!playingOnly" :title="t('free_slots', 'heading')">
                     <p
                         v-if="presence.freeSlots.length === 0"
-                        class="border-t border-border p-4 text-center text-sm text-muted-foreground"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
                     >
                         {{ t('free_slots', 'empty') }}
                     </p>
@@ -328,7 +328,7 @@ function openSpotsLabel(openSpots: number | null): string {
                 >
                     <p
                         v-if="presence.liveMatches.length === 0"
-                        class="border-t border-border p-4 text-center text-sm text-muted-foreground"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
                     >
                         {{ t('live_matches', 'empty') }}
                     </p>
