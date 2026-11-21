@@ -16,8 +16,9 @@ it('imports every repository egg and is idempotent on a second run', function ()
         ->expectsOutputToContain('Garrys Mod (LANoMAT)')
         ->assertExitCode(0);
 
-    expect($this->fake->importedEggs)->toHaveCount(1)
-        ->and($this->fake->importedEggs[0])->toContain(RepositoryEggs::GMOD_UUID);
+    expect($this->fake->importedEggs)->toHaveCount(2)
+        ->and($this->fake->importedEggs[0])->toContain(RepositoryEggs::GMOD_UUID)
+        ->and($this->fake->importedEggs[1])->toContain(RepositoryEggs::MORDHAU_UUID);
 
     $this->artisan('gameservers:import-eggs')->assertExitCode(0);
 
@@ -46,6 +47,7 @@ it('fails with the manual steps when the key may not import and the egg is missi
 
 it('only checks with --check and imports nothing', function () {
     $this->fake->eggs['7'] = new PelicanEgg('7', 'Garrys Mod (LANoMAT)', uuid: RepositoryEggs::GMOD_UUID);
+    $this->fake->eggs['8'] = new PelicanEgg('8', 'Mordhau', uuid: RepositoryEggs::MORDHAU_UUID);
 
     $this->artisan('gameservers:import-eggs --check')->assertExitCode(0);
     expect($this->fake->importedEggs)->toBe([]);

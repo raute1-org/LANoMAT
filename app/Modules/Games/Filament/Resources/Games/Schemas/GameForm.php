@@ -183,6 +183,38 @@ class GameForm
                         ->label(__('games.fields.extra_ports'))
                         ->helperText(__('games.fields.extra_ports_help'))
                         ->placeholder('TV_PORT'),
+                    Repeater::make('fixed_ports')
+                        ->label(__('games.fields.fixed_ports'))
+                        ->helperText(__('games.fields.fixed_ports_help'))
+                        ->schema([
+                            TextInput::make('slot')
+                                ->label(__('games.fields.fixed_port_slot'))
+                                ->required()
+                                ->regex('/^(main|[A-Z][A-Z0-9_]*)$/')
+                                ->validationMessages(['regex' => __('games.fields.fixed_port_slot_invalid')])
+                                ->maxLength(255),
+                            TextInput::make('port')
+                                ->label(__('games.fields.fixed_port_port'))
+                                ->required()
+                                ->numeric()
+                                ->integer()
+                                ->minValue(1024)
+                                ->maxValue(65535),
+                        ])
+                        ->rule(static fn (): Closure => static function (string $attribute, mixed $value, Closure $fail): void {
+                            $rows = is_array($value) ? array_values($value) : [];
+                            $ports = array_column($rows, 'port');
+                            $slots = array_column($rows, 'slot');
+
+                            if (count($ports) !== count(array_unique($ports)) || count($slots) !== count(array_unique($slots))) {
+                                $fail(__('games.fields.fixed_ports_duplicate'));
+                            }
+                        })
+                        ->columns(2)
+                        ->addActionLabel(__('games.fields.fixed_port_add'))
+                        ->reorderable(false)
+                        ->defaultItems(0)
+                        ->columnSpanFull(),
                     Select::make('readiness_type')
                         ->label(__('games.fields.readiness_type'))
                         ->helperText(__('games.fields.readiness_type_help'))

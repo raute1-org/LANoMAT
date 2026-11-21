@@ -27,6 +27,7 @@ rules").
 | [venue-network-crs354.md](venue-network-crs354.md)                 | The venue LAN on a MikroTik CRS354: flat network, LACP server link, DHCP/DNS with the LanCache, WireGuard on the switch, AP, measured routing limits and the traps that cost an outage. |
 | [permanent-server-settings.md](permanent-server-settings.md) | Settings page for the permanent CS2 servers: adopting external servers into Pelican, startup variables, power, live map change, GunGame plugin config. |
 | [arcade-terminals.md](arcade-terminals.md) | The launcher fleet: pairing a gaming terminal, the 30 s heartbeat contract (`POST /api/v1/terminals/heartbeat`), offline derivation after 90 s, the orga monitor. |
+| [mordhau.md](mordhau.md) | Mordhau on Pelican: community egg, horde/deathmatch/frontline presets, fixed ports, joining, PlayFab and restart quirks. |
 | [recipe-pull-requests.md](recipe-pull-requests.md) | Shared games into the git recipe catalogue: fine-grained token, `RECIPES_PR_*` switches (trigger default `publish`, per-user and open-pull-request budgets), branch and pull request content, the catalogue readiness and public-safety gates, state sync, Preflight check, troubleshooting. |
 
 ## Suggested reading order
