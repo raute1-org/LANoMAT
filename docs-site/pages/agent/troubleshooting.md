@@ -21,6 +21,11 @@ lanomat-agent doctor
 ✓ file host     reachable, bearer-authenticated download URL accepted
 ```
 
+| Dark | Light |
+|---|---|
+| ![Doctor report with config, server, MCP, model catalog, roles and the final Doctor: OK line, dark](/screens/agent-doctor-terminal-dark.png) | ![Doctor report with config, server, MCP, model catalog, roles and the final Doctor: OK line, light](/screens/agent-doctor-terminal-light.png) |
+| `DOCTOR · CONFIG · LOGIN · MCP · MODEL · TOOL CALLS` | `DOCTOR · LIGHT` |
+
 ## Pairing and token
 
 | Symptom | Cause | Fix |
@@ -33,6 +38,14 @@ lanomat-agent doctor
 
 The token is scoped to the user. If a participant token cannot read an orga draft recipe, that is
 correct, not a bug.
+
+The code entry and the devices already paired live on **Agent & MCP verbinden**; **„Trennen“** is
+what turns a working command into a `401`:
+
+| Dark | Light |
+|---|---|
+| ![Agent and MCP pairing page with the eight-character code field and the list of connected agents, dark](/screens/mcp-connect-dark.png) | ![Agent and MCP pairing page with the eight-character code field and the list of connected agents, light](/screens/mcp-connect-light.png) |
+| `AGENT & MCP VERBINDEN · CODE · VERBUNDENE AGENTEN` | `AGENT & MCP VERBINDEN · LIGHT` |
 
 ## Model and fuel
 
@@ -105,6 +118,14 @@ What stops:
 - Any step whose recipe explicitly downloads from the internet (UT2004VR, for example).
 
 Run `lanomat-agent skills sync` and download the required content **before** the internet goes away.
+
+The LANoMAT side keeps answering, because it is on the LAN: the dashboard after sign-in still shows
+the current LAN, ticket, seat and teams.
+
+| Dark | Light |
+|---|---|
+| ![Dashboard after sign-in on the LAN: current LAN, ticket, seat A3-1 and teams, dark](/screens/dashboard-dark.png) | ![Dashboard after sign-in on the LAN: current LAN, ticket, seat A3-1 and teams, light](/screens/dashboard-light.png) |
+| `DASHBOARD · CURRENT LAN · TICKET · SEAT · TEAMS` | `DASHBOARD · LIGHT` |
 
 ## Windows SmartScreen
 
