@@ -104,6 +104,24 @@ class GameServerException extends DomainException
         );
     }
 
+    /** A fixed port of the preset is held by another server on the node. */
+    public static function fixedPortInUse(int $port): self
+    {
+        return new self(
+            "The fixed port {$port} is already assigned to another server.",
+            'gameservers.errors.fixed_port_in_use',
+        );
+    }
+
+    /** A fixed port of the preset is neither on the node nor creatable. */
+    public static function fixedPortUnavailable(int $port): self
+    {
+        return new self(
+            "The fixed port {$port} does not exist on the node and could not be created.",
+            'gameservers.errors.fixed_port_unavailable',
+        );
+    }
+
     /** A permanent server that is only registered (external) has nothing to control. */
     public static function notControllable(): self
     {

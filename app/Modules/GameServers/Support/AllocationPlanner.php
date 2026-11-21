@@ -41,19 +41,20 @@ final class AllocationPlanner
     }
 
     /**
+     * @param  list<int>  $excludePorts  Ports never handed out from the pool (fixed ports of the same server).
      * @return list<PelicanAllocation>
      *
      * @throws GameServerException {@see GameServerException::noFreeAllocation()}
      */
-    public function plan(string $nodeId, int $count = 1): array
+    public function plan(string $nodeId, int $count = 1, array $excludePorts = []): array
     {
         $all = $this->client->listAllocations($nodeId);
-        $free = $this->freeInPool($all);
+        $free = $this->freeInPool($all, $excludePorts);
 
         if (count($free) < $count && $this->createMissing) {
             $this->createMissing($nodeId, $all, $count - count($free));
             $all = $this->client->listAllocations($nodeId);
-            $free = $this->freeInPool($all);
+            $free = $this->freeInPool($all, $excludePorts);
         }
 
         if (count($free) < $count) {
@@ -64,14 +65,117 @@ final class AllocationPlanner
     }
 
     /**
+     * The allocations for one server config, in slot order (main port, then the extra variables
+     * of {@see PortSlots::variables()}). A slot with a fixed port gets exactly that port: it is
+     * created on the node when missing and refused when another server already holds it. The
+     * remaining slots come from the pool, never from a fixed port.
+     *
+     * @param  array<string, mixed>  $config  `ServerConfig::toArray()` shape.
+     * @return list<PelicanAllocation>
+     *
+     * @throws GameServerException
+     */
+    public function planFor(string $nodeId, array $config): array
+    {
+        $slots = [PortSlots::MAIN, ...PortSlots::variables($config)];
+        $fixed = PortSlots::fixed($config);
+
+        if ($fixed === []) {
+            return $this->plan($nodeId, count($slots));
+        }
+
+        $fixedAllocations = $this->fixedAllocations($nodeId, array_values($fixed));
+        $poolSlots = array_values(array_filter($slots, static fn (string $slot): bool => ! isset($fixed[$slot])));
+        $pool = $poolSlots === [] ? [] : $this->plan($nodeId, count($poolSlots), array_values($fixed));
+        $planned = [];
+
+        foreach ($slots as $slot) {
+            $planned[] = isset($fixed[$slot]) ? $fixedAllocations[$fixed[$slot]] : (array_shift($pool) ?? throw GameServerException::noFreeAllocation($nodeId));
+        }
+
+        return $planned;
+    }
+
+    /**
+     * @param  list<int>  $ports
+     * @return array<int, PelicanAllocation> port => free allocation
+     *
+     * @throws GameServerException
+     */
+    private function fixedAllocations(string $nodeId, array $ports): array
+    {
+        $all = $this->client->listAllocations($nodeId);
+        $missing = array_values(array_filter($ports, fn (int $port): bool => $this->withPort($all, $port) === []));
+
+        if ($missing !== []) {
+            $this->createFixed($nodeId, $all, $missing);
+            $all = $this->client->listAllocations($nodeId);
+        }
+
+        $resolved = [];
+
+        foreach ($ports as $port) {
+            $candidates = $this->withPort($all, $port);
+
+            if ($candidates === []) {
+                throw GameServerException::fixedPortUnavailable($port);
+            }
+
+            $free = array_values(array_filter($candidates, static fn (PelicanAllocation $a): bool => ! $a->assigned));
+
+            if ($free === []) {
+                throw GameServerException::fixedPortInUse($port);
+            }
+
+            $resolved[$port] = $free[0];
+        }
+
+        return $resolved;
+    }
+
+    /**
      * @param  list<PelicanAllocation>  $all
      * @return list<PelicanAllocation>
      */
-    private function freeInPool(array $all): array
+    private function withPort(array $all, int $port): array
+    {
+        return array_values(array_filter(
+            $all,
+            fn (PelicanAllocation $a): bool => $a->port === $port && ($this->allocationIp === null || $a->ip === $this->allocationIp),
+        ));
+    }
+
+    /**
+     * @param  list<PelicanAllocation>  $all
+     * @param  list<int>  $ports
+     */
+    private function createFixed(string $nodeId, array $all, array $ports): void
+    {
+        $ip = $this->allocationIp ?? ($all[0]->ip ?? null);
+
+        if ($ip === null || $ip === '') {
+            throw GameServerException::fixedPortUnavailable($ports[0]);
+        }
+
+        try {
+            $this->client->createAllocations($nodeId, $ip, array_map('strval', $ports));
+        } catch (GameServerException $e) {
+            Log::notice('Could not create fixed-port allocations on the Pelican node.', ['node' => $nodeId, 'ports' => $ports, 'status' => $e->httpStatus]);
+
+            throw GameServerException::fixedPortUnavailable($ports[0]);
+        }
+    }
+
+    /**
+     * @param  list<PelicanAllocation>  $all
+     * @param  list<int>  $excludePorts
+     * @return list<PelicanAllocation>
+     */
+    private function freeInPool(array $all, array $excludePorts = []): array
     {
         $free = array_values(array_filter(
             $all,
-            fn (PelicanAllocation $a): bool => ! $a->assigned && $this->pool->contains($a->port),
+            fn (PelicanAllocation $a): bool => ! $a->assigned && $this->pool->contains($a->port) && ! in_array($a->port, $excludePorts, true),
         ));
 
         usort($free, static fn (PelicanAllocation $a, PelicanAllocation $b): int => $a->port <=> $b->port);

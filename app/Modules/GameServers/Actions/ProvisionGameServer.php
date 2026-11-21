@@ -17,8 +17,8 @@ use App\Modules\GameServers\Support\ServerSpecBuilder;
 
 /**
  * Creates the Pelican server for one resolved config: guardrails, the preset's
- * egg (resolved by uuid), one free pool allocation per port the preset needs
- * (the main port plus one for each `extra_ports` entry), the builder, and
+ * egg (resolved by uuid), one allocation per port the preset needs
+ * (the main port plus one for each extra variable; pool ports, or the preset's fixed ports), the builder, and
  * `createServer()`. The shared creation path of the match job and of
  * {@see StartServerFromPreset}; it does not touch any ServerLink.
  */
@@ -45,8 +45,7 @@ final class ProvisionGameServer
             throw GameServerException::noNodeConfigured();
         }
 
-        $extraPorts = is_array($config['extra_ports'] ?? null) ? count($config['extra_ports']) : 0;
-        $allocations = AllocationPlanner::fromConfig($this->client)->plan((string) $nodeId, 1 + $extraPorts);
+        $allocations = AllocationPlanner::fromConfig($this->client)->planFor((string) $nodeId, $config);
 
         $spec = (new ServerSpecBuilder($this->client))->build(
             $game,

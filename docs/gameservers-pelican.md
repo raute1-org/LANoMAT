@@ -83,7 +83,7 @@ preset is: an **egg reference** (uuid plus fallback name, resolved against the p
 `listEggs()`; the numeric id is never stored), an `enabled` switch and `requires`
 (`authkey`, `gslt`, `content`), and a `ServerConfig` with limits (`memory_mb`, `disk_mb`,
 `cpu_percent`), the `environment` map plus the `overridable` key list, `extra_ports`
-(egg variables that get a second pool port, e.g. `TV_PORT`), readiness (`a2s` with
+(egg variables that get a second pool port, e.g. `TV_PORT`), `fixed_ports` (map `main`/variable name to a node port 1024..65535, no duplicates: used instead of pool ports, missing allocations are created, a port held by another server is refused with `gameservers.errors.fixed_port_in_use`), readiness (`a2s` with
 expected game title, folder and timeout), a `connect_template` (`{ip}`, `{port}`,
 `{password}`), a content bundle (`workshop` collection id or `upload` URL) and an
 `install_marker` path. Secrets are not part of a preset: `PresetAvailability` locks a
@@ -95,7 +95,7 @@ select from a cached `EggCatalog`, text input when the panel is unreachable).
 Seeded examples (`GamesSeeder`, never overwriting edited presets): **TTT** (LANoMAT
 egg, gamemode `terrortown`, 16 slots, A2S check), **Prop Hunt (Workshop)** (locked
 until a Steam Web API key and a collection exist) and **CS2 GunGame** (disabled stub:
-needs Metamod/CounterStrikeSharp content and a GSLT).
+needs Metamod/CounterStrikeSharp content and a GSLT) and the **Mordhau** presets (`horde`, `deathmatch`, `frontline`, fixed ports 17777-17779; see [`infra/mordhau.md`](infra/mordhau.md)).
 
 The orga starts a server with the server links page action "Server aus Preset starten"
 (`StartServerFromPreset`): event-level `ServerLink` (`event_id`, `game_id`, `preset_key`,

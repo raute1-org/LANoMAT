@@ -27,6 +27,8 @@ return [
         'pelican_rejected' => 'Das Pelican-Panel hat die Server-Konfiguration abgelehnt. Bitte Preset (Egg-Variablen, Limits) prüfen.',
         'pelican_unavailable' => 'Das Pelican-Panel ist gerade nicht erreichbar. Bitte später erneut versuchen.',
         'no_free_allocation' => 'Auf dem Knoten ist keine freie Port-Zuweisung mehr verfügbar.',
+        'fixed_port_in_use' => 'Ein fester Port dieses Presets ist auf dem Knoten bereits an einen anderen Server vergeben. Den anderen Server mit diesem Preset zuerst stoppen oder löschen.',
+        'fixed_port_unavailable' => 'Ein fester Port dieses Presets existiert auf dem Knoten nicht und konnte nicht angelegt werden (API-Schlüssel braucht Schreibrecht auf Zuweisungen).',
         'no_node_configured' => 'Es ist kein Pelican-Knoten konfiguriert.',
         'egg_not_imported' => 'Das Egg dieses Presets ist im Pelican-Panel nicht importiert. Bitte zuerst `php artisan gameservers:import-eggs` ausführen.',
         'preset_unavailable_disabled' => 'Dieses Preset ist deaktiviert.',
