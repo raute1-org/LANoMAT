@@ -1,0 +1,145 @@
+schema: lanomat.recipe/v1
+slug: hookshot
+title: Hookshot
+aliases: ['hookshot', 'oot switch 2', 'ocarina of time switch 2']
+version: '3.0.0'
+status: draft
+platforms: [windows, linux]
+summary: Build and run Hookshot, the native Ocarina of Time (Switch 2) recompilation, from the user's own supported game dump on Windows or Linux.
+description: |
+    Hookshot is a static recompilation of The Legend of Zelda: Ocarina of Time
+    (Nintendo Switch 2). The game's ARM64 code is translated to C, compiled on
+    the user's PC with the reimplemented system software, and drawn with a
+    Vulkan renderer. No emulator and no game data are shipped.
+
+    It needs one exact game version: program `0400486024DEC000`, update
+    `v131072`, build `e0f3ccfa`. A `.nup` file, an `.nx` converted to `.nup`
+    with NXFormat's `nxconvert pack-nup`, or the `romfs` and `exefs` folders all
+    work. Other versions do not.
+
+    The project moved off GitHub; releases and source live at
+    git.notrexed.dev, the player guides at hookshotrecomp.wiki. The builder
+    downloads its own parts from GitHub on first run. The LAN collection has a
+    built `hookshot.exe` with a `game` folder and `mods`; this recipe describes
+    the generic build.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://git.notrexed.dev/Hookshot/Hookshot
+license: 'Nintendo; game dump user-supplied (Hookshot: GPL-3.0)'
+cover: ''
+skill:
+    name: hookshot
+    description: "Build and run Hookshot, the native Ocarina of Time Switch 2 recompilation, from the user's own supported .nup/romfs dump on Windows or Linux, and verify it boots. Use when the user says install Hookshot or the native Ocarina of Time Switch 2 port."
+    compatibility: 'Windows 10/11 x64 or Linux x64 (glibc 2.35+, AVX2); Vulkan 1.3 with mesh shaders; 16 GB RAM; ~60 GB free during the build, ~10 GB after'
+requires:
+    - role: base
+      label: 'Ocarina of Time (Switch 2) supported dump'
+      match: ['*.nup', '*.nx', '*romfs*', '*exefs*']
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'Exact supported version: program 0400486024DEC000, update v131072, build e0f3ccfa. A .nup, an .nx packed to .nup, or romfs+exefs. Other versions do not work.'
+    - role: tool
+      label: 'Hookshot Builder (Windows exe / Linux AppImage)'
+      match:
+          [
+              'HookshotBuilder.exe',
+              'Hookshot-*.AppImage',
+              'Hookshot-v*-Windows-x64.zip',
+          ]
+      required: true
+      url: https://git.notrexed.dev/Hookshot/Hookshot/releases/latest
+      notes: 'v3.0.0 is the current stable release (v2.3.2 was the previous one; the LAN copy may still be on 2.x). The Windows builder downloads its parts (~500 MB) on first run; the Linux AppImage contains them. The GitHub repository is a mirror, the releases live on git.notrexed.dev.'
+    - role: mod
+      label: 'Hookshot RomFS mods (optional)'
+      match: ['*OoT*Mod*.zip', '*OOT*Mod*.zip', '*hookshot*mod*.zip']
+      required: false
+      url: ''
+      notes: 'Mods live in mods/<name>/romfs/... beside hookshot.exe. ExeFS patches (.ips/.pchtxt) are only applied when the game is rebuilt.'
+steps:
+    - id: install-hookshot
+      title: 'Get Hookshot Builder'
+      os: windows
+      optional: false
+      detail: |
+          Download `HookshotBuilder.exe` from the latest release and put it in
+          `{{target}}`. Run it once: it downloads its parts (about 500 MB), checks
+          them and opens the Builder window. On Linux download
+          `Hookshot-<version>-x86_64.AppImage`, make it executable and run it.
+
+          The builder keeps its own files under `%LOCALAPPDATA%\HookshotBuilder`
+          (Windows) or `~/.cache/hookshot-builder` (Linux); the built game and its
+          `hookshot.exe` go to the install folder chosen in the builder, which is
+          this recipe's `{{target}}`.
+      commands:
+          - shell: powershell
+            run: 'Start-Process "{{downloads}}/HookshotBuilder.exe"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/HookshotBuilder.exe'
+    - id: place-game
+      title: 'Place the supported game dump'
+      os: any
+      optional: false
+      detail: |
+          Put the `.nup` (or the `romfs` and `exefs` folders) in the game folder
+          beside the builder. If you only have an `.nx`, convert it with NXFormat:
+          `nxconvert pack-nup`.
+
+          Check the program ID, update and build ID before building; a mismatched
+          dump produces a game that will not start.
+    - id: build
+      title: 'Build the game'
+      os: any
+      optional: false
+      detail: |
+          In Hookshot Builder choose the `.nup` (or the `romfs`/`exefs` folders),
+          set the install folder to `{{target}}`, pick the game language and press
+          Build. It takes 10–45 minutes and about 60 GB of free space while it
+          runs; the build files are deleted afterwards.
+
+          Building from source instead uses the `nx2/` build scripts; the builder
+          is the supported path. The build writes `hookshot.exe`, the translated
+          code and the shader caches into the game folder.
+    - id: run
+      title: 'Run and configure'
+      os: any
+      optional: false
+      detail: |
+          Start `hookshot.exe`. Set the resolution, fullscreen mode and graphics
+          options, and map a gamepad or keyboard. The first launch compiles
+          shaders; later launches use the cache.
+
+          If the build produced no executable, the game version was wrong or the
+          build stopped before linking; read the log.
+    - id: mods
+      title: 'Add RomFS mods (optional)'
+      os: any
+      optional: true
+      detail: |
+          Put mods in `mods/<name>/romfs/...` beside `hookshot.exe`, or point
+          `HOS_MODS` at another folder. A folder starting with `-` or `_` is off;
+          the in-game Mods tab orders and switches them.
+
+          ExeFS patches are different: they are applied at build time, so rebuild
+          the same folder after adding or changing an `.ips`/`.pchtxt` patch.
+    - id: verify
+      title: 'Boot the game'
+      os: any
+      optional: false
+      detail: |
+          Confirm the intro, a save and the controller. Check `hookshot_log.txt`
+          for the dump version and any mod that failed to load.
+
+          Draft recipe: the exact builder steps change between releases; record
+          the Hookshot version and the game build that worked.
+metadata:
+    genre: action-adventure
+    players: '1'
+    players_max: 1
+    lan_recommended: false
+    tags: [adventure, switch2, nintendo, zelda, recomp]
+    launch:
+        kind: exe
+        target: '{{target}}/hookshot.exe'
+        notes: 'The built executable sits in the game folder next to the placed dump.'

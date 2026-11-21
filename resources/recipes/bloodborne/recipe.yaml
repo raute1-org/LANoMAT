@@ -1,0 +1,137 @@
+schema: lanomat.recipe/v1
+slug: bloodborne
+title: Bloodborne
+aliases: ['bloodborne', 'bb']
+version: '1.0.0'
+status: draft
+platforms: [windows, linux]
+summary: Play Bloodborne on the LAN with shadPS4, the user's PS4 dump and the emulator's Bloodborne patches.
+description: |
+    Bloodborne is the PS4 gothic action RPG: Yharnam, the Hunt, trick weapons
+    and the Chalice Dungeons. shadPS4 runs the user's own extracted PS4 game
+    folder (`eboot.bin` plus `sce_sys/param.sfo`). PS4 system modules are
+    optional: shadPS4 reimplements most calls itself, and Bloodborne boots
+    without the full firmware on many builds.
+
+    The LAN collection's Bloodborne folder is a native Windows PC port
+    (`bbport-windows`), not a shadPS4 install. This recipe covers the emulator
+    path; the native port is a separate build with its own launcher.
+
+    shadPS4 is young. Expect shader stutter, frame pacing work and per-build
+    regressions; the 60 fps patch is a per-game patch, not a guarantee.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://shadps4.net/
+license: 'FromSoftware/Sony; game and firmware user-supplied'
+cover: ''
+skill:
+    name: bloodborne
+    description: "Install Bloodborne with shadPS4, add the user's extracted PS4 dump, optionally install PS4 system modules, enable the emulator's patches, configure Vulkan and a controller, and verify the game boots. Use when the user says install Bloodborne on PC for the LAN."
+    compatibility: 'Windows 10/11 or Linux; shadPS4; ~50 GB disk; Vulkan GPU; gamepad; PS4 system modules optional'
+requires:
+    - role: base
+      label: 'Bloodborne PS4 dump (CUSA00207 / CUSA00900)'
+      match: ['*Bloodborne*', '*bloodborne*', 'CUSA00207*', 'CUSA00900*']
+      required: true
+      sha256: ''
+      url: ''
+      notes: "The extracted game folder containing eboot.bin and sce_sys/param.sfo. shadPS4 v0.8.0 removed PKG support, so a PKG must be extracted first. USA CUSA00207 and EU CUSA00900 are the common dumps; keep the update folder (`CUSA...-UPDATE`) beside the base dump. The LAN's native bbport-windows folder also matches the glob; pick the dump that contains eboot.bin."
+    - role: base
+      label: 'PS4 system modules (PS4UPDATE.PUP, optional)'
+      match: ['PS4UPDATE.PUP', 'PS4UPDATE*.PUP', 'libSce*.sprx']
+      required: false
+      sha256: ''
+      url: ''
+      notes: "Optional: shadPS4 is HLE-first and Bloodborne boots without the full firmware on many builds. The modules improve audio, fonts and video; install PS4UPDATE.PUP once per emulator user folder, or copy individual .sprx files into user/sys_modules. From the user's own PS4."
+    - role: tool
+      label: 'shadPS4 emulator'
+      match:
+          [
+              'shadps4-win64-*.zip',
+              'shadps4-linux-*.zip',
+              'shadps4*.zip',
+              'shadps4*.AppImage',
+          ]
+      required: true
+      url: https://shadps4.net/
+      notes: 'Current release (`shadps4-win64-sdl-<ver>.zip` / `shadps4-linux-sdl-<ver>.zip`). Nightly builds move faster but regress more; pick one and note it.'
+steps:
+    - id: install-shadps4
+      title: 'Install shadPS4'
+      os: windows
+      optional: false
+      detail: |
+          Download the shadPS4 release for the OS and extract it to `{{target}}`.
+          Launch once so the user folder and the default settings are created.
+
+          Keep the emulator build and the game patches in sync: a patch for one
+          build may not load in another.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/shadps4-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/shadPS4.exe'
+    - id: install-firmware
+      title: 'Install PS4 system modules (optional)'
+      os: any
+      optional: true
+      detail: |
+          Optional. shadPS4 is HLE-first and Bloodborne boots without the full
+          firmware on many builds; without the modules it falls back to HLE. If
+          the emulator asks for firmware, or audio/fonts misbehave, use Tools →
+          Install Firmware and select `PS4UPDATE.PUP` (or copy the individual
+          `.sprx` modules into `user/sys_modules`).
+
+          A missing-firmware prompt is not automatically a bad game dump.
+    - id: import-game
+      title: 'Add the game'
+      os: any
+      optional: false
+      detail: |
+          Add the extracted dump folder (the one containing `eboot.bin` and
+          `sce_sys/param.sfo`) in shadPS4's game list. shadPS4 v0.8.0 removed
+          PKG support, so a PKG must be extracted first; updates go in a
+          `CUSA...-UPDATE` folder beside the base.
+
+          Confirm the serial (CUSA00207/CUSA00900) and that the game version
+          matches the patch you plan to use.
+    - id: configure-graphics
+      title: 'Configure graphics and patches'
+      os: any
+      optional: false
+      detail: |
+          Use Vulkan, 1080p or 1440p internal resolution, and the emulator's
+          recommended settings for Bloodborne. Enable the 60 fps patch from
+          shadPS4's patch list only after the game boots at default settings.
+
+          Shader stutter on first visits is expected; replay the area. If the
+          frame pacing is bad, try the patch's frame-pacing option or cap at 30.
+    - id: configure-controller
+      title: 'Map a controller'
+      os: any
+      optional: false
+      detail: |
+          Map a DualShock 4 or Xbox pad: both sticks, R1/R2/L1/L2, the face
+          buttons and the touchpad click. Bloodborne's transform attacks and
+          parry timing need low-latency input; test before the LAN.
+    - id: verify
+      title: 'Reach the first lantern'
+      os: any
+      optional: false
+      detail: |
+          Boot the game, create a hunter, reach the first lantern and die once to
+          test the respawn. Check audio, shader stutter and the save.
+
+          Draft recipe: shadPS4 moves quickly; record the exact build and patch
+          versions that worked on the LAN hardware.
+metadata:
+    genre: action-rpg
+    players: '1 (online not covered)'
+    players_max: 1
+    lan_recommended: false
+    tags: [action-rpg, ps4, fromsoftware, shadps4]
+    launch:
+        kind: exe
+        target: '{{target}}/shadPS4.exe'
+        notes: "Start Bloodborne from shadPS4's game list; the dump is already registered."

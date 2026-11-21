@@ -1,0 +1,144 @@
+schema: lanomat.recipe/v1
+slug: f-zero-x-vr
+title: F-Zero X VR
+aliases: ['fzero x vr', 'f-zero x', 'fzero vr']
+version: '1.0.1'
+status: draft
+platforms: [windows]
+summary: Run F-Zero X in VR on a PC headset with the community PCVR port, using the user's own USA Rev 0 Nintendo 64 ROM.
+description: |
+    F-Zero X is the Nintendo 64 anti-gravity racer, not a GameCube game: the
+    "GameCube / Dolphin VR" shorthand is wrong for X. Dolphin VR can run F-Zero
+    GX, while F-Zero X needs either the native VR port or an N64 emulator.
+
+    This recipe uses the community PCVR port by Virtua VR Port (Windows, OpenXR)
+    with the user's own USA Rev 0 ROM. The same project also ships a Quest 3
+    standalone build, installed from a Windows PC over USB (or sideloaded as an
+    APK); it is not a PC install and not part of this recipe.
+
+    The LAN folder holds `FZeroXVR-Public-PCVR-20261018-R12.zip`. Verify the
+    headset, runtime and controller mapping on the LAN before promising a race.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://virtuavrport.itch.io/f-zero-x-vr
+license: 'Nintendo; ROM user-supplied (community VR port)'
+cover: ''
+skill:
+    name: f-zero-x-vr
+    description: "Install and configure the F-Zero X VR PCVR port on Windows with the user's own USA Rev 0 N64 ROM and an OpenXR headset. Use when the user says install F-Zero X VR, F-Zero X in VR, or asks for the VR F-Zero port for the LAN."
+    compatibility: 'Windows 10/11, OpenXR runtime (SteamVR or equivalent), VR headset with tracked controllers; ~2 GB disk'
+requires:
+    - role: base
+      label: 'F-Zero X (USA) Rev 0 ROM'
+      match:
+          [
+              '*F-Zero*X*.z64',
+              '*F-Zero*X*.n64',
+              '*F-Zero*X*.v64',
+              '*f-zero*x*.z64',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'USA Rev 0 only. The launcher checks SHA-1 5f658e88ffa9de23cba6986a8fd3d3a90d7b4340 and refuses other regions or hacks. 16 MiB.'
+    - role: tool
+      label: 'F-Zero X VR PCVR build'
+      match: ['FZeroXVR-Public-PCVR-*.zip', 'FZeroXVR-PCVR-*.zip']
+      required: true
+      url: https://virtuavrport.itch.io/f-zero-x-vr
+      notes: 'PCVR installer for Windows (R12 or newer). It contains Setup.exe and registers an uninstaller; no game data is included.'
+    - role: tool
+      label: 'F-Zero X VR Quest 3 standalone build (optional)'
+      match:
+          [
+              'FZeroXVR*Standalone*.zip',
+              '*Standalone*Quest*.zip',
+              '*Standalone*.apk',
+          ]
+      required: false
+      url: https://virtuavrport.itch.io/f-zero-x-vr
+      notes: 'Same Virtua VR Port project, a separate standalone build. Install it from a Windows PC with the headset connected by USB and developer mode enabled, or sideload the APK with adb/SideQuest. It needs its own USA Rev 0 ROM.'
+    - role: tool
+      label: 'OpenXR runtime (SteamVR)'
+      match: []
+      required: true
+      url: https://store.steampowered.com/app/250820/SteamVR/
+      notes: "Set the headset's OpenXR runtime before launching the port. Virtual Desktop must be connected first when it is the streaming path."
+steps:
+    - id: install-vr-port
+      title: 'Install the PCVR port'
+      os: windows
+      optional: false
+      detail: |
+          Extract `FZeroXVR-Public-PCVR-*.zip` (or the current PCVR release from
+          Virtua VR Port) and run its `Setup.exe` from the extracted folder, never
+          inside the zip. Choose `{{target}}` as the install folder. Setup offers to
+          launch at the end and registers an uninstaller.
+
+          Start the headset and its OpenXR runtime first. If Virtual Desktop is the
+          streaming path, connect it before launching.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/FZeroXVR-Public-PCVR-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
+      verify:
+          - type: dir_exists
+            path: '{{target}}'
+    - id: import-rom
+      title: 'Import the USA Rev 0 ROM'
+      os: windows
+      optional: false
+      detail: |
+          Put the user's `F-Zero X (USA).z64` where the launcher can see it. The
+          first start opens the launcher and asks for the ROM; selecting it once is
+          enough. The launcher validates the SHA-1 before booting and stays on a
+          test scene when the ROM is wrong.
+
+          Do not rename a PAL or Japanese ROM to `.z64`: the port rejects it.
+      commands:
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/F-Zero X (USA).z64" -Destination "{{target}}/F-Zero X (USA).z64" -Force'
+      verify:
+          - type: file_exists
+            path: '{{target}}/F-Zero X (USA).z64'
+    - id: configure-openxr
+      title: 'Select the OpenXR runtime'
+      os: windows
+      optional: false
+      detail: |
+          In the headset software, set the active OpenXR runtime (SteamVR or the
+          vendor runtime) before the first launch. With Virtual Desktop, connect
+          the headset first and use the OpenXR runtime it provides.
+
+          If the game renders on the desktop but not in the headset, the runtime
+          selection is the first thing to check.
+    - id: controller-and-comfort
+      title: 'Set controllers, view and comfort'
+      os: windows
+      optional: false
+      detail: |
+          Use tracked controllers; motion steering is part of the port's design.
+          Pick a seated or standing profile, set the refresh rate the PC can hold
+          (90 Hz is the safer default), and use the recenter action when the
+          cockpit sits wrong.
+
+          Test one course and one cup before the LAN. Frame rate matters more than
+          resolution in VR.
+    - id: verify
+      title: 'Boot a race and verify'
+      os: windows
+      optional: false
+      detail: |
+          Launch the port, select the ROM if asked, and start a single race. Verify
+          stereo rendering, head tracking, steering and the HUD in the headset.
+
+          This recipe is a draft: the exact executable name and the current release
+          filename may differ. Record what the LAN machine actually ran.
+      verify:
+          - type: file_exists
+            path: '{{downloads}}/F-Zero X (USA).z64'
+metadata:
+    genre: racing
+    players: '1'
+    players_max: 1
+    lan_recommended: false
+    tags: [racing, vr, n64, community-port]

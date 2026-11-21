@@ -1,0 +1,141 @@
+schema: lanomat.recipe/v1
+slug: pokemon-snap
+title: Pokémon Snap
+aliases: ['pokemon snap', 'snap64', 'snap 64']
+version: '1.1.8'
+status: draft
+platforms: [windows, linux, macos]
+summary: Play Pokémon Snap on the LAN with the native Snap64Recomp port and the user's own USA Nintendo 64 ROM.
+description: |
+    Pokémon Snap is the Nintendo 64 photo safari: ride the Zero-One, throw
+    apples and pester Pokémon into a better shot. It is an N64 game, not a
+    GameCube title, so Dolphin is the wrong emulator.
+
+    Snap64Recomp is a native static recompilation for Windows, Linux, macOS and
+    Android (beta). It plays like the cartridge by default and adds optional
+    widescreen, higher frame rates, mouse/gyro aim, photo export and the Snap
+    Station printer emulation.
+
+    The user's USA ROM is required; the port refuses other regions and prints
+    both checksums when it does.
+    Needs verification on the LAN before this recipe leaves draft status.
+
+homepage: https://github.com/JackandBeans/Snap64Recomp
+license: 'Nintendo; ROM user-supplied (Snap64Recomp: GPL-3.0)'
+cover: ''
+skill:
+    name: pokemon-snap
+    description: "Install Pokémon Snap with the native Snap64Recomp port, place the user's USA N64 ROM, configure widescreen, frame rate and controls, and verify the first course. Use when the user says install Pokemon Snap or Snap64 for the LAN."
+    compatibility: 'Windows 10/11 (D3D12 SM 6.3) or Linux/macOS; ~1 GB disk; gamepad or keyboard/mouse'
+requires:
+    - role: base
+      label: 'Pokémon Snap (USA) ROM'
+      match:
+          [
+              '*Pokemon*Snap*.z64',
+              '*Pokémon*Snap*.z64',
+              '*pokemon*snap*.n64',
+              '*Pokemon*Snap*.v64',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'USA cartridge only, `.z64`/`.n64`/`.v64`. The port validates SHA-1 edc7c49cc568c045fe48be0d18011c30f393cbaf and refuses other regions.'
+    - role: tool
+      label: 'Snap64Recomp release'
+      match:
+          [
+              'Snap64Recomp-*-win64.zip',
+              'Snap64Recomp-*-linux-*.tar.*',
+              'Snap64Recomp-*-macos-*.zip',
+          ]
+      required: true
+      url: https://github.com/JackandBeans/Snap64Recomp/releases/latest
+      notes: 'The Windows build is portable (unzip and run). Linux builds are experimental; macOS needs 14+.'
+steps:
+    - id: install-port
+      title: 'Install Snap64Recomp'
+      os: any
+      optional: false
+      detail: |
+          Download the archive for the OS and unpack it anywhere; everything lives
+          in one folder. Nothing is installed and no account or network connection
+          is needed.
+
+          Windows: `Snap64Recomp-<version>-win64.zip`, binary
+          `Snap64Recomp.exe`. Linux: the `linux-x86_64` tarball, binary
+          `Snap64Recomp`; the Flatpak is an alternative. macOS: the
+          `macos-universal.zip`, binary `Snap64Recomp` (macOS 14 or newer).
+
+          The binaries are unsigned, so SmartScreen or Gatekeeper may ask once.
+          "More info" → "Run anyway" (Windows) or the usual Open-anyway step
+          (macOS) is expected.
+      commands:
+          - shell: powershell
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/Snap64Recomp-*-win64.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
+          - shell: bash
+            run: 'tar -xzf "$(ls "{{downloads}}"/Snap64Recomp-*-linux-x86_64.tar.gz | head -n 1)" -C "{{target}}"'
+      verify:
+          - type: dir_exists
+            path: '{{target}}'
+    - id: import-rom
+      title: 'Add the USA ROM'
+      os: any
+      optional: false
+      detail: |
+          Put the ROM next to the executable as `pokemonsnap.z64`, or simply start
+          the program and pick the file when it asks. It checks the ROM, copies it
+          into place under that name, and asks only once.
+
+          Do not rename a PAL or Japanese ROM: the port rejects it and shows both
+          checksums.
+      commands:
+          - shell: powershell
+            run: 'Copy-Item -Path "{{downloads}}/Pokemon Snap (USA).z64" -Destination "{{target}}/pokemonsnap.z64" -Force'
+          - shell: bash
+            run: 'cp "{{downloads}}/Pokemon Snap (USA).z64" "{{target}}/pokemonsnap.z64"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/pokemonsnap.z64'
+    - id: configure
+      title: 'Set widescreen, frame rate and aim'
+      os: any
+      optional: false
+      detail: |
+          The port has no launcher and no overlay: open the game's own Options
+          (Esc, or Select on a pad). Under Graphics enable widescreen and a higher
+          frame rate if wanted; the game logic still runs at 30 Hz and the renderer
+          interpolates.
+
+          Mouse aim and gyro are opt-in. Photo export and the Snap Station are
+          under the same Options pages or on dedicated keys.
+    - id: controller
+      title: 'Map a controller'
+      os: any
+      optional: false
+      detail: |
+          Anything SDL recognises works. Map the camera, the apples, the pester
+          ball and the shutter. A DualSense/DualShock 4/Switch Pro pad can aim by
+          gyro if the user wants it.
+
+          Save the mapping; the port does not use a separate launcher profile.
+    - id: verify
+      title: 'Shoot the first course'
+      os: any
+      optional: false
+      detail: |
+          Start the game, ride the Beach course, take a photo and let Oak score it.
+          Check the photo album and a save in `saves/` beside the executable.
+
+          Draft recipe: the Linux/macOS builds are experimental; verify on the LAN
+          hardware.
+metadata:
+    genre: photography
+    players: '1'
+    players_max: 1
+    lan_recommended: false
+    tags: [photography, n64, nintendo, recomp]
+    launch:
+        kind: exe
+        target: '{{target}}/Snap64Recomp.exe'
+        notes: 'On Linux or macOS start the extracted binary from the same folder.'
