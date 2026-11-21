@@ -23,10 +23,11 @@ human or an agent. A recipe is therefore installable in the launcher when one of
   and a launch target. "Portable" is the author's promise that unpacking the archive is the whole
   install.
 
-`metadata.launcher_supported` is the orga's override for a recipe that is not portable: `true`
-offers it anyway, `false` hides it. A published recipe that fits none of these stays on `/games`
-with its servers and tournaments, but its launcher card reads **Bald im Launcher** and links to the
-game page instead of showing an Install button.
+`metadata.launcher_supported` is the orga's override for a recipe that is not portable; in the panel
+it is the three-state field **Launcher-Freigabe (metadata.launcher_supported)** with **Automatisch
+entscheiden**, **Immer anbieten** and **Nie anbieten**. A published recipe that fits none of these
+stays on `/games` with its servers and tournaments, but its launcher card reads **Bald im Launcher**
+and links to the game page instead of showing an Install button.
 
 A shared game is exactly this portable case: a participant packs a ready-to-run game folder, uploads
 it and describes it on `/games/share`. Read [Share a game](/docs/guides/share-a-game) for that path.
@@ -39,11 +40,13 @@ in; the chat on the start page is the shortest way in.
 1. **Start page chat** — after the Discord login, `/` opens with the chat. Ask what is playable on
    this LAN; it answers with inline game and server cards, not a link list.
 2. **Games** — the card's quiet "Seite öffnen" (or the **Spiele verwalten** tile) leads to
-   `/games`, the catalogue of everything the LAN publishes.
+   `/games`, the published catalogue the lineup allows.
 3. **Zuletzt gespielt** — the first row on `/games` is what this device installed or launched
    before; it is absent until there is something to show, never an empty frame.
-4. **Installieren** — the game page offers one primary action. Without a launcher on the PC it
-   becomes **Launcher herunterladen**; the deep link alone needs the launcher.
+4. **Installieren** — the game page offers one primary action. With a published launcher build that
+   can install this recipe, **Installieren** leads to the launcher download and the quiet **Im
+   Launcher öffnen** fires `lanomat://install/<slug>`; without a build, **Installieren** itself is
+   that deep link and needs the launcher already installed.
 5. **Launcher download and pairing** — one file for your OS, one **Anmeldecode**, approved once in
    the browser on `/mcp/connect`.
 6. **The same Games UX** — the launcher opens on **Spiele**, the same list, the same German action
@@ -142,9 +145,10 @@ its own token: the launcher appears as a separate entry under **Verbundene Gerä
 
 ## The same Games list
 
-The launcher opens on **Chat**; the **Spiele** tab has the same published recipes, the same **LAN**
-badge and the same action words as `/games` in the browser. The newest local install record shows
-on the card: target folder, verified files, and either **Installieren** or **Starten**.
+The launcher opens on **Chat**; the **Spiele** tab has the same published recipes the lineup allows,
+the same **LAN** badge and the same action words as `/games` in the browser. The newest local
+install record shows on the card: target folder, verified files, and either **Installieren** or
+**Starten**.
 
 | Dark |
 |---|
@@ -193,7 +197,9 @@ The ISO is the fallback path of the pilot. When the recipe also offers a ready-t
 folder archive, that archive wins: the launcher installs it directly and never needs the disc image.
 
 The default target is `~/Games/unreal-tournament-2004` on Linux and
-`C:\Games\Unreal Tournament 2004` on Windows. Nothing needs administrator rights.
+`C:\Games\Unreal Tournament 2004` on Windows. The folder is derived from the recipe title and keeps
+only letters, digits, spaces, dots, underscores and hyphens; Linux then slugifies it. Nothing needs
+administrator rights.
 
 ## Starten
 
@@ -212,18 +218,24 @@ offers it:
 
 - on `/launcher`, each live server has **Beitreten**; without a join link it offers **Server
   ansehen** and a quiet **Zum Spiel**;
-- on `/servers` and `/servers/all`, a server card offers **Im Launcher beitreten** with the hint
-  „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“, plus
-  **Spiel installieren** and **Mitspieler suchen**;
-- on the game page, each server row makes **Beitreten** the primary action with the sentence „Der
-  Launcher installiert das Spiel bei Bedarf und startet direkt auf diesem Server.“ A PC that
-  already has the game keeps every direct way under **Anders verbinden** — the game's own join
-  options, an allowlisted link, or the address to copy.
+- on `/servers` and `/servers/all`, a server card offers **Im Launcher beitreten** first, with the
+  hint „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“, then
+  **Spiel installieren** and **Mitspieler suchen** (a compact row keeps only the quiet **Zum Spiel**);
+- on the game page, each server row puts **Im Launcher beitreten** first with the sentence „Der
+  Launcher installiert das Spiel bei Bedarf und startet direkt auf diesem Server.“ A PC that already
+  has the game keeps every direct way under **Anders verbinden** — the game's own join options, an
+  allowlisted link, or the address to copy.
 
 The link is `lanomat://join/<slug>`. UT2004 carries the server as `?address=<host>:<port>` and
 starts already on it; every other recipe launches normally and then opens the server's own join URL
 as `?url=<urlencoded url>`. A server with neither an address nor an accepted join URL gets no
 launcher link, so the row keeps its own fallback action.
+
+A click that nobody answers does not fail silently: after about 2.5 seconds without the page losing
+focus, the same spot asks **„Kein Launcher-Fenster aufgegangen?“** and offers **Launcher
+herunterladen** (`/launcher`) and **Nochmal versuchen**. When something did take over, a short
+confirmation reads **„Launcher geöffnet. Schau in die Taskleiste, falls du kein Fenster siehst.“**
+and disappears after a few seconds — the page cannot know more than that.
 
 The footer of the launcher window names the build it is running (`Launcher <version> · <commit>`) —
 handy when something has to be reported. When the server publishes a different build, one link
@@ -234,13 +246,14 @@ appears next to it: „Neue Launcher-Version verfügbar: &lt;version&gt; — Lau
 
 The launcher cannot pack, hash or upload an archive itself. Its **Spiel teilen** entry hands that
 work to the browser: it opens the paired server's `/games/share`, where you upload or pick an
-archive and describe the game. Until the launcher is paired the entry is hidden, and clicking it
-without a connection says „Zum Teilen zuerst mit einem LANoMAT-Server verbinden.“
+archive and describe the game. Every share entry (start page, library header, both empty states) is
+hidden until the launcher is paired and has a valid server address; there is no "connect first"
+message.
 
 The hint next to the button says what happens: „Öffnet LANoMAT im Browser: Archiv hochladen, Spiel
 beschreiben — nach der Prüfung durch die Orga erscheint es hier.“ A successful handover reads
-„LANoMAT im Browser geöffnet: Spiel teilen.“; a failure reads „Die Seite „Spiel teilen“ konnte nicht
-geöffnet werden.“
+„LANoMAT im Browser geöffnet. Dort kannst du das Spiel teilen.“; a failure reads „Die Seite „Spiel
+teilen“ konnte nicht geöffnet werden.“
 
 The full path from a game folder to a playable entry is [Share a game](/docs/guides/share-a-game).
 

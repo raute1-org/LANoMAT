@@ -169,10 +169,10 @@ A portable recipe has all of these:
 The launcher lifts one wrapper folder, checks the path the step verifies and starts the matching
 launch target: the Windows `.exe`, a native Linux binary, or the Windows tree through Wine.
 
-`metadata.launcher_supported` is the orga's override for a recipe without that shape: `true` offers
-it in the launcher anyway, `false` hides it. A browser recipe with `play_url` needs no install at
-all. The UT2004 pilot has a dedicated launcher path; Need for Speed: Underground 2 was verified by
-hand with the generic engine.
+`metadata.launcher_supported` is the orga's override for a recipe without that shape; the panel
+offers it as the three-state **Launcher-Freigabe** (**Automatisch entscheiden**, **Immer anbieten**,
+**Nie anbieten**). A browser recipe with `play_url` needs no install at all. The UT2004 pilot has a
+dedicated launcher path; Need for Speed: Underground 2 was verified by hand with the generic engine.
 
 A published recipe that the launcher cannot drive is still a full catalogue entry: it has its page,
 its servers and its tournaments, and the launcher card links to the game page instead of offering an
@@ -188,9 +188,11 @@ A participant who has a ready-to-run game folder does not edit `resources/recipe
 2. The orga releases it in `/admin` → **Spielrezepte** with **Dateien freigeben und veröffentlichen**
    (approves the pinned archive and publishes in one action). Publishing a contributed recipe sets
    **In der Spieleliste zeigen**, so the game joins the lineup the players see.
-3. The catalogue entry follows as a pull request against this directory — opened by
-   `lanomat:recipes:propose`, automatically on the share or on the publish when the operator enabled
-   recipe pull requests. The files stay on the file host; only the recipe text travels. The
+3. The catalogue entry follows as a pull request against this directory — opened on the publish by
+   default (`RECIPES_PR_TRIGGER=publish`), right after the share when the operator opted into
+   `contribute`, or by `lanomat:recipes:propose`. The exported text must pass the repository's
+   validator rules (schema, `SKILL.md` 60–150 lines, 3–6 draft steps) and the public-safety check
+   before it is sent. The files stay on the file host; only the recipe text travels. The
    **Katalog (Pull Request)** section in the panel and the **Katalog** column on `/games/share` show
    where it stands.
 

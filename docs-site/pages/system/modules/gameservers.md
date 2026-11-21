@@ -20,13 +20,17 @@ to the match page, Discord embed and native client.
 - `/servers` — the LAN's match, tournament and event servers plus the permanent ones, with status and players; `/servers/all` is the cross-event browser.
 - Filament **Server links** — inspect, stop, reprovision.
 
-The participant view is one card per link: game, address, port, estimated demand and a primary
-join action. A plain `address:port` gets a copy button next to it.
+The participant view is one card per link: game, address, port, estimated demand and the join
+actions. When the card's game has a matching recipe, **Im Launcher beitreten** comes first (it
+installs the game when needed and starts it on this server) and the game's own join follows as the
+outline alternative; without a recipe the card keeps its own connect action. A plain `address:port`
+gets a copy button next to it.
 
 A card whose game has a matching recipe also carries the recipe way in: **Im Launcher beitreten**
 with the hint „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem
-Server.“, **Spiel installieren** („Zum Spiel“ in a narrow row) and **Mitspieler suchen**. The same
-block appears on the game page, where the launcher join becomes the primary action.
+Server.“, **Spiel installieren** („Zum Spiel“ in a narrow row) and **Mitspieler suchen**. The game
+page's server rows carry the same launcher join first, with the game's own ways under **Anders
+verbinden**.
 
 | Dark | Light |
 |---|---|

@@ -184,14 +184,21 @@ client exposes it.
 - `recipes_list` returns at most 100 summaries; narrow with `query`.
 - `files_list` returns the visible files of one event (no cursor paging).
 - `file_download_url` returns a bearer-authenticated URL: fetch it with the same token, not a browser.
-- `recipe_contribute` creates a draft and validates it against the schema: 1–20 steps, unknown keys
-  rejected. `version` (max 40), `homepage` (http(s), max 500) and `license` (max 200) are the recipe
-  fields; `launch_targets` holds up to 10 start commands; `play_url` makes a browser recipe
-  launcher-supported without an install. `portable: true` marks a ready-to-run archive (one required
-  `base` requirement, a file check, a launch target) and becomes `metadata.portable`. A
-  `requires[]` entry may carry `shared_file_id` to pin a LAN file the caller may open — their own
-  upload or an approved one. The result names `status`, `launcher_supported` and `pull_request`;
-  `pull_request` is null for anyone who is not the contributor.
+- `recipe_contribute` creates a draft and validates it against the schema: at least one step and at
+  most 50, at most 50 requirements, 3 platforms, 20 aliases, 10 launch targets and 20 000 bytes of
+  metadata; unknown keys rejected. `version` (max 40), `homepage` (http(s), max 500) and `license`
+  (max 200) are the recipe fields; `launch_targets` holds up to 10 start commands; `play_url` makes a
+  browser recipe launcher-supported without an install. `portable: true` marks a ready-to-run archive
+  (one required `base` requirement, a file check, a launch target) and becomes `metadata.portable`. A
+  `requires[]` entry may carry `shared_file_id` to pin a LAN file the caller may download — their own
+  upload or an approved file of a public event; a foreign pending file or a rejected one is refused.
+  A participant may hold `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review (20 by default, the
+  orga is exempt). The result names `status`, `launcher_supported` and `pull_request`;
+  `pull_request` is null for anyone who is not the contributor. The MCP schema has no
+  `skill_markdown` field, so the skill is rendered from the fields; to become a pull request later,
+  the draft needs a `SKILL.md` of 60–150 lines and 3–6 steps. When the rendered skill is shorter, the
+  orga completes `SKILL.md` in the panel and proposes from there; otherwise the proposal is **Nicht
+  gesendet** with the reasons. (`POST /api/v1/recipes` additionally accepts `skill_markdown`.)
 - Rate limit: 240 MCP API requests per minute per token and IP, `429` beyond that.
 
 The draft waits in the Filament admin until an orga reviews it:

@@ -62,8 +62,9 @@ If the recipe should be installable by the native launcher, make it **portable**
 true`, one required `base` archive that only needs unpacking, a `file_exists` or `dir_exists` check
 in a non-optional step, and at least one launch target in `launch_targets`. The launcher unpacks the
 archive, checks the file and starts the target; it never runs the step commands.
-`metadata.launcher_supported` is the orga override (`true` offers a non-portable recipe anyway,
-`false` hides it). A browser recipe needs `play_url` instead.
+`metadata.launcher_supported` is the orga override; the panel shows it as the three-state
+**Launcher-Freigabe** (**Automatisch entscheiden**, **Immer anbieten**, **Nie anbieten**). A browser
+recipe needs `play_url` instead.
 
 The admin form edits the same fields without YAML: role and label per requirement, the file-name
 patterns as removable chips, and a `Pflicht` (required) toggle for the base entry.
@@ -116,19 +117,30 @@ optional, say so in `notes` and keep `required: false`.
 A participant who shares a game on `/games/share` produces the same three artefacts without touching
 the repository: `recipe.yaml`, `SKILL.md` and the `_catalog.md` row. When the orga has enabled
 recipe pull requests, LANoMAT proposes them as one pull request on a branch named after the recipe
-(`recipes/<slug>`); a new proposal moves that branch instead of opening a second pull request. The
-recipe text passes a public-safety check before it is sent, so a private address, an e-mail address
-or a token in the text blocks the proposal instead of publishing it. The game files never travel
-with it — the recipe pins the archive on the LAN file host by name.
+(`recipes/<slug>`); a new proposal moves that branch instead of opening a second pull request. Before
+anything is sent, the exported text passes the repository's own gate: the recipe schema, the
+`SKILL.md` contract (front matter, 60–150 lines), 3–6 steps for a draft plus the LAN-verification
+sentence, one command per entry, OS-matching shells and base-name globs. Then a public-safety check
+refuses a private address, an e-mail address or a token in the text. A refused recipe is **Nicht
+gesendet** with the reasons instead of a red pull request. The game files never travel with it — the
+recipe pins the archive on the LAN file host by name.
 
-The proposal is opened at one of two moments, chosen by the operator: right after the share
-(`RECIPES_PR_TRIGGER=contribute`, the default) or on the orga's publish (`publish`). Publishing a
-contributed or panel recipe always opens or updates it. In the panel it is **Pull Request öffnen /
-aktualisieren** on the recipe's edit page; the **Katalog (Pull Request)** section shows the state
-(**Pull Request offen**, **Im Katalog**, **Pull Request geschlossen**, **Nicht gesendet**,
-**Fehlgeschlagen**), the link, the refusal reason and the last sync. From a shell,
-`lanomat:recipes:propose <slug>` runs one proposal in the foreground and
-`lanomat:recipes:pr-status` sweeps the open ones hourly. Before the LAN, Preflight's
+A participant may hold `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review at the same time (20
+by default; the orga is exempt). The share page, the MCP tool and `POST /api/v1/recipes` all count
+against the same budget.
+
+The proposal is opened at one of two moments, chosen by the operator: on the orga's publish by
+default (`RECIPES_PR_TRIGGER=publish`, so the repository only sees reviewed text), or right after
+the share when the operator opts into `contribute`. Publishing a contributed or panel recipe always
+opens or updates it. Automatic proposals are capped per contributor per hour
+(`RECIPES_PR_PER_USER_HOURLY`, 6) and by this installation's open pull requests
+(`RECIPES_PR_MAX_OPEN`, 30); the orga's manual path is not limited. In the panel it is **Pull
+Request öffnen / aktualisieren** on the recipe's edit page (offered only for a recipe the pipeline
+would take); the **Katalog (Pull Request)** section shows the state (**Pull Request offen**, **Im
+Katalog**, **Pull Request geschlossen**, **Nicht gesendet**, **Fehlgeschlagen**), the link, the
+refusal reason and the last sync. A recipe that already has an open pull request keeps it when a new
+attempt is refused. From a shell, `lanomat:recipes:propose <slug>` runs one proposal in the
+foreground and `lanomat:recipes:pr-status` sweeps the open ones hourly. Before the LAN, Preflight's
 `recipe_repository` check says whether the token may read and push.
 
 The same validator gates that pull request. A maintainer reviews the diff and merges; the next sync
@@ -143,7 +155,7 @@ Read [Share a game](/docs/guides/share-a-game) for the participant side.
 - [ ] `node validate.mjs` is green, including the `_catalog.md` row.
 - [ ] The base install works with only the required entries.
 - [ ] A recipe meant for the launcher is portable (one required `base` archive, a file check, a
-      launch target) or carries the orga's `metadata.launcher_supported` flag.
+      launch target), or the orga sets **Immer anbieten** in the panel's **Launcher-Freigabe**.
 - [ ] Optional content is genuinely optional and does not block verification.
 - [ ] `SKILL.md` names the aliases, the optional questions and the failure modes.
 - [ ] Commands are one per entry, quoted, and use `{{target}}`/`{{downloads}}`.

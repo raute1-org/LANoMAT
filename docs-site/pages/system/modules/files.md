@@ -35,6 +35,12 @@ teilen** opens `/games/share?file=<id>` with the archive selected, where you des
 the orga reviews it. Other archive types and other people's files get no such link. Read
 [Share a game](/docs/guides/share-a-game).
 
+The share page lists your own files of the current event (pending and approved) and only preselects
+the linked one when it is a usable archive. A share must pin a file you may download — your own
+upload (pending or approved) or an approved file of a public event; a rejected upload, somebody
+else's pending file or a name that cannot be pinned (backtick, `*`, `?`, control character, fewer
+than three letters/digits) is refused with its own message.
+
 | Dark | Light |
 |---|---|
 | ![Files upload card with quota bar and pending rows, dark](/screens/files-upload-dark.png) | ![Files upload card with quota bar and pending rows, light](/screens/files-upload-light.png) |

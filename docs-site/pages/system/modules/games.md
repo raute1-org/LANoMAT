@@ -18,13 +18,15 @@ and team-size range stay stable across LANs, so stats and history accumulate.
 - Filament **Games** — name, slug, icon, team sizes, egg, presets, install hint, spectate hint.
 - Tournament create/edit — game picker; the tournament inherits team-size defaults.
 
-Participants meet the catalogue through the games library at `/games`: one card per published
-recipe, with a LAN badge when the content is already on the file host. A card offers
+Participants meet the catalogue through the games library at `/games`: one card per published recipe
+the lineup allows, with a LAN badge when the content is already on the file host. A card offers
 **Installieren** (the launcher download when the launcher can install the recipe, else the deep
 link), **Im Launcher öffnen** when a build exists, **Spielen** for a browser game, and **Details**
-when there is nothing to install. The game page's server rows offer **Beitreten** through the
-launcher, **Anders verbinden** for the direct ways and **Mitspieler suchen**; the library header and
-sidebar also lead to **Spiel teilen**. Only a published, lineup-allowed recipe gets here.
+when there is nothing to install. The game page's server rows put **Im Launcher beitreten** first
+(it installs the game when needed and starts it on that server), with the game's own ways under
+**Anders verbinden**; a row without a launcher link keeps its own join action. **Spiel teilen** sits
+in the library header and, on a game's own page, at the bottom of the sidebar. Only a published,
+lineup-allowed recipe gets here.
 
 | Dark | Light |
 |---|---|

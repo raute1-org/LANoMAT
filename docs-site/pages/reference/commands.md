@@ -88,16 +88,22 @@ All provisioning commands take `--as=<user-id>` when run from the CLI without a 
 |---|---|
 | `lanomat:recipes:sync [source] [--prune] [--only=<slug>] [--json]` | Import recipes. `--only` narrows what is **updated**, never what counts as present; `--prune` removes recipes of this source whose directory vanished (and nothing when the source yields no recipe at all) |
 | `lanomat:recipes:export <path> [--all] [--format=skills or repository]` | Write the catalogue to disk. `skills` (default) writes Agent Skill folders (`SKILL.md` + `recipe.json`); `repository` writes the catalogue's own layout (`recipe.yaml` + `SKILL.md`) for a directory that becomes a pull request. Drafts only with `--all` |
-| `lanomat:recipes:propose <slug>` | Open or update the one pull request that carries a recipe into the git catalogue, in the foreground; prints the state and either the PR number/URL or the reason it was not sent |
-| `lanomat:recipes:pr-status [--json]` | Ask the repository how every open pull request is doing and store the answer; one failing request is reported and skipped. Quiet while pull requests are not configured |
+| `lanomat:recipes:propose <slug>` | Open or update the one pull request that carries a recipe into the git catalogue, in the foreground; prints the state and either the PR number/URL or the reason it was not sent. Not subject to the automatic per-contributor or open-pull-request limits |
+| `lanomat:recipes:pr-status [--json]` | Ask the repository how the pull requests LANoMAT believes are open are doing and store the answer; one failing request is reported and skipped. Quiet while pull requests are not configured |
 | `node resources/recipes/schema/validate.mjs [dir]` | Validate recipes against `lanomat.recipe/v1` (the bundled catalogue, or an exported set) |
 | `npm run screenshots` (in `docs-site/`) | Copy the app's screenshots into the docs |
 | `npm run check:links` (in `docs-site/`) | Fail on broken internal doc links |
 
 `lanomat:recipes:propose` needs `RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY` and `RECIPES_PR_TOKEN`;
-without them it prints the "not activated" line and exits non-zero. A recipe the public-safety check
-refused exits non-zero with `Nicht gesendet: <reason>`, and the reason is also on the recipe's
-**Katalog (Pull Request)** section in the panel. See
+without them it prints the "not activated" line and exits non-zero. The automatic path opens or
+updates pull requests on the orga's publish by default (`RECIPES_PR_TRIGGER=publish`); `contribute`
+is the opt-in for proposing right after a share or draft edit. A recipe is only proposed when it is a
+contributed or panel recipe (or already has a pull request) and is not archived. A recipe the
+readiness or public-safety check refused exits non-zero with `Nicht gesendet: <reason>`, and the
+reason is also on the recipe's **Katalog (Pull Request)** section in the panel. A recipe that already
+has an open pull request keeps it: the command prints `Pull Request offen (#…): …` and then warns
+`Der Pull Request bleibt …, wurde aber nicht neu gesendet: <reason>` when this run could not update
+it. The command is not subject to `RECIPES_PR_PER_USER_HOURLY` or `RECIPES_PR_MAX_OPEN`. See
 [Recipe pull requests](/docs/system/modules/gamerecipes#pull-requests-into-the-git-catalogue).
 
 ## Deploy

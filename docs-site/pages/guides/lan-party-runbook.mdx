@@ -156,7 +156,9 @@ between "uploaded" and "usable".
 
 ## 5. Review and publish the recipes
 
-Open `/admin` → **Spielrezepte**. The table shows status, platforms, requirements and the update time.
+Open `/admin` → **Spielrezepte**. The table shows title, slug, version, status, the contributor of a
+shared game, the pinned file's state, the lineup flag, the pull-request state, the review stamp, the
+file count and the last update.
 
 | Status | Meaning for participants |
 |---|---|
@@ -172,6 +174,9 @@ Before publishing a draft:
 - [ ] `SKILL.md` describes the failures you saw in testing.
 - [ ] An avatar is optional and multi-select; zero is a valid answer.
 - [ ] No external URL is the only path for a required file.
+- [ ] The read-only **Start und Launcher** section shows the launcher decision and its reason, every
+      launch command verbatim, and each step's `verify` checks — what the publish confirmation
+      repeats under „Das wird veröffentlicht“.
 
 | Dark | Light |
 |---|---|
@@ -185,7 +190,8 @@ is per requirement and wins over matching; a removed file leaves the requirement
 
 A participant can upload a ready-to-run archive and describe it on `/games/share` — the page is
 **Spiel teilen**. The result is a draft recipe whose required `base` requirement pins that archive.
-Your part:
+One participant may hold `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review (20 by default; the
+orga is exempt), so a full queue is not a bug. Your part:
 
 1. The file waits on the event Files page as `Wartet auf Freigabe`. Check that it is really a
    `.zip` or `.tar.bz2` that unpacks into a runnable game folder. A rejected upload's bytes are gone
@@ -205,12 +211,13 @@ Your part:
    `LAUNCHER_LINEUP` **plus** every recipe with that flag (`LauncherLineup::slugs()`); an empty
    `LAUNCHER_LINEUP` means no curation, and the whole published catalogue is shown anyway.
 7. The catalogue entry follows as a pull request against `resources/recipes/`. When recipe pull
-   requests are enabled (`RECIPES_PR_ENABLED`), it is opened automatically — on the share with
-   `RECIPES_PR_TRIGGER=contribute` (the default), on the publish with `publish`. **Pull Request
-   öffnen / aktualisieren** on the edit page queues it by hand. The **Katalog (Pull Request)**
-   section shows the state: **Pull Request offen**, **Im Katalog**, **Pull Request geschlossen**,
-   **Nicht gesendet** (the public-safety check refused the text, with the reason) or
-   **Fehlgeschlagen**. Game files stay on the file host.
+   requests are enabled (`RECIPES_PR_ENABLED`), the default `RECIPES_PR_TRIGGER=publish` opens or
+   updates it on the publish; `contribute` is the opt-in that proposes right after the share.
+   **Pull Request öffnen / aktualisieren** on the edit page queues it by hand (not limited by the
+   automatic budgets). The **Katalog (Pull Request)** section shows the state: **Pull Request offen**,
+   **Im Katalog**, **Pull Request geschlossen**, **Nicht gesendet** (the readiness or public-safety
+   check refused the text, with the reason) or **Fehlgeschlagen**. Game files stay on the file host.
+   A recipe that already had an open pull request keeps it even when a new attempt is refused.
 
 The participant-facing half of this is [Share a game](/docs/guides/share-a-game).
 
@@ -447,7 +454,8 @@ alone; the Jukebox queue keeps working.
 | Preflight `down` on backup | Run `scripts/ops/backup.sh`; check `BACKUP_MARKER_PATH` |
 | Upload fails at 100 % | File host quota/store; check `FILES_STORE` and tusd |
 | A shared game is missing from `/games` | File not approved, recipe not published, or not in the lineup |
-| A recipe's pull request is **Nicht gesendet** | Read the reason in **Katalog (Pull Request)**; fix the text, propose again |
+| A recipe's pull request is **Nicht gesendet** | Read the reason in **Katalog (Pull Request)**; fix the text (SKILL.md 60–150 lines, 3–6 draft steps, commands, globs, placeholders), propose again |
+| A published recipe has no pull request at all | Trigger still `publish` and the publish happened before the link was configured, an automatic attempt was skipped by `RECIPES_PR_PER_USER_HOURLY`/`RECIPES_PR_MAX_OPEN`, or the recipe is archived | Run `lanomat:recipes:propose <slug>` once; the manual path has no budget |
 | Pairing works for one PC, not another | Wrong `--url`, or the device was revoked under `/mcp/connect` |
 
 ## Related

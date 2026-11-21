@@ -183,6 +183,7 @@ under "Verbundene Geräte" until they are disconnected.
 | `RECIPES_SOURCE` | `resources/recipes` | Directory, `smb://host/share[/path]` or `git+https://…`; used by the daily sync |
 | `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
 | `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |
+| `RECIPES_MAX_DRAFTS_PER_USER` | `20` | How many drafts one participant may have waiting for review at the same time (shared games, MCP and REST contributions together). The orga is not limited |
 | `LAUNCHER_DIST_PATH` | `clients-dist/launcher` | Where the published launcher builds and `manifest.json` live; read by `/launcher` and the Preflight `launcher_build` check |
 | `LAUNCHER_LINEUP` | `unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser` | Comma-separated recipe allowlist for the launcher catalogue, `/games`, the home chat cards, MCP `recipes_list` and the install link next to a server; the lineup players see is this list **plus** every recipe with `game_recipes.in_lineup = true` (the panel toggle **In der Spieleliste zeigen**). Empty = unrestricted: the whole visible catalogue is shown and the flag changes nothing |
 
@@ -197,6 +198,11 @@ to the git catalogue as one pull request per recipe (branch `recipes/<slug>` by 
 stay on the LAN file host. The token is a fine-grained GitHub token with **Contents** and **Pull
 requests** read and write on exactly that repository.
 
+Before a request leaves LANoMAT, the exported text passes the repository's own gate: the recipe
+schema, the `SKILL.md` contract (front matter, 60–150 lines), 3–6 steps for a draft, one command per
+entry, OS-matching shells and base-name globs (plus the public-safety check). A recipe that would
+fail there is **Nicht gesendet** with the reasons instead of opening a red pull request.
+
 | Variable | Default | Note |
 |---|---|---|
 | `RECIPES_PR_ENABLED` | `false` | Master switch. Off = no proposal is ever sent, and `lanomat:recipes:pr-status` does nothing |
@@ -205,7 +211,9 @@ requests** read and write on exactly that repository.
 | `RECIPES_PR_BASE` | `main` | Base branch the pull request targets |
 | `RECIPES_PR_BRANCH_PREFIX` | `recipes/` | One branch per recipe: `recipes/<slug>`; a later proposal moves the same branch |
 | `RECIPES_PR_PATH` | `resources/recipes` | Catalogue path inside the repository (`<path>/<slug>/recipe.yaml`, `<slug>/SKILL.md`, `_catalog.md`) |
-| `RECIPES_PR_TRIGGER` | `contribute` | `contribute` opens the pull request as soon as a participant shares; `publish` waits for the orga. With the switch on, publishing a contributed or panel recipe always opens or updates it |
+| `RECIPES_PR_TRIGGER` | `publish` | `publish` opens or updates the pull request when the orga publishes, so the repository only sees reviewed text; `contribute` is the opt-in that proposes as soon as a participant shares or edits a draft. Publishing a contributed or panel recipe always opens or updates it |
+| `RECIPES_PR_PER_USER_HOURLY` | `6` | Automatic proposals one contributor may trigger per hour. The orga's `lanomat:recipes:propose` and the panel's **Pull Request öffnen / aktualisieren** are not limited |
+| `RECIPES_PR_MAX_OPEN` | `30` | This installation's open pull requests at most (an update of a recipe that already has one does not count) |
 | `RECIPES_PR_ATTRIBUTION` | `false` | Adds the contributor's display name to the pull request body. Leave it off for a public repository |
 | `RECIPES_PR_API_URL` | `https://api.github.com` | GitHub REST base; set it for GitHub Enterprise |
 

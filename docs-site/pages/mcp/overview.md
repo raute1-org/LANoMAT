@@ -174,10 +174,12 @@ The full catalogue, argument schemas and examples are on [Tools & resources](/do
 - Writes are limited to your own registration, match result, vote, LFG post and a draft recipe. No seat, event or tournament edits, no publish.
 - No other user's private data: every call is scoped to the token's user and their role.
 - No publish action: a contributed recipe is a **draft** for orga review. A contribution may carry
-  launch targets, a `play_url`, the `portable` flag and a pin on a LAN file the caller may open;
+  launch targets, a `play_url`, the `portable` flag and a pin on a LAN file the caller may download;
   `status`, `in_lineup` and `metadata.launcher_supported` stay with the orga. When the operator
   enabled recipe pull requests, the draft's text is proposed to the git repository as a pull request
-  after an automatic public-safety check. See [Security](/docs/mcp/security#recipe-pull-requests).
+  after an automatic readiness check (`SKILL.md` 60–150 lines, 3–6 draft steps) and public-safety
+  check — by default on the orga's publish, with `RECIPES_PR_TRIGGER=contribute` right after the
+  contribution. See [Security](/docs/mcp/security#recipe-pull-requests).
 
 | Dark | Light |
 |---|---|

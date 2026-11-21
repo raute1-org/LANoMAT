@@ -117,9 +117,10 @@ approve it on `/mcp/connect` while signed in.
 
 ## 8. Optional: the desktop launcher
 
-The LANoMAT Launcher is the no-terminal path: one download, one pairing code, one button for
-**Unreal Tournament 2004**. The server offers the Linux and Windows builds on `/launcher` (sidebar
-entry **Launcher**), with size and SHA-256; the token it stores is 0600. Read
+The LANoMAT Launcher is the no-terminal path: one download, one pairing code, one button for every
+game the launcher can install — the UT2004 pilot, the hand-verified NFSU2 recipe, browser games and
+portable archives that participants share. The server offers the Linux and Windows builds on
+`/launcher` (sidebar entry **Launcher**), with size and SHA-256; the token it stores is 0600. Read
 [One-click launcher](/docs/guides/launcher) for the download, the pairing and what happens when a
 disc image or patch is missing on the LAN. On the server, `scripts/ops/build-launcher.sh` builds and
 publishes the Linux build into `clients-dist/launcher`; the Windows exe comes from the

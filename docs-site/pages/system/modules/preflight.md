@@ -54,7 +54,10 @@ and calls `GET /repos/<owner>/<name>` on the GitHub REST API; it never turns the
 | `warn` | HTTP 404 | „Das Repository wurde nicht gefunden (HTTP 404). RECIPES_PR_REPOSITORY als "owner/name" prüfen.“ |
 | `warn` | Any other status | „GitHub antwortet auf die Repository-Abfrage mit HTTP :status.“ |
 
-A `skipped` row is not a failure: an installation without a catalogue link is normal.
+A `skipped` row is not a failure: an installation without a catalogue link is normal. The check only
+answers whether the *link* works: a single recipe can still be **Nicht gesendet** because the
+readiness check (repository validator rules) or the public-safety check refused its text, and an
+automatic proposal can be skipped by `RECIPES_PR_PER_USER_HOURLY` or `RECIPES_PR_MAX_OPEN`.
 
 ## Guards and rules
 

@@ -21,8 +21,8 @@ Open it at `/games`; a game has its own page at `/games/<slug>`, for example
 
 ## The list at `/games`
 
-The left sidebar lists every **published** recipe, with a LAN dot when the game is ready to play on
-this LAN. The main area has a search field and one filter:
+The left sidebar lists every **published** recipe the lineup allows, with a LAN dot when the game is
+ready to play on this LAN. The main area has a search field and one filter:
 
 - **Nur LAN-Spiele** — shows only games whose required files are already on the LAN file host, or
   that have a live LAN server. This is the "what can we actually play tonight?" switch.
@@ -55,7 +55,8 @@ recipe and whether a launcher build is published for your OS:
 
 - Both yes: **Installieren** opens the launcher download page on a fresh PC, and a quiet „Launcher
   schon da? **Im Launcher öffnen**“ uses the deep link `lanomat://install/<slug>`.
-- Otherwise: **Installieren** fires the deep link itself, which opens the pi agent.
+- Otherwise: **Installieren** fires the deep link itself, which opens the installed launcher; without
+  one, the page's notice says what that usually means and links the download.
 
 A browser game with a `play_url` shows **Spielen** instead; there is nothing to install.
 
@@ -82,8 +83,8 @@ If LANoMAT knows a running server for the game, the page lists it with map and p
 honest action per row, in this order:
 
 1. A launcher join link (`lanomat://join/<slug>?address=<host>:<port>`, or `?url=<urlencoded url>`)
-   makes **Beitreten** the primary action, with the sentence „Der Launcher installiert das Spiel bei
-   Bedarf und startet direkt auf diesem Server.“
+   makes **Im Launcher beitreten** the first action, with the sentence „Der Launcher installiert das
+   Spiel bei Bedarf und startet direkt auf diesem Server.“
 2. **Anders verbinden** keeps the direct ways for a PC that already has the game: the game's own
    join options (a `ut2004://` or `steam://` form), an allowlisted connect link, or the address as
    copyable mono text.
@@ -121,16 +122,18 @@ tournament, start a server or reserve a seat.
 Anyone can add a game. The entry points are deliberate and all lead to `/games/share`:
 
 - **Spiel teilen** in the page header of `/games`;
-- the same link at the bottom of the games sidebar;
+- the same link at the bottom of the games sidebar — only on a game's own page `/games/<slug>`, and
+  only from the `lg` breakpoint;
 - the empty states — „Noch keine Spiele in der Bibliothek“ and „Kein Spiel passt“ each carry „Dein
   Spiel fehlt? Teile es mit der LAN.“;
 - **Als Spiel teilen** on your own `.zip` or `.tar.bz2` row on the Files page, which preselects that
   file;
 - **Spiel teilen** in the launcher, which opens the page in your browser.
 
-A share becomes a draft recipe. The library only shows it after the orga approves the archive,
-publishes the game and sets `game_recipes.in_lineup`; then it appears here, in the launcher and
-next to its servers like any other game. Read [Share a game](/docs/guides/share-a-game).
+A share becomes a draft recipe. The library only shows it after the orga approves the archive and
+publishes the game; publishing a contributed recipe sets `game_recipes.in_lineup`, so it appears
+here, in the launcher and next to its servers like any other game (the orga can switch the toggle
+off again). Read [Share a game](/docs/guides/share-a-game).
 
 ## Same list, same words, in the launcher
 
@@ -157,10 +160,11 @@ for the card anatomy and the typewriter rules.
 ## For operators
 
 Publish the recipe, put the required file on the LAN file host, and the LAN dot appears. For a game
-a participant shared, approve the archive, publish the draft recipe and set `game_recipes.in_lineup`
-so it joins the lineup. Create the tournament and let the match-server preset provision a server;
-the game page picks it up through the same read-models as the match page. Nothing on `/games` needs
-a separate configuration screen.
+a participant shared, **Dateien freigeben und veröffentlichen** approves the archive and publishes
+the draft in one action, which also sets `game_recipes.in_lineup`; use the **In der Spieleliste
+zeigen** toggle to publish a game without a player-facing link. Create the tournament and let the
+match-server preset provision a server; the game page picks it up through the same read-models as the
+match page. Nothing on `/games` needs a separate configuration screen.
 
 The server browser's recipe actions come from the same catalogue: a published, lineup-allowed
 recipe is matched to the server's game, and the launcher join link is only built when the launcher
