@@ -25,6 +25,7 @@ enum Module: string
     case Jukebox = 'jukebox';
     case Lancache = 'lancache';
     case Lfg = 'lfg';
+    case Lighting = 'lighting';
     case Mcp = 'mcp';
     case News = 'news';
     case Notifications = 'notifications';

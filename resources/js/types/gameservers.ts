@@ -94,5 +94,11 @@ export interface GameServerDto {
         gunGame: boolean;
         canReloadMap: boolean;
         running: boolean;
+        /** Only for a server controlled as a container on a remote host. */
+        remote?: {
+            quickCommands: string[];
+            labels: Record<string, string>;
+            quickLabels: Record<string, string>;
+        };
     };
 }

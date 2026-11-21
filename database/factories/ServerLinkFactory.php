@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Enums\ConsoleKind;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\Hosts\Models\RemoteHost;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<ServerLink> */
@@ -42,6 +44,16 @@ class ServerLinkFactory extends Factory
             'title' => 'Dauerserver',
             'status' => ServerLinkStatus::Ready,
             'join_info' => new JoinInfo(address: '203.0.113.10', port: 25565),
+        ]);
+    }
+
+    /** A permanent external server adopted as a container on a managed remote host. */
+    public function remoteDocker(?RemoteHost $host = null, string $container = 'game-container'): static
+    {
+        return $this->permanent(ServerSource::External)->state(fn (): array => [
+            'remote_host_id' => ($host ?? RemoteHost::factory()->create())->id,
+            'remote_container' => $container,
+            'console_kind' => ConsoleKind::RconCli,
         ]);
     }
 }

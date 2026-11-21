@@ -9,10 +9,12 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\GameServers\Actions\ReloadMap;
+use App\Modules\GameServers\Enums\ControlDriver;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\Cs2\Cs2Settings;
 use App\Modules\GameServers\Support\Cs2\GunGameConfig;
+use App\Modules\GameServers\Support\RemoteQuickCommands;
 use App\Modules\GameServers\Support\ServerListProjection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,13 +63,32 @@ class GameServerPageController extends Controller
         // The admin props (map list, current map) exist only for those who may manage.
         $permanent = ServerListProjection::permanentLinks()->map(function (ServerLink $link) use ($viewer, &$manageable): array {
             $dto = ServerListProjection::permanentDto($link, withPlayerList: $viewer instanceof User);
-            $canManage = $viewer instanceof User && $link->hasPelicanLink() && $viewer->can('configure', $link);
+            $driver = $link->controlDriver();
+            $canManage = $viewer instanceof User
+                && ($driver === ControlDriver::RemoteDocker || ($driver === ControlDriver::Pelican && $link->hasPelicanLink()))
+                && $viewer->can('configure', $link);
 
             if (! $canManage) {
                 return $dto + ['canManage' => false];
             }
 
             $manageable = true;
+
+            if ($driver === ControlDriver::RemoteDocker) {
+                return $dto + [
+                    'canManage' => true,
+                    'admin' => [
+                        'gunGame' => false,
+                        'canReloadMap' => false,
+                        'running' => $link->status !== ServerLinkStatus::Offline,
+                        'remote' => [
+                            'quickCommands' => RemoteQuickCommands::forConsole($link->console_kind),
+                            'labels' => array_filter(trans('gameservers.remote'), 'is_string'),
+                            'quickLabels' => trans('gameservers.remote.quick_commands'),
+                        ],
+                    ],
+                ];
+            }
 
             return $dto + [
                 'canManage' => true,

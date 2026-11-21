@@ -18,6 +18,7 @@ use App\Modules\GameRecipes\Http\GamePageController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerAdminController;
+use App\Modules\GameServers\Http\RemoteDockerAdminController;
 use App\Modules\Identity\Http\AvatarController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
@@ -237,6 +238,12 @@ if ($modules->routable(Module::GameServers)) {
         Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');
         Route::post('/servers/{serverLink}/reload-map', [PermanentServerAdminController::class, 'reloadMap'])->name('servers.reload-map');
         Route::post('/servers/{serverLink}/map', [PermanentServerAdminController::class, 'changeMap'])->name('servers.change-map');
+        // A server that runs as a container on a managed remote host: power, console, logs (policy `configure`, 30 per minute and user).
+        Route::middleware('throttle:remote-console')->group(function () {
+            Route::post('/servers/{serverLink}/remote/power', [RemoteDockerAdminController::class, 'power'])->name('servers.remote.power');
+            Route::post('/servers/{serverLink}/remote/command', [RemoteDockerAdminController::class, 'command'])->name('servers.remote.command');
+            Route::get('/servers/{serverLink}/remote/logs', [RemoteDockerAdminController::class, 'logs'])->name('servers.remote.logs');
+        });
     });
 
     // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs

@@ -114,6 +114,10 @@ return [
         2 => 'Friends',
         3 => 'Games',
     ],
+    'Lighting' => [
+        0 => 'Events',
+        1 => 'Tournaments',
+    ],
     'Mcp' => [
         0 => 'Catering',
         1 => 'Events',
