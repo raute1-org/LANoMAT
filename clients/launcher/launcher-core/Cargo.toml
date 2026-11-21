@@ -21,5 +21,6 @@ url = "2"
 zip = { version = "6", default-features = false, features = ["deflate", "bzip2", "time"] }
 
 [dev-dependencies]
+libmkiso = { version = "0.1.5", features = ["native-writer"] }
 tempfile = "3"
 wiremock = "0.6"
