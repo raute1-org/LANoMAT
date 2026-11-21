@@ -59,15 +59,22 @@ steps:
       os: windows
       optional: false
       detail: |
-          Download the current Azahar release and extract it to `{{target}}`, or
-          install the Linux AppImage/package. Launch once so the user folder is
-          created (`%APPDATA%\Azahar` on Windows).
+          The Windows zip has a top-level `azahar-windows-<build>/` folder.
+          Extract it into `{{target}}/Azahar` and move the inner folder's
+          contents up one level, so the emulator ends at
+          `{{target}}/Azahar/azahar.exe`.
+
+          Linux: download `azahar.AppImage`, place it as
+          `{{target}}/Azahar/azahar.AppImage` and make it executable. Launch once
+          so the user folder is created (`%APPDATA%\Azahar` on Windows).
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/azahar-windows-*.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/azahar-windows-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}/Azahar" -Force'
+          - shell: powershell
+            run: 'Get-ChildItem "{{target}}/Azahar" -Directory -Filter "azahar-windows-*" | ForEach-Object { Move-Item "$($_.FullName)/*" "{{target}}/Azahar" -Force; Remove-Item $_.FullName }'
       verify:
           - type: file_exists
-            path: '{{target}}/azahar.exe'
+            path: '{{target}}/Azahar/azahar.exe'
     - id: import-game
       title: 'Import the dump'
       os: any
@@ -138,5 +145,5 @@ metadata:
     tags: [adventure, 3ds, nintendo, zelda, azahar]
     launch:
         kind: exe
-        target: '{{target}}/azahar.exe'
+        target: '{{target}}/Azahar/azahar.exe'
         notes: "Start Majora's Mask 3D from Azahar's game list; the dump is already registered."

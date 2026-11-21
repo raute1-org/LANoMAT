@@ -5,7 +5,7 @@ aliases: ['r4', 'ridge racer 4', 'rr4', 'ridge racer type four', 'type 4']
 version: '1.0.0'
 status: published
 platforms: [windows, linux]
-summary: Run Ridge Racer Type 4 on the LAN from the user's own disc, either as a self-hosted browser arcade with 2P netplay or as the native Windows recomp.
+summary: Run Ridge Racer Type 4 on the LAN from the user's own disc, either as a self-hosted browser arcade with 2P netplay or as the native recomp (Windows zip, Linux AppImage).
 description: |
     Ridge Racer Type 4 is the LAN's browser arcade cabinet: one Node process
     serves the disc, the BIOS, the soundtrack and a self-hosted EmulatorJS front
@@ -27,8 +27,8 @@ license: 'Namco; disc and BIOS are user-supplied'
 cover: ''
 skill:
     name: ridge-racer-type-4
-    description: "Set up Ridge Racer Type 4 on the LAN from the user's own disc: clone the self-hosted browser cabinet, install Node dependencies, place r4.chd and the BIOS, start the server on port 8080, and optionally install the native Windows recomp. Use when the user says install Ridge Racer Type 4, R4, RR4, or type 4 for the LAN."
-    compatibility: 'Windows 10/11 or Linux with Node.js 20+; ~1 GB for the cabinet plus the disc; native recomp is Windows-only'
+    description: "Set up Ridge Racer Type 4 on the LAN from the user's own disc: clone the self-hosted browser cabinet, install Node dependencies, place r4.chd and the optional BIOS, start the server on port 8080, and optionally install the native recomp (Windows zip or Linux AppImage). Use when the user says install Ridge Racer Type 4, R4, RR4, or type 4 for the LAN."
+    compatibility: 'Windows 10/11 or Linux with Node.js 20+; ~1 GB for the cabinet plus the disc; native recomp: Windows zip or Linux AppImage'
 requires:
     - role: iso
       label: 'Ridge Racer Type 4 (USA) disc image'
@@ -40,12 +40,12 @@ requires:
       url: ''
       notes: 'Serial SLUS-00797 (NTSC-U) is the only supported target. The browser deck loads disc/r4.chd (341 MB, the size above is the reference CHD); the native recomp reads the CUE/BIN pair from the same disc/ folder.'
     - role: base
-      label: 'PlayStation BIOS (scph5501.bin, NTSC-U)'
+      label: 'PlayStation BIOS (scph5501.bin, NTSC-U) — optional'
       match: ['scph5501.bin', 'scph*.bin']
-      required: true
+      required: false
       sha256: ''
       url: ''
-      notes: 'Recommended, not strictly required: the cabinet serves OpenBIOS and PCSX-Rearmed falls back to HLE, so the browser path boots without a retail dump. A real scph5501.bin gives better compatibility. Place it in _server/game/bios/.'
+      notes: 'Optional: the cabinet and the native recomp bundle OpenBIOS, and PCSX-Rearmed falls back to HLE, so both paths boot without a retail dump. A real scph5501.bin gives better compatibility. Place it in _server/game/bios/.'
     - role: tool
       label: 'Node.js 20 or newer'
       match: []
@@ -54,10 +54,16 @@ requires:
       notes: 'The cabinet is one Node process plus a WebSocket relay. Install the current LTS; the repo pins engines >=20.'
     - role: tool
       label: 'Ridge Racer 4 Recomp (optional native bundle)'
-      match: ['Ridge_Racer_4_Recomp_Windows*.zip', 'RidgeRacer4Recomp*.zip']
+      match:
+          [
+              'Ridge_Racer_4_Recomp_Windows*.zip',
+              'Ridge_Racer_4_Recomp-*-linux-x86_64.AppImage',
+              'RidgeRacer4Recomp*.zip',
+              'RidgeRacer4Recomp*.AppImage',
+          ]
       required: false
       url: https://github.com/omegakatana92/RidgeRacer4Recomp
-      notes: "Optional native Windows build (v1.0.0). Bundles OpenBIOS, reads the user's CUE/BIN, and needs the same disc/ folder. The browser cabinet is the primary LAN path."
+      notes: "Optional native build (v1.0.0): `Ridge_Racer_4_Recomp_Windows.zip` or `Ridge_Racer_4_Recomp-v1.0.0-linux-x86_64.AppImage`. It bundles OpenBIOS and reads the user's CUE/BIN. The browser cabinet is the primary LAN path."
 steps:
     - id: install-cabinet
       title: 'Clone the cabinet and install its Node dependencies (Windows)'
@@ -121,17 +127,17 @@ steps:
           - type: file_exists
             path: '{{target}}/disc/r4.chd'
     - id: install-bios
-      title: 'Add the PlayStation BIOS (or use the bundled OpenBIOS)'
+      title: 'Add the PlayStation BIOS (optional, or use the bundled OpenBIOS)'
       os: any
-      optional: false
+      optional: true
       detail: |
-          Copy the user's `scph5501.bin` to `{{target}}/_server/game/bios/`. The
-          cabinet ships `openbios.bin` and works without a retail dump; a real
-          NTSC-U BIOS is the recommended baseline for compatibility.
+          Optional: the cabinet ships `openbios.bin` and works without a retail
+          dump; a real NTSC-U BIOS is the recommended baseline for compatibility.
+          Copy the user's `scph5501.bin` to `{{target}}/_server/game/bios/`.
 
           In the browser deck a retail dump can be selected with
           `?bios=/bios/scph5501.bin`; `?bios=hle` forces the built-in HLE path.
-          Never download a BIOS for the user.
+          Never download a BIOS for the user. Skip this step to stay on OpenBIOS.
       commands:
           - shell: powershell
             run: 'New-Item -ItemType Directory -Force -Path "{{target}}/_server/game/bios" | Out-Null'
@@ -186,10 +192,12 @@ steps:
       optional: true
       detail: |
           Optional alternative to the browser cabinet, from
-          https://github.com/omegakatana92/RidgeRacer4Recomp (v1.0.0). Extract
-          `Ridge_Racer_4_Recomp_Windows.zip` to `{{target}}/RidgeRacer4Recomp` and
-          launch `launcher\ridgeRacer4.bat`; the launcher verifies the disc and lets
-          you pick the pad and OpenBIOS.
+          https://github.com/omegakatana92/RidgeRacer4Recomp (v1.0.0). The zip has
+          no top-level folder: extract `Ridge_Racer_4_Recomp_Windows.zip` into
+          `{{target}}/RidgeRacer4Recomp` (it contains
+          `Ridge_Racer_4_Recompiled.exe`, `game.toml`, `bios/openbios.bin` and
+          `launcher/ridgeRacer4.bat`) and launch `launcher\ridgeRacer4.bat`. The
+          launcher verifies the disc and lets you pick the pad and OpenBIOS.
 
           The recomp reads `{{target}}/disc/` (CUE/BIN), bundles OpenBIOS, and
           expects the USA serial SLUS-00797. Set `settings.toml` `[video]
@@ -204,6 +212,26 @@ steps:
       verify:
           - type: file_exists
             path: '{{target}}/RidgeRacer4Recomp/Ridge_Racer_4_Recompiled.exe'
+    - id: native-recomp-linux
+      title: 'Ridge Racer 4 Recomp (optional native Linux build)'
+      os: linux
+      optional: true
+      detail: |
+          The same v1.0.0 release ships
+          `Ridge_Racer_4_Recomp-v1.0.0-linux-x86_64.AppImage`. Copy it to
+          `{{target}}/RidgeRacer4Recomp/RidgeRacer4Recomp.AppImage`, make it
+          executable and run it from `{{target}}` so it finds `disc/` and its
+          bundled OpenBIOS.
+
+          It uses the same settings and USA serial SLUS-00797 as the Windows
+          build. Start one native instance at a time; the browser cabinet is the
+          verified path.
+      commands:
+          - shell: bash
+            run: 'install -Dm755 "$(ls "{{downloads}}"/Ridge_Racer_4_Recomp-*-linux-x86_64.AppImage | head -n 1)" "{{target}}/RidgeRacer4Recomp/RidgeRacer4Recomp.AppImage"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/RidgeRacer4Recomp/RidgeRacer4Recomp.AppImage'
     - id: check-cabinet
       title: 'Check the cabinet before the LAN night'
       os: any

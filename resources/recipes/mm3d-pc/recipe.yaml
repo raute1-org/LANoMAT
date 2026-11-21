@@ -61,7 +61,7 @@ steps:
           On Linux use `MM3D-PC-Linux.tar.xz` and extract it to a writable folder.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/MM3D-PC-Windows.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/MM3D-PC-Windows*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
       verify:
           - type: file_exists
             path: '{{target}}/Setup.bat'

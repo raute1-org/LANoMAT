@@ -48,21 +48,22 @@ requires:
       notes: "Dumped from the user's own PS2; region should match the disc."
     - role: tool
       label: 'PCSX2 emulator'
-      match: ['pcsx2-*.zip', 'PCSX2*.zip', 'pcsx2*.AppImage']
+      match: ['pcsx2-*-windows-x64-Qt.7z', 'pcsx2*.AppImage']
       required: true
       url: https://pcsx2.net/
-      notes: 'Current stable Qt build.'
+      notes: 'Windows: the portable `pcsx2-v2.x.y-windows-x64-Qt.7z` (the installer .exe is an alternative). Linux: the `pcsx2-*-linux-appimage-x64-Qt.AppImage`. Extract the 7z to `{{target}}`; `pcsx2-qt.exe` sits at its root.'
 steps:
     - id: install-pcsx2
       title: 'Install PCSX2'
       os: windows
       optional: false
       detail: |
-          Extract PCSX2 to `{{target}}` or install the Linux build, then run the
-          first-start wizard.
+          Extract the PCSX2 7z to `{{target}}` (Windows `tar -xf`, or 7-Zip),
+          or use the Linux AppImage. Launch the wizard once and let it create
+          the data folders.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/pcsx2-*.zip" -DestinationPath "{{target}}" -Force'
+            run: 'tar -xf (Get-ChildItem "{{downloads}}/pcsx2-*-windows-x64-Qt.7z" | Select-Object -First 1).FullName -C "{{target}}"'
       verify:
           - type: file_exists
             path: '{{target}}/pcsx2-qt.exe'

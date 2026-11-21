@@ -47,7 +47,7 @@ requires:
       required: true
       sha256: ''
       url: https://github.com/OldUnreal/UT2004Patches/releases
-      notes: 'Latest release is tag 3374-rc3 (2026-11-03): patch 3374 is feature-complete. The archive is a drop-in tree (Help/, Sounds/, System/), not an installer; extract it over the game folder. The patch replaces UT2004.exe with a 64-bit build and adds D3D11Drv.dll.'
+      notes: 'Latest release is tag 3374-rc3 (2026-11-03): patch 3374 is feature-complete. The archive is a drop-in tree (Help/, Name/, Sounds/, System/, SystemARM64/, SystemLocalized/, Textures/, Web/), not an installer; extract it over the game folder. The patch replaces UT2004.exe with a 64-bit build and adds D3D11Drv.dll.'
     - role: mod
       label: 'UT2004VR (optional SteamVR mod)'
       match: ['UT2004VR-*.zip']
@@ -108,14 +108,13 @@ steps:
 
           Disc 1 contains the complete game. Disc 2 is optional and only adds maps
           and bonus content. Keep the image mounted until the OldUnreal patch has
-          been applied: the retail install still asks for the disc. The example
-          command assumes the mounted drive is `D:`; use the drive letter Windows
-          assigned.
+          been applied: the retail install still asks for the disc. The drive
+          letter comes from the mounted image, not a hardcoded `D:`.
       commands:
           - shell: powershell
             run: 'Mount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"'
           - shell: powershell
-            run: 'Start-Process "D:\Setup.exe"'
+            run: 'Start-Process "$((Get-DiskImage -ImagePath "{{downloads}}/ut2004.iso" | Get-Volume).DriveLetter):\Setup.exe"'
       verify:
           - type: file_exists
             path: '{{target}}/System/UT2004.exe'
@@ -143,10 +142,11 @@ steps:
       optional: false
       detail: |
           Download the Windows zip from the OldUnreal releases page (latest tag
-          `3374-rc3`, asset `OldUnreal-UT2004Patch3374-Windows-d906d39a.zip`),
-          extract it, and copy its `Help/`, `Sounds/` and `System/` folders over
-          `{{target}}`, merging and overwriting. The hash suffix changes with each
-          release; use the exact asset name from the release page.
+          `3374-rc3`, asset `OldUnreal-UT2004Patch3374-Windows-<hash>.zip`),
+          extract it, and copy the **whole** patch tree over `{{target}}`,
+          merging and overwriting: `Help/`, `Name/`, `Sounds/`, `System/`,
+          `SystemARM64/`, `SystemLocalized/`, `Textures/` and `Web/`. The hash
+          suffix changes with each release, so the command globs the version.
 
           The zip has no setup program: it is the patched game tree itself. After
           the copy `System\UT2004.exe` is the 64-bit build and `System\D3D11Drv.dll`
@@ -154,7 +154,7 @@ steps:
           can be dismounted afterwards.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/OldUnreal-UT2004Patch3374-Windows-d906d39a.zip" -DestinationPath "{{downloads}}/UT2004Patch3374" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/OldUnreal-UT2004Patch3374-Windows-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{downloads}}/UT2004Patch3374" -Force'
           - shell: powershell
             run: 'Copy-Item -Path "{{downloads}}/UT2004Patch3374/*" -Destination "{{target}}" -Recurse -Force'
           - shell: powershell
@@ -179,7 +179,7 @@ steps:
           provides one).
       commands:
           - shell: bash
-            run: 'tar -xjf "{{downloads}}/OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2" -C "{{target}}"'
+            run: 'tar -xjf "$(ls "{{downloads}}"/OldUnreal-UT2004Patch3374-Linux-*.tar.bz2 | head -n 1)" -C "{{target}}"'
           - shell: bash
             run: 'chmod +x "{{target}}/System/ut2004-bin-amd64" "{{target}}/System/UT2004"'
       verify:
@@ -230,8 +230,8 @@ steps:
           - type: dir_exists
             path: '{{target}}/Tools/vrm2ut2004'
     - id: check-install
-      title: 'Check the install and start a bot match'
-      os: any
+      title: 'Check the install and start a bot match (Windows)'
+      os: windows
       optional: false
       detail: |
           Start the game once and confirm the main menu reports the OldUnreal
@@ -239,14 +239,32 @@ steps:
           DM-Rankin → 4 bots. This proves the renderer, audio and input work before
           the LAN night.
 
-          On Windows the patched executable is `System\UT2004.exe`; on Linux start
-          `System/UT2004`. If the game asks for the DVD, the patch was not copied
-          over the right folder.
+          The patched executable is `System\UT2004.exe` and the modern renderer is
+          `System\D3D11Drv.dll`. If the game asks for the DVD, the patch was not
+          copied over the right folder.
       verify:
           - type: file_exists
             path: '{{target}}/System/UT2004.exe'
           - type: file_exists
             path: '{{target}}/System/D3D11Drv.dll'
+    - id: check-install-linux
+      title: 'Check the install and start a bot match (Linux)'
+      os: linux
+      optional: false
+      detail: |
+          Start `System/UT2004` once and confirm the main menu reports the
+          OldUnreal build, then run Instant Action → Deathmatch → DM-Rankin → 4
+          bots. This proves the renderer, audio and input work before the LAN
+          night.
+
+          The Linux patch writes the 64-bit binary to `System/ut2004-bin-amd64`
+          and the launcher to `System/UT2004`. If the game asks for the DVD, the
+          patch was not extracted over the right folder.
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/ut2004-bin-amd64'
+          - type: file_exists
+            path: '{{target}}/System/UT2004'
 metadata:
     genre: arena-shooter
     players: '2-32'

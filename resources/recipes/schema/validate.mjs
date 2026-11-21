@@ -13,7 +13,9 @@
  *   5. commands contain no `&&` chains (one command per entry);
  *   6. SKILL.md is between 60 and 150 lines;
  *   7. drafts have 3-6 steps and say that they still need verification;
- *   8. a draft never claims a checksum it cannot back up.
+ *   8. a draft never claims a checksum it cannot back up;
+ *   9. os-specific steps only use commands for that OS's shells;
+ *  10. match globs contain no path separators (they match base names).
  *
  * Exit code 0 means the whole catalog is valid.
  */
@@ -118,6 +120,26 @@ for (const dir of dirs) {
             if (command.run.includes('&&')) {
                 errors.push(
                     `${dir}: step "${step.id}" has an && chain: ${command.run}`,
+                );
+            }
+            if (step.os === 'windows' && command.shell === 'bash') {
+                errors.push(
+                    `${dir}: step "${step.id}" is os: windows but has a bash command (split it or use os: any)`,
+                );
+            }
+            if (step.os === 'linux' && command.shell !== 'bash') {
+                errors.push(
+                    `${dir}: step "${step.id}" is os: linux but uses ${command.shell} (split it or use os: any)`,
+                );
+            }
+        }
+    }
+
+    for (const requirement of recipe.requires) {
+        for (const pattern of requirement.match ?? []) {
+            if (pattern.includes('/') || pattern.includes('\\')) {
+                errors.push(
+                    `${dir}: match glob "${pattern}" contains a path separator; globs match base names`,
                 );
             }
         }

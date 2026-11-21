@@ -1,14 +1,14 @@
 ---
 name: ridge-racer-type-4
-description: "Set up Ridge Racer Type 4 on the LAN from the user's own disc: clone the self-hosted browser cabinet, install Node dependencies, place r4.chd and the BIOS, start the server on port 8080, and optionally install the native Windows recomp. Use when the user says install Ridge Racer Type 4, R4, RR4, or type 4 for the LAN."
+description: "Set up Ridge Racer Type 4 on the LAN from the user's own disc: clone the self-hosted browser cabinet, install Node dependencies, place r4.chd and the optional BIOS, start the server on port 8080, and optionally install the native recomp (Windows zip or Linux AppImage). Use when the user says install Ridge Racer Type 4, R4, RR4, or type 4 for the LAN."
 ---
 
 # Ridge Racer Type 4
 
 Ridge Racer Type 4 (Namco, 1998) runs on the LAN as a self-hosted browser
 arcade: one Node process serves the disc, BIOS, soundtrack and EmulatorJS, and
-every player runs a PCSX-Rearmed core in their own page. A native Windows
-recomp is available as an optional alternative.
+every player runs a PCSX-Rearmed core in their own page. A native recomp
+(Windows zip, Linux AppImage) is available as an optional alternative.
 
 Repo: https://github.com/reneil1337/riiiiiiiiiidge-raaaaaaaaaaaaceer
 
@@ -34,7 +34,7 @@ of play (shared car or ghost) and not part of this setup.
   baseline. Never download a BIOS for the user.
 - Node.js 20 or newer.
 - About 1 GB for the cabinet, plus the disc.
-- Windows or Linux for the browser path; Windows for the native recomp.
+- Windows or Linux for the browser path and for the native recomp (Windows zip or Linux AppImage).
 
 ## Steps
 
@@ -47,19 +47,22 @@ of play (shared car or ghost) and not part of this setup.
     - Native: the CUE/BIN pair, with the CUE kept beside its `.bin`.
       Do not rename tracks inside a CUE, and do not use a different region as the
       baseline.
-4. **Place the BIOS.** Copy `scph5501.bin` to
+4. **Place the BIOS (optional).** Copy `scph5501.bin` to
    `{{target}}/_server/game/bios/`. The deck can select it with
-   `?bios=/bios/scph5501.bin`; `?bios=hle` forces the built-in fallback.
+   `?bios=/bios/scph5501.bin`; `?bios=hle` forces the built-in fallback. Skip
+   this step to stay on the bundled OpenBIOS.
 5. **Start the cabinet.** Windows: run `_server\start-test.bat` in its own
    window. Linux: `node _server/src/server.js`. The host must stay awake.
 6. **Open the cabinet.** http://localhost:8080/ on the host, or
    `http://<host-lan-ip>:8080/` on any device on the LAN. The Zudoku field
    manual is at http://localhost:8080/docs.
-7. **Optional native recomp.** Download
-   `Ridge_Racer_4_Recomp_Windows.zip` from
-   https://github.com/omegakatana92/RidgeRacer4Recomp, extract it to
-   `{{target}}/RidgeRacer4Recomp`, and run `launcher\ridgeRacer4.bat`. It
-   bundles OpenBIOS, verifies SLUS-00797 and reads the same `disc/` folder.
+7. **Optional native recomp.** Download the v1.0.0 asset from
+   https://github.com/omegakatana92/RidgeRacer4Recomp: on Windows extract
+   `Ridge_Racer_4_Recomp_Windows.zip` to `{{target}}/RidgeRacer4Recomp` and run
+   `launcher\ridgeRacer4.bat`; on Linux copy
+   `Ridge_Racer_4_Recomp-v1.0.0-linux-x86_64.AppImage` there and run it from
+   `{{target}}`. It bundles OpenBIOS, verifies SLUS-00797 and reads the same
+   `disc/` folder.
 8. **Check it.** Boot `http://localhost:8080/play?game=r4` once and confirm the
    intro and car select work. For the 2P path, open `/multiplayer`, create a
    room, and join from a second device; read the card's mode line before

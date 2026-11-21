@@ -39,14 +39,17 @@ a dedicated UT2004 server on the game-server host.
 
 1. **Pick the install folder.** `{{target}}` should be short and writable, for
    example `C:\Games\UT2004` or `~/Games/UT2004`. Avoid `Program Files`.
-2. **Install the base game.** Windows: mount the ISO, run `Setup.exe`, choose a
-   full install. Linux: run the same installer through Wine/Proton, or copy a
+2. **Install the base game.** Windows: mount the ISO, run `Setup.exe` from the
+   drive letter the mounted image got (not a hardcoded `D:`), choose a full
+   install. Linux: run the same installer through Wine/Proton, or copy a
    working install. Keep the disc mounted for now.
-3. **Apply OldUnreal patch 3374.** Extract the archive and merge its `Help/`,
-   `Sounds/` and `System/` folders into `{{target}}`. The Windows zip has no
-   installer; the Linux tarball is the same drop-in tree with
-   `System/ut2004-bin-amd64`. Confirm `System/UT2004.exe` is the 64-bit build
-   and `System/D3D11Drv.dll` exists.
+3. **Apply OldUnreal patch 3374.** Extract the archive and merge the whole tree
+   into `{{target}}`: `Help/`, `Name/`, `Sounds/`, `System/`, `SystemARM64/`,
+   `SystemLocalized/`, `Textures/` and `Web/`. The Windows zip has no installer;
+   the Linux tarball is the same drop-in tree with `System/ut2004-bin-amd64`.
+   On Windows confirm `System/UT2004.exe` is the 64-bit build and
+   `System/D3D11Drv.dll` exists; on Linux confirm `System/ut2004-bin-amd64` and
+   the `System/UT2004` launcher.
 4. **Dismount the ISO.** The patch removes the disc check, so the game no longer
    needs the image. If it still asks for the DVD, the patch went to the wrong
    folder.
@@ -76,9 +79,10 @@ file host. The installer shows every match as a multi-select:
 
 ## Verification
 
-- `{{target}}/System/UT2004.exe` exists (Windows) or
-  `{{target}}/System/ut2004-bin-amd64` (Linux).
-- `{{target}}/System/D3D11Drv.dll` exists after the patch.
+- Windows: `{{target}}/System/UT2004.exe` and
+  `{{target}}/System/D3D11Drv.dll` exist after the patch.
+- Linux: `{{target}}/System/ut2004-bin-amd64` and `{{target}}/System/UT2004`
+  exist after the patch.
 - The main menu starts without the DVD and shows the OldUnreal build.
 - A bot match runs at the expected frame rate.
 - If installed: `{{target}}/System/UT2004VR-Uninstall.bat` exists, and the VR

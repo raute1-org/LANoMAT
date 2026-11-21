@@ -59,22 +59,22 @@ requires:
       notes: "From the user's own PS3 (or Sony's official update file). RPCS3 installs it once per emulator profile."
     - role: tool
       label: 'RPCS3 emulator'
-      match: ['rpcs3-*.zip', 'RPCS3*.zip', 'rpcs3*.AppImage']
+      match: ['rpcs3*.7z', 'rpcs3*.AppImage']
       required: true
-      url: https://github.com/RPCS3/rpcs3/releases
-      notes: 'Current release; the Qt build is the supported one.'
+      url: https://rpcs3.net/download
+      notes: 'RPCS3 has rolling builds: Windows is a `rpcs3-v0.0.43-<build>_win64_msvc.7z`, Linux a `rpcs3-*_linux64.AppImage`, both from rpcs3.net/download (mirrored in the RPCS3/rpcs3-binaries-win and -linux repos). The main RPCS3/rpcs3 repo tags carry no assets. Extract the 7z to `{{target}}`; `rpcs3.exe` sits at its root.'
 steps:
     - id: install-rpcs3
       title: 'Install RPCS3'
       os: windows
       optional: false
       detail: |
-          Extract the RPCS3 release to `{{target}}`, or install the Linux
-          AppImage/package. Launch once and let the first-run wizard create the
-          config and `dev_flash` folders.
+          Extract the RPCS3 7z to `{{target}}` (Windows `tar -xf`, or 7-Zip), or
+          use the Linux AppImage. Launch once and let the first-run wizard
+          create the config and `dev_flash` folders.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/rpcs3-*.zip" -DestinationPath "{{target}}" -Force'
+            run: 'tar -xf (Get-ChildItem "{{downloads}}/rpcs3-*_win64*.7z" | Select-Object -First 1).FullName -C "{{target}}"'
       verify:
           - type: file_exists
             path: '{{target}}/rpcs3.exe'

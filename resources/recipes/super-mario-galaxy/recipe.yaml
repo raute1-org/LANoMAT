@@ -77,9 +77,10 @@ steps:
           Copy the ISO/RVZ into `{{target}}/Games` and add the folder in
           Config → Paths. Confirm the game ID and region.
 
-          Galaxy is a single-layer Wii disc. Use a clean 1:1 dump or a lossless
-          RVZ: a scrubbed or badly converted image can lose files and crash later
-          in the game.
+          Galaxy is a single-layer Wii disc; the sequel, Super Mario Galaxy 2,
+          is the dual-layer one. Use a clean 1:1 dump or a lossless RVZ: a
+          scrubbed or badly converted image can lose files and crash later in
+          the game.
       commands:
           - shell: powershell
             run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'

@@ -28,8 +28,10 @@ build in the LAN collection.
 
 ## Steps
 
-1. **Install Azahar.** Extract the Windows build to `{{target}}` or install the
-   Linux AppImage/package. Launch once to create the user folder.
+1. **Install Azahar.** Unpack the Windows zip into `{{target}}/Azahar` and move
+   the single top-level `azahar-windows-<build>/` folder's contents up, so
+   `{{target}}/Azahar/azahar.exe` exists. On Linux put `azahar.AppImage` there
+   and make it executable. Launch once to create the user folder.
 2. **Import the dump.** Copy the `.3ds`/`.cci` to `{{target}}/Games`, add the
    folder in Azahar, and confirm the title ID and region.
 3. **System files (only if needed).** Put `aes_keys.txt` in

@@ -79,7 +79,7 @@ steps:
           streaming path, connect it before launching.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/FZeroXVR-Public-PCVR-20261018-R12.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/FZeroXVR-Public-PCVR-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
       verify:
           - type: dir_exists
             path: '{{target}}'

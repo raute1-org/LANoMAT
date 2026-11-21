@@ -2,7 +2,7 @@ schema: lanomat.recipe/v1
 slug: hookshot
 title: Hookshot
 aliases: ['hookshot', 'oot switch 2', 'ocarina of time switch 2']
-version: '2.3.2'
+version: '3.0.0'
 status: draft
 platforms: [windows, linux]
 summary: Build and run Hookshot, the native Ocarina of Time (Switch 2) recompilation, from the user's own supported game dump on Windows or Linux.
@@ -49,7 +49,7 @@ requires:
           ]
       required: true
       url: https://git.notrexed.dev/Hookshot/Hookshot/releases/latest
-      notes: 'v3.0.0 is the current release; v2.3.2 is the version this recipe was written against. The Windows builder downloads its parts (~500 MB) on first run; the Linux AppImage contains them. The GitHub repository is a mirror, the releases live on git.notrexed.dev.'
+      notes: 'v3.0.0 is the current stable release (v2.3.2 was the previous one; the LAN copy may still be on 2.x). The Windows builder downloads its parts (~500 MB) on first run; the Linux AppImage contains them. The GitHub repository is a mirror, the releases live on git.notrexed.dev.'
     - role: mod
       label: 'Hookshot RomFS mods (optional)'
       match: ['*OoT*Mod*.zip', '*OOT*Mod*.zip', '*hookshot*mod*.zip']

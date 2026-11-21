@@ -6,18 +6,18 @@ end-to-end; `draft` means authored but not yet checked on the LAN hardware.
 
 ## Published
 
-| Slug                     | Title                  | Platforms      | Status    | One line                                                                                  |
-| ------------------------ | ---------------------- | -------------- | --------- | ----------------------------------------------------------------------------------------- |
-| `unreal-tournament-2004` | Unreal Tournament 2004 | windows, linux | published | UT2004 DVD install + OldUnreal 3374 64-bit patch, optional UT2004VR and VRM avatars.      |
-| `ridge-racer-type-4`     | Ridge Racer Type 4     | windows, linux | published | Self-hosted browser cabinet (EmulatorJS) with 2P netplay, optional native Windows recomp. |
+| Slug                     | Title                  | Platforms      | Status    | One line                                                                                          |
+| ------------------------ | ---------------------- | -------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `unreal-tournament-2004` | Unreal Tournament 2004 | windows, linux | published | UT2004 DVD install + OldUnreal 3374 64-bit patch, optional UT2004VR and VRM avatars.              |
+| `ridge-racer-type-4`     | Ridge Racer Type 4     | windows, linux | published | Self-hosted browser cabinet (EmulatorJS) with 2P netplay, optional native recomp (Windows/Linux). |
 
 ## Draft
 
 | Slug                                | Title                                   | Platforms             | Status | One line                                                                                                         |
 | ----------------------------------- | --------------------------------------- | --------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
 | `apocalypse`                        | Apocalypse                              | windows, linux        | draft  | 1998 PS1 shooter in DuckStation; native `repocalypse` build exists separately.                                   |
-| `azeroth-survivors`                 | Azeroth Survivors                       | windows               | draft  | Warcraft III custom survival map; needs a legal WC3 install and the `.w3x`.                                      |
-| `bloodborne`                        | Bloodborne                              | windows, linux        | draft  | PS4 dump in shadPS4 with PS4 firmware and patches; native PC port exists separately.                             |
+| `azeroth-survivors`                 | Azeroth Survivors                       | windows               | draft  | Warcraft III custom survival map; Reforged 3.0 is online-only, legacy 1.29 for LAN.                              |
+| `bloodborne`                        | Bloodborne                              | windows, linux        | draft  | PS4 dump in shadPS4 with optional PS4 system modules; native PC port exists separately.                          |
 | `counter-strike-1-6`                | Counter-Strike 1.6                      | windows, linux        | draft  | Half-Life base plus cstrike archive (or Steam app 10), `steam://connect` server join, HLDS and tournament notes. |
 | `crash-bandicoot`                   | Crash Bandicoot                         | windows, linux        | draft  | Original PS1 platformer in DuckStation, first game only.                                                         |
 | `crash-team-racing`                 | Crash Team Racing                       | windows, linux        | draft  | PS1 kart racer in DuckStation with up to four local pads.                                                        |

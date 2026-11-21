@@ -21,20 +21,22 @@ Not for Counter-Strike 2 (Source 2, app 730), Condition Zero or Source.
 
 ## What you need
 
-- A Half-Life base: Steam app 70, the GOTY CD, or the LAN's `Half-Life`
-  folder.
-- A `cstrike` archive for a manual install, or Steam app 10, which installs
-  both parts.
+- A Half-Life base (Steam app 70, the GOTY CD, or the LAN's `Half-Life`
+  folder) **or** Steam app 10 on its own: Counter-Strike brings its own
+  Half-Life base and `cstrike/`.
+- A `cstrike` archive only for a manual install over a separate Half-Life base.
 - About 4 GB of disk, a keyboard and a mouse.
 - A LAN server address, normally `<host>:27015` from the LANoMAT event page.
 
 ## Steps
 
-1. **Install the base.** `steam://install/70`, or mount the GOTY ISO and run
-   `Setup.exe`. `{{target}}` is the Half-Life folder with `hl.exe` and
-   `valve/`.
-2. **Add cstrike.** Install app 10, or extract `cstrike.zip` into
-   `{{target}}` so that `{{target}}/cstrike/liblist.gam` exists.
+1. **Install the base.** `steam://install/10` is enough: app 10 installs its
+   own Half-Life base and `cstrike/`. Use `steam://install/70` plus the GOTY
+   ISO or a LAN copy only for the separate Half-Life game/manual path.
+   `{{target}}` is the Half-Life folder with `hl.exe` and `valve/`.
+2. **Add cstrike.** Skip with app 10. For a manual install, extract
+   `cstrike.zip` into `{{target}}` so that
+   `{{target}}/cstrike/liblist.gam` exists.
 3. **Configure.** Set resolution, `rate 25000`, `cl_updaterate 101`,
    `cl_cmdrate 101`, `fps_max 100`, mouse acceleration off. Put LAN-wide
    settings in `cstrike/autoexec.cfg`.

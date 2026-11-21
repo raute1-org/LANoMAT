@@ -72,9 +72,9 @@ steps:
           (macOS) is expected.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/Snap64Recomp-1.1.8-win64.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/Snap64Recomp-*-win64.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
           - shell: bash
-            run: 'tar -xzf "{{downloads}}/Snap64Recomp-1.1.8-linux-x86_64.tar.gz" -C "{{target}}"'
+            run: 'tar -xzf "$(ls "{{downloads}}"/Snap64Recomp-*-linux-x86_64.tar.gz | head -n 1)" -C "{{target}}"'
       verify:
           - type: dir_exists
             path: '{{target}}'

@@ -22,7 +22,30 @@ The validator exits non-zero and prints every error. It checks:
 5. no command contains an `&&` chain;
 6. every `SKILL.md` is 60–150 lines;
 7. drafts have 3–6 steps and say "needs verification on the LAN";
-8. a draft that carries a `sha256` gets a warning (confirm it or leave it empty).
+8. a draft that carries a `sha256` gets a warning (confirm it or leave it empty);
+9. `os: windows` steps use only `powershell`/`cmd` and `os: linux` steps only
+   `bash` (mixed `os: any` steps are allowed and filtered per shell);
+10. `match` globs contain no `/` or `\` (they match base names, case-insensitively).
+
+The validator is the executable contract test: `npm test` (or `node
+validate.mjs`) must stay green before a recipe PR. The glob and command
+semantics it enforces are documented in [`../README.md`](../README.md#matching-and-execution-contract).
+
+### Backend note
+
+When the installer implements the contract:
+
+- scan the share recursively, then match each entry's **base name** with a
+  case-folded `fnmatch` (`FNM_CASEFOLD` if available, otherwise lowercase both
+  sides); do not match the path and do not let `*` cross a separator;
+- treat `match: []` as user-supplied and skip the share search;
+- filter steps by the host OS and, inside a step, commands by `shell`
+  (`powershell`/`cmd` on Windows, `bash` on Linux) before running them in order;
+- resolve `{{target}}`, `{{downloads}}` and `{{os}}` before `verify`.
+
+Regression coverage for rules 9–10 exists only in the validator today; the
+backend tests should cover a case-folded folder dump (`CUSA00207`) and an
+`os: any` step with both shells.
 
 Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 
