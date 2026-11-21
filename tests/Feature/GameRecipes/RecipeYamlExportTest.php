@@ -364,14 +364,9 @@ it('round-trips every bundled recipe through the repository layout', function ()
     foreach ($files as $path) {
         $slug = basename(dirname($path));
 
-        // Document explicitly which authored keys the v1 schema does not
-        // allow. The only gap in the bundled catalog today is `uevr`'s
-        // `manual: true` on a required content entry: the runtime validator
-        // knows it ("ask the user for this file"), the JSON Schema does not
-        // (`additionalProperties: false`), so it cannot be written back and
-        // the exporter has to downgrade that entry to `required: false`.
-        // Everything else must be schema-clean; a future recipe that adds a
-        // key fails here instead of silently losing it on export.
+        // Every authored key must be one the v1 schema allows: a recipe
+        // that adds another key fails here instead of silently losing it on
+        // export.
         $authored = Yaml::parseFile($path);
         expect($authored)->toBeArray();
 
@@ -416,10 +411,7 @@ it('round-trips every bundled recipe through the repository layout', function ()
             }
         }
 
-        expect($unknown)->toBe(
-            $slug === 'uevr' ? ['requires[2].manual'] : [],
-            $slug.' uses keys the schema does not allow',
-        );
+        expect($unknown)->toBe([], $slug.' uses keys the schema does not allow');
 
         $original = $parser->parseFile($path, 'bundled');
         $roundPath = $out.'/'.$slug.'/recipe.yaml';
@@ -439,19 +431,6 @@ it('round-trips every bundled recipe through the repository layout', function ()
 
         $originalRequirements = array_map(recipeYamlRequirementView(...), (array) $original['recipe']['requirements']);
         $roundRequirements = array_map(recipeYamlRequirementView(...), (array) $round['recipe']['requirements']);
-
-        if ($slug === 'uevr') {
-            // The one documented schema gap: `requires[2].manual` is not in
-            // recipe.schema.json and cannot be written back, so the exported
-            // entry is optional. Everything else in that recipe still has to
-            // match exactly.
-            expect($originalRequirements[2]['required'])->toBeTrue()
-                ->and($original['files'][2]['required'])->toBeTrue()
-                ->and($roundRequirements[2]['required'])->toBeFalse();
-
-            $originalRequirements[2]['required'] = false;
-            $original['files'][2]['required'] = false;
-        }
 
         expect(recipeYamlCanonical($roundRequirements))->toBe(recipeYamlCanonical($originalRequirements), $slug.': requirements changed in the round trip');
 
@@ -676,4 +655,33 @@ it('builds a catalog row with escaped pipes', function () {
 
     expect(app(RecipeYamlExporter::class)->catalogRow($recipe))
         ->toBe('| `catalog-test` | Catalog \\| Test | windows, linux | draft | One line about the game. |');
+});
+
+it('keeps a hand-supplied requirement required and a single-player flag', function () {
+    $recipe = GameRecipe::factory()->published()->create([
+        'slug' => 'solo-quest',
+        'title' => 'Solo Quest',
+        'summary' => 'A single-player game the player brings along.',
+        'requirements' => [[
+            'role' => 'content',
+            'label' => 'Your own copy of the game',
+            'match' => [],
+            'required' => true,
+            'manual' => true,
+        ]],
+        'steps' => [[
+            'id' => 'check-install',
+            'title' => 'Check the install',
+            'os' => 'any',
+            'optional' => false,
+            'detail' => 'Point the installer at your copy.',
+        ]],
+        'metadata' => ['multiplayer' => false],
+    ]);
+
+    $exported = Yaml::parse(app(RecipeYamlExporter::class)->export($recipe)['yaml']);
+
+    expect($exported['requires'][0]['required'])->toBeTrue()
+        ->and($exported['requires'][0]['manual'])->toBeTrue()
+        ->and($exported['metadata']['multiplayer'])->toBeFalse();
 });

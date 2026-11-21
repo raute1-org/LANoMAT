@@ -189,6 +189,10 @@
                     "maximum": 1024,
                     "description": "Highest simultaneous player count the recipe's mode supports, for filtering and sorting. Use 1 for a single-player-only recipe."
                 },
+                "multiplayer": {
+                    "type": "boolean",
+                    "description": "False for a single-player-only recipe; the games page then leaves out servers and rounds. Omit for a game with a multiplayer mode."
+                },
                 "portable": {
                     "type": "boolean",
                     "description": "True when the required base archive is a ready-to-run game tree: unpacking it is the whole install. The LANoMAT launcher installs such a recipe on its own (it unpacks, checks the files a step verifies and starts a launch target, and never runs step commands)."
@@ -316,6 +320,10 @@
                 "url": {
                     "type": "string",
                     "pattern": "^$|^https?://"
+                },
+                "manual": {
+                    "type": "boolean",
+                    "description": "True when the player supplies this file by hand: the installer asks for it and never matches it on the share. A required manual entry needs neither match patterns nor a url."
                 },
                 "notes": {
                     "type": "string"

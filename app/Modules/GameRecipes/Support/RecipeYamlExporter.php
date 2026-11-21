@@ -39,6 +39,7 @@ final class RecipeYamlExporter
         'server',
         'tags',
         'players_max',
+        'multiplayer',
         'portable',
         'launcher_supported',
         'launch',
@@ -342,12 +343,15 @@ final class RecipeYamlExporter
         $required = $this->toBool($requirement['required'] ?? null)
             ?? in_array($role, [RecipeFileRole::Base->value, RecipeFileRole::Iso->value], true);
 
-        // The v1 schema has no `manual` flag (the runtime validator accepts
-        // it as "ask the user for this file"). A required entry that names
-        // neither a file nor a URL cannot be expressed, so it becomes
-        // optional — the closest shape that still validates. Today only the
-        // bundled `uevr` recipe uses `manual`.
-        $out['required'] = $required && ($match !== [] || $url !== null);
+        // `manual` means "the player supplies this by hand". Without it, a
+        // required entry that names neither a file nor a URL is something the
+        // validator refuses, so it is written as optional instead.
+        $manual = $this->toBool($requirement['manual'] ?? null) === true;
+        $out['required'] = $required && ($manual || $match !== [] || $url !== null);
+
+        if ($manual) {
+            $out['manual'] = true;
+        }
 
         $size = $requirement['size_bytes'] ?? null;
 
@@ -627,7 +631,7 @@ final class RecipeYamlExporter
 
         $out['tags'] = $this->stringList($metadata['tags'] ?? null);
 
-        foreach (['portable', 'launcher_supported'] as $flag) {
+        foreach (['multiplayer', 'portable', 'launcher_supported'] as $flag) {
             $value = $this->toBool($metadata[$flag] ?? null);
 
             if ($value !== null) {
