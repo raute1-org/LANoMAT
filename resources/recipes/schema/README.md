@@ -19,31 +19,36 @@ The validator exits non-zero and prints every error. It checks:
    (aliases case-insensitively);
 4. `SKILL.md` exists, has YAML frontmatter, and its `name`/`description` agree
    with the recipe (description ≤ 1024 chars);
-5. no command contains an `&&` chain;
-6. every `SKILL.md` is 60–150 lines.
+5. no step command or launch target command contains an `&&` chain, and launch
+   target ids are unique within a recipe;
+6. a published recipe's `play_url` does not use `localhost` (warning only: it
+   would only work on the host itself);
+7. every `SKILL.md` is 60–150 lines.
 
 Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 
 ## Shape
 
-| Key           | Required | Notes                                                         |
-| ------------- | -------- | ------------------------------------------------------------- |
-| `schema`      | yes      | Always `lanomat.recipe/v1`.                                   |
-| `slug`        | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.        |
-| `title`       | yes      | Display name; quote it if it contains `: `.                   |
-| `aliases`     | yes      | Chat phrases that resolve to this recipe; unique.             |
-| `version`     | yes      | String. Patch, port or release the recipe targets.            |
-| `status`      | yes      | `draft`, `published` or `archived`.                           |
-| `platforms`   | yes      | Non-empty subset of `windows`, `linux`, `macos`.              |
-| `summary`     | yes      | One sentence, ≤ 200 chars.                                    |
-| `description` | yes      | Multi-line markdown: what it is, why LAN, what the files are. |
-| `homepage`    | no       | URI (official project/emulator page).                         |
-| `license`     | yes      | Who owns the game; what the user supplies; mod license.       |
-| `cover`       | no       | Docs image name; may be empty.                                |
-| `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).         |
-| `requires`    | yes      | File groups; see below. May be empty for pure tools.          |
-| `steps`       | yes      | 1–20 ordered steps.                                           |
-| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`.                |
+| Key              | Required | Notes                                                                                                                |
+| ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `schema`         | yes      | Always `lanomat.recipe/v1`.                                                                                          |
+| `slug`           | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                                                               |
+| `title`          | yes      | Display name; quote it if it contains `: `.                                                                          |
+| `aliases`        | yes      | Chat phrases that resolve to this recipe; unique.                                                                    |
+| `version`        | yes      | String. Patch, port or release the recipe targets.                                                                   |
+| `status`         | yes      | `draft`, `published` or `archived`.                                                                                  |
+| `platforms`      | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                                                     |
+| `summary`        | yes      | One sentence, ≤ 200 chars.                                                                                           |
+| `description`    | yes      | Multi-line markdown: what it is, why LAN, what the files are.                                                        |
+| `homepage`       | no       | URI (official project/emulator page).                                                                                |
+| `license`        | yes      | Who owns the game; what the user supplies; mod license.                                                              |
+| `cover`          | no       | Docs image name; may be empty.                                                                                       |
+| `play_url`       | no       | Page a player opens on the LAN, e.g. `http://{{host}}:8080/play?game=r4`. Use `{{host}}` for the host's LAN address. |
+| `launch_targets` | no       | Ordered ways to start the game when they differ (flat vs VR, Windows vs Linux). First entry is the default.          |
+| `skill`          | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                                                                |
+| `requires`       | yes      | File groups; see below. May be empty for pure tools.                                                                 |
+| `steps`          | yes      | 1–20 ordered steps.                                                                                                  |
+| `metadata`       | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `live_url` for a live deployment.                            |
 
 ### Requirements
 
@@ -57,52 +62,69 @@ and `url: ""` when unknown; never invent them.
 Each step needs `id`, `title`, `os` (`windows`/`linux`/`any`), `optional` and
 `detail` (markdown). `commands` are `{shell, run}` with `powershell`, `cmd` or
 `bash`; one command per entry, no `&&`. `verify` entries are `file_exists` or
-`dir_exists` (need `path`) or `command` (needs `command`).
+`dir_exists` (need `path`) or `command` (needs `command`), plus an optional
+`os` (`windows`/`linux`/`any`) for checks that only apply on one platform.
+
+The installer runs only the commands whose `shell` matches the machine:
+`powershell` on Windows, `bash` on Linux, `cmd` only when a tool needs it. An
+`os: any` step may therefore carry both a `powershell` and a `bash` set; the
+agent (or installer) filters by shell, not by reading comments.
 
 An optional step **must** set `optional: true`, and a required install must not
 depend on it.
 
+### Requirements and globs
+
+`match` globs are matched literally, not case-folded. On Linux a pattern is
+case-sensitive, so list the spellings a file host may use (`*.vrm` and
+`*.VRM`, `r4.chd` and `R4.chd`, `ut2004*.iso` and `UT2004*.iso`). Prefer narrow
+globs over a broad `*.iso`, and say in `notes` which title and disc a pattern
+belongs to. A `required` entry blocks the install when nothing matches; a
+folder-based install (for example an existing GOG/Steam copy) cannot be
+resolved by a glob, so document it as a manual `{{target}}` instead.
+
+### Play URL and launch targets
+
+`play_url` is the page a player opens on the LAN. It is not a download and not
+a launcher: the browser cabinet, the server status page or a hosted game page.
+Use `{{host}}` for the LAN address of the machine that hosts the game
+(`http://{{host}}:8080/play?game=r4`); `localhost` only resolves on that
+machine. The recipe still works when the address changes, because the
+installer substitutes the current LAN address. Document any port switch and
+how to change it.
+
+`launch_targets` lists the ways to start an installed game, in preference
+order:
+
+```yaml
+launch_targets:
+    - id: flat-windows
+      label: 'Flat on a monitor (Windows)'
+      os: windows
+      shell: powershell
+      command: 'Start-Process -FilePath "{{target}}/System/UT2004.exe"'
+      notes: 'Starting this way is always the flat game.'
+```
+
+Required keys are `id` (unique within the recipe), `label`, `os` and
+`command`; `shell` and `notes` are optional. Use it only when there is a real
+choice (flat vs VR, per-OS binaries); one obvious way to start the game belongs
+in `steps`.
+
+**Where the keys live.** `play_url`, `launch_targets` and `launch` belong in
+`metadata`; the top-level forms above are a deprecated alias that the importer
+still folds into `metadata`. A single start command may also be written as
+`metadata.launch`, either as a string or as
+`{kind: steam|uri|exe, target, args?}` (`steam` takes the app id, `exe` a path,
+`uri` a full URI); `metadata.launch_vr` is the legacy shortcut for a `vr`
+target. Clients ask for a `launch_targets` entry by its `id`
+(`lanomat-agent launch <slug> --variant vr`).
+
 ### Template variables
 
 `{{target}}` install directory, `{{downloads}}` download directory, `{{os}}`
-detected platform. The installer resolves them; the schema only stores the
-strings.
-
-### Launching
-
-`metadata` carries how the installed game starts and where it is played. The
-forms are interchangeable for a client, but a recipe should pick the richest one
-it can support:
-
-| Key              | Shape                                               | Meaning                                                                                                                                                                                                                                           |
-| ---------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `launch`         | string **or** object                                | One way to start an installed copy. A string is a flat command or executable path. The object is `{kind: steam\|uri\|exe, target, args?, shell?, notes?}`; `steam` takes the app id (`13210`), `uri` a full URI, `exe` a path plus optional args. |
-| `launch_targets` | array of `{id, label, os, command, shell?, notes?}` | Several ways to start the same install, most useful first (`flat`, `vr`, …). Wins over `launch` when present; `id` is what `lanomat-agent launch --variant <id>` asks for. `os` is `windows`, `linux`, `macos` or `any`.                          |
-| `launch_vr`      | string                                              | Legacy shortcut for a second VR command; equivalent to a `launch_targets` entry with `id: vr`. Do not combine both.                                                                                                                               |
-| `play_url`       | string                                              | Browser game or web front end. Use `{{host}}` for the LAN address of the serving machine — the app replaces it with the request host, so never hardcode `localhost`.                                                                              |
-| `live_url`       | string                                              | A live deployment of this game (for example an event's public server).                                                                                                                                                                            |
-
-Commands and `play_url` may use `{{target}}` (install dir) and `{{avatars}}`
-(avatar dir); the client substitutes them like the step variables.
-
-```yaml
-metadata:
-    genre: arena-shooter
-    players: 2-32
-    lan_recommended: true
-    tags: [fps, vr]
-    play_url: http://{{host}}:8080/
-    launch_targets:
-        - id: flat
-          label: Flat on a monitor
-          os: windows
-          command: '{{target}}/System/UT2004.exe'
-        - id: vr
-          label: VR in a SteamVR headset
-          os: windows
-          shell: powershell
-          command: 'Start-Process "{{target}}/System/Play-VR.bat"'
-```
+detected platform and `{{host}}` the LAN address of the machine that hosts the
+game. The installer resolves them; the schema only stores the strings.
 
 ## Design rules
 

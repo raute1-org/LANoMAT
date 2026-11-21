@@ -10,8 +10,10 @@
  *   3. slugs, skill names, and aliases are unique across the catalog;
  *   4. SKILL.md exists, has Agent Skills frontmatter, and its name/description
  *      agree with the recipe;
- *   5. commands contain no `&&` chains (one command per entry);
- *   6. SKILL.md is between 60 and 150 lines.
+ *   5. commands contain no `&&` chains (one command per entry), including
+ *      launch targets, and launch target ids are unique within a recipe;
+ *   6. published recipes use a LAN-reachable `play_url` (warning only);
+ *   7. SKILL.md is between 60 and 150 lines.
  *
  * Exit code 0 means the whole catalog is valid.
  */
@@ -121,6 +123,19 @@ for (const dir of dirs) {
         }
     }
 
+    const targetIds = new Set();
+    for (const target of recipe.launch_targets ?? []) {
+        if (targetIds.has(target.id)) {
+            errors.push(`${dir}: duplicate launch target id "${target.id}"`);
+        }
+        targetIds.add(target.id);
+        if (target.command.includes('&&')) {
+            errors.push(
+                `${dir}: launch target "${target.id}" has an && chain: ${target.command}`,
+            );
+        }
+    }
+
     if (recipe.status === 'published') {
         const hasBase = recipe.requires.some(
             (requirement) =>
@@ -130,6 +145,11 @@ for (const dir of dirs) {
         if (!hasBase) {
             warnings.push(
                 `${dir}: published recipe has no required base/iso requirement`,
+            );
+        }
+        if (recipe.play_url && /localhost|127\.0\.0\.1/.test(recipe.play_url)) {
+            warnings.push(
+                `${dir}: play_url uses localhost, which only resolves on the host itself; use {{host}} for LAN players`,
             );
         }
     }

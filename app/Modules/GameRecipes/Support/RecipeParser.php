@@ -74,7 +74,7 @@ final class RecipeParser
             'skill_markdown' => $skill,
             'requirements' => array_values((array) ($data['requires'] ?? $data['requirements'] ?? [])),
             'steps' => array_values((array) ($data['steps'] ?? [])),
-            'metadata' => is_array($data['metadata'] ?? null) ? $data['metadata'] : [],
+            'metadata' => $this->metadata($data),
         ];
 
         $files = [];
@@ -100,5 +100,27 @@ final class RecipeParser
         }
 
         return ['recipe' => $recipe, 'files' => $files];
+    }
+
+    /**
+     * Recipe metadata plus the launch keys that older recipes declared at the
+     * top level. `metadata.*` is canonical (merge log § 10); the top-level form
+     * is a deprecated alias that must not silently disappear at import time,
+     * because the games page and the agent read launch data from `metadata`.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function metadata(array $data): array
+    {
+        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
+
+        foreach (['launch', 'launch_targets', 'launch_vr', 'play_url'] as $key) {
+            if (! array_key_exists($key, $metadata) && array_key_exists($key, $data)) {
+                $metadata[$key] = $data[$key];
+            }
+        }
+
+        return $metadata;
     }
 }

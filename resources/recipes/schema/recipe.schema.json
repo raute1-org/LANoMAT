@@ -79,6 +79,19 @@
         "cover": {
             "type": "string"
         },
+        "play_url": {
+            "description": "Deprecated alias of metadata.play_url; metadata wins.",
+            "type": "string",
+            "minLength": 1
+        },
+        "launch_targets": {
+            "description": "Deprecated alias of metadata.launch_targets; metadata wins.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/launchTarget"
+            }
+        },
         "skill": {
             "type": "object",
             "additionalProperties": false,
@@ -128,6 +141,11 @@
                 "lan_recommended": {
                     "type": "boolean"
                 },
+                "live_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "A live deployment of this recipe, when one exists (for example a LAN event's public UT2004VR server)."
+                },
                 "tags": {
                     "type": "array",
                     "items": {
@@ -137,7 +155,7 @@
                     "uniqueItems": true
                 },
                 "launch": {
-                    "description": "How to start the installed game. A string is a flat command or executable path (\"/games/ut2004/System/ut2004-bin-amd64\"). An object separates the kind from the target: {kind: steam, target: \"<appid>\"}, {kind: uri, target: \"steam://rungameid/…\"}, {kind: exe, target: \"C:\\\\Games\\\\…\\\\UT2004.exe\", args: [\"-nosplash\"]}. For several ways to start the same install (flat versus VR) use metadata.launch_targets instead.",
+                    "description": "How to start the installed game. A string is a flat command or executable path. An object separates the kind from the target: {kind: steam, target: '<appid>'}, {kind: uri, target: 'steam://…'}, {kind: exe, target: 'C:\\\\Games\\\\…\\\\UT2004.exe', args: ['-nosplash']}. For several ways to start the same install use metadata.launch_targets.",
                     "oneOf": [
                         {
                             "type": "string",
@@ -149,7 +167,7 @@
                     ]
                 },
                 "launch_targets": {
-                    "description": "Named ways to start the installed game, most useful first (for example flat and VR). Supersedes metadata.launch when present; {{target}} and {{avatars}} are substituted per install.",
+                    "description": "Named ways to start the installed game, most useful first (flat, VR). Supersedes metadata.launch when present; {{target}} and {{avatars}} are substituted per install.",
                     "type": "array",
                     "minItems": 1,
                     "items": {
@@ -157,18 +175,13 @@
                     }
                 },
                 "launch_vr": {
-                    "description": "Legacy shortcut for a second (VR) start command. Equivalent to a launch_targets entry with id \"vr\".",
+                    "description": "Legacy shortcut for a second (VR) start command; equivalent to a launch_targets entry with id 'vr'.",
                     "type": "string",
                     "minLength": 1
                 },
                 "play_url": {
-                    "description": "Browser game or web front end to open. Use the {{host}} template for the LAN address of the machine that serves it; the app substitutes the request host, so never hardcode localhost.",
+                    "description": "Browser game or web front end. Use {{host}} for the LAN address of the host that serves it; the app substitutes the request host.",
                     "type": "string",
-                    "minLength": 1
-                },
-                "avatar_converter_url": {
-                    "type": "string",
-                    "format": "uri",
                     "minLength": 1
                 },
                 "multiplayer": {
@@ -186,43 +199,29 @@
                     "type": "string"
                 }
             }
-        }
-    },
-    "$defs": {
-        "launchSpec": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["kind", "target"],
-            "properties": {
-                "kind": {
-                    "enum": ["steam", "uri", "exe"],
-                    "description": "steam: target is the Steam app id; uri: target is a full URI (steam://, xbox://, …); exe: target is an executable path."
-                },
-                "target": {
+        },
+        "launch": {
+            "description": "Deprecated alias of metadata.launch; metadata wins.",
+            "oneOf": [
+                {
                     "type": "string",
                     "minLength": 1
                 },
-                "args": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ],
-                    "description": "Arguments appended to the exe/steam target; ignored for uri."
-                },
-                "shell": {
-                    "enum": ["powershell", "cmd", "bash"]
-                },
-                "notes": {
-                    "type": "string"
+                {
+                    "$ref": "#/$defs/launchSpec"
                 }
-            }
+            ]
+        }
+    },
+    "$defs": {
+        "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 64
+        },
+        "glob": {
+            "type": "string",
+            "minLength": 1
         },
         "launchTarget": {
             "type": "object",
@@ -232,8 +231,7 @@
                 "id": {
                     "type": "string",
                     "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-                    "maxLength": 64,
-                    "description": "Stable identifier the client asks for (flat, vr, …)."
+                    "maxLength": 64
                 },
                 "label": {
                     "type": "string",
@@ -241,12 +239,11 @@
                     "maxLength": 160
                 },
                 "os": {
-                    "enum": ["windows", "linux", "macos", "any"]
+                    "enum": ["windows", "linux", "any"]
                 },
                 "command": {
                     "type": "string",
-                    "minLength": 1,
-                    "description": "Command or executable path with {{target}} (install dir) and {{avatars}} (avatar dir) placeholders."
+                    "minLength": 1
                 },
                 "shell": {
                     "enum": ["powershell", "cmd", "bash"]
@@ -255,15 +252,6 @@
                     "type": "string"
                 }
             }
-        },
-        "slug": {
-            "type": "string",
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "maxLength": 64
-        },
-        "glob": {
-            "type": "string",
-            "minLength": 1
         },
         "requirement": {
             "type": "object",
@@ -321,7 +309,8 @@
                     "uniqueItems": true
                 },
                 "manual": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "True when the user supplies the files by hand (an existing install); no match/url is required then."
                 }
             }
         },
@@ -354,6 +343,10 @@
                 "command": {
                     "type": "string",
                     "minLength": 1
+                },
+                "os": {
+                    "enum": ["windows", "linux", "any"],
+                    "description": "Run this check only on the given platform; omit for any platform the step runs on."
                 }
             },
             "allOf": [
@@ -433,6 +426,41 @@
                     "items": {
                         "$ref": "#/$defs/verification"
                     }
+                }
+            }
+        },
+        "launchSpec": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "target"],
+            "properties": {
+                "kind": {
+                    "enum": ["steam", "uri", "exe"],
+                    "description": "steam: target is the Steam app id; uri: a full URI; exe: an executable path."
+                },
+                "target": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "args": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Arguments appended to the exe/steam target; ignored for uri."
+                },
+                "shell": {
+                    "enum": ["powershell", "cmd", "bash"]
+                },
+                "notes": {
+                    "type": "string"
                 }
             }
         }
