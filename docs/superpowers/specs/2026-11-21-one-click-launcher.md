@@ -28,8 +28,8 @@ the browser and in the launcher.
 
 - LANoMAT: `https://lan.raute1.org` (MCP `/mcp`, bearer token, 24 tools; OpenCode-compatible with
   `oauth:false`).
-- UT2004 server: `10.23.0.40:7777`, query `7778`, name "Raute1 LAN", DM-CORRUPTION, 16 slots.
-- VRM converter/web: `http://10.23.0.40:8080` (vrm2ut2004 stack); packages at
+- UT2004 server: `<UT2004_HOST>:7777`, query `7778`, name "Raute1 LAN", DM-CORRUPTION, 16 slots.
+- VRM converter/web: `http://<VRM_HOST>:8080` (vrm2ut2004 stack); packages at
   `/redirect/VRM<id>mod.u`.
 - Installed locally and available on the server: CoolBanana, ChillPenguin, CoolPoo, Skull.
 - Venice inference key is provisioned server-side/client-side (never in git); model
@@ -40,8 +40,13 @@ the browser and in the launcher.
 ## Product flow
 
 0. **Homepage (`/`)** carries the agent chat directly, above/beside a large **Install Launcher**
-   hero. OS buttons: Windows, Linux, macOS. The chat greets the visitor, explains LANoMAT, and can
-   already answer "what can I do?" / "install UT2004" with inline game, server and install cards.
+   hero. Immediately below the hero, three very large primary tiles:
+   **1) Spiele verwalten** → `/games`, **2) Serverbrowser** → `/servers`,
+   **3) Voice-Chats** → web voice `/talk` when the module is live, otherwise the native voice
+   client / download entry. These three are the first visual layer after the hero; the sidebar
+   stays as it is. OS buttons: Windows, Linux, macOS. The chat greets the visitor, explains
+   LANoMAT, and can already answer "what can I do?" / "install UT2004" with inline game, server
+   and install cards.
 1. Website `/games` lists every live recipe as a row with **Installieren**, server browser/join, and
    **Fragen** (chat). No launcher installed → the button downloads the launcher.
 2. One launcher download (`LANoMAT-Setup.exe` / `.AppImage` / `.dmg`) → first run provisions via a
@@ -61,7 +66,7 @@ the browser and in the launcher.
   live build), never shown as a broken or coming-soon tile.
 - **Experimental mode (dev only):** a toggle (`LAUNCHER_GAME_SCOPE=experimental`, query/env or
   settings) shows the complete recipe state, including unpublished/SMB recipes, missing files,
-  validation errors and the real source `smb://192.168.68.55/games-recipes/`. It is off by default
+  validation errors and the real source `smb://<SMB_HOST>/games-recipes/`. It is off by default
   and can be turned off again. Docs weave the WIP catalogue without naming it on the live surface.
 - Recipes are the bridge. For ISO-based games there is no update treadmill: download, verify the
   SHA-256 manifest, install, done. Re-verify on repair/launch, not on every start.
@@ -137,4 +142,4 @@ the browser and in the launcher.
 - Every new route in `RouteAuthorizationMatrixTest`; every authorization through a Policy.
 - German UI copy, English code/docs. Modular monolith and optional-module gating.
 - ISO path must work on a fresh Windows PC with no Steam, no Node, no OpenCode, no UT2004.
-- The first-LAN MVP must install UT2004 and join `10.23.0.40:7777` end to end.
+- The first-LAN MVP must install UT2004 and join `<UT2004_HOST>:7777` end to end.
