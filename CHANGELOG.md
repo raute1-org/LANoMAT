@@ -73,6 +73,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Fixed
 
+- AI assistant: the chat showed "Der Assistent antwortet gerade nicht" although the server had answered. The page fed Vue reactive state to `structuredClone`, which throws a DataCloneError on a Proxy, so the first stream part aborted the turn; the reducer now copies safely, the stream reader tolerates unknown parts, CRLF, a missing `[DONE]` and a connection drop after the answer started, and failed runs are logged (masked) in the server log. The page header shows the real provider and model (OpenAI is no longer labelled "Claude"). The Caddyfile excludes the assistant stream endpoints from compression. Answers render a safe Markdown subset (bold, italic, code, lists, paragraphs, http(s)/relative links) instead of raw asterisks; the parser builds typed nodes and Vue elements, never HTML strings.
 - Recipes: `lanomat:recipes:sync --only=<slug> --prune` deleted every other recipe of the source, and `--prune` on an empty or unreadable source deleted all of them; a recipe that still has a directory in the source is never pruned now
 - Recipes: a recipe title could reach a shell through the install folder, which is substituted into quoted command arguments; found in review, before any release
 - Recipes: editing a contributed draft no longer wipes its launch targets and pinned files; a base file is required by default, as in the YAML parser

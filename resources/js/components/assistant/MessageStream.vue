@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
+import MarkdownText from '@/components/assistant/MarkdownText.vue';
 import ToolChip from '@/components/assistant/ToolChip.vue';
 import { isToolPart } from '@/lib/assistantMessages';
 import type { UiMessage } from '@/types/assistant';
@@ -47,12 +48,15 @@ watch(() => props.messages, scrollToEnd, { deep: true, immediate: true });
 
             <div v-else class="max-w-prose space-y-2">
                 <template v-for="(part, i) in message.parts" :key="i">
-                    <p
+                    <MarkdownText
                         v-if="part.type === 'text' && part.text !== ''"
-                        class="text-sm leading-relaxed whitespace-pre-wrap text-foreground"
-                    >
-                        {{ part.text }}
-                    </p>
+                        :text="part.text"
+                        :partial="
+                            streaming &&
+                            message === messages[messages.length - 1] &&
+                            i === message.parts.length - 1
+                        "
+                    />
                     <div v-else-if="isToolPart(part)">
                         <ToolChip :part="part" />
                     </div>
