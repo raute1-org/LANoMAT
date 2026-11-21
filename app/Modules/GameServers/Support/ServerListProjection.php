@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Contracts\GameInstallLinks;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\GlobalServerPageController;
@@ -40,15 +41,55 @@ use Illuminate\Support\Str;
  * {@see BracketMatchProjection}), so orgas
  * browsing the public list can see at a glance how much of the per-instance
  * cap each running server actually uses.
+ *
+ * `install` answers "how does a player get this game?": the published recipe
+ * that installs it and the one-click launcher join, or null while no recipe
+ * fits ({@see GameInstallLinks}). Every builder resolves the contract once and
+ * hands it down, so a list of servers never turns into one catalogue query per
+ * row.
  */
 class ServerListProjection
 {
+    /** Request-scoped memo key: one install-link resolver (and catalogue read) per request. */
+    private const INSTALL_LINKS_ATTRIBUTE = 'lanomat.install-links';
+
+    /**
+     * The install-link resolver for this request. A page asks the same
+     * "which recipe installs this game?" question for every row, so the
+     * instance is resolved once and memoised on the request; a caller that
+     * already holds one (a builder, a controller) passes it in.
+     */
+    public static function installLinks(?GameInstallLinks $install = null): GameInstallLinks
+    {
+        if ($install instanceof GameInstallLinks) {
+            return $install;
+        }
+
+        if (! app()->bound('request')) {
+            return app(GameInstallLinks::class);
+        }
+
+        $request = app('request');
+        $cached = $request->attributes->get(self::INSTALL_LINKS_ATTRIBUTE);
+
+        if ($cached instanceof GameInstallLinks) {
+            return $cached;
+        }
+
+        $resolved = app(GameInstallLinks::class);
+        $request->attributes->set(self::INSTALL_LINKS_ATTRIBUTE, $resolved);
+
+        return $resolved;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
-    public static function forEvent(Event $event, bool $withPlayerList = false): array
+    public static function forEvent(Event $event, bool $withPlayerList = false, ?GameInstallLinks $install = null): array
     {
-        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link, $withPlayerList) + ['description' => $link->description])->all());
+        $install = self::installLinks($install);
+
+        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link, $withPlayerList, $install) + ['description' => $link->description])->all());
     }
 
     /**
@@ -59,8 +100,10 @@ class ServerListProjection
      *
      * @return list<array<string, mixed>>
      */
-    public static function forEventViewedBy(Event $event, User $viewer): array
+    public static function forEventViewedBy(Event $event, User $viewer, ?GameInstallLinks $install = null): array
     {
+        $install = self::installLinks($install);
+
         $links = self::linksForEvent($event)->filter(function (ServerLink $link) use ($viewer): bool {
             if ($link->match_id === null || $viewer->isOrga()) {
                 return true;
@@ -69,7 +112,7 @@ class ServerListProjection
             return self::viewerPlaysIn($link->match, $viewer);
         });
 
-        return array_values($links->map(fn (ServerLink $link): array => self::dto($link) + ['description' => $link->description])->all());
+        return array_values($links->map(fn (ServerLink $link): array => self::dto($link, install: $install) + ['description' => $link->description])->all());
     }
 
     /** True when the viewer is on the roster of either entry of the match. */
@@ -125,9 +168,11 @@ class ServerListProjection
      *
      * @return list<array<string, mixed>>
      */
-    public static function forPermanent(): array
+    public static function forPermanent(?GameInstallLinks $install = null): array
     {
-        return array_values(self::permanentLinks()->map(fn (ServerLink $link): array => self::permanentDto($link))->all());
+        $install = self::installLinks($install);
+
+        return array_values(self::permanentLinks()->map(fn (ServerLink $link): array => self::permanentDto($link, install: $install))->all());
     }
 
     /**
@@ -143,8 +188,10 @@ class ServerListProjection
      *
      * @return list<array<string, mixed>>
      */
-    public static function forGlobalBrowser(bool $withPlayerList = false): array
+    public static function forGlobalBrowser(bool $withPlayerList = false, ?GameInstallLinks $install = null): array
     {
+        $install = self::installLinks($install);
+
         $rows = [];
         $seen = [];
 
@@ -162,7 +209,7 @@ class ServerListProjection
                 }
 
                 $seen[$link->id] = true;
-                $rows[] = self::dto($link, $withPlayerList) + [
+                $rows[] = self::dto($link, $withPlayerList, $install) + [
                     'event' => ['name' => $event->name, 'slug' => $event->slug],
                     'permanent' => false,
                 ];
@@ -175,7 +222,7 @@ class ServerListProjection
             }
 
             $seen[$link->id] = true;
-            $rows[] = self::permanentDto($link, $withPlayerList) + [
+            $rows[] = self::permanentDto($link, $withPlayerList, $install) + [
                 'event' => null,
                 'permanent' => true,
             ];
@@ -256,9 +303,9 @@ class ServerListProjection
     /**
      * @return array<string, mixed>
      */
-    public static function permanentDto(ServerLink $link, bool $withPlayerList = false): array
+    public static function permanentDto(ServerLink $link, bool $withPlayerList = false, ?GameInstallLinks $install = null): array
     {
-        return self::dto($link, $withPlayerList) + [
+        return self::dto($link, $withPlayerList, $install) + [
             'description' => $link->description,
             'source' => $link->source->value,
         ];
@@ -290,10 +337,13 @@ class ServerListProjection
      *
      * @return array<string, mixed>
      */
-    public static function dto(ServerLink $link, bool $withPlayerList = false): array
+    public static function dto(ServerLink $link, bool $withPlayerList = false, ?GameInstallLinks $install = null): array
     {
         $tournament = self::tournamentFor($link);
         $game = $tournament !== null ? $tournament->game : $link->game;
+        $connectString = PelicanJoinLink::for($link->join_info);
+        $connectIsLink = JoinLinkTemplates::isAllowedUrl($connectString);
+        $joinOptions = JoinLinkTemplates::optionsFor($game, $link->join_info);
 
         return [
             'id' => $link->id,
@@ -305,14 +355,41 @@ class ServerListProjection
             'matchLabel' => self::matchLabel($link, $tournament),
             'address' => $link->join_info->address,
             'port' => $link->join_info->port,
-            'connectString' => PelicanJoinLink::for($link->join_info),
-            'connectIsLink' => JoinLinkTemplates::isAllowedUrl(PelicanJoinLink::for($link->join_info)),
+            'connectString' => $connectString,
+            'connectIsLink' => $connectIsLink,
             'status' => $link->status->value,
             'query' => self::queryFor($link, $withPlayerList),
             'estimate' => $link->permanent ? null : self::estimateFor($game),
             'installHint' => self::installHintFor($game),
-            'joinOptions' => JoinLinkTemplates::optionsFor($game, $link->join_info),
+            'joinOptions' => $joinOptions,
+            // The recipe that installs this game and the one-click launcher
+            // join, or null while no published recipe fits the game.
+            'install' => self::installLinks($install)->forServer(
+                $game?->slug,
+                $game?->name,
+                $link->join_info->address,
+                $link->join_info->port,
+                self::serverJoinUrl($joinOptions, $connectString, $connectIsLink),
+            ),
         ];
+    }
+
+    /**
+     * The server's own join URL, in the order the launcher page has always
+     * used: the first per-game deep link, otherwise a connect string that is
+     * itself a link. A plain `address:port` is copy data, not a URL.
+     *
+     * @param  list<array{key: string, label: string, url: string, hint: string}>  $joinOptions
+     */
+    private static function serverJoinUrl(array $joinOptions, string $connectString, bool $connectIsLink): ?string
+    {
+        foreach ($joinOptions as $option) {
+            if (JoinLinkTemplates::isAllowedUrl($option['url'])) {
+                return $option['url'];
+            }
+        }
+
+        return $connectIsLink && JoinLinkTemplates::isAllowedUrl($connectString) ? $connectString : null;
     }
 
     /**

@@ -336,6 +336,9 @@ class NowController extends Controller
             'maxPlayers' => $query === null ? null : (int) $query['maxPlayers'],
             'connectString' => $dto['connectString'],
             'connectIsLink' => (bool) $dto['connectIsLink'],
+            // How a player gets this game (the published recipe and the launcher
+            // join), or null while no recipe fits.
+            'install' => is_array($dto['install'] ?? null) ? $dto['install'] : null,
         ];
     }
 }

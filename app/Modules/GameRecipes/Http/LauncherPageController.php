@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\GameRecipes\Http;
 
 use App\Http\Controllers\Controller;
-use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
-use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameServers\Support\JoinLinkTemplates;
 use App\Modules\GameServers\Support\ServerListProjection;
-use App\Modules\Mcp\Http\Api\RecipeController;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +30,6 @@ class LauncherPageController extends Controller
     public function index(
         Request $request,
         LauncherBuilds $builds,
-        LauncherLineup $lineup,
         Modules $modules,
     ): Response {
         $manifest = $builds->manifest();
@@ -76,7 +72,7 @@ class LauncherPageController extends Controller
             // live right now, each with the one action that gets a player onto
             // it (the launcher for recipes this build can install, the game's
             // own join URL otherwise).
-            'servers' => $this->liveServers($lineup, $modules),
+            'servers' => $this->liveServers($modules),
         ]);
     }
 
@@ -151,35 +147,27 @@ class LauncherPageController extends Controller
      * Every live server of the aggregated browser, reduced to the one action a
      * visitor needs: join it.
      *
-     * A server whose game has a published launcher recipe links into the
-     * launcher (`lanomat://join/<slug>`) with the server address. That one
-     * deep link runs the install wizard when the game is missing and the
-     * launch with the server address when it is installed. Every other server
-     * keeps its own join URL (`steam://`, `ut2004://`, or the game's browser
-     * entry point), exactly like the server browser does.
+     * A row whose `install` block carries a launcher join links into the
+     * launcher (`lanomat://join/<slug>`) with the server address or join URL.
+     * That one deep link runs the install wizard when the game is missing and
+     * the launch when it is installed. The decision is the server projection's
+     * ({@see ServerListProjection::dto()}), so the launcher page, the server
+     * browser and the games page cannot disagree — a published, lineup-allowed
+     * recipe the launcher can install is all it takes, whether it ships with
+     * LANoMAT or was shared by a participant. Every other server keeps its own
+     * join URL (`steam://`, `ut2004://`, or the game's browser entry point),
+     * exactly like the server browser does.
      *
      * GameServers is optional: without it the start page simply has no live
      * list (the section says so), never a broken request.
      *
      * @return list<array<string, mixed>>
      */
-    private function liveServers(LauncherLineup $lineup, Modules $modules): array
+    private function liveServers(Modules $modules): array
     {
         if (! $modules->enabled(Module::GameServers)) {
             return [];
         }
-
-        // Only published recipes this launcher can actually install/launch are
-        // offered as a launcher join. The lineup is the same allowlist the
-        // catalogue uses, so a hidden recipe never becomes an entry point here.
-        $launcherSlugs = GameRecipe::query()
-            ->published()
-            ->pluck('slug')
-            ->filter(fn (mixed $slug): bool => is_string($slug)
-                && $lineup->allows($slug)
-                && RecipeController::supportsLauncher($slug))
-            ->values()
-            ->all();
 
         $servers = [];
 
@@ -194,27 +182,14 @@ class LauncherPageController extends Controller
 
             $query = is_array($row['query'] ?? null) ? $row['query'] : [];
             $event = is_array($row['event'] ?? null) ? $row['event'] : null;
-            $gameSlug = is_string($row['gameSlug'] ?? null) ? $row['gameSlug'] : null;
-            $address = $this->hostPort($row['address'] ?? null, $row['port'] ?? null);
+            $install = is_array($row['install'] ?? null) ? $row['install'] : null;
             $joinUrl = $this->joinUrl($row);
-            $launcher = $gameSlug !== null && in_array($gameSlug, $launcherSlugs, true);
+            $launcherJoin = is_string($install['launcherJoinUrl'] ?? null) ? $install['launcherJoinUrl'] : null;
 
             $join = null;
 
-            if ($launcher) {
-                $link = 'lanomat://join/'.$gameSlug;
-
-                // UT2004 takes the server address as its first argument, so the
-                // launcher can start the freshly installed game already on the
-                // server. Other recipes launch normally and then open their
-                // join URL; a recipe without one just reaches its ready screen.
-                if ($gameSlug === 'unreal-tournament-2004' && $address !== null) {
-                    $link .= '?address='.rawurlencode($address);
-                } elseif ($joinUrl !== null) {
-                    $link .= '?url='.rawurlencode($joinUrl);
-                }
-
-                $join = ['href' => $link, 'launcher' => true];
+            if ($launcherJoin !== null) {
+                $join = ['href' => $launcherJoin, 'launcher' => true];
             } elseif ($joinUrl !== null) {
                 $join = ['href' => $joinUrl, 'launcher' => false];
             }
@@ -223,12 +198,12 @@ class LauncherPageController extends Controller
                 'id' => $row['id'] ?? null,
                 'title' => (string) ($row['title'] ?? ''),
                 'game' => is_string($row['game'] ?? null) ? $row['game'] : null,
-                'gameSlug' => $gameSlug,
+                'gameSlug' => is_string($row['gameSlug'] ?? null) ? $row['gameSlug'] : null,
                 'status' => $status,
                 'players' => isset($query['players']) ? (int) $query['players'] : null,
                 'maxPlayers' => isset($query['maxPlayers']) ? (int) $query['maxPlayers'] : null,
                 'map' => is_string($query['map'] ?? null) && $query['map'] !== '' ? $query['map'] : null,
-                'address' => $address,
+                'address' => $this->hostPort($row['address'] ?? null, $row['port'] ?? null),
                 'permanent' => (bool) ($row['permanent'] ?? false),
                 'event' => is_string($event['name'] ?? null)
                     ? ['name' => $event['name'], 'slug' => (string) ($event['slug'] ?? '')]
