@@ -11,6 +11,7 @@ use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\Mcp\Server\LanomatServer;
 use App\Modules\Mcp\Tools\MeTool;
 use App\Modules\Mcp\Tools\RecipeAvatarsTool;
+use App\Modules\Mcp\Tools\RecipeContributeTool;
 use App\Modules\Mcp\Tools\RecipeGetTool;
 use App\Modules\Mcp\Tools\RecipeInstallPlanTool;
 use App\Modules\Mcp\Tools\RecipesListTool;
@@ -172,4 +173,72 @@ it('answers me with the token user and enabled modules', function () {
     LanomatServer::tool(MeTool::class)
         ->assertSee($user->name)
         ->assertSee('default_model');
+});
+
+it('shows draft recipes to orga and keeps them hidden from participants', function () {
+    ut2004Recipe();
+    GameRecipe::query()->create([
+        'slug' => 'secret-draft',
+        'title' => 'Secret',
+        'status' => RecipeStatus::Draft,
+        'source' => 'contribution',
+        'platforms' => ['windows'],
+        'steps' => [],
+        'requirements' => [],
+    ]);
+
+    LanomatServer::actingAs(User::factory()->orga()->create());
+
+    LanomatServer::tool(RecipesListTool::class)
+        ->assertSee('unreal-tournament-2004')
+        ->assertSee('secret-draft');
+});
+
+it('answers an unknown recipe with a readable error', function () {
+    LanomatServer::actingAs(User::factory()->create());
+
+    LanomatServer::tool(RecipeGetTool::class, ['slug' => 'no-such-recipe'])
+        ->assertHasErrors(['Not found']);
+});
+
+it('contributes a valid recipe as a draft', function () {
+    $user = User::factory()->create();
+
+    LanomatServer::actingAs($user);
+
+    LanomatServer::tool(RecipeContributeTool::class, [
+        'slug' => 'counter-strike-16',
+        'title' => 'Counter-Strike 1.6',
+        'summary' => 'The classic.',
+        'platforms' => ['windows'],
+        'steps' => [[
+            'id' => 'install',
+            'title' => 'Install the base game',
+            'os' => 'windows',
+            'optional' => false,
+            'detail' => 'Run the installer.',
+            'commands' => [['shell' => 'powershell', 'run' => 'Start-Process setup.exe']],
+            'verify' => [],
+        ]],
+        'skill_description' => 'Install Counter-Strike 1.6 from the LAN file host.',
+    ])
+        ->assertOk()
+        ->assertStructuredContentPath('recipe.slug', 'counter-strike-16')
+        ->assertStructuredContentPath('recipe.status', 'draft');
+
+    $recipe = GameRecipe::query()->where('slug', 'counter-strike-16')->firstOrFail();
+
+    expect($recipe->contributor_user_id)->toBe($user->id)
+        ->and($recipe->status)->toBe(RecipeStatus::Draft);
+});
+
+it('lists every validation problem of an invalid contribution in one error', function () {
+    LanomatServer::actingAs(User::factory()->create());
+
+    LanomatServer::tool(RecipeContributeTool::class, ['slug' => 'Bad Slug', 'title' => ''])
+        ->assertHasErrors([
+            'slug must be lowercase-kebab-case',
+            'title is required',
+            'steps must be a non-empty list',
+        ]);
 });

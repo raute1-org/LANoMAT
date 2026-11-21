@@ -45,7 +45,7 @@ class EventGetTool extends LanomatTool
             ->orderBy('starts_at')
             ->get();
 
-        $schedule = $this->modules()->enabled(Module::Schedule)
+        $schedule = $this->on(Module::Schedule)
             ? ScheduleItem::query()
                 ->where('event_id', $event->id)
                 ->orderBy('starts_at')
