@@ -34,4 +34,37 @@ return [
 
     'prefer_lan' => (bool) env('RECIPES_PREFER_LAN', true),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pull requests into the git catalogue
+    |--------------------------------------------------------------------------
+    |
+    | A recipe a participant shares is a database draft. With this block
+    | enabled LANoMAT also opens a pull request that adds the recipe to the
+    | repository's catalogue (recipe.yaml and SKILL.md under `path`), so the
+    | next deployment ships it for everyone. Only recipe text travels; game
+    | files never do.
+    |
+    | Off by default. It needs a repository ("owner/name") and a fine-grained
+    | token with "Contents" and "Pull requests" read and write on exactly that
+    | repository. `trigger` decides when the pull request is opened:
+    | "contribute" (as soon as a participant shares) or "publish" (only after
+    | the orga published the recipe). `attribution` adds the contributor's
+    | display name to the pull request; it is off because the repository may
+    | be public.
+    |
+    */
+
+    'pull_requests' => [
+        'enabled' => (bool) env('RECIPES_PR_ENABLED', false),
+        'repository' => env('RECIPES_PR_REPOSITORY'),
+        'token' => env('RECIPES_PR_TOKEN'),
+        'base' => env('RECIPES_PR_BASE', 'main'),
+        'branch_prefix' => env('RECIPES_PR_BRANCH_PREFIX', 'recipes/'),
+        'path' => env('RECIPES_PR_PATH', 'resources/recipes'),
+        'trigger' => env('RECIPES_PR_TRIGGER', 'contribute'),
+        'attribution' => (bool) env('RECIPES_PR_ATTRIBUTION', false),
+        'api_url' => env('RECIPES_PR_API_URL', 'https://api.github.com'),
+    ],
+
 ];

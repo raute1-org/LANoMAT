@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\GameRecipes\Models;
 
 use App\Models\User;
+use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use Database\Factories\GameRecipeFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,6 +38,14 @@ use Illuminate\Support\Carbon;
  * @property list<array<string, mixed>>|null $steps
  * @property array<string, mixed>|null $metadata
  * @property Carbon|null $reviewed_at
+ * @property bool $in_lineup
+ * @property int|null $contributor_user_id
+ * @property int|null $pr_number
+ * @property string|null $pr_url
+ * @property string|null $pr_branch
+ * @property PullRequestState|null $pr_state
+ * @property string|null $pr_error
+ * @property Carbon|null $pr_synced_at
  */
 class GameRecipe extends Model
 {
@@ -46,12 +55,18 @@ class GameRecipe extends Model
     /** Recipes authored in the admin panel (as opposed to a synced source kind). */
     public const SOURCE_PANEL = 'panel';
 
+    /** Recipes a participant shared or contributed (web share page, MCP tool, REST). */
+    public const SOURCE_CONTRIBUTION = 'contribution';
+
+    // The pr_* columns are deliberately not fillable: only the proposal job and
+    // the pull request status sync write them (forceFill).
     protected $fillable = [
         'slug',
         'title',
         'aliases',
         'version',
         'status',
+        'in_lineup',
         'source',
         'source_ref',
         'platforms',
@@ -79,6 +94,36 @@ class GameRecipe extends Model
             'metadata' => 'array',
             'status' => RecipeStatus::class,
             'reviewed_at' => 'datetime',
+            'in_lineup' => 'boolean',
+            'pr_number' => 'integer',
+            'pr_state' => PullRequestState::class,
+            'pr_synced_at' => 'datetime',
+        ];
+    }
+
+    /** Whether a participant shared or contributed this recipe (as opposed to the orga or a synced source). */
+    public function isContribution(): bool
+    {
+        return $this->contributor_user_id !== null;
+    }
+
+    /**
+     * The pull request that carries this recipe into the git catalogue, for a
+     * page or an API answer. Null while nothing was proposed.
+     *
+     * @return array{number: int|null, url: string|null, state: string, label: string}|null
+     */
+    public function pullRequest(): ?array
+    {
+        if (! $this->pr_state instanceof PullRequestState) {
+            return null;
+        }
+
+        return [
+            'number' => $this->pr_number,
+            'url' => $this->pr_state->existsRemotely() ? $this->pr_url : null,
+            'state' => $this->pr_state->value,
+            'label' => $this->pr_state->label(),
         ];
     }
 

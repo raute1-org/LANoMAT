@@ -36,14 +36,19 @@ use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Policies\EventPhotoPolicy;
+use App\Modules\GameRecipes\Contracts\RecipeRepository;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\LauncherTerminal;
 use App\Modules\GameRecipes\Policies\GameRecipePolicy;
 use App\Modules\GameRecipes\Policies\LauncherTerminalPolicy;
+use App\Modules\GameRecipes\Support\GitHubRecipeRepository;
+use App\Modules\GameRecipes\Support\NullRecipeRepository;
+use App\Modules\GameRecipes\Support\RecipeInstallLinks;
 use App\Modules\Games\Contracts\EggCatalog;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\Games\Support\NullEggCatalog;
+use App\Modules\GameServers\Contracts\GameInstallLinks;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\RemoteDockerControl;
@@ -58,6 +63,7 @@ use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
+use App\Modules\GameServers\Support\NullGameInstallLinks;
 use App\Modules\GameServers\Support\PelicanEggCatalog;
 use App\Modules\GameServers\Support\SshRemoteDockerControl;
 use App\Modules\GameServers\Support\TcpMinecraftQuery;
@@ -322,6 +328,30 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(EggCatalog::class, fn ($app): EggCatalog => $app->make(Modules::class)->enabled(Module::GameServers)
             ? $app->make(PelicanEggCatalog::class)
             : new NullEggCatalog);
+
+        // GameServers must not import the recipe catalogue, so a server asks the GameServers-owned
+        // GameInstallLinks contract how a player gets its game; GameRecipes answers while it is on.
+        $this->app->bind(GameInstallLinks::class, fn (Application $app): GameInstallLinks => $app->make(Modules::class)->enabled(Module::GameRecipes)
+            ? $app->make(RecipeInstallLinks::class)
+            : new NullGameInstallLinks);
+
+        // Shared recipes travel into the git catalogue as pull requests. Off (null object) until
+        // the feature is enabled and both the repository and its token are set.
+        $this->app->bind(RecipeRepository::class, function (): RecipeRepository {
+            $repository = trim((string) config('recipes.pull_requests.repository'));
+            $token = trim((string) config('recipes.pull_requests.token'));
+
+            if (! (bool) config('recipes.pull_requests.enabled') || $repository === '' || $token === '') {
+                return new NullRecipeRepository;
+            }
+
+            return new GitHubRecipeRepository(
+                $repository,
+                $token,
+                (string) (config('recipes.pull_requests.base') ?: 'main'),
+                rtrim((string) (config('recipes.pull_requests.api_url') ?: 'https://api.github.com'), '/'),
+            );
+        });
 
         $this->app->bind(ServerQuery::class, UdpServerQuery::class);
         $this->app->bind(MinecraftQuery::class, TcpMinecraftQuery::class);
