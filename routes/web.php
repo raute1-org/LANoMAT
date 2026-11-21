@@ -28,6 +28,7 @@ use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Jukebox\Http\JukeboxController;
 use App\Modules\Lfg\Http\LfgController;
+use App\Modules\Lfg\Http\WantToPlayController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Presence\Http\PresencePageController;
 use App\Modules\Recap\Http\RecapPageController;
@@ -221,6 +222,7 @@ if ($modules->routable(Module::Lfg)) {
     Route::middleware(['auth'])->group(function () {
         Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
         Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
+        Route::post('/events/{event:slug}/want-to-play', [WantToPlayController::class, 'toggle'])->name('lfg.want-to-play');
     });
 }
 
