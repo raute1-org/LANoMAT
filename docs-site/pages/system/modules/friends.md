@@ -20,6 +20,16 @@ friend counts.
 - Presence page — an optional "friends only" filter, computed per viewer.
 - Profile — the friend action on another participant's profile.
 
+| Dark | Light |
+|---|---|
+| ![Friends page with requests, friends and suggestions, dark](/screens/friends-dark.png) | ![Friends page with requests, friends and suggestions, light](/screens/friends-light.png) |
+| `FRIENDS · DARK` — requests, friends, suggestions | `FRIENDS · LIGHT` — same lists |
+
+| Dark | Light |
+|---|---|
+| ![Presence page with the friends-only filter, dark](/screens/presence-dark.png) | ![Presence page with the friends-only filter, light](/screens/presence-light.png) |
+| `PRESENCE · DARK` — "Nur Freunde" filter | `PRESENCE · LIGHT` — same filter row |
+
 ## Guards and rules
 
 - `friendships` stores one directed row per ordered pair; `accepted` means symmetric friends.
