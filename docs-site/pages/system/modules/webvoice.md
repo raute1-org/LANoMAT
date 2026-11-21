@@ -24,8 +24,10 @@ per-match team rooms.
 
 | Dark | Light |
 |---|---|
-| ![Voice app](/screens/voice-app/v03-rooms.png) | ![Voice app overlay](/screens/voice-app/v14-overlay.png) |
+| ![Native client Jetzt tab with the voice card, no room joined yet](/screens/voice-app/v03-rooms.png) | ![Native client settings with the "Overlay Wer spricht" toggle and the speaking overlay in the corner](/screens/voice-app/v14-overlay.png) |
 | `NATIVE · ROOMS` — occupancy and join | `NATIVE · OVERLAY` — speaking while in game |
+| ![Browser voice page in the dark theme, Sprachchat empty state before a match opens a room](/screens/talk-dark.png) | ![Browser voice page in the light theme, the same empty Sprachchat](/screens/talk-light.png) |
+| `SPRACHCHAT · DARK` — no channels until a match opens a team room | `SPRACHCHAT · LIGHT` — same empty state |
 
 ## Guards and rules
 
