@@ -24,6 +24,7 @@ return [
         'client_build' => 'Desktop-App-Download',
         'launcher_build' => 'Launcher-Download',
         'dependency_updates' => 'Software-Updates',
+        'recipe_repository' => 'Rezept-Katalog (Pull Requests)',
     ],
     'messages' => [
         'not_configured' => 'Nicht konfiguriert.',
@@ -59,6 +60,14 @@ return [
         'assistant_ollama_unconfigured' => 'Für Ollama fehlen OLLAMA_URL oder ASSISTANT_OLLAMA_MODEL.',
         'assistant_model_missing' => 'Das Modell :model ist auf dem Ollama-Server nicht geladen (ollama pull :model).',
         'backup_age' => 'Letztes erfolgreiches Backup vor :hours Stunden.',
+        'recipe_repository_ok' => 'Das Token darf den Rezept-Katalog lesen und Pull Requests anlegen.',
+        'recipe_repository_incomplete' => 'Pull Requests sind aktiviert, aber Repository oder Token fehlen (RECIPES_PR_REPOSITORY, RECIPES_PR_TOKEN).',
+        'recipe_repository_no_push' => 'Das Token kann den Rezept-Katalog lesen, aber nicht schreiben (Contents und Pull requests: write fehlen).',
+        'recipe_repository_unauthorized' => 'GitHub lehnt das Token ab (HTTP 401). RECIPES_PR_TOKEN prüfen.',
+        'recipe_repository_forbidden' => 'Das Token darf nicht auf das Repository zugreifen (HTTP 403), oder das Rate-Limit ist erschöpft.',
+        'recipe_repository_not_found' => 'Das Repository wurde nicht gefunden (HTTP 404). RECIPES_PR_REPOSITORY als "owner/name" prüfen.',
+        'recipe_repository_http' => 'GitHub antwortet auf die Repository-Abfrage mit HTTP :status.',
+        'recipe_repository_unreachable' => 'Die GitHub-API ist nicht erreichbar. Geteilte Rezepte bleiben als Entwurf liegen.',
     ],
     'status' => [
         'ok' => 'OK',

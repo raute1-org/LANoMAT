@@ -37,6 +37,10 @@ use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Policies\EventPhotoPolicy;
 use App\Modules\GameRecipes\Contracts\RecipeRepository;
+use App\Modules\GameRecipes\Events\RecipeContributed;
+use App\Modules\GameRecipes\Events\RecipePublished;
+use App\Modules\GameRecipes\Listeners\ProposeContributedRecipe;
+use App\Modules\GameRecipes\Listeners\ProposePublishedRecipe;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\LauncherTerminal;
 use App\Modules\GameRecipes\Policies\GameRecipePolicy;
@@ -130,6 +134,7 @@ use App\Modules\Preflight\Checks\MusicAssistantCheck;
 use App\Modules\Preflight\Checks\PelicanCheck;
 use App\Modules\Preflight\Checks\QueueWorkerCheck;
 use App\Modules\Preflight\Checks\ReceiverSidecarCheck;
+use App\Modules\Preflight\Checks\RecipeRepositoryCheck;
 use App\Modules\Preflight\Checks\RedisCheck;
 use App\Modules\Preflight\Checks\ReverbCheck;
 use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
@@ -430,7 +435,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::Files) ? [FileHostCheck::class] : []),
             ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class, ClientBuildCheck::class] : []),
-            ...($modules->enabled(Module::GameRecipes) ? [LauncherBuildCheck::class] : []),
+            ...($modules->enabled(Module::GameRecipes) ? [LauncherBuildCheck::class, RecipeRepositoryCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
             ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
@@ -630,8 +635,13 @@ class AppServiceProvider extends ServiceProvider
         }
 
         if ($this->on(Module::GameRecipes)) {
+            // A shared recipe travels into the git catalogue; the listeners only
+            // decide whether to queue, the job does the talking. Registered in
+            // both trigger modes so a publish updates a row opened earlier.
             Gate::policy(GameRecipe::class, GameRecipePolicy::class);
             Gate::policy(LauncherTerminal::class, LauncherTerminalPolicy::class);
+            Event::listen(RecipeContributed::class, ProposeContributedRecipe::class);
+            Event::listen(RecipePublished::class, ProposePublishedRecipe::class);
         }
 
         if ($this->on(Module::Lfg)) {
