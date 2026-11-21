@@ -4,6 +4,7 @@ namespace App\Modules\Catering\Actions;
 
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Support\DishNames;
 use App\Support\Csv\CsvSafe;
 
 /**
@@ -18,7 +19,7 @@ class ExportFoodOrderItemsCsv
     public function handle(FoodOrder $order): string
     {
         /** @var array<string, MenuOption> $menu */
-        $menu = collect($order->menu)->keyBy(fn (MenuOption $option): string => $option->key)->all();
+        $menu = collect($order->menuOptions())->keyBy(fn (MenuOption $option): string => $option->key)->all();
 
         $handle = fopen('php://temp', 'r+');
 
@@ -32,7 +33,7 @@ class ExportFoodOrderItemsCsv
 
         foreach ($items as $item) {
             $optionKey = (string) ($item->selection['option_key'] ?? '');
-            $optionName = isset($menu[$optionKey]) ? $menu[$optionKey]->name : $optionKey;
+            $optionName = DishNames::forItem($item, array_map(fn (MenuOption $o): string => $o->name, $menu));
 
             fputcsv($handle, [
                 CsvSafe::cell((string) ($item->user->name ?? '')),

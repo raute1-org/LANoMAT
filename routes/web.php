@@ -5,6 +5,7 @@ use App\Http\Controllers\HomeController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Catering\Http\DishImageController;
+use App\Modules\Catering\Http\RestaurantImageController;
 use App\Modules\Catering\Support\DishImage;
 use App\Modules\Discord\Http\GatewayIngressController;
 use App\Modules\Discord\Http\InteractionsController;
@@ -219,6 +220,13 @@ if ($modules->routable(Module::Catering)) {
 
     // Dish photos: no login (like the public gallery photos), the data is the gate: a published
     // round of a publicly visible event whose dish has an image; everything else is a 404.
+    // The logo has its own path: a dish may legitimately have the key "logo".
+    Route::get('/catering/restaurant-logo/{restaurant}', [RestaurantImageController::class, 'logo'])
+        ->name('catering.restaurant-logo');
+    Route::get('/catering/restaurant-image/{restaurant}/{key}', [RestaurantImageController::class, 'dish'])
+        ->where('key', DishImage::KEY_PATTERN)
+        ->name('catering.restaurant-image');
+    // Alias of the above for the old per-round URL (bookmarks, caches).
     Route::get('/catering/dish-image/{foodOrder}/{key}', DishImageController::class)
         ->where('key', DishImage::KEY_PATTERN)
         ->name('catering.dish-image');

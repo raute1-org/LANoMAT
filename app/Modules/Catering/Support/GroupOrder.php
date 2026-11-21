@@ -55,7 +55,7 @@ final class GroupOrder
     {
         $names = [];
 
-        foreach ($order->menu as $option) {
+        foreach ($order->menuOptions() as $option) {
             $names[$option->key] = $option->name;
         }
 
@@ -84,7 +84,7 @@ final class GroupOrder
             $key = (string) ($item->selection['option_key'] ?? '');
             $note = self::cleanNote((string) ($item->selection['note'] ?? ''));
             $cents = $item->price_cents;
-            $full = $dishes[$key] ?? $key;
+            $full = DishNames::forItem($item, $dishes);
             [$category, $name] = self::split($full);
 
             $lineId = $key."\0".$cents;

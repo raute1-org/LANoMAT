@@ -115,13 +115,13 @@ final class FoodNow
             return null;
         }
 
-        $names = collect($order->menu)->mapWithKeys(
+        $names = collect($order->menuOptions())->mapWithKeys(
             fn (MenuOption $option): array => [$option->key => $option->name],
         );
 
         return $items
             ->groupBy(fn (FoodOrderItem $item): string => (string) ($item->selection['option_key'] ?? ''))
-            ->map(fn (Collection $group, string $key): string => $group->count().'× '.($names[$key] ?? $key))
+            ->map(fn (Collection $group, string $key): string => $group->count().'× '.DishNames::forItem($group->first(), $names->all()))
             ->implode(', ');
     }
 }

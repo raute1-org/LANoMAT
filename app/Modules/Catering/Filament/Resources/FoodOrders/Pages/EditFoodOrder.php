@@ -86,7 +86,7 @@ class EditFoodOrder extends EditRecord
 
         return new HtmlString(view('filament.food-orders.summary', [
             'status' => $record->status,
-            'dishes' => count($record->menu),
+            'dishes' => count($record->menuOptions()),
             'group' => $group,
         ])->render());
     }

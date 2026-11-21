@@ -20,7 +20,7 @@ it('places a food order item within the open window, copying the price from the 
         ->and($item->food_order_id)->toBe($order->id)
         ->and($item->user_id)->toBe($user->id)
         ->and($item->price_cents)->toBe(950)
-        ->and($item->selection)->toBe(['option_key' => 'pizza_salami', 'note' => 'no onions']);
+        ->and($item->selection)->toBe(['option_key' => 'pizza_salami', 'name' => 'Pizza Salami', 'note' => 'no onions']);
 
     $this->assertDatabaseHas('food_order_items', [
         'id' => $item->id,

@@ -61,7 +61,7 @@ class CateringMenuTool extends LanomatTool
                         'price_cents' => $option->priceCents,
                         ...($option->description === null ? [] : ['description' => SafeText::line($option->description, MenuOption::MAX_DESCRIPTION_LENGTH)]),
                     ],
-                    $order->menu,
+                    $order->menuOptions(),
                 ),
             ])->all(),
         ]);

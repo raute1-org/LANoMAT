@@ -16,7 +16,7 @@ class CostSplit
     public static function for(FoodOrder $order): array
     {
         $items = $order->items()->with('user')->get();
-        $menuByKey = collect($order->menu)->keyBy('key');
+        $menuByKey = collect($order->menuOptions())->keyBy('key');
 
         $perUser = [];
         $byOption = [];
@@ -46,7 +46,9 @@ class CostSplit
             $optionKey = $item->selection['option_key'] ?? null;
             if ($optionKey !== null) {
                 $menuOption = $menuByKey->get($optionKey);
-                $optionName = $menuOption !== null ? $menuOption->name : $optionKey;
+                $optionName = is_string($item->selection['name'] ?? null) && $item->selection['name'] !== ''
+                    ? $item->selection['name']
+                    : ($menuOption !== null ? $menuOption->name : $optionKey);
                 $byOption[$optionKey] ??= [
                     'name' => $optionName,
                     'count' => 0,

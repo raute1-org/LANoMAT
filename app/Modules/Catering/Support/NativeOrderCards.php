@@ -52,7 +52,7 @@ class NativeOrderCards implements OrderCardSource
                 'orderId' => $order->id,
                 'title' => $order->title,
                 'closesAt' => $order->closes_at?->toIso8601String(),
-                'menu' => collect($order->menu)->map(fn (MenuOption $option): array => [
+                'menu' => collect($order->menuOptions())->map(fn (MenuOption $option): array => [
                     'key' => $option->key,
                     'name' => $option->name,
                     'priceCents' => $option->priceCents,
