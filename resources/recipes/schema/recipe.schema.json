@@ -87,6 +87,18 @@
     "cover": {
       "type": "string"
     },
+    "play_url": {
+      "type": "string",
+      "pattern": "^$|^https?://",
+      "description": "Page a player opens to play on the LAN. Use the {{host}} template variable for the LAN address of the machine that hosts the game; localhost is only correct on that machine itself."
+    },
+    "launch_targets": {
+      "type": "array",
+      "description": "Ways to start the installed game, when they differ (for example flat versus VR). The first entry is the default.",
+      "items": {
+        "$ref": "#/$defs/launchTarget"
+      }
+    },
     "skill": {
       "type": "object",
       "additionalProperties": false,
@@ -144,6 +156,11 @@
         "lan_recommended": {
           "type": "boolean"
         },
+        "live_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "A live deployment of this recipe, when one exists (for example a LAN event's public UT2004VR server)."
+        },
         "tags": {
           "type": "array",
           "items": {
@@ -152,31 +169,47 @@
           },
           "uniqueItems": true
         },
-        "launch": {
-          "type": "string",
-          "minLength": 1
-        },
-        "launch_vr": {
-          "type": "string",
-          "minLength": 1
-        },
-        "play_url": {
-          "type": "string",
-          "minLength": 1
-        },
-        "multiplayer": {
-          "type": "boolean"
-        },
         "players_max": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 1024,
+          "description": "Highest simultaneous player count the recipe's mode supports, for filtering and sorting. Use 1 for a single-player-only recipe."
         },
-        "install_size": {
-          "type": "string",
-          "minLength": 1
-        },
-        "note": {
-          "type": "string"
+        "launch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target"
+          ],
+          "description": "How a launcher starts the game after the install. Omit when there is no single sensible entry point.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "steam",
+                "uri",
+                "exe"
+              ],
+              "description": "steam = Steam URL, uri = any other registered URL scheme, exe = executable inside the install target."
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Steam/URI target or executable path. Template variables such as {{target}} are resolved by the installer."
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Arguments passed to the executable, in order."
+            },
+            "notes": {
+              "type": "string",
+              "description": "What the user still has to do, for example choosing a server or a game from the emulator list."
+            }
+          }
         }
       }
     }
@@ -190,6 +223,49 @@
     "glob": {
       "type": "string",
       "minLength": 1
+    },
+    "launchTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "os",
+        "command"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "maxLength": 64
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "os": {
+          "enum": [
+            "windows",
+            "linux",
+            "any"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shell": {
+          "enum": [
+            "powershell",
+            "cmd",
+            "bash"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
     },
     "requirement": {
       "type": "object",
@@ -250,9 +326,6 @@
             "minLength": 1
           },
           "uniqueItems": true
-        },
-        "manual": {
-          "type": "boolean"
         }
       }
     },
@@ -298,6 +371,14 @@
         "command": {
           "type": "string",
           "minLength": 1
+        },
+        "os": {
+          "enum": [
+            "windows",
+            "linux",
+            "any"
+          ],
+          "description": "Run this check only on the given platform; omit for any platform the step runs on."
         }
       },
       "allOf": [

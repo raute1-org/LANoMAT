@@ -28,8 +28,10 @@ Not for the N64 original or the native `MM3D-PC` port.
 
 ## Steps
 
-1. **Install Azahar.** Extract the current release to `{{target}}` or install
-   the Linux build; launch once to create the user folder.
+1. **Install Azahar.** Unpack the Windows zip into `{{target}}/Azahar` and move
+   the single top-level `azahar-windows-<build>/` folder's contents up, so
+   `{{target}}/Azahar/azahar.exe` exists. On Linux put `azahar.AppImage` there
+   and make it executable; launch once to create the user folder.
 2. **Import the dump.** Copy the `.3ds`/`.cci` to `{{target}}/Games`, add that
    folder in Azahar, confirm the USA title ID. A `.cia` goes through the CIA
    installer.

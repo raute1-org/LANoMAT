@@ -5,7 +5,8 @@
     "description": "Validator for LANoMAT game recipes (lanomat.recipe/v1)",
     "type": "module",
     "scripts": {
-        "validate": "node validate.mjs"
+        "validate": "node validate.mjs",
+        "test": "node validate.mjs"
     },
     "dependencies": {
         "ajv": "^8.17.1",

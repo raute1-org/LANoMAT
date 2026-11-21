@@ -143,5 +143,10 @@ steps:
 metadata:
     genre: racing
     players: '1-4 (split-screen)'
+    players_max: 4
     lan_recommended: true
     tags: [racing, kart, psx, 4-player, duckstation]
+    launch:
+        kind: exe
+        target: '{{target}}/duckstation-qt-x64-ReleaseLTCG.exe'
+        notes: "Open Crash Team Racing from DuckStation's game list; the disc is already registered."

@@ -20,7 +20,7 @@ description: |
     Dolphin as the portable baseline.
     Needs verification on the LAN before this recipe leaves draft status.
 
-homepage: https://dolphin-emu.org/
+homepage: https://github.com/dolphin-emu/dolphin
 license: 'Nintendo; disc image user-supplied'
 cover: ''
 skill:
@@ -32,20 +32,22 @@ requires:
       label: 'Super Mario Galaxy (USA) disc image'
       match:
           [
-              '*Super Mario Galaxy*.iso',
-              '*super*mario*galaxy*.iso',
-              '*Super Mario Galaxy*.rvz',
-              '*super*mario*galaxy*.rvz',
+              '*Super Mario Galaxy (USA)*',
+              '*Super Mario Galaxy (Europe)*',
+              '*Super Mario Galaxy (*.iso',
+              '*Super Mario Galaxy (*.rvz',
+              '*Super Mario Galaxy.iso',
+              '*Super Mario Galaxy.rvz',
           ]
       required: true
       sha256: ''
       url: ''
-      notes: "USA ISO or a lossless RVZ. Galaxy 2 is a separate game; keep it out of this recipe's disc match."
+      notes: "USA ISO or a lossless RVZ. Galaxy 2 is a separate game: the patterns require the region parenthesis (or the exact bare name), so 'Super Mario Galaxy 2 (USA).iso' does not match."
     - role: tool
       label: 'Dolphin emulator'
       match: ['Dolphin*.zip', 'dolphin-*.tar.xz', 'dolphin*.AppImage']
       required: true
-      url: https://dolphin-emu.org/download/
+      url: https://github.com/dolphin-emu/dolphin/releases
       notes: 'Use the current stable/beta. A portable build keeps the LAN install self-contained.'
     - role: base
       label: 'Wii Remote profile (optional real remote)'
@@ -75,8 +77,10 @@ steps:
           Copy the ISO/RVZ into `{{target}}/Games` and add the folder in
           Config → Paths. Confirm the game ID and region.
 
-          Galaxy is a dual-layer Wii disc; a scrubbed or badly converted ISO can
-          lose the second layer and crash later in the game.
+          Galaxy is a single-layer Wii disc; the sequel, Super Mario Galaxy 2,
+          is the dual-layer one. Use a clean 1:1 dump or a lossless RVZ: a
+          scrubbed or badly converted image can lose files and crash later in
+          the game.
       commands:
           - shell: powershell
             run: 'New-Item -ItemType Directory -Force -Path "{{target}}/Games" | Out-Null'
@@ -125,5 +129,10 @@ steps:
 metadata:
     genre: platformer
     players: '1-2 (co-op star bits)'
+    players_max: 2
     lan_recommended: false
     tags: [platformer, wii, nintendo, dolphin]
+    launch:
+        kind: exe
+        target: '{{target}}/Dolphin.exe'
+        notes: "Start Super Mario Galaxy from Dolphin's game list; the disc is already registered."

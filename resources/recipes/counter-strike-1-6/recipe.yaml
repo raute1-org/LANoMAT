@@ -1,73 +1,210 @@
 schema: lanomat.recipe/v1
 slug: counter-strike-1-6
 title: Counter-Strike 1.6
-aliases: ['cs1.6', 'cs 1.6', 'cstrike', 'counter strike', 'counter-strike 16']
+aliases:
+    ['cs 1.6', 'cs16', 'counter strike 1.6', 'counter-strike 1.6', 'cstrike']
 version: '1.6'
 status: draft
 platforms: [windows, linux]
-summary: 'Der LAN-Klassiker: Half-Life mit Counter-Strike 1.6, Server und Client von der LAN.'
+summary: Install Counter-Strike 1.6 on the LAN from the Half-Life base and the cstrike archive, then join the event server with steam://connect.
 description: |
-    Counter-Strike 1.6 läuft auf Half-Life (GoldSrc). Für die LAN braucht jede
-    Person den Client; ein Server läuft auf dem LANoMAT-Spielserver oder auf
-    einem Teilnehmer-PC. Die Dateien kommen aus dem LAN-Dateispeicher, nicht aus
-    dem Internet.
-homepage: https://www.counter-strike.net
-license: 'Valve; base game files are user-supplied'
+    Counter-Strike 1.6 is the GoldSrc tactical shooter the LAN still plays:
+    de_dust2, de_inferno, 5v5 or a full 16v16 public, one bomb site at a time.
+    It is a Half-Life mod, not a standalone engine: the `cstrike` game folder
+    sits inside a Half-Life base install, and the Steam edition (app 10) brings
+    its own base.
+
+    On the LAN file host the usual shape is the Half-Life base (Steam install,
+    GOTY ISO or a copied `Half-Life` folder) plus a `cstrike` archive with
+    `liblist.gam`, `maps/`, `models/` and `config.cfg`. The Steam path is the
+    simplest: Counter-Strike (app 10) installs its own Half-Life base and
+    `cstrike/`; Half-Life (app 70) is only needed for the separate game or a
+    manual mod install.
+
+    Server join is a first-class step: LANoMAT's event page can hand out a
+    `steam://connect/<host>:27015` link, and the in-game console accepts
+    `connect <host>:27015`. Tournaments run 5v5 with `mp_timelimit` and
+    `sv_password` from the event config; LFG groups can use the same server.
+
+    The LAN collection's "Counter-Strike 1.6" folder is a pre-Steam copy with
+    `hl.exe` and `cstrike`. It works as a portable install, but keep it off the
+    Steam library path to avoid mixing two base installs.
+    Needs verification on the LAN before this recipe leaves draft status.
+homepage: https://store.steampowered.com/app/10/CounterStrike/
+license: 'Valve; Half-Life base and cstrike files are user-supplied (Steam)'
+cover: ''
 skill:
     name: counter-strike-1-6
-    description: 'Install Counter-Strike 1.6 on the player PC and join the LAN server. Use when the user says install cs 1.6, counter-strike or cstrike.'
-    compatibility: 'Windows or Linux (Wine/Proton); ~1 GB disk'
+    description: 'Install Counter-Strike 1.6 on a LAN PC from Steam app 10 (which includes the Half-Life base) or Half-Life app 70 plus the cstrike archive, configure rate and controls, join a LAN server with steam://connect, optionally host HLDS, and verify a round. Use when the user says install CS 1.6, cs16, Counter-Strike 1.6 or cstrike for the LAN.'
+    compatibility: 'Windows 10/11 or Linux (Steam/Proton); ~4 GB disk; keyboard and mouse; UDP 27015 for hosting'
 requires:
     - role: base
-      label: 'Half-Life base (Steam/GOG or retail)'
-      match: ['half-life*.iso', 'hl*.iso', 'HalfLife*.exe']
+      label: 'Half-Life base or Counter-Strike 1.6 install (Steam app 10/70 or full LAN copy)'
+      match: []
       required: true
-    - role: mod
-      label: 'Counter-Strike 1.6 (cstrike folder or installer)'
-      match: ['cstrike*.zip', 'counter-strike*.exe', 'cs16*.exe', 'cstrike*.7z']
-      required: true
-    - role: config
-      label: 'LAN config (autoexec.cfg, server.cfg)'
-      match: ['autoexec*.cfg', 'server*.cfg']
+      sha256: ''
+      url: https://store.steampowered.com/app/70/HalfLife/
+      notes: 'Satisfied by Steam app 10 alone (Counter-Strike brings its own Half-Life base), by app 70 plus the cstrike archive, or by a full portable Half-Life + cstrike copy. No LAN match is required: the installer asks for the install folder or detects the Steam copy. Steam installs under steamapps/common/Half-Life.'
+    - role: iso
+      label: 'Half-Life base or full Counter-Strike 1.6 LAN archive (optional)'
+      match:
+          [
+              'Half-Life',
+              'Half-Life*.iso',
+              'Half-Life*.7z',
+              'Half-Life (*',
+              'Half-Life GOTY*',
+              'half-life*.iso',
+              'Counter-Strike*1.6*',
+              'Counter-Strike*.zip',
+              'Counter-Strike*.7z',
+          ]
       required: false
+      sha256: ''
+      url: ''
+      notes: 'Use this instead of a Steam install: a Half-Life CD/ISO/folder or a full Counter-Strike 1.6 archive with hl.exe and cstrike/. A bare cstrike/ mod folder does not count as the base; it belongs in the content requirement.'
+    - role: content
+      label: 'Counter-Strike 1.6 cstrike archive (optional with app 10)'
+      match: ['cstrike*.zip', 'Counter-Strike*1.6*.zip']
+      required: false
+      sha256: ''
+      url: ''
+      notes: 'The cstrike/ game folder as a zip with liblist.gam, maps/, models/ and sprites/. Needed for a manual install over a Half-Life base; Steam app 10 already installs cstrike and needs no archive. A bare folder copy is fine, but it must come from the same 1.6 build as the base.'
+    - role: tool
+      label: 'Steam client (optional for the portable path)'
+      match: []
+      required: false
+      url: https://store.steampowered.com/about/
+      notes: 'Handles the app 10 install (which brings its own Half-Life base), the optional app 70 Half-Life game, updates and the steam://connect link. Without Steam, start hl.exe -game cstrike from the portable folder.'
+    - role: config
+      label: 'LAN server config (server.cfg / autoexec.cfg)'
+      match: ['server.cfg', 'autoexec.cfg', '*cstrike*.cfg']
+      required: false
+      sha256: ''
+      url: ''
+      notes: "Optional LAN settings from the event: hostname, rcon_password, sv_password, mp_timelimit, mp_roundtime. Keep the LAN copy free of the user's public-server binds."
 steps:
-    - id: install-half-life
-      title: 'Half-Life installieren'
-      os: windows
+    - id: install-base
+      title: 'Install the Half-Life base'
+      os: any
       optional: false
       detail: |
-          Steam: Half-Life installieren. Retail: von der LAN-Datei installieren.
+          Steam path: install Counter-Strike (app 10) **on its own**. It brings
+          its own Half-Life base, `hl.exe` and `cstrike/`; app 70 is only needed
+          for the separate Half-Life game or a manual mod install. Steam uses
+          `C:\Program Files (x86)\Steam\steamapps\common\Half-Life`; that folder
+          is `{{target}}`.
+
+          LAN path: install Half-Life (app 70 or the GOTY ISO) and add the
+          `cstrike` archive in the next step. Linux: install through Steam and
+          run it with Proton if the native client is unavailable; the folder is
+          `~/.steam/steam/steamapps/common/Half-Life`.
+
+          The base must be complete: `hl.exe` (Windows) or `hl` (Linux), plus the
+          `valve` folder. A copied install works if it came from a working PC.
       commands:
           - shell: powershell
-            run: 'Start-Process "steam://install/70"'
+            run: 'Start-Process "steam://install/10"'
+          - shell: bash
+            run: 'xdg-open "steam://install/10"'
       verify:
-          - type: dir_exists
-            path: 'C:\Program Files (x86)\Steam\steamapps\common\Half-Life'
+          - type: file_exists
+            path: '{{target}}/hl.exe'
     - id: install-cstrike
-      title: 'Counter-Strike 1.6 installieren'
-      os: windows
-      optional: false
+      title: 'Add the cstrike game folder (skip with app 10)'
+      os: any
+      optional: true
       detail: |
-          Installer ausführen oder cstrike.zip nach Half-Life entpacken.
+          Steam path: install Counter-Strike (app 10). Steam adds `cstrike/` to
+          the Half-Life base and creates the Counter-Strike shortcut.
+
+          LAN archive path: extract `cstrike.zip` so that
+          `{{target}}/cstrike/liblist.gam` exists. Do not nest it as
+          `cstrike/cstrike`. If the archive holds a complete portable install,
+          use its `Half-Life` folder as `{{target}}` and skip the base step.
+
+          Keep one version only: a 1.6 `cstrike` folder from the LAN and a Steam
+          base from a different build can start but fail on map or model loads.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/cstrike.zip" -DestinationPath "C:\Program Files (x86)\Steam\steamapps\common\Half-Life" -Force'
-    - id: launch
-      title: 'Spiel starten'
-      os: windows
+            run: 'Start-Process "steam://install/10"'
+          - shell: powershell
+            run: 'Expand-Archive -Path "{{downloads}}/cstrike.zip" -DestinationPath "{{target}}" -Force'
+          - shell: bash
+            run: 'unzip -o "{{downloads}}/cstrike.zip" -d "{{target}}"'
+      verify:
+          - type: file_exists
+            path: '{{target}}/cstrike/liblist.gam'
+    - id: configure
+      title: 'Configure rate, video and controls'
+      os: any
       optional: false
       detail: |
-          Starte Half-Life und wähle Counter-Strike. Auf dem LAN-Server verbinden
-          (Serverliste auf der LANoMAT-Spielseite).
+          Set the display mode and resolution, then the network rates for a
+          switched LAN: `rate 25000`, `cl_updaterate 101`, `cl_cmdrate 101`,
+          `fps_max 100`. Disable mouse acceleration and set a sensitivity the
+          player already uses.
+
+          Put LAN-wide settings in `cstrike/autoexec.cfg` (for example
+          `sensitivity`, `hud_fastswitch 1`, `cl_showfps 1`) instead of editing
+          `config.cfg` on every PC. Keep the buy binds; they win rounds.
+    - id: join-server
+      title: 'Join the LAN server with steam://connect'
+      os: any
+      optional: false
+      detail: |
+          Open the LANoMAT event page and use its server link, which expands to
+          `steam://connect/<host>:27015`; Steam starts Counter-Strike 1.6 and
+          connects. The same link works from a browser address bar or
+          `Start-Process` on Windows.
+
+          In game, open the console with `~` and run `connect <host>:27015`. If
+          the tournament server has a password, set it with `password <pw>`
+          before connecting, or use `connect <host>:27015 <pw>`.
+
+          `retry` reconnects after a map change or a dropped connection.
       commands:
           - shell: powershell
-            run: 'Start-Process "steam://rungameid/70"'
+            run: 'Start-Process "steam://rungameid/10"'
+    - id: host-server
+      title: 'Host a LAN server (optional)'
+      os: windows
+      optional: true
+      detail: |
+          For a dedicated server install the Counter-Strike Dedicated Server
+          (HLDS, Steam app 90) and start it with the event map and player count:
+
+          `hlds.exe -game cstrike +map de_dust2 +maxplayers 16 +port 27015`
+
+          A listen server from New Game → LAN is enough for a casual evening. For
+          a tournament, load the event config (`server.cfg` with `sv_password`,
+          `mp_timelimit`, `mp_roundtime`) and open UDP 27015 on the host firewall.
+      commands:
+          - shell: powershell
+            run: 'Start-Process "steam://install/90"'
+    - id: verify
+      title: 'Play a round and check the LAN path'
+      os: any
+      optional: false
+      detail: |
+          Launch the game, join the LAN server, play one full round and check the
+          buy menu, the scoreboard, the radio commands and a reconnect after the
+          map change. Confirm the server shows the expected tickrate and player
+          slots.
+
+          For a tournament, verify the match config from LANoMAT before the first
+          round: map, round time, password and the 5v5 slot split. For LFG, make
+          sure the group can join the same server without a second install.
+
+          Draft recipe: verify the Steam and portable paths, the rate settings and
+          the `steam://connect` hand-off on the LAN hardware.
 metadata:
-    launch: 'C:\Program Files (x86)\Steam\steamapps\common\Half-Life\hl.exe -game cstrike'
-    multiplayer: true
-    players: '2-10'
-    players_max: 10
-    genre: tactical-shooter
+    genre: fps
+    players: '2-32 (5v5 competitive)'
+    players_max: 32
     lan_recommended: true
-    tags: [fps, classic, steam, lan]
-    note: 'Draft — verify the cstrike archive layout and the server start on the LAN before publishing.'
+    tags: [fps, classic, steam, goldsrc, tournament]
+    launch:
+        kind: steam
+        target: 'steam://rungameid/10'
+        notes: 'Join the event server with steam://connect/<host>:27015; the portable path starts hl.exe -game cstrike instead.'
