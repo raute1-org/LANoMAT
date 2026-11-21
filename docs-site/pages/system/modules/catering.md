@@ -21,8 +21,10 @@ prices; participants place one order each; the kitchen gets a list; the group se
 
 | Dark | Light |
 |---|---|
-| ![Catering, dark](/screens/catering-dark.png) | ![Catering, light](/screens/catering-light.png) |
-| `CATERING · DARK` — menu, order, total | `CATERING · LIGHT` — same menu |
+| ![Catering menu with pizza options, prices and my order, dark](/screens/catering-dark.png) | ![Catering menu with pizza options, prices and my order, light](/screens/catering-light.png) |
+| `CATERING · DARK` — open order, menu, my order | `CATERING · LIGHT` — same menu |
+| ![Admin food orders list with status and order window, dark](/screens/admin-food-orders-dark.png) | ![Admin food orders list with status and order window, light](/screens/admin-food-orders-light.png) |
+| `ADMIN · FOOD ORDERS` — status, opens at, closes at | `ADMIN · LIGHT` |
 
 ## Guards and rules
 
