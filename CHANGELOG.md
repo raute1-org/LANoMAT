@@ -31,6 +31,10 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 - Docs: the docs site is an optional `docs` compose profile (non-root nginx at `/docs`, read-only, healthcheck) with verified one-hour screenshot caching, `/docs/games` redirects, a prerendered introduction at `/docs/`, real 404s and HSTS matching the app
 - Docs: built-output guard against doubled base paths (`/docs/docs/`) in `.md` raw anchors
 
+### Fixed
+
+- Fixed: the UT2004 query parser used a wrong byte layout (server info began one byte too early; the player list has no count byte). It now matches a real UT2004 server and the tests use captured answers
+
 ## 2026-11-20
 
 ### Added
