@@ -18,7 +18,6 @@ use App\Modules\GameRecipes\Http\GamePageController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerAdminController;
-use App\Modules\GameServers\Http\PermanentServerPageController;
 use App\Modules\Identity\Http\AvatarController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
@@ -229,9 +228,9 @@ if ($modules->routable(Module::GameServers)) {
     // catering/polls/lfg, login required" visibility rule; lists the event's
     // Ready game servers only (see ServerListProjection).
     Route::middleware(['auth'])->group(function () {
-        Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
-        // Permanent servers: all year, independent of events, every logged-in user.
-        Route::get('/servers', [PermanentServerPageController::class, 'index'])->name('servers.permanent');
+        // One overview: the current (or `?event=`) LAN's servers plus the permanent ones.
+        Route::get('/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+        Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'legacy'])->name('servers.event');
         // Admin shortcuts on that page; the Actions authorize `configure` on the server.
         Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');
         Route::post('/servers/{serverLink}/reload-map', [PermanentServerAdminController::class, 'reloadMap'])->name('servers.reload-map');

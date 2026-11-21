@@ -86,14 +86,14 @@ it('shows the Filament buttons and sends the command', function () {
 
 it('gives canManage and admin props only to those who may manage', function () {
     $this->actingAs(User::factory()->create())->get('/servers')->assertInertia(fn (AssertableInertia $p) => $p
-        ->where('servers.0.canManage', false)
-        ->missing('servers.0.admin')
+        ->where('permanent.0.canManage', false)
+        ->missing('permanent.0.admin')
         ->where('adminMaps', null));
 
     $this->actingAs($this->orga)->get('/servers')->assertInertia(fn (AssertableInertia $p) => $p
-        ->where('servers.0.canManage', true)
-        ->where('servers.0.admin.canReloadMap', true)
-        ->where('servers.0.admin.gunGame', false)
+        ->where('permanent.0.canManage', true)
+        ->where('permanent.0.admin.canReloadMap', true)
+        ->where('permanent.0.admin.gunGame', false)
         ->has('adminMaps'));
 });
 
@@ -101,7 +101,7 @@ it('does not offer management on an unlinked server', function () {
     $this->link->forceFill(['pelican_server_id' => null, 'pelican_server_identifier' => null])->save();
 
     $this->actingAs($this->admin)->get('/servers')->assertInertia(fn (AssertableInertia $p) => $p
-        ->where('servers.0.canManage', false)->where('adminMaps', null));
+        ->where('permanent.0.canManage', false)->where('adminMaps', null));
 });
 
 it('runs the web routes for orga and flashes a toast', function () {
