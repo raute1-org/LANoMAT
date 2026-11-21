@@ -101,8 +101,13 @@ shares:  Array<{ slug: string, title: string, status: 'draft'|'published'|'archi
                  updatedAt: string }>
 selectedFileId: number | null                       // from ?file=<id> when it is one of `files`
 limits:  { titleMax: 120, summaryMax: 200, executableMax: 200, archiveExtensions: ['.zip', '.tar.bz2'] }
-labels:  Record<string, string>                     // trans('game_share.page')
+uploadLabels: Record<string, string>                // trans('files.page'), for the ResumableUploader
 ```
+
+The page's own German copy is written inline in the Vue files, as `Games/Index.vue` and
+`Games/Show.vue` do; `lang/de/game_share.php` holds only what PHP says (flash messages, validation
+messages and attribute names). A placeholder `Games/Share.vue` exists on the integration branch so
+the controller can render; card G2 replaces it.
 
 `files` are the viewer's own non-rejected files of the current event, newest first, at most 50;
 `usable` is false when the name does not end in an allowed archive extension. `shares` are the
