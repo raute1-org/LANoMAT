@@ -12,7 +12,14 @@ use App\Modules\GameRecipes\Support\SkillRenderer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
 
-/** Creates or updates a contributor's draft recipe (MCP tool and REST endpoint share this). */
+/**
+ * Creates or updates a contributor's draft recipe (MCP tool and REST endpoint share this).
+ *
+ * A contribution is keyed by slug, so the action must decide create vs update
+ * on its own: without that check any token holder could overwrite — and
+ * unpublish — somebody else's published recipe simply by reusing its slug.
+ * The decision goes through GameRecipePolicy, the same rule the panel uses.
+ */
 final class ContributeRecipe
 {
     public function __construct(
@@ -35,6 +42,12 @@ final class ContributeRecipe
             }
         }
 
+        $existing = GameRecipe::query()->where('slug', $slug)->first();
+
+        if ($existing instanceof GameRecipe && Gate::forUser($user)->denies('update', $existing)) {
+            throw new AuthorizationException('Only an orga — or the contributor of their own draft — may change this recipe.');
+        }
+
         $recipe = [
             'schema' => RecipeValidator::SCHEMA,
             'slug' => $slug,
@@ -43,8 +56,8 @@ final class ContributeRecipe
             'version' => isset($payload['version']) ? (string) $payload['version'] : null,
             'status' => $existing instanceof GameRecipe ? $existing->status->value : RecipeStatus::Draft->value,
             'platforms' => array_values(array_map('strval', (array) ($payload['platforms'] ?? ['windows']))),
-            'summary' => $payload['summary'] ?? null,
-            'description' => $payload['description'] ?? null,
+            'summary' => isset($payload['summary']) && is_string($payload['summary']) ? mb_substr($payload['summary'], 0, 500) : null,
+            'description' => isset($payload['description']) && is_string($payload['description']) ? mb_substr($payload['description'], 0, 10000) : null,
             'homepage' => $payload['homepage'] ?? null,
             'license' => $payload['license'] ?? null,
             'skill' => [
@@ -57,7 +70,7 @@ final class ContributeRecipe
         ];
 
         if (isset($payload['skill_markdown']) && is_string($payload['skill_markdown']) && $payload['skill_markdown'] !== '') {
-            $skillMarkdown = $payload['skill_markdown'];
+            $skillMarkdown = mb_substr($payload['skill_markdown'], 0, 65535);
         } elseif (isset($payload['skill']) && is_array($payload['skill']) && is_string($payload['skill']['description'] ?? null)) {
             $recipe['skill'] = $payload['skill'];
             $skillMarkdown = $this->skills->render($recipe);

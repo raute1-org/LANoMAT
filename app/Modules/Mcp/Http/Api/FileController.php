@@ -12,6 +12,8 @@ use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
 use App\Modules\Files\Support\VisibleFiles;
+use App\Modules\GameRecipes\Support\SafeText;
+use App\Modules\Mcp\Support\AccessibleFiles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -48,6 +50,11 @@ class FileController extends Controller
     {
         $user = $this->authUser($request);
 
+        // Visibility first: a file of an unpublished event must 404 like a
+        // guessed id (the uploader and orga keep access), not answer 403 and
+        // confirm that the id exists.
+        AccessibleFiles::ensureVisible($sharedFile, $user);
+
         abort_if(Gate::forUser($user)->denies('download', $sharedFile), 403);
 
         return $stores->for($sharedFile->disk)->download($sharedFile->path, $sharedFile->original_name);
@@ -58,7 +65,7 @@ class FileController extends Controller
     {
         return [
             'id' => $file->id,
-            'name' => $file->original_name,
+            'name' => SafeText::fileName($file->original_name),
             'size_bytes' => $file->size_bytes,
             'visibility' => $file->visibility->value,
             'is_approved' => $file->visibility === FileVisibility::Approved,

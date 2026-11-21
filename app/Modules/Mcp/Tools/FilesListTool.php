@@ -6,6 +6,7 @@ namespace App\Modules\Mcp\Tools;
 
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\VisibleFiles;
+use App\Modules\GameRecipes\Support\SafeText;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -51,7 +52,8 @@ class FilesListTool extends LanomatTool
             'event_slug' => $event->slug,
             'files' => $files->map(fn (SharedFile $file): array => [
                 'id' => $file->id,
-                'name' => $file->original_name,
+                // Uploader-chosen text that ends up in an LLM context.
+                'name' => SafeText::fileName($file->original_name),
                 'size_bytes' => $file->size_bytes,
                 'visibility' => $file->visibility->value,
                 'mine' => $file->user_id === $this->user()->id,

@@ -84,6 +84,8 @@ final class RecipeValidator
         if (! is_array($requirements)) {
             $problems[] = "{$origin}: requires must be a list";
             $requirements = [];
+        } elseif (count($requirements) > 50) {
+            $problems[] = "{$origin}: requirements may contain at most 50 entries";
         }
 
         foreach ($requirements as $index => $requirement) {
@@ -98,6 +100,8 @@ final class RecipeValidator
 
             if (! is_string($label) || trim($label) === '') {
                 $problems[] = "{$where}.label is required";
+            } elseif (mb_strlen($label) > 200) {
+                $problems[] = "{$where}.label must be at most 200 characters";
             }
 
             if (! in_array($requirement['role'] ?? null, RecipeFileRole::values(), true)) {
@@ -117,10 +121,30 @@ final class RecipeValidator
             }
 
             if (is_array($match)) {
+                if (count($match) > 20) {
+                    $problems[] = "{$where}.match may contain at most 20 patterns";
+                }
+
                 foreach ($match as $pattern) {
                     if (! is_string($pattern) || trim($pattern) === '') {
                         $problems[] = "{$where}.match contains a non-string pattern";
+                    } elseif (mb_strlen($pattern) > 200) {
+                        $problems[] = "{$where}.match patterns must be at most 200 characters";
                     }
+                }
+            }
+
+            // The installer downloads a recipe's url on the player's machine and
+            // asks no further questions. Anything but http(s) (file://, ftp://,
+            // javascript:, data:) is either a local-file read or a scheme the
+            // agent's HTTP client cannot validate — reject it at the source.
+            if (is_string($url) && $url !== '') {
+                $scheme = mb_strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+                if (! in_array($scheme, ['http', 'https'], true)) {
+                    $problems[] = "{$where}.url must be an http(s) URL";
+                } elseif (mb_strlen($url) > 1000) {
+                    $problems[] = "{$where}.url must be at most 1000 characters";
                 }
             }
 
@@ -136,6 +160,8 @@ final class RecipeValidator
         if (! is_array($steps) || $steps === []) {
             $problems[] = "{$origin}: steps must be a non-empty list";
             $steps = is_array($steps) ? $steps : [];
+        } elseif (count($steps) > 50) {
+            $problems[] = "{$origin}: steps may contain at most 50 entries";
         }
 
         $seenIds = [];
@@ -161,6 +187,8 @@ final class RecipeValidator
 
             if (! is_string($step['title'] ?? null) || trim((string) $step['title']) === '') {
                 $problems[] = "{$where}.title is required";
+            } elseif (mb_strlen((string) $step['title']) > 200) {
+                $problems[] = "{$where}.title must be at most 200 characters";
             }
 
             if (! in_array($step['os'] ?? 'any', ['windows', 'linux', 'any'], true)) {
@@ -172,6 +200,8 @@ final class RecipeValidator
             if (! is_array($commands)) {
                 $problems[] = "{$where}.commands must be a list";
                 $commands = [];
+            } elseif (count($commands) > 50) {
+                $problems[] = "{$where}.commands may contain at most 50 entries";
             }
 
             foreach ($commands as $commandIndex => $command) {
@@ -179,6 +209,8 @@ final class RecipeValidator
 
                 if (! is_array($command) || ! is_string($commandRun) || trim($commandRun) === '') {
                     $problems[] = "{$where}.commands[{$commandIndex}].run is required";
+                } elseif (mb_strlen($commandRun) > 2000) {
+                    $problems[] = "{$where}.commands[{$commandIndex}].run must be at most 2000 characters";
                 } elseif (! in_array($command['shell'] ?? 'bash', ['bash', 'powershell', 'cmd'], true)) {
                     $problems[] = "{$where}.commands[{$commandIndex}].shell must be bash, powershell or cmd";
                 }

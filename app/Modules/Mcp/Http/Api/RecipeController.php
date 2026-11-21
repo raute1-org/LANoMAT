@@ -13,9 +13,9 @@ use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\GameRecipes\Support\SafeText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 /** The agent's REST surface for recipes: list, read, skill, plan, files, avatars, contribute. */
@@ -69,9 +69,8 @@ class RecipeController extends Controller
                 'aliases' => $recipe->aliases,
                 'homepage' => $recipe->homepage,
                 'license' => $recipe->license,
-                'play_url' => $recipe->playUrlFor($request->getHost()),
+                'play_url' => $recipe->playUrl(),
                 'launch_target' => $recipe->launchTarget(),
-                'launch_targets' => $recipe->launchTargets(),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),
@@ -87,7 +86,7 @@ class RecipeController extends Controller
                     'url' => $file->url,
                     'lan_match' => isset($matches[$file->id]) ? [
                         'shared_file_id' => $matches[$file->id]->id,
-                        'name' => $matches[$file->id]->original_name,
+                        'name' => SafeText::fileName($matches[$file->id]->original_name),
                         'size_bytes' => $matches[$file->id]->size_bytes,
                     ] : null,
                 ])->all(),
@@ -137,7 +136,7 @@ class RecipeController extends Controller
                 'required' => $file->required,
                 'match' => $file->patterns(),
                 'status' => isset($matches[$file->id]) ? 'matched' : ($file->url !== null ? 'external' : 'missing'),
-                'name' => $matches[$file->id]->original_name ?? null,
+                'name' => SafeText::fileName($matches[$file->id]->original_name ?? null),
                 'size_bytes' => $matches[$file->id]->size_bytes ?? $file->size_bytes,
                 'sha256' => $file->sha256,
                 'download_url' => isset($matches[$file->id])
@@ -159,20 +158,22 @@ class RecipeController extends Controller
     public function contribute(Request $request, ContributeRecipe $contribute): JsonResponse
     {
         $user = $this->authUser($request);
-        Gate::forUser($user)->authorize('create', GameRecipe::class);
+
+        abort_if($user->role->value === 'participant' && ! $user->isOrga(), 403);
 
         $data = $request->validate([
             'slug' => ['required', 'string', 'max:120'],
             'title' => ['required', 'string', 'max:200'],
             'summary' => ['nullable', 'string', 'max:500'],
-            'description' => ['nullable', 'string'],
-            'platforms' => ['nullable', 'array'],
-            'aliases' => ['nullable', 'array'],
-            'requires' => ['nullable', 'array'],
-            'requirements' => ['nullable', 'array'],
-            'steps' => ['nullable', 'array'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'platforms' => ['nullable', 'array', 'max:3'],
+            'platforms.*' => ['string', 'in:windows,linux,macos'],
+            'aliases' => ['nullable', 'array', 'max:20'],
+            'aliases.*' => ['string', 'max:60'],
+            'requirements' => ['nullable', 'array', 'max:50'],
+            'steps' => ['nullable', 'array', 'max:50'],
             'skill_description' => ['nullable', 'string', 'max:1024'],
-            'skill_markdown' => ['nullable', 'string'],
+            'skill_markdown' => ['nullable', 'string', 'max:65535'],
         ]);
 
         $recipe = $contribute->handle($user, $data);

@@ -40,12 +40,12 @@ final class AvatarCatalog
             return [
                 'id' => 'recipe-file-'.$file->id,
                 'recipe_slug' => $file->recipe?->slug,
-                'label' => $file->label,
-                'author' => $metadata['author'] ?? null,
-                'license' => $metadata['license'] ?? null,
+                'label' => SafeText::line($file->label, 120) ?? 'File',
+                'author' => SafeText::line(is_string($metadata['author'] ?? null) ? $metadata['author'] : null, 80),
+                'license' => SafeText::line(is_string($metadata['license'] ?? null) ? $metadata['license'] : null, 80),
                 'size_bytes' => $shared === null ? $file->size_bytes : $shared->size_bytes,
                 'sha256' => $file->sha256,
-                'match_name' => $shared?->original_name,
+                'match_name' => SafeText::fileName($shared?->original_name),
                 'available_on_lan' => $shared instanceof SharedFile,
                 'download_url' => $shared instanceof SharedFile
                     ? route('mcp.files.download', ['sharedFile' => $shared->id], true)

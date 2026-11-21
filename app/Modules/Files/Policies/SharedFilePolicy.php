@@ -37,7 +37,7 @@ class SharedFilePolicy
         // participant, even when the row is already approved. Without this,
         // a sequential id from /api/v1/files/{id}/download leaked the ISO of
         // an unannounced event to every token holder.
-        if ($file->event !== null && ! $file->event->isPubliclyVisible() && ! $user->isOrga()) {
+        if ($file->event !== null && ! $file->event->isPubliclyVisible() && ! $user->isOrga() && $file->user_id !== $user->id) {
             return false;
         }
 

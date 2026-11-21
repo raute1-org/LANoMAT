@@ -65,7 +65,7 @@ class AuthenticateMcpToken
         return response()->json(
             ['message' => 'Unauthenticated.'],
             401,
-            ['WWW-Authenticate' => 'Bearer'],
+            ['WWW-Authenticate' => 'Bearer', 'Cache-Control' => 'no-store'],
         );
     }
 }

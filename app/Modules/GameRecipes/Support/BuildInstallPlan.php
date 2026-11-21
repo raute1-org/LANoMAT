@@ -45,20 +45,20 @@ final class BuildInstallPlan
                 $files[] = $this->externalDto($entry);
 
                 if ($entry->required) {
-                    $missing[] = $entry->label.' (external download only)';
+                    $missing[] = self::label($entry).' (external download only)';
                 }
 
                 continue;
             }
 
             if ($entry->required) {
-                $missing[] = $entry->label;
+                $missing[] = self::label($entry);
             }
 
             $files[] = [
                 'recipe_file_id' => $entry->id,
                 'requirement' => $entry->role->value,
-                'label' => $entry->label,
+                'label' => self::label($entry),
                 'status' => 'missing',
                 'required' => $entry->required,
                 'source' => null,
@@ -82,9 +82,6 @@ final class BuildInstallPlan
                 'title' => $recipe->title,
                 'version' => $recipe->version,
                 'skill' => $this->skillName($recipe),
-                'launch_target' => $recipe->launchTarget(),
-                'launch_command' => $recipe->launchCommand(),
-                'play_url' => $recipe->playUrl(),
             ],
             'os' => $os,
             'target_dir' => $target,
@@ -132,9 +129,13 @@ final class BuildInstallPlan
 
     private function targetDir(GameRecipe $recipe, string $os): string
     {
-        $name = trim((string) preg_replace('/[<>:"|?*\\\\\/]+/', '', $recipe->title));
-        $name = trim(str_replace(['..', '~'], '', $name));
-        $name = $name === '' ? $recipe->slug : $name;
+        // A title is authored text, not a path: strip every separator and any
+        // ".." run before it becomes a directory name on the player's disk.
+        $name = trim((string) preg_replace('/[<>:"|?*\\\\\/]+|\.\.+/', '', $recipe->title));
+
+        if ($name === '') {
+            $name = $recipe->slug;
+        }
 
         return $os === 'windows'
             ? 'C:\\Games\\'.$name
@@ -168,11 +169,12 @@ final class BuildInstallPlan
         return [
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
-            'label' => $entry->label,
+            'label' => self::label($entry),
             'status' => 'matched',
             'required' => $entry->required,
             'source' => $source,
-            'name' => $file->original_name,
+            // The uploader chose this name: one bounded line, never a path.
+            'name' => SafeText::fileName($file->original_name),
             'size_bytes' => $file->size_bytes,
             'sha256' => $entry->sha256,
             'shared_file_id' => $file->id,
@@ -187,17 +189,22 @@ final class BuildInstallPlan
         return [
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
-            'label' => $entry->label,
+            'label' => self::label($entry),
             'status' => 'external',
             'required' => $entry->required,
             'source' => 'external',
-            'name' => basename((string) parse_url((string) $entry->url, PHP_URL_PATH)),
+            'name' => SafeText::fileName(basename((string) parse_url((string) $entry->url, PHP_URL_PATH))),
             'size_bytes' => $entry->size_bytes,
             'sha256' => $entry->sha256,
             'shared_file_id' => null,
             'download_url' => $entry->url,
             'fallback_url' => $entry->url,
         ];
+    }
+
+    private static function label(GameRecipeFile $entry): string
+    {
+        return SafeText::line($entry->label, 120) ?? 'File';
     }
 
     /**
@@ -219,12 +226,12 @@ final class BuildInstallPlan
             $avatars[] = [
                 'id' => 'recipe-file-'.$entry->id,
                 'recipe_file_id' => $entry->id,
-                'label' => $entry->label,
-                'author' => $metadata['author'] ?? null,
-                'license' => $metadata['license'] ?? null,
+                'label' => self::label($entry),
+                'author' => SafeText::line(is_string($metadata['author'] ?? null) ? $metadata['author'] : null, 80),
+                'license' => SafeText::line(is_string($metadata['license'] ?? null) ? $metadata['license'] : null, 80),
                 'size_bytes' => $shared === null ? $entry->size_bytes : $shared->size_bytes,
                 'sha256' => $entry->sha256,
-                'match_name' => $shared?->original_name,
+                'match_name' => SafeText::fileName($shared?->original_name),
                 'download_url' => $shared instanceof SharedFile
                     ? route('mcp.files.download', ['sharedFile' => $shared->id], true)
                     : null,
