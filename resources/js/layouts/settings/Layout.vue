@@ -23,7 +23,7 @@ const sidebarNavItems = computed<NavItem[]>(() => [
         title: 'Profil',
         href: editProfile(),
     },
-    ...(page.props.auth.user.has_password
+    ...(page.props.auth.user?.has_password
         ? [
               {
                   title: 'Sicherheit',

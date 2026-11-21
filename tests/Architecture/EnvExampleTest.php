@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Guard: every environment variable the MCP, GameRecipes and docs surfaces
- * read is documented in .env.example.
+ * Guard: every environment variable the MCP, GameRecipes (including the
+ * launcher download page) and docs surfaces read is documented in .env.example.
  *
  * A fresh install copies .env.example; a switch that is missing there is
  * invisible in every runbook and silently falls back to a default. The test
@@ -49,6 +49,12 @@ it('documents every game recipe env var in .env.example', function () use ($envN
     $missing = array_values(array_filter($envNamesIn('recipes.php'), fn (string $name): bool => ! $isDocumented($name)));
 
     expect($missing)->toBe([], 'Add these to .env.example (section "Game recipes"): '.implode(', ', $missing));
+});
+
+it('documents every launcher env var in .env.example', function () use ($envNamesIn, $isDocumented) {
+    $missing = array_values(array_filter($envNamesIn('launcher.php'), fn (string $name): bool => ! $isDocumented($name)));
+
+    expect($missing)->toBe([], 'Add these to .env.example (section "Launcher downloads"): '.implode(', ', $missing));
 });
 
 it('documents the docs deployment switch in .env.example', function () use ($isDocumented) {

@@ -115,9 +115,9 @@ Next: lanomat-agent mcp install
 On `/mcp/connect` (German UI):
 
 1. **„Code eingeben“** — type the eight-character code.
-2. **„Diesen Agenten verbinden?“** — compare the device name and the code with the terminal.
+2. **„Dieses Gerät verbinden?“** — compare the device name and the code with the terminal.
 3. **„Verbinden“** approves; **„Ablehnen“** denies. The page then says
-   „Agent verbunden. Du kannst zum Terminal zurückkehren.“
+   „Gerät verbunden. Du kannst zum Terminal zurückkehren.“
 
 | Dark | Light |
 |---|---|
@@ -126,14 +126,14 @@ On `/mcp/connect` (German UI):
 
 The token is valid for **90 days** and slides on use, so a LAN weekend is fine. It is never printed,
 except in the `export LANOMAT_TOKEN=…` line that `mcp install` prints. Revoke a device with
-**„Trennen“** under **„Verbundene Agenten“**; the next command from that device answers `401`.
+**„Trennen“** under **„Verbundene Geräte“**; the next command from that device answers `401`.
 
 | Dark | Light |
 |---|---|
 | ![Agent and MCP connect page with the code field and two connected devices, dark](/docs/screens/mcp-connect-dark.png) | ![Agent and MCP connect page with the code field and two connected devices, light](/docs/screens/mcp-connect-light.png) |
-| `MCP CONNECT · CODE · VERBUNDENE AGENTEN · TRENNEN` | `MCP CONNECT · LIGHT` |
+| `MCP CONNECT · CODE · VERBUNDENE GERÄTE · TRENNEN` | `MCP CONNECT · LIGHT` |
 
-Every row under „Verbundene Agenten“ names the device, its pairing date and its last use, and carries
+Every row under „Verbundene Geräte“ names the device, its pairing date and its last use, and carries
 the „Trennen“ button that revokes exactly that device.
 
 ### Where the files live

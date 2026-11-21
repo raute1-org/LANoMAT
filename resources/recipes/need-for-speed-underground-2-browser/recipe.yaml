@@ -1,0 +1,211 @@
+schema: lanomat.recipe/v1
+slug: need-for-speed-underground-2-browser
+title: 'Need for Speed: Underground 2 (Browser)'
+aliases:
+    [
+        'nfsu2 browser',
+        'nfsu2 web',
+        'underground 2 browser',
+        'ug2 browser',
+        'nfsu2.xyz',
+    ]
+version: '2026-11-21'
+status: published
+platforms: [windows, linux, macos]
+summary: 'Zero-install NFSU2 in Chrome or Brave: play Underground 2 Revived at nfsu2.xyz with WebGPU, meet the LAN group in a shared world, keep saves in the browser.'
+description: |
+    The browser path for Need for Speed: Underground 2: the community port
+    Underground 2 Revived (th0mk/nfsu2-web) runs the PC game's x86 code as
+    WebAssembly, draws Direct3D 9 through WebGPU and plays sound over Web
+    Audio. Nothing is installed and no game file is picked by hand.
+
+    `play_url` points at the operator's live server, https://nfsu2.xyz/.
+    That server keeps its own copy of the game, so a player needs no NFSU2
+    files at all: open the page, optionally pick a name, press Play. A LAN
+    group meets on the same server by choosing the same world (Online,
+    World; the main world or World 1 to 4, or a name of its own); a Link
+    with `#room=` joins a world directly. Worlds filter players, they are
+    not private, and the public server also carries other players.
+
+    Requirements are a Chromium browser with WebGPU (Chrome, Edge, Brave,
+    Opera) or Firefox where it has WebGPU (Windows and Apple Silicon macOS;
+    on Linux Firefox needs `dom.webgpu.enabled`), WebAssembly SIMD, shared
+    memory, a secure page (https, or localhost) and about 1 GB of free
+    memory for the game. Chrome on Linux runs WebGPU on Vulkan, so the
+    Mesa Vulkan driver must be installed; Intel Gen12+ and NVIDIA on Wayland
+    are enabled by default, older graphics may need
+    `chrome://flags/#enable-unsafe-webgpu`.
+
+    Saves live in the browser on that PC. Cloud saves with an 8-word
+    passphrase sync them to the server; there is no account and no e-mail.
+    A completed PC save can be restored from a ZIP of the game's profile
+    folder, but the site bundles no 100% save.
+
+    Self-hosting is optional and needs the player's own PC copy patched to
+    v1.2 (North America) with the exact SPEED2.EXE (4,800,512 bytes,
+    SHA-256 f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7),
+    plus Rust and wasi-sdk 34 to build the module. The code is MIT, but the
+    generated game module is not licensed for redistribution and the
+    upstream repository was archived on 9 November 2026; nfsu2.xyz keeps
+    running and is developed privately. A self-hosted instance must be
+    served over HTTPS for every PC except localhost.
+
+    The public path was verified on the event laptop (Linux, Brave 157 and
+    Chrome 157, Intel Arc 130V) on 2026-11-21; the recipe still needs
+    verification on the LAN hardware at the venue, especially the venue
+    uplink and a mixed set of attendee laptops.
+homepage: https://github.com/th0mk/nfsu2-web
+license: 'Fan project code MIT (th0mk/nfsu2-web); game data user-supplied when self-hosting; the generated game module is not licensed for redistribution; EA trademarks'
+cover: ''
+play_url: 'https://nfsu2.xyz/'
+skill:
+    name: need-for-speed-underground-2-browser
+    description: 'Play Need for Speed Underground 2 without installing anything: open the Underground 2 Revived browser port at nfsu2.xyz in Chrome or Brave, check WebGPU, join the LAN group in one world, and explain saves, cloud passphrase and the optional self-hosted server. Use when the user says NFSU2 browser, Underground 2 in the browser, nfsu2.xyz, or wants a zero-install fallback to the native NFSU2 recipe.'
+    compatibility: 'Chrome, Edge, Brave or Opera with WebGPU (Firefox only on Windows and Apple Silicon macOS); ~1 GB free RAM; no install; public server needs internet'
+requires: []
+steps:
+    - id: check-browser
+      title: 'Check the browser and graphics before the LAN night'
+      os: any
+      optional: false
+      detail: |
+          Use a current Chromium browser: Chrome, Edge, Brave or Opera. On
+          Windows and macOS, Firefox works where it has WebGPU; on Linux
+          Firefox has it off by default (`dom.webgpu.enabled` in
+          `about:config`), so use Chrome or Brave there.
+
+          The game needs WebGPU on real graphics, WebAssembly SIMD, shared
+          memory and a secure page. Open `chrome://gpu` and confirm WebGPU is
+          hardware accelerated. On Linux, Chrome runs WebGPU on Vulkan: the
+          Mesa Vulkan driver must be installed (`mesa-vulkan-drivers` on
+          Debian/Ubuntu/Fedora, `vulkan-intel` or `vulkan-radeon` on Arch).
+          Intel Gen12+ and NVIDIA on Wayland are enabled by default; older
+          graphics or other drivers may need
+          `chrome://flags/#enable-unsafe-webgpu`. Close other tabs: the game
+          asks for about 1 GB of memory.
+
+          A clean profile or a guest window avoids the most common failure:
+          an extension that changes the page breaks cross-origin isolation
+          and the game reports "Something in this browser changes the page"
+          (`PAGE-NOT-ISOLATED`). If that appears, disable extensions one by
+          one or play in a guest window.
+
+          This is the zero-install path; it still needs verification on the
+          LAN hardware, on the actual attendee laptops and the venue network.
+    - id: open-game
+      title: 'Open nfsu2.xyz and press Play'
+      os: any
+      optional: false
+      detail: |
+          Open https://nfsu2.xyz/ in the browser. The start page loads the
+          game module (about 7 MB of code on the first visit) and shows
+          **Ready** when it can start. Pick a name or leave it empty (the
+          page offers a free name such as NAME7277), then press **Play** or
+          Enter.
+
+          No game file is chosen and nothing is installed. The game streams
+          the data it needs from the server; **Game data on this device** can
+          preload about 2 GB (a little over 1 GB over the network) so later
+          starts do not wait on the network. The first profile is created in
+          the game; after that the intro and main menu appear.
+
+          Once the page has run, that PC can start the game offline if the
+          server cannot be reached, provided the data was downloaded. Free
+          roam and Online always need the server.
+    - id: join-lan-group
+      title: 'Meet the LAN group in one world'
+      os: any
+      optional: false
+      detail: |
+          Everyone at the LAN plays on the same server, so they meet by
+          choosing the same world: **Online**, **World** on the start page
+          (or F9, World while playing). The main world holds everyone;
+          World 1 to 4 are fixed filters; a name of your own makes a new
+          world. A world is a filter between players, not privacy: every
+          browser on the server still sees your name.
+
+          Share the world name (or its `#room=` link) with the group, for
+          example `#room=lanomat`. Capitals and spaces do not count, so
+          "LANomat" and "lanomat" are the same world. Players also meet in
+          the game's Online menu for lobbies and races, in crews, and in
+          free roam's race lobbies.
+
+          On the public server the group shares the world with strangers.
+          For a closed event, self-host the server (optional step) so only
+          the LAN's browsers are on it. A deployed Rust server accepts up to
+          24,000 players; a server started by hand defaults to 128.
+    - id: saves-and-100
+      title: 'Saves, backup and the 100% save'
+      os: any
+      optional: false
+      detail: |
+          Profiles and career are stored in the browser, on that PC, under
+          the site's address. Private windows lose them when they close, and
+          a different address (http vs https, another host) has its own
+          store, so stick to one address.
+
+          **Cloud saves:** enable them in Saves and keep the 8-word
+          passphrase. The page encrypts the saves before they leave the
+          browser; the server stores bytes it cannot read. There is no
+          account, no e-mail and no password reset: without the passphrase
+          the cloud copy is gone. This is the way to carry a profile to
+          another laptop.
+
+          **Backup/Restore:** Download backup gives one ZIP with profiles,
+          settings and screenshots; Restore puts it back on another PC. A
+          profile from the PC game can be restored too: zip
+          `%LOCALAPPDATA%\NFS Underground 2` (or a single profile file) and
+          restore it; a save changed by a save editor loads with a warning.
+
+          The site bundles no 100% save. A completed career is restored from
+          such a ZIP, or downloaded from the community; do not promise a
+          built-in completed save.
+    - id: self-host-optional
+      title: 'Optional: host your own server at the venue'
+      os: any
+      optional: true
+      detail: |
+          Self-hosting gives a private server on the LAN and removes the
+          venue uplink from play. It needs the player's own NFSU2 PC copy,
+          patched to v1.2 (North America) with the exact `SPEED2.EXE`
+          (4,800,512 bytes, SHA-256
+          f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7;
+          other versions do not work).
+
+          Build the WebAssembly module and the Rust server from
+          https://github.com/th0mk/nfsu2-web (`web/gen.sh`, `web/build.sh`,
+          `web/server-rs/build.sh`) or pack the VPS bundle with
+          `web/deploy/pack.sh`. Toolchain: Python 3, Node.js 20+, Rust and
+          wasi-sdk 34. The repository contains no game data and no built
+          module; GitHub releases are empty.
+
+          Run one TCP port (the page, API and `/lan` WebSocket share it):
+          behind a reverse proxy the server listens on 127.0.0.1:8080 and
+          the proxy terminates TLS on 443; directly it serves HTTPS on 8443
+          by default. Keep the state directory (ETag key, LAN tokens, Online
+          records, bans) on a volume. Memory is about 110-250 MB plus up to
+          8 MB queued per player who falls behind.
+
+          TLS is mandatory for every PC except localhost: WebGPU and shared
+          memory need a secure, cross-origin-isolated page. At a venue use a
+          real certificate (DNS-01 wildcard plus local DNS, as in
+          docs/infra/lan-tls-certificates.md) or an internal CA installed on
+          the laptops. A proxy must pass WebSocket upgrades and stream large
+          files without buffering.
+
+          The recipe still needs verification on the LAN hardware: build
+          time, module size, first-load bandwidth and a mixed laptop set are
+          not measured for this recipe yet.
+metadata:
+    genre: racing
+    players: '1-64 cars in view; up to 24,000 on a deployed server'
+    players_max: 64
+    lan_recommended: true
+    live_url: 'https://nfsu2.xyz/'
+    server:
+        name: 'NFSU2 (Browser)'
+        address: nfsu2.xyz
+        port: 443
+        connect_url: 'https://nfsu2.xyz/'
+        players: 'Ein Server · Nickname · Join/Leave'
+    tags: [racing, browser, zero-install, webgpu, nfs, multiplayer]

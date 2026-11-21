@@ -42,6 +42,10 @@ tags:
     description: The game recipe catalogue, skills, plans, files and avatars.
   - name: Files
     description: The LAN file host.
+  - name: Servers
+    description: The aggregated game servers of the active and recent events, plus permanent servers.
+  - name: Terminals
+    description: The launcher fleet — arcade and participant cabinets reporting their state.
 
 x-tagGroups:
   - name: Agents
@@ -57,6 +61,12 @@ x-tagGroups:
   - name: Files
     tags:
       - Files
+  - name: Game servers
+    tags:
+      - Servers
+  - name: Launcher fleet
+    tags:
+      - Terminals
 
 paths:
   /api/mcp/device:
@@ -167,10 +177,11 @@ paths:
         with `WWW-Authenticate: Bearer`. The endpoint is **stateless**: no `Mcp-Session-Id` is
         issued or required. `GET`/`DELETE /mcp` answer `405`.
 
-        **Tools (24):** `lanomat_me`, `events_list`, `event_get`, `event_register`, `teams_list`,
+        **Tools (29):** `lanomat_me`, `events_list`, `event_get`, `event_register`, `teams_list`,
         `tournament_list`, `tournament_bracket`, `tournament_checkin`, `match_result`,
         `games_search`, `servers_list`, `files_list`, `file_download_url`, `schedule_list`,
-        `polls_list`, `poll_vote`, `catering_menu`, `lfg_list`, `lfg_create`, `recipes_list`,
+        `polls_list`, `poll_vote`, `catering_menu`, `catering_menu_get`, `catering_menu_preview`,
+        `catering_menu_import`, `catering_round_create`, `restaurants_list`, `lfg_list`, `lfg_create`, `recipes_list`,
         `recipe_get`, `recipe_install_plan`, `recipe_avatars`, `recipe_contribute` — the
         catalogue page is authoritative; the server paginates `tools/list` at 15 per page.
 
@@ -688,6 +699,262 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/servers:
+    get:
+      tags: [Servers]
+      operationId: listServers
+      summary: Aggregated game servers
+      description: |
+        The launcher's server browser: the servers of every active event, the most recently
+        finished event and the permanent servers, in one list. The shape is the public web
+        page's projection with no per-viewer narrowing and no player names, so a launcher can
+        show the whole LAN without exposing user data. A server still starting appears with
+        `status: provisioning` but no join link.
+      responses:
+        "200":
+          description: The aggregated server browser.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, servers]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      required: [slug, name, status]
+                      properties:
+                        slug: { type: string }
+                        name: { type: string }
+                        status:
+                          type: string
+                          enum: [announced, registration, live, finished]
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, status, permanent]
+                      properties:
+                        id: { type: integer }
+                        title: { type: string }
+                        game: { type: string, nullable: true }
+                        gameSlug:
+                          type: string
+                          nullable: true
+                          description: Stable game slug, for mapping the server to its install recipe.
+                        description: { type: string, nullable: true }
+                        matchLabel: { type: string, nullable: true }
+                        address: { type: string, nullable: true }
+                        port: { type: integer, nullable: true }
+                        connectString: { type: string, nullable: true }
+                        connectIsLink: { type: boolean }
+                        status:
+                          type: string
+                          enum: [ready, not_responding, offline, provisioning]
+                        permanent: { type: boolean }
+                        source:
+                          type: string
+                          nullable: true
+                          enum: [pelican, docker, external]
+                          description: Set for permanent servers; null for event servers.
+                        event:
+                          type: object
+                          nullable: true
+                          properties:
+                            slug: { type: string }
+                            name: { type: string }
+                            status: { type: string }
+                        query:
+                          type: object
+                          nullable: true
+                          properties:
+                            serverName: { type: string }
+                            map: { type: string }
+                            players: { type: integer }
+                            maxPlayers: { type: integer }
+                            checkedAt: { type: string, nullable: true }
+                        estimate:
+                          type: object
+                          nullable: true
+                          description: Resource estimate for event servers; null for permanent servers or without a game.
+                          properties:
+                            ramMb: { type: integer }
+                            maxRamMb: { type: integer }
+                            overCap: { type: boolean }
+                        installHint:
+                          type: object
+                          nullable: true
+                          properties:
+                            steamUrl: { type: string, nullable: true }
+                            shareUrl: { type: string, nullable: true }
+                            versionNote: { type: string, nullable: true }
+                        joinOptions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string }
+                              label: { type: string }
+                              url: { type: string }
+                              hint: { type: string }
+              example:
+                events:
+                  - slug: lan-raute-1
+                    name: Lan Raute 1
+                    status: live
+                servers:
+                  - id: 11
+                    title: Survival
+                    game: Minecraft
+                    status: ready
+                    address: 203.0.113.9
+                    port: 25565
+                    connectString: 203.0.113.9:25565
+                    connectIsLink: false
+                    permanent: false
+                    event: { slug: lan-raute-1, name: Lan Raute 1, status: live }
+                    query: { serverName: Survival, map: world, players: 3, maxPlayers: 20 }
+                    joinOptions: []
+                  - id: 12
+                    title: UT2004 Dauerwelt
+                    game: Unreal Tournament 2004
+                    status: offline
+                    permanent: true
+                    event: null
+                    joinOptions: []
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/terminals/heartbeat:
+    post:
+      tags: [Terminals]
+      operationId: recordTerminalHeartbeat
+      summary: Report a launcher terminal heartbeat
+      description: |
+        The launcher sends this every 30 seconds with its bearer token. The token is the
+        terminal's identity: repeated heartbeats update the same row, a re-paired token
+        creates a new one. `last_seen_at` and `ip` are server facts, never client claims.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 60 }
+                os:
+                  type: string
+                  nullable: true
+                  enum: [windows, linux, macos]
+                arch: { type: string, maxLength: 16, nullable: true }
+                version: { type: string, maxLength: 32, nullable: true }
+                state:
+                  type: string
+                  nullable: true
+                  enum: [online, playing, idle, offline]
+                current_game_slug: { type: string, maxLength: 120, nullable: true }
+                installed:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, maxLength: 120 }
+                gamepad: { type: boolean, nullable: true }
+      responses:
+        "200":
+          description: The heartbeat was recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, terminal_id, server_time]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  terminal_id: { type: integer }
+                  server_time: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: The heartbeat payload is invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/terminals:
+    get:
+      tags: [Terminals]
+      operationId: listTerminals
+      summary: The launcher fleet
+      description: |
+        The orga monitor's fleet list: online terminals first, then by name. Requires an
+        orga or admin token; a participant or helper token gets 403.
+      responses:
+        "200":
+          description: All registered terminals.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, heartbeat_seconds, offline_after_seconds, server_time]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, state, online, installed, gamepad]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        state:
+                          type: string
+                          enum: [online, playing, idle, offline]
+                        online: { type: boolean }
+                        os: { type: string, nullable: true }
+                        arch: { type: string, nullable: true }
+                        version: { type: string, nullable: true }
+                        current_game_slug: { type: string, nullable: true }
+                        installed:
+                          type: array
+                          items: { type: string }
+                        installed_count: { type: integer }
+                        gamepad: { type: boolean }
+                        last_seen_at: { type: string, format: date-time, nullable: true }
+                        ip: { type: string, nullable: true }
+                        paired_user:
+                          type: object
+                          nullable: true
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                        token_name: { type: string, nullable: true }
+                  heartbeat_seconds: { type: integer }
+                  offline_after_seconds: { type: integer }
+                  server_time: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The token's user may not view the fleet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /api/v1/files:
     get:
       tags: [Files]
@@ -1192,7 +1459,7 @@ components:
                 type: boolean
         files:
           type: array
-          description: Every recipe requirement, matched or not.
+          description: Every recipe requirement for the plan's `os`, matched or not. Files authored for the other platform are omitted.
           items:
             $ref: "#/components/schemas/PlanFile"
         downloads:
@@ -1225,6 +1492,11 @@ components:
           description: Role such as `base`, `iso`, `patch`, `mod`, `tool`, `avatar`.
         label:
           type: string
+        os:
+          type: string
+          enum: [windows, linux, macos, any]
+          nullable: true
+          description: The platform this file is for; absent means any. Matched files for another OS never appear in the plan.
         status:
           type: string
           enum: [matched, missing, external, manual]
@@ -1289,6 +1561,11 @@ components:
           type: string
         label:
           type: string
+        os:
+          type: string
+          enum: [windows, linux, macos, any]
+          nullable: true
+          description: The platform this file is for; absent means any. Two patches that differ only in os are two entries.
         file:
           type: string
         size_bytes:

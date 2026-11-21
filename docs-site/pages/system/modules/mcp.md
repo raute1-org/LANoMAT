@@ -5,7 +5,7 @@ sidebar_icon: bot
 ---
 
 `Mcp` is the module behind `/mcp`. It exposes LANoMAT to agents over the Model Context Protocol:
-streamable HTTP, bearer tokens, device-code pairing, 24 tools, one `install-game` prompt and each recipe's `SKILL.md` as a resource.
+streamable HTTP, bearer tokens, device-code pairing, 29 tools, the `install-game` and `import-menu` prompts, each recipe's `SKILL.md` and the menu-import how-to as resources.
 
 <div class="live">LIVE 17:42 · MCP session · 2 tools in flight</div>
 

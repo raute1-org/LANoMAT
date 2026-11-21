@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Mcp\Tools;
 
 use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -37,10 +38,11 @@ class RecipesListTool extends LanomatTool
         $query = mb_strtolower(trim((string) $request->get('query', '')));
         $platform = $request->get('platform');
 
-        $recipes = GameRecipe::query()
-            ->visibleTo($this->user())
-            ->orderBy('title')
-            ->get()
+        $recipes = app(LauncherLineup::class)
+            ->filter(GameRecipe::query()
+                ->visibleTo($this->user())
+                ->orderBy('title')
+                ->get())
             ->when($query !== '', fn ($collection) => $collection->filter(
                 fn (GameRecipe $recipe): bool => collect($recipe->searchTerms())->contains(
                     static fn (string $term): bool => str_contains($term, $query),

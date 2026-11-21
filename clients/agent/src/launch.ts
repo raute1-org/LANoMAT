@@ -43,6 +43,11 @@ function looksLikePath(value: string): boolean {
     );
 }
 
+/** A macOS application bundle (`UT2004.app`) must be handed to `open`, not executed. */
+function isMacAppBundle(value: string): boolean {
+    return /\.app\/?$/i.test(value);
+}
+
 /** The plan carries the recipe-level launch fields too; use it only when needed. */
 function launchFields(recipe: RecipeDetail, plan: RecipePlan | null, os: Os, variant?: string): {
     playUrl?: string | null;
@@ -102,15 +107,21 @@ export function buildLaunchCommand(
         return { shell, run: target };
     }
 
-    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target)) {
-        // A registered URI scheme (steam://, lanomat://) is opened, not executed.
-        return os === 'windows'
-            ? { shell: 'cmd', run: 'start "" "' + target.replace(/"/g, '\\"') + '"' }
-            : { shell: 'bash', run: `xdg-open ${shellQuote(target)}` };
-    }
+    const isUri = /^[a-z][a-z0-9+.-]*:\/\//i.test(target);
 
     if (os === 'windows') {
+        // A registered URI scheme (steam://, lanomat://) is opened, not executed.
         return { shell: 'cmd', run: 'start "" "' + target.replace(/"/g, '\\"') + '"' };
+    }
+
+    if (os === 'macos' && (isUri || isMacAppBundle(target))) {
+        // `.app` bundles and URI schemes are opened through LaunchServices.
+        return { shell: 'bash', run: `open ${shellQuote(target)}` };
+    }
+
+    if (isUri) {
+        // A registered URI scheme (steam://, lanomat://) is opened, not executed.
+        return { shell: 'bash', run: `xdg-open ${shellQuote(target)}` };
     }
 
     return { shell: 'bash', run: looksLikePath(target) ? shellQuote(target) : target };

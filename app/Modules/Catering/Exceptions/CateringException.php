@@ -45,4 +45,10 @@ class CateringException extends DomainException
             'catering.errors.invalid_transition'
         );
     }
+
+    /** A menu import that must not run (closed round, existing orders, ...): the reason is shown to the caller. */
+    public static function importRefused(string $reason): self
+    {
+        return new self($reason, 'catering.errors.import_refused');
+    }
 }

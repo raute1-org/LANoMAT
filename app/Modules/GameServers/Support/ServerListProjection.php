@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Support;
 
 use App\Models\User;
+use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Http\GameServerPageController;
+use App\Modules\GameServers\Http\GlobalServerPageController;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Infoscreen\Support\ScenePayload;
 use App\Modules\Tournaments\Models\GameMatch;
@@ -16,6 +18,7 @@ use App\Modules\Tournaments\Models\Tournament;
 use App\Modules\Tournaments\Support\BracketMatchProjection;
 use App\Modules\Tournaments\Support\EntryRoster;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 
 /**
  * The single `ServerLink` -> wire DTO projection for the event's game
@@ -45,7 +48,7 @@ class ServerListProjection
      */
     public static function forEvent(Event $event, bool $withPlayerList = false): array
     {
-        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link, $withPlayerList))->all());
+        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link, $withPlayerList) + ['description' => $link->description])->all());
     }
 
     /**
@@ -128,6 +131,129 @@ class ServerListProjection
     }
 
     /**
+     * The flat list behind the global server browser ({@see GlobalServerPageController}):
+     * every server the event lists of the publicly visible, non-archived events show,
+     * plus the permanent servers. Draft and archived events are out — a draft event is
+     * not public at all, and an archived one is history, not "is it running right now".
+     *
+     * Each row is the same wire shape as `forEvent()`/`forPermanent()` plus the event it
+     * belongs to (name/slug for the row's event link, null for permanent servers) and the
+     * `permanent` flag. Grouping by game stays in the page; the game/search filter is the
+     * controller's (see {@see self::searchText()}), so this stays a pure visibility projection.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function forGlobalBrowser(bool $withPlayerList = false): array
+    {
+        $rows = [];
+        $seen = [];
+
+        $events = Event::query()
+            ->publiclyVisible()
+            ->where('status', '!=', EventStatus::Archived)
+            ->orderByDesc('starts_at')
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($events as $event) {
+            foreach (self::linksForEvent($event) as $link) {
+                if (isset($seen[$link->id])) {
+                    continue;
+                }
+
+                $seen[$link->id] = true;
+                $rows[] = self::dto($link, $withPlayerList) + [
+                    'event' => ['name' => $event->name, 'slug' => $event->slug],
+                    'permanent' => false,
+                ];
+            }
+        }
+
+        foreach (self::permanentLinks() as $link) {
+            if (isset($seen[$link->id])) {
+                continue;
+            }
+
+            $seen[$link->id] = true;
+            $rows[] = self::permanentDto($link, $withPlayerList) + [
+                'event' => null,
+                'permanent' => true,
+            ];
+        }
+
+        // Deterministic order for the browser and its tests: game, then the shown name.
+        usort($rows, self::compareRows(...));
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $a
+     * @param  array<string, mixed>  $b
+     */
+    private static function compareRows(array $a, array $b): int
+    {
+        return [
+            Str::lower((string) ($a['game'] ?? '')),
+            Str::lower(self::shownName($a)),
+        ] <=> [
+            Str::lower((string) ($b['game'] ?? '')),
+            Str::lower(self::shownName($b)),
+        ];
+    }
+
+    /**
+     * One searchable text of a browser row, so the page can match a query against the
+     * things a player would type (name, game, map, event, address) without opening the
+     * server. Backend-side so the filter is testable and the payload stays small.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    public static function searchText(array $row): string
+    {
+        $query = is_array($row['query'] ?? null) ? $row['query'] : [];
+        $event = is_array($row['event'] ?? null) ? $row['event'] : [];
+
+        $parts = [];
+        foreach ([
+            self::shownName($row),
+            $row['game'] ?? null,
+            $query['serverName'] ?? null,
+            $query['map'] ?? null,
+            $row['matchLabel'] ?? null,
+            $row['description'] ?? null,
+            $row['address'] ?? null,
+            $event['name'] ?? null,
+        ] as $candidate) {
+            if (is_string($candidate) && $candidate !== '') {
+                $parts[] = $candidate;
+            }
+        }
+
+        if (is_int($row['port'] ?? null)) {
+            $parts[] = (string) $row['port'];
+        }
+
+        return Str::lower(implode(' ', $parts));
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private static function shownName(array $row): string
+    {
+        $query = is_array($row['query'] ?? null) ? $row['query'] : [];
+
+        foreach ([$row['title'] ?? null, $query['serverName'] ?? null, $row['game'] ?? null] as $candidate) {
+            if (is_string($candidate) && $candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public static function permanentDto(ServerLink $link, bool $withPlayerList = false): array
@@ -172,12 +298,15 @@ class ServerListProjection
         return [
             'id' => $link->id,
             'game' => $game?->name,
+            // The stable game/recipe slug, so a client can map a server to its
+            // install recipe (the launcher joins via the recipe's launch target).
+            'gameSlug' => $game?->slug,
             'title' => $link->title,
             'matchLabel' => self::matchLabel($link, $tournament),
             'address' => $link->join_info->address,
             'port' => $link->join_info->port,
             'connectString' => PelicanJoinLink::for($link->join_info),
-            'connectIsLink' => str_contains(PelicanJoinLink::for($link->join_info), '://'),
+            'connectIsLink' => JoinLinkTemplates::isAllowedUrl(PelicanJoinLink::for($link->join_info)),
             'status' => $link->status->value,
             'query' => self::queryFor($link, $withPlayerList),
             'estimate' => $link->permanent ? null : self::estimateFor($game),

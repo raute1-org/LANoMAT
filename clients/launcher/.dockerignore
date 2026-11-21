@@ -1,0 +1,6 @@
+# The build context is only the Dockerfile's neighbourhood; everything the stages need is
+# installed by apt/cargo. Build output from a local run must never inflate the context.
+target/
+dist/
+.ci-cache/
+**/*.log

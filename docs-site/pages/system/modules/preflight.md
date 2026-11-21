@@ -33,7 +33,8 @@ next step.
 
 Database, Redis, queue heartbeat, scheduler heartbeat, storage writability, backup marker freshness,
 Discord gateway, Mumble/TeamSpeak sidecars, LiveKit, file host, desktop client download version,
-certificate expiry, LanCache (optional), room audio (optional), pinned image updates.
+launcher builds (`launcher_build`), certificate expiry, LanCache (optional), room audio (optional),
+pinned image updates.
 
 ## Guards and rules
 

@@ -63,6 +63,53 @@ it('requires match patterns or an external url', function () {
         ->toThrow(RecipeException::class);
 });
 
+it('accepts macos steps, verifications and launch targets', function () {
+    $recipe = validRecipe();
+    $recipe['platforms'] = ['windows', 'linux', 'macos'];
+    $recipe['steps'][0]['os'] = 'macos';
+    $recipe['steps'][0]['verify'] = [
+        ['type' => 'dir_exists', 'path' => '~/Applications/UT2004.app', 'os' => 'macos'],
+        ['type' => 'command', 'command' => 'test -d "$HOME/Applications/UT2004.app"', 'os' => 'macos'],
+    ];
+    $recipe['launch_targets'] = [
+        [
+            'id' => 'flat-macos',
+            'label' => 'Flat on a monitor (macOS)',
+            'os' => 'macos',
+            'shell' => 'bash',
+            'command' => 'open "$HOME/Applications/UT2004.app"',
+        ],
+    ];
+
+    app(RecipeValidator::class)->validate($recipe);
+
+    expect(true)->toBeTrue();
+});
+
+it('rejects an unknown os on a step, verification or launch target', function () {
+    $step = validRecipe();
+    $step['steps'][0]['os'] = 'amiga';
+
+    expect(fn () => app(RecipeValidator::class)->validate($step))
+        ->toThrow(RecipeException::class);
+
+    $verification = validRecipe();
+    $verification['steps'][0]['verify'] = [
+        ['type' => 'command', 'command' => 'true', 'os' => 'amiga'],
+    ];
+
+    expect(fn () => app(RecipeValidator::class)->validate($verification))
+        ->toThrow(RecipeException::class);
+
+    $launchTarget = validRecipe();
+    $launchTarget['launch_targets'] = [
+        ['id' => 'flat', 'label' => 'Flat', 'os' => 'amiga', 'command' => 'true'],
+    ];
+
+    expect(fn () => app(RecipeValidator::class)->validate($launchTarget))
+        ->toThrow(RecipeException::class);
+});
+
 it('rejects duplicate step ids and unknown shells', function () {
     $recipe = validRecipe();
     $recipe['steps'][1]['id'] = 'install';

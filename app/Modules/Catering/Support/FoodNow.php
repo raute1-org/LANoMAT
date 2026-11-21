@@ -21,7 +21,7 @@ final class FoodNow
 {
     /**
      * @return array{
-     *     open: null|array{title: string, closesAt: string|null, orderCount: int, mine: string|null, orderable: bool, href: string},
+     *     open: null|array{title: string, closesAt: string|null, orderCount: int, mine: string|null, payment: array{method: string, dueCents: int, url: string|null, reference: string|null}|null, orderable: bool, href: string},
      *     next: null|array{title: string, opensAt: string}
      * }
      */
@@ -37,7 +37,7 @@ final class FoodNow
 
     /**
      * @param  Collection<int, FoodOrder>  $rounds
-     * @return array{title: string, closesAt: string|null, orderCount: int, mine: string|null, orderable: bool, href: string}|null
+     * @return array{title: string, closesAt: string|null, orderCount: int, mine: string|null, payment: array{method: string, dueCents: int, url: string|null, reference: string|null}|null, orderable: bool, href: string}|null
      */
     private static function open(Event $event, User $viewer, Collection $rounds): ?array
     {
@@ -55,11 +55,17 @@ final class FoodNow
             ->orderBy('id')
             ->get(['user_id', 'selection']);
 
+        $myItems = FoodOrderItem::query()
+            ->where('food_order_id', $order->id)
+            ->where('user_id', $viewer->id)
+            ->get();
+
         return [
             'title' => $order->title,
             'closesAt' => $order->closes_at?->toIso8601String(),
             'orderCount' => $items->pluck('user_id')->unique()->count(),
             'mine' => self::summarize($order, $items->where('user_id', $viewer->id)),
+            'payment' => MyFoodPayment::for($order, $event, $viewer, $myItems),
             'orderable' => self::orderable($event, $viewer),
             'href' => route('catering.show', $event),
         ];
@@ -109,13 +115,13 @@ final class FoodNow
             return null;
         }
 
-        $names = collect($order->menu)->mapWithKeys(
+        $names = collect($order->menuOptions())->mapWithKeys(
             fn (MenuOption $option): array => [$option->key => $option->name],
         );
 
         return $items
             ->groupBy(fn (FoodOrderItem $item): string => (string) ($item->selection['option_key'] ?? ''))
-            ->map(fn (Collection $group, string $key): string => $group->count().'× '.($names[$key] ?? $key))
+            ->map(fn (Collection $group, string $key): string => $group->count().'× '.DishNames::forItem($group->firstOrFail(), $names->all()))
             ->implode(', ');
     }
 }

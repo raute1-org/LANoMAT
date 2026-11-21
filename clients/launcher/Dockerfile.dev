@@ -1,0 +1,68 @@
+# Reproducible build and test environment for the LANoMAT Launcher.
+#
+# Stages:
+#   core  Rust core only (fast checks/tests): docker build --target core -t lanomat-launcher-core -f Dockerfile.dev .
+#   app   + Tauri v2 desktop shell on Linux:    docker build --target app -t lanomat-launcher-dev -f Dockerfile.dev .
+#   windows cross-build with cargo-xwin:         docker build --target windows -t lanomat-launcher-win -f Dockerfile.dev .
+FROM rust:1.96-bookworm AS core
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && rustup component add clippy rustfmt
+
+WORKDIR /work
+
+FROM core AS app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev \
+        libayatana-appindicator3-dev libxdo-dev \
+        xvfb xauth dbus dbus-x11 xdotool imagemagick x11-utils \
+        python3 procps \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM app AS windows
+
+# Debian bookworm ships LLVM 19 (main) and 22 (security); 21 exists in neither.
+# `clang-cl` comes from clang-*, `lld-link` from lld-* — llvm-* alone provides
+# neither, so all three are installed and linked into PATH for cargo-xwin.
+ARG LLVM_VERSION=19
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nasm zip nsis \
+        llvm-${LLVM_VERSION} clang-${LLVM_VERSION} lld-${LLVM_VERSION} \
+    && rm -rf /var/lib/apt/lists/* \
+    && for t in clang-cl lld-link llvm-lib llvm-ar llvm-rc llvm-dlltool llvm-mt; do \
+         ln -sf /usr/lib/llvm-${LLVM_VERSION}/bin/$t /usr/local/bin/$t; \
+       done \
+    && rustup target add x86_64-pc-windows-msvc \
+    && cargo install cargo-xwin --version 0.23.1 --locked
+
+ENV XWIN_CACHE_DIR=/xwin-cache \
+    XWIN_ACCEPT_LICENSE=1
+
+# tauri-cli + NSIS + Win/RestartManager.nsh belong to the not-yet-enabled NSIS **setup** exe
+# (`cd app && cargo tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis`).
+# The workflow currently ships only the portable exe (`cargo xwin build`), which needs neither, so
+# these three lines are dead weight until the `installer` variant is switched on — kept because they
+# are pinned here (Debian 12's NSIS 3.08 lacks Win/RestartManager.nsh, which Tauri's installer
+# template includes), and `scripts/ops/build-launcher.sh` already accepts a `-setup.exe` in the
+# manifest. Removing them also removes the only NSIS path; re-add them together with that build.
+RUN cargo install tauri-cli --version 2.12.4 --locked
+
+# Debian's clang-19 ships `clang` and `clang++` but no `clang-cl`, and the cc crate
+# (aws-lc-sys through reqwest/rustls) invokes exactly `clang-cl` for the MSVC target.
+# The wrapper is clang in CL mode; cargo-xwin already supplies the MSVC flags. Kept
+# after the slow `cargo install` layer so this change does not invalidate it.
+RUN rm -f /usr/local/bin/clang-cl \
+    && printf '#!/bin/sh\nexec /usr/lib/llvm-%s/bin/clang --driver-mode=cl "$@"\n' "${LLVM_VERSION}" \
+       > /usr/local/bin/clang-cl \
+    && chmod 0755 /usr/local/bin/clang-cl \
+    && clang-cl --version
+
+RUN curl -fsSL https://raw.githubusercontent.com/kichik/nsis/bef54b0100b03756a8fe7100ae7b1130f2237798/Include/Win/RestartManager.nsh \
+      -o /usr/share/nsis/Include/Win/RestartManager.nsh \
+    && echo "67149978412da9b283e2e1abe48a360093df9caf6363373e2cabe463978b7c0e  /usr/share/nsis/Include/Win/RestartManager.nsh" | sha256sum -c -

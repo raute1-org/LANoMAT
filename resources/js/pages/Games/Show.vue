@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ClipboardCopy,
     Download,
@@ -70,6 +70,8 @@ type Game = {
     }[];
     avatars: number;
     play_url: string | null;
+    /** "Ein Server · Nickname · Join/Leave" for a browser recipe. */
+    server_note: string | null;
     launch_target: string | null;
     supports_multiplayer: boolean;
     lan_ready: boolean;
@@ -81,6 +83,9 @@ type Game = {
     launch_command: string;
     install_deeplink: string;
     launch_deeplink: string;
+    launcher_available: boolean;
+    launcher_supported: boolean;
+    launcher_url: string | null;
 };
 
 const props = defineProps<{
@@ -119,6 +124,13 @@ const readyServers = computed(() =>
     props.servers.filter((server) =>
         ['ready', 'live', 'warmup'].includes(server.status),
     ),
+);
+
+/** "1 Avatar zur Auswahl" / "3 Avatare zur Auswahl" — never "1 Avatare". */
+const avatarLabel = computed<string>(() =>
+    props.game.avatars === 1
+        ? '1 Avatar zur Auswahl'
+        : `${props.game.avatars} Avatare zur Auswahl`,
 );
 
 const platformLabel = (platforms: string[] | null): string =>
@@ -182,6 +194,13 @@ function announceRound(): void {
                         <p class="mt-2 max-w-2xl text-sm text-muted-foreground">
                             {{ game.summary }}
                         </p>
+                        <p
+                            v-if="game.server_note"
+                            class="mt-1 font-mono text-xs text-muted-foreground"
+                            data-test="game-server-note"
+                        >
+                            {{ game.server_note }}
+                        </p>
                         <div class="mt-3 flex flex-wrap items-center gap-2">
                             <Badge
                                 v-if="game.lan_ready"
@@ -229,14 +248,48 @@ function announceRound(): void {
                     </div>
 
                     <div class="flex flex-wrap gap-2">
+                        <!-- A fresh PC has no `lanomat://` handler; for the one
+                             recipe the pilot build installs, the primary action
+                             opens the launcher download. Every other recipe
+                             keeps the agent deep link. -->
                         <Button
                             v-if="game.installable"
                             as-child
                             data-test="install"
                         >
-                            <a :href="game.install_deeplink">
+                            <Link
+                                v-if="
+                                    game.launcher_supported &&
+                                    game.launcher_available &&
+                                    game.launcher_url
+                                "
+                                :href="game.launcher_url"
+                            >
                                 <Download class="size-4" aria-hidden="true" />
                                 Installieren
+                            </Link>
+                            <a v-else :href="game.install_deeplink">
+                                <Download class="size-4" aria-hidden="true" />
+                                Installieren
+                            </a>
+                        </Button>
+                        <Button
+                            v-if="
+                                game.installable &&
+                                game.launcher_supported &&
+                                game.launcher_available &&
+                                game.launcher_url
+                            "
+                            as-child
+                            variant="ghost"
+                            data-test="install-launcher"
+                        >
+                            <a :href="game.install_deeplink">
+                                <ExternalLink
+                                    class="size-4"
+                                    aria-hidden="true"
+                                />
+                                Im Launcher öffnen
                             </a>
                         </Button>
                         <Button
@@ -254,7 +307,7 @@ function announceRound(): void {
                                     class="size-4"
                                     aria-hidden="true"
                                 />
-                                Im Browser starten
+                                Spielen
                             </a>
                         </Button>
                         <Button
@@ -280,6 +333,7 @@ function announceRound(): void {
                         type="button"
                         size="sm"
                         variant="outline"
+                        class="h-auto max-w-full text-left whitespace-normal"
                         @click="
                             copy(
                                 game.install_command,
@@ -288,7 +342,7 @@ function announceRound(): void {
                         "
                     >
                         <ClipboardCopy class="size-4" aria-hidden="true" />
-                        <span class="font-mono">{{
+                        <span class="font-mono break-all">{{
                             game.install_command
                         }}</span>
                     </Button>
@@ -297,13 +351,15 @@ function announceRound(): void {
                         type="button"
                         size="sm"
                         variant="ghost"
+                        class="h-auto max-w-full text-left whitespace-normal"
                         @click="
                             copy(game.launch_command, 'Startbefehl kopiert')
                         "
                     >
-                        <span class="font-mono text-muted-foreground">{{
-                            game.launch_command
-                        }}</span>
+                        <span
+                            class="font-mono break-all text-muted-foreground"
+                            >{{ game.launch_command }}</span
+                        >
                     </Button>
                 </div>
                 <p
@@ -315,9 +371,34 @@ function announceRound(): void {
                     Browser. Der Agent ist optional.
                 </p>
 
+                <!-- The deep link only fires once the launcher is installed;
+                     this explains why the primary action leads to the download
+                     on a fresh PC (pilot recipe plus a published build). -->
+                <p
+                    v-if="
+                        game.requires_agent &&
+                        game.launcher_supported &&
+                        game.launcher_available &&
+                        game.launcher_url
+                    "
+                    class="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
+                    data-test="launcher-download"
+                >
+                    Noch kein Launcher auf diesem PC? „Installieren“ führt zum
+                    <Link
+                        :href="game.launcher_url"
+                        class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                        Launcher-Download</Link
+                    >
+                    — der Ein-Klick-App, die {{ game.title }} holt, entpackt und
+                    startet. Ist der Launcher schon da, geht es über „Im
+                    Launcher öffnen“ direkt weiter.
+                </p>
+
                 <Separator class="my-8" />
 
-                <div class="grid gap-6 xl:grid-cols-[1fr_20rem]">
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_20rem]">
                     <div class="space-y-6">
                         <!-- running tournaments -->
                         <Card v-if="tournaments.length > 0">
@@ -680,8 +761,7 @@ function announceRound(): void {
                                             v-if="game.avatars > 0"
                                             class="font-mono text-xs text-live"
                                         >
-                                            {{ game.avatars }} Avatare zur
-                                            Auswahl
+                                            {{ avatarLabel }}
                                         </p>
                                         <Button
                                             v-if="game.avatar_converter_url"

@@ -7,7 +7,10 @@ use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Models\Restaurant;
+use App\Modules\Catering\Support\FoodIncluded;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
+use App\Modules\Registration\Support\MyRegistration;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +38,13 @@ class PlaceFoodOrderItem
                 throw CateringException::notOpen();
             }
 
-            $option = collect($order->menu)->first(fn ($menuOption) => $menuOption->key === $optionKey);
+            // Lock order: the event's rounds, then the restaurant row. The menu-write action takes the
+            // same restaurant lock, so "remove this dish" and "order this dish" cannot interleave.
+            if ($order->restaurant_id !== null) {
+                $order->setRelation('restaurant', Restaurant::query()->whereKey($order->restaurant_id)->lockForUpdate()->first());
+            }
+
+            $option = collect($order->menuOptions())->first(fn ($menuOption) => $menuOption->key === $optionKey);
 
             if ($option === null) {
                 throw CateringException::unknownOption($optionKey);
@@ -66,9 +75,12 @@ class PlaceFoodOrderItem
                 'price_cents' => $option->priceCents,
                 'selection' => [
                     'option_key' => $optionKey,
+                    // Name snapshot: later menu edits or removals keep this order readable.
+                    'name' => $option->name,
                     'note' => $note,
                 ],
             ]);
+            $item->included = FoodIncluded::for($order, MyRegistration::find($event, $user)?->ticket_type);
             $item->save();
 
             return $item;

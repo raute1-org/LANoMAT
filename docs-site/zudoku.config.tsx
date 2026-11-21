@@ -150,6 +150,7 @@ const config: ZudokuConfig = {
       label: "Guides",
       icon: "book-open",
       items: [
+        { type: "doc", file: "guides/launcher", label: "One-click launcher" },
         { type: "doc", file: "guides/install-the-agent", label: "Install the agent" },
         { type: "doc", file: "guides/install-ut2004", label: "Install UT2004 (+VR)" },
         { type: "doc", file: "guides/install-ridge-racer", label: "Install Ridge Racer 4" },
@@ -179,6 +180,7 @@ const config: ZudokuConfig = {
       items: [
         { type: "doc", file: "recipes/overview", label: "How recipes work" },
         { type: "doc", file: "recipes/ut2004", label: "UT2004 + UT2004VR" },
+        { type: "doc", file: "recipes/nfsu2", label: "NFSU2 + NFS-Online" },
         { type: "doc", file: "recipes/ridge-racer", label: "Ridge Racer" },
         { type: "doc", file: "recipes/contributing", label: "Contributing" },
         { type: "doc", file: "recipes/smb", label: "SMB import" },

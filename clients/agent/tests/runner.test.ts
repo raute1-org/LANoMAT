@@ -508,6 +508,10 @@ describe('runner file-system side effects', () => {
         expect(applyStepVariables(step, {}, 'windows').commands).toEqual([
             { shell: 'powershell', run: 'Expand-Archive "{{downloads}}/game.zip" "{{target}}"' },
         ]);
+        // macOS uses the bash family just like Linux.
+        expect(applyStepVariables(step, {}, 'macos').commands).toEqual([
+            { shell: 'bash', run: 'unzip -o "{{downloads}}/game.zip" -d "{{target}}"' },
+        ]);
         // Without an OS the whole step is handed through untouched.
         expect(applyStepVariables(step, {}).commands).toHaveLength(2);
     });

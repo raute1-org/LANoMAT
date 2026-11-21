@@ -5,6 +5,7 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { formatClock } from '@/lib/datetime';
+import { formatEuro } from '@/lib/formatEuro';
 import type { NowCardDto } from '@/types/now';
 import JoinButton from './JoinButton.vue';
 import { useNowLabels } from './useNowLabels';
@@ -56,9 +57,20 @@ function dot(card: NowCardDto): 'live' | 'warn' | null {
         return 'live';
     }
 
-    return card.state === 'closing_soon' || card.state === 'checkin_open'
+    return card.state === 'closing_soon' ||
+        card.state === 'checkin_open' ||
+        card.kind === 'payment'
         ? 'warn'
         : null;
+}
+
+function ticketName(card: NowCardDto): string {
+    if (typeof card.data.ticketName === 'string') {
+        return card.data.ticketName;
+    }
+
+    // Fallback for an older payload: the body is "<amount> · <ticket name>".
+    return card.body?.split(' · ').slice(1).join(' · ') ?? '';
 }
 
 function actionLabel(card: NowCardDto): string {
@@ -92,7 +104,19 @@ function actionLabel(card: NowCardDto): string {
                     <span class="font-semibold text-foreground">{{
                         card.title
                     }}</span>
-                    <span v-if="card.body" class="text-muted-foreground">
+                    <span
+                        v-if="card.kind === 'payment'"
+                        class="text-muted-foreground"
+                    >
+                        ·
+                        <span class="font-mono tabular-nums">{{
+                            formatEuro(Number(card.data.amountCents))
+                        }}</span>
+                        <template v-if="ticketName(card)">
+                            · {{ ticketName(card) }}
+                        </template>
+                    </span>
+                    <span v-else-if="card.body" class="text-muted-foreground">
                         · {{ card.body }}
                     </span>
                 </span>

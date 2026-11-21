@@ -4,10 +4,14 @@ use App\Http\Controllers\DevLoginController;
 use App\Http\Controllers\HomeController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
+use App\Modules\Catering\Http\DishImageController;
+use App\Modules\Catering\Http\RestaurantImageController;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Discord\Http\GatewayIngressController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Discord\Http\VoicePresenceController;
 use App\Modules\Events\Http\EventPageController;
+use App\Modules\Events\Http\HomeChatController;
 use App\Modules\Files\Http\FilePageController;
 use App\Modules\Files\Http\TusHookController;
 use App\Modules\Files\Http\UploadTicketController;
@@ -15,7 +19,9 @@ use App\Modules\Friends\Http\FriendsController;
 use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameRecipes\Http\GamePageController;
+use App\Modules\GameRecipes\Http\LauncherPageController;
 use App\Modules\GameServers\Http\GameServerPageController;
+use App\Modules\GameServers\Http\GlobalServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerAdminController;
 use App\Modules\GameServers\Http\RemoteDockerAdminController;
@@ -53,9 +59,23 @@ use Illuminate\Support\Facades\Route;
 $modules = app(Modules::class);
 
 if ($modules->routable(Module::GameRecipes)) {
-    // The participant games library: install/launch, live servers, running
-    // tournaments and a one-click "Runde" into the event's voice chat.
+    // The LANoMAT Launcher stays behind the Discord login so no launcher content appears
+    // before login; the page carries no user data. The set of files is exactly what
+    // clients-dist/launcher/manifest.json lists (LauncherBuilds validates it).
     Route::middleware(['auth'])->group(function () {
+        Route::get('/launcher', [LauncherPageController::class, 'index'])->name('launcher.index');
+        // The shell's prominent top-right button starts the best build for the
+        // visitor's system directly; the page stays the explanation and fallback.
+        Route::get('/launcher/download-latest', [LauncherPageController::class, 'latest'])
+            ->middleware('throttle:20,1')
+            ->name('launcher.download.latest');
+        Route::get('/launcher/download/{filename}', [LauncherPageController::class, 'download'])
+            ->where('filename', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
+            ->middleware('throttle:20,1')
+            ->name('launcher.download');
+
+        // The participant games library: install/launch, live servers, running
+        // tournaments and a one-click "Runde" into the event's voice chat.
         Route::get('/games', [GamePageController::class, 'index'])->name('games.index');
         Route::get('/games/{slug}', [GamePageController::class, 'show'])->name('games.show');
         Route::post('/games/{slug}/lfg', [GamePageController::class, 'createLfg'])
@@ -98,6 +118,12 @@ Route::middleware(['auth'])->group(function () {
         ->where('hash', AvatarStore::HASH_PATTERN)
         ->middleware('throttle:avatars')
         ->name('avatars.show');
+
+    // The always-visible chat dock fetches this on first open instead of
+    // carrying the chat queries on every page.
+    Route::get('/chat', HomeChatController::class)
+        ->middleware('throttle:60,1')
+        ->name('chat.data');
 
     // Nobody who is not logged in may see ANY event data: the event list, the
     // event page and every event-scoped participant page require login. Guests
@@ -192,6 +218,19 @@ if ($modules->routable(Module::Catering)) {
         Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
     });
 
+    // Dish photos: no login (like the public gallery photos), the data is the gate: a published
+    // round of a publicly visible event whose dish has an image; everything else is a 404.
+    // The logo has its own path: a dish may legitimately have the key "logo".
+    Route::get('/catering/restaurant-logo/{restaurant}', [RestaurantImageController::class, 'logo'])
+        ->name('catering.restaurant-logo');
+    Route::get('/catering/restaurant-image/{restaurant}/{key}', [RestaurantImageController::class, 'dish'])
+        ->where('key', DishImage::KEY_PATTERN)
+        ->name('catering.restaurant-image');
+    // Alias of the above for the old per-round URL (bookmarks, caches).
+    Route::get('/catering/dish-image/{foodOrder}/{key}', DishImageController::class)
+        ->where('key', DishImage::KEY_PATTERN)
+        ->name('catering.dish-image');
+
     Route::middleware(['auth'])->group(function () {
         Route::post('/food-orders/{foodOrder}/items', [CateringController::class, 'store'])->name('catering.items.store');
         Route::delete('/food-order-items/{foodOrderItem}', [CateringController::class, 'destroy'])->name('catering.items.destroy');
@@ -233,6 +272,10 @@ if ($modules->routable(Module::GameServers)) {
     Route::middleware(['auth'])->group(function () {
         // One overview: the current (or `?event=`) LAN's servers plus the permanent ones.
         Route::get('/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+        // The cross-event browser: every public event's servers in one answer.
+        Route::get('/servers/all', [GlobalServerPageController::class, 'index'])->name('servers.browser');
+        // The permanent servers live in the same overview; keep the old URL alive.
+        Route::get('/servers/permanent', fn () => redirect('/servers', 301))->name('servers.permanent');
         Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'legacy'])->name('servers.event');
         // Admin shortcuts on that page; the Actions authorize `configure` on the server.
         Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');

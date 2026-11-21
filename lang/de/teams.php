@@ -57,6 +57,7 @@ return [
         'no_requests' => 'Keine offenen Beitrittsanfragen.',
         'already_member' => 'Du bist bereits Mitglied dieses Teams.',
         'login_to_join' => 'Melde dich an, um beizutreten.',
+        'login_to_create' => 'Melde dich an, um ein Team zu erstellen.',
     ],
 
     'resource' => [

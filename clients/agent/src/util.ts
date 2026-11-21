@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { access, chmod, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import type { Os } from './types.js';
 
 export function normalizeBaseUrl(input: string): string {
     const trimmed = input.trim().replace(/\/+$/, '');
@@ -224,4 +225,9 @@ export function truncateMiddle(value: string, length = 12): string {
 
 export function platformIsWindows(platform: NodeJS.Platform = process.platform): boolean {
     return platform === 'win32';
+}
+
+/** Map the running Node platform to the recipe OS identifier used by the API and plans. */
+export function osForPlatform(platform: NodeJS.Platform = process.platform): Os {
+    return platform === 'darwin' ? 'macos' : platform === 'win32' ? 'windows' : 'linux';
 }

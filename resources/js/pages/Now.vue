@@ -2,6 +2,7 @@
 import { Deferred, Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import DesktopClientHint from '@/components/DesktopClientHint.vue';
+import HomeChat from '@/components/home/HomeChat.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import CountdownLine from '@/components/now/CountdownLine.vue';
 import FoodPanel from '@/components/now/FoodPanel.vue';
@@ -171,6 +172,33 @@ const dateRange = computed(() => {
                     </p>
                 </div>
             </div>
+
+            <!-- The three shortcuts, visible without opening the chat. -->
+            <div class="flex flex-wrap gap-2" data-test="now-actions">
+                <Button v-if="has('game_recipes')" as-child size="lg">
+                    <Link href="/games">Spiele installieren</Link>
+                </Button>
+                <Button
+                    v-if="has('game_servers')"
+                    as-child
+                    variant="outline"
+                    size="lg"
+                >
+                    <Link href="/servers">Server ansehen</Link>
+                </Button>
+                <Button
+                    v-if="has('game_recipes')"
+                    as-child
+                    variant="outline"
+                    size="lg"
+                >
+                    <Link href="/launcher">Launcher herunterladen</Link>
+                </Button>
+            </div>
+
+            <!-- The start-page chat: the front door after login. The action
+                 row already sits above it on this page. -->
+            <HomeChat :chat="chat" :show-actions="false" />
 
             <!-- Live -->
             <template v-if="state === 'live' && event">

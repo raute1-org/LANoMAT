@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Mcp\Server;
 
+use App\Modules\Mcp\Prompts\ImportMenuPrompt;
 use App\Modules\Mcp\Prompts\InstallGamePrompt;
+use App\Modules\Mcp\Resources\ImportMenuSkillResource;
 use App\Modules\Mcp\Resources\RecipeSkillResource;
+use App\Modules\Mcp\Server\Methods\ListTools as LanomatListTools;
+use App\Modules\Mcp\Tools\CateringMenuGetTool;
+use App\Modules\Mcp\Tools\CateringMenuImportTool;
+use App\Modules\Mcp\Tools\CateringMenuPreviewTool;
 use App\Modules\Mcp\Tools\CateringMenuTool;
+use App\Modules\Mcp\Tools\CateringRoundCreateTool;
 use App\Modules\Mcp\Tools\EventGetTool;
 use App\Modules\Mcp\Tools\EventRegisterTool;
 use App\Modules\Mcp\Tools\EventsListTool;
@@ -24,6 +31,7 @@ use App\Modules\Mcp\Tools\RecipeContributeTool;
 use App\Modules\Mcp\Tools\RecipeGetTool;
 use App\Modules\Mcp\Tools\RecipeInstallPlanTool;
 use App\Modules\Mcp\Tools\RecipesListTool;
+use App\Modules\Mcp\Tools\RestaurantsListTool;
 use App\Modules\Mcp\Tools\ScheduleListTool;
 use App\Modules\Mcp\Tools\ServersListTool;
 use App\Modules\Mcp\Tools\TeamsListTool;
@@ -53,10 +61,22 @@ source "external" download. Avatars are a multi-select from recipe_avatars;
 download only the chosen ones. The base game is required, the UT2004VR mod is
 an optional step.
 
+For "import this menu" (orga/admin only): follow the import-menu prompt — read the
+PDF/page yourself, catering_menu_preview, show the human, then catering_menu_import. Menus belong to a
+restaurant (restaurants_list); a round is created separately with catering_round_create.
+
 Never invent ids or prices. Everything you need comes from the tools.
 TEXT)]
 class LanomatServer extends Server
 {
+    /**
+     * The full catalogue is 29 tools today; one page is enough for every
+     * ordinary MCP client, including one that does not follow cursors. The
+     * package maximum stays 50, so `per_page` still has room and the doctor
+     * still follows a cursor when a future profile outgrows one page.
+     */
+    public int $defaultPaginationLength = 50;
+
     /** @var array<int, class-string<Tool>> */
     protected array $tools = [
         MeTool::class,
@@ -76,6 +96,11 @@ class LanomatServer extends Server
         PollsListTool::class,
         PollVoteTool::class,
         CateringMenuTool::class,
+        CateringMenuGetTool::class,
+        CateringMenuPreviewTool::class,
+        CateringMenuImportTool::class,
+        CateringRoundCreateTool::class,
+        RestaurantsListTool::class,
         LfgListTool::class,
         LfgCreateTool::class,
         RecipesListTool::class,
@@ -88,10 +113,22 @@ class LanomatServer extends Server
     /** @var array<int, class-string<Server\Resource>> */
     protected array $resources = [
         RecipeSkillResource::class,
+        ImportMenuSkillResource::class,
     ];
 
     /** @var array<int, class-string<Prompt>> */
     protected array $prompts = [
         InstallGamePrompt::class,
+        ImportMenuPrompt::class,
     ];
+
+    /**
+     * Use LANoMAT's cursor handling for `tools/list` (see the class docblock):
+     * unpadded base64url cursors work, a malformed cursor is -32602 instead of
+     * a silent replay of page 1, and the last page carries `nextCursor: null`.
+     */
+    protected function boot(): void
+    {
+        $this->addMethod('tools/list', LanomatListTools::class);
+    }
 }

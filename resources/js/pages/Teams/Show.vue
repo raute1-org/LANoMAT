@@ -35,6 +35,7 @@ function join() {
 
     <PageContainer
         width="default"
+        :as="isAuthenticated ? 'div' : 'main'"
         :back="{ href: teamsIndex.url(), label: 'Zurück zu den Teams' }"
     >
         <template #header>

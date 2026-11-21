@@ -52,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withCommands([
+        __DIR__.'/../app/Modules/Catering/Console',
         __DIR__.'/../app/Modules/Discord/Console',
         __DIR__.'/../app/Modules/Files/Console',
         __DIR__.'/../app/Modules/Identity/Console',
@@ -64,6 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/Preflight/Console',
         __DIR__.'/../app/Modules/Presence/Console',
         __DIR__.'/../app/Modules/Provisioning/Console',
+        __DIR__.'/../app/Modules/Registration/Console',
         __DIR__.'/../app/Modules/Schedule/Console',
         __DIR__.'/../app/Modules/Tournaments/Console',
         __DIR__.'/../app/Modules/WebVoice/Console',

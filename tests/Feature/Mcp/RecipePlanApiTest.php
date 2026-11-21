@@ -83,7 +83,7 @@ it('returns the real plan contract and the launch targets for the OS', function 
             'target_dir',
             'downloads_dir',
             'steps',
-            'files' => [['requirement', 'label', 'status', 'required']],
+            'files' => [['requirement', 'label', 'os', 'status', 'required']],
             'downloads',
             'avatars',
             'missing',

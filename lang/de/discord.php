@@ -64,6 +64,7 @@ return [
 
     'help' => [
         'text' => "Verfügbare Befehle:\n/tournament list – Turniere des aktuellen Events anzeigen\n/tournament info <id> – Details zu einem Turnier anzeigen\n/tournament checkin <id> – Für ein Turnier einchecken\n/tournament bracket <id> – Link zur Bracket-Seite anzeigen\n/schedule – Nächste Programmpunkte des aktuellen Events anzeigen\n/lfg list – Mitspieler-Suchen des aktuellen Events anzeigen\n/lfg create <title> [game] – Eine neue Mitspieler-Suche erstellen\n/help – Diese Hilfe anzeigen",
+        'agent' => '/ask <frage> – Frag den LANoMAT-Assistenten (Spiele, Installation, Server). Alternativ den Bot erwähnen oder eine DM schicken.',
     ],
 
     'match_channel' => [

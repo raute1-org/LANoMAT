@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { discord as loginDiscord } from '@/routes/login';
 import { store as storeTeam } from '@/routes/teams';
 import { show as showTeam } from '@/routes/teams';
 import type { TeamSummary } from '@/types';
@@ -21,6 +22,9 @@ defineProps<{
     teams: TeamSummary[];
     labels: Record<string, string>;
 }>();
+
+const page = usePage();
+const isAuthenticated = computed(() => page.props.auth.user !== null);
 
 const open = ref(false);
 const form = useForm({ name: '', tag: '' });
@@ -39,9 +43,16 @@ function submit() {
 <template>
     <Head :title="labels.title" />
 
-    <PageContainer width="wide" :title="labels.title">
+    <PageContainer
+        width="wide"
+        :title="labels.title"
+        :as="isAuthenticated ? 'div' : 'main'"
+    >
         <template #actions>
-            <Dialog v-model:open="open">
+            <Button v-if="!isAuthenticated" as-child>
+                <a :href="loginDiscord.url()">{{ labels.login_to_create }}</a>
+            </Button>
+            <Dialog v-else v-model:open="open">
                 <DialogTrigger as-child>
                     <Button>{{ labels.create }}</Button>
                 </DialogTrigger>

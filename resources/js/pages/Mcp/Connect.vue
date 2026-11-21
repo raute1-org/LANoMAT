@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Bot } from '@lucide/vue';
+import { MonitorSmartphone } from '@lucide/vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,17 +135,31 @@ const formatDate = (iso: string | null): string =>
             <h2
                 class="flex items-center gap-2 text-lg font-semibold tracking-tight"
             >
-                <Bot class="size-4 text-muted-foreground" aria-hidden="true" />
+                <MonitorSmartphone
+                    class="size-4 text-muted-foreground"
+                    aria-hidden="true"
+                />
                 {{ labels.devices_heading }}
             </h2>
 
-            <p
+            <div
                 v-if="devices.length === 0"
                 class="mt-3 rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
                 data-test="mcp-devices-empty"
             >
-                {{ labels.devices_empty }}
-            </p>
+                <p>{{ labels.devices_empty }}</p>
+                <p class="mt-2">{{ labels.devices_empty_hint }}</p>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                    <li>{{ labels.devices_empty_launcher }}</li>
+                    <li>
+                        {{ labels.devices_empty_agent }}
+                        <code
+                            class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground"
+                            >{{ labels.devices_empty_command }}</code
+                        >
+                    </li>
+                </ul>
+            </div>
 
             <ul
                 v-else

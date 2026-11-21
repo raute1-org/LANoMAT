@@ -1,0 +1,293 @@
+---
+title: One-click launcher
+description: From the start-page chat to a running Unreal Tournament 2004 — one download, one pairing code, one button. No terminal, no Steam, no disc mount.
+---
+
+The LANoMAT Launcher is the desktop app for people who do not want a terminal. It pairs once, shows
+the games the LAN publishes and installs **Unreal Tournament 2004** from the LAN file host with one
+button. The UT2004 pilot is flat only; VR is a later switch. There are builds for Linux and Windows
+x86_64; macOS has none yet. In the pilot **only UT2004 is installable in the launcher**; every
+other published recipe is catalog-only until the recipe engine is generic.
+
+## The whole path, in order
+
+This is the pilot flow the website and the launcher share. You can start at any step once signed
+in; the chat on the start page is the shortest way in.
+
+1. **Start page chat** — after the Discord login, `/` opens with the chat. Ask what is playable on
+   this LAN; it answers with inline game and server cards, not a link list.
+2. **Games** — the card's quiet "Seite öffnen" (or the **Spiele verwalten** tile) leads to
+   `/games`, the catalogue of everything the LAN publishes.
+3. **Zuletzt gespielt** — the first row on `/games` is what this device installed or launched
+   before; it is absent until there is something to show, never an empty frame.
+4. **Installieren** — the game page offers one primary action. Without a launcher on the PC it
+   becomes **Launcher herunterladen**; the deep link alone needs the launcher.
+5. **Launcher download and pairing** — one file for your OS, one **Anmeldecode**, approved once in
+   the browser on `/mcp/connect`.
+6. **The same Games UX** — the launcher opens on **Spiele**, the same list, the same German action
+   words, the same LAN badge. No second catalogue, no second truth.
+7. **Percentages** — one click on **Installieren** runs the six phases (Planen, Herunterladen,
+   Entpacken, Patchen, Prüfen, Fertig) with percent, bytes, speed and ETA, resumable and cancellable.
+8. **Install and launch** — **Starten** opens the game; the **Serverbrowser** button opens your
+   server's `/servers`, so the first match is one click away.
+
+## First visit: the demo conversation
+
+The start-page chat greets with deterministic copy (it works without a model key) and answers with
+cards built from the same catalogue data as `/games`. A first visit to the start page after login
+reads roughly like this — the German strings are the ones the UI uses:
+
+> **LANoMAT** — Willkommen auf der LAN. Du kannst hier Spiele installieren, Server finden und
+> Sprache chatten.
+>
+> **Du** — Was kann ich hier tun?
+>
+> **LANoMAT** — Auf dieser LAN läuft Unreal Tournament 2004, und der Server „Raute1 LAN" ist offen.
+> Wenn du willst, installiere ich es dir.
+>
+> `[Spielkarte]` **Unreal Tournament 2004** · LAN · *Installieren* · Seite öffnen
+>
+> **Du** — Installier mir UT2004.
+>
+> **LANoMAT** — Der Launcher holt die DVD und den Patch aus dem LAN file host, entpackt beides und
+> prüft die Installation. Danach kannst du direkt starten.
+>
+> `[Installationskarte]` **Launcher herunterladen** — danach führen „Installieren" und „Starten"
+> direkt ans Ziel.
+>
+> **Du** — Wer ist auf dem Server?
+>
+> **LANoMAT** — Auf „Raute1 LAN" sind 6 von 16 Plätzen belegt, Karte DM-CORRUPTION.
+>
+> `[Serverkarte]` **Raute1 LAN** · DM-CORRUPTION · `6/16` · *Beitreten*
+
+The chat never invents a card: without recipe, server or install data it answers in prose and
+offers the tiles. The typewriter in the empty input (and its reduced-motion behaviour) is specified
+in the design system, [Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door-after-login--pilot).
+
+## Download
+
+After the Discord login, open the **Launcher** entry in the sidebar, the **Launcher herunterladen**
+shortcut on **Jetzt** (the start page after login), or the page directly at `/launcher` — for
+example [lan.raute1.org/launcher](https://lan.raute1.org/launcher). Guests see the login gate at
+`/` (and the public team/profile pages), so the launcher and its downloads are reached after
+login. The primary build for each OS
+is listed with its size, its SHA-256 and the steps for that file; extra files appear further down
+under **Weitere Dateien**:
+
+| Dark | Light |
+|---|---|
+| ![Launcher download page, dark](/screens/launcher-page-dark.png) | ![Launcher download page, light](/screens/launcher-page-light.png) |
+| `LAUNCHER · DARK` — per-OS build, size, SHA-256, steps | `LAUNCHER · LIGHT` — same builds, paper tokens |
+
+| OS | File | Notes |
+|---|---|---|
+| Linux x86_64 | `lanomat-launcher-<version>-linux-x86_64.tar.gz` | Extract the tarball, then run `./lanomat-launcher` inside the extracted `lanomat-launcher-<version>-linux-x86_64/` folder (it holds the binary, `install-desktop.sh`, `install-terminal.sh`, `LIESMICH.txt`, the desktop entry and the icon); WebKitGTK 4.1 is required |
+| Windows x86_64 | `lanomat-launcher-<version>-windows-x86_64-portable.exe` | Portable exe, no installation; `install-desktop.ps1` and `install-terminal.ps1` ship in the same release artifact (they are not manifest entries, so the page offers only the exe). Unsigned at first: SmartScreen → "Weitere Informationen" → "Trotzdem ausführen" |
+
+Each primary build has a **Herunterladen** button and a **Kopieren** button for its SHA-256.
+**Weitere Dateien** (for example a portable exe next to an archive) lists the additional files with
+their name and size, each with its own download button. The `/launcher` page reads
+`clients-dist/launcher/manifest.json`; a file that is not in that manifest is not offered, and the
+page says "Es ist noch kein Launcher-Build veröffentlicht" when the Orga has not copied one. The
+Preflight check `launcher_build` watches exactly that manifest: it warns when nothing is published,
+when only one OS is there and when the build is older than 30 days; a file that no longer matches
+its size or SHA-256 turns the check **down**. On the client side a matched LAN file is always
+hash-checked against the digest the server stored with it; a recipe pin, when present, wins over
+the stored digest. The shipped UT2004 patch pins its upstream GitHub file.
+
+## Pair once
+
+| Dark |
+|---|
+| ![Launcher connect screen with server address, dark](/screens/launcher-connect-dark.png) |
+| `LAUNCHER · VERBINDEN · DARK` — server address, then code + browser approval |
+
+1. Start the launcher.
+2. Enter the address of this server — the one you reached `/launcher` on. The field suggests
+   `https://lan.raute1.org`; at the venue use the LAN name the venue uses, for example
+   `http://lanomat.local`.
+3. Press **Verbinden**. The launcher shows an **Anmeldecode** and a **Browser öffnen** button that
+   opens `/mcp/connect?code=…` on the server. Log in with Discord, check the code and the device
+   name, and approve.
+
+The bearer token lives in `~/.config/lanomat-launcher/config.json` on Linux and in
+`%APPDATA%\LANoMAT\lanomat-launcher\config.json` on Windows (file 0600, folder 0700 on Unix; on
+Windows the file inherits the user profile's ACL instead). It is never shown in the UI or written to
+a log. The device flow is the same as for `lanomat-agent`, but every pairing is its own device with
+its own token: the launcher appears as a separate entry under **Verbundene Geräte** on
+`/mcp/connect`, and you revoke it there when the PC goes away.
+
+## The same Games list
+
+The launcher opens on **Chat**; the **Spiele** tab has the same published recipes, the same **LAN**
+badge and the same action words as `/games` in the browser. The newest local install record shows
+on the card: target folder, verified files, and either **Installieren** or **Starten**.
+
+| Dark |
+|---|
+| ![Launcher library with the UT2004 card, dark](/screens/launcher-library-dark.png) |
+| `LAUNCHER · SPIELE · DARK` — paired server, LAN badge, Installieren/Starten |
+
+The newest installed game is one `Starten` away. A game that is not installed shows
+**Installieren** only; nothing claims to be installed that the launcher has not verified.
+(The **Zuletzt gespielt** row on the web `/games` page is server activity, not the launcher's
+local install list.)
+
+## Percentages, not promises
+
+Press **Installieren** and the launcher shows the plan it got from the server, then every phase as
+it happens:
+
+1. The server builds the install plan from the recipe and the files approved for the event.
+2. The launcher downloads the DVD image and the OldUnreal 3374 patch from the LAN file host.
+   Downloads resume after a dropped connection; if the Orga pinned a SHA-256 for a file, it is
+   checked before the file is used.
+3. The disc payload is extracted without `System/` (the patch supplies the complete 64-bit System
+   tree), then the patch is extracted over the target.
+4. The launcher checks `System/Build.ini` and the 64-bit executable, then offers **Starten**.
+
+| Dark |
+|---|
+| ![Launcher install screen with phase rail, percent, speed and ETA, dark](/screens/launcher-install-dark.png) |
+| `LAUNCHER · INSTALLATION · DARK` — phase rail, percent, bytes, speed, ETA, Abbrechen |
+
+The bar is determinate only while the launcher knows a percent; an unknown percent stays
+indeterminate and reads `—`. Message, file, bytes, speed and ETA come straight from the install
+engine — no simulated progress. **Abbrechen** stops the run and says where it stopped.
+
+| Dark |
+|---|
+| ![Launcher install error at the download phase with retry, dark](/screens/launcher-install-error-dark.png) |
+| `LAUNCHER · FEHLER · DARK` — stopped at „Herunterladen", Erneut versuchen |
+
+The ISO is the fallback path of the pilot. When the recipe also offers a ready-to-run portable
+folder archive, that archive wins: the launcher installs it directly and never needs the disc image.
+
+The default target is `~/Games/unreal-tournament-2004` on Linux and
+`C:\Games\Unreal Tournament 2004` on Windows. Nothing needs administrator rights.
+
+## Starten
+
+| Light |
+|---|
+| ![Launcher ready screen with Starten and Serverbrowser, light](/screens/launcher-ready-light.png) |
+| `LAUNCHER · STARTKLAR · LIGHT` — Starten, target folder, Serverbrowser |
+
+**Starten** opens the installed game. **Serverbrowser** opens your paired server's `/servers`, the
+same server list the chat card and the website use — so a fresh PC goes from download to a match
+without typing an address. `lanomat://install/<slug>` and `lanomat://launch/<slug>` do the same from
+a browser once the launcher is installed; the `.desktop` entry registers the scheme.
+
+The footer of the launcher window names the build it is running (`Launcher <version> · <commit>`) —
+handy when something has to be reported. When the server publishes a different build, one link
+appears next to it: „Neue Launcher-Version verfügbar: &lt;version&gt; — Launcher-Seite öffnen". It opens
+`/launcher` in the browser, where the file is one click away.
+
+## Terminals in the room (multi-terminal LAN)
+
+A LAN party has many machines, and each one runs its own launcher. The model is the same
+everywhere: **the server owns the catalogue, the terminal owns the install.**
+
+- **One launcher per terminal, one pairing per terminal.** Every machine goes through the device
+  flow itself and stores its own bearer token — nothing is copied from PC to PC. The launcher shows
+  up as its own entry under **Verbundene Geräte** on `/mcp/connect`, with the device name; revoke
+  it there when a machine leaves the room or is re-imaged.
+- **The catalogue is shared.** Whatever the Orga publishes appears on every terminal through the
+  same read models — the launcher, `/games` and the start-page chat never disagree.
+- **Installs are local.** Download, extract, patch and verify run on that machine into its own
+  target folder. A second terminal installing the same game is a second install, and it still
+  downloads from the LAN file host, not from the internet.
+- **The local library survives offline.** A paired terminal whose server is unreachable keeps its
+  verified installs and can still **Starten**; the catalogue area says the server is offline. A
+  fresh terminal without a pairing has nothing to start — that is correct, not an error.
+- **One setting per machine: the LAN URL.** No ports, no paths, no per-game configuration. The
+  recipe carries the files, the target and the launch command.
+
+Checklist for the room:
+
+- [ ] Every PC runs its own launcher and its own pairing (same LAN URL, different device names).
+- [ ] The published catalogue is checked on a fresh terminal with no internet — it must still
+      list the games and reach the LAN file host.
+- [ ] One terminal is wiped and reinstalled: pairing revoked on `/mcp/connect`, pair again, and the
+      game reappears with **Installieren** instead of a phantom "installed".
+- [ ] A terminal that already installed UT2004 keeps **Starten** with the server switched off.
+- [ ] Only UT2004 is installable in the launcher; other published recipes are catalog-only until
+      the engine is generic.
+
+## Arcade terminals: sign in by QR
+
+An arcade terminal is a shared machine in the room — no keyboard account entry, no personal
+configuration. The launcher shows the same device flow as a QR code, and the player signs in with
+the phone they already carry:
+
+1. **Verbinden** renders a QR of `/mcp/connect?code=…`, the code as large mono text and the server
+   address. The QR holds no secret; it is the same approval link the personal flow opens.
+2. The player scans it, logs in with their LANoMAT account and approves the device name shown on
+   the page (the terminal's name, not the player's).
+3. The terminal stores **its own** bearer token and shows `Verbunden mit <Server> · <Name>`; the
+   chat, library and local installs are ready. The wait state carries a mono countdown, and an expired code
+   offers **Neuen Code erzeugen** without leaving the screen.
+
+Handover: **Abmelden / Nächstes Gerät** clears the local session and pairing so the next player scans
+their own code. Installed files stay on the machine — the next player sees the same verified library and
+can press **Starten** — so a room full of terminals does not re-download UT2004 for every person.
+
+The same account can sign in on any number of terminals; each terminal is a separate device with
+its own token and its own local library. **Verbundene Geräte** on `/mcp/connect` lists each
+pairing with its device name; the room's live state — **online**, **aktuelles Spiel** and
+**zuletzt gesehen** — is the fleet monitor at `/admin/launcher-terminals`, where an orga revokes
+or removes a retired machine without walking around.
+
+Arcade mode starts fullscreen; `--kiosk` additionally locks the window on top and disables the
+Escape exit. Targets are large, the whole flow works with keyboard or gamepad (QR → **Verbinden** →
+library → **Installieren** / **Starten** → **Abmelden / Nächstes Gerät**). The screen shows the
+display name only — no e-mail, no Discord id, no token. The pilot still installs UT2004 only; other published recipes stay catalog-only until
+the recipe engine is generic.
+
+## If a file is missing
+
+The install stops with the exact missing requirement, for example "UT2004 DVD 1" or "OldUnreal
+UT2004 patch 3374". Ask the Orga to upload it under **Dateien** for the active event, then press
+**Installieren** again. Once you are logged in, the game page at
+[lan.raute1.org/games/unreal-tournament-2004](https://lan.raute1.org/games/unreal-tournament-2004)
+lists every requirement and whether the LAN has a copy.
+
+## The agent remains the power path
+
+The launcher is the consumer path. `lanomat-agent` (Node) still supports `plan`, `install`,
+`launch`, avatars and the chat agent, and reads the same recipe plan; see
+[Install the agent](/docs/guides/install-the-agent) and
+[How recipes work](/docs/recipes/overview). The launcher and the agent can be paired independently
+at the same time, each with its own token — revoking one does not revoke the other.
+
+## For the operator
+
+`scripts/ops/build-launcher.sh` compiles the Linux release in the launcher's Docker image and writes
+`clients-dist/launcher/`: the tarball, `SHA256SUMS` and `manifest.json` (`manifest.json` is renamed
+into place last, so `/launcher` never serves a half-written release). It only compiles — the
+format, clippy and workspace test gate is `clients/launcher/ci/build.sh`, which the release
+workflow runs (PR CI has no launcher job yet). It refuses
+a working tree that is not clean (tracked changes anywhere, untracked files outside the known build
+output); `--allow-dirty` accepts it and marks the version `-dirty`. The toolchain image is rebuilt
+when `Dockerfile.dev` changes (`--rebuild-image` forces it), and older Linux tarballs in the folder
+are pruned unless `--keep-old` is given.
+
+The tarball holds a top-level `lanomat-launcher-<version>-linux-x86_64/` folder with the
+`lanomat-launcher` binary, `install-desktop.sh` (installs into `~/.local/bin` and registers the
+`lanomat://` handler, no root), `install-terminal.sh` (turns the PC into a gaming terminal or arcade
+cabinet: autostart at login, `--arcade`/`--kiosk` fullscreen, `--name` for the label the orga monitor
+shows, `--uninstall`; it calls the sibling `install-desktop.sh`), `LIESMICH.txt`,
+`lanomat-launcher.desktop` and a 256×256
+`lanomat-launcher.png`. The manifest carries `app_version`, `commit`, `built_at` and one entry per
+file with `name`, `os`, `arch`, `kind`, `variant`, `size`, `sha256` and `signed`; Preflight's
+`launcher_build` check reads it together with the files. The Windows portable
+exe comes from `.github/workflows/release-launcher.yml` (manual run or a `launcher-v*` tag — the tag
+only triggers, its prefix never becomes the version, which stays the commit's own `git describe`
+string). The workflow's `package` job merges both builds into one `launcher-release` artifact: the
+tarball, the exe of the same version, the two PowerShell installers (`install-desktop.ps1`,
+`install-terminal.ps1`), a manifest listing both builds and matching `SHA256SUMS`. Copy that
+folder's contents into `clients-dist/launcher/` and `/launcher` offers Linux and Windows. (Without
+the workflow: put an exe of the same version next to the tarball and re-run `build-launcher.sh`; an
+exe of another version is ignored and left for its own release.) Build and workflow details are in
+[`clients/launcher/README.md`](https://github.com/raute1-org/LANoMAT/blob/main/clients/launcher/README.md).

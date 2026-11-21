@@ -108,6 +108,15 @@ final class RecipeValidator
                 $problems[] = "{$where}.role must be one of ".implode(', ', RecipeFileRole::values());
             }
 
+            // A file that only exists for one platform says so, so a plan for
+            // the other OS lists (and requires) the matching asset instead of
+            // downloading the wrong archive.
+            $requirementOs = $requirement['os'] ?? null;
+
+            if ($requirementOs !== null && ! in_array($requirementOs, ['windows', 'linux', 'macos', 'any'], true)) {
+                $problems[] = "{$where}.os must be windows, linux, macos or any";
+            }
+
             $match = $requirement['match'] ?? [];
             $url = $requirement['url'] ?? null;
 
@@ -191,8 +200,8 @@ final class RecipeValidator
                 $problems[] = "{$where}.title must be at most 200 characters";
             }
 
-            if (! in_array($step['os'] ?? 'any', ['windows', 'linux', 'any'], true)) {
-                $problems[] = "{$where}.os must be windows, linux or any";
+            if (! in_array($step['os'] ?? 'any', ['windows', 'linux', 'macos', 'any'], true)) {
+                $problems[] = "{$where}.os must be windows, linux, macos or any";
             }
 
             $commands = $step['commands'] ?? [];
@@ -220,6 +229,33 @@ final class RecipeValidator
 
             if (! is_array($verify)) {
                 $problems[] = "{$where}.verify must be a list";
+            } else {
+                foreach ($verify as $verifyIndex => $check) {
+                    $checkOs = is_array($check) ? ($check['os'] ?? null) : null;
+
+                    if ($checkOs !== null && ! in_array($checkOs, ['windows', 'linux', 'macos', 'any'], true)) {
+                        $problems[] = "{$where}.verify[{$verifyIndex}].os must be windows, linux, macos or any";
+                    }
+                }
+            }
+        }
+
+        // A launch target may narrow itself to one platform (flat on Windows,
+        // Linux or macOS). Metadata is the canonical place; the top-level
+        // `launch_targets` form is a deprecated alias kept for old recipes.
+        $launchTargets = [];
+
+        if (is_array($data['metadata'] ?? null) && is_array($data['metadata']['launch_targets'] ?? null)) {
+            $launchTargets = $data['metadata']['launch_targets'];
+        } elseif (is_array($data['launch_targets'] ?? null)) {
+            $launchTargets = $data['launch_targets'];
+        }
+
+        foreach ($launchTargets as $index => $target) {
+            $targetOs = is_array($target) ? ($target['os'] ?? null) : null;
+
+            if ($targetOs !== null && ! in_array($targetOs, ['windows', 'linux', 'macos', 'any'], true)) {
+                $problems[] = "{$origin}: launch_targets[{$index}].os must be windows, linux, macos or any";
             }
         }
 

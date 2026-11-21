@@ -14,7 +14,8 @@ export type User = {
 };
 
 export type Auth = {
-    user: User;
+    /** Null for guests (public profile, teams, welcome login gate). */
+    user: User | null;
 };
 
 /* @chisel-passkeys */

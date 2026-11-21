@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>LANoMAT Launcher</title>
+        <link rel="icon" type="image/svg+xml" href="logo-mark.svg" />
+        <link rel="stylesheet" href="app.css" />
+    </head>
+    <body>
+        <div class="app">
+            <header class="bar">
+                <div class="brand">
+                    <img
+                        src="logo-mark.svg"
+                        alt=""
+                        width="22"
+                        height="22"
+                    />
+                    <span>LANoMAT</span>
+                    <span class="brand-sub">Launcher</span>
+                </div>
+                <div class="device" id="device" hidden>
+                    <span class="small muted" id="device-label"></span>
+                    <span class="mono small" id="device-name"></span>
+                    <span class="sr-only" id="device-hint"></span>
+                </div>
+                <div class="spacer"></div>
+                <div class="who" id="who" hidden>
+                    <span class="dot ok" id="who-dot" aria-hidden="true"></span>
+                    <span id="who-text"></span>
+                </div>
+                <button
+                    class="btn ghost"
+                    id="logout"
+                    type="button"
+                    aria-describedby="logout-hint"
+                    hidden
+                >
+                    Abmelden
+                </button>
+                <span class="sr-only" id="logout-hint"></span>
+            </header>
+
+            <div class="banner" id="offline-banner" role="status" hidden>
+                <span class="dot down" aria-hidden="true"></span>
+                <span id="offline-text"
+                    >Der Server ist nicht erreichbar. Die App versucht es
+                    weiter.</span
+                >
+                <button class="btn" id="offline-retry" type="button">
+                    Erneut versuchen
+                </button>
+            </div>
+
+            <main id="main" tabindex="-1">
+                <section class="screen narrow" id="screen-boot" aria-busy="true">
+                    <div class="stack">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                    </div>
+                </section>
+
+                <section
+                    class="screen narrow"
+                    id="screen-connect"
+                    aria-labelledby="connect-title"
+                    hidden
+                >
+                    <div class="screen-head">
+                        <div>
+                            <h1 id="connect-title" tabindex="-1">
+                                Mit LANoMAT verbinden
+                            </h1>
+                            <p class="muted small">
+                                Einmal anmelden — danach installiert und
+                                startet der Launcher deine Spiele.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form
+                        class="card stack-sm"
+                        id="connect-form"
+                        novalidate
+                    >
+                        <label for="connect-url">Serveradresse</label>
+                        <input
+                            id="connect-url"
+                            name="server_url"
+                            type="url"
+                            inputmode="url"
+                            autocomplete="off"
+                            autocapitalize="off"
+                            spellcheck="false"
+                            value="https://lan.raute1.org"
+                            aria-describedby="connect-url-hint"
+                        />
+                        <p class="small muted" id="connect-url-hint">
+                            Adresse deines LANoMAT-Servers. Ohne Angabe wird
+                            https:// ergänzt.
+                        </p>
+                        <p
+                            class="error small"
+                            id="connect-form-error"
+                            role="alert"
+                            hidden
+                        ></p>
+                        <button
+                            class="btn primary block"
+                            id="connect-submit"
+                            type="submit"
+                        >
+                            Verbinden
+                        </button>
+                    </form>
+
+                    <div class="card stack-sm" id="connect-device" hidden>
+                        <h2>Gerät freischalten</h2>
+                        <div class="qr-wrap" id="connect-qr-wrap" hidden>
+                            <div
+                                class="qr"
+                                id="connect-qr"
+                                role="img"
+                                aria-label="QR-Code zur Anmeldung"
+                            ></div>
+                            <p class="strong" id="connect-qr-title">
+                                Mit Handy scannen
+                            </p>
+                            <p class="small muted" id="connect-qr-hint">
+                                Kamera öffnen, Code scannen und mit deinem
+                                LANoMAT-Konto anmelden.
+                            </p>
+                        </div>
+                        <p class="small muted" id="connect-qr-fallback" hidden>
+                            Kein Handy zur Hand? Code unten eingeben oder Link
+                            öffnen.
+                        </p>
+                        <p class="small muted">
+                            Öffne die Anmeldeseite im Browser und gib diesen
+                            Code ein.
+                        </p>
+                        <div
+                            class="code"
+                            id="connect-code"
+                            role="group"
+                            aria-label="Anmeldecode"
+                        ></div>
+                        <a
+                            class="url"
+                            id="connect-link"
+                            href="#"
+                            target="_blank"
+                            rel="noreferrer"
+                        ></a>
+                        <p
+                            class="error small"
+                            id="connect-open-error"
+                            role="alert"
+                            hidden
+                        ></p>
+                        <div class="row wrap">
+                            <button
+                                class="btn primary"
+                                id="connect-open"
+                                type="button"
+                            >
+                                Browser öffnen
+                            </button>
+                            <button
+                                class="btn"
+                                id="connect-cancel"
+                                type="button"
+                            >
+                                Abbrechen
+                            </button>
+                        </div>
+                        <div class="row small">
+                            <span
+                                class="dot warn pulse"
+                                aria-hidden="true"
+                            ></span>
+                            <span id="connect-wait" role="status"
+                                >Warte auf Bestätigung</span
+                            >
+                            <span
+                                class="countdown mono"
+                                id="connect-countdown"
+                                aria-hidden="true"
+                            ></span>
+                        </div>
+                        <div class="hint" id="connect-slow" hidden>
+                            Der Server bremst die Abfrage. Nächster Versuch in
+                            <span class="mono" id="connect-slow-secs"></span> s.
+                        </div>
+                    </div>
+
+                    <div
+                        class="error stack-sm"
+                        id="connect-error"
+                        role="alert"
+                        hidden
+                    >
+                        <strong id="connect-error-title"></strong>
+                        <span id="connect-error-text"></span>
+                        <div class="row wrap">
+                            <button
+                                class="btn primary"
+                                id="connect-retry"
+                                type="button"
+                            >
+                                Neuen Code erzeugen
+                            </button>
+                            <button
+                                class="btn"
+                                id="connect-change"
+                                type="button"
+                            >
+                                Serveradresse ändern
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    class="screen"
+                    id="screen-chat"
+                    aria-labelledby="chat-title"
+                    hidden
+                >
+                    <div class="screen-head">
+                        <div>
+                            <h1 id="chat-title" tabindex="-1">Start</h1>
+                            <p class="muted small">
+                                Ein Klick: Das Spiel installieren, falls nötig,
+                                und direkt auf dem Server starten.
+                            </p>
+                            <p class="muted small" id="chat-server" hidden>
+                                Server:
+                                <span class="mono" id="chat-server-name"></span>
+                            </p>
+                        </div>
+                        <div class="row wrap">
+                            <button
+                                class="btn ghost"
+                                id="chat-skip"
+                                type="button"
+                            >
+                                Zu den Spielen
+                            </button>
+                            <button
+                                class="btn ghost"
+                                id="chat-clear"
+                                type="button"
+                            >
+                                Neu starten
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- The start page: the main actions, then every live
+                         server with the one click that starts the game on it. -->
+                    <section class="card stack" aria-labelledby="start-live-title">
+                        <div class="row wrap between">
+                            <div class="stack-sm">
+                                <h2 id="start-live-title">Jetzt live</h2>
+                                <p class="small muted" id="start-live-lead">
+                                    Jeder Server hier startet mit einem Klick —
+                                    samt Installation, wenn das Spiel noch
+                                    fehlt.
+                                </p>
+                            </div>
+                            <div class="row wrap" aria-label="Hauptaktionen">
+                                <button
+                                    class="btn"
+                                    id="start-games"
+                                    type="button"
+                                >
+                                    Spiele
+                                </button>
+                                <button
+                                    class="btn"
+                                    id="start-servers"
+                                    type="button"
+                                >
+                                    Serverbrowser
+                                </button>
+                                <button
+                                    class="btn ghost"
+                                    id="start-chat"
+                                    type="button"
+                                >
+                                    Chat
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="stack-sm"
+                            id="start-live-loading"
+                            aria-busy="true"
+                            aria-label="Live-Server werden geladen"
+                        >
+                            <div class="skeleton skeleton-line"></div>
+                            <div class="skeleton skeleton-line"></div>
+                        </div>
+
+                        <div
+                            class="empty"
+                            id="start-live-empty"
+                            role="status"
+                            hidden
+                        >
+                            <div class="strong">Gerade läuft kein Server.</div>
+                            <div class="small hint-text">
+                                Sobald ein Server bereit ist, erscheint er hier
+                                mit einem Klick zum Beitreten.
+                            </div>
+                        </div>
+
+                        <div
+                            class="error stack-sm"
+                            id="start-live-error"
+                            role="alert"
+                            hidden
+                        >
+                            <strong
+                                >Server konnten nicht geladen werden.</strong
+                            >
+                            <span id="start-live-error-text"></span>
+                            <div class="row wrap">
+                                <button
+                                    class="btn"
+                                    id="start-live-retry"
+                                    type="button"
+                                >
+                                    Erneut versuchen
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="start-live-grid"
+                            id="start-live-list"
+                            role="region"
+                            aria-label="Live-Server"
+                            hidden
+                        ></div>
+                    </section>
+
+                    <h2>Chat</h2>
+
+                    <div
+                        class="chat card"
+                        id="chat-log"
+                        role="log"
+                        aria-live="polite"
+                        aria-label="Chatverlauf"
+                    ></div>
+
+                    <p class="small muted" id="chat-hint"></p>
+
+                    <div
+                        class="suggestions"
+                        id="chat-suggestions"
+                        role="group"
+                        aria-label="Vorschläge"
+                    >
+                        <button
+                            class="chip-btn"
+                            type="button"
+                            data-intent="games"
+                        >
+                            Welche Spiele gibt es?
+                        </button>
+                        <button
+                            class="chip-btn"
+                            type="button"
+                            data-intent="servers"
+                        >
+                            Welche Server laufen?
+                        </button>
+                    </div>
+
+                    <form class="chat-compose" id="chat-form" novalidate>
+                        <label class="sr-only" for="chat-input"
+                            >Nachricht</label
+                        >
+                        <input
+                            id="chat-input"
+                            name="message"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="Frage eingeben …"
+                        />
+                        <button
+                            class="btn primary"
+                            id="chat-send"
+                            type="submit"
+                        >
+                            Senden
+                        </button>
+                    </form>
+                </section>
+
+                <section
+                    class="screen"
+                    id="screen-library"
+                    aria-labelledby="library-title"
+                    hidden
+                >
+                    <div class="screen-head">
+                        <div>
+                            <h1 id="library-title" tabindex="-1">Spiele</h1>
+                            <p class="muted small" id="library-server" hidden>
+                                Server:
+                                <span class="mono" id="library-server-name"></span>
+                            </p>
+                        </div>
+                        <button
+                            class="btn"
+                            id="library-refresh"
+                            type="button"
+                        >
+                            Aktualisieren
+                        </button>
+                        <button
+                            class="btn ghost"
+                            id="library-chat"
+                            type="button"
+                        >
+                            Chat
+                        </button>
+                    </div>
+
+        <template id="tpl-game">
+            <article class="card game">
+                <div class="game-body">
+                    <div class="row wrap game-title-row">
+                        <h2 class="game-title" data-field="title"></h2>
+                        <span
+                            class="badge ok"
+                            title="Vom LANoMAT-Server dieses Events"
+                        >
+                            <span class="dot ok" aria-hidden="true"></span>
+                            LAN
+                        </span>
+                        <span
+                            class="chip mono"
+                            data-field="version"
+                            hidden
+                        ></span>
+                        <span
+                            class="chip soon"
+                            data-field="soon"
+                            hidden
+                            >Bald im Launcher</span
+                        >
+                    </div>
+                    <p class="muted" data-field="summary"></p>
+                    <p class="small muted" data-field="platforms" hidden></p>
+                    <p
+                        class="small muted hint-text"
+                        data-field="soon-hint"
+                        hidden
+                    ></p>
+                    <p class="hint install-record" data-field="record" hidden></p>
+                </div>
+                <div class="row wrap game-actions">
+                    <button
+                        class="btn primary"
+                        type="button"
+                        data-action="install"
+                    >
+                        Installieren
+                    </button>
+                    <button
+                        class="btn primary"
+                        type="button"
+                        data-action="start"
+                        hidden
+                    >
+                        Starten
+                    </button>
+                    <button
+                        class="btn primary"
+                        type="button"
+                        data-action="play"
+                        hidden
+                    >
+                        Spielen
+                    </button>
+                    <button
+                        class="btn"
+                        type="button"
+                        data-action="reinstall"
+                        hidden
+                    >
+                        Neu installieren
+                    </button>
+                    <a
+                        class="btn ghost"
+                        data-action="web"
+                        target="_blank"
+                        rel="noreferrer"
+                        hidden
+                    >
+                        Auf der Webseite ansehen
+                    </a>
+                </div>
+            </article>
+        </template>
+
+                    <section
+                        class="stack"
+                        id="library-installed-block"
+                        aria-labelledby="library-installed-title"
+                    >
+                        <div class="stack-sm">
+                            <h2 id="library-installed-title">
+                                Meine Bibliothek
+                            </h2>
+                            <p class="small muted">
+                                Auf diesem Gerät installiert — der Start klappt
+                                auch ohne Server.
+                            </p>
+                        </div>
+
+                        <div class="game-grid" id="library-installed"></div>
+
+                        <div
+                            class="empty"
+                            id="library-installed-empty"
+                            role="status"
+                            hidden
+                        >
+                            <div class="strong">Noch nichts installiert.</div>
+                            <div class="small hint-text">
+                                Installiere ein Spiel aus der Serverliste. Es
+                                bleibt auf diesem Gerät.
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="stack-sm" id="library-catalog-head">
+                        <h2>Spiele vom Server</h2>
+                        <p class="small muted">
+                            Gemeinsame Liste des Events — jedes Gerät
+                            installiert für sich.
+                        </p>
+                    </div>
+
+                    <div
+                        class="stack-sm"
+                        id="library-loading"
+                        aria-busy="true"
+                        aria-label="Spiele werden geladen"
+                    >
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                    </div>
+
+                    <div class="empty" id="library-empty" role="status" hidden>
+                        <div class="strong">Noch kein Spiel freigegeben.</div>
+                        <div class="small hint-text">
+                            Sobald die Orga ein Spiel für den Launcher
+                            freigibt, erscheint es hier.
+                        </div>
+                        <div class="row wrap empty-actions">
+                            <button
+                                class="btn"
+                                id="library-empty-retry"
+                                type="button"
+                            >
+                                Aktualisieren
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        class="error stack-sm"
+                        id="library-error"
+                        role="alert"
+                        hidden
+                    >
+                        <strong>Spiele konnten nicht geladen werden.</strong>
+                        <span id="library-error-text"></span>
+                        <div class="row wrap">
+                            <button
+                                class="btn"
+                                id="library-retry"
+                                type="button"
+                            >
+                                Erneut versuchen
+                            </button>
+                            <button
+                                class="btn"
+                                id="library-reconnect"
+                                type="button"
+                            >
+                                Neu verbinden
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="game-grid" id="game-list"></div>
+                </section>
+
+                <section
+                    class="screen"
+                    id="screen-install"
+                    aria-labelledby="install-title"
+                    hidden
+                >
+                    <div class="screen-head">
+                        <h1 id="install-title" tabindex="-1">Installation</h1>
+                        <button
+                            class="btn ghost"
+                            id="install-back"
+                            type="button"
+                            hidden
+                        >
+                            Zur Bibliothek
+                        </button>
+                    </div>
+
+                    <div class="card stack">
+                        <div class="row between wrap">
+                            <h2 id="install-game-title"></h2>
+                            <span
+                                class="chip mono"
+                                id="install-version"
+                                hidden
+                            ></span>
+                        </div>
+
+                        <ol class="phases" id="install-phases">
+                            <li class="phase" data-phase="planning">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>Planen</span>
+                            </li>
+                            <li class="phase" data-phase="downloading">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>Herunterladen</span>
+                            </li>
+                            <li class="phase" data-phase="extracting">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>Entpacken</span>
+                            </li>
+                            <li class="phase" data-phase="patching">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>Patchen</span>
+                            </li>
+                            <li class="phase" data-phase="verifying">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>Prüfen</span>
+                            </li>
+                            <li class="phase" data-phase="ready">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>Fertig</span>
+                            </li>
+                        </ol>
+
+                        <div class="stack-sm">
+                            <div class="row between wrap">
+                                <span
+                                    class="small"
+                                    id="install-message"
+                                    aria-live="polite"
+                                    >Installationsplan wird geladen …</span
+                                >
+                                <span
+                                    class="mono small"
+                                    id="install-percent"
+                                    aria-hidden="true"
+                                    >0 %</span
+                                >
+                            </div>
+                            <div
+                                class="progress indeterminate"
+                                id="install-progress"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuetext="Installationsplan wird geladen"
+                                aria-labelledby="install-message"
+                            >
+                                <span
+                                    class="progress-fill"
+                                    id="install-progress-fill"
+                                ></span>
+                            </div>
+                        </div>
+
+                        <dl class="stats">
+                            <div class="stat">
+                                <dt>Datei</dt>
+                                <dd class="mono" id="install-file">—</dd>
+                            </div>
+                            <div class="stat">
+                                <dt>Geladen</dt>
+                                <dd class="mono" id="install-bytes">—</dd>
+                            </div>
+                            <div class="stat">
+                                <dt>Geschwindigkeit</dt>
+                                <dd class="mono" id="install-speed">—</dd>
+                            </div>
+                            <div class="stat">
+                                <dt>Restzeit</dt>
+                                <dd class="mono" id="install-eta">—</dd>
+                            </div>
+                        </dl>
+
+                        <div class="row between wrap">
+                            <button
+                                class="btn danger"
+                                id="install-cancel"
+                                type="button"
+                            >
+                                Abbrechen
+                            </button>
+                            <span class="small muted" id="install-hint">
+                                Bitte den Launcher geöffnet lassen.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="error stack-sm"
+                        id="install-error"
+                        role="alert"
+                        hidden
+                    >
+                        <strong>Die Installation ist fehlgeschlagen.</strong>
+                        <span id="install-error-text"></span>
+                        <span
+                            class="mono small raw-error"
+                            id="install-error-raw"
+                            hidden
+                        ></span>
+                        <div class="row wrap">
+                            <button
+                                class="btn primary"
+                                id="install-retry"
+                                type="button"
+                            >
+                                Erneut versuchen
+                            </button>
+                            <button
+                                class="btn"
+                                id="install-back-error"
+                                type="button"
+                            >
+                                Zur Bibliothek
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        class="hint warn stack-sm"
+                        id="install-cancelled"
+                        role="status"
+                        hidden
+                    >
+                        <strong>Installation abgebrochen.</strong>
+                        <span
+                            >Es wurde nichts gestartet. Du kannst es erneut
+                            versuchen.</span
+                        >
+                        <div class="row wrap">
+                            <button
+                                class="btn"
+                                id="install-retry-cancelled"
+                                type="button"
+                            >
+                                Erneut installieren
+                            </button>
+                            <button
+                                class="btn"
+                                id="install-back-cancelled"
+                                type="button"
+                            >
+                                Zur Bibliothek
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    class="screen narrow"
+                    id="screen-ready"
+                    aria-labelledby="ready-title"
+                    hidden
+                >
+                    <div class="screen-head">
+                        <div>
+                            <h1 id="ready-title" tabindex="-1">Startklar</h1>
+                            <p class="muted small">
+                                Das Spiel ist installiert und startbereit.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card stack" id="ready-card">
+                        <div class="row between wrap">
+                            <h2 id="ready-game"></h2>
+                            <span class="badge ok">
+                                <span class="dot ok" aria-hidden="true"></span>
+                                Installiert
+                            </span>
+                        </div>
+
+                        <dl class="stats">
+                            <div class="stat">
+                                <dt>Installationsordner</dt>
+                                <dd class="mono" id="ready-path"></dd>
+                            </div>
+                            <div class="stat" id="ready-version-row" hidden>
+                                <dt>Version</dt>
+                                <dd class="mono" id="ready-version"></dd>
+                            </div>
+                        </dl>
+
+                        <p
+                            class="error small"
+                            id="ready-error"
+                            role="alert"
+                            hidden
+                        ></p>
+
+                        <div class="row wrap">
+                            <button
+                                class="btn primary"
+                                id="ready-launch"
+                                type="button"
+                            >
+                                Starten
+                            </button>
+                            <button
+                                class="btn"
+                                id="ready-repair"
+                                type="button"
+                                hidden
+                            >
+                                Reparieren
+                            </button>
+                            <a
+                                class="btn"
+                                id="ready-browser"
+                                target="_blank"
+                                rel="noreferrer"
+                                hidden
+                            >
+                                Serverbrowser
+                            </a>
+                            <button
+                                class="btn ghost"
+                                id="ready-library"
+                                type="button"
+                            >
+                                Zur Bibliothek
+                            </button>
+                        </div>
+
+                        <p
+                            class="small muted mono break"
+                            id="ready-launched"
+                            hidden
+                        ></p>
+                    </div>
+
+                    <div class="empty" id="ready-empty" role="status" hidden>
+                        <div class="strong">Noch keine Installation.</div>
+                        <div class="small hint-text">
+                            Installiere das Spiel zuerst in der Bibliothek.
+                        </div>
+                        <div class="row wrap empty-actions">
+                            <button
+                                class="btn"
+                                id="ready-empty-library"
+                                type="button"
+                            >
+                                Zur Bibliothek
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <footer class="foot" id="foot">
+                <span class="mono small muted" id="build-info">Launcher</span>
+                <div class="foot-meta">
+                    <span class="chip mono small" id="arcade-badge" hidden
+                        >Arcade-Terminal</span
+                    >
+                    <a
+                        class="small mono foot-update"
+                        id="build-update"
+                        href="#"
+                        hidden
+                    ></a>
+                    <div
+                        class="pad"
+                        id="gamepad"
+                        role="status"
+                        title="Steuerkreuz/Stick bewegt die Auswahl, A bestätigt, B geht zurück."
+                    >
+                        <span
+                            class="dot down"
+                            id="gamepad-dot"
+                            aria-hidden="true"
+                        ></span>
+                        <span class="small muted" id="gamepad-label"
+                            >Gamepad getrennt</span
+                        >
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <div class="toast" id="toast" role="status" hidden></div>
+
+        <div class="sr-only" id="live" aria-live="polite"></div>
+
+        <template id="tpl-server">
+            <article class="card server">
+                <div class="server-body">
+                    <div class="row wrap server-title-row">
+                        <h3 class="server-title" data-field="title"></h3>
+                        <span class="chip" data-field="game" hidden></span>
+                        <span class="chip" data-field="event" hidden></span>
+                        <span class="badge" data-field="status">
+                            <span
+                                class="dot"
+                                data-field="dot"
+                                aria-hidden="true"
+                            ></span>
+                            <span data-field="status-text"></span>
+                        </span>
+                    </div>
+                    <p class="small muted" data-field="meta" hidden></p>
+                    <p
+                        class="mono small break"
+                        data-field="address"
+                    ></p>
+                </div>
+                <div class="server-actions">
+                    <button
+                        class="btn"
+                        type="button"
+                        data-action="join"
+                    >
+                        Beitreten
+                    </button>
+                </div>
+            </article>
+        </template>
+
+        <script type="module" src="js/main.js"></script>
+    </body>
+</html>

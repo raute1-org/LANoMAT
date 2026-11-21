@@ -1,5 +1,6 @@
 import { useEchoPublic } from '@laravel/echo-vue';
 import { onUnmounted } from 'vue';
+import { hasEcho } from '@/lib/echo';
 
 /**
  * Subscribes to the public `event.{id}` broadcast channel (see
@@ -18,6 +19,10 @@ export function useEventChannel<TPayload = unknown>(
     eventNames: string[],
     callback: (payload: TPayload) => void,
 ): void {
+    if (!hasEcho()) {
+        return;
+    }
+
     const { stopListening, leaveChannel } = useEchoPublic<TPayload>(
         `event.${eventId}`,
         eventNames,

@@ -17,7 +17,7 @@ to the match page, Discord embed and native client.
 ## Key screens
 
 - Match page — server state, connect string, join button.
-- `/servers` — permanent servers across events, with status and players.
+- `/servers` — the LAN's match, tournament and event servers plus the permanent ones, with status and players; `/servers/all` is the cross-event browser.
 - Filament **Server links** — inspect, stop, reprovision.
 
 The participant view is one card per link: game, address, port, estimated demand and a primary
@@ -28,13 +28,14 @@ join action. A plain `address:port` gets a copy button next to it.
 | ![Event servers page in dark theme with a ready UT2004 server, address, port and join and copy actions](/screens/event-servers-dark.png) | ![Event servers page in light theme with a ready UT2004 server, address, port and join and copy actions](/screens/event-servers-light.png) |
 | `EVENT SERVERS · DARK` — ready server, address, port, join and copy | `EVENT SERVERS · LIGHT` |
 
-`/servers` is the cross-event list for permanent servers. It starts empty and only shows servers
-that are ready, so an empty state is a valid one.
+`/servers` is the one overview: the current LAN (`?event=` for another) plus the permanent servers.
+It starts empty and only shows servers that are ready, so an empty state is a valid one. The
+cross-event browser lives at `/servers/all`.
 
 | Dark | Light |
 |---|---|
-| ![Permanent servers page in dark theme showing the empty state before the first server](/screens/servers-dark.png) | ![Permanent servers page in light theme showing the empty state before the first server](/screens/servers-light.png) |
-| `PERMANENT SERVERS · DARK` — empty state before the first server | `PERMANENT SERVERS · LIGHT` |
+| ![Server overview in dark theme showing the empty state](/screens/servers-dark.png) | ![Server overview in light theme showing the empty state](/screens/servers-light.png) |
+| `SERVER OVERVIEW · DARK` — empty state before the first server | `SERVER OVERVIEW · LIGHT` |
 
 The Filament **Server links** table is the orga view: match, players, Pelican id, status, address
 and deprovision, plus the start-from-preset action.

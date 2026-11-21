@@ -2,8 +2,10 @@
 
 return [
     'Events' => [
-        0 => 'News',
-        1 => 'Voting',
+        0 => 'GameRecipes',
+        1 => 'GameServers',
+        2 => 'News',
+        3 => 'Voting',
     ],
     'Games' => [
     ],
@@ -14,6 +16,7 @@ return [
     'Notifications' => [
     ],
     'Preflight' => [
+        0 => 'GameRecipes',
     ],
     'Registration' => [
         0 => 'Discord',

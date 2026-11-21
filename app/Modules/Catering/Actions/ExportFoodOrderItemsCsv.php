@@ -4,6 +4,8 @@ namespace App\Modules\Catering\Actions;
 
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Support\DishNames;
+use App\Support\Csv\CsvSafe;
 
 /**
  * One row per ordered item, for the kitchen and the cashier. Written for German
@@ -14,12 +16,10 @@ use App\Modules\Catering\Models\FoodOrder;
  */
 class ExportFoodOrderItemsCsv
 {
-    private const FORMULA_PREFIXES = ['=', '+', '-', '@', "\t", "\r"];
-
     public function handle(FoodOrder $order): string
     {
         /** @var array<string, MenuOption> $menu */
-        $menu = collect($order->menu)->keyBy(fn (MenuOption $option): string => $option->key)->all();
+        $menu = collect($order->menuOptions())->keyBy(fn (MenuOption $option): string => $option->key)->all();
 
         $handle = fopen('php://temp', 'r+');
 
@@ -27,20 +27,21 @@ class ExportFoodOrderItemsCsv
             throw new \RuntimeException('Could not open a temporary stream for the food order export.');
         }
 
-        fputcsv($handle, ['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt'], ';', '"', '', "\r\n");
+        fputcsv($handle, ['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt', 'Im Ticket enthalten'], ';', '"', '', "\r\n");
 
         $items = $order->items()->with('user')->orderBy('id')->get();
 
         foreach ($items as $item) {
             $optionKey = (string) ($item->selection['option_key'] ?? '');
-            $optionName = isset($menu[$optionKey]) ? $menu[$optionKey]->name : $optionKey;
+            $optionName = DishNames::forItem($item, array_map(fn (MenuOption $o): string => $o->name, $menu));
 
             fputcsv($handle, [
-                $this->safe((string) ($item->user->name ?? '')),
-                $this->safe($optionName),
-                $this->safe((string) ($item->selection['note'] ?? '')),
+                CsvSafe::cell((string) ($item->user->name ?? '')),
+                CsvSafe::cell($optionName),
+                CsvSafe::cell((string) ($item->selection['note'] ?? '')),
                 number_format($item->price_cents / 100, 2, ',', ''),
                 $item->paid_at !== null ? 'ja' : 'nein',
+                $item->included ? 'ja' : 'nein',
             ], ';', '"', '', "\r\n");
         }
 
@@ -49,14 +50,5 @@ class ExportFoodOrderItemsCsv
         fclose($handle);
 
         return "\xEF\xBB\xBF".($csv === false ? '' : $csv);
-    }
-
-    private function safe(string $value): string
-    {
-        if ($value !== '' && in_array($value[0], self::FORMULA_PREFIXES, true)) {
-            return "'".$value;
-        }
-
-        return $value;
     }
 }

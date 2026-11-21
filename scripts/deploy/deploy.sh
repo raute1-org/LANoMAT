@@ -42,6 +42,17 @@ if [ -f clients-dist/manifest.json ] && ! grep -q "\"app_version\": \"$APP_VERSI
     echo "      or build Linux only: scripts/ops/build-client.sh" >&2
 fi
 
+# The maintenance page server is NOT in SERVICES: a deploy must never restart it, it is what visitors
+# see while the others restart (docs/deploy-lan-raute1.md, "Maintenance page"). Start it when it is
+# missing; recreate it only when docker/maintenance changed (its nginx config is a single-file mount,
+# so a new inode would otherwise go unnoticed). `--no-deps` and the Traefik label router keep it independent.
+echo "==> Ensuring the maintenance page is running"
+if ! git diff --quiet "$BASE_HEAD" HEAD -- docker/maintenance; then
+    docker compose --profile prod up -d --force-recreate --no-deps maintenance
+else
+    docker compose --profile prod up -d --no-recreate --no-deps maintenance
+fi
+
 # --pull refreshes the moving base tags (FrankenPHP 1.13-php8.4, node:22-alpine)
 # so every deploy ships the newest PHP/Node patch releases (security fixes).
 echo "==> Building (pulling fresh base images) and starting: ${SERVICES[*]}"
@@ -65,8 +76,23 @@ for _ in $(seq 1 30); do
 done
 [ "${status:-}" = "healthy" ] || { echo "app is not healthy (status: ${status:-unknown})" >&2; exit 1; }
 
+# Optional: DEPLOY_MAINTENANCE_MODE=1 puts the app into Laravel maintenance mode around the migrations
+# (503 + Retry-After; Traefik's errors middleware then shows the static maintenance page). Off by default:
+# the maintenance page already covers the restart, and migrations here are additive. The trap lifts the
+# mode again on any exit, so a failed migration never leaves a healthy app in maintenance mode.
+# `down` only affects the app container (the file driver is per container; queue/scheduler keep running).
+if [ "${DEPLOY_MAINTENANCE_MODE:-0}" = "1" ]; then
+    echo "==> Laravel maintenance mode on"
+    trap 'docker compose --profile prod exec -T app php artisan up || true' EXIT
+    docker compose --profile prod exec -T app php artisan down --retry=15 --refresh=5 --render=errors.503
+fi
+
 echo "==> Running migrations"
 docker compose --profile prod exec -T app php artisan migrate --force
+
+# The TeamSpeak sidecar must stay on the ServerQuery allowlist (its IP changes when it is recreated),
+# otherwise TeamSpeak flood-bans it and the presence job blocks the queue worker. A no-op without TeamSpeak.
+scripts/ops/teamspeak-allow-sidecar.sh || echo "WARNING: could not update the TeamSpeak allowlist" >&2
 
 git rev-parse HEAD > "$DEPLOYED_MARKER"
 

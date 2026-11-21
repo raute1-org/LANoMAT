@@ -42,6 +42,21 @@ final class ShellParity
     /** Short stable URL both shells link to (redirects to the download page for logged-in users). */
     public const DESKTOP_APP_URL = '/app';
 
+    /** German label of the launcher download entry; sidebar item in the Vue app AND navigation item in Filament. */
+    public const LAUNCHER_LABEL = 'Launcher';
+
+    /** The launcher download page (behind the Discord login). */
+    public const LAUNCHER_URL = '/launcher';
+
+    /** The one prominent download action in the top-right of both shells. */
+    public const LAUNCHER_DOWNLOAD_LABEL = 'Launcher herunterladen';
+
+    /** Starts the best build for the visitor's system, then falls back to the page. */
+    public const LAUNCHER_DOWNLOAD_URL = '/launcher/download-latest';
+
+    /** German label of the `mcp/connect` user-menu entry, shared by both shells; the copy stays device-neutral. */
+    public const DEVICES_MCP_LABEL = 'Geräte & MCP';
+
     /** German labels of the Vue user menu (UserMenuContent.vue): admin link, settings, logout. */
     public const VUE_MENU_LABELS = ['Admin-Bereich', 'Einstellungen', 'Abmelden'];
 

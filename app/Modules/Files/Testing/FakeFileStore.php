@@ -48,6 +48,28 @@ class FakeFileStore implements FileStore
         return isset($this->files[$path]);
     }
 
+    public function readStream(string $path)
+    {
+        $this->guard();
+
+        $contents = $this->files[$path] ?? null;
+
+        if ($contents === null) {
+            throw FileException::unreadable();
+        }
+
+        $stream = fopen('php://temp', 'r+b');
+
+        if ($stream === false) {
+            throw FileException::unreadable();
+        }
+
+        fwrite($stream, $contents);
+        rewind($stream);
+
+        return $stream;
+    }
+
     public function download(string $path, string $name): Response
     {
         return new RedirectResponse('https://files.fake.test/'.$path.'?n='.rawurlencode($name));

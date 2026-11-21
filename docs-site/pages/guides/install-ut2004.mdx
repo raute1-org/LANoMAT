@@ -68,7 +68,7 @@ lanomat-agent login --url https://lan.example
 The command prints a short code and opens `/mcp/connect` in the browser. On that page:
 
 1. Enter the eight-character code under **„Code eingeben“**.
-2. Compare the device name and the code on **„Diesen Agenten verbinden?“** with the terminal.
+2. Compare the device name and the code on **„Dieses Gerät verbinden?“** with the terminal.
 3. Press **„Verbinden“**. The terminal continues with `Signed in as …`.
 
 ```text
@@ -80,7 +80,7 @@ Waiting for approval… done. Token stored for lan.example.
 The token is valid for **90 days** and slides on use. It is stored in
 `~/.config/lanomat/agent.json` (mode `0600`) — on Windows
 `%USERPROFILE%\.config\lanomat\agent.json`, unless `XDG_CONFIG_HOME` is set. The same page lists every
-paired device under **„Verbundene Agenten“** and can revoke one.
+paired device under **„Verbundene Geräte“** and can revoke one.
 
 After approval, `/dashboard` is the starting point: your event, ticket, next match, notifications and
 the link to `/games`. The dashboard is the participant view; the admin panel is `/admin`.
@@ -426,7 +426,7 @@ removes the VR step.
 ## Checklist
 
 - [ ] Signed in on the LAN; `lanomat-agent doctor` shows the config and server checks green.
-- [ ] Device approved under `/mcp/connect`; the device appears under „Verbundene Agenten“.
+- [ ] Device approved under `/mcp/connect`; the device appears under „Verbundene Geräte“.
 - [ ] `lanomat-agent recipes` lists `unreal-tournament-2004`.
 - [ ] `plan` shows the ISO and the 3374 archive as `[LAN]`; no required file `[MISSING]`.
 - [ ] Base game installed to a short path; `System/UT2004.exe` exists.

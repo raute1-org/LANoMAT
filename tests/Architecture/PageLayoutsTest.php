@@ -32,6 +32,15 @@ it('parses a non-empty layout table', function () use ($table) {
     expect($table())->not->toBeEmpty();
 });
 
+it('keeps guest-reachable pages guest-safe and the launcher behind the app shell', function () use ($table) {
+    $kinds = $table();
+
+    expect($kinds['Welcome'] ?? null)->toBe('bare')
+        ->and($kinds['Teams/'] ?? null)->toBe('profile')
+        ->and($kinds['Profile/'] ?? null)->toBe('profile')
+        ->and($kinds['Launcher/'] ?? null)->toBe('app');
+});
+
 it('gives every Inertia page an explicit layout decision', function () use ($table, $pages) {
     $keys = array_keys($table());
 

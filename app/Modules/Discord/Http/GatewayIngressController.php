@@ -35,7 +35,19 @@ class GatewayIngressController
             'voice_state' => app(HandleVoiceState::class)->handle($data),
             'member_add' => DiscordGuildMemberJoined::dispatch((string) ($data['user_id'] ?? '')),
             'member_remove' => DiscordGuildMemberLeft::dispatch((string) ($data['user_id'] ?? '')),
-            'message_create' => DiscordMessageCreated::dispatch((string) ($data['channel_id'] ?? ''), (string) ($data['author_id'] ?? ''), (string) ($data['message_id'] ?? '')),
+            'message_create' => DiscordMessageCreated::dispatch(
+                (string) ($data['channel_id'] ?? ''),
+                (string) ($data['author_id'] ?? ''),
+                (string) ($data['message_id'] ?? ''),
+                is_string($data['content'] ?? null) ? $data['content'] : null,
+                (bool) ($data['isDM'] ?? false),
+                is_array($data['mentions'] ?? null) ? $data['mentions'] : [],
+                array_filter([
+                    'author' => is_array($data['author'] ?? null) ? $data['author'] : null,
+                    'channel' => is_array($data['channel'] ?? null) ? $data['channel'] : null,
+                    'guild' => is_array($data['guild'] ?? null) ? $data['guild'] : null,
+                ], static fn (mixed $value): bool => $value !== null),
+            ),
             'reaction' => DiscordMessageReactionChanged::dispatch((string) ($data['message_id'] ?? ''), (string) ($data['channel_id'] ?? ''), (string) ($data['user_id'] ?? ''), (string) ($data['emoji'] ?? ''), (bool) ($data['added'] ?? false)),
             default => Log::info('discord.gateway.ignored', ['type' => $type]),
         };

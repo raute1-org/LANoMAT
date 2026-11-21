@@ -12,6 +12,8 @@ use App\Modules\Tournaments\Support\EntryRoster;
 use App\Modules\Voice\Domain\VoiceChannel;
 use App\Modules\Voice\Domain\VoiceProvider;
 use App\Modules\Voice\VoiceProviders;
+use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 /**
  * Who is in which Mumble or TeamSpeak room. The servers know people only by the name they
@@ -24,6 +26,9 @@ use App\Modules\Voice\VoiceProviders;
  */
 class VoiceServerSightings implements VoiceSightingSource
 {
+    /** How long a failing provider is skipped before it is asked again. */
+    private const int BREAKER_SECONDS = 120;
+
     public function __construct(
         private readonly VoiceProvider $provider,
         private readonly VoiceProviders $providers,
@@ -40,10 +45,25 @@ class VoiceServerSightings implements VoiceSightingSource
             return [];
         }
 
+        // Circuit breaker: a voice server that does not answer would block every refresh for the sidecar's
+        // whole timeout (this runs inside the presence job on the queue worker). After one failure the
+        // provider is skipped for a short while and counts as "nobody there".
+        $breaker = 'presence.voice.down.'.$this->provider->value;
+
+        if (Cache::has($breaker)) {
+            return [];
+        }
+
         $channels = [];
 
-        foreach ($this->providers->for($this->provider)->listChannels() as $channel) {
-            $channels[$channel->id] = $channel;
+        try {
+            foreach ($this->providers->for($this->provider)->listChannels() as $channel) {
+                $channels[$channel->id] = $channel;
+            }
+        } catch (Throwable $e) {
+            Cache::put($breaker, true, self::BREAKER_SECONDS);
+
+            throw $e;
         }
 
         $occupied = array_filter($channels, fn (VoiceChannel $c): bool => $c->occupantNames !== []);

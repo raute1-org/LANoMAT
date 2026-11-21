@@ -1,4 +1,4 @@
-import type { PlanFile, PlanStep, RecipeDownload, RecipePlan, RecipeSummary } from './types.js';
+import type { PlanFile, PlanStep, RecipeDownload, RecipePlan, RecipeSummary, Os } from './types.js';
 import { formatBytes, truncateMiddle } from './util.js';
 
 export interface CollectedDownload extends RecipeDownload {
@@ -220,10 +220,10 @@ export function formatPlan(plan: RecipePlan, options: { color?: boolean } = {}):
     return lines.join('\n');
 }
 
-export function stepAppliesToOs(step: PlanStep, os: string): boolean {
+export function stepAppliesToOs(step: PlanStep, os: Os): boolean {
     if (!step.os) {
         return true;
     }
 
-    return Array.isArray(step.os) ? step.os.includes(os as 'windows' | 'linux') : step.os === os;
+    return Array.isArray(step.os) ? step.os.includes(os) : step.os === os;
 }

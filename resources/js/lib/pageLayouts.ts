@@ -9,7 +9,7 @@
  *   settings AppLayout + settings sub-navigation
  *   auth     AuthLayout (login / confirm / 2FA)
  *   profile  AppLayout for logged-in viewers, bare for guests (public profile)
- *   bare     no chrome: guest landing, beamer screens, OBS overlays
+ *   bare     no chrome: guest login gate (Welcome), beamer screens, OBS overlays
  *
  * tests/Architecture/PageLayoutsTest.php fails when a page under
  * resources/js/pages has no entry here (or an entry matches no page), so a new
@@ -33,6 +33,7 @@ export const pageLayouts: Record<string, PageLayoutKind> = {
     'Gallery/': 'app',
     'Games/': 'app',
     'Jukebox/': 'app',
+    'Launcher/': 'app',
     'Lfg/': 'app',
     'Mcp/': 'app',
     'Orga/': 'app',
@@ -42,7 +43,7 @@ export const pageLayouts: Record<string, PageLayoutKind> = {
     'Schedule/': 'app',
     'Servers/': 'app',
     'Stats/': 'app',
-    'Teams/': 'app',
+    'Teams/': 'profile',
     'Tournaments/': 'app',
     'Voice/': 'app',
     'WebVoice/': 'app',

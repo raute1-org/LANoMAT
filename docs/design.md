@@ -102,6 +102,7 @@ Non-negotiable, unannounced:
 - `prefers-reduced-motion` respected by every animation;
 - images carry width/height (or `aspect-ratio`) + `loading="lazy"` off-screen → no layout shift;
 - "environmentally friendly" for software = lean: small bundles, few dependencies, fast loads, good a11y/contrast (AA), low data/energy use.
+- `CopyText` (copy button with a live-region announcement and a visible failure hint) is the one way to copy machine text such as payment references; show the text itself in `font-mono` next to it.
 
 ## Page anatomy & layout rules (binding)
 
@@ -109,15 +110,17 @@ Non-negotiable, unannounced:
 
 The layout of every Inertia page is decided in **one table**: `resources/js/lib/pageLayouts.ts` (consumed by `layout:` in `resources/js/app.ts`). Unknown pages throw; `tests/Architecture/PageLayoutsTest.php` fails when a page under `resources/js/pages` has no entry or an entry matches no page. Add the entry in the same commit as the page.
 
-| Kind       | Shell                                                | Pages                                                                                                                                                                                                         |
-| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app`      | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Now`, `Checkin/*` (phone self check-in, `narrow`, see docs/self-checkin.md), `Event/*`, `Teams/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Recap/*`, `Gallery/*`, `Schedule/*`, … |
-| `settings` | `AppLayout` + `layouts/settings/Layout.vue`          | `settings/*`                                                                                                                                                                                                  |
-| `auth`     | `AuthLayout`                                         | `auth/*`                                                                                                                                                                                                      |
-| `profile`  | `AppLayout` if logged in, bare for guests            | `Profile/Show` (`/users/{user}` stays publicly reachable)                                                                                                                                                     |
-| `bare`     | none                                                 | `Welcome` (guest landing, no event data), `Screen/*` (beamer), `Overlay/*` (OBS)                                                                                                                              |
+| Kind       | Shell                                                | Pages                                                                                                                                                                                                                                                      |
+| ---------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app`      | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Now`, `Checkin/*` (phone self check-in, `narrow`, see docs/self-checkin.md), `Event/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Launcher/Index` (`/launcher`), `Recap/*`, `Gallery/*`, `Schedule/*`, `Servers/*`, … |
+| `settings` | `AppLayout` + `layouts/settings/Layout.vue`          | `settings/*`                                                                                                                                                                                                                                               |
+| `auth`     | `AuthLayout`                                         | `auth/*`                                                                                                                                                                                                                                                   |
+| `profile`  | `AppLayout` if logged in, bare for guests            | `Profile/Show` (`/users/{user}` stays publicly reachable), `Teams/*` (`/teams` and `/teams/{team}` are the public team directory; guests get the bare chrome, logged-in viewers the app shell)                                                               |
+| `bare`     | none                                                 | `Welcome` (guest landing = Discord login gate: mark, wordmark, one-line tagline/hint, `Mit Discord anmelden`; no event data), `Screen/*` (beamer), `Overlay/*` (OBS)                                                                                       |
 
 Choosing for a new page: behind `auth` middleware → `app` (default answer). Reachable by guests → it must be guest-safe and `bare`/`profile`. Unattended or transparent surfaces → `bare`. There is no `PublicShell`; the `<Toaster/>` is mounted once, inside `AppSidebarLayout`, so flash toasts only work on `app`/`settings` pages.
+
+**`Launcher/Index` (`/launcher`)** is an authenticated download page on the `app` tier: it is reached after the Discord login from `Now`, the sidebar entry "Launcher" (Mehr group) and the **prominent top-right "Launcher herunterladen" button in the app shell header** (`/launcher/download-latest`, which redirects to the build for the visitor's system). Neither the page nor its downloads are offered before login. Below the download hero the page carries **Jetzt live**: one compact row per running server, each with the single action that gets a player onto it — the `lanomat://join/<slug>` deep link (install wizard + launch on that server) for a published launcher recipe, else the game's own join URL. It carries no user data, only the builds and SHA-256 values from `clients-dist/launcher/manifest.json` and the same public server projection as `/servers`; the empty states say that no build has been published yet and that no server is running.
 
 ### 2. Page anatomy (`app` pages)
 
@@ -139,6 +142,12 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 - **Breadcrumbs / back links:** root sidebar pages need none. Settings and deep pages pass `defineOptions({ layout: { breadcrumbs: [...] } })`; detail pages use the `back` prop of `PageContainer`.
 - **Status & hints:** state of the thing (event status, ticket, registration) goes directly under the title in a `rounded-md border bg-card p-4` hint row; live state uses `LiveIndicator`. Hints are calm text, actions are buttons.
 
+### Long menus (catering)
+
+`/events/{slug}/catering` is the reference for a long list with a personal summary. The page uses `full` width so menu and Bon fill a large screen (from `xl` the menu groups flow into two columns): from `lg` the menu sits left and the "Bon" (the user's own order as a receipt) sticks right; below `lg` the menu is one column with a sticky bottom bar (count + sum + "Bestellung ansehen") that opens the Bon in a bottom `Sheet`. The Bon is the one memorable element: mono/`tabular-nums` only for counts and prices, a dotted leader (`border-dotted`) between dish and price, identical dishes shown as "2×" (display-only aggregation in `lib/receipt.ts`; the server still stores one item per click). Removing is a quiet ghost icon button that turns `destructive` only on hover/focus. Amber stays on the pay button.
+
+Menus are **grouped client-side by name prefix**: `Kategorie: Gericht` (prefix before the first `": "`, at most 32 characters) becomes a group heading (`h3`) and the dish shows without the prefix. Entries without a prefix go to "Weitere"; with fewer than two groups the list stays flat (`lib/menuGroups.ts`, tests in `tests/js/menuGroups.test.ts`, run with `node --test`). A search field (case- and umlaut-insensitive) and a sticky jump bar with anchor links sit above the list. With several rounds each round has its own section, Bon and (sticky inside its section) bottom bar.
+
 ### 3. States (all four, every data surface)
 
 | State   | Pattern                                                                                                                           | Component                                                                                                            |
@@ -150,13 +159,15 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 
 **Server overview (`Servers/Index`, `/servers`).** One page for the LAN's servers and the permanent servers, as compact rows instead of cards: `Dein Match` (only when the viewer plays a match that has a server), the LAN's name (with a hint and a way back when a non-current event is shown), and `Dauerserver`. Each section is a `rounded-md border bg-card` container with `divide-y`; game filter chips (`aria-pressed`, local state, counts in mono) sit above. A row shows the `LiveIndicator` (`ready` ok, `provisioning`/`not_responding` warn, `failed`/`install_failed` down), title and muted subline, map, players and address as mono data, and a connect button plus an icon-only copy button; a plain `address:port` connect string has no link, so it is copy only. A row expands inline (one at a time) to the player list, join options, hint sentences, install hint, RAM estimate and, for admins, the map controls. The only amber button is "Verbinden" on `Dein Match` rows; everywhere else it is an outline button. Both lists reload partially every 20 s while the tab is visible.
 
+**Serverbrowser (`Servers/Global`, `/servers/all`).** The cross-game answer to "which servers are running?": the event lists of every public, non-archived event plus the permanent servers, grouped under an `<h2>` per game (`Servers/ServerCard.vue`, same `JoinOptions` and install-hint vocabulary as the event page). The game filter (`<select>`) and the search are server-side URL state (`?game=`, `?q=`) and visit partially (`only`), so the controls keep focus, scroll and state while filtering; an unknown game means "all games". The result count is mono data, and the empty state distinguishes "nothing is running" from "nothing matches the filter" (the latter offers a filter reset). Login required, like the event server list. The permanent servers live in the `/servers` overview; `/servers/permanent` redirects there.
+
 ### 4. Navigation
 
 - **Reachable:** every page is reachable from the sidebar (`components/AppSidebar.vue`) or a visible in-page link/CTA. No orphan pages. The sidebar is slim: one always-visible group plus three collapsible ones.
     - **Jetzt group** (`NavMain`; label = current event name with a `LiveIndicator` dot while `status === 'live'`, no label without a current event): "Jetzt" (`/`, the cockpit home, exact match), "Server" (`game_servers`), and with a current event "Turniere", "Essen" (`catering`), "Zeitplan" (`schedule`), "Sitzplan", "Leute" (`presence`) and "Anmeldung" (only while `availability === 'open'` and the viewer has no registration, i.e. hidden when `navSignals.registered`). Without a current event it holds only "Jetzt" and "Server".
     - **Live badges:** `NavItem.badge` (`{text, variant: live|ok|warn|muted}`), rendered right-aligned in `font-mono text-xs` by `NavItemBadge` and hidden in the icon-collapsed rail. Values come from the shared prop `navSignals` (`serversOnline`, `tournament`, `foodClosesAt`, `seat`, `present`; `null` for guests): a missing or null field means no badge, "Server" only shows one when more than 0 are online, times are formatted with `lib/datetime.ts` (Europe/Berlin). Only machine values and live state belong in a badge, never decoration.
-    - **Collapsible groups** (`NavCollapsibleGroup`, props `label`, `icon`, `items`, `storageKey`): "Mehr" (Abstimmungen, Mitspieler finden, Jukebox, Galerie, Dateien, LAN-Info & Anreise, Spiele, Teams, Freunde, Bestenliste, Alle Events), "Voice" (Sprachchat, Voice einrichten, Desktop-App) and "Orga" (staff with a current event: Check-in, Infoscreen-Steuerung). A group opens by default when one of its items is active, otherwise it restores `localStorage` key `lanomat.nav.<storageKey>` (try/catch, default closed); in the icon-collapsed rail a click expands the sidebar and opens the group. A group without visible items is not rendered.
-    - **Where a new item goes:** something people check during the LAN, with a live value, goes into the Jetzt group (keep it to about eight rows); every other user-facing index goes into "Mehr" (or "Voice" if it is about talking, "Orga" if it is staff-only). Every item is gated by `useModules().has(...)` and, where event-scoped, by `currentEvent`; the event overview (`Event/Show`) no longer mirrors modules as buttons: they live in the sidebar (Jetzt group, Mehr, Voice, Orga). There is no Dashboard entry: `/` is the Jetzt home (`pages/Now.vue`).
+    - **Collapsible groups** (`NavCollapsibleGroup`, props `label`, `icon`, `items`, `storageKey`): "Mehr" (Abstimmungen, Mitspieler finden, Jukebox, Galerie, Dateien, LAN-Info & Anreise, Spiele, Launcher, Teams, Freunde, Bestenliste, Alle Server, Alle Events), "Voice" (Sprachchat, Voice einrichten, Desktop-App) and "Orga" (staff with a current event: Check-in, Infoscreen-Steuerung). A group opens by default when one of its items is active, otherwise it restores `localStorage` key `lanomat.nav.<storageKey>` (try/catch, default closed); in the icon-collapsed rail a click expands the sidebar and opens the group. A group without visible items is not rendered.
+    - **Where a new item goes:** something people check during the LAN, with a live value, goes into the Jetzt group (keep it to about eight rows); every other user-facing index goes into "Mehr" (or "Voice" if it is about talking, "Orga" if it is staff-only). Every item is gated by `useModules().has(...)` and, where event-scoped, by `currentEvent`; the event overview (`Event/Show`) also mirrors its event-scoped modules as quiet outline buttons (presence, jukebox, gallery, catering, polls, LFG, files, servers), so a past event stays reachable without changing the sidebar's current event. There is no Dashboard entry: `/` is the Jetzt home (`pages/Now.vue`).
 - **Desktop app entry points:** the shared Inertia prop `desktopClient` (`DesktopClientOffer`: `null` for guests and without WebVoice routes, else `{url, version, os, available}`; manifest summary cached 60 s) drives the sidebar entry "Desktop-App" in the Voice group (dot = a build for your OS), the dismissible `DesktopClientHint` on Jetzt (only with a matching build, never on phones/tablets, dismissal kept in `localStorage` per client version) and the quiet `DesktopClientLink` on `/talk/connect`, `settings/connections` and the registered state of `Event/Register`. `GET /app` (`client.download.short`) redirects to `/talk/client` for printed material.
 - **Contextual instead of sidebar:** detail pages, flows and one-off pages (ticket, a single tournament, team edit) are reached via links from their list or from Jetzt.
 - **Module gating:** frontend `useModules().has('<key>')` around nav items and links; backend routes via `$modules->routable(Module::X)`; backend cross-module calls via `Modules::enabled()`/events/contracts (architecture ratchet in `tests/Architecture`).
@@ -227,6 +238,171 @@ Team tournaments (`team_size > 1`) replace the one-click "Anmelden" with a team 
 - [ ] German copy, consistent action names, no English leftovers.
 - [ ] Pest feature test for new props/controller; `composer check` + `types:check`/`lint:check`/`format:check`/`build` green.
 
+## Start-page chat (the front door after login) — pilot
+
+The guest landing (`Welcome`, `/`) is only a login gate: the logo mark, the wordmark, one line of
+tagline, one line of hint and the single **Mit Discord anmelden** button. No chat, no game or server
+cards, no launcher download and no launcher link before login — `/launcher` and its downloads need
+the session too. After the Discord login, `/` is the `Now` start page inside `AppLayout`, with the
+left sidebar; there the start-page chat does the onboarding job: get a participant from "what is
+this?" to a running game without reading a manual. Its order is binding.
+
+**Above the fold on `Now`, in this order:**
+
+- the **page header** — the current event's name (or the no-event title) with its live line;
+- the **three shortcuts**, left to right: **Spiele installieren** → `/games`,
+  **Server ansehen** → `/servers`, **Launcher herunterladen** → `/launcher`, each hidden while its
+  module is off;
+- the **chat** — greeting plus input, directly under the shortcuts.
+
+The chat keeps rendering with no active event, no recipes and no optional modules: a module that is
+off hides its shortcut (and its chat cards) instead of showing an empty one. The chat never takes
+focus on load; `Tab` reaches it.
+
+`Welcome` keeps the `bare` tier and stays guest-safe: no sidebar, no bell, no user data, no chat,
+no launcher link, no modal on load, no cookie banner.
+
+### Chat anatomy
+
+| Part | Rule |
+|---|---|
+| Header row | the wordmark `LANoMAT // Start` and one `LiveIndicator` for running servers. No second navigation. |
+| Transcript | one `role="log"`/`aria-live="polite"` region, `max-h-[7rem]` on phones and `min(52svh,24rem)` from `sm`, scrolls internally only; assistant prose is plain and left-aligned, the participant's own lines sit right in a `bg-muted` bubble. The streamed text keeps `aria-hidden` carets and is announced once when it settles, never per chunk. |
+| Greeting | instant, not animated, no skeleton: what LANoMAT is and what is playable on this LAN right now. It is deterministic copy from `HomeChatData`, not model output, so the start page is never empty. |
+| Agent feedback | a polite `role="status"` line between transcript and chips: `LANoMAT denkt …` (three bouncing dots) for ~320 ms, then `LANoMAT schreibt …` while the answer streams in 3-character chunks (~13 ms each). Input/chips are disabled while an answer is in flight; the input stays focused. `prefers-reduced-motion` shortens the think to ~140 ms and writes the answer at once. |
+| Suggestions | two question buttons above the input: **Welche Spiele laufen?** (live games only) and **Welche Server laufen?**. They send on the first press. A typed catalogue question ("Was gibt es zu spielen?") still answers with the full library. |
+| Input | one real `<form>`: Enter sends, send is a `Button` named "Fragen". The input stays enabled while an answer streams; sending is disabled until it settles. |
+| Cards | rendered inline in the transcript from the same read models as `/games` and `/servers` — never invented, never a screenshot. A live answer only shows games with `server_count > 0`; with nothing running it falls back to the full catalogue ("Gerade läuft kein Spiel. Diese Spiele gibt es auf der LAN:"). |
+| Quick actions | three plain buttons above the transcript: **Spiele installieren** (`/games`), **Server ansehen** (`/servers`), **Launcher herunterladen** (`/launcher`). The same row is on the Jetzt page and in the dock. |
+| Dock | the same chat on every participant page: a fixed bottom-right `Chat` button opens a `24rem` panel, fetches `GET /chat` once on first open (JSON, `no-store`), and keeps the conversation while navigating. Compact layout: no hero header, no autoplay, actions + transcript + chips + input. |
+
+The chat is the third door to the same data, not a second store: every card is the same read model
+as the page it links to (`/games/<slug>`, `/servers`, the launcher's install record). A card is
+only rendered when its data exists; the answer text alone is the fallback.
+
+### Autoplay demo (the first visit to `Now`)
+
+The hero types the first suggestion once, pauses, backspaces and types the second, then renders
+both answer sets. It is the only ambient motion on the page:
+
+- **Type** at about 42 characters per second (24 ms), **erase** at 90 (11 ms), hold 260 ms
+  between the two questions. No random jitter, no fade, no bounce.
+- **Stop permanently** on the first of: focus into the input, a chip click, a sent message, or a
+  full cycle. The typed text is `aria-hidden`; the transcript only announces the settled answers.
+- **Layout stability:** the typed line owns its own row and never pushes the chips/input out of
+  view; the transcript above it is capped.
+- **`prefers-reduced-motion: reduce`:** no typing, no erasing — the finished demo state appears
+  immediately. The same switch removes the streaming caret and the thinking dots' bounce.
+
+### Inline cards
+
+All three card types use the app card (`rounded-md border border-border bg-card p-5`), one heading,
+one line of prose, mono for machine data, and **at most one** amber action. They fold to full width
+at 375 px and keep their action order.
+
+| Card | Content | Actions |
+|---|---|---|
+| **Game** | title, one-line summary, platform/version in mono, `LAN` badge when the content or a server is on the LAN | `Installieren`; without a launcher build `Launcher herunterladen`; with an install record `Starten`; always one quiet "Seite öffnen" → `/games/<slug>` |
+| **Server** | server name, map and `players/max` in mono, the join string as a copyable mono value (a plain `address:port` is never a dead button) | `Beitreten` when a join template exists, quiet "Serverbrowser" → `/servers` |
+| **Install** | the launcher's real state: phase (Planen, Herunterladen, Entpacken, Patchen, Prüfen, Fertig), current file, `bytes_done / bytes_total`, speed, ETA and a determinate or indeterminate bar; a percent that is unknown stays indeterminate | `Abbrechen`, then `Erneut versuchen` or `Starten`; without launcher data the card only offers the download |
+
+No fake progress anywhere: the browser shows the launcher's last reported state and never
+simulates a bar; a percent the launcher does not know is `—`, not `0 %`.
+
+### States (chat and cards)
+
+| State | Pattern |
+|---|---|
+| empty | no transcript history: greeting + suggestions only, no empty frame with "keine Nachrichten" |
+| loading | skeletons only for restored history; greeting and tiles are already there |
+| error | "Der Chat antwortet gerade nicht." in the transcript, input stays usable, one `Erneut fragen` |
+| normal | answers stream, cards appear as their data arrives |
+
+### Why this stays Signalpult
+
+The chat is a quiet desk, not a mascot: Space Grotesk prose, mono only for numbers/addresses,
+one rationed amber action per card, no avatar animation, no sound. The launcher windows use the
+same anatomy and the same German action words (`Installieren`, `Starten`, `Abbrechen`,
+`Erneut versuchen`) and the same six phase names; only their chrome follows the launcher's own
+UT2004/Epic brand world (see the one-click launcher spec). A change to the card anatomy, the phase
+names or the action wording touches both surfaces in the same PR.
+
+## Multi-terminal LAN (one launcher per machine)
+
+A LAN party is not one computer. The model is deliberately boring, and the UI must not contradict
+it:
+
+- **The server owns the catalogue.** `/games`, the start-page chat and every launcher read the same
+  published recipes and server read models; a recipe the Orga publishes appears on every terminal
+  without per-machine configuration.
+- **Every terminal is its own device.** Each launcher pairs separately through the device flow and
+  stores its own bearer token (0600); there is no "the" machine and no shared credential. The
+  launcher appears as its own entry under **Verbundene Geräte** on `/mcp/connect`, and revoking it
+  there disconnects exactly that terminal.
+- **Installs are local.** Download, extract, patch and verify happen on the terminal into its own
+  target folder (`~/Games/...`, `C:\Games\...`). Two machines installing the same game are two
+  installs, and the second one still downloads from the LAN file host — never from the internet.
+- **The local library is the truth for "installed".** It survives a restart and an offline server;
+  a terminal without a reachable LANoMAT shows its verified installs and can still start them,
+  while the catalogue area says the server is offline.
+- **One setting per machine: the LAN URL.** No ports, no paths, no per-game configuration — the
+  address typed once in **Verbinden**, and the recipe carries everything else.
+- **LAN-first, always.** The pilot's files come from the LAN file host (portable archive first, ISO
+  as fallback); an internet download is a fallback the recipe pins, not the default path.
+
+UI consequences: copy says "auf diesem PC" (not "dein Account"), every install/percent/`Starten`
+state is per terminal, and the browser never guesses another machine's installs. The web `/games`
+page may show what a paired launcher reported for *this* device; it must not invent a global
+"installed" flag.
+
+### Terminals in the room (checklist)
+
+- [ ] Each machine runs its own launcher and its own pairing — no copied config file between PCs.
+- [ ] The LAN URL is the same everywhere; the display name of the device is recognisable in
+      `/mcp/connect` (rename it there before the LAN, not during it).
+- [ ] The catalogue is published once on the server; no terminal needs recipes copied locally.
+- [ ] The LAN file host serves the install files; check one fresh terminal with no internet.
+- [ ] A terminal that installed a game keeps **Starten** while the server is offline.
+- [ ] Departed or re-imaged machines are revoked under **Verbundene Geräte** on `/mcp/connect`.
+- [ ] Only UT2004 is installable in the launcher today; every other published recipe is
+      catalog-only until the recipe engine is generic.
+
+### Arcade terminals: sign in by QR
+
+An arcade terminal is a shared machine in the room, not a personal PC. Nobody types an account
+there — the terminal shows the device flow as a **QR code** and the player signs in with the phone
+they already have in their pocket.
+
+| Step | What the screen shows | What the phone does |
+|---|---|---|
+| 1 | **Verbinden** → a QR of `/mcp/connect?code=…` and the same code as large mono text, plus the server address | scan the QR (or open the URL) |
+| 2 | "Warte auf Bestätigung" with a mono countdown; the code is `aria-hidden`, the wait text is the live region | Discord login, then approve the device name shown on the page |
+| 3 | "Angemeldet als <Name>" and the library | — |
+| 4 | expired / denied / network error with **Neuen Code erzeugen** or **Serveradresse ändern** | — |
+
+Rules:
+
+- **One terminal, one device, one token.** The terminal stores its own bearer token exactly like a
+  personal launcher; the account can be the same on ten machines, the devices are ten entries.
+  Approving on `/mcp/connect` is the only write; `/mcp/connect` lists every terminal under
+  **Verbundene Geräte** with its state (online, current game, last seen) and revokes one at a time.
+- **The QR contains no secret.** It is the same `verification_uri_complete` the personal pairing
+  already uses; the code is also printed as text so a screen reader and a broken camera both work.
+  A QR is never a login by itself: approval happens in the signed-in browser session.
+- **Arcade mode is kiosk.** Fullscreen, no OS chrome beyond the window frame, large targets,
+  complete keyboard operation and gamepad operation for the same actions (focus order: QR →
+  **Verbinden** → library → **Installieren**/**Starten** → **Abmelden**). No hover-only affordances,
+  no drag, no text selection on the kiosk surface.
+- **Handover is explicit.** **Abmelden** (labelled "Abmelden / Reset" in arcade mode) clears the
+  local session and the pairing so the next player scans their own code; it does **not** delete
+  installed files, so the terminal's local library stays usable and the next player sees the same
+  verified games. One confirmation, no second dialog chain.
+- **Monitoring is per terminal.** The device row in `/mcp/connect` (and the Preflight view that
+  reads it) shows **online**, **aktuelles Spiel** and **zuletzt gesehen** for each terminal; a
+  terminal that goes dark is visible there, not by walking the room.
+- **No personal data on the kiosk surface.** Display name only; no e-mail, no Discord id, no token;
+  the library and the install progress are terminal state and stay on screen for whoever sits down.
+
 ## Two apps, one shell (parity rules)
 
 LANoMAT ships **two UI stacks** that must read as one product:
@@ -253,6 +429,9 @@ Single definition: `App\Support\Brand\ShellParity`. Canonical logo geometry: `pu
 | Admin marker present **only** in admin                      | none (must stay absent)                                                            | neutral "Admin" badge in the brand + 3px top stripe (`PanelsRenderHook::BODY_START`) |
 | Back link to app always visible in admin                    | n/a                                                                                | "Zur App" button (`PanelsRenderHook::TOPBAR_END`) + user-menu item                   |
 | "Desktop-App" entry (while the WebVoice module is routable) | `AppSidebar.vue` "Voice" group, green dot when a build for the visitor's OS exists | Filament navigation item to `/app` (`ShellParity::DESKTOP_APP_LABEL`)                |
+| "Launcher" entry (while the GameRecipes module is routable) | `AppSidebar.vue` "Mehr" group (`ShellParity::LAUNCHER_LABEL`, `/launcher`)        | Filament navigation item to `/launcher` (same label/URL)                             |
+| Prominent "Launcher herunterladen" (while GameRecipes is routable) | `AppSidebarHeader.vue` top-right primary button (`ShellParity::LAUNCHER_DOWNLOAD_URL`, `/launcher/download-latest`) | Filament topbar primary button to the same URL (`launcher-download` render hook) |
+| "Geräte & MCP" user-menu entry                              | `AppSidebar.vue` / user menu (`ShellParity::DEVICES_MCP_LABEL`, `/mcp/connect`)    | Filament user-menu item (same label/URL)                                             |
 
 **Marker colour choice:** the badge and stripe are neutral high-contrast (Filament `gray-950` on light, `gray-50` on dark), not amber. Amber is rationed to the primary action and live state (see above); using it for "you are in admin" would dilute that signal.
 

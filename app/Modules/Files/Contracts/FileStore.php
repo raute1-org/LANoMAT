@@ -41,6 +41,16 @@ interface FileStore
     public function exists(string $path): bool;
 
     /**
+     * The stored bytes as a readable stream, for hashing and integrity checks
+     * without loading the file into memory. The caller closes the stream.
+     *
+     * @return resource
+     *
+     * @throws FileException when the store cannot read the file right now
+     */
+    public function readStream(string $path);
+
+    /**
      * The HTTP response that hands the file to the downloader: an attachment
      * stream (local) or a redirect to a short-lived signed URL (file host).
      * Called only after the policy allowed the download.

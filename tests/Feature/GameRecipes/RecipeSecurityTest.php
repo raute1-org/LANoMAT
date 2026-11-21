@@ -89,6 +89,20 @@ it('bounds labels, match patterns, steps and commands', function () {
     expectRejected(authoredRecipe(['steps' => [$step]]), 'run must be at most 2000 characters');
 });
 
+it('accepts a requirement os and rejects an unknown one', function () {
+    app(RecipeValidator::class)->validate(authoredRecipe([
+        'requirements' => [
+            ['role' => 'patch', 'label' => 'Patch (Windows)', 'match' => ['patch-win*.zip'], 'os' => 'windows'],
+            ['role' => 'patch', 'label' => 'Patch (Linux)', 'match' => ['patch-linux*.tar.bz2'], 'os' => 'linux'],
+            ['role' => 'iso', 'label' => 'DVD', 'match' => ['test-game*.iso'], 'os' => 'any'],
+        ],
+    ]), 'test');
+
+    expectRejected(authoredRecipe([
+        'requirements' => [['role' => 'patch', 'label' => 'Patch', 'match' => ['*.zip'], 'os' => 'amiga']],
+    ]), 'os must be windows, linux, macos or any');
+});
+
 it('rejects git sources that git would parse as an option or a local read', function (string $source) {
     expect(fn () => app(RecipeSourceLocator::class)->gitUrl($source))->toThrow(RecipeException::class);
 })->with([

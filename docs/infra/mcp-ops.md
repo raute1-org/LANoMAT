@@ -46,9 +46,10 @@ MODULE_MCP=true
 MODULE_GAME_RECIPES=true
 ```
 
-- `GameRecipes` **requires** `Files` (`Module::requires()`): recipes list and plan without it, but
-  their LAN files can never be matched. `lanomat:modules` fails the boot when a hard requirement is
-  off.
+- `GameRecipes` **requires** `Files` and `Mcp` (`Module::requires()`): recipes list and plan without
+  `Files`, but their LAN files can never be matched; and the `/launcher` page pairs through the MCP
+  device flow (`api/mcp/device|token`) and hands out `mcp.files.download` URLs. `lanomat:modules`
+  fails the boot when a hard requirement is off.
 - `Mcp` has no hard requirement, but the tool catalogue silently shrinks when modules are off — for
   example `files_*` tools disappear without `Files`, `recipes_*` without `GameRecipes`.
 - After changing the profile, **recreate** the containers (`docker compose --profile prod up -d`), do
@@ -146,11 +147,11 @@ is inconvenient; the token behaves exactly like a paired one.
 - A restore of an older database **un-revokes** tokens that were revoked after the dump; revoke them
   again. Token plaintext still matches, because the digest is unchanged.
 
-## Recipe sync (cron)
+## Recipe sync (scheduled)
 
-`lanomat:recipes:sync` imports recipe folders into the catalogue. It is **not** scheduled by the
-app; run it from cron (or the scheduler) on the app host, because a sync that silently stops is
-worse than a late one.
+`lanomat:recipes:sync` imports recipe folders into the catalogue. The app schedules it daily at
+04:15 (`routes/console.php`); the scheduler service must be running. Run it by hand after changing
+a recipe on the app host, because a sync that silently stops is worse than a late one.
 
 ```bash
 docker compose exec -T app php artisan lanomat:recipes:sync --json

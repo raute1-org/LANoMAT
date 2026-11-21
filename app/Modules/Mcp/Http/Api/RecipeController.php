@@ -12,6 +12,7 @@ use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
+use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\Mcp\Support\SafeText;
 use Illuminate\Http\JsonResponse;
@@ -24,15 +25,40 @@ class RecipeController extends Controller
 {
     use ResolvesAuthenticatedUser;
 
-    public function index(Request $request): JsonResponse
+    /**
+     * The one recipe with a dedicated engine path (UT2004's `System/`
+     * verifier). A browser recipe needs no install at all: its `play_url`
+     * makes it launcher-supported too. Every other recipe that the generic
+     * engine can install is listed in [`self::LAUNCHER_SUPPORTED_SLUGS`].
+     */
+    public const LAUNCHER_PILOT_SLUG = 'unreal-tournament-2004';
+
+    /**
+     * Published recipes the native launcher can install end to end. UT2004 has
+     * the dedicated installer; NFSU2 is driven by its plan's `steps[].verify`
+     * and `launch_targets`.
+     *
+     * @var list<string>
+     */
+    public const LAUNCHER_SUPPORTED_SLUGS = [
+        self::LAUNCHER_PILOT_SLUG,
+        'need-for-speed-underground-2',
+    ];
+
+    public static function supportsLauncher(string $slug): bool
+    {
+        return in_array($slug, self::LAUNCHER_SUPPORTED_SLUGS, true);
+    }
+
+    public function index(Request $request, LauncherLineup $lineup): JsonResponse
     {
         $user = $this->authUser($request);
         $query = mb_strtolower($request->string('query')->toString());
 
-        $recipes = GameRecipe::query()
+        $recipes = $lineup->filter(GameRecipe::query()
             ->visibleTo($user)
             ->orderBy('title')
-            ->get()
+            ->get())
             ->when($query !== '', fn ($collection) => $collection->filter(
                 fn (GameRecipe $recipe): bool => collect($recipe->searchTerms())->contains(
                     static fn (string $term): bool => str_contains($term, $query),
@@ -41,13 +67,21 @@ class RecipeController extends Controller
             ->values();
 
         return response()->json([
-            'data' => $recipes->map(static fn (GameRecipe $recipe): array => [
+            'data' => $recipes->map(fn (GameRecipe $recipe): array => [
                 'slug' => $recipe->slug,
                 'title' => $recipe->title,
                 'summary' => $recipe->summary,
                 'version' => $recipe->version,
                 'status' => $recipe->status->value,
                 'platforms' => $recipe->platforms,
+                // Read-only capability flags: what a client may do with this
+                // catalogue entry, without it having to open the plan first.
+                'installable' => $this->installable($recipe),
+                // A browser recipe has no install path, but the launcher can
+                // still open its `play_url`; the shell uses that as "Spielen".
+                'launcher_supported' => self::supportsLauncher($recipe->slug)
+                    || $recipe->playUrl($request->getHost()) !== null,
+                'play_url' => $recipe->playUrl($request->getHost()),
                 'updated_at' => $recipe->updated_at?->toIso8601String(),
             ])->all(),
         ], 200, ['Cache-Control' => 'no-store, private']);
@@ -84,6 +118,7 @@ class RecipeController extends Controller
                     'id' => $file->id,
                     'role' => $file->role->value,
                     'label' => SafeText::line($file->label) ?? '',
+                    'os' => $file->os(),
                     'match' => $file->patterns(),
                     'required' => $file->required,
                     'sha256' => $file->sha256,
@@ -145,6 +180,9 @@ class RecipeController extends Controller
                 'id' => $file->id,
                 'role' => $file->role->value,
                 'label' => SafeText::line($file->label) ?? '',
+                // A file for the other platform, so an agent can pick the
+                // right patch instead of the first one in the list.
+                'os' => $file->os(),
                 'required' => $file->required,
                 'match' => $file->patterns(),
                 'status' => isset($matches[$file->id]) ? 'matched' : ($file->url !== null ? 'external' : 'missing'),
@@ -210,6 +248,19 @@ class RecipeController extends Controller
 
             return $target;
         }, $recipe->launchTargets());
+    }
+
+    /**
+     * Whether the catalogue entry carries everything an install needs:
+     * requirements, steps and at least one launch target. A published recipe
+     * without them is a description, not an installable game, and the launcher
+     * card must not offer a dead Install button for it.
+     */
+    private function installable(GameRecipe $recipe): bool
+    {
+        return ($recipe->requirements ?? []) !== []
+            && ($recipe->steps ?? []) !== []
+            && $recipe->launchTarget() !== null;
     }
 
     private function findRecipe(Request $request, string $slug): GameRecipe

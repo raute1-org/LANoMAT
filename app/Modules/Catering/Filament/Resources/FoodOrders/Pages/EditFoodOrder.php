@@ -4,70 +4,76 @@ namespace App\Modules\Catering\Filament\Resources\FoodOrders\Pages;
 
 use App\Modules\Catering\Actions\CloseFoodOrder;
 use App\Modules\Catering\Actions\OpenFoodOrder;
-use App\Modules\Catering\Domain\MenuOption;
+use App\Modules\Catering\Actions\RecomputeIncludedItems;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Filament\Resources\FoodOrders\FoodOrderResource;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Support\GroupOrder;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 class EditFoodOrder extends EditRecord
 {
     protected static string $resource = FoodOrderResource::class;
 
     /**
-     * The `menu` cast reads back as `list<MenuOption>` (typed value objects,
-     * not plain arrays — see MenuCast), but Filament's Repeater fills/writes
-     * its state via `data_set()` on plain associative arrays. Converting at
-     * this Filament-only boundary keeps MenuCast/MenuOption fully typed
-     * (no weakening) while still letting the Repeater round-trip the data.
+     * The menu lives with the restaurant (or, for rounds that predate restaurants, in the legacy
+     * column that is no longer edited here), so it never enters the form state.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        if (isset($data['menu']) && is_array($data['menu'])) {
-            $data['menu'] = collect($data['menu'])
-                ->map(fn (mixed $option): array => $option instanceof MenuOption ? $option->toArray() : $option)
-                ->all();
-        }
+        unset($data['menu']);
 
         return $data;
     }
 
-    /**
-     * `menu` is deliberately not in FoodOrder::$fillable (see the model's
-     * comment: it must never be reachable via uncontrolled raw mass
-     * assignment, e.g. a future public endpoint). The admin Filament layer
-     * is already gated by FoodOrderPolicy::update, so it is the one place
-     * allowed to set it explicitly, going through MenuCast exactly as any
-     * other write would.
-     *
-     * @param  array<string, mixed>  $data
-     */
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
-        $menu = $data['menu'] ?? null;
-        unset($data['menu']);
-
         $record->update($data);
 
-        if ($menu !== null && $record instanceof FoodOrder) {
-            $record->menu = $menu;
-            $record->save();
+        if ($record instanceof FoodOrder && $record->status !== FoodOrderStatus::Closed) {
+            app(RecomputeIncludedItems::class)->handle($record);
         }
 
         return $record;
     }
 
+    /**
+     * Status badge plus a one-line summary (dishes, orders, sum, paid, open)
+     * under the title, so the numbers are there before the form.
+     */
+    public function getSubheading(): string|Htmlable|null
+    {
+        /** @var FoodOrder $record */
+        $record = $this->getRecord();
+        $group = GroupOrder::for($record->refresh());
+
+        return new HtmlString(view('filament.food-orders.summary', [
+            'status' => $record->status,
+            'dishes' => count($record->menuOptions()),
+            'group' => $group,
+        ])->render());
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('group_order')
+                ->label(__('catering.group_order.action'))
+                ->icon(Heroicon::OutlinedClipboardDocumentList)
+                ->color('gray')
+                ->authorize('update')
+                ->url(fn (FoodOrder $record): string => FoodOrderResource::getUrl('group-order', ['record' => $record])),
             Action::make('open')
                 ->label(__('catering.admin.actions.open'))
                 ->authorize('open')

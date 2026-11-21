@@ -78,6 +78,27 @@ class GameRecipeFile extends Model
         return $this->role->isSelectable();
     }
 
+    /**
+     * The platform this file is for (`windows`, `linux`, `macos`), or null for
+     * a file that fits every plan (an OS-less ISO, an avatar). Authored as
+     * `os:` on the requirement and kept in `metadata` next to the other
+     * human facts, so an admin-panel save of the requirements repeater cannot
+     * lose it. `any`, an empty value and an unknown spelling all mean "no
+     * restriction": a typo must never hide a required file from every plan.
+     */
+    public function os(): ?string
+    {
+        $os = is_array($this->metadata) ? ($this->metadata['os'] ?? null) : null;
+
+        if (! is_string($os)) {
+            return null;
+        }
+
+        $os = mb_strtolower(trim($os));
+
+        return in_array($os, ['windows', 'linux', 'macos'], true) ? $os : null;
+    }
+
     /** @return list<string> */
     public function patterns(): array
     {

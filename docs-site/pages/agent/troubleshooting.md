@@ -14,7 +14,7 @@ lanomat-agent doctor
 ```text
 ✓ config        ~/.config/lanomat-agent/config.json (0600)
 ✓ login         lan.example, user rene, expires in 29 days
-✓ mcp           connected, 24 tools, protocol 2025-06-18
+✓ mcp           connected, 29 tools, protocol 2025-06-18
 ✓ model         venice/e2ee-deepseek-v4-1-flash-1017-abliterated
 ✓ tool calls    lanomat_me → ok (412 ms)
 ✓ disk          84 GB free in ~/.cache/lanomat-agent
@@ -39,13 +39,13 @@ lanomat-agent doctor
 The token is scoped to the user. If a participant token cannot read an orga draft recipe, that is
 correct, not a bug.
 
-The code entry and the devices already paired live on **Agent & MCP verbinden**; **„Trennen“** is
+The code entry and the devices already paired live on **Geräte & MCP**; **„Trennen“** is
 what turns a working command into a `401`:
 
 | Dark | Light |
 |---|---|
-| ![Agent and MCP pairing page with the eight-character code field and the list of connected agents, dark](/screens/mcp-connect-dark.png) | ![Agent and MCP pairing page with the eight-character code field and the list of connected agents, light](/screens/mcp-connect-light.png) |
-| `AGENT & MCP VERBINDEN · CODE · VERBUNDENE AGENTEN` | `AGENT & MCP VERBINDEN · LIGHT` |
+| ![Agent and MCP pairing page with the eight-character code field and the list of connected devices, dark](/screens/mcp-connect-dark.png) | ![Agent and MCP pairing page with the eight-character code field and the list of connected devices, light](/screens/mcp-connect-light.png) |
+| `GERÄTE & MCP · CODE · VERBUNDENE GERÄTE` | `GERÄTE & MCP · LIGHT` |
 
 ## Model and fuel
 

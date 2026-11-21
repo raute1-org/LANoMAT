@@ -75,6 +75,9 @@ const PUBLIC_ROUTES = [
     'GET api/v1/recipes/{slug}/avatars' => 'bearer middleware; avatar metadata and LAN matches only',
     'GET api/v1/files' => 'bearer middleware; VisibleFiles list (approved + own pending), public events only',
     'GET api/v1/files/{sharedFile}/download' => 'bearer middleware; SharedFilePolicy download, 403 for foreign pending/rejected files',
+    'GET api/v1/servers' => 'bearer middleware; the public event/permanent server projection only, no player names or user data (tests/Feature/Mcp/ServerApiTest)',
+    'POST api/v1/terminals/heartbeat' => 'bearer middleware; upserts only the row of the calling token, last_seen_at/ip are server facts (tests/Feature/Mcp/TerminalApiTest)',
+    'GET api/v1/terminals' => 'bearer middleware; LauncherTerminalPolicy viewAny: orga/admin only, no user data beyond the paired user (tests/Feature/Mcp/TerminalApiTest)',
     'GET api/voice-client/v1/rooms' => 'bearer middleware (AuthenticateVoiceClient); rooms from VisibleChannels',
     'POST api/voice-client/v1/rooms/{room}/token' => 'bearer middleware; WebVoiceChannelPolicy view+join, 404 for invisible rooms (tests/Feature/WebVoice/NativeClient)',
     'GET api/voice-client/v1/config' => 'bearer middleware (AuthenticateVoiceClient); no secrets',
@@ -139,6 +142,9 @@ const PUBLIC_ROUTES = [
     'GET discord/voice' => 'public no-PII voice occupancy projection',
     'GET filament/exports/{export}/download' => 'Filament action middleware authorizes the owner',
     'GET filament/imports/{import}/failed-rows/download' => 'Filament action middleware authorizes the owner',
+    'GET catering/dish-image/{foodOrder}/{key}' => 'legacy alias of restaurant-image: published rounds of publicly visible events only (draft round, draft event, dish without image: 404); content-hashed file, public cache',
+    'GET catering/restaurant-image/{restaurant}/{key}' => 'restaurant used by a published round of a publicly visible event only (else 404; dish without image: 404); content-hashed file, public cache',
+    'GET catering/restaurant-logo/{restaurant}' => 'restaurant used by a published round of a publicly visible event only (else 404); logo only, content-hashed file, public cache',
     'GET gallery/public/photos/{eventPhoto}' => 'approved photos of publicly visible events only',
     'GET gallery/public/photos/{eventPhoto}/thumb' => 'approved photos of publicly visible events only',
     'POST internal/discord/gateway' => 'shared-secret middleware (VerifyGatewaySecret)',
@@ -162,8 +168,11 @@ const PUBLIC_ROUTES = [
  * they only ever act on the authenticated user's own data.
  */
 const SELF_SERVICE_ROUTES = [
-    'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
-    'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers',
+    'GET checkin/{token}', 'POST checkin/{token}', 'GET chat', 'GET dashboard', 'GET events',
+    'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/all', 'GET servers/permanent',
+    // The launcher page and its binaries sit behind the Discord login; {filename} is no
+    // bound model, it is only compared against the validated manifest (LauncherBuilds).
+    'GET launcher', 'GET launcher/download-latest', 'GET launcher/download/{filename}',
     'GET voice/setup', 'GET app', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'GET mcp/connect', 'POST mcp/connect', 'GET games', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',
@@ -544,6 +553,7 @@ it('puts every state-changing route behind CSRF verification', function () {
     $exempt = [
         'api/discord/interactions', 'internal/discord/gateway', 'internal/files/tusd-hook', 'api/telemetry/cs2/{serverLink}',
         'mcp', 'api/mcp/device', 'api/mcp/token', 'api/v1/recipes', 'api/v1/recipes/{slug}/plan',
+        'api/v1/terminals/heartbeat',
         'api/voice-client/device', 'api/voice-client/token', 'api/voice-client/v1/rooms/{room}/token', 'api/voice-client/v1/rooms/{room}/messages', 'api/voice-client/v1/messages/{message}', 'api/voice-client/v1/broadcasting/auth', 'api/voice-client/v1/notifications/read-all', 'api/voice-client/v1/notifications/{notification}/read', 'api/voice-client/v1/notification-preferences',
         'api/voice-client/v1/polls/{poll}/vote', 'api/voice-client/v1/food-orders/{foodOrder}/items', 'api/voice-client/v1/food-order-items/{foodOrderItem}',
         'api/voice-client/v1/events/{event}/files/uploads/ticket', 'api/voice-client/v1/files/{sharedFile}',

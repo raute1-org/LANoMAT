@@ -26,10 +26,12 @@ return [
         7 => 'Voice',
     ],
     'Events' => [
-        0 => 'News',
-        1 => 'Registration',
-        2 => 'Tournaments',
-        3 => 'Voting',
+        0 => 'GameRecipes',
+        1 => 'GameServers',
+        2 => 'News',
+        3 => 'Registration',
+        4 => 'Tournaments',
+        5 => 'Voting',
     ],
     'Files' => [
         0 => 'Events',
@@ -54,7 +56,8 @@ return [
         1 => 'Files',
         2 => 'GameServers',
         3 => 'Lfg',
-        4 => 'Tournaments',
+        4 => 'Mcp',
+        5 => 'Tournaments',
     ],
     'GameServers' => [
         0 => 'CustomServers',
@@ -140,6 +143,7 @@ return [
         1 => 'Identity',
     ],
     'Preflight' => [
+        0 => 'GameRecipes',
     ],
     'Presence' => [
         0 => 'Events',

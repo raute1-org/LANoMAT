@@ -7,6 +7,7 @@ use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Filament\Resources\Events\EventResource;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Actions\RotateEventCheckinToken;
+use App\Modules\Registration\Filament\Actions\EditPaymentSettingsAction;
 use App\Modules\Registration\Models\EventCheckinToken;
 use App\Modules\Registration\Support\CheckinUrl;
 use App\Modules\Registration\Support\QrCode;
@@ -116,6 +117,7 @@ class EditEvent extends EditRecord
 
         return [
             $arrivalAction,
+            EditPaymentSettingsAction::make($event),
             ...$qrActions,
             ...$transitions,
             DeleteAction::make(),

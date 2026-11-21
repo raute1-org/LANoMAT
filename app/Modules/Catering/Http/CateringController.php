@@ -4,6 +4,7 @@ namespace App\Modules\Catering\Http;
 
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Catering\Actions\CancelFoodOrderItem;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
 use App\Modules\Catering\Domain\MenuOption;
@@ -11,9 +12,14 @@ use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Catering\Support\ListedFoodOrders;
+use App\Modules\Catering\Support\MyFoodPayment;
+use App\Modules\Catering\Support\RestaurantCard;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventPaymentSettings;
+use App\Support\Money\Euro;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,10 +45,11 @@ class CateringController extends Controller
         $userId = $request->user()?->id;
 
         $orders = ListedFoodOrders::forEvent($event);
+        $settings = $request->user() === null ? null : EventPaymentSettings::forEvent($event);
 
         return Inertia::render('Catering/Show', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
-            'orders' => $orders->map(fn (FoodOrder $order): array => $this->orderDto($order, $userId))->all(),
+            'orders' => $orders->map(fn (FoodOrder $order): array => $this->orderDto($order, $event, $request->user(), $settings))->all(),
             'labels' => trans('catering.page'),
             'registration' => [
                 'required' => $request->user() !== null
@@ -59,12 +66,17 @@ class CateringController extends Controller
         $data = $request->validated();
 
         try {
-            $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null);
+            $item = $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null);
         } catch (CateringException $exception) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey, $exception->parameters)]);
 
             return back();
         }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('catering.page.toast_added', [
+            'dish' => $this->dishName($foodOrder, $data['option_key'], $item->selection['name'] ?? null),
+            'price' => Euro::format($item->price_cents),
+        ])]);
 
         return back();
     }
@@ -72,6 +84,10 @@ class CateringController extends Controller
     public function destroy(Request $request, FoodOrderItem $foodOrderItem, CancelFoodOrderItem $action): RedirectResponse
     {
         $this->authorize('delete', $foodOrderItem);
+
+        $order = $foodOrderItem->foodOrder;
+        $optionKey = (string) ($foodOrderItem->selection['option_key'] ?? '');
+        $snapshot = $foodOrderItem->selection['name'] ?? null;
 
         try {
             $action->handle($foodOrderItem);
@@ -81,14 +97,35 @@ class CateringController extends Controller
             return back();
         }
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('catering.page.toast_removed', [
+            'dish' => $this->dishName($order, $optionKey, $snapshot),
+        ])]);
+
         return back();
+    }
+
+    /** The dish name without its "Category: " prefix, as the page shows it. */
+    private function dishName(?FoodOrder $order, string $optionKey, ?string $snapshot = null): string
+    {
+        $option = collect($order?->menuOptions())->first(fn (MenuOption $menuOption): bool => $menuOption->key === $optionKey);
+        $name = $snapshot !== null && $snapshot !== '' ? $snapshot : ($option === null ? $optionKey : $option->name);
+        $index = strpos($name, ': ');
+
+        if ($index === false || $index <= 0 || $index > 32) {
+            return $name;
+        }
+
+        $label = trim(substr($name, $index + 2));
+
+        return $label === '' ? $name : $label;
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function orderDto(FoodOrder $order, ?int $userId): array
+    private function orderDto(FoodOrder $order, Event $event, ?User $viewer, ?EventPaymentSettings $settings): array
     {
+        $userId = $viewer?->id;
         $items = $order->items()->with('user')->get();
 
         $myItems = $userId === null
@@ -103,13 +140,17 @@ class CateringController extends Controller
             'isOpen' => $order->isOpenNow(),
             'opensAt' => $order->opens_at?->toIso8601String(),
             'closesAt' => $order->closes_at?->toIso8601String(),
-            'menu' => collect($order->menu)->map(fn (MenuOption $option): array => [
+            'restaurant' => RestaurantCard::for($order->restaurant),
+            'menu' => collect($order->menuOptions())->map(fn (MenuOption $option): array => [
                 'key' => $option->key,
                 'name' => $option->name,
                 'priceCents' => $option->priceCents,
+                'description' => $option->description,
+                'imageUrl' => DishImage::url($order, $option),
             ])->all(),
             'myItems' => $myItems->map(fn (FoodOrderItem $item): array => $this->itemDto($item))->values()->all(),
             'myTotalCents' => $myItems->sum('price_cents'),
+            'myPayment' => $viewer === null ? null : MyFoodPayment::for($order, $event, $viewer, $myItems, $settings),
         ];
     }
 
@@ -121,9 +162,11 @@ class CateringController extends Controller
         return [
             'id' => $item->id,
             'optionKey' => $item->selection['option_key'] ?? null,
+            'name' => $item->selection['name'] ?? null,
             'note' => $item->selection['note'] ?? null,
             'priceCents' => $item->price_cents,
             'paid' => $item->paid_at !== null,
+            'included' => $item->included,
         ];
     }
 }

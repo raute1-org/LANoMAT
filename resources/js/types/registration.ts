@@ -13,11 +13,28 @@ export interface ArrivalOptions {
     windows: { value: string; label: string }[];
 }
 
+export interface TicketOption {
+    key: string;
+    name: string;
+    description: string | null;
+    priceCents: number;
+}
+
+export interface RegistrationPayment {
+    amountCents: number;
+    paid: boolean;
+    url: string | null;
+    linkAppendsAmount: boolean;
+    reference: string;
+    note: string | null;
+}
+
 export interface RegistrationDetails {
     ticketType: string;
     ticketLabel: string;
     status: 'pending' | 'confirmed' | 'cancelled';
     paid: boolean;
+    payment: RegistrationPayment | null;
     checkedIn: boolean;
     /** Ruling C: false once checked in or the event is over. */
     canCancel: boolean;

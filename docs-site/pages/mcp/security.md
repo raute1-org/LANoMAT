@@ -25,7 +25,7 @@ including an open MCP session on the next call.
 | Dark | Light |
 |---|---|
 | ![MCP connect page with a code field and two paired agents, dark](/screens/mcp-connect-dark.png) | ![MCP connect page with a code field and two paired agents, light](/screens/mcp-connect-light.png) |
-| `Agent & MCP verbinden · DARK` — code entry above the agents already paired, each with Trennen | `Agent & MCP verbinden · LIGHT` |
+| `Geräte & MCP · DARK` — code entry above the devices already paired, each with Trennen | `Geräte & MCP · LIGHT` |
 
 `Trennen` is the whole revocation path: the row disappears, and the next call from that token is a
 `401`. The same page shows the code from the agent, so the human approves a code they can compare.

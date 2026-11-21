@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="color-scheme" content="light dark" />
+        <title>Wartung – LANoMAT</title>
+        <link
+            rel="icon"
+            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23a85a00'%3E%3Ccircle cx='5.8' cy='2.7' r='2.5'/%3E%3Ccircle cx='5.8' cy='8.9' r='2.5'/%3E%3Ccircle cx='5.8' cy='15.1' r='2.5'/%3E%3Ccircle cx='5.8' cy='21.3' r='2.5'/%3E%3Ccircle cx='12' cy='21.3' r='2.5'/%3E%3Ccircle cx='18.2' cy='21.3' r='2.5'/%3E%3C/g%3E%3C/svg%3E"
+        />
+        <noscript><meta http-equiv="refresh" content="15" /></noscript>
+        <style>
+            /* Signalpult tokens (docs/brand/tokens.css), inlined: this page must work with no network at all. */
+            :root {
+                --background: #f7f8fa;
+                --foreground: #14181c;
+                --muted-foreground: #5b646e;
+                --border: #e1e5ea;
+                --node: #14181c;
+                --primary: #a85a00;
+                --live: #e8930a;
+                --font-sans:
+                    'Space Grotesk', ui-sans-serif, system-ui, -apple-system,
+                    'Segoe UI', Roboto, sans-serif;
+                --font-mono:
+                    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo,
+                    Consolas, monospace;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --background: #0f1215;
+                    --foreground: #e7ecef;
+                    --muted-foreground: #8a949e;
+                    --border: #262c33;
+                    --node: #e7ecef;
+                    --primary: #ffb020;
+                    --live: #ffb020;
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html {
+                background: var(--background);
+                color: var(--foreground);
+            }
+            body {
+                margin: 0;
+                min-height: 100svh;
+                display: grid;
+                place-items: center;
+                padding: 2rem 1rem;
+                font-family: var(--font-sans);
+                line-height: 1.5;
+                -webkit-font-smoothing: antialiased;
+            }
+            main {
+                width: 100%;
+                max-width: 30rem;
+            }
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+            }
+            .brand svg {
+                width: 1.75rem;
+                height: 1.75rem;
+            }
+            .mark {
+                width: 6.5rem;
+                height: 6.5rem;
+                margin-top: 3rem;
+                display: block;
+            }
+            .mark .n {
+                fill: var(--node);
+                opacity: 0.22;
+            }
+            .mark .a {
+                fill: var(--live);
+            }
+            /* A signal travels along the L and ends at the amber node. One calm loop, nothing else moves. */
+            @media (prefers-reduced-motion: no-preference) {
+                .mark .n {
+                    animation: pulse 3.6s ease-in-out infinite;
+                    animation-delay: calc(var(--i) * 0.4s);
+                }
+                .mark .a {
+                    animation: lit 3.6s ease-in-out infinite;
+                    animation-delay: 2s;
+                }
+            }
+            @keyframes pulse {
+                0%,
+                55%,
+                100% {
+                    opacity: 0.22;
+                }
+                12%,
+                30% {
+                    opacity: 1;
+                }
+            }
+            @keyframes lit {
+                0%,
+                55%,
+                100% {
+                    opacity: 0.35;
+                }
+                12%,
+                40% {
+                    opacity: 1;
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .mark .n {
+                    opacity: 1;
+                }
+            }
+            h1 {
+                margin: 2rem 0 0.5rem;
+                font-size: clamp(1.625rem, 5vw, 2.125rem);
+                line-height: 1.15;
+                letter-spacing: -0.02em;
+                font-weight: 600;
+            }
+            .lead {
+                margin: 0;
+                font-size: 1.125rem;
+            }
+            .hint {
+                margin: 1rem 0 0;
+                color: var(--muted-foreground);
+                max-width: 28rem;
+            }
+            .status {
+                margin: 2rem 0 0;
+                padding-top: 1rem;
+                border-top: 1px solid var(--border);
+                color: var(--muted-foreground);
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+            }
+            .status span {
+                color: var(--foreground);
+            }
+            a {
+                color: var(--primary);
+                text-underline-offset: 3px;
+            }
+            a:focus-visible {
+                outline: 2px solid var(--primary);
+                outline-offset: 3px;
+                border-radius: 2px;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <div class="brand">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="var(--node)">
+                    <circle cx="5.8" cy="2.7" r="2.5" />
+                    <circle cx="5.8" cy="8.9" r="2.5" />
+                    <circle cx="5.8" cy="15.1" r="2.5" />
+                    <circle cx="5.8" cy="21.3" r="2.5" />
+                    <circle cx="12" cy="21.3" r="2.5" />
+                    <circle cx="18.2" cy="21.3" r="2.5" fill="var(--primary)" />
+                </svg>
+                LANoMAT
+            </div>
+
+            <svg
+                class="mark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+            >
+                <g>
+                    <circle
+                        class="n"
+                        style="--i: 0"
+                        cx="5.8"
+                        cy="2.7"
+                        r="2.5"
+                    />
+                    <circle
+                        class="n"
+                        style="--i: 1"
+                        cx="5.8"
+                        cy="8.9"
+                        r="2.5"
+                    />
+                    <circle
+                        class="n"
+                        style="--i: 2"
+                        cx="5.8"
+                        cy="15.1"
+                        r="2.5"
+                    />
+                    <circle
+                        class="n"
+                        style="--i: 3"
+                        cx="5.8"
+                        cy="21.3"
+                        r="2.5"
+                    />
+                    <circle
+                        class="n"
+                        style="--i: 4"
+                        cx="12"
+                        cy="21.3"
+                        r="2.5"
+                    />
+                </g>
+                <circle class="a" cx="18.2" cy="21.3" r="2.5" />
+            </svg>
+
+            <h1>LANoMAT wird aktualisiert.</h1>
+            <p class="lead">Gleich geht’s weiter.</p>
+            <p class="hint">
+                Wir spielen gerade eine neue Version ein. Das dauert meistens
+                nur ein bis zwei Minuten. Deine Daten sind sicher.
+            </p>
+
+            <p class="status" role="status" aria-live="polite" id="status">
+                <span id="status-text">Diese Seite lädt von selbst neu.</span>
+            </p>
+            <noscript
+                ><p class="hint">
+                    Ohne JavaScript lädt die Seite alle 15 Sekunden neu. Du
+                    kannst sie auch selbst <a href="/">neu laden</a>.
+                </p></noscript
+            >
+        </main>
+
+        <script>
+            (function () {
+                var INTERVAL = 4000;
+                var text = document.getElementById('status-text');
+                function check() {
+                    var opts = { cache: 'no-store', credentials: 'omit' };
+                    if (window.AbortController) {
+                        var c = new AbortController();
+                        setTimeout(function () {
+                            c.abort();
+                        }, 3000);
+                        opts.signal = c.signal;
+                    }
+                    fetch('/up', opts)
+                        .then(function (res) {
+                            // Only the real app answers 200 on /up; this page itself answers 503.
+                            if (res.ok && !res.headers.get('Retry-After')) {
+                                text.textContent =
+                                    'Fertig, du wirst weitergeleitet …';
+                                location.reload();
+                                return;
+                            }
+                            schedule();
+                        })
+                        .catch(schedule);
+                }
+                function schedule() {
+                    setTimeout(check, INTERVAL);
+                }
+                schedule();
+            })();
+        </script>
+    </body>
+</html>

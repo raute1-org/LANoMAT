@@ -3,7 +3,7 @@
  * `README.md`; unknown extra fields are preserved by the parser but never required.
  */
 
-export type Os = 'windows' | 'linux';
+export type Os = 'windows' | 'linux' | 'macos';
 
 export interface StoredUser {
     id: string | number;

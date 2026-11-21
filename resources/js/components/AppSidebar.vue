@@ -4,6 +4,7 @@ import {
     Gamepad2,
     CalendarClock,
     CalendarDays,
+    Download,
     FolderOpen,
     HandHelping,
     MonitorPlay,
@@ -15,6 +16,7 @@ import {
     Mic,
     MonitorDown,
     PartyPopper,
+    Radar,
     Swords,
     Trophy,
     UserCheck,
@@ -63,7 +65,10 @@ import { index as pollsIndex } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import { index as scheduleIndex } from '@/routes/schedule';
 import { control as screenControl } from '@/routes/screen';
-import { index as serversIndex } from '@/routes/servers';
+import {
+    browser as serversBrowser,
+    index as serversIndex,
+} from '@/routes/servers';
 import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -265,6 +270,17 @@ const moreItems = computed<NavItem[]>(() => {
 
     if (has('game_recipes')) {
         items.push({ title: 'Spiele', href: '/games', icon: Gamepad2 });
+        // The launcher page is behind login like every participant page; the
+        // entry stays gated because the route belongs to GameRecipes.
+        items.push({ title: 'Launcher', href: '/launcher', icon: Download });
+    }
+
+    if (has('game_servers')) {
+        items.push({
+            title: 'Alle Server',
+            href: serversBrowser.url(),
+            icon: Radar,
+        });
     }
 
     items.push({

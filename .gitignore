@@ -47,5 +47,11 @@ __pycache__/
 # Native voice client (Rust workspace)
 /clients/voice/target/
 
+# Launcher (Rust workspace): build output from Docker runs, staged tarballs and the release
+# workflow's cargo caches (scripts/ops/build-launcher.sh filters these from the dirty check too)
+/clients/launcher/target/
+/clients/launcher/dist/
+/.ci-cache/
+
 # built native voice client releases (scripts/ops/build-client.sh)
 /clients-dist

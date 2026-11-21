@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "LANoMAT acceptance fixture: ut2004-bin-amd64"

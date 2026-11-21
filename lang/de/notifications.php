@@ -7,6 +7,10 @@ return [
         'mark_read' => 'Als gelesen markieren',
     ],
 
+    'categories' => [
+        'payment' => 'Zahlungserinnerungen',
+    ],
+
     'registration_confirmed' => [
         'title' => 'Anmeldung bestätigt',
         'body' => 'Deine Anmeldung für :event ist bestätigt.',

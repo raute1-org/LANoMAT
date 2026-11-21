@@ -211,7 +211,7 @@ On the host: `/opt/lanomat/scripts/deploy/deploy.sh` (or via
 `ssh <ssh-user>@<APP_SERVER> /opt/lanomat/scripts/deploy/deploy.sh`; the real host and SSH user are kept out of this public repo). It pulls
 `origin/main` fast-forward only, rebuilds with `build --pull` (fresh FrankenPHP/Node base images, so PHP and Node patch releases are picked up on every deploy), recreates the core services,
 waits for `app` to be healthy and runs `migrate --force`. It never touches
-volumes or `.env`.
+volumes or `.env`. At the end it also runs `scripts/ops/teamspeak-allow-sidecar.sh`, which keeps the TeamSpeak sidecar on the ServerQuery allowlist (see `docs/teamspeak-setup.md` section 4a); it does nothing when TeamSpeak is not running.
 
 **Every application service builds its own image.** `app`, `queue`, `scheduler` and `reverb-prod` each have a
 `build:` section for the same Dockerfile, so a deploy must build and recreate ALL of them, never just `app`:
@@ -268,6 +268,70 @@ missing bind-mount directory as root. The Windows files are **not signed** (`sig
 tells users how to click through the SmartScreen warning. The Preflight check `client_build` warns
 ("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
 repeat the fetch (or the build) after every deploy that changes the version.
+
+**LANoMAT Launcher download (Linux and Windows).** `/launcher` is the download page (behind the
+Discord login, like the rest of the participant UI) for the desktop launcher that installs UT2004
+from the LAN with one button (guide:
+<https://lan.raute1.org/docs/guides/launcher>). It needs `MODULE_GAME_RECIPES=true` — and
+`MODULE_FILES=true` (recipes find their ISO/patch uploads through Files) and `MODULE_MCP=true` (the
+launcher pairs and plans through the bearer API; GameRecipes declares both as hard dependencies, so
+enabling it without them fails at boot). None of the three is part of the `core` profile, so set all
+explicitly. The page reads `./clients-dist/launcher/manifest.json`,
+which is the same read-only bind mount as the native client (`./clients-dist:/app/clients-dist:ro` in
+`app` and `scheduler`) — a missing manifest means "no build published", the page still renders.
+
+```bash
+scripts/ops/build-launcher.sh          # Linux x86_64; refuses a dirty tree, publishes atomically
+scripts/ops/build-launcher.sh --help   # --allow-dirty, --version, --out, --rebuild-image, --keep-old
+```
+
+The script compiles `cargo build --locked --release` in `clients/launcher/Dockerfile.dev` (there is no
+Rust toolchain on the host) and packages; it does **not** run fmt/clippy/tests — that gate is
+`clients/launcher/ci/build.sh` (fmt, clippy, `cargo test --workspace`), which the release workflow
+runs (PR CI has no launcher job yet). It refuses a
+working tree that is not clean: a tracked change anywhere, or an untracked file outside
+`clients-dist/`, `clients/launcher/{target,dist}/`, `.ci-cache/`, `node_modules/`, `vendor/`.
+`--allow-dirty` accepts both and marks the version `-dirty`. The toolchain image is labelled with the
+SHA-256 of `Dockerfile.dev` and rebuilt when that file changes (an image built before the label is
+reused; `--rebuild-image` forces the rebuild). It writes the tarball first and `manifest.json` last,
+derives `SHA256SUMS` from exactly the manifest's files, and prunes older Linux tarballs in the folder
+unless `--keep-old` is given. The compile runs as a named container
+(`docker create`/`start`/`wait`/`logs`) with a bounded wait
+(`LANOMAT_LAUNCHER_BUILD_TIMEOUT`, default 3600 s): if the docker client hangs after the container
+finished, a staged, executable binary is packaged with a warning instead of being thrown away.
+
+Only Linux is built here. The Windows portable exe comes from the GitHub workflow
+`.github/workflows/release-launcher.yml` (`workflow_dispatch` or a `launcher-v*` tag); its `package`
+job merges both per-OS builds into one `launcher-release` artifact — tarball, exe of the same
+version, one `manifest.json` listing both, `SHA256SUMS` for exactly those files, and the two
+PowerShell installers (`install-desktop.ps1`, `install-terminal.ps1`). Download it and copy the
+contents into `clients-dist/launcher/`; that is the whole publish step. The Linux tarball ships
+`install-desktop.sh` and `install-terminal.sh` (arcade/gaming terminal: autostart at login,
+`--arcade`/`--kiosk`, `--name` for the orga monitor, `--uninstall`); on Windows the matching
+`install-terminal.ps1 -Arcade -Name "Arcade 3"` does the same. The portable exe needs WebView2
+(preinstalled on Windows 10/11; otherwise fetch the Evergreen runtime before the LAN). A
+`launcher-v*` tag only starts the run: with a clean tree the version is the commit's own
+`git describe` string from `scripts/ops/lib/version.sh`, with the tag's leading `launcher-v`
+stripped. Tag the commit that should carry that version, or pass the server's version as the
+workflow input, so the launcher and the server report the same string. Locally, the same merge
+happens when a same-version exe sits next to the tarball and
+`build-launcher.sh` runs; an exe of another version is ignored and left in place for its own
+release. Publishing is safe to repeat. Preflight's `launcher_build` check reads the manifest and the
+files themselves: it warns when nothing is published, when only one OS is present, or when the
+build is older than 30 days; a file that no longer matches its size or SHA-256 turns it down.
+Like `clients-dist` itself, publish before the first `up`, otherwise Docker creates the directory as
+root. The page requires login like the rest of the participant UI and carries no user data beyond the
+session.
+
+Every terminal pairs its own device: the catalogue is shared, the installs are local, and the same
+account can run the launcher on any number of machines without copying a config file. Arcade
+terminals (kiosk/fullscreen, keyboard or gamepad) sign in by scanning a QR of
+`/mcp/connect?code=…` and hand the machine over with **Abmelden / Nächstes Gerät**; the token, the
+install library and the progress stay on that machine. **Verbundene Geräte** on `/mcp/connect` lists
+the pairings by device name; the room's live fleet — **online**, **aktuelles Spiel** and
+**zuletzt gesehen** — is `/admin/launcher-terminals`, and the place to revoke or remove a retired or
+re-imaged machine. The real-infra checks for all of this are in
+[`pre-lan-acceptance-checklist.md`](pre-lan-acceptance-checklist.md) §11.
 
 **One-time after the deploy that introduces local avatars.** LANoMAT now keeps its own copy of every Discord
 avatar (nothing is loaded from the Discord CDN by browsers or the desktop client any more). New logins fetch
@@ -363,6 +427,51 @@ Restore, in short:
 The backups must be copied off the host regularly. A backup that stays on the
 same disk does not count. The repo does not set up an off-host target; choose
 one yourself.
+
+## Maintenance page
+
+Visitors never see a browser or Traefik error during a deploy. A tiny, always-on `maintenance`
+service (nginx, `docker/maintenance/`) serves a German "LANoMAT wird aktualisiert" page with status
+503, `Retry-After: 30` and `no-store`. The page polls `/up` every 4 seconds and reloads itself as soon
+as the app answers 200 (without JavaScript: a 15 second meta refresh). It is self-contained (inline CSS,
+no fonts, scripts or CDN), so it also works offline and under the CSP.
+
+How it is wired (no manual switch, nothing to remove afterwards):
+
+- **App container gone or starting.** Traefik's Docker provider drops the routers of stopped and
+  unhealthy containers, so without a fallback the answer would be 404. The `maintenance` service owns a
+  router with `priority=1` for the app host (labels in `compose.yml`); the real routers win whenever
+  `app` is healthy, so the page appears and disappears by itself.
+- **App running but failing (502-504).** The `maintenance-errors` middleware
+  (`docker/traefik/dynamic.yml`) is attached to the main `app` router and swaps in the same page. A
+  normal 404 or 500 of the app is not replaced. Reverb (`ws.` host), the upload routers and the file
+  host are deliberately excluded. The middleware references `maintenance@docker`: if the maintenance
+  container is missing, Traefik drops every router that uses it (the site answers 404), so
+  `scripts/deploy/deploy.sh` starts it first and never restarts it (it is not in `SERVICES`; it is
+  recreated only when `docker/maintenance` changed).
+- **Laravel maintenance mode** (`artisan down`) is optional: `DEPLOY_MAINTENANCE_MODE=1 scripts/deploy/deploy.sh`
+  wraps the migrations in `down`/`up` with an `EXIT` trap, so a failed migration never leaves a healthy
+  app in maintenance mode. It is off by default because the page already covers the restart and the
+  migrations are additive. The file driver is per container, which is fine: only `app` serves HTTP.
+  The static page replaces Laravel's own 503 (the middleware matches 503 too).
+
+Try it (production, off-peak): `docker compose --profile prod stop app`, open the site (503 page, the
+animated L mark), then `docker compose --profile prod start app`; the page reloads on its own once the
+app is healthy. `curl -i https://lan.example/` while stopped shows `503`, `Retry-After: 30`.
+
+**Venue-specific Traefik files** (not in the repo): the labels live in `compose.yml`, so
+nothing is needed if the venue only overrides the static file (`traefik.venue.yml`). If the venue
+uses its own copy of the dynamic file or its own `app` labels, add (placeholders):
+
+```yaml
+# dynamic file: http.middlewares
+maintenance-errors:
+  errors: { status: ['502-504'], service: 'maintenance@docker', query: '/' }
+```
+
+and append `maintenance-errors@file` to the `app` router's `middlewares` label (compose
+override). Routers added by an override that must show the page need the same; the catch-all
+`maintenance` router already covers every host rule equal to `Host(${APP_DOMAIN})`.
 
 ## Security headers
 

@@ -48,6 +48,16 @@ describe('pickLaunchTarget', () => {
     it('falls back to the first target when no entry matches the OS', () => {
         expect(pickLaunchTarget([{ id: 'only', os: 'macos', command: 'x' }], 'windows')?.id).toBe('only');
     });
+
+    it('picks the macOS target on macOS', () => {
+        const macTargets = [
+            { id: 'flat', label: 'Flat', os: 'windows', command: '{{target}}/UT2004.exe' },
+            { id: 'flat-macos', label: 'Flat (macOS)', os: 'macos', command: '{{target}}/UT2004.app' },
+        ];
+
+        expect(pickLaunchTarget(macTargets, 'macos')?.id).toBe('flat-macos');
+        expect(pickLaunchTarget(macTargets, 'linux')?.id).toBe('flat');
+    });
 });
 
 describe('launch with the canonical target contract', () => {

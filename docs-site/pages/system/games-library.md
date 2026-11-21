@@ -95,6 +95,20 @@ It is the shortest path from "we should play" to "everyone is in the room":
 The action requires a non-cancelled event registration, like every LFG post. It does not create a
 tournament, start a server or reserve a seat.
 
+## Same list, same words, in the launcher
+
+The desktop launcher opens on **Spiele** with the same published recipes, the same **LAN** badge and
+the same action words (**Installieren**, **Starten**) as this page — and the start-page chat at `/`
+renders its game and server cards from the same read models, so the three doors never disagree. The
+launcher's **Zuletzt gespielt** entry (the newest verified install, with target folder and verified
+files) is the equivalent of the first row here; a game is only "installed" because the launcher
+verified it, never because a recipe exists — and only on that terminal, since every machine pairs
+its own launcher. Read
+[One-click launcher](/docs/guides/launcher) for the download, the one-time pairing and the phase
+list with percent, speed and ETA, and
+[Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door-after-login--pilot)
+for the card anatomy and the typewriter rules.
+
 ## What the page never does
 
 - It never installs without confirmation; the deep link only opens the agent.

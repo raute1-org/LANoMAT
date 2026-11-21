@@ -91,8 +91,8 @@ const AGENT_CLI =
  *   frame — used only where the full form is the point (recipe edit).
  */
 const ROUTES = [
-    // Guest landing. The logged-in `/` is the event page, so this route uses
-    // its own (signed-out) context to keep home and event-page distinct.
+    // Guest login gate. The logged-in `/` is Now, so this route uses its own
+    // (signed-out) context to keep the gate and the start page distinct.
     { name: 'home', path: '/', guest: true, mobile: true },
     { name: 'dashboard', path: '/dashboard', mobile: true },
     { name: 'event-page', path: `/events/${EVENT_SLUG}`, mobile: true },

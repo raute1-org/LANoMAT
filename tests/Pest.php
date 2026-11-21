@@ -46,6 +46,7 @@ pest()->extend(TestCase::class)
         'Unit/Friends',
         'Unit/Gallery',
         'Unit/Games',
+        'Unit/GameRecipes',
         'Unit/Hosts',
         'Unit/Infoscreen',
         'Unit/Jukebox',
@@ -232,4 +233,17 @@ function signedInteraction(array $body): array
     $sig = bin2hex(sodium_crypto_sign_detached($timestamp.$json, $secret));
 
     return [$json, $timestamp, $sig];
+}
+
+/** A small generated PNG in a fresh temp directory; returns its path. */
+function dishPng(int $w = 1600, int $h = 1000, int $shade = 120): string
+{
+    $dir = sys_get_temp_dir().'/dish-'.bin2hex(random_bytes(4));
+    mkdir($dir);
+    $path = $dir.'/photo.png';
+    $img = imagecreatetruecolor($w, $h);
+    imagefill($img, 0, 0, imagecolorallocate($img, $shade, 80, 40));
+    imagepng($img, $path);
+
+    return $path;
 }

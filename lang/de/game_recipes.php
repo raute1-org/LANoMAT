@@ -55,4 +55,32 @@ return [
         'archive' => 'Archivieren',
     ],
 
+    // The launcher fleet monitor (LauncherTerminalResource) and the state a
+    // terminal reports over POST /api/v1/terminals/heartbeat.
+    'terminals' => [
+        'resource' => [
+            'label' => 'Terminal',
+            'plural_label' => 'Terminals',
+        ],
+
+        'fields' => [
+            'name' => 'Terminal',
+            'state' => 'Status',
+            'game' => 'Läuft gerade',
+            'installed' => 'Installiert',
+            'version' => 'Launcher-Version',
+            'gamepad' => 'Gamepad',
+            'last_seen' => 'Zuletzt gesehen',
+            'paired_user' => 'Gepaart von',
+            'remove' => 'Entfernen',
+        ],
+    ],
+
+    'terminal_state' => [
+        'online' => 'Online',
+        'playing' => 'Spielt',
+        'idle' => 'Bereit',
+        'offline' => 'Offline',
+    ],
+
 ];

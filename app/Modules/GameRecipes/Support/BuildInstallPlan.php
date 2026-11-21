@@ -34,6 +34,14 @@ final class BuildInstallPlan
         $missing = [];
 
         foreach ($recipe->files as $entry) {
+            // A file authored for another OS (the Windows zip patch on a Linux
+            // plan) is not part of this plan at all: it must not be offered as
+            // a download and must not count as missing. Its LAN match is also
+            // skipped, so a Linux install never picks up UT2004.exe.
+            if (! $this->appliesToOs($entry, $os)) {
+                continue;
+            }
+
             $shared = $matches[$entry->id] ?? null;
 
             if ($shared instanceof SharedFile) {
@@ -60,6 +68,7 @@ final class BuildInstallPlan
                 'recipe_file_id' => $entry->id,
                 'requirement' => $entry->role->value,
                 'label' => self::label($entry),
+                'os' => $entry->os(),
                 'status' => 'missing',
                 'required' => $entry->required,
                 'source' => null,
@@ -123,6 +132,14 @@ final class BuildInstallPlan
         };
     }
 
+    /** Whether a file authored for one platform belongs in a plan for `$os`. */
+    private function appliesToOs(GameRecipeFile $entry, string $os): bool
+    {
+        $fileOs = $entry->os();
+
+        return $fileOs === null || $fileOs === $os;
+    }
+
     private function skillName(GameRecipe $recipe): string
     {
         $markdown = (string) $recipe->skill_markdown;
@@ -144,9 +161,17 @@ final class BuildInstallPlan
             $name = $recipe->slug;
         }
 
-        return $os === 'windows'
-            ? 'C:\\Games\\'.$name
-            : '~/Games/'.Str::slug($name);
+        if ($os === 'windows') {
+            return 'C:\\Games\\'.$name;
+        }
+
+        // The OldUnreal macOS bundle reads its assets from Application Support,
+        // not from a ~/Games folder. UT2004 is the only macOS recipe today.
+        if ($os === 'macos') {
+            return '~/Library/Application Support/UT2004';
+        }
+
+        return '~/Games/'.Str::slug($name);
     }
 
     /** @param array<string, mixed> $step
@@ -177,13 +202,17 @@ final class BuildInstallPlan
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
             'label' => self::label($entry),
+            'os' => $entry->os(),
             'status' => 'matched',
             'required' => $entry->required,
             'source' => $source,
             // The uploader chose this name: one bounded line, never a path.
             'name' => SafeText::fileName($file->original_name),
             'size_bytes' => $file->size_bytes,
-            'sha256' => $entry->sha256,
+            // The orga's recipe pin wins (it is the published contract); the
+            // server-side digest of the stored bytes is the fallback, so the
+            // launcher can verify every matched LAN file, not just pinned ones.
+            'sha256' => $entry->sha256 ?? $file->sha256,
             'shared_file_id' => $file->id,
             'download_url' => route('mcp.files.download', ['sharedFile' => $file->id], true),
             'fallback_url' => $entry->url,
@@ -201,6 +230,7 @@ final class BuildInstallPlan
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
             'label' => self::label($entry),
+            'os' => $entry->os(),
             // A URL that names a file is an external download; anything else
             // (a release page, a tool homepage) is a manual step.
             'status' => $isFile ? 'external' : 'manual',
@@ -245,7 +275,7 @@ final class BuildInstallPlan
                 'author' => SafeText::line(is_string($metadata['author'] ?? null) ? $metadata['author'] : null, 80),
                 'license' => SafeText::line(is_string($metadata['license'] ?? null) ? $metadata['license'] : null, 80),
                 'size_bytes' => $shared === null ? $entry->size_bytes : $shared->size_bytes,
-                'sha256' => $entry->sha256,
+                'sha256' => $entry->sha256 ?? $shared?->sha256,
                 'match_name' => SafeText::fileName($shared?->original_name),
                 'download_url' => $shared instanceof SharedFile
                     ? route('mcp.files.download', ['sharedFile' => $shared->id], true)

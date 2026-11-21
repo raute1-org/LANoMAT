@@ -8,7 +8,7 @@ LANoMAT exposes a **Model Context Protocol** server at `/mcp`. It speaks streama
 bearer token, and gives an agent a small, deliberate surface: identity, game recipes, recipe skills,
 files and a contribution draft. It does not expose a generic database or shell.
 
-<div class="live">LIVE 17:42 · MCP connected · 24 tools · 1 resource · 1 prompt</div>
+<div class="live">LIVE 17:42 · MCP connected · 29 tools · 2 resources · 2 prompts</div>
 
 ## Endpoint
 
@@ -77,8 +77,8 @@ the approving user and carries their role; revoking the device in the browser in
 
 | Dark | Light |
 |---|---|
-| ![Code entry and the list of paired agents, dark](/screens/mcp-connect-dark.png) | ![Code entry and the list of paired agents, light](/screens/mcp-connect-light.png) |
-| `AGENT & MCP · CODE EINGEBEN · VERBUNDENE AGENTEN` | `AGENT & MCP · LIGHT` |
+| ![Code entry and the list of paired devices, dark](/screens/mcp-connect-dark.png) | ![Code entry and the list of paired devices, light](/screens/mcp-connect-light.png) |
+| `GERÄTE & MCP · CODE EINGEBEN · VERBUNDENE GERÄTE` | `GERÄTE & MCP · LIGHT` |
 
 <div class="callout-live">
   <strong>No password in a file.</strong> The token is the credential. Store it in an environment
@@ -162,9 +162,9 @@ themselves. The server answers with `application/json` or an SSE stream, as requ
 
 | Surface | Count | Examples |
 |---|---|---|
-| Tools | 24 | `lanomat_me`, `recipes_list`, `recipe_install_plan`, `files_list` |
-| Resources | 1 | `lanomat://recipes/{slug}/skill` |
-| Prompts | 1 | `install-game` |
+| Tools | 27 | `lanomat_me`, `recipes_list`, `recipe_install_plan`, `files_list` |
+| Resources | 2 | `lanomat://recipes/{slug}/skill`, `lanomat://skills/import-menu` |
+| Prompts | 2 | `install-game`, `import-menu` |
 
 The full catalogue, argument schemas and examples are on [Tools & resources](/docs/mcp/tools).
 

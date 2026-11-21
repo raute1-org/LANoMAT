@@ -1052,6 +1052,62 @@
       "pages/system/modules/roomaudio.md"
     ]
   },
+  "launcher-connect-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 11478,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-install-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 14707,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-install-error-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 19489,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-library-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 12846,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-page-dark.png": {
+    "width": 1440,
+    "height": 1164,
+    "bytes": 49593,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-page-light.png": {
+    "width": 1440,
+    "height": 1164,
+    "bytes": 49939,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-ready-light.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 16765,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
   "leaderboard-dark.png": {
     "width": 1440,
     "height": 900,
@@ -1152,6 +1208,70 @@
       "pages/start/screenshots.md",
       "pages/start/tour.md",
       "pages/system/modules/mcp.md"
+    ]
+  },
+  "nfsu2/browser-intro-chrome.png": {
+    "width": 1200,
+    "height": 800,
+    "bytes": 118697,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/browser-profile-create-brave.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 90204,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/browser-start-page-brave.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 58733,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/launcher-library.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 49973,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfs-online-server-status.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 33770,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfsu2-archive-facts.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28228,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfsu2-native-quickrace.png": {
+    "width": 1280,
+    "height": 800,
+    "bytes": 245774,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfsu2-native-title.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 248324,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
     ]
   },
   "notifications-dark.png": {

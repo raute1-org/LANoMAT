@@ -54,7 +54,7 @@ defineProps<Props>();
         </DropdownMenuItem>
         <DropdownMenuItem v-if="has('mcp')" :as-child="true">
             <Link class="block w-full cursor-pointer" href="/mcp/connect">
-                Agent &amp; MCP
+                Geräte &amp; MCP
             </Link>
         </DropdownMenuItem>
         <DropdownMenuItem :as-child="true">

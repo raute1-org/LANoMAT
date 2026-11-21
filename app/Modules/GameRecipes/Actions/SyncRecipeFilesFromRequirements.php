@@ -32,6 +32,11 @@ final class SyncRecipeFilesFromRequirements
                 'required' => (bool) ($requirement['required'] ?? false),
                 'sort' => $index,
                 'metadata' => array_filter([
+                    // `os` narrows a file to one platform (a Windows zip, a
+                    // Linux tarball); a requirement without it fits both.
+                    'os' => isset($requirement['os']) && (string) $requirement['os'] !== ''
+                        ? mb_strtolower((string) $requirement['os'])
+                        : null,
                     'notes' => $requirement['notes'] ?? null,
                     'author' => $requirement['author'] ?? null,
                     'license' => $requirement['license'] ?? null,

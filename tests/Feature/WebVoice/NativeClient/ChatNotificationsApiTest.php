@@ -18,7 +18,7 @@ uses(RefreshDatabase::class);
 const NATIVE_V1 = '/api/voice-client/v1';
 
 /** @return array<string, string> */
-function nativeBearer(User $user): array
+function chatNativeBearer(User $user): array
 {
     $plain = 'lvc_'.Str::random(48);
     $token = new VoiceClientToken;
@@ -74,7 +74,7 @@ describe('authentication', function () {
             ['PUT', '/notification-preferences'],
         ];
 
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
         $this->nativeToken->forceFill(['revoked_at' => now()])->save();
 
         foreach ($routes as [$method, $path]) {
@@ -85,7 +85,7 @@ describe('authentication', function () {
     });
 
     it('does not accept a bearer token on the web routes', function () {
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         $this->getJson("/talk/channels/{$this->lobby->id}/messages", $headers)->assertUnauthorized();
     });
@@ -95,7 +95,7 @@ describe('chat', function () {
     it('lists history newest page first with a cursor, like the browser', function () {
         config(['webvoice.chat.history' => 3]);
         seedMessages($this->lobby, $this->ada, 7);
-        $headers = nativeBearer($this->bob);
+        $headers = chatNativeBearer($this->bob);
 
         $first = $this->getJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", $headers)->assertOk();
         expect(collect($first->json('messages'))->pluck('body')->all())->toBe(['msg 5', 'msg 6', 'msg 7']);
@@ -115,7 +115,7 @@ describe('chat', function () {
     it('carries only the message DTO the browser sees', function () {
         seedMessages($this->lobby, $this->ada, 1);
 
-        $message = $this->getJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", nativeBearer($this->bob))->json('messages.0');
+        $message = $this->getJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", chatNativeBearer($this->bob))->json('messages.0');
 
         expect(array_keys($message))->toBe(['id', 'channel_id', 'body', 'created_at', 'author'])
             ->and(array_keys($message['author']))->toBe(['id', 'name', 'avatar_url'])
@@ -125,18 +125,18 @@ describe('chat', function () {
     it('applies the browser visibility: unseen rooms are 404, own and admin rooms are readable', function () {
         seedMessages($this->teamA, $this->ada, 1);
 
-        $this->getJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", nativeBearer($this->ada))->assertOk();
-        $this->getJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", nativeBearer($this->admin))->assertOk();
-        $this->getJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", nativeBearer($this->bob))->assertNotFound();
-        $this->postJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", ['body' => 'x'], nativeBearer($this->bob))->assertNotFound();
-        $this->getJson(NATIVE_V1.'/rooms/999999/messages', nativeBearer($this->bob))->assertNotFound();
-        $this->getJson(NATIVE_V1."/rooms/{$this->archived->id}/messages", nativeBearer($this->ada))->assertNotFound();
-        $this->getJson(NATIVE_V1."/rooms/{$this->archived->id}/messages", nativeBearer($this->admin))->assertStatus(410);
+        $this->getJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", chatNativeBearer($this->ada))->assertOk();
+        $this->getJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", chatNativeBearer($this->admin))->assertOk();
+        $this->getJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", chatNativeBearer($this->bob))->assertNotFound();
+        $this->postJson(NATIVE_V1."/rooms/{$this->teamA->id}/messages", ['body' => 'x'], chatNativeBearer($this->bob))->assertNotFound();
+        $this->getJson(NATIVE_V1.'/rooms/999999/messages', chatNativeBearer($this->bob))->assertNotFound();
+        $this->getJson(NATIVE_V1."/rooms/{$this->archived->id}/messages", chatNativeBearer($this->ada))->assertNotFound();
+        $this->getJson(NATIVE_V1."/rooms/{$this->archived->id}/messages", chatNativeBearer($this->admin))->assertStatus(410);
         expect(WebVoiceMessage::query()->where('body', 'x')->count())->toBe(0);
     });
 
     it('posts with the browser validation and returns the DTO', function () {
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         $this->postJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", ['body' => '  hello  '], $headers)
             ->assertCreated()
@@ -155,7 +155,7 @@ describe('chat', function () {
     it('rate limits per user, sharing the budget with the browser', function () {
         config(['webvoice.chat.rate_limit' => 3, 'webvoice.chat.rate_window' => 60]);
         RateLimiter::clear('web-voice-chat|'.$this->ada->id);
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         foreach (range(1, 2) as $i) {
             $this->postJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", ['body' => "m{$i}"], $headers)->assertCreated();
@@ -164,24 +164,24 @@ describe('chat', function () {
         $this->postJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", ['body' => 'm4'], $headers)->assertStatus(429);
 
         // Another user keeps their own budget.
-        $this->postJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", ['body' => 'hi'], nativeBearer($this->bob))->assertCreated();
+        $this->postJson(NATIVE_V1."/rooms/{$this->lobby->id}/messages", ['body' => 'hi'], chatNativeBearer($this->bob))->assertCreated();
     });
 
     it('lets only moderators delete messages, with the browser rules', function () {
         seedMessages($this->lobby, $this->ada, 1);
         $message = WebVoiceMessage::query()->firstOrFail();
 
-        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], nativeBearer($this->bob))->assertForbidden();
-        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], nativeBearer($this->ada))->assertForbidden();
+        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], chatNativeBearer($this->bob))->assertForbidden();
+        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], chatNativeBearer($this->ada))->assertForbidden();
         expect(WebVoiceMessage::query()->count())->toBe(1);
 
-        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], nativeBearer($this->orga))->assertOk();
+        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], chatNativeBearer($this->orga))->assertOk();
         expect(WebVoiceMessage::query()->count())->toBe(0);
 
         seedMessages($this->teamA, $this->ada, 1);
         $other = WebVoiceMessage::query()->firstOrFail();
-        $this->deleteJson(NATIVE_V1."/messages/{$other->id}", [], nativeBearer($this->admin))->assertOk();
-        $this->deleteJson(NATIVE_V1.'/messages/999999', [], nativeBearer($this->admin))->assertNotFound();
+        $this->deleteJson(NATIVE_V1."/messages/{$other->id}", [], chatNativeBearer($this->admin))->assertOk();
+        $this->deleteJson(NATIVE_V1.'/messages/999999', [], chatNativeBearer($this->admin))->assertNotFound();
     });
 
     it('does not reveal messages of an unseen room through deletion', function () {
@@ -189,7 +189,7 @@ describe('chat', function () {
         $message = WebVoiceMessage::query()->firstOrFail();
 
         // Bob cannot see Team A: 404, not the 403 that would confirm the message exists.
-        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], nativeBearer($this->bob))->assertNotFound();
+        $this->deleteJson(NATIVE_V1."/messages/{$message->id}", [], chatNativeBearer($this->bob))->assertNotFound();
     });
 });
 
@@ -214,15 +214,15 @@ describe('realtime', function () {
     }
 
     it('signs the chat channel the browser would sign, for the bearer user only', function () {
-        nativeChannelAuth($this, nativeBearer($this->ada), "private-web-voice.channel.{$this->teamA->id}")
+        nativeChannelAuth($this, chatNativeBearer($this->ada), "private-web-voice.channel.{$this->teamA->id}")
             ->assertOk()->assertJsonStructure(['auth']);
-        nativeChannelAuth($this, nativeBearer($this->ada), "private-web-voice.channel.{$this->lobby->id}")->assertOk();
-        nativeChannelAuth($this, nativeBearer($this->ada), 'private-web-voice.directory')->assertOk();
-        nativeChannelAuth($this, nativeBearer($this->admin), "private-web-voice.channel.{$this->teamB->id}")->assertOk();
+        nativeChannelAuth($this, chatNativeBearer($this->ada), "private-web-voice.channel.{$this->lobby->id}")->assertOk();
+        nativeChannelAuth($this, chatNativeBearer($this->ada), 'private-web-voice.directory')->assertOk();
+        nativeChannelAuth($this, chatNativeBearer($this->admin), "private-web-voice.channel.{$this->teamB->id}")->assertOk();
     });
 
     it('answers 403 for channels the user may not see, unknown channels and non-private names', function () {
-        $ada = nativeBearer($this->ada);
+        $ada = chatNativeBearer($this->ada);
 
         nativeChannelAuth($this, $ada, "private-web-voice.channel.{$this->teamB->id}")->assertForbidden();
         nativeChannelAuth($this, $ada, "private-web-voice.channel.{$this->archived->id}")->assertForbidden();
@@ -235,18 +235,18 @@ describe('realtime', function () {
     });
 
     it('signs the own notifications channel', function () {
-        nativeChannelAuth($this, nativeBearer($this->ada), 'private-App.Models.User.'.$this->ada->id)->assertOk()->assertJsonStructure(['auth']);
+        nativeChannelAuth($this, chatNativeBearer($this->ada), 'private-App.Models.User.'.$this->ada->id)->assertOk()->assertJsonStructure(['auth']);
     });
 
     it('produces a signature for the requested socket and channel', function () {
-        $auth = nativeChannelAuth($this, nativeBearer($this->ada), 'private-web-voice.directory')->json('auth');
+        $auth = nativeChannelAuth($this, chatNativeBearer($this->ada), 'private-web-voice.directory')->json('auth');
 
         $expected = 'test-key:'.hash_hmac('sha256', '123.456:private-web-voice.directory', 'test-secret');
         expect($auth)->toBe($expected);
     });
 
     it('exposes the public Reverb connection info in config and never the secret', function () {
-        $response = $this->getJson(NATIVE_V1.'/config', nativeBearer($this->ada))->assertOk()
+        $response = $this->getJson(NATIVE_V1.'/config', chatNativeBearer($this->ada))->assertOk()
             ->assertJsonPath('api_version', 1)
             ->assertJsonPath('realtime.driver', 'reverb')
             ->assertJsonPath('realtime.key', 'test-key')
@@ -262,7 +262,7 @@ describe('realtime', function () {
     it('reports realtime null when Reverb is not configured', function () {
         config(['broadcasting.default' => 'null']);
 
-        $this->getJson(NATIVE_V1.'/config', nativeBearer($this->ada))->assertOk()->assertJsonPath('realtime', null);
+        $this->getJson(NATIVE_V1.'/config', chatNativeBearer($this->ada))->assertOk()->assertJsonPath('realtime', null);
     });
 });
 
@@ -280,7 +280,7 @@ describe('notifications', function () {
         notify($this->ada, 'New 1');
         notify($this->ada, 'New 2');
         notify($this->bob, 'Bobs');
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         $all = $this->getJson(NATIVE_V1.'/notifications', $headers)->assertOk();
         expect($all->json('total'))->toBe(3)
@@ -302,13 +302,13 @@ describe('notifications', function () {
         notify($this->bob);
         $this->ada->notifications()->findOrFail($id)->markAsRead();
 
-        $this->getJson(NATIVE_V1.'/notifications/unread-count', nativeBearer($this->ada))->assertOk()->assertExactJson(['unread' => 1]);
+        $this->getJson(NATIVE_V1.'/notifications/unread-count', chatNativeBearer($this->ada))->assertOk()->assertExactJson(['unread' => 1]);
     });
 
     it('marks only own notifications read; foreign and unknown ids are 404', function () {
         $mine = notify($this->ada);
         $bobs = notify($this->bob);
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         $this->postJson(NATIVE_V1."/notifications/{$bobs}/read", [], $headers)->assertNotFound();
         $this->postJson(NATIVE_V1.'/notifications/'.Str::uuid().'/read', [], $headers)->assertNotFound();
@@ -324,14 +324,14 @@ describe('notifications', function () {
         notify($this->ada);
         notify($this->bob);
 
-        $this->postJson(NATIVE_V1.'/notifications/read-all', [], nativeBearer($this->ada))->assertOk()->assertExactJson(['marked' => 2]);
+        $this->postJson(NATIVE_V1.'/notifications/read-all', [], chatNativeBearer($this->ada))->assertOk()->assertExactJson(['marked' => 2]);
 
         expect($this->ada->unreadNotifications()->count())->toBe(0)
             ->and($this->bob->unreadNotifications()->count())->toBe(1);
     });
 
     it('reads and updates the category preferences with the same model the channels use', function () {
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         $defaults = $this->getJson(NATIVE_V1.'/notification-preferences', $headers)->assertOk()->json('preferences');
         expect($defaults['registration'])->toBeTrue()->and($defaults)->not->toHaveKeys(['system', 'account']);
@@ -351,7 +351,7 @@ describe('notifications', function () {
     });
 
     it('rejects unknown categories and non-boolean values, and never touches other users', function () {
-        $headers = nativeBearer($this->ada);
+        $headers = chatNativeBearer($this->ada);
 
         $this->putJson(NATIVE_V1.'/notification-preferences', ['preferences' => ['system' => false]], $headers)->assertUnprocessable();
         $this->putJson(NATIVE_V1.'/notification-preferences', ['preferences' => ['match' => 'maybe']], $headers)->assertUnprocessable();

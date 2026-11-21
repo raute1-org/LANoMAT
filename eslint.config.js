@@ -1,5 +1,9 @@
 import stylistic from '@stylistic/eslint-plugin';
-import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript';
+import {
+    configureVueProject,
+    defineConfigWithVueTs,
+    vueTsConfigs,
+} from '@vue/eslint-config-typescript';
 import prettier from 'eslint-config-prettier/flat';
 import importPlugin from 'eslint-plugin-import';
 import vue from 'eslint-plugin-vue';
@@ -20,6 +24,12 @@ const paddingAroundControl = [
         { blankLine: 'always', prev: stmt, next: '*' },
     ]),
 ];
+
+// Every `.vue` file lives under `resources/js`. Pinning the scan root there keeps
+// the config helper from walking the whole repo (it converts the global ignore
+// patterns with `convertPathToPattern`, which escapes `**`, so e.g. `storage/**`
+// never matches and the scan descends into root-owned test storage dirs).
+configureVueProject({ rootDir: 'resources/js' });
 
 export default defineConfigWithVueTs(
     vue.configs['flat/essential'],
@@ -77,8 +87,11 @@ export default defineConfigWithVueTs(
             'vendor',
             'node_modules',
             'public',
+            '.ci-cache/**',
+            'clients-dist/**',
             'bootstrap/ssr',
             'tailwind.config.js',
+            'tests/js/**',
             'vite.config.ts',
             'resources/js/actions/**',
             'resources/js/components/ui/*',
@@ -87,6 +100,8 @@ export default defineConfigWithVueTs(
             // Sub-projects with their own toolchains/configs; the root config
             // must not re-lint them (and must not walk the test storage tree).
             'clients/agent/**',
+            'clients/launcher/**',
+            'clients/voice/**',
             'docs-site/**',
             'resources/recipes/schema/**',
             'storage/**',

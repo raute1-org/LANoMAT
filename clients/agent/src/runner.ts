@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
-import type { PlanStep, VerifyCheck } from './types.js';
+import type { Os, PlanStep, VerifyCheck } from './types.js';
 import { fileExists, isDirectory } from './util.js';
 
 export type Shell = 'powershell' | 'cmd' | 'bash';
@@ -397,18 +397,18 @@ export function substituteVariables(value: string, variables: Record<string, str
 
 /**
  * A step may declare commands for both platforms (`os: any` with a bash and a
- * PowerShell variant). The OS decides which shell family runs: bash on Linux,
- * `powershell`/`cmd` on Windows. Without this filter a Linux install would try
- * to run PowerShell commands (and vice versa).
+ * PowerShell variant). The OS decides which shell family runs: bash on Linux
+ * and macOS, `powershell`/`cmd` on Windows. Without this filter a Linux install
+ * would try to run PowerShell commands (and vice versa).
  */
-function commandAppliesToOs(shell: Shell, os: 'windows' | 'linux'): boolean {
+function commandAppliesToOs(shell: Shell, os: Os): boolean {
     return os === 'windows' ? shell !== 'bash' : shell === 'bash';
 }
 
 export function applyStepVariables(
     step: PlanStep,
     variables: Record<string, string>,
-    os?: 'windows' | 'linux',
+    os?: Os,
 ): PlanStep {
     return {
         ...step,
@@ -440,7 +440,7 @@ export function applyStepVariables(
 export interface RunStepOptions {
     cwd: string;
     /** Restricts the step's commands and verify checks to this platform's shell family. */
-    os?: 'windows' | 'linux';
+    os?: Os;
     variables?: Record<string, string>;
     yes?: boolean;
     dryRun?: boolean;

@@ -12,8 +12,10 @@ use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Catering\Support\ListedFoodOrders;
+use App\Modules\Catering\Support\RestaurantCard;
 use App\Modules\Events\Models\Event;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
@@ -149,11 +151,16 @@ class CateringApiController extends NativeFeatureController
             'is_open' => $order->isOpenNow(),
             'opens_at' => $order->opens_at?->toIso8601String(),
             'closes_at' => $order->closes_at?->toIso8601String(),
-            'menu' => collect($order->menu)->map(fn (MenuOption $option): array => [
+            // description and image_url are additive (api_version stays 1) and omitted when empty, so
+            // a dish without them keeps its exact original shape.
+            'restaurant' => RestaurantCard::forNative($order->restaurant),
+            'menu' => collect($order->menuOptions())->map(fn (MenuOption $option): array => array_filter([
                 'key' => $option->key,
                 'name' => $option->name,
                 'price_cents' => $option->priceCents,
-            ])->all(),
+                'description' => $option->description,
+                'image_url' => DishImage::url($order, $option),
+            ], static fn (mixed $value): bool => $value !== null))->all(),
             'my_items' => array_map(fn (FoodOrderItem $item): array => $this->itemDto($item, $order), $myItems),
             'my_total_cents' => (int) array_sum(array_map(fn (FoodOrderItem $item): int => $item->price_cents, $myItems)),
         ];
@@ -165,12 +172,12 @@ class CateringApiController extends NativeFeatureController
     private function itemDto(FoodOrderItem $item, FoodOrder $order): array
     {
         $key = $item->selection['option_key'] ?? null;
-        $option = collect($order->menu)->first(fn (MenuOption $o): bool => $o->key === $key);
+        $option = collect($order->menuOptions())->first(fn (MenuOption $o): bool => $o->key === $key);
 
         return [
             'id' => $item->id,
             'option_key' => $key,
-            'option_name' => $option?->name,
+            'option_name' => is_string($item->selection['name'] ?? null) ? $item->selection['name'] : $option?->name,
             'note' => $item->selection['note'] ?? null,
             'price_cents' => $item->price_cents,
             'paid' => $item->paid_at !== null,

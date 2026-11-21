@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string $path
  * @property string $original_name
  * @property int $size_bytes
+ * @property string|null $sha256
  * @property string|null $mime
  * @property FileVisibility $visibility
  * @property int|null $reviewed_by
@@ -30,7 +31,7 @@ class SharedFile extends Model
     use HasFactory;
 
     /**
-     * `disk`, `path`, `size_bytes`, `mime`, `visibility`, `reviewed_by` and
+     * `disk`, `path`, `size_bytes`, `sha256`, `mime`, `visibility`, `reviewed_by` and
      * `reviewed_at` are deliberately excluded — they are set only by
      * {@see UploadSharedFile} (and, for the review fields, the
      * approve/reject action added in Task 6) via forceFill(), never
@@ -49,6 +50,7 @@ class SharedFile extends Model
         return [
             'visibility' => FileVisibility::class,
             'size_bytes' => 'integer',
+            'sha256' => 'string',
             'reviewed_at' => 'datetime',
         ];
     }
