@@ -43,7 +43,7 @@ Node 22+ is required for the source path only; the native installer bundles its 
 ## 2. Pair the device
 
 ```bash
-lanomat-agent login --server https://lan.example
+lanomat-agent login --url https://lan.example
 ```
 
 The agent prints a code and the URL `https://lan.example/mcp/connect`. Open it while
@@ -92,12 +92,13 @@ alternatives: [Models & fuel](/docs/agent/venice).
 
 ```bash
 lanomat-agent skills sync
-lanomat-agent skills list
 ```
 
-`sync` pulls every published recipe's `SKILL.md` and `recipe.yaml` into the pi skills directory
-(`~/.pi/agent/skills/lanomat/<slug>/`). It is additive: a removed recipe is deleted locally, a
-changed one is replaced. `--force` re-downloads everything, which is useful after a recipe update.
+`sync` pulls every published recipe into the pi skills directory as one sub-skill per recipe:
+`~/.agents/skills/lanomat-<slug>/SKILL.md` plus `recipe.json`. It is additive: only changed skills
+are rewritten (`22 unchanged` on a second run). Pass `--dest <dir>` for another directory and
+`--prune` to delete `lanomat-*` skills whose recipe vanished. There is no `skills list`; `ls
+~/.agents/skills` is the list.
 
 Offline, the synced skills are still readable. Run `sync` before the LAN if you want the catalogue
 with you.
@@ -130,8 +131,10 @@ Avatars are not a yes/no question. The interactive prompt lists every LAN match:
   [ ] Sable — night ops — 20 MB
 ```
 
-In a script, pass a comma-separated list with `--avatars ayla,brutus`, or `--no-avatars` to skip the
-question. The agent never invents a file; it only offers what `recipe_avatars` returned.
+In a script, repeat `--avatar <id>` (`--avatar all` selects every avatar with a LAN copy) or pass
+`-y` to select none and skip the question. The standalone `lanomat-agent avatars` command downloads
+selections without an install. The agent never invents a file; it only offers what
+`recipe_avatars` returned.
 
 ## 6. Day-to-day commands
 
@@ -139,10 +142,11 @@ question. The agent never invents a file; it only offers what `recipe_avatars` r
 lanomat-agent login                 # pair again / switch server
 lanomat-agent install ut2004        # same as the game page's Install button
 lanomat-agent launch ut2004         # start an installed game
-lanomat-agent ask "plan ridge racer type 4"
-lanomat-agent ask --plan-only "install ut2004"
+lanomat-agent plan ridge-racer-type-4
+lanomat-agent recipes
+lanomat-agent ask "install ut2004 for me on my pc"
 lanomat-agent skills sync
-lanomat-agent model current
+lanomat-agent model roles
 lanomat-agent doctor
 ```
 
@@ -169,7 +173,7 @@ The `lanomat` MCP server is already in `~/.pi/agent/mcp.json`, so `/mcp` shows i
 | What | Where | Typical size |
 |---|---|---|
 | Agent + pi runtime | `~/.local/bin`, `~/.pi` | ~150 MB |
-| Skills | `~/.pi/agent/skills/lanomat/` | < 5 MB |
+| Skills | `~/.agents/skills/lanomat-<slug>/` | < 5 MB |
 | Downloads | `~/.cache/lanomat-agent/downloads/` | the recipe's bytes |
 | Install target | recipe-specific (`C:\Games\UT2004`, `~/Games/…`) | the game |
 

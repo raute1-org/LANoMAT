@@ -1,0 +1,305 @@
+---
+title: LAN party runbook
+description: The orga sequence for game installs — sync recipes from the NAS, upload and approve ISOs, review and publish drafts, smoke-test plans, run preflight, back up and keep the docs reachable on the day.
+---
+
+This is the orga side of [the install guides](/docs/guides/install-ut2004). It assumes the app is
+deployed and the event exists. The order matters: a recipe that is published before its files are
+approved produces `[MISSING]` plans, and a file that is approved under the wrong name produces the
+same result.
+
+The whole sequence is one loop:
+
+```text
+sync recipes → upload files → approve files → review + publish recipes
+             → plan smoke test → preflight → backup → docs URL → doors open
+```
+
+<div class="live">LIVE 17:42 · sync ok · 21 recipes · 2 published · preflight green · backup 2 h old</div>
+
+## Who this is for
+
+| Role | What they do here |
+|---|---|
+| **Orga** | Owns the sequence below; publishes recipes; runs preflight and the backup |
+| **Helper** | Uploads and approves files; smoke-tests one plan per OS |
+| **Docs/ops** | Keeps `/docs` reachable and the runbook current |
+
+## What you need
+
+| Requirement | Value / why |
+|---|---|
+| Orga/admin account | Filament at `/admin`; `role:orga` or admin |
+| Shell on the app | `docker compose --profile prod exec app php artisan …` in production |
+| Recipe source | Bundled `resources/recipes/` or the NAS share `smb://nas.lan/games-recipes/recipes` |
+| SMB credentials (optional) | `RECIPES_SMB_USER`, `RECIPES_SMB_PASSWORD` in the app environment |
+| File host | Reachable from the venue network; `FILES_STORE` and quota set |
+| Free disk | The ISOs plus staging; check before the upload, not during |
+| Backup target | `/var/backups/lanomat` (compose default) or `BACKUP_MARKER_PATH` |
+| Docs container (optional) | Profile `docs`, path-routed at `/docs` |
+
+## 1. Check the module and the source
+
+```bash
+docker compose --profile prod exec app php artisan lanomat:modules
+```
+
+The list must contain `game_recipes` (and `files`, which it requires). Recipes are optional:
+`MODULE_GAME_RECIPES=true` enables the catalogue, the `/games` pages and the MCP recipe tools; with
+the module off, the pages 404 and the tools disappear from `tools/list`.
+
+The sync source is `RECIPES_SOURCE` when set, otherwise the bundled directory:
+
+```bash
+# .env (never commit a password)
+RECIPES_SOURCE=smb://nas.lan/games-recipes/recipes
+RECIPES_SMB_USER=lanomat
+RECIPES_SMB_PASSWORD=…
+```
+
+`lanomat:recipes:sync` also takes the source as its first argument — a directory, `smb://host/share`
+or `git+https://…` — so a one-off import needs no env change.
+
+## 2. Sync the recipe catalogue
+
+```bash
+php artisan lanomat:recipes:sync
+php artisan lanomat:recipes:sync smb://nas.lan/games-recipes/recipes --prune
+php artisan lanomat:recipes:sync --only=counter-strike-1-6
+```
+
+| Flag | Meaning |
+|---|---|
+| `source` | Directory, `smb://host/share[/path]`, or `git+https://…`; defaults to `RECIPES_SOURCE` |
+| `--prune` | Delete recipes from **this** source that no longer exist there |
+| `--only=<slug>` | Import one recipe |
+| `--json` | Machine-readable result: source, created, updated, pruned |
+
+```text
+Recipes synced from smb://nas.lan/games-recipes/recipes: 3 created, 18 updated, 1 pruned.
+```
+
+Read the warnings. A skipped folder is usually a validation failure (bad slug, mismatched directory
+name, a `SKILL.md` whose frontmatter disagrees with the YAML).
+
+**Sync writes recipes but respects a moderator's decision.** A **new** slug takes its status from the
+YAML, so a `recipe.yaml` with `status: published` is published on first import. An **existing**
+recipe keeps the status set in the panel, even when the YAML says otherwise, so a nightly sync never
+undoes a moderation decision and a draft stays a draft. Validate before importing:
+
+```bash
+cd resources/recipes/schema
+npm install
+npm run validate
+```
+
+The validator checks the JSON schema, directory name = slug, unique slugs/skill names/aliases, a
+`SKILL.md` with Agent Skills frontmatter, no `&&` chains in commands, and a 60–150 line skill.
+
+### What sync does not do
+
+- It does not copy game files. The SMB share is staging; the file host is what participants download.
+- It does not create the event Files rows.
+- It does not override a moderator's status on an existing recipe — the panel wins until someone
+  republishes it.
+- It never deletes a recipe from another source, even with `--prune`.
+
+## 3. Upload the ISOs and extras
+
+Use the event Files page (`/events/<slug>/files`) or the Filament **Dateien** table. Upload the base
+image first, then the required patch, then optional mods and avatars.
+
+| Item | Example name | Role |
+|---|---|---|
+| UT2004 DVD 1 | `ut2004.iso` | `iso`, required |
+| OldUnreal 3374 | `OldUnreal-UT2004Patch3374-Windows-d906d39a.zip` | `patch`, required |
+| UT2004VR | `UT2004VR-1.4.0.zip` | `mod`, optional |
+| Avatars | `ayla.vrm`, `brutus.vrm`, … | `avatar`, optional, multi-select |
+| Ridge Racer disc | `r4.chd` (or CUE/BIN) | `iso`, required |
+| PlayStation BIOS | `scph5501.bin` | `base`, recommended |
+| CS 1.6 | `cstrike.zip`, `half-life.iso` | `base` + `mod` |
+
+Names are the contract. Keep the upstream name and let the recipe's glob do the work; rename only
+when the recipe expects a specific name (`r4.chd`), and rename **before** approval.
+
+| Dark | Light |
+|---|---|
+| ![Files page with upload, dark](/docs/screens/files-upload-dark.png) | ![Files page with upload, light](/docs/screens/files-upload-light.png) |
+| `FILES · UPLOAD · QUOTA · PENDING` | `FILES · LIGHT` |
+
+Large files need the resumable path. The page's own hint says it: files go in parts straight to the
+file server and resume after an interruption; each file then waits for approval. Defaults:
+**50 GB per file**, **100 GB per user per event**. Raise `FILES_MAX_FILE_GB` together with tusd's
+`-max-size`, and `FILES_PER_USER_QUOTA_MB` deliberately.
+
+## 4. Approve, then verify the match
+
+Open `/admin` → **Dateien**. Approve each file only after checking its name against the recipe:
+
+1. The file is the right disc/patch (not a duplicate or a corrupted re-upload).
+2. The name matches the recipe's `match` list, or the requirement pins this file's **LAN-Datei-ID**.
+3. The event is the right one; the matcher is event-scoped for a participant's plan.
+
+A rejected file's bytes are removed. A pending file is invisible to plans. Approval is the switch
+between "uploaded" and "usable".
+
+## 5. Review and publish the recipes
+
+Open `/admin` → **Spielrezepte**. The table shows status, platforms, requirements and the update time.
+
+| Status | Meaning for participants |
+|---|---|
+| **Entwurf** (`draft`) | Not on `/games`, not in `recipes_list` for a participant, not in `recipes` |
+| **Veröffentlicht** (`published`) | On `/games`, in the agent's list, skills sync includes it |
+| **Archiviert** (`archived`) | Hidden, kept for reference |
+
+Before publishing a draft:
+
+- [ ] The base requirement is `required: true` and has an approved LAN match.
+- [ ] Every required patch/mod is either matched or clearly optional.
+- [ ] `platforms` matches the files you actually have.
+- [ ] `SKILL.md` describes the failures you saw in testing.
+- [ ] An avatar is optional and multi-select; zero is a valid answer.
+- [ ] No external URL is the only path for a required file.
+
+| Light |
+|---|
+| ![Admin recipes, light](/docs/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` |
+
+Pinning a file in the requirement (**LAN-Datei-ID**) is the escape hatch when a glob is too broad. It
+is per requirement and wins over matching; a removed file leaves the requirement unmatched.
+
+## 6. Smoke-test a plan per OS
+
+Do this as a participant would, on a machine that is not the server:
+
+```bash
+lanomat-agent login --url https://lan.example
+lanomat-agent recipes
+lanomat-agent plan ut2004 --os windows --event lan-raute-1
+lanomat-agent plan ut2004 --os linux --event lan-raute-1
+```
+
+| Expected | If not |
+|---|---|
+| `[LAN]` for every required file | `[MISSING]` → upload/approve or fix the glob |
+| `All required files are available.` | `Cannot install: … missing` → the plan is honest; fix before publish |
+| Steps include the verify checks | A missing verify means the recipe is a guess |
+| Avatars listed as a multi-select | Zero avatars must still plan cleanly |
+
+Test the **worst** case: a participant with no existing install, on the OS you have the fewest files
+for. A Windows-only patch with a Linux participant is a real `[MISSING]`, not a UI bug.
+
+`--json` is useful in a script; `plan` is pure and records nothing but the plan itself.
+
+## 7. Preflight
+
+```bash
+docker compose --profile prod exec app php artisan lanomat:preflight
+```
+
+One registry, one traffic light. Every check answers `ok`, `warn`, `down` or `skipped` with a
+sentence and the next step. The checks that matter for game installs:
+
+| Check | Why it matters here |
+|---|---|
+| Database, Redis | Nothing loads without them |
+| Queue heartbeat | Discord/reminders die silently when the worker is stale |
+| Storage writability | Uploads and the local store fail |
+| Backup freshness | The marker is older than expected → back up now |
+| File host | Large uploads/downloads fail; `FILES_STORE=host` needs it |
+| Discord gateway | Announcements and DMs |
+| Pinned image updates | A newer image exists; a warning, never an auto-update |
+
+A `warn` is usable; `down` is "this will hurt at the LAN". The Filament dashboard tile shows the same
+registry during the event; the health watch notifies orga on a transition, once.
+
+## 8. Back up
+
+```bash
+scripts/ops/backup.sh
+```
+
+The script backs up the database and storage and writes the Preflight marker
+(`/var/backups/lanomat/.last-success` by default, `BACKUP_MARKER_PATH` to override). The check reads
+the marker's **age**, not a log line. A backup that ran but did not write the marker looks stale — fix
+the path, not the check.
+
+Take one backup **before** the bulk upload and one **after** the catalogue and recipes are final. The
+second is the one you restore if a publish goes wrong.
+
+## 9. Keep the docs reachable
+
+The docs site is a separate static container behind the same host, path-routed at `/docs`:
+
+```bash
+docker compose --profile docs up -d docs
+curl -fsS https://lan.example/docs/
+curl -fsS https://lan.example/docs/guides/install-ut2004
+```
+
+Deep links must return 200, not a 404 from the app. The app's user menu links to `/docs`; the Traefik
+router uses `PathPrefix(/docs)` with a higher priority than the app. If the page renders but assets
+404, the basePath is wrong; if the route hits the app, the router priority or the host rule is wrong.
+
+The docs answer the participant questions the orga should not have to: recipe steps, avatars, pairing,
+troubleshooting. Keep the URL on the event page and in the welcome message.
+
+| Dark | Light |
+|---|---|
+| ![Event page, dark](/docs/screens/event-page-dark.png) | ![Event page, light](/docs/screens/event-page-light.png) |
+| `EVENT · PROGRAMM · GAMES · FILES` | `EVENT · LIGHT` |
+
+## The four states of the catalogue
+
+| State | What you see | What it means |
+|---|---|---|
+| **Normal** | Published recipes on `/games`; plans `[LAN]` | Sync, upload, approve, publish all done |
+| **Empty** | `/games` has no game; `recipes` says none | No published recipe, or the module is off |
+| **Loading** | Sync running, uploads in flight, preflight executing | Wait; do not publish against half-uploaded files |
+| **Error** | Sync warns, preflight `down`, plan `[MISSING]`, docs 404 | Read the sentence, fix the named source, re-run the step |
+
+## Day-of checklist
+
+**Night before**
+
+- [ ] `lanomat:recipes:sync --prune` ran; warnings read and understood.
+- [ ] `npm run validate` green for the catalogue.
+- [ ] Every required ISO/patch approved; names match the globs.
+- [ ] Every recipe you intend to offer is **Veröffentlicht**.
+- [ ] One Windows and one Linux plan smoke-tested end to end.
+- [ ] `lanomat:preflight` green (or every `warn` understood).
+- [ ] Backup after the final publish; marker fresh.
+- [ ] `/docs` and a deep guide link return 200 from the venue network.
+- [ ] At least one helper can approve files and answer a `[MISSING]` plan.
+
+**Doors open**
+
+- [ ] Preflight tile watched; queue heartbeat green.
+- [ ] A test upload → approve → plan still works with real participant accounts.
+- [ ] Games with a live server show the join string on `/games/<slug>`.
+- [ ] The event's Files page is linked from the welcome/Discord post.
+- [ ] One person owns "recipe questions"; one owns "files and names".
+
+**If something breaks**
+
+| Symptom | First move |
+|---|---|
+| Everyone's plan says `[MISSING]` for one file | Check the file's status and name; re-approve or rename |
+| One OS is missing everything | The patch/base for that OS was never uploaded |
+| `/games` lost a game | Status changed to draft/archived, or the module was toggled |
+| Sync pruned a recipe nobody meant to delete | Re-sync from the source; `--prune` only removes what vanished **there** |
+| Docs 404 | `docker compose --profile docs ps`; router and basePath |
+| Preflight `down` on backup | Run `scripts/ops/backup.sh`; check `BACKUP_MARKER_PATH` |
+| Upload fails at 100 % | File host quota/store; check `FILES_STORE` and tusd |
+| Pairing works for one PC, not another | Wrong `--url`, or the device was revoked under `/mcp/connect` |
+
+## Related
+
+- [Install UT2004 end to end](/docs/guides/install-ut2004) — the participant path to test
+- [Upload ISOs and avatars](/docs/guides/upload-isos-and-avatars) — names, approval and matching
+- [SMB import](/docs/recipes/smb) — the share layout and the sync source
+- [Preflight](/docs/system/modules/preflight) — every check and its sentence
+- [Commands](/docs/reference/commands) — the full artisan list
+- [Deployment](/docs/start/deployment) — the docs container and the host

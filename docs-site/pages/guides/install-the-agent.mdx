@@ -1,0 +1,367 @@
+---
+title: Install the agent
+description: Install @lanomat/agent on Windows or Linux, pair it with LANoMAT, wire the MCP server and recipe skills into pi, choose a model (Venice by default), check it with doctor, and update or remove it.
+---
+
+The LANoMAT agent (`clients/agent/`, package `@lanomat/agent`) is the program that reads a recipe,
+plans an install and downloads the files from the LAN. It is a terminal tool around
+[pi](https://pi.dev): pi supplies the model and the tool loop, LANoMAT adds the server preset, the
+recipe skills and a model default.
+
+This page installs and configures it. For what the agent can do, see
+[pi agent](/docs/agent/overview); for the install flows themselves, see the
+[UT2004 guide](/docs/guides/install-ut2004).
+
+<div class="live">LIVE 17:42 · agent 0.1.0 · node 22 · paired · skills synced · model ready</div>
+
+## Who this is for
+
+| Role | What they do here |
+|---|---|
+| **Participant** | Installs the agent on their own PC, pairs it, runs a game install |
+| **Helper** | Installs it for someone else and verifies with `doctor` |
+| **Orga** | Documents the server URL and checks that pairing works before doors open |
+
+The agent runs **on the player's PC**, not on the LANoMAT server. It needs a LANoMAT account, a paired
+device and a model; the game files stay on the LAN.
+
+## What you need
+
+| Requirement | Value / why |
+|---|---|
+| Node.js | **22.12 or newer** (`engines.node` in `clients/agent/package.json`) |
+| npm | Ships with Node |
+| Git | Only for the from-source install |
+| LANoMAT account | The token inherits the approving user's role |
+| Browser on the same machine | For the device approval; `--no-browser` prints the URL instead |
+| Network | HTTPS to the LANoMAT server; the file host for the bytes |
+| Disk | About **150 MB** for the agent and pi runtime, plus skills (< 5 MB) and avatars/downloads |
+| Model access | Venice API key, another OpenAI-compatible endpoint, or a local model |
+
+There is **no signed Windows setup executable yet**. The supported paths are the repository (npm
+build) and the container image. A `lanomat-agent --version` that answers `0.1.0` is the current CLI.
+
+## 1. Install
+
+### One-liner from source
+
+Linux, Windows (Git Bash or PowerShell with Git) and macOS:
+
+```bash
+git clone https://github.com/raute1-org/LANoMAT.git && cd LANoMAT/clients/agent && npm ci && npm run build && npm link
+```
+
+`npm link` puts the `lanomat-agent` shim on your PATH. Without it, call the built entry point directly:
+
+```bash
+node /path/to/LANoMAT/clients/agent/dist/cli.js --version
+```
+
+### Step by step
+
+```bash
+git clone https://github.com/raute1-org/LANoMAT.git
+cd LANoMAT/clients/agent
+npm ci
+npm run build
+npm link
+lanomat-agent --version
+```
+
+### Container (CI and a disposable shell)
+
+```bash
+docker build -t lanomat-agent clients/agent
+docker run --rm -it -v "$HOME/.config/lanomat:/root/.config/lanomat" lanomat-agent --help
+```
+
+Mount the config directory if the pairing should survive the container. The image is also the way to
+run the agent on a machine without Node.
+
+![Agent install in a terminal](/docs/screens/agent-install-terminal.png)
+
+*`AGENT INSTALL · CLONE · BUILD · LINK`*
+
+## 2. Pair the device (`login`)
+
+```bash
+lanomat-agent login --url https://lan.example
+```
+
+| Flag | Meaning |
+|---|---|
+| `--url <url>` | Server origin; default `http://lanomat.local` |
+| `--name <name>` | Device label in the admin panel; defaults to the hostname |
+| `--no-browser` | Print the URL instead of opening a browser |
+
+The command starts `POST /api/mcp/device`, prints the short code and the absolute verification URL,
+opens the browser when the platform has an opener, and polls `POST /api/mcp/token` at the server's
+`interval`.
+
+```text
+Device code: K7QF-2M9R
+Open:        https://lan.example/mcp/connect
+Waiting for approval… done. Token stored for lan.example.
+Signed in as Rene. Config written to /home/rene/.config/lanomat/agent.json
+Next: lanomat-agent mcp install
+      lanomat-agent skills sync
+      lanomat-agent model setup
+```
+
+On `/mcp/connect` (German UI):
+
+1. **„Code eingeben“** — type the eight-character code.
+2. **„Diesen Agenten verbinden?“** — compare the device name and the code with the terminal.
+3. **„Verbinden“** approves; **„Ablehnen“** denies. The page then says
+   „Agent verbunden. Du kannst zum Terminal zurückkehren.“
+
+| Dark | Light |
+|---|---|
+| ![Pairing approval, dark](/docs/screens/mcp-connect-pending-dark.png) | ![Pairing approval, light](/docs/screens/mcp-connect-pending-light.png) |
+| `MCP CONNECT · CODE · DEVICE · APPROVE` | `MCP CONNECT · LIGHT` |
+
+The token is valid for **90 days** and slides on use, so a LAN weekend is fine. It is never printed,
+except in the `export LANOMAT_TOKEN=…` line that `mcp install` prints. Revoke a device with
+**„Trennen“** under **„Verbundene Agenten“**; the next command from that device answers `401`.
+
+### Where the files live
+
+| OS | Config |
+|---|---|
+| Linux | `~/.config/lanomat/agent.json` (mode `0600`, directory `0700`) |
+| Linux with `XDG_CONFIG_HOME` | `$XDG_CONFIG_HOME/lanomat/agent.json` |
+| Windows | `%USERPROFILE%\.config\lanomat\agent.json`, or `$XDG_CONFIG_HOME` if set |
+
+`LANOMAT_CONFIG_DIR` overrides the directory. The JSON holds `url`, `token`, an optional
+`token_expires_at`, the user and the chosen model. `login` on a new server replaces the URL and token
+but keeps the model fields.
+
+## 3. Wire pi: MCP server, skills, model
+
+### MCP server
+
+```bash
+lanomat-agent mcp install
+```
+
+Writes or merges `~/.pi/agent/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "lanomat": {
+      "url": "https://lan.example/mcp",
+      "headers": { "Authorization": "Bearer ${LANOMAT_TOKEN}" },
+      "description": "LANoMAT: events, teams, tournaments, files, game recipes and LAN install plans.",
+      "exposure": "deferred"
+    }
+  }
+}
+```
+
+Other servers and keys are preserved. `--server-name` changes the entry name (default `lanomat`);
+`--exposure` takes `direct`, `codemode` or `deferred` (default `deferred`). The command prints the
+matching shell export — the only place the token appears on screen. `lanomat-agent ask` sets
+`LANOMAT_TOKEN` for its own pi session automatically.
+
+### Recipe skills
+
+```bash
+lanomat-agent skills sync
+lanomat-agent skills sync --dest ~/skills --prune
+```
+
+`sync` fetches the published catalogue (`GET /api/v1/recipes`, then each
+`GET /api/v1/recipes/{slug}/skill`) and writes one pi sub-skill per recipe:
+
+```text
+~/.agents/skills/lanomat-unreal-tournament-2004/
+├── SKILL.md
+├── recipe.json        # {slug, title, version, source_url}
+└── .lanomat-source    # {url, fetched_at}
+```
+
+It is idempotent: unchanged skills are not rewritten. `--prune` removes only `lanomat-*` directories
+that carry a `.lanomat-source` marker; your own skills are never touched. The synced skills are
+readable offline, so run `sync` before the LAN if you want the catalogue with you.
+
+### Model (`model setup`, Venice default)
+
+```bash
+lanomat-agent model setup
+lanomat-agent model roles
+```
+
+`model setup` writes or merges `~/.pi/agent/models.json` and `settings.json`. For Venice it reads the
+key from `--key`, `$VENICE_API_KEY`, `~/.config/lanomat/venice.env`, or prompts on a TTY. The default
+model is:
+
+```text
+venice/e2ee-deepseek-v4-1-flash-1017-abliterated
+```
+
+```bash
+export VENICE_API_KEY="…"        # PowerShell: $env:VENICE_API_KEY = "…"
+lanomat-agent model setup
+```
+
+`--provider` and `--model` point it at another provider or model; the key is never written to the
+LANoMAT config. `model roles` shows `chat`, `decision`, `stt` and `tts` with their source; only `chat`
+is used at runtime today. Details and precedence: [Models & fuel](/docs/agent/venice).
+
+## 4. Check it (`doctor`)
+
+```bash
+lanomat-agent doctor
+lanomat-agent doctor --json
+```
+
+`doctor` prints one line per check and ends with `Doctor: OK` or `Doctor: attention needed`. The
+required checks are **Config** and **Server**; everything else is advisory.
+
+| Check | What it proves |
+|---|---|
+| `Config` | A readable config exists and names the server and user |
+| `Server` | `GET /api/v1/me` answers with the token |
+| `MCP endpoint` | The MCP handshake succeeds and lists tools |
+| `pi` | A pi binary is on PATH, or the bundled SDK is used |
+| `Skills` | At least one `lanomat-*` skill with a source marker exists |
+| `smbclient` (Linux) | SMB share copies are possible |
+| `Venice key` | A key was found via flag, env or file |
+| `models.json` | The provider is configured for pi |
+| `Model catalog` | The provider's model list is reachable |
+| `Tool calls` | A real tool-calling probe succeeded with the chosen model |
+
+Exit code is `0` when every required check passes and `1` otherwise — usable in a helper script.
+`--json` is the same report for machines.
+
+![Doctor output in a terminal](/docs/screens/agent-doctor-terminal.png)
+
+*`DOCTOR · CONFIG · SERVER · MCP · SKILLS · MODEL`*
+
+## 5. First commands
+
+```bash
+lanomat-agent recipes                    # published recipes, one row each
+lanomat-agent plan ut2004 --os windows   # pure plan, nothing downloaded
+lanomat-agent install ut2004             # plan → download → steps → verify
+lanomat-agent launch ut2004              # a target exists only after an install
+lanomat-agent ask "install ut2004 for me on my pc"
+```
+
+The games library exposes the same entry points as deep links. `register` writes the handler:
+
+| Link | Opens |
+|---|---|
+| `lanomat://install/<slug>` | The agent, with the recipe selected and the plan flow started |
+| `lanomat://launch/<slug>` | The agent, launching the installed game |
+| `lanomat://play/<slug>` | Alias for `launch` (what the web Starten button uses) |
+
+```bash
+lanomat-agent register              # Linux writes the handler; Windows prints the registry command
+lanomat-agent register --yes        # execute the Windows registry command
+lanomat-agent open "lanomat://install/ut2004"
+```
+
+## 6. Day-to-day paths
+
+| What | Linux | Windows |
+|---|---|---|
+| Config + token | `~/.config/lanomat/agent.json` | `%USERPROFILE%\.config\lanomat\agent.json` |
+| pi config | `~/.pi/agent/mcp.json`, `models.json`, `settings.json` | `%USERPROFILE%\.pi\agent\…` |
+| Skills | `~/.agents/skills/lanomat-<slug>/` | `%USERPROFILE%\.agents\skills\lanomat-<slug>\` |
+| Avatars | `~/.local/share/lanomat/avatars/` | `%LOCALAPPDATA%\LANoMAT\avatars` |
+| Downloads | `<target>/.lanomat-downloads/` | `<target>\.lanomat-downloads\` |
+| Install target | recipe-specific (`~/Games/…`) | recipe-specific (`C:\Games\…`) |
+
+Overrides: `LANOMAT_CONFIG_DIR`, `LANOMAT_SKILLS_DIR`, `LANOMAT_AVATARS_DIR`, `LANOMAT_PI_DIR`
+(also sets `PI_CODING_AGENT_DIR`). The agent writes only to the install target and its own
+config/download/avatar folders; it never writes into `Program Files` unless the recipe's target says
+so, and never modifies the server.
+
+## The four states of the agent
+
+| State | What you see | What it means |
+|---|---|---|
+| **Normal** | `doctor` ends `Doctor: OK`; `recipes` prints rows | Config, server, MCP and skills work |
+| **Empty** | `No published recipes on this LANoMAT server.` | Paired, but the catalogue has no published recipe; orga syncs/publishes |
+| **Loading** | `still waiting… (n)` | Device approval pending; the code is still valid |
+| **Error** | `✖ Config`, `✖ Server`, `MCP handshake failed`, `401` | Read the named check; `login` again is the first fix for auth |
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Not signed in. Run "lanomat-agent login …"` | No config, or the file is unreadable | `login --url <server>` |
+| Login loops on `authorization_pending` | Code not approved in the browser | Open `/mcp/connect`, enter the code, press „Verbinden“ |
+| `expired_token` / `invalid_grant` | Code expired or already used | Start `login` again |
+| `Invalid code` on `/mcp/connect` | Typo, expired or used code | Restart `login`; the old code is dead |
+| `401` after weeks | Token revoked, or a token from another LAN | `login` against the current server |
+| `MCP handshake failed` | Wrong URL, module off, or proxy stripping `/mcp` | Check `url` in `agent.json`; ask the orga whether `MODULE_MCP` is on |
+| `No published recipes` | Catalogue empty or paired to the wrong server | `recipes --json`; orga runs `lanomat:recipes:sync` and publishes |
+| Skills check red after `sync` | `--dest` points elsewhere than `doctor` looks | Use the default `~/.agents/skills`, or set `LANOMAT_SKILLS_DIR` |
+| `VENICE_API_KEY not set` | Key not exported or not in `venice.env` | `model setup`, or export the key |
+| `models.json` missing provider | `model setup` never ran | `model setup --provider venice` |
+| `Tool calls` fails | Model does not support tool calling | `doctor` prints a fallback probe; choose a tool-capable model |
+| `ask` falls back to the pi CLI | pi SDK could not start | Install pi (`npm install -g @earendil-works/pi-coding-agent`) or read the printed argv |
+| `lanomat://` does nothing on Windows | Scheme not registered | `register --yes` |
+| `npm link` command not found in a new shell | npm global prefix not on PATH | Add the prefix (`npm bin -g` on older npm) or use `node dist/cli.js` |
+| Container pairing disappears | Config directory not mounted | Mount `~/.config/lanomat` into `/root/.config/lanomat` |
+| Downloads fail at the file host | Not on the venue network, or expired signed URL | Re-run the install; the agent requests a fresh URL |
+
+## Update and uninstall
+
+**Update from source.** The binary is `dist/cli.js`, so a rebuild is the update:
+
+```bash
+cd LANoMAT
+git pull
+cd clients/agent
+npm ci
+npm run build
+lanomat-agent --version
+```
+
+The linked shim points at the same `dist/cli.js`, so no re-link is needed unless the package name
+changes. For the container, rebuild the image (`docker build -t lanomat-agent clients/agent`). There
+is no self-update command.
+
+**Uninstall.** Remove the CLI, then the account state if you want a clean machine:
+
+```bash
+npm unlink -g @lanomat/agent     # remove the global shim created by npm link
+lanomat-agent logout             # deletes ~/.config/lanomat/agent.json; keeps MCP config + skills
+```
+
+Then remove what you no longer want:
+
+| Path | Contains |
+|---|---|
+| `~/.config/lanomat/` | Token and model choice; `venice.env` if you created one |
+| `~/.agents/skills/lanomat-*` | Synced recipe skills (only dirs with `.lanomat-source`) |
+| `~/.pi/agent/mcp.json` | The `lanomat` server entry; remove that key, keep other servers |
+| `~/.local/share/lanomat/avatars/` | Downloaded avatars and their manifest |
+
+`logout` deliberately leaves MCP and skills alone: another tool may still use them, and the synced
+skills are readable offline.
+
+## Checklist
+
+- [ ] Node 22.12+; `lanomat-agent --version` answers.
+- [ ] `login --url` succeeded; the device is listed under `/mcp/connect`.
+- [ ] `mcp install` wrote the `lanomat` entry; other servers survived.
+- [ ] `skills sync` wrote `lanomat-*` directories with `.lanomat-source`.
+- [ ] `model setup` configured the provider; the key is exported or in `venice.env`.
+- [ ] `doctor` ends `Doctor: OK` (Config and Server green).
+- [ ] `recipes` lists at least one published recipe.
+- [ ] A `plan` runs without downloading anything.
+- [ ] `register` ran if the web buttons should open the agent.
+- [ ] On the day: token still valid; `doctor` re-run before the first install.
+
+## Related
+
+- [pi agent overview](/docs/agent/overview) — what the agent is and is not
+- [Models & fuel](/docs/agent/venice) — precedence, alternatives, local models
+- [Agent troubleshooting](/docs/agent/troubleshooting) — the error catalogue
+- [MCP server](/docs/mcp/overview) — the endpoint and the device flow
+- [Install UT2004 end to end](/docs/guides/install-ut2004) — the first real install

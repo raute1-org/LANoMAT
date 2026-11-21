@@ -151,6 +151,15 @@ result. A module whose `requires()` is off fails boot.
 | `MCP_TOKEN_TTL_DAYS` | `90` | Bearer token lifetime; slid on use |
 | `MCP_DEFAULT_MODEL` | `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` | Advertised by `lanomat_me` for the agent |
 
+## Game recipes
+
+| Variable | Default | Note |
+|---|---|---|
+| `MODULE_GAME_RECIPES` | profile | Enable the module (`GameRecipes` requires `Files`) |
+| `RECIPES_SOURCE` | `resources/recipes` | Directory, `smb://host/share[/path]` or `git+https://…`; used by the daily sync |
+| `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
+| `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |
+
 ## Agent and model variables (client side)
 
 These are **not** read by the LANoMAT server; they configure the pi agent on a participant's PC:

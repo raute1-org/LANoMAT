@@ -38,6 +38,7 @@ These are registered in `routes/console.php` and run via `php artisan schedule:w
 | `lanomat:jukebox-tick` | every minute | Poll Music Assistant and advance the queue |
 | `lanomat:sweep-file-uploads` | every 10 min | Release abandoned tus reservations |
 | `lanomat:refresh-avatars [--all] [--user=<id>] [--pause=150]` | daily 04:30 | Refresh local avatars |
+| `lanomat:recipes:sync [source] [--prune] [--json]` | daily 04:15 | Import recipes from the bundled directory, SMB share or git; updates files in place |
 | `presence:refresh-locations` | every minute | Rebuild the "who is where" snapshot |
 | `webvoice:prune` | daily | Remove old web-voice data |
 | `gameservers:refresh-queries` | every minute | Query running game servers |
@@ -66,6 +67,8 @@ All provisioning commands take `--as=<user-id>` when run from the CLI without a 
 
 | Command | What it does |
 |---|---|
+| `lanomat:recipes:sync [source] [--prune] [--json]` | Import recipes; `--prune` removes recipes whose directory vanished |
+| `lanomat:recipes:export <dir> [--all]` | Write the catalogue as agent skill directories (`SKILL.md` + `recipe.json`); drafts only with `--all` |
 | `node resources/recipes/schema/validate.mjs` | Validate every recipe against `lanomat.recipe/v1` |
 | `npm run screenshots` (in `docs-site/`) | Copy the app's screenshots into the docs |
 | `npm run check:links` (in `docs-site/`) | Fail on broken internal doc links |

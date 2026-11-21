@@ -25,7 +25,7 @@ lanomat-agent doctor
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `401 unauthorized` | Token expired or revoked | `lanomat-agent login --server https://lan.example` |
+| `401 unauthorized` | Token expired or revoked | `lanomat-agent login --url https://lan.example` |
 | `authorization_pending` forever | Code not approved in the browser | Open `verification_uri`, compare the code, approve |
 | Browser opens the wrong host | `APP_URL` differs from the address you use | Pass the exact `--server` URL you open in the browser |
 | Works on the host, not on a laptop | Different network / DNS | Use the venue DNS name, not `localhost` |
@@ -39,7 +39,7 @@ correct, not a bug.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `401` from Venice | Missing/invalid `VENICE_API_KEY` | Export it in the same shell; `lanomat-agent doctor` |
-| `model not found` | The id was retired | `lanomat-agent model list` and choose a live id |
+| `model not found` | The id was retired | `lanomat-agent model setup` (lists live ids) and choose one |
 | Chat works, tools fail | The model does not support tool calling | Use the fallback `venice/zai-org-glm-5` |
 | `ECONNREFUSED` on a local LLM | Server not running / wrong port | Check `OPENAI_MODEL_BASE_URL`, e.g. `http://127.0.0.1:11434/v1` |
 | Prompt leaves the LAN unexpectedly | A cloud model is still selected | `OPENAI_MODEL_*` or `LANOMAT_AGENT_MODEL` to the local model |
@@ -93,7 +93,7 @@ missing. The correct behaviour is to list the LAN matches, offer a multi-select,
 
 The venue may have no internet. What still works:
 
-- `lanomat-agent skills list` and reading synced skills.
+- `ls ~/.agents/skills` and reading the synced `lanomat-<slug>/SKILL.md` files.
 - `lanomat-agent ask` **only** with a local model.
 - MCP calls to the LAN server.
 - Downloads from the LAN file host.

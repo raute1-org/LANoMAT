@@ -50,7 +50,7 @@ human actions in the app.
 curl -fsSL https://lan.example/install-agent.sh | sh
 
 # 2. Pair this PC with your LANoMAT account
-lanomat-agent login --server https://lan.example
+lanomat-agent login --url https://lan.example
 
 # 3. Set up the model (Venice is the default)
 lanomat-agent model setup
