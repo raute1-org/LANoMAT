@@ -106,7 +106,7 @@ verified it, never because a recipe exists — and only on that terminal, since 
 its own launcher. Read
 [One-click launcher](/docs/guides/launcher) for the download, the one-time pairing and the phase
 list with percent, speed and ETA, and
-[Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door--pilot)
+[Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door-after-login--pilot)
 for the card anatomy and the typewriter rules.
 
 ## What the page never does

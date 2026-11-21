@@ -33,4 +33,18 @@ return [
 
     'lineup' => env('LAUNCHER_LINEUP', 'unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Our NFS-Online server
+    |--------------------------------------------------------------------------
+    |
+    | The seeder registers this host as the permanent NFSU2 server. The tested
+    | laptop fallback stays the default; a venue overrides it before seeding.
+    |
+    */
+
+    'nfs' => [
+        'server_host' => env('NFS_SERVER_HOST', '10.23.3.220'),
+    ],
+
 ];

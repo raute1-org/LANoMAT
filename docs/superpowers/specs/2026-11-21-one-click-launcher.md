@@ -53,17 +53,18 @@ the browser and in the launcher.
 > Still deferred (see *Pilot scope*): every other recipe,
 > VR, the deeper browser↔launcher handoff, and the sponsorship slices.
 
-0. **Homepage (`/`) above the fold:** the agent chat and the three very large primary
-   tiles — **1) Spiele verwalten** → `/games`, **2) Serverbrowser** → `/servers`,
-   **3) Voice-Chats** → `/talk` when live, otherwise the native voice client / download entry.
+0. **Homepage (`/`) above the fold:** only the login gate — the mark, the wordmark, one line of
+   tagline/hint and one primary action, **Mit Discord anmelden**. After login, **Now** carries
+   the agent chat and the three very large primary tiles — **1) Spiele verwalten** → `/games`,
+   **2) Serverbrowser** → `/servers`, **3) Voice-Chats** → `/talk` when live, otherwise the
+   native voice client / download entry.
    A fourth, smaller **`?` Handbuch** button sits beside them and opens the user-facing handbook
    (docs, screenshots, usage around the three activities, food ordering, chat integration, and a
    preloaded live example conversation that shows how the app launches and how the launcher is
-   installed). Everything currently on the landing page moves **below the fold**. A huge,
-   always-visible **Launcher** button sits at the very top of the sidebar (above the nav), not only
-   in the hero. The sidebar otherwise stays as it is. OS buttons: Windows, Linux, macOS. The chat
-   greets the visitor, explains LANoMAT, and can already answer "what can I do?" / "install UT2004"
-   with inline game, server and install cards.
+   installed). A huge, always-visible **Launcher** button sits at the very top of the sidebar
+   (above the nav), not only in the hero. The sidebar otherwise stays as it is. OS buttons:
+   Windows, Linux, macOS. The chat greets the participant, explains LANoMAT, and can already
+   answer "what can I do?" / "install UT2004" with inline game, server and install cards.
 1. Website `/games` lists every live recipe as a row with **Installieren**, server browser/join, and
    **Fragen** (chat). No launcher installed → the button downloads the launcher.
 2. One launcher download (`LANoMAT-Setup.exe` / `.AppImage` / `.dmg`) → first run provisions via a

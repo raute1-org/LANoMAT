@@ -51,9 +51,10 @@ createInertiaApp({
                 return AuthLayout;
             case 'settings':
                 return [AppLayout, SettingsLayout];
-            // Public profile (/users/{user}) is the one participant page guests
-            // may still open: logged-in users get the app shell, guests stay
-            // bare (the sidebar's NavUser assumes a non-null user).
+            // Public profile (/users/{user}) and the team directory (/teams,
+            // /teams/{team}) are the guest-reachable participant pages: logged-in
+            // users get the app shell, guests stay bare (the sidebar's NavUser
+            // assumes a non-null user).
             case 'profile':
                 return (page.props as { auth?: Auth }).auth?.user
                     ? AppLayout

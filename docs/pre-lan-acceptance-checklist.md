@@ -209,7 +209,7 @@ never seen this LAN. Requires `MODULE_GAME_RECIPES=true`, `MODULE_FILES=true` an
 [`docs-site/pages/guides/launcher.mdx`](../docs-site/pages/guides/launcher.mdx)).
 
 - [ ] `/launcher` lists **both builds** — Linux x86_64 tarball and Windows x86_64 portable exe — each
-      with size and SHA-256; the same page opens without a login (guest gets bare chrome, no sidebar).
+      with size and SHA-256; the page requires the Discord login like the rest of the participant UI.
 - [ ] **Fresh-PC run:** on a PC with no LANoMAT login, start the launcher, pair with the code shown in
       the browser, install UT2004 from the LAN and press **Starten** — the game reaches the main menu
       without internet and without administrator rights.

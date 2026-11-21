@@ -34,19 +34,4 @@ return [
 
     'prefer_lan' => (bool) env('RECIPES_PREFER_LAN', true),
 
-    /*
-    |--------------------------------------------------------------------------
-    | First lineup
-    |--------------------------------------------------------------------------
-    |
-    | The seeder registers our NFS-Online server for the NFSU2 lineup. The
-    | tested laptop fallback stays the default; a venue overrides it before
-    | seeding.
-    |
-    */
-
-    'nfs' => [
-        'server_host' => env('NFS_SERVER_HOST', '10.23.3.220'),
-    ],
-
 ];

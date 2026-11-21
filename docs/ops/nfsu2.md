@@ -483,3 +483,190 @@ gefahren (kein Gamepad). Empfehlung: als optionalen `mod` aufnehmen
       url: https://github.com/mihaits/NFSU2-SplitScreen/releases/download/v0.14.1-beta/NFSU2SplitScreen-0.14.1-beta.zip
       notes: 'MIT. Optional couch mode only: 2-6 local players on one PC, not a LAN mode. Copy NFSU2SplitScreen.asi + NFSU2SplitScreen.ini into {{target}}/scripts/ next to net_u2.asi (no DLL, no installer). Needs SPEED2.EXE v1.2 (4,800,512 B); WidescreenFix/Ultimate ASI Loader provides the loader. Verified 2026-11-21 with Proton Experimental (wine 11.0): net_u2.asi and the plugin load in one process and the Split-Screen menu entry appears. Keep Extra Options ExperimentalSplitScreenFix = 0 and remove XtendedInput. Each player from P2 needs a gamepad.'
 ```
+
+## 14. Client-Start unter Proton Experimental (Ende-zu-Ende, 2026-11-21)
+
+Getestet auf `10.23.3.220` (Intel iGPU, Wayland/Hyprland 0.56, emulierte
+Auflösung 2880×1800 @1.6). Ziel war die Frage: **startet der U2-Client mit
+`net_u2.asi` unter Proton, und sieht der Server den Login?** Antwort: ja,
+bis in die Online-Lobby (`auth ok`, `pers ok`, EA-Messenger verbunden,
+`gsea`/`game_search`).
+
+### 14.1 Artefakt und Spielstand
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| ZIP | `NFSU2-portable.zip`, 2.593.519.936 B, `unzip -t` → *No errors detected* (1.393 Einträge/1.292 Dateien) |
+| SHA-256 ZIP | `0565c4bc372995b770c72763cf734191759fd974344d15b177676180e83bef2e` |
+| Top-Level | `SPEED2.EXE`, `CARS/`, `TRACKS/`, `scripts/`, `SOUND/`, `FRONTEND/`, `GLOBAL/`, `NIS/`, `MOVIES/`, `SAVE/`, `LANGUAGES/`, `pfdata/`, `memcard/`, `SDATA.Backup/` |
+| Haupt-EXE | **`SPEED2.EXE`** (nicht `speed.exe` – das ist NFSU1), 4.800.512 B, PE32/i386/GUI, ImageBase `0x400000`, Build-Zeitstempel 2005-03-09 01:37 |
+| SHA-256 EXE | `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7` |
+| Version | Retail **1.2**-Generation (Größe 4.800.512 B = 1.2-Build; der Client erwartet genau diesen Stand). Keine PE-Versionsressource im EXE → Version nur über Größe/Hash/Signaturen bestimmbar. |
+| Schon gepatcht? | Ja: 1.2-Stand + No-CD-fähiger Repack (`filelist.txt`, `unins000.*`, `NFSU2Fix.sdb`). Zusätzlich vorinstallierte ASI-Mods in `scripts/` (WidescreenFix, Extra Options, Unlimiter, Split-Screen). Spieldaten (`CARS/`, `TRACKS/`) unverändert. |
+| 1.2-Patch nötig? | Nur wenn man eine 1.0/1.1-CD-Installation nutzt. `net_u2.asi` patcht per Signatursuche **und** über feste RVAs (`0xf3040`, `0x350160`, `0x34b7e0`, `0x34b870`, `0x343aa0`, `0x343a50`, `0x140a60`, `0xe8a00`); alle 8 Adressen liegen in diesem EXE auf plausiblen Funktionsprologen, alle 4 Signatur-Patterns matchen. Offizielle Quellen für 1.2: `nfsug2v1-2us.exe`/`nfsug2v1-2uk.exe` (EA, via archive.org) bzw. das fertige `nfsu2_v1.2_us.zip` im archive.org-Item `nfsug-2-disk-1_20251007`. |
+
+### 14.2 ASI-Loader und Plugin-Installation
+
+```bash
+GAME="$HOME/Downloads/nfsu2/game/Need for Speed - Underground 2"
+# 1) Ultimate ASI Loader als dinput8-Proxy ins Root (der Repack bringt bereits
+#    einen mit; PDB-Pfad "WidescreenFixesPack\Ultimate-ASI-Loader\bin\Win32\Release\dinput8.pdb")
+cp dinput8.dll "$GAME/"                       # Ultimate-ASI-Loader v10.0.4 (NoPDB); im Test wurde der mitgelieferte Loader benutzt
+# 2) net_u2 bauen (Zig 0.16.0) und neben die Mods legen
+cd source/client-zig && ZIG=/pfad/zu/zig ./build_linux.sh
+cp zig-out/bin/net_u2.asi zig-out/bin/net_u2.ini "$GAME/scripts/"
+```
+
+Gebaut mit Client-Version **0.2.22** (`source/client-zig/VERSION`), Zig 0.16.0,
+`-Doptimize=ReleaseSmall`; `net_u2.asi` = 112.640 B,
+SHA-256 `8db6557e685cf2dd47f825e62cc202cbace85f6cc4a43af271b8238e0367a04f`,
+PE-Audit (`tools/audit_pe.py`) OK.
+
+Hinweis zum Build im Quellbaum: `tools/check_ports.py` vergleicht
+`source/client-zig/config/net_u2.ini` byteweise mit `clients/underground2/net_u2.ini`.
+Sobald dort eine LAN-IP eingetragen ist, bricht das Skript ab – für den Test
+reicht `zig build -Doptimize=ReleaseSmall` + `tools/audit_pe.py`.
+
+Der Loader lädt alle `*.asi` aus dem Spiel-Root und aus `scripts/`. Ladereihenfolge
+in der Praxis (Log des Split-Screen-Plugins): `NFSU2ExtraOptions.asi` →
+`NFSU2SplitScreen.asi` → `NFSU2Unlimiter.asi` → `NFSUnderground2.WidescreenFix.asi`,
+dazu `net_u2.asi`; alle fünf in **einem** Prozess, keine Kollision beobachtet.
+
+### 14.3 Exakter Startbefehl (Proton Experimental)
+
+```bash
+export STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.steam/steam"
+export STEAM_COMPAT_DATA_PATH="$HOME/Downloads/nfsu2/proton-prefix-u2"   # eigener Prefix
+export WINEDLLOVERRIDES="dinput8=n,b"
+export PROTON_USE_WINED3D=1        # nur für den UI-Test nötig, siehe 14.5
+cd "$HOME/Downloads/nfsu2/game/Need for Speed - Underground 2"
+"$HOME/.local/share/Steam/steamapps/common/Proton - Experimental/proton" run ./SPEED2.EXE
+```
+
+Getestet mit **Proton Experimental 11.0-20261105c** (`files/bin/wine --version` →
+`wine-11.0`), Prefix frisch (`pfx`), kein winetricks, kein Steam-Client nötig.
+Der Prefix liegt bewusst außerhalb von `steamapps/compatdata`; `proton run`
+initialisiert ihn beim ersten Start selbst.
+
+Ergebnis: Spiel startet, DXVK initialisiert (`2880×1800` bzw. `1024×768`
+Swapchain), Intro läuft, Hauptmenü erreichbar.
+
+### 14.4 Server und Client-INI für den Test
+
+Der Homelab-/Standard-Portblock (20921/20922/20923/13505, UDP 20000-20005) war
+im Test bereits belegt, deshalb eine zweite Instanz auf eigenen Ports – gleiche
+Software, gleiche Konfigurationsstruktur:
+
+```bash
+rsync -a --exclude .git NFS-Online-Server/ "$HOME/Downloads/nfsu2/nfs-test-server/"
+cd "$HOME/Downloads/nfsu2/nfs-test-server"
+# config/server.toml: PUBLIC_HOST=127.0.0.1, LISTEN/PUBLIC_PORT
+# 21021/21022/21023, Messenger 13515, Race-Relay 21000, DLC-Store 8082
+python3 nfs_online.py check
+python3 nfs_online.py start --games u2 --daemon
+python3 nfs_online.py account create u2probe3 --persona u2probe3 --password 'aaaaa'
+```
+
+`scripts/net_u2.ini` (nur Ports/Host geändert, Rest wie ausgeliefert):
+
+```ini
+[network]
+enabled = true
+host = 127.0.0.1
+bootstrap_port = 21021
+lobby_port = 21022
+control_port = 21023
+control_alias_port = 13515
+race_port = 21000
+[lan]
+enabled = true
+host = 127.0.0.1
+port = 21022
+inject_server = true
+[patches]
+enabled = true
+[logging]
+enabled = true
+udp_trace = false
+```
+
+Client-Log (`scripts/net_u2-trace-<pid>.log`) nach dem Start:
+
+```text
+net_u2 0.2.22 U2 single-port identity wrapper initialization thread entered
+net_u2 network=true bootstrap=127.0.0.1:21021 lobby=127.0.0.1:21022 control=127.0.0.1:21023 alias=127.0.0.1:13515 race=127.0.0.1:21000
+net_u2 lan=true lobby=127.0.0.1:21022 control=127.0.0.1:20923 alias=127.0.0.1:13505 inject=true
+U2 base patches installed
+U2 LAN injection installed
+```
+
+### 14.5 Nachweis: Client erreicht den Server
+
+Menüweg im Spiel: `Main Menu → Online (3. Kachel) → Terms of Service (kommt vom
+Server!) → Agree → EA Login → Use Existing EA Account → u2probe3/aaaaa →
+Save EA Login? No → Select An Online Persona → u2probe3 → Online Main Menu`.
+Die ToS-Seite („NFS Online community server terms of use … not affiliated with
+Electronic Arts“) wird also schon vor dem Login vom lokalen Server geladen.
+
+Server-Log (`logs/classic.log`, Auszug; vollständig in
+`~/Downloads/nfsu2/evidence/server-log-excerpt.txt`):
+
+```text
+16:51:05 bootstrap client connected: peer=127.0.0.1:34826
+16:51:05 secure bootstrap RSA accepted
+16:51:05 secure bootstrap established peer_echo=ok
+16:51:05 stock bootstrap command=@tic payload_len=11
+16:51:05 stock directory reply challenge=yes secure=True lobby=127.0.0.1:21022
+16:51:05 lobby client connected: peer=127.0.0.1:41728 challenge=yes
+16:51:05 lobby command=addr/skey/news/sele
+16:54:42 lobby command=auth result=ok
+16:55:13 lobby command=pers result=ok
+16:55:13 EA Messenger client connected: peer=127.0.0.1:33552
+16:55:13 EA Messenger dialect selected: adapter=underground2-classic-messenger
+16:55:13 lobby command=user / auxi
+16:56:04 lobby command=gsea result=game_search
+```
+
+Damit ist die Kette Bootstrap → Directory → Lobby → Auth → Persona →
+EA-Messenger → Spielsuche durchgängig belegt. Ein **Rennen** (UDP-Relay
+21000-21005) wurde nicht gefahren; der Rechner hatte nur einen Client.
+
+Screenshots (außerhalb des Repos, `~/Downloads/nfsu2/evidence/`):
+`03-mainmenu.png` (Hauptmenü), `07-login3.png` (ToS vom Server),
+`20-tos.png`, `29-form2.png` (Login-Formular), `44-online-menu.png` /
+`45-online-menu2.png` (Online Main Menu), `47-lobby.png`.
+
+### 14.6 Bekannte Fehler und Workarounds
+
+| Symptom | Ursache | Workaround |
+| --- | --- | --- |
+| Fenster schwarz/friert ein, Menü reagiert nicht | DXVK/D3D9-Swapchain im Vordergrund-Only-Modus; sobald das Fenster auf einen anderen Hyprland-Workspace wandert oder ein anderes Spiel Vollbild hat, kommen keine Frames mehr | Fenster sichtbar + fokussiert halten; für den UI-Test `PROTON_USE_WINED3D=1` (OpenGL, überlebt Fokuswechsel besser). Auf einem normalen Desktop ohne parallele Spiele tritt das nicht auf. |
+| `EXCEPTION handling: System.ComponentModel.Win32Exception: Invalid window handle` + sofortiger Exit | Start direkt nach dem Abschießen einer früheren Instanz (Prefix/Wineserver noch nicht fertig) | 3-5 s warten, `wineserver -k` im Prefix, `pfx.lock` löschen, erneut starten |
+| Tastatur wirkt tot (Pfeile/Enter), Maus markiert aber | XWayland-Fokus liegt nicht auf dem Spiel (Fenster verdeckt/nicht aktiv) | Fenster erst fokussieren (`hyprctl dispatch 'hl.dsp.focus{window="address:0x…"}'`), dann Keys senden; synthetische Events vorher prüfen |
+| `Enter` bestätigt Dialoge nicht, `KP_Enter` schon | Eigenheit der U2-Dialoge unter Wine (Return wird z. T. verschluckt) | `KP_Enter` (Numpad-Enter) senden |
+| Passwort im EA-Login zu kurz → `auth result=bad_password` | zu schnelles synthetisches Tippen; Zeichen fallen weg (Feld zeigt weniger `*` als getippt) | langsam tippen (≥300 ms/Zeichen) und Sterne zählen; notfalls kurzes Testpasswort |
+| Mausklicks treffen daneben | U2 nutzt relatives Maus-Handling in XWayland; `XTestFakeMotionEvent`-Absolutkoordinaten werden als Delta interpretiert | erste Klick nur fokussiert, zweiter Klick trifft; oder komplett per Tastatur navigieren |
+| `Address already in use` beim Serverstart | anderer U2-Server belegt 20921-20923/20000 | zweite Instanz auf eigenen Ports starten (siehe 14.4) |
+
+**Fehlende DLLs:** keine. Der Repack läuft ohne `vcrun*`, ohne `d3dx9_*`
+(DXVK liefert D3D9; mit `PROTON_USE_WINED3D=1` übernimmt WineD3D/OpenGL).
+`dinput8.dll` im Root ist der ASI-Loader, kein echtes DirectInput – mit
+`WINEDLLOVERRIDES=dinput8=n,b` wird er garantiert nativ geladen.
+
+**Save:** liegt im Prefix unter
+`pfx/drive_c/users/steamuser/Documents/NFS Underground 2/` (Profil `reneil1337`
+wurde dort angelegt, „Load complete.“ beim zweiten Start). Ein 100-%-Save wurde
+nicht getestet; das Profil muss vor dem Online-Login existieren, sonst zeigt das
+Spiel zuerst „Create Profile“.
+
+**Aufräumen:** Testserver `python3 nfs_online.py stop` im
+`nfs-test-server`-Verzeichnis; Spiel/Prefix können bleiben (kein Repo-Anteil).
+
+
+### 14.9 Screenshot index (repo)
+
+- `docs/screenshots/nfsu2/nfsu2-native-mainmenu.png` — native NFSU2 main menu
+- `docs/screenshots/nfsu2/nfsu2-native-online-menu.png` — Online menu after bootstrap
+- `docs/screenshots/nfsu2/nfsu2-native-lobby.png` — lobby/auth flow
+- `docs/screenshots/nfsu2/nfsu2-native-tos.png` — community ToS from the server
+- `docs/screenshots/nfsu2/nfsu2-native-title.png` / `nfsu2-native-quickrace.png` — title and Quick Race

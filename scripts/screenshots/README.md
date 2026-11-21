@@ -107,9 +107,7 @@ pipeline overwrites them in place.
   headlessly, without needing a real Discord OAuth handshake. This password
   only ever exists in throwaway seeded demo databases — never wire it into
   any production seeding path.
-- Most routes captured here (homepage, event page, countdown, seating,
-  bracket, schedule, catering, voting, LFG, files, presence, jukebox, recap,
-  infoscreen) require no authentication at all — only `/admin` and the
-  gallery upload page do. Capture still runs entirely inside the logged-in
-  orga session, so the public pages render as a signed-in user too.
+- Only `/` (the guest login gate) uses a signed-out guest context; every
+  other capture runs inside the logged-in orga session, so participant pages
+  render as a signed-in user.
 - Re-running `npm run screenshots` overwrites the previous PNGs in place.

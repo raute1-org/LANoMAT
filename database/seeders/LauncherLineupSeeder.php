@@ -73,7 +73,7 @@ final class LauncherLineupSeeder extends Seeder
             'permanent' => true,
         ]);
 
-        $nfsHost = (string) config('recipes.nfs.server_host', '10.23.3.220');
+        $nfsHost = (string) config('launcher.nfs.server_host', '10.23.3.220');
 
         $nativeLink->forceFill([
             'game_id' => $nativeGame->id,

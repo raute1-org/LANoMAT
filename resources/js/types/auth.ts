@@ -14,7 +14,7 @@ export type User = {
 };
 
 export type Auth = {
-    /** Null for guests (public profile, teams, launcher login gate). */
+    /** Null for guests (public profile, teams, welcome login gate). */
     user: User | null;
 };
 

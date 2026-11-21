@@ -232,7 +232,7 @@ Team tournaments (`team_size > 1`) replace the one-click "Anmelden" with a team 
 - [ ] German copy, consistent action names, no English leftovers.
 - [ ] Pest feature test for new props/controller; `composer check` + `types:check`/`lint:check`/`format:check`/`build` green.
 
-## Start-page chat (the front door) — pilot
+## Start-page chat (the front door after login) — pilot
 
 The guest landing (`Welcome`, `/`) is only a login gate: the logo mark, the wordmark, one line of
 tagline, one line of hint and the single **Mit Discord anmelden** button. No chat, no game or server
