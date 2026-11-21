@@ -120,6 +120,15 @@ If UT2004 is not in the list, the recipe is a draft or the catalogue is empty on
 `No published recipes on this LANoMAT server.` Ask the orga to import and publish it
 ([runbook](/docs/guides/lan-party-runbook)); `lanomat-agent recipes --json` shows the raw answer.
 
+That list has a source: `/admin` → **Spielrezepte**. Look at the **Status** column — `Veröffentlicht`
+is what makes a recipe visible to `recipes` — and at **Dateien**, the number of files the recipe
+resolves.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe list with Unreal Tournament 2004 published at version 3374 and ten files, dark](/docs/screens/admin-recipes-dark.png) | ![Admin recipe list with Unreal Tournament 2004 published at version 3374 and ten files, light](/docs/screens/admin-recipes-light.png) |
+| `RECIPES · STATUS · VERSION · FILES` | `RECIPES · LIGHT` |
+
 `skills sync` writes `~/.agents/skills/lanomat-unreal-tournament-2004/` with `SKILL.md`,
 `recipe.json` and a `.lanomat-source` marker. The skill is the agent's instructions for this recipe —
 which questions to ask, which steps are optional, what the failure messages mean. It is readable
@@ -153,6 +162,15 @@ Steps:
 All required files are available.
 ```
 
+The same plan from a real `install --dry-run`: every `[LAN]` line is served from the LAN file host,
+`[EXTERNAL]` is the internet-only fallback, and each step prints the command it would run plus its
+`verify` check.
+
+| Dark | Light |
+|---|---|
+| ![Terminal showing the UT2004 dry-run install plan with LAN and external files, four steps and their verify checks, dark](/docs/screens/agent-install-terminal-dark.png) | ![Terminal showing the UT2004 dry-run install plan with LAN and external files, four steps and their verify checks, light](/docs/screens/agent-install-terminal-light.png) |
+| `PLAN · LAN FILES · STEPS · VERIFY` | `PLAN · LIGHT` |
+
 | Label | Meaning | What to do |
 |---|---|---|
 | `[LAN]` | File is on the LAN file host and will be served from there | Nothing |
@@ -182,6 +200,15 @@ following flags exist on `install` (and on `open` for a deep link):
 | `--dry-run` | Print the plan and commands; download and execute nothing |
 | `--jobs <n>` | Parallel downloads (default 4) |
 | `--chat` | Open pi after a successful install (`--model` for that session) |
+
+The bytes come from the event's **Dateien** page: the DVD image, the patch archive and every approved
+avatar sit in one list with their size. If a plan line says `[MISSING]`, the file is not in this
+list yet.
+
+| Dark | Light |
+|---|---|
+| ![Event files page listing the UT2004 DVD ISO, the OldUnreal patch archive and five VRM avatars with sizes, dark](/docs/screens/files-dark.png) | ![Event files page listing the UT2004 DVD ISO, the OldUnreal patch archive and five VRM avatars with sizes, light](/docs/screens/files-light.png) |
+| `FILES · ISO · PATCH · AVATARS` | `FILES · LIGHT` |
 
 The recipe's first step mounts the image and starts `Setup.exe`:
 
@@ -219,6 +246,14 @@ Dismount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"
 The zip has **no installer**. It is the patched game tree (`Help/`, `Sounds/`, `System/`); merging it
 over the target replaces `System\UT2004.exe` with the 64-bit build and adds `System\D3D11Drv.dll`.
 The recipe verifies both.
+
+The patch is an ordinary approved upload: the orga sees it in `/admin` → **Dateien** next to the ISO,
+with its size and `Freigegeben` status, and the plan matches it by name pattern — no link to chase.
+
+| Dark | Light |
+|---|---|
+| ![Admin files table with the approved UT2004 ISO, the OldUnreal 3374 patch archive and avatar files, dark](/docs/screens/admin-shared-files-dark.png) | ![Admin files table with the approved UT2004 ISO, the OldUnreal 3374 patch archive and avatar files, light](/docs/screens/admin-shared-files-light.png) |
+| `ADMIN · FILES · ISO · PATCH · APPROVED` | `ADMIN · FILES · LIGHT` |
 
 Linux: extract the tarball and make the binaries executable.
 
@@ -296,6 +331,14 @@ Open the game page at `/games/ut2004` (or `/games/unreal-tournament-2004`). The 
 section lists every known UT2004 server with map, player count and the join string. UT2004's join
 string is a plain `address:port`, shown as a copyable mono value — not a dead button.
 
+A registered server shows a `BEREIT` badge and lists its address and port separately; **Kopieren**
+copies `lan.example:7777`, **Verbinden** hands it to the registered `unreal://` scheme.
+
+| Dark | Light |
+|---|---|
+| ![Spielserver page with the UT2004 DM-Antalus server at lan.example port 7777 marked ready, dark](/docs/screens/event-servers-dark.png) | ![Spielserver page with the UT2004 DM-Antalus server at lan.example port 7777 marked ready, light](/docs/screens/event-servers-light.png) |
+| `SERVERS · UT2004 · ADDRESS · 7777 · READY` | `SERVERS · LIGHT` |
+
 | Path | How |
 |---|---|
 | Browser / launcher | `unreal://lan.example:7777` (UT2004 registers the scheme when installed) |
@@ -323,6 +366,14 @@ Run the checks in this order; each one has a visible result.
 `lanomat-agent doctor` checks the parts around the game (token, MCP handshake, skills, model, tool
 calls), not the game files. For a re-check of the files themselves, `lanomat-agent plan ut2004 --os
 windows` is enough.
+
+| Dark | Light |
+|---|---|
+| ![Terminal showing lanomat-agent doctor checks for config, server, MCP tool count, skills and model roles, dark](/docs/screens/agent-doctor-terminal-dark.png) | ![Terminal showing lanomat-agent doctor checks for config, server, MCP tool count, skills and model roles, light](/docs/screens/agent-doctor-terminal-light.png) |
+| `DOCTOR · CONFIG · SERVER · MCP · MODEL` | `DOCTOR · LIGHT` |
+
+The game page collects the result: install state, the live servers from step 8 and the tournaments
+running on this recipe.
 
 | Dark | Light |
 |---|---|
