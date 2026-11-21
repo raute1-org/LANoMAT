@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Mcp\Server;
 
+use App\Modules\Mcp\Prompts\ImportMenuPrompt;
 use App\Modules\Mcp\Prompts\InstallGamePrompt;
+use App\Modules\Mcp\Resources\ImportMenuSkillResource;
 use App\Modules\Mcp\Resources\RecipeSkillResource;
 use App\Modules\Mcp\Server\Methods\ListTools as LanomatListTools;
+use App\Modules\Mcp\Tools\CateringMenuGetTool;
+use App\Modules\Mcp\Tools\CateringMenuImportTool;
+use App\Modules\Mcp\Tools\CateringMenuPreviewTool;
 use App\Modules\Mcp\Tools\CateringMenuTool;
 use App\Modules\Mcp\Tools\EventGetTool;
 use App\Modules\Mcp\Tools\EventRegisterTool;
@@ -54,6 +59,9 @@ source "external" download. Avatars are a multi-select from recipe_avatars;
 download only the chosen ones. The base game is required, the UT2004VR mod is
 an optional step.
 
+For "import this menu" (orga/admin only): follow the import-menu prompt — read the
+PDF/page yourself, catering_menu_preview, show the human, then catering_menu_import.
+
 Never invent ids or prices. Everything you need comes from the tools.
 TEXT)]
 class LanomatServer extends Server
@@ -85,6 +93,9 @@ class LanomatServer extends Server
         PollsListTool::class,
         PollVoteTool::class,
         CateringMenuTool::class,
+        CateringMenuGetTool::class,
+        CateringMenuPreviewTool::class,
+        CateringMenuImportTool::class,
         LfgListTool::class,
         LfgCreateTool::class,
         RecipesListTool::class,
@@ -97,11 +108,13 @@ class LanomatServer extends Server
     /** @var array<int, class-string<Server\Resource>> */
     protected array $resources = [
         RecipeSkillResource::class,
+        ImportMenuSkillResource::class,
     ];
 
     /** @var array<int, class-string<Prompt>> */
     protected array $prompts = [
         InstallGamePrompt::class,
+        ImportMenuPrompt::class,
     ];
 
     /**
