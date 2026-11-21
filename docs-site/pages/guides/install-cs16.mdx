@@ -68,6 +68,22 @@ Then open `/admin` → **Spielrezepte**, open `counter-strike-1-6`, set the stat
 
 Drafts are visible to orga and to an orga token; participants see published recipes only.
 
+The **Status** column is the switch you are looking for: a synced recipe sits at **Entwurf** until it
+is published, and the list is the quickest way to confirm that the sync actually created the row.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe list with the status column showing draft and published recipes, dark](/docs/screens/admin-recipes-dark.png) | ![Admin recipe list with the status column showing draft and published recipes, light](/docs/screens/admin-recipes-light.png) |
+| `RECIPES · STATUS · DRAFT · PUBLISHED` | `RECIPES · LIGHT` |
+
+The form is the same for every recipe: the `base` row for Half-Life, the `mod` row for `cstrike*.zip`,
+and **Pflicht** on both. A published recipe with an empty pattern matches nothing and plans nothing.
+
+| Dark | Light |
+|---|---|
+| ![Recipe form with the file role, name patterns and the Pflicht switch, dark](/docs/screens/admin-recipe-edit-dark.png) | ![Recipe form with the file role, name patterns and the Pflicht switch, light](/docs/screens/admin-recipe-edit-light.png) |
+| `RECIPE · FILES · PATTERNS · REQUIRED` | `RECIPE · LIGHT` |
+
 ## 2. Install Half-Life (Steam app 70)
 
 ```powershell
@@ -105,6 +121,14 @@ deep is the most common failure: the game starts as plain Half-Life.
 
 If the LAN file is an installer (`counter-strike*.exe`, `cs16*.exe`), run it and point it at the same
 Half-Life folder. Keep the installed `cstrike` folder; do not merge two versions.
+
+The card on `/games` is the app-side entry point for the same recipe: **Installieren** hands it to
+your paired agent, and the card is missing entirely while the recipe is still a draft.
+
+| Dark | Light |
+|---|---|
+| ![Games library with the Counter-Strike 1.6 card and its Installieren button, dark](/docs/screens/games-dark.png) | ![Games library with the Counter-Strike 1.6 card and its Installieren button, light](/docs/screens/games-light.png) |
+| `GAMES · COUNTER-STRIKE 1.6 · INSTALL` | `GAMES · LIGHT` |
 
 ## 4. Start the game with the right game folder
 
@@ -153,6 +177,14 @@ The default GoldSrc port is **27015**. A server on another port shows it in the 
 string, not a guess. If the list is empty, no `ServerLink` exists for the game on this event — ask the
 orga, or start a local match with bots.
 
+The event's **Spielserver** page keeps the same address readable next to the port, with **Verbinden**
+for the client hand-off and **Kopieren** for the console. Use it when a teammate needs the string.
+
+| Dark | Light |
+|---|---|
+| ![Spielserver page with one server row, address, port and Verbinden and Kopieren, dark](/docs/screens/event-servers-dark.png) | ![Spielserver page with one server row, address, port and Verbinden and Kopieren, light](/docs/screens/event-servers-light.png) |
+| `SERVERS · ADDRESS · PORT · CONNECT · COPY` | `SERVERS · LIGHT` |
+
 ## 7. Tournament and LFG
 
 Counter-Strike 1.6 tournaments appear on the game page while they are `announced`, `enrollment`,
@@ -167,10 +199,10 @@ Counter-Strike 1.6 tournaments appear on the game page while they are `announced
 - **Runde ankündigen:** one click on the game page creates an LFG post and links the event voice room
   at `/talk`. It does not create a tournament or start a server.
 
-| Light |
-|---|
-| ![Tournament bracket, light](/docs/screens/tournament-bracket-light.png) |
-| `TOURNAMENT · BRACKET · REPORT · CONFIRM` |
+| Dark | Light |
+|---|---|
+| ![Live single-elimination bracket with finished, ready and running matches, dark](/docs/screens/tournament-bracket-dark.png) | ![Live single-elimination bracket with finished, ready and running matches, light](/docs/screens/tournament-bracket-light.png) |
+| `TOURNAMENT · BRACKET · REPORT · CONFIRM` | `TOURNAMENT · LIGHT` |
 
 ## 8. Verify
 

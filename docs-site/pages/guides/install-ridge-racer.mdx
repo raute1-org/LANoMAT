@@ -51,6 +51,15 @@ The BIOS entry is marked required but its notes say the cabinet can boot with Op
 real NTSC-U dump as the recommended baseline and a fully supported fallback as absent by design;
 `?bios=hle` forces the built-in path.
 
+Those entries are the recipe's own fields, not a docs invention. `/admin` → **Spielrezepte** lists
+every recipe with slug, version, status and file count; `ridge-racer-type-4` is **Veröffentlicht**
+with four files, which is why a participant plan can resolve them at all.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe list with Ridge Racer Type 4 published and four files, dark](/docs/screens/admin-recipes-dark.png) | ![Admin recipe list with Ridge Racer Type 4 published and four files, light](/docs/screens/admin-recipes-light.png) |
+| `RECIPES · STATUS · FILES · PUBLISHED` | `RECIPES · LIGHT` |
+
 <div class="callout-live">
   <strong>One host, many players.</strong> The 2P lounge and Race Day run through the host's
   WebSocket relay. If the host sleeps, every player drops — the browser tab is not the server.
@@ -85,6 +94,14 @@ All required files are available.
 `--json` gives the raw plan; `--dry-run` on `install` prints the commands without running them.
 A missing disc is a hard stop; a missing BIOS is not, because of OpenBIOS.
 
+`install --dry-run` shows the same plan plus the resolved downloads and every command it would run.
+Read the `[LAN]` lines first — one `[MISSING]` line there stops a real install before it starts.
+
+| Dark | Light |
+|---|---|
+| ![Terminal dry run of the agent install with plan, resolved LAN downloads and commands, dark](/docs/screens/agent-install-terminal-dark.png) | ![Terminal dry run of the agent install with plan, resolved LAN downloads and commands, light](/docs/screens/agent-install-terminal-light.png) |
+| `AGENT · INSTALL · DRY-RUN · LAN DOWNLOADS` | `AGENT · LIGHT` |
+
 ## 2. Install the cabinet
 
 ```bash
@@ -103,6 +120,15 @@ Linux is the same two commands with `bash`; the Windows `.bat` helpers are not u
 
 The repository is a Node 20+ Express app. There is **no build step** for the browser cabinet: the
 files in `_server/` are served as they are. Verification is `_server/package.json`.
+
+The app's own entry point is `/games`: the Ridge Racer Type 4 card carries **Installieren**, which
+hands the same recipe to your paired agent. **Starten** sits next to it as soon as the game page has a
+`play_url`, and it opens the cabinet in the browser.
+
+| Dark | Light |
+|---|---|
+| ![Games library with the Ridge Racer Type 4 card, Installieren and Starten, dark](/docs/screens/games-dark.png) | ![Games library with the Ridge Racer Type 4 card, Installieren and Starten, light](/docs/screens/games-light.png) |
+| `GAMES · RIDGE RACER TYPE 4 · INSTALL · START` | `GAMES · LIGHT` |
 
 ## 3. Place the disc
 
@@ -125,6 +151,14 @@ copy — or adjust the command. Do not rename the tracks inside a CUE. The recip
 **Dump format.** `.bin`/`.cue` is the raw disc; `.chd` is the compressed archival format the browser
 path expects. Keep the CUE/BIN pair together and unmodified for the native recomp. A PAL or NTSC-J
 dump is not the tested path; SLUS-00797 is.
+
+The recipe's file entry is what the agent matches against: the role, the name patterns and the
+**Pflicht** switch. Renaming a file that no pattern covers turns it into `[MISSING]`, not a warning.
+
+| Dark | Light |
+|---|---|
+| ![Recipe form with the required file role, name patterns and the Pflicht switch, dark](/docs/screens/admin-recipe-edit-dark.png) | ![Recipe form with the required file role, name patterns and the Pflicht switch, light](/docs/screens/admin-recipe-edit-light.png) |
+| `RECIPE · ROLE · PATTERNS · REQUIRED` | `RECIPE · LIGHT` |
 
 ## 4. Add the BIOS (or use OpenBIOS)
 
