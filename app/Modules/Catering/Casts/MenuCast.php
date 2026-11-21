@@ -69,7 +69,16 @@ class MenuCast implements CastsAttributes
                 throw new InvalidArgumentException("Menu price of [{$menuOption->key}] is out of bounds.");
             }
 
-            $normalized[] = $menuOption->toArray();
+            // A path outside catering/dishes/<hash>.webp must never reach storage: the serving
+            // route streams whatever this field names.
+            if ($menuOption->image !== null && MenuOption::cleanImage($menuOption->image) === null) {
+                throw new InvalidArgumentException("Menu image of [{$menuOption->key}] is not a dish image path.");
+            }
+
+            $normalized[] = $menuOption->with(
+                MenuOption::cleanDescription($menuOption->description),
+                $menuOption->image,
+            )->toArray();
         }
 
         return json_encode($normalized, JSON_THROW_ON_ERROR);

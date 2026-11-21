@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use App\Models\User;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
+use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 require_once __DIR__.'/Helpers.php';
 
@@ -169,4 +172,22 @@ it('hides catering of a draft event', function () {
     nativePlace($this, $order, ['option_key' => 'salad'])->assertNotFound();
     $this->deleteJson("/api/voice-client/v1/food-order-items/{$item->id}", [], $this->headers)->assertNotFound();
     expect(FoodOrderItem::query()->count())->toBe(1);
+});
+
+it('adds description and image_url to menu entries without changing the existing fields', function () {
+    Storage::fake('local');
+    $image = app(DishImageStore::class)->store(dishPng(100, 100));
+    $this->order->menu = [
+        new MenuOption('a', 'Pizza: Salami', 900, 'Scharf', $image),
+        new MenuOption('b', 'Pizza: Plain', 800),
+    ];
+    $this->order->save();
+
+    $menu = $this->getJson("/api/voice-client/v1/events/{$this->event->slug}/catering", $this->headers)
+        ->assertOk()->json('orders.0.menu');
+
+    expect($menu[0]['price_cents'])->toBe(900)
+        ->and($menu[0]['description'])->toBe('Scharf')
+        ->and($menu[0]['image_url'])->toContain("/catering/dish-image/{$this->order->id}/a")
+        ->and($menu[1])->not->toHaveKeys(['description', 'image_url']);
 });

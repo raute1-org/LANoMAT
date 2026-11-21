@@ -12,6 +12,7 @@ use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Catering\Support\MyFoodPayment;
@@ -141,6 +142,8 @@ class CateringController extends Controller
                 'key' => $option->key,
                 'name' => $option->name,
                 'priceCents' => $option->priceCents,
+                'description' => $option->description,
+                'imageUrl' => DishImage::url($order, $option),
             ])->all(),
             'myItems' => $myItems->map(fn (FoodOrderItem $item): array => $this->itemDto($item))->values()->all(),
             'myTotalCents' => $myItems->sum('price_cents'),

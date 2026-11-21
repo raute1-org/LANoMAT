@@ -112,3 +112,35 @@ describe('aggregateItems', () => {
         assert.equal(lines[1].totalCents, 0);
     });
 });
+
+describe('description search', () => {
+    const described = [
+        {
+            key: 'h',
+            name: 'Hähnchen: Chicken Hawaii',
+            priceCents: 1100,
+            description: 'Mit Ananas und Käse überbacken',
+            imageUrl: null,
+        },
+        { key: 'l', name: 'Lamm: Lamb Curry', priceCents: 1299 },
+    ];
+
+    it('finds a dish by a word in its description', () => {
+        const { groups } = buildMenuGroups(described);
+        const found = filterMenuGroups(groups, 'ananas');
+
+        assert.deepEqual(
+            found.flatMap((g) => g.items.map((i) => i.key)),
+            ['h'],
+        );
+    });
+
+    it('keeps description and image through grouping, null when missing', () => {
+        const { groups } = buildMenuGroups(described);
+        const items = groups.flatMap((g) => g.items);
+
+        assert.equal(items[0].description, 'Mit Ananas und Käse überbacken');
+        assert.equal(items[1].description, null);
+        assert.equal(items[1].imageUrl, null);
+    });
+});
