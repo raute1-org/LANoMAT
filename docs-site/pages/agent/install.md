@@ -43,7 +43,7 @@ Node 22+ is required for the source path only; the native installer bundles its 
 ## 2. Pair the device
 
 ```bash
-lanomat-agent login --server https://lan.example
+lanomat-agent login --url https://lan.example
 ```
 
 The agent prints a code and the URL `https://lan.example/mcp/connect`. Open it while
@@ -54,6 +54,11 @@ Device code: K7QF-2M9R
 Open:        https://lan.example/mcp/connect
 Waiting for approval… done. Token stored for lan.example.
 ```
+
+| Dark | Light |
+|---|---|
+| ![MCP code entry with the agents already paired, dark](/screens/mcp-connect-dark.png) | ![MCP code entry with the agents already paired, light](/screens/mcp-connect-light.png) |
+| `PAIRING · CODE ENTRY · CONNECTED AGENTS` | `PAIRING · LIGHT` |
 
 The token lives in:
 
@@ -67,8 +72,8 @@ and you pair again.
 
 | Dark | Light |
 |---|---|
-| ![MCP code entry, dark](/screens/mcp-connect-dark.png) | ![MCP code entry, light](/screens/mcp-connect-light.png) |
-| `Agent & MCP verbinden · DARK` — code entry and the agents already paired | `Agent & MCP verbinden · LIGHT` |
+| ![Account connections page with Steam, Twitch and the desktop app download, dark](/screens/connections-dark.png) | ![Account connections page with Steam, Twitch and the desktop app download, light](/screens/connections-light.png) |
+| `CONNECTIONS · STEAM · TWITCH · DESKTOP APP` | `CONNECTIONS · LIGHT` |
 
 ## 3. Choose a model
 
@@ -88,16 +93,25 @@ lanomat-agent doctor             # token, MCP, model, tool-calling probe
 The default model is `venice/e2ee-deepseek-v4-1-flash-1017-abliterated`. Details, precedence and
 alternatives: [Models & fuel](/docs/agent/venice).
 
+| Dark | Light |
+|---|---|
+| ![Doctor output: config, server, MCP tools, model catalog and Doctor: OK, dark](/screens/agent-doctor-terminal-dark.png) | ![Doctor output: config, server, MCP tools, model catalog and Doctor: OK, light](/screens/agent-doctor-terminal-light.png) |
+| `DOCTOR · CONFIG · SERVER · MCP · MODEL` | `DOCTOR · LIGHT` |
+
+`doctor` is the check before the LAN: the required **Config** and **Server** lines plus the advisory
+ones (skills, `smbclient`, Venice key, `models.json`, model catalog, tool-calling probe).
+
 ## 4. Sync the recipe skills
 
 ```bash
 lanomat-agent skills sync
-lanomat-agent skills list
 ```
 
-`sync` pulls every published recipe's `SKILL.md` and `recipe.yaml` into the pi skills directory
-(`~/.pi/agent/skills/lanomat/<slug>/`). It is additive: a removed recipe is deleted locally, a
-changed one is replaced. `--force` re-downloads everything, which is useful after a recipe update.
+`sync` pulls every published recipe into the pi skills directory as one sub-skill per recipe:
+`~/.agents/skills/lanomat-<slug>/SKILL.md` plus `recipe.json`. It is additive: only changed skills
+are rewritten (`22 unchanged` on a second run). Pass `--dest <dir>` for another directory and
+`--prune` to delete `lanomat-*` skills whose recipe vanished. There is no `skills list`; `ls
+~/.agents/skills` is the list.
 
 Offline, the synced skills are still readable. Run `sync` before the LAN if you want the catalogue
 with you.
@@ -117,6 +131,14 @@ What happens:
 4. On confirmation it downloads from the LAN file host, verifies, runs the steps and reports the
    verification checks.
 
+| Dark | Light |
+|---|---|
+| ![Dry-run install plan for unreal-tournament-2004 with files, byte sizes, steps and avatars, dark](/screens/agent-install-terminal-dark.png) | ![Dry-run install plan for unreal-tournament-2004 with files, byte sizes, steps and avatars, light](/screens/agent-install-terminal-light.png) |
+| `INSTALL PLAN · DRY RUN · FILES · STEPS` | `INSTALL PLAN · LIGHT` |
+
+The plan names every file with its LAN size, the steps with their verification checks, and the
+avatars as a multi-select. `--dry-run` prints the same output without downloading a byte.
+
 ### Avatar multi-select
 
 Avatars are not a yes/no question. The interactive prompt lists every LAN match:
@@ -130,8 +152,10 @@ Avatars are not a yes/no question. The interactive prompt lists every LAN match:
   [ ] Sable — night ops — 20 MB
 ```
 
-In a script, pass a comma-separated list with `--avatars ayla,brutus`, or `--no-avatars` to skip the
-question. The agent never invents a file; it only offers what `recipe_avatars` returned.
+In a script, repeat `--avatar <id>` (`--avatar all` selects every avatar with a LAN copy) or pass
+`-y` to select none and skip the question. The standalone `lanomat-agent avatars` command downloads
+selections without an install. The agent never invents a file; it only offers what
+`recipe_avatars` returned.
 
 ## 6. Day-to-day commands
 
@@ -139,11 +163,11 @@ question. The agent never invents a file; it only offers what `recipe_avatars` r
 lanomat-agent login                 # pair again / switch server
 lanomat-agent install ut2004        # same as the game page's Install button
 lanomat-agent launch ut2004         # start an installed game
-lanomat-agent launch ut2004 --variant vr  # pick a launch_targets entry (flat, vr, …)
-lanomat-agent ask "plan ridge racer type 4"
-lanomat-agent ask --plan-only "install ut2004"
+lanomat-agent plan ridge-racer-type-4
+lanomat-agent recipes
+lanomat-agent ask "install ut2004 for me on my pc"
 lanomat-agent skills sync
-lanomat-agent model current
+lanomat-agent model roles
 lanomat-agent doctor
 ```
 
@@ -170,7 +194,7 @@ The `lanomat` MCP server is already in `~/.pi/agent/mcp.json`, so `/mcp` shows i
 | What | Where | Typical size |
 |---|---|---|
 | Agent + pi runtime | `~/.local/bin`, `~/.pi` | ~150 MB |
-| Skills | `~/.pi/agent/skills/lanomat/` | < 5 MB |
+| Skills | `~/.agents/skills/lanomat-<slug>/` | < 5 MB |
 | Downloads | `~/.cache/lanomat-agent/downloads/` | the recipe's bytes |
 | Install target | recipe-specific (`C:\Games\UT2004`, `~/Games/…`) | the game |
 

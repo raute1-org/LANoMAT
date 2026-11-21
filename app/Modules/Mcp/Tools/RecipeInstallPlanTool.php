@@ -29,6 +29,7 @@ class RecipeInstallPlanTool extends LanomatTool
             'slug' => $schema->string()->description('Recipe slug or alias.')->required(),
             'os' => $schema->string()->enum(['windows', 'linux', 'macos'])->default('windows'),
             'event_slug' => $schema->string()->description('Restrict LAN file matching to one event.'),
+            'dry_run' => $schema->boolean()->description('Do not write the install audit row.'),
         ];
     }
 
@@ -52,6 +53,7 @@ class RecipeInstallPlanTool extends LanomatTool
             $this->user(),
             (string) $request->get('os', 'windows'),
             $event,
+            record: ! (bool) $request->get('dry_run', false),
         ));
     }
 }

@@ -12,7 +12,7 @@ use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\GameRecipes\Support\RecipeSourceLocator;
 use App\Modules\GameRecipes\Support\RecipeValidator;
-use App\Modules\GameRecipes\Support\SafeText;
+use App\Support\SafeText;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

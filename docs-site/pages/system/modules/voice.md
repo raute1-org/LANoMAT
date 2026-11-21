@@ -20,6 +20,27 @@ app calls it through `MumbleClient`/`TeamSpeakClient` contracts.
 - `/talk/connect` — connection help and the server password (Mumble).
 - Filament **Voice client installers** and provider settings.
 
+## Native client
+
+The desktop client is the second way into a room next to the join links. It connects once, then
+shows the room a match or a team opens.
+
+![Native client connect screen with the server address field and a Verbinden button](/screens/voice-app/01-connect.png)
+
+`CONNECT · server address and device-code pairing — the app never sees a password`
+
+![Native client Jetzt tab with a team strip listing the Lobby, Discord and the current match room](/screens/voice-app/10-jetzt.png)
+
+`JETZT · the team strip links straight into the room and the match`
+
+![Native client Sprache tab connected to the match room, with push-to-talk, mute and the room chat](/screens/voice-app/20-sprache.png)
+
+`SPRACHE · in the match room: push-to-talk, mute, participants, chat`
+
+![Native client match chat where a mention is flagged as meint dich](/screens/voice-app/21-chat-mention.png)
+
+`CHAT · a mention in the match chat is marked "meint dich"`
+
 ## Guards and rules
 
 - One sidecar per provider. `docker/mumble-admin` (Ice REST) and `docker/teamspeak-admin`

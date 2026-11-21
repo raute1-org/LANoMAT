@@ -79,9 +79,10 @@ export async function selectInstallAvatars(options: {
 function fileTasks(options: {
     api: ApiClient;
     plan: RecipePlan;
-    targetDir: string;
+    downloadDir: string;
     allowExternal: boolean;
 }): { tasks: DownloadTask[]; skippedExternal: string[]; external: string[] } {
+    const downloadsDir = options.downloadDir;
     const tasks: DownloadTask[] = [];
     const skippedExternal: string[] = [];
     const external: string[] = [];
@@ -100,7 +101,7 @@ function fileTasks(options: {
             tasks.push({
                 url,
                 filename: sanitizeName(download.filename),
-                destDir: options.targetDir,
+                destDir: downloadsDir,
                 sha256: download.sha256,
                 size_bytes: download.size_bytes,
                 source: 'external',
@@ -114,7 +115,7 @@ function fileTasks(options: {
         tasks.push({
             url,
             filename: sanitizeName(download.filename),
-            destDir: options.targetDir,
+            destDir: downloadsDir,
             sha256: download.sha256,
             size_bytes: download.size_bytes,
             source: 'lan',
@@ -141,6 +142,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     const plan = await options.api.createPlan(options.slug, options.os, {
         eventSlug: options.eventSlug,
         includeAvatars: true,
+        dryRun: options.dryRun,
     });
     const steps = plan.steps.filter((step) => stepAppliesToOs(step, options.os));
     const planForDownloads: RecipePlan = { ...plan, steps };
@@ -184,10 +186,16 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
         return { ...empty, code: 2 };
     }
 
+    // The server decides where downloads land (`<target>/.lanomat-downloads`
+    // by default) so the recipe's step commands can address {{downloads}}.
+    const downloadsDir = plan.downloads_dir
+        ? expandTargetDir(plan.downloads_dir, { home: process.env.HOME ?? '', avatars: avatarDir })
+        : targetDir;
+
     const files = fileTasks({
         api: options.api,
         plan: planForDownloads,
-        targetDir,
+        downloadDir: downloadsDir,
         allowExternal: options.allowExternal ?? false,
     });
 
@@ -203,7 +211,16 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
 
     const variables: Record<string, string> = {
         avatars: avatarDir,
+        target: targetDir,
         target_dir: targetDir,
+        downloads: downloadsDir,
+        host: (() => {
+            try {
+                return new URL(options.api.baseUrl).hostname;
+            } catch {
+                return '';
+            }
+        })(),
         os: options.os,
         slug: options.slug,
         event: options.eventSlug ?? '',
@@ -213,6 +230,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     if (options.dryRun) {
         log('');
         log(`[dry-run] Target dir: ${targetDir}`);
+        log(`[dry-run] Download dir: ${downloadsDir}`);
         log(`[dry-run] Avatar dir: ${avatarDir}`);
         log(`[dry-run] ${files.tasks.length} LAN file download(s)`);
 
@@ -227,6 +245,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
         for (const step of steps) {
             await runPlanStep(step, {
                 cwd: targetDir,
+                os: options.os,
                 variables,
                 yes: options.yes,
                 dryRun: true,
@@ -240,6 +259,10 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     }
 
     await ensureDir(targetDir, 0o755);
+
+    if (downloadsDir !== targetDir) {
+        await ensureDir(downloadsDir, 0o755);
+    }
 
     const downloadedFiles: string[] = [];
 
@@ -279,6 +302,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     for (const step of steps) {
         await runPlanStep(step, {
             cwd: targetDir,
+            os: options.os,
             variables,
             yes: options.yes,
             executor: options.executor,

@@ -20,6 +20,13 @@ LANoMAT registers the machine as a `RemoteHost` and bootstraps the container ove
 - Filament action **LanCache setup** — apply, verify, probe.
 - Preflight — LanCache reachability (when enabled).
 
+| Dark | Light |
+|---|---|
+| ![Remote hosts table with role, status and last-probe columns, dark](/screens/admin-remote-hosts-dark.png) | ![Remote hosts table with role, status and last-probe columns, light](/screens/admin-remote-hosts-light.png) |
+| `LANCACHE · REMOTE HOST` — the machine gets role `lancache` and is probed first | `LANCACHE · LIGHT` — the same host table |
+| ![Filament dashboard with the Preflight tile that reports LanCache reachability, dark](/screens/admin-dark.png) | ![Filament dashboard with the Preflight tile that reports LanCache reachability, light](/screens/admin-light.png) |
+| `LANCACHE · PREFLIGHT` — reachability as one check, not a separate dashboard | `LANCACHE · LIGHT` — the same tile in light mode |
+
 ## Guards and rules
 
 - The action authorizes `isOrga()` and rejects a host whose role is not exactly `lancache`.

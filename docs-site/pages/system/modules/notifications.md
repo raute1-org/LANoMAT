@@ -20,6 +20,16 @@ the category map and the preference UI.
 - `/settings/notifications` — category × channel preferences (in-app, Discord DM).
 - `/notifications` — the full list with read state.
 
+| Dark | Light |
+|---|---|
+| ![Notification bell dropdown with no unread items, dark](/screens/notifications-dark.png) | ![Notification bell dropdown with no unread items, light](/screens/notifications-light.png) |
+| `BELL · DARK` — dropdown, no unread items | `BELL · LIGHT` — same empty state |
+
+| Dark | Light |
+|---|---|
+| ![Dashboard with the bell in the shell header, dark](/screens/dashboard-dark.png) | ![Dashboard with the bell in the shell header, light](/screens/dashboard-light.png) |
+| `DASHBOARD · DARK` — bell in the app shell | `DASHBOARD · LIGHT` — same header |
+
 ## Guards and rules
 
 - Categories are explicit (`Registration`, `Tournament`, `Schedule`, `Catering`, `Team`,

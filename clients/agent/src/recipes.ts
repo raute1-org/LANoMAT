@@ -2,7 +2,7 @@ import type { PlanFile, PlanStep, RecipeDownload, RecipePlan, RecipeSummary } fr
 import { formatBytes, truncateMiddle } from './util.js';
 
 export interface CollectedDownload extends RecipeDownload {
-    source: 'lan' | 'external';
+    source: 'lan' | 'external' | 'manual';
     stepId?: string;
 }
 
@@ -58,8 +58,9 @@ export function missingRequiredFiles(plan: RecipePlan): string[] {
     const missing = new Set<string>(plan.missing ?? []);
 
     for (const file of plan.files ?? []) {
-        if (file.status === 'missing') {
-            missing.add(file.name ?? file.requirement);
+        // Optional requirements (avatars, extras) never block an install.
+        if (file.status === 'missing' && file.required !== false) {
+            missing.add(file.label ?? file.name ?? file.requirement);
         }
     }
 
@@ -90,7 +91,7 @@ export function formatRecipeList(recipes: RecipeSummary[]): string {
         .join('\n');
 }
 
-function fileSource(file: PlanFile): 'lan' | 'external' | 'missing' {
+function fileSource(file: PlanFile): 'lan' | 'external' | 'manual' | 'missing' {
     if (file.status === 'missing') {
         return 'missing';
     }
@@ -102,12 +103,14 @@ function fileSource(file: PlanFile): 'lan' | 'external' | 'missing' {
     return file.status === 'external' ? 'external' : 'lan';
 }
 
-function sourceLabel(source: 'lan' | 'external' | 'missing'): string {
+function sourceLabel(source: 'lan' | 'external' | 'manual' | 'missing'): string {
     switch (source) {
         case 'lan':
             return '[LAN]';
         case 'external':
             return '[EXTERNAL]';
+        case 'manual':
+            return '[MANUAL]';
         case 'missing':
             return '[MISSING]';
     }
@@ -132,7 +135,9 @@ export function formatPlan(plan: RecipePlan, options: { color?: boolean } = {}):
 
     for (const file of plan.files ?? []) {
         const label = sourceLabel(fileSource(file));
-        const parts = [file.name ?? file.requirement];
+        // The requirement label first ("UT2004 DVD"), the literal file name
+        // second when it differs.
+        const parts = [file.label ?? file.name ?? file.requirement];
 
         if (file.size_bytes) {
             parts.push(formatBytes(file.size_bytes));

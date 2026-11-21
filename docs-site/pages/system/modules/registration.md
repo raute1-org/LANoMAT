@@ -23,6 +23,16 @@ arrival plan.
 - `/orga/events/{slug}/checkin` — scanner + token fallback; `/checkin-qr` is the printable sheet.
 - Filament: registrations relation manager, **Ankunftsübersicht** with charts.
 
+| Dark | Light |
+|---|---|
+| ![Sign-up form with ticket choice and arrival fields, dark](/screens/register-dark.png) | ![Sign-up form with ticket choice and arrival fields, light](/screens/register-light.png) |
+| `REGISTER · DARK` — ticket, arrival, departure | `REGISTER · LIGHT` — same form |
+
+| Dark | Light |
+|---|---|
+| ![Dashboard card with ticket state and seat, dark](/screens/dashboard-dark.png) | ![Dashboard card with ticket state and seat, light](/screens/dashboard-light.png) |
+| `DASHBOARD · DARK` — ticket state, seat, check-in | `DASHBOARD · LIGHT` — same cards |
+
 ## Guards and rules
 
 - One non-cancelled registration per user per event.

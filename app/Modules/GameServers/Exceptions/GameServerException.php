@@ -110,6 +110,18 @@ class GameServerException extends DomainException
         return new self('This permanent server is external and cannot be controlled.', 'gameservers.permanent.errors.external_not_controllable');
     }
 
+    /** A permanent server has no Pelican link (see ServerLink::hasPelicanLink()), so there is nothing to configure. */
+    public static function notLinkedToPelican(): self
+    {
+        return new self('This server is not linked to a Pelican server.', 'gameservers.settings.errors.not_linked');
+    }
+
+    /** The server file is not valid JSON in the expected shape; it is never overwritten then. */
+    public static function configFileInvalid(string $path): self
+    {
+        return new self("Config file {$path} is not a JSON object.", 'gameservers.settings.errors.file_invalid');
+    }
+
     /** The Docker host is unreachable, or the Custom Servers module is off. */
     public static function dockerUnavailable(string $detail = ''): self
     {

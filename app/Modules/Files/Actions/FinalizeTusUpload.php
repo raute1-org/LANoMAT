@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Files\Actions;
 
-use App\Modules\Files\Enums\FileVisibility;
+use App\Models\User;
 use App\Modules\Files\Enums\UploadReservationStatus;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Models\UploadReservation;
+use App\Modules\Files\Support\UploadReview;
 use App\Modules\Files\Support\UploadTypeGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Log;
  * never saw the bytes, so it can only check what tusd reports: the received
  * offset must equal the declared size, and the extension rules are applied
  * once more. A file that fails is deleted and its quota released; a file that
- * passes becomes a PENDING {@see SharedFile} (orga still has to approve it)
+ * passes becomes a PENDING {@see SharedFile} (orga still has to approve it, unless an admin uploaded it)
  * and the reservation is converted in the same transaction, so the quota is
  * never counted twice or not at all. Repeated calls (tusd retries) are no-ops.
  *
@@ -93,7 +94,7 @@ class FinalizeTusUpload
                 'path' => $reservation->stored_path,
                 'size_bytes' => $reservation->size_bytes,
                 'mime' => 'application/octet-stream',
-                'visibility' => FileVisibility::Pending,
+                ...UploadReview::initialFor(User::query()->find($reservation->user_id)),
             ])->save();
 
             $reservation->forceFill([

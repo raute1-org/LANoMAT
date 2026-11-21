@@ -21,6 +21,11 @@ Participants do not read the YAML. They open the **[games library](/docs/system/
 `/games`, which lists every published recipe, marks what is already on the LAN, and connects Install,
 Launch, servers and tournaments in one page.
 
+| Dark | Light |
+|---|---|
+| ![Games library listing published recipes with LAN dots and Install buttons, dark](/screens/games-dark.png) | ![Games library listing published recipes with LAN dots and Install buttons, light](/screens/games-light.png) |
+| `LIBRARY · CATALOGUE · LAN FILTER · INSTALL` | `LIBRARY · LIGHT` |
+
 <div class="live">LIVE 17:42 · recipe scan · 9 recipes · schema valid</div>
 
 <div class="callout-live">
@@ -81,6 +86,11 @@ Matching is against the LAN file host's file names, not the internet. A requirem
 `size_bytes`, a `sha256` for verification, an optional `url` for provenance, and `notes` for the
 human/agent reading the plan. Empty `sha256`/`url` are allowed.
 
+| Dark | Light |
+|---|---|
+| ![Admin file overview with ISO, patch and avatar files marked as released, dark](/screens/admin-shared-files-dark.png) | ![Admin file overview with ISO, patch and avatar files marked as released, light](/screens/admin-shared-files-light.png) |
+| `FILES · ISO · PATCH · AVATAR · RELEASED` | `FILES · LIGHT` |
+
 **Base is required, extras are optional.** A recipe must be installable with only its
 `required: true` entries. Optional mods and avatars never block the base install. If a user picks
 no avatars, the install still succeeds.
@@ -124,6 +134,11 @@ without a verification is a guess.
 Planning is pure: no bytes move until the user confirms. A stale plan (recipe changed after it was
 built) is rejected and rebuilt.
 
+| Dark | Light |
+|---|---|
+| ![Agent install dry run printing required files, ordered steps, verify checks and avatar choices, dark](/screens/agent-install-terminal-dark.png) | ![Agent install dry run printing required files, ordered steps, verify checks and avatar choices, light](/screens/agent-install-terminal-light.png) |
+| `AGENT · PLAN · STEPS · VERIFY · DRY RUN` | `AGENT · LIGHT` |
+
 ## Validation and contributing
 
 Every recipe is checked by `resources/recipes/schema/validate.mjs`: JSON Schema validation, directory
@@ -135,6 +150,14 @@ cd resources/recipes/schema
 npm install
 npm run validate
 ```
+
+The admin recipe list mirrors the catalogue: one row per recipe with its slug, version, status and
+last update, so a draft and a published recipe stay distinguishable before anyone opens the YAML.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe list showing slug, version, draft or published status and file count per recipe, dark](/screens/admin-recipes-dark.png) | ![Admin recipe list showing slug, version, draft or published status and file count per recipe, light](/screens/admin-recipes-light.png) |
+| `ADMIN · RECIPES · SLUG · STATUS · UPDATED` | `ADMIN · LIGHT` |
 
 The catalogue currently contains UT2004, Ridge Racer Type 4, F-Zero X VR, Pokémon Snap, Super Mario
 Galaxy, Super Mario Sunshine, and the three Zelda recipes (Ocarina of Time 3D, Majora's Mask 3D,

@@ -27,6 +27,15 @@ place where amber, scale and motion are allowed to be loud.
 | ![Infoscreen, dark](/screens/infoscreen-dark.png) | ![Infoscreen, light](/screens/infoscreen-light.png) |
 | `INFOSCREEN · DARK` — the loud beamer | `INFOSCREEN · LIGHT` |
 
+The presence scene is the everyday one: matches that are running now, free slots, and the checked-in
+count as the single head number. The recap scene closes the event with counts, the tournament winner
+and the highlights.
+
+| Dark | Light |
+|---|---|
+| ![Beamer recap scene with counts, tournament winner and highlights, dark](/screens/infoscreen-recap-dark.png) | ![Beamer recap scene with counts, tournament winner and highlights, light](/screens/infoscreen-recap-light.png) |
+| `INFOSCREEN · RECAP · DARK` — the closing scene | `INFOSCREEN · RECAP · LIGHT` |
+
 ## Guards and rules
 
 - Nobody scrolls a beamer: lists have fixed caps ("+N weitere"), announcement text is capped at 280

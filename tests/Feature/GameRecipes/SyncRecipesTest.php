@@ -111,6 +111,44 @@ it('skips invalid recipes without aborting the sync', function () {
     File::deleteDirectory($dir);
 });
 
+it('lifts legacy top-level play and launch fields into metadata', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    File::ensureDirectoryExists($dir.'/legacy-game');
+    File::put($dir.'/legacy-game/recipe.yaml', Yaml::dump([
+        'schema' => 'lanomat.recipe/v1',
+        'slug' => 'legacy-game',
+        'title' => 'Legacy Game',
+        'status' => 'published',
+        'platforms' => ['windows', 'linux'],
+        'summary' => 'A legacy recipe.',
+        'skill' => ['name' => 'legacy-game', 'description' => 'Install the legacy game when the user asks for it.'],
+        'requires' => [],
+        'steps' => [['id' => 'install', 'title' => 'Install', 'os' => 'windows', 'commands' => [['shell' => 'powershell', 'run' => 'setup.exe']]]],
+        'play_url' => 'http://{{host}}:8080/play?game=legacy',
+        'launch_targets' => [
+            ['id' => 'flat-windows', 'label' => 'Flat', 'os' => 'windows', 'shell' => 'powershell', 'command' => 'Start-Process "{{target}}/legacy.exe"'],
+            ['id' => 'flat-linux', 'label' => 'Flat', 'os' => 'linux', 'shell' => 'bash', 'command' => '"{{target}}/legacy"'],
+        ],
+        'metadata' => ['genre' => 'puzzle', 'players' => '1', 'lan_recommended' => false, 'tags' => ['puzzle']],
+    ], 10));
+    File::put($dir.'/legacy-game/SKILL.md', '---
+name: legacy-game
+description: "Install the legacy game."
+---
+# Legacy
+');
+
+    app(SyncRecipes::class)->handle($dir);
+
+    $recipe = GameRecipe::query()->where('slug', 'legacy-game')->sole();
+
+    expect($recipe->playUrl('lan.example'))->toBe('http://lan.example:8080/play?game=legacy')
+        ->and($recipe->launchTarget(null, 'windows'))->toBe('Start-Process "{{target}}/legacy.exe"')
+        ->and($recipe->launchTarget('flat-linux'))->toBe('"{{target}}/legacy"');
+
+    File::deleteDirectory($dir);
+});
+
 it('exports published recipes as agent skill directories', function () {
     $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
     writeRecipe($dir, 'test-game');

@@ -14,6 +14,7 @@ use App\Modules\GameServers\Domain\ServerLimits;
 use App\Modules\GameServers\Domain\ServerSpec;
 use App\Modules\GameServers\Domain\ServerStats;
 use App\Modules\GameServers\Enums\ServerState;
+use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Models\ServerLink;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\Yaml\Yaml;
@@ -59,6 +60,18 @@ class FakePelicanClient implements PelicanClient
     /** @var array<string, array<string, list<string>>> identifier => directory => entry names */
     private array $files = [];
 
+    /** @var list<array{serverId: string, variables: array<string, string>}> */
+    public array $startupUpdates = [];
+
+    /** @var list<array{identifier: string, command: string}> */
+    public array $commands = [];
+
+    /** @var list<array{identifier: string, path: string, contents: string}> */
+    public array $writtenFiles = [];
+
+    /** @var array<string, array<string, string>> identifier => path => contents */
+    private array $fileContents = [];
+
     private ?\Throwable $failNextImportWith = null;
 
     private ?\Throwable $failNextAllocationCreateWith = null;
@@ -96,6 +109,38 @@ class FakePelicanClient implements PelicanClient
     public function setFiles(string $identifier, string $directory, array $names): void
     {
         $this->files[$identifier][$directory] = $names;
+    }
+
+    /**
+     * Test helper: an installed server the panel already knows (an adopted one),
+     * with a startup environment like the panel's `container.environment`.
+     *
+     * @param  array<string, string>  $environment
+     */
+    public function addServer(string $id, ?string $identifier = null, array $environment = [], string $eggId = '5', ServerState $state = ServerState::Running, string $name = 'Fake server'): PelicanServer
+    {
+        $identifier ??= self::identifierFor($id);
+
+        return $this->servers[$id] = new PelicanServer(
+            id: $id,
+            state: $state,
+            identifier: $identifier,
+            uuid: $identifier.'-0000-4000-8000-000000000000',
+            name: $name,
+            meta: ['egg' => (int) $eggId, 'container' => ['image' => 'ghcr.io/fake/image:latest', 'startup_command' => './start.sh', 'environment' => $environment]],
+        );
+    }
+
+    /** Test helper: the contents `readFile()` returns for a path. */
+    public function setFileContents(string $identifier, string $path, string $contents): void
+    {
+        $this->fileContents[$identifier][$path] = $contents;
+    }
+
+    /** Test helper: what the volume holds at a path now (after any `writeFile()`). */
+    public function fileContents(string $identifier, string $path): ?string
+    {
+        return $this->fileContents[$identifier][$path] ?? null;
     }
 
     /**
@@ -287,6 +332,38 @@ class FakePelicanClient implements PelicanClient
     public function reinstallServer(string $serverId): void
     {
         $this->reinstalled[] = $serverId;
+    }
+
+    public function updateStartupVariables(string $serverId, array $variables): void
+    {
+        $server = $this->getServer($serverId);
+        $meta = $server->meta;
+        $container = is_array($meta['container'] ?? null) ? $meta['container'] : [];
+        $environment = is_array($container['environment'] ?? null) ? $container['environment'] : [];
+        $container['environment'] = [...$environment, ...$variables];
+        $meta['container'] = $container;
+
+        $this->servers[$serverId] = new PelicanServer(
+            $server->id, $server->state, $server->address, $server->port, $server->identifier, $server->uuid,
+            $server->name, $server->nodeId, $server->allocationId, $server->limits, $meta,
+        );
+        $this->startupUpdates[] = ['serverId' => $serverId, 'variables' => $variables];
+    }
+
+    public function sendCommand(string $identifier, string $command): void
+    {
+        $this->commands[] = ['identifier' => $identifier, 'command' => $command];
+    }
+
+    public function readFile(string $identifier, string $path): string
+    {
+        return $this->fileContents[$identifier][$path] ?? throw GameServerException::pelicanNotFound("file {$path}");
+    }
+
+    public function writeFile(string $identifier, string $path, string $contents): void
+    {
+        $this->fileContents[$identifier][$path] = $contents;
+        $this->writtenFiles[] = ['identifier' => $identifier, 'path' => $path, 'contents' => $contents];
     }
 
     private function markAssigned(?string $allocationId): ?PelicanAllocation

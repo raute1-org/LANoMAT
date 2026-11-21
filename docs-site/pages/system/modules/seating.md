@@ -22,8 +22,10 @@ labels and ports are mono, state is colour, and nothing moves unless someone act
 
 | Dark | Light |
 |---|---|
-| ![Seating, dark](/screens/seating-dark.png) | ![Seating, light](/screens/seating-light.png) |
+| ![Participant seat grid with claimed and free seats, dark](/screens/seating-dark.png) | ![Participant seat grid with claimed and free seats, light](/screens/seating-light.png) |
 | `SEATING · DARK` — claimed, free, blocked | `SEATING · LIGHT` — same grid, paper tokens |
+| ![Admin seat list with label, row, column and occupant, dark](/screens/admin-seats-dark.png) | ![Admin seat list with label, row, column and occupant, light](/screens/admin-seats-light.png) |
+| `ADMIN · SEATS` — grid, label, row, column, occupant | `ADMIN · LIGHT` |
 
 ## Guards and rules
 

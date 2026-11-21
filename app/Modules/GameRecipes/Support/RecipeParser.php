@@ -115,7 +115,7 @@ final class RecipeParser
     {
         $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
 
-        foreach (['launch', 'launch_targets', 'launch_vr', 'play_url'] as $key) {
+        foreach (['launch', 'launch_targets', 'launch_vr', 'play_url', 'live_url', 'avatar_converter_url'] as $key) {
             if (! array_key_exists($key, $metadata) && array_key_exists($key, $data)) {
                 $metadata[$key] = $data[$key];
             }

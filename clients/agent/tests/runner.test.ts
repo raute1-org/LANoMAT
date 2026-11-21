@@ -491,4 +491,24 @@ describe('runner file-system side effects', () => {
 
         expect(result.verify[0]).toMatchObject({ ok: true });
     });
+
+    it('keeps only the commands that run on the requested OS', () => {
+        const step = {
+            id: 'import-disc',
+            title: 'Import the disc',
+            commands: [
+                { shell: 'powershell' as const, run: 'Expand-Archive "{{downloads}}/game.zip" "{{target}}"' },
+                { shell: 'bash' as const, run: 'unzip -o "{{downloads}}/game.zip" -d "{{target}}"' },
+            ],
+        };
+
+        expect(applyStepVariables(step, {}, 'linux').commands).toEqual([
+            { shell: 'bash', run: 'unzip -o "{{downloads}}/game.zip" -d "{{target}}"' },
+        ]);
+        expect(applyStepVariables(step, {}, 'windows').commands).toEqual([
+            { shell: 'powershell', run: 'Expand-Archive "{{downloads}}/game.zip" "{{target}}"' },
+        ]);
+        // Without an OS the whole step is handed through untouched.
+        expect(applyStepVariables(step, {}).commands).toHaveLength(2);
+    });
 });

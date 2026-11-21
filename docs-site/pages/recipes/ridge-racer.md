@@ -12,6 +12,14 @@ Windows recomp.
 
 <div class="live">LIVE 17:42 · cabinet up :8080 · 2P lounge · 12 drivers waiting</div>
 
+The recipe is published, so the games library lists it with a LAN badge, an install button and a start
+button that opens the cabinet.
+
+| Dark | Light |
+|---|---|
+| ![Games library filtered to LAN games, with Ridge Racer Type 4 and UT2004 install buttons, dark](/screens/games-filter-dark.png) | ![Games library filtered to LAN games, with Ridge Racer Type 4 and UT2004 install buttons, light](/screens/games-filter-light.png) |
+| `GAMES · NUR LAN-SPIELE · R4 · INSTALLIEREN · STARTEN` | `GAMES · LIGHT` |
+
 ## What the cabinet is
 
 | Part | What it does |
@@ -58,6 +66,15 @@ The BIOS entry is marked required but the notes say the cabinet can boot with Op
 intentional: a real NTSC-U dump is the recommended baseline, while the installer knows the fallback.
 Node.js is a tool requirement with no LAN match — it is checked on the machine, not downloaded.
 
+In the panel the same recipe is one row: version, status, the number of required files and the last
+sync. Ridge Racer Type 4 sits next to UT2004 as **Veröffentlicht**; the drafts around it are the rest
+of the library.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe list with Ridge Racer Type 4 published among draft recipes, dark](/screens/admin-recipes-dark.png) | ![Admin recipe list with Ridge Racer Type 4 published among draft recipes, light](/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · R4 · VERÖFFENTLICHT · ENTWURF` | `SPIELREZEPTE · LIGHT` |
+
 ## Install in six steps
 
 1. **Clone the cabinet** into the target, e.g. `C:\Games\RidgeRacer4`.
@@ -75,6 +92,15 @@ lanomat-agent ask "install ridge racer type 4 for the LAN"
 
 The agent reads the skill, finds the disc and BIOS on the LAN file host (or accepts local paths),
 installs the Node dependencies and verifies the cabinet answers on 8080.
+
+The requirement block is where the disc, the BIOS and the optional recomp are described: a role, a
+label and the match globs the file host is searched with. A `tool` requirement such as Node.js has no
+glob — it is checked on the machine.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe edit form with requirement role, file-name patterns and the required toggle, dark](/screens/admin-recipe-edit-dark.png) | ![Admin recipe edit form with requirement role, file-name patterns and the required toggle, light](/screens/admin-recipe-edit-light.png) |
+| `ADMIN · REZEPT · ROLLE · MUSTER · PFLICHT` | `REZEPT · LIGHT` |
 
 ## 2P and Race Day
 

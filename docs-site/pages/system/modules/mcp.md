@@ -15,6 +15,15 @@ streamable HTTP, bearer tokens, device-code pairing, 24 tools, one `install-game
 - **Teilnehmer** approve a device code in the browser.
 - **Orga** sees paired devices and can revoke a token.
 
+| Dark | Light |
+|---|---|
+| ![Agent and MCP connect page with the eight-character code field, dark](/screens/mcp-connect-dark.png) | ![Agent and MCP connect page with the eight-character code field, light](/screens/mcp-connect-light.png) |
+| `MCP · CODE ENTRY` — the code the agent shows, and the agents already paired | `MCP · LIGHT` — the same pairing page |
+| ![Pairing approval with agent name, code, approve/deny and connected agents, dark](/screens/mcp-connect-pending-dark.png) | ![Pairing approval with agent name, code, approve/deny and connected agents, light](/screens/mcp-connect-pending-light.png) |
+| `MCP · APPROVAL` — agent name, device code, approve or deny, revoke below | `MCP · LIGHT` — the approval card in light mode |
+| ![User list with the role column that gates MCP actions, dark](/screens/admin-users-dark.png) | ![User list with the role column that gates MCP actions, light](/screens/admin-users-light.png) |
+| `MCP · ROLES` — the role column decides who approves and who revokes | `MCP · LIGHT` — the same user list |
+
 ## Key endpoints
 
 | Endpoint | Purpose |

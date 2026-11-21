@@ -40,6 +40,11 @@ The participant app (Inertia v2 + Vue 3 + Tailwind v4 + shadcn-vue) and the admi
 v5 at `/admin`) share the same brand, tokens and navigation grammar. Same logo mark, same mono
 data, same amber signal. A change to the shell reaches both in the same pull request.
 
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the same Signalpult shell, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the same Signalpult shell, light](/screens/admin-light.png) |
+| `ADMIN · DARK` — Filament at `/admin`, same shell, same tokens | `ADMIN · LIGHT` |
+
 <div className="feature-grid">
   <div className="feature">
     <h3>Events are the aggregate root</h3>
@@ -77,14 +82,34 @@ data, same amber signal. A change to the shell reaches both in the same pull req
 
 ## A first look
 
-![LANoMAT home, dark](</screens/home-dark.png>)
+| Dark | Light |
+|---|---|
+| ![Guest landing of LANoMAT with the Discord login and next event, dark](/screens/home-dark.png) | ![Guest landing of LANoMAT with the Discord login and next event, light](/screens/home-light.png) |
+| `HOME · DARK` — the guest landing, Discord login, next event | `HOME · LIGHT` — same page, paper tokens |
 
-<span className="shot-caption">DASHBOARD · DARK · a calm control desk: next match, ticket, bell, seat</span>
+The guest landing is the one page the orga does not have to explain: the event, the date, and one
+primary action. Once signed in, the participant home answers one question — *what is next for me?*
+— and nothing else.
 
-The participant home answers one question — *what is next for me?* — and nothing else. The event
-page, the seating grid and the bracket are the three surfaces people actually stand in front of.
-Screenshots in these docs come from the app's own screenshot set and are shown as light/dark pairs
-where both exist.
+| Dark | Light |
+|---|---|
+| ![Public event page with lifecycle status, spots left and arrival info, dark](/screens/event-page-dark.png) | ![Public event page with lifecycle status, spots left and arrival info, light](/screens/event-page-light.png) |
+| `EVENT · DARK` — lifecycle status, spots, arrival info | `EVENT · LIGHT` — same state, same numbers |
+
+The event page is the aggregate root made visible: registration, seating, tournaments, schedule,
+catering and votes all hang off it. The page switches with the lifecycle — `announced` shows the
+date, `registration` the primary "Jetzt anmelden", `live` keeps walk-in registration open while
+spots remain.
+
+| Dark | Light |
+|---|---|
+| ![Games library listing every published recipe with LAN availability, dark](/screens/games-dark.png) | ![Games library listing every published recipe with LAN availability, light](/screens/games-light.png) |
+| `GAMES · DARK` — published recipes, LAN dot, tournaments | `GAMES · LIGHT` |
+
+The games library and the seating grid are where people spend the evening: every published recipe,
+what is on the LAN tonight, and the one-click round into a server. Screenshots in these docs come
+from the app's own screenshot set and are shown as light/dark pairs. The beamer (`/screen/{event}`)
+is the loud counterpart: large type, no chrome.
 
 <div className="callout-live">
   <strong>New to the system?</strong> Read <a href="/docs/start/quickstart">Quickstart</a> for a

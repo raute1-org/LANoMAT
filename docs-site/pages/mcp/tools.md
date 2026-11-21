@@ -42,6 +42,14 @@ Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `l
 `recipe_contribute`; `recipe_contribute` only creates a **draft**. Nothing in the catalogue
 publishes, deletes or edits an event.
 
+A tool result carries the same values the participant app renders — event state, ticket, seat and
+teams:
+
+| Dark | Light |
+|---|---|
+| ![Participant dashboard with event, ticket and seat, dark](/screens/dashboard-dark.png) | ![Participant dashboard with event, ticket and seat, light](/screens/dashboard-light.png) |
+| `DASHBOARD · EVENT · TICKET · SEAT` | `DASHBOARD · LIGHT` |
+
 Tools appear only when their module is enabled (`recipes_*` need `GameRecipes`, `files_*` need
 `Files`, `servers_list` needs `GameServers`, and so on); `lanomat_me` reports the enabled set.
 
@@ -100,6 +108,13 @@ The plan result is a structured object, not prose:
 
 A missing required file is listed in `missing` by label; the matching `files[]` entry has
 `"status": "missing"` and the requirement's glob patterns.
+
+An agent prints that plan in its own terminal, downloads included:
+
+| Dark | Light |
+|---|---|
+| ![Agent terminal printing the recipe install plan with files and steps, dark](/screens/agent-install-terminal-dark.png) | ![Agent terminal printing the recipe install plan with files and steps, light](/screens/agent-install-terminal-light.png) |
+| `AGENT · RECIPE_INSTALL_PLAN · DRY RUN` | `AGENT · LIGHT` |
 
 ## Resources
 
@@ -160,3 +175,10 @@ client exposes it.
 - `file_download_url` returns a bearer-authenticated URL: fetch it with the same token, not a browser.
 - `recipe_contribute` creates a draft and validates it against the schema: 1–20 steps, unknown keys rejected.
 - Rate limit: 240 MCP API requests per minute per token and IP, `429` beyond that.
+
+The draft waits in the Filament admin until an orga reviews it:
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight check, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight check, light](/screens/admin-light.png) |
+| `ADMIN · RECIPE DRAFT · ORGA REVIEW` | `ADMIN · LIGHT` |

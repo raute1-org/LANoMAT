@@ -44,13 +44,31 @@ function looksLikePath(value: string): boolean {
 }
 
 /** The plan carries the recipe-level launch fields too; use it only when needed. */
-function launchFields(recipe: RecipeDetail, plan: RecipePlan | null, target: LaunchTarget | null): {
+function launchFields(recipe: RecipeDetail, plan: RecipePlan | null, os: Os, variant?: string): {
     playUrl?: string | null;
     target?: string | null;
+    shell?: 'powershell' | 'cmd' | 'bash';
 } {
+    const targets = recipe.launch_targets ?? plan?.recipe?.launch_targets ?? null;
+    const chosen = pickLaunchTarget(targets, os, variant);
+    const chosenCommand = chosen ? (chosen.command ?? chosen.target ?? null) : null;
+
+    const explicit =
+        recipe.launch_target ??
+        plan?.recipe?.launch_target ??
+        plan?.launch_target ??
+        null;
+
+    // An explicit `--variant` wins over everything; otherwise the recipe-level
+    // default target wins and the per-OS alternatives are the fallback. A
+    // chosen target carries the shell it must run in.
+    const useChosen = variant !== undefined ? chosenCommand !== null : explicit === null;
+    const target = useChosen ? chosenCommand : explicit;
+
     return {
-        playUrl: recipe.play_url ?? plan?.play_url ?? null,
-        target: target?.command ?? recipe.launch_target ?? recipe.launch_command ?? plan?.launch_target ?? plan?.launch_command ?? null,
+        playUrl: recipe.play_url ?? plan?.recipe?.play_url ?? plan?.play_url ?? null,
+        target: target ?? explicit ?? null,
+        shell: useChosen && chosen?.shell ? (chosen.shell as 'powershell' | 'cmd' | 'bash') : undefined,
     };
 }
 
@@ -78,7 +96,19 @@ export function pickLaunchTarget(
 export function buildLaunchCommand(
     os: Os,
     target: string,
-): { shell: 'cmd' | 'bash'; run: string } {
+    shell?: 'powershell' | 'cmd' | 'bash',
+): { shell: 'powershell' | 'cmd' | 'bash'; run: string } {
+    if (shell) {
+        return { shell, run: target };
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target)) {
+        // A registered URI scheme (steam://, lanomat://) is opened, not executed.
+        return os === 'windows'
+            ? { shell: 'cmd', run: 'start "" "' + target.replace(/"/g, '\\"') + '"' }
+            : { shell: 'bash', run: `xdg-open ${shellQuote(target)}` };
+    }
+
     if (os === 'windows') {
         return { shell: 'cmd', run: 'start "" "' + target.replace(/"/g, '\\"') + '"' };
     }
@@ -98,9 +128,9 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
     const openUrl = options.openUrl ?? ((url: string) => openBrowser(url, platform));
     const recipe = await options.api.getRecipe(options.slug);
     let plan: RecipePlan | null = null;
-    const chosen = pickLaunchTarget(recipe.launch_targets ?? null, options.os, options.variant);
 
-    if (options.variant && chosen === null && (recipe.launch_targets?.length ?? 0) > 0) {
+    if (options.variant && (recipe.launch_targets?.length ?? 0) > 0
+        && pickLaunchTarget(recipe.launch_targets ?? null, options.os, options.variant) === null) {
         const available = (recipe.launch_targets ?? []).map((entry) => entry.id).join(', ');
 
         warn(`Unknown launch target "${options.variant}" for "${options.slug}".`);
@@ -109,11 +139,14 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
         return { code: 2, kind: 'missing' };
     }
 
-    let fields = launchFields(recipe, plan, chosen);
+    let fields = launchFields(recipe, plan, options.os, options.variant);
 
     if (!fields.playUrl && !fields.target) {
-        plan = await options.api.createPlan(options.slug, options.os, { includeAvatars: false });
-        fields = launchFields(recipe, plan, chosen);
+        plan = await options.api.createPlan(options.slug, options.os, {
+            includeAvatars: false,
+            dryRun: options.dryRun,
+        });
+        fields = launchFields(recipe, plan, options.os, options.variant);
     }
 
     if (fields.playUrl) {
@@ -140,8 +173,11 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
         return { code: 2, kind: 'missing' };
     }
 
-    if (!plan && (rawTarget.includes('{{target}}') || rawTarget.includes('{{avatars}}'))) {
-        plan = await options.api.createPlan(options.slug, options.os, { includeAvatars: false });
+    if (!plan && (rawTarget.includes('{{target}}') || rawTarget.includes('{{avatars}}') || rawTarget.includes('{{downloads}}'))) {
+        plan = await options.api.createPlan(options.slug, options.os, {
+            includeAvatars: false,
+            dryRun: options.dryRun,
+        });
     }
 
     const targetDir = options.targetDir ?? plan?.target_dir ?? process.cwd();
@@ -149,10 +185,11 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
     const target = substituteVariables(rawTarget, {
         target: targetDir,
         avatars: avatarDir,
+        downloads: plan?.downloads_dir ?? targetDir,
         slug: options.slug,
         os: options.os,
     });
-    const command = buildLaunchCommand(options.os, target);
+    const command = buildLaunchCommand(options.os, target, fields.shell);
 
     if (options.dryRun) {
         log(`[dry-run] target: ${target}`);

@@ -1,4 +1,5 @@
 import type { ZudokuConfig } from "zudoku";
+import { ZoomableImage } from "./src/ZoomableImage";
 import "./styles.css";
 
 const moduleDocs = {
@@ -47,6 +48,11 @@ const moduleCategory = (label: string, group: keyof typeof moduleDocs, icon: str
 
 const config: ZudokuConfig = {
   basePath: "/docs",
+  mdx: {
+    components: {
+      img: ZoomableImage,
+    },
+  },
   site: {
     title: "LANoMAT Docs",
     logo: {
@@ -135,6 +141,20 @@ const config: ZudokuConfig = {
         { type: "doc", file: "start/quickstart", label: "Quickstart" },
         { type: "doc", file: "start/deployment", label: "Deployment" },
         { type: "doc", file: "start/tour", label: "Screen tour" },
+        { type: "doc", file: "start/screenshots", label: "Screenshots" },
+      ],
+    },
+    {
+      type: "category",
+      label: "Guides",
+      icon: "book-open",
+      items: [
+        { type: "doc", file: "guides/install-the-agent", label: "Install the agent" },
+        { type: "doc", file: "guides/install-ut2004", label: "Install UT2004 (+VR)" },
+        { type: "doc", file: "guides/install-ridge-racer", label: "Install Ridge Racer 4" },
+        { type: "doc", file: "guides/install-cs16", label: "Install CS 1.6" },
+        { type: "doc", file: "guides/upload-isos-and-avatars", label: "Upload ISOs & avatars" },
+        { type: "doc", file: "guides/lan-party-runbook", label: "LAN party runbook" },
       ],
     },
     {

@@ -121,7 +121,7 @@ class PermanentServersTable
             ->icon($icon)
             ->authorize('power')
             ->requiresConfirmation()
-            ->visible(fn (?ServerLink $record): bool => $record?->source->canControl() ?? false)
+            ->visible(fn (?ServerLink $record): bool => $record?->canBeControlled() ?? false)
             ->action(function (ServerLink $record) use ($power): void {
                 $user = Auth::user();
 

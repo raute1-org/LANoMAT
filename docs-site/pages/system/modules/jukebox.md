@@ -24,6 +24,8 @@ of Music Assistant — it never handles audio bytes.
 |---|---|
 | ![Jukebox, dark](/screens/jukebox-dark.png) | ![Jukebox, light](/screens/jukebox-light.png) |
 | `JUKEBOX · DARK` — vote-ordered LAN radio | `JUKEBOX · LIGHT` |
+| ![Admin Raumsteuerung in the dark theme, receiver unreachable banner, volume controls and a ceiling of 60](/screens/admin-room-control-dark.png) | ![Admin Raumsteuerung in the light theme, the same receiver state and volume ceiling](/screens/admin-room-control-light.png) |
+| `RAUMSTEUERUNG · DARK` — the receiver the queue plays through; ceiling 60 | `RAUMSTEUERUNG · LIGHT` — same state |
 
 ## Guards and rules
 

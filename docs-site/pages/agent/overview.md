@@ -50,7 +50,7 @@ human actions in the app.
 curl -fsSL https://lan.example/install-agent.sh | sh
 
 # 2. Pair this PC with your LANoMAT account
-lanomat-agent login --server https://lan.example
+lanomat-agent login --url https://lan.example
 
 # 3. Set up the model (Venice is the default)
 lanomat-agent model setup
@@ -65,6 +65,23 @@ lanomat-agent ask "install ut2004 for me on my pc"
 The login prints a code and opens the browser; approve the device while logged in. The token is
 stored in the agent's config (`~/.config/lanomat-agent/config.json` on Linux,
 `%APPDATA%\lanomat-agent\config.json` on Windows) with user-only permissions.
+
+| Dark | Light |
+|---|---|
+| ![Pairing approval for pi · demo-laptop with the eight-character device code, dark](/screens/mcp-connect-pending-dark.png) | ![Pairing approval for pi · demo-laptop with the eight-character device code, light](/screens/mcp-connect-pending-light.png) |
+| `PAIRING · DEVICE · CODE · APPROVE` | `PAIRING · LIGHT` |
+
+`mcp/connect` shows what is waiting: the device name the agent reported, the code from the terminal,
+and **Verbinden** / **Ablehnen**. The same page lists every agent already paired with the account.
+
+After pairing, the dashboard is the participant's home — event, ticket, seat and teams in one place:
+
+| Dark | Light |
+|---|---|
+| ![Dashboard after pairing with the live LAN, ticket, seat A3-1 and teams, dark](/screens/dashboard-dark.png) | ![Dashboard after pairing with the live LAN, ticket, seat A3-1 and teams, light](/screens/dashboard-light.png) |
+| `DASHBOARD · LAN · TICKET · SEAT` | `DASHBOARD · LIGHT` |
+
+The agent reads events, teams and files through MCP; changing them stays a human action.
 
 ## Models and fuel
 
@@ -99,3 +116,13 @@ multi-select; zero is a valid answer. A contributed recipe is a draft, not a pub
   is a separate Tauri app in <code>clients/voice/</code>. The agent is a terminal tool; it shares the
   same account and token model, not the UI.
 </div>
+
+The browser side of voice is <code>/talk</code> — rooms appear when a match is on, and the desktop
+client attaches to the same rooms:
+
+| Dark | Light |
+|---|---|
+| ![Sprachchat web voice page with the empty team-room state, dark](/screens/talk-dark.png) | ![Sprachchat web voice page with the empty team-room state, light](/screens/talk-light.png) |
+| `SPRACHCHAT · WEB VOICE · ROOMS` | `SPRACHCHAT · LIGHT` |
+
+The agent never joins a room. Voice is the client's job; the agent reads matches, files and recipes.

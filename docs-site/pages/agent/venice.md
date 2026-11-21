@@ -50,8 +50,13 @@ lanomat-agent model setup
 ```
 
 The provider reads the key from the environment; `$VENICE_API_KEY` is a reference, not the secret.
-The model list is fetched live on `model setup` and on `model list`; the JSON above only records the
+The model list is fetched live on `model setup`; the JSON above only records the
 selection.
+
+| Dark | Light |
+|---|---|
+| ![Doctor report naming the Venice provider, the reachable model catalog, the default model and the role table, dark](/screens/agent-doctor-terminal-dark.png) | ![Doctor report naming the Venice provider, the reachable model catalog, the default model and the role table, light](/screens/agent-doctor-terminal-light.png) |
+| `MODEL SETUP · DOCTOR · KEY · CATALOG · ROLES` | `MODEL SETUP · LIGHT` |
 
 ## The default model
 
@@ -88,12 +93,12 @@ the probe, switch to the documented fallback:
 ```bash
 lanomat-agent ask --model venice/zai-org-glm-5 "install ut2004 for me"
 # or persist it
-lanomat-agent model use venice/zai-org-glm-5
+lanomat-agent model setup --model venice/zai-org-glm-5
 ```
 
 ## Other models (alternatives, not defaults)
 
-IDs change. Always read the live list (`GET /models`, `lanomat-agent model list`) instead of copying
+IDs change. Always read the live list (`GET /models`, `lanomat-agent model setup`) instead of copying
 a catalogue from a blog post.
 
 | Model ID | Note |
@@ -109,10 +114,10 @@ The `venice/` prefix is pi's provider qualifier. The bare id is what Venice's AP
 
 The agent resolves the model in this order, first match wins:
 
-1. **CLI** — `--model provider/model` on `ask`, `pi --model …`, or `lanomat-agent model use`.
+1. **CLI** — `--model provider/model` on `ask`, `pi --model …`, or `lanomat-agent model setup --model …`.
 2. **`LANOMAT_AGENT_MODEL`** — a full provider/model, e.g. `venice/zai-org-glm-5`.
 3. **`OPENAI_MODEL_*`** — a generic OpenAI-compatible endpoint (see below).
-4. **Saved config** — the model chosen by `lanomat-agent model setup` / `model use`.
+4. **Saved config** — the model chosen by `lanomat-agent model setup` / `model roles`.
 5. **Venice default** — `venice/e2ee-deepseek-v4-1-flash-1017-abliterated`.
 
 `LANOMAT_AGENT_MODEL` is a single full id. The `OPENAI_MODEL_*` variables describe an endpoint, not
@@ -174,6 +179,14 @@ Any pi-native provider also works without these variables: `pi /login` for a sub
 - The LANoMAT token and the model key are separate credentials: revoking one does not touch the
   other.
 - With a local model, no prompt or response leaves the machine at all.
+
+**Settings › Verknüpfungen** is where the LANoMAT account shows what it is linked to — Steam, Twitch,
+the desktop app. The model key is not among them:
+
+| Dark | Light |
+|---|---|
+| ![Verknüpfungen settings page with Steam and Twitch unlinked and the desktop app download, dark](/screens/connections-dark.png) | ![Verknüpfungen settings page with Steam and Twitch unlinked and the desktop app download, light](/screens/connections-light.png) |
+| `VERKNÜPFUNGEN · KONTEN · DESKTOP-APP` | `VERKNÜPFUNGEN · LIGHT` |
 
 <div class="callout-live">
   <strong>Model choice is not a security boundary.</strong> The agent's tools are scoped by the

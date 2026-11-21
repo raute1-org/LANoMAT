@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Starts, stops or restarts a permanent server: through the Pelican panel for a
  * Pelican server, through `docker` on its host for a Docker server. An external
- * server cannot be controlled. A stop shows as Offline at once; everything else is
+ * server can only be controlled once it is linked to a Pelican server. A stop shows as Offline at once; everything else is
  * confirmed by the next scheduled status reading.
  */
 final class PowerPermanentServer
@@ -33,7 +33,10 @@ final class PowerPermanentServer
     {
         Gate::forUser($actor)->authorize('power', $link);
 
-        match ($link->source) {
+        // An adopted external server (linked to Pelican) is powered through the panel.
+        $source = $link->source === ServerSource::External && $link->hasPelicanLink() ? ServerSource::Pelican : $link->source;
+
+        match ($source) {
             ServerSource::Pelican => $this->pelican->handle($link, $action),
             ServerSource::Docker => $this->docker->power(
                 $link->customServer ?? throw GameServerException::dockerUnavailable(),

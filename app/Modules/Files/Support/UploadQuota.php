@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Files\Support;
 
+use App\Models\User;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Models\UploadReservation;
 
@@ -15,9 +16,17 @@ use App\Modules\Files\Models\UploadReservation;
  */
 final class UploadQuota
 {
-    public static function capBytes(): int
+    /**
+     * The upload cap per event: the user's own quota when an admin set one
+     * (`users.files_quota_mb`), otherwise the configured default.
+     */
+    public static function capBytes(?User $user = null): int
     {
-        return (int) config('files.per_user_quota_mb') * 1024 * 1024;
+        $megabytes = $user === null || $user->files_quota_mb === null
+            ? (int) config('files.per_user_quota_mb')
+            : $user->files_quota_mb;
+
+        return $megabytes * 1024 * 1024;
     }
 
     public static function maxFileBytes(): int

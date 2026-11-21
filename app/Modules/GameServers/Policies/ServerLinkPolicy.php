@@ -44,6 +44,22 @@ class ServerLinkPolicy
         return $user->isAdmin();
     }
 
+    /**
+     * Settings page of the permanent servers (class-level): orga and admin. Wider than
+     * `managePermanent` on purpose, orga runs the servers during a LAN but never creates
+     * or removes them.
+     */
+    public function configurePermanent(User $user): bool
+    {
+        return $user->isOrga();
+    }
+
+    /** Changing the settings, power state, map and plugin config of one permanent server. */
+    public function configure(User $user, ServerLink $link): bool
+    {
+        return $link->permanent && $user->isOrga();
+    }
+
     /** Starting a new server from a preset (class-level: there is no record yet). */
     public function start(User $user): bool
     {

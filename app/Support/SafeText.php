@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\GameRecipes\Support;
+namespace App\Support;
+
+use Illuminate\Support\Str;
 
 /**
  * Neutralises untrusted text before it is handed to an LLM or used as a file
@@ -17,9 +19,11 @@ namespace App\Modules\GameRecipes\Support;
  *
  * The database keeps the original value; only the outward projection is
  * flattened (one line, no control characters, bounded) or reduced to a safe
- * base name.
+ * base name. It lives in `App\Support` because both the MCP and the
+ * GameRecipes module project untrusted text — a module-to-module import would
+ * make an optional module depend on another optional one.
  */
-final class SafeText
+class SafeText
 {
     /** One bounded line: control characters become spaces, whitespace collapses. */
     public static function line(?string $value, int $max = 200): ?string
@@ -35,7 +39,9 @@ final class SafeText
             return null;
         }
 
-        return mb_substr($clean, 0, max(1, $max));
+        // Str::limit keeps `$limit` characters and appends the ellipsis on top;
+        // back off by one so the result is never longer than `$max`.
+        return Str::limit($clean, max(1, $max - 1), '…');
     }
 
     /**

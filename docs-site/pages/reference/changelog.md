@@ -75,6 +75,14 @@ phase tags `m0`–`m13` mark the MVP history.
 - 404 for missing stored files; pages no longer claim a failed load after a rejected form.
 - Mumble admin sidecar for Mumble 1.5.
 
+The file-host work of that window is visible in one place: the Filament file table, where every
+upload is approved and the store target is part of the row.
+
+| Dark | Light |
+|---|---|
+| ![Filament file table with approved uploads and their store target, dark](/screens/admin-shared-files-dark.png) | ![Filament file table with approved uploads and their store target, light](/screens/admin-shared-files-light.png) |
+| `ADMIN · DATEIEN · FREIGEGEBEN · STORE` | `ADMIN · LIGHT` |
+
 ## Before that
 
 The MVP phases are tagged in git:
@@ -95,6 +103,14 @@ The MVP phases are tagged in git:
 | `m11` | Jukebox / Music Assistant |
 | `m12` | Gallery, recap, news |
 | `m13` | Design polish: the Signalpult system |
+
+`m12` closed the content loop with gallery, recap and news; the news resource is the one orga-facing
+table in that phase.
+
+| Dark | Light |
+|---|---|
+| ![Filament news table with published posts, retract and edit actions, dark](/screens/admin-news-dark.png) | ![Filament news table with published posts, retract and edit actions, light](/screens/admin-news-light.png) |
+| `ADMIN · NEUIGKEITEN · PUBLISH · RETRACT` | `ADMIN · LIGHT` |
 
 ## How this page is maintained
 

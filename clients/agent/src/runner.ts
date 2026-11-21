@@ -395,14 +395,30 @@ export function substituteVariables(value: string, variables: Record<string, str
     });
 }
 
-export function applyStepVariables(step: PlanStep, variables: Record<string, string>): PlanStep {
+/**
+ * A step may declare commands for both platforms (`os: any` with a bash and a
+ * PowerShell variant). The OS decides which shell family runs: bash on Linux,
+ * `powershell`/`cmd` on Windows. Without this filter a Linux install would try
+ * to run PowerShell commands (and vice versa).
+ */
+function commandAppliesToOs(shell: Shell, os: 'windows' | 'linux'): boolean {
+    return os === 'windows' ? shell !== 'bash' : shell === 'bash';
+}
+
+export function applyStepVariables(
+    step: PlanStep,
+    variables: Record<string, string>,
+    os?: 'windows' | 'linux',
+): PlanStep {
     return {
         ...step,
-        commands: step.commands?.map((command) => ({
-            ...command,
-            run: substituteVariables(command.run, variables),
-        })),
-        verify: step.verify?.map((check) => {
+        commands: step.commands
+            ?.filter((command) => !os || commandAppliesToOs(command.shell, os))
+            .map((command) => ({
+                ...command,
+                run: substituteVariables(command.run, variables),
+            })),
+        verify: step.verify?.filter((check) => !os || !check.os || check.os === 'any' || check.os === os).map((check) => {
             if ('path' in check) {
                 return { ...check, path: substituteVariables(check.path, variables) };
             }
@@ -423,6 +439,8 @@ export function applyStepVariables(step: PlanStep, variables: Record<string, str
 
 export interface RunStepOptions {
     cwd: string;
+    /** Restricts the step's commands and verify checks to this platform's shell family. */
+    os?: 'windows' | 'linux';
     variables?: Record<string, string>;
     yes?: boolean;
     dryRun?: boolean;
@@ -512,7 +530,7 @@ export async function runPlanStep(step: PlanStep, options: RunStepOptions): Prom
     const log = options.log ?? (() => undefined);
     const warn = options.warn ?? (() => undefined);
     const variables = options.variables ?? {};
-    const resolved = applyStepVariables(step, variables);
+    const resolved = applyStepVariables(step, variables, options.os);
     const result: RunStepResult = { step: resolved, skipped: false, commands: [], verify: [] };
 
     // A dry run has no side effects: no prompt, no download, no process, no filesystem check.

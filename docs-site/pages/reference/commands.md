@@ -23,6 +23,14 @@ In development, `php artisan <command>` from the repository root.
 | `lanomat:heartbeat` | Write the queue heartbeat used by Preflight. |
 | `lanomat:health-watch` | Evaluate checks and notify orga on a transition. |
 
+`lanomat:preflight` prints the same registry the admin tile renders. `lanomat:check-updates` and
+`lanomat:heartbeat` feed it; a failing row names the subsystem and the next step.
+
+| Dark | Light |
+|---|---|
+| ![Admin dashboard with the Preflight-Ampel, database OK and Redis down, dark](/screens/admin-dark.png) | ![Admin dashboard with the Preflight-Ampel, database OK and Redis down, light](/screens/admin-light.png) |
+| `ADMIN · PREFLIGHT-AMPEL · DB OK · REDIS DOWN` | `ADMIN · LIGHT` |
+
 ## Scheduler jobs
 
 These are registered in `routes/console.php` and run via `php artisan schedule:work` (the
@@ -38,10 +46,20 @@ These are registered in `routes/console.php` and run via `php artisan schedule:w
 | `lanomat:jukebox-tick` | every minute | Poll Music Assistant and advance the queue |
 | `lanomat:sweep-file-uploads` | every 10 min | Release abandoned tus reservations |
 | `lanomat:refresh-avatars [--all] [--user=<id>] [--pause=150]` | daily 04:30 | Refresh local avatars |
+| `lanomat:recipes:sync [source] [--prune] [--json]` | daily 04:15 | Import recipes from the bundled directory, SMB share or git; updates files in place |
 | `presence:refresh-locations` | every minute | Rebuild the "who is where" snapshot |
 | `webvoice:prune` | daily | Remove old web-voice data |
 | `gameservers:refresh-queries` | every minute | Query running game servers |
 | `gameservers:refresh-permanent` | every minute | Reconcile permanent servers |
+
+The reminder jobs end up in the participant's bell: event reminders, "starting soon" and change
+alarms are notification categories people can mute per type. The panel below is the empty state on a
+dashboard with no event running.
+
+| Dark | Light |
+|---|---|
+| ![Dashboard with the notification bell open and no unread notifications, dark](/screens/notifications-dark.png) | ![Dashboard with the notification bell open and no unread notifications, light](/screens/notifications-light.png) |
+| `DASHBOARD · BELL · NO UNREAD` | `DASHBOARD · LIGHT` |
 
 ## Discord
 
@@ -66,6 +84,8 @@ All provisioning commands take `--as=<user-id>` when run from the CLI without a 
 
 | Command | What it does |
 |---|---|
+| `lanomat:recipes:sync [source] [--prune] [--json]` | Import recipes; `--prune` removes recipes whose directory vanished |
+| `lanomat:recipes:export <dir> [--all]` | Write the catalogue as agent skill directories (`SKILL.md` + `recipe.json`); drafts only with `--all` |
 | `node resources/recipes/schema/validate.mjs` | Validate every recipe against `lanomat.recipe/v1` |
 | `npm run screenshots` (in `docs-site/`) | Copy the app's screenshots into the docs |
 | `npm run check:links` (in `docs-site/`) | Fail on broken internal doc links |

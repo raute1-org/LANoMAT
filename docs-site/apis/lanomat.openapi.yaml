@@ -163,19 +163,20 @@ paths:
         Call `initialize`, then `notifications/initialized`, then `tools/list`,
         `resources/list` and `prompts/list`.
 
-        The token is the paired device token. A missing or expired token answers `401` with
-        `WWW-Authenticate: Bearer`. The `Mcp-Session-Id` response header from `initialize`
-        must be echoed on later requests.
+        The token is the paired device token. A missing, expired or revoked token answers `401`
+        with `WWW-Authenticate: Bearer`. The endpoint is **stateless**: no `Mcp-Session-Id` is
+        issued or required. `GET`/`DELETE /mcp` answer `405`.
 
-        **Tools:** `lanomat_me`, `lanomat_list_recipes`, `lanomat_get_recipe`,
-        `lanomat_get_recipe_skill`, `lanomat_plan_recipe`, `lanomat_list_recipe_files`,
-        `lanomat_list_recipe_avatars`, `lanomat_list_files`, `lanomat_file_download_url`,
-        `lanomat_contribute_recipe`.
+        **Tools (24):** `lanomat_me`, `events_list`, `event_get`, `event_register`, `teams_list`,
+        `tournament_list`, `tournament_bracket`, `tournament_checkin`, `match_result`,
+        `games_search`, `servers_list`, `files_list`, `file_download_url`, `schedule_list`,
+        `polls_list`, `poll_vote`, `catering_menu`, `lfg_list`, `lfg_create`, `recipes_list`,
+        `recipe_get`, `recipe_install_plan`, `recipe_avatars`, `recipe_contribute` — the
+        catalogue page is authoritative; the server paginates `tools/list` at 15 per page.
 
-        **Resources:** `recipe://<slug>` (YAML) and `skill://<slug>` (Markdown).
+        **Resources:** one template, `lanomat://recipes/{slug}/skill` (Markdown).
 
-        **Prompts:** `install_game`, `pick_avatars`, `contribute_recipe`,
-        `troubleshoot_install`.
+        **Prompts:** one, `install-game`.
       requestBody:
         required: true
         content:
@@ -202,20 +203,13 @@ paths:
                   id: 2
                   method: tools/call
                   params:
-                    name: lanomat_plan_recipe
+                    name: recipe_install_plan
                     arguments:
-                      slug: unreal-tournament-2004
-                      platform: windows
-                      optional: [ut2004vr]
-                      avatars: [ayla, brutus]
+                      slug: ut2004
+                      os: windows
       responses:
         "200":
           description: JSON-RPC response or SSE stream.
-          headers:
-            Mcp-Session-Id:
-              description: Session id returned by `initialize`; echo it on later calls.
-              schema:
-                type: string
           content:
             application/json:
               schema:
@@ -226,7 +220,7 @@ paths:
                 result:
                   content:
                     - type: text
-                      text: '{"recipe":"unreal-tournament-2004","platform":"windows","bytes":4722130000,"steps":6}'
+                      text: '{"recipe":{"slug":"unreal-tournament-2004"},"os":"windows","files":[],"missing":[]}'
             text/event-stream:
               schema:
                 type: string
@@ -526,9 +520,10 @@ paths:
       summary: Plan install
       description: |
         Resolves the recipe against the LAN file host and returns the required and optional
-        content, the target, estimated bytes and the number of steps/checks. **Pure:** no file
-        is downloaded and no command runs. A missing required file answers `422` with the role
-        and the glob that failed.
+        content, the target, every step and what is missing. **Pure:** no file is downloaded and
+        no command runs. A missing required file is not an error: it is listed in `missing`
+        (and as `status: missing` in `files`) with HTTP `200`. External entries are release
+        pages (`status: manual`) unless they point at a direct asset file.
       parameters:
         - $ref: "#/components/parameters/RecipeSlug"
       requestBody:
@@ -538,10 +533,9 @@ paths:
             schema:
               $ref: "#/components/schemas/PlanRequest"
             example:
-              platform: windows
-              optional: [ut2004vr]
-              avatars: [ayla, brutus]
-              target: "C:\\Games\\UT2004"
+              os: windows
+              event_slug: lan-2026
+              dry_run: false
       responses:
         "200":
           description: The install plan.
@@ -550,44 +544,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/Plan"
               example:
-                recipe: unreal-tournament-2004
-                platform: windows
-                target: "C:\\Games\\UT2004"
-                required:
-                  - role: iso
-                    file: ut2004-dvd1.iso
+                recipe:
+                  slug: unreal-tournament-2004
+                  title: Unreal Tournament 2004
+                  launch_target: Start-Process "{{target}}/System/UT2004.exe"
+                  launch_targets:
+                    - id: flat-windows
+                      os: windows
+                      shell: powershell
+                      command: Start-Process "{{target}}/System/UT2004.exe"
+                  play_url: null
+                os: windows
+                target_dir: "C:\\Games\\Unreal Tournament 2004"
+                downloads_dir: "C:\\Games\\Unreal Tournament 2004/.lanomat-downloads"
+                steps:
+                  - id: install-base
+                    title: Install from the LAN disc image
+                    os: windows
+                    optional: false
+                files:
+                  - requirement: iso
+                    label: UT2004 DVD 1
+                    status: matched
+                    required: true
+                    name: ut2004-dvd1.iso
                     size_bytes: 4500000000
-                  - role: patch
-                    file: OldUnreal-UT2004Patch3374-Windows.zip
-                    size_bytes: 183000000
-                optional:
-                  - role: mod
-                    file: UT2004VR.zip
-                    size_bytes: 24000000
-                    selected: true
-                avatars:
-                  - slug: ayla
-                    file: ayla.vrm
-                    size_bytes: 18000000
-                  - slug: brutus
-                    file: brutus.vrm
-                    size_bytes: 21000000
-                bytes: 4722130000
-                steps: 6
-                verification: 4
-                plan_hash: 5c1e9a7b4d2f
+                    source: lan
+                downloads: []
+                avatars: []
+                missing: []
+                generated_at: "2026-11-21T01:00:00+00:00"
         "422":
-          description: Invalid platform, unknown optional pick, or missing required content.
+          description: Invalid `os`, unknown event or unknown recipe alias. Check `files`/`missing` for content gaps.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: required_content_missing
-                  message: "required content not found: iso (ut2004*.iso)"
-                  role: iso
-                  match: ["ut2004*.iso", "UT2004*.iso"]
 
   /api/v1/recipes/{slug}/files:
     get:
@@ -1128,74 +1120,166 @@ components:
 
     PlanRequest:
       type: object
-      required: [platform]
       properties:
-        platform:
+        os:
           type: string
-          enum: [windows, linux, macos]
-        optional:
-          type: array
-          description: Selected optional roles or slugs (e.g. `ut2004vr`).
-          items:
-            type: string
-        avatars:
-          type: array
-          description: Avatar slugs from the multi-select. Zero is valid.
-          items:
-            type: string
-        target:
+          enum: [windows, linux, macos, win, mac]
+          default: windows
+          description: Target OS. `win`/`mac` are accepted aliases and normalised.
+        event_slug:
           type: string
-          description: Install folder. The recipe's default is used when omitted.
-          example: "C:\\Games\\UT2004"
+          description: Restrict LAN file matching to this public event.
+        dry_run:
+          type: boolean
+          default: false
+          description: Do not write a `game_recipe_installs` audit row.
 
     Plan:
       type: object
-      required: [recipe, platform, required, optional, avatars, bytes, steps, verification, plan_hash]
+      required: [recipe, os, target_dir, downloads_dir, steps, files, downloads, avatars, missing, generated_at]
       properties:
         recipe:
+          type: object
+          required: [slug, title]
+          properties:
+            slug:
+              type: string
+            title:
+              type: string
+            version:
+              type: string
+              nullable: true
+            skill:
+              type: string
+              description: Agent Skill name from SKILL.md.
+            launch_target:
+              type: string
+              nullable: true
+              description: Default launch command for the OS.
+            launch_targets:
+              type: array
+              items:
+                $ref: "#/components/schemas/LaunchTarget"
+            launch_command:
+              type: string
+              description: Human-readable hint (`lanomat-agent launch <slug>`), not an executable.
+            play_url:
+              type: string
+              nullable: true
+              description: Browser game URL; `{{host}}` is already substituted.
+        os:
           type: string
-        platform:
+          enum: [windows, linux, macos]
+        target_dir:
           type: string
-        target:
+        downloads_dir:
           type: string
-        required:
+        steps:
           type: array
           items:
-            $ref: "#/components/schemas/PlanItem"
-        optional:
+            type: object
+            additionalProperties: true
+            required: [id, title, os]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              os:
+                type: string
+                enum: [windows, linux, macos, any]
+              optional:
+                type: boolean
+        files:
           type: array
+          description: Every recipe requirement, matched or not.
           items:
-            $ref: "#/components/schemas/PlanItem"
+            $ref: "#/components/schemas/PlanFile"
+        downloads:
+          type: array
+          description: The subset of `files` with a URL (LAN match or external file).
+          items:
+            $ref: "#/components/schemas/PlanFile"
         avatars:
           type: array
+          description: Avatar multi-select entries; zero is valid.
           items:
-            $ref: "#/components/schemas/PlanItem"
-        bytes:
-          type: integer
-          format: int64
-        steps:
-          type: integer
-        verification:
-          type: integer
-        plan_hash:
+            $ref: "#/components/schemas/Avatar"
+        missing:
+          type: array
+          description: Labels of required files with no LAN match and no URL.
+          items:
+            type: string
+        generated_at:
           type: string
-          description: Changes when the recipe or the resolved files change; a stale plan is rejected.
+          format: date-time
 
-    PlanItem:
+    PlanFile:
       type: object
-      required: [role, file]
+      required: [requirement, label, status, required]
       properties:
-        role:
+        recipe_file_id:
+          type: integer
+        requirement:
           type: string
-        file:
+          description: Role such as `base`, `iso`, `patch`, `mod`, `tool`, `avatar`.
+        label:
           type: string
+        status:
+          type: string
+          enum: [matched, missing, external, manual]
+        required:
+          type: boolean
+        name:
+          type: string
+          description: LAN file name or external asset file name.
         size_bytes:
           type: integer
           format: int64
-        selected:
-          type: boolean
-        slug:
+        sha256:
           type: string
+          nullable: true
+        source:
+          type: string
+          enum: [lan, external, manual]
+          nullable: true
+        download_url:
+          type: string
+          nullable: true
+          description: Bearer-authenticated LAN download or direct external asset URL.
+        fallback_url:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+          description: Release/page URL for manual entries.
+        manual:
+          type: boolean
+        shared_file_id:
+          type: integer
+          nullable: true
+
+    LaunchTarget:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        os:
+          type: string
+          enum: [windows, linux, macos, any]
+        shell:
+          type: string
+          enum: [powershell, cmd, bash]
+        target:
+          type: string
+        command:
+          type: string
+        notes:
+          type: string
+          nullable: true
 
     RecipeFile:
       type: object

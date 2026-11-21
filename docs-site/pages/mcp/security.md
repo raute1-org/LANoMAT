@@ -22,11 +22,26 @@ The token's effective permissions are the approving user's role. A participant c
 draft recipe; an orga can. Revoking the device in the browser invalidates the token immediately,
 including an open MCP session on the next call.
 
+| Dark | Light |
+|---|---|
+| ![MCP connect page with a code field and two paired agents, dark](/screens/mcp-connect-dark.png) | ![MCP connect page with a code field and two paired agents, light](/screens/mcp-connect-light.png) |
+| `Agent & MCP verbinden · DARK` — code entry above the agents already paired, each with Trennen | `Agent & MCP verbinden · LIGHT` |
+
+`Trennen` is the whole revocation path: the row disappears, and the next call from that token is a
+`401`. The same page shows the code from the agent, so the human approves a code they can compare.
+
 <div class="callout-live">
   <strong>Device-code phishing is the real risk.</strong> An attacker who starts a pairing flow can
   send you a code and ask you to approve it. Always compare the code in the browser with the code
   the agent shows, and only approve a device you started.
 </div>
+
+The role behind the token is the same role the orga sees in the user list:
+
+| Dark | Light |
+|---|---|
+| ![Filament user list with role badges per participant, dark](/screens/admin-users-dark.png) | ![Filament user list with role badges per participant, light](/screens/admin-users-light.png) |
+| `Nutzer · DARK` — name, e-mail, Rolle and registration date per account | `Nutzer · LIGHT` |
 
 ## What the server cannot do
 
@@ -40,6 +55,14 @@ including an open MCP session on the next call.
 - No admin panel access; `/admin` remains session-authenticated.
 - No implicit trust of a recipe: a recipe is data, and its steps are shown to the human before they
   run.
+
+Account links are a separate surface, not an MCP grant: Steam and Twitch stay optional identities,
+and linking one widens nothing a token can read.
+
+| Dark | Light |
+|---|---|
+| ![Settings connections tab listing Steam and Twitch as not linked, dark](/screens/connections-dark.png) | ![Settings connections tab listing Steam and Twitch as not linked, light](/screens/connections-light.png) |
+| `Verknüpfungen · DARK` — Steam and Twitch unlinked; MCP devices live on the connect page | `Verknüpfungen · LIGHT` |
 
 ## Prompt injection
 
@@ -74,6 +97,14 @@ fetch it, even with a valid token.
 - A revoked token cannot be refreshed; pair again.
 
 ## Operator checklist
+
+The admin dashboard is where the checklist below is visible: the Preflight tile turns red before a
+guest does, and the module toggles sit in the same panel.
+
+| Dark | Light |
+|---|---|
+| ![Filament dashboard with the Preflight tiles for database, Redis, storage and jobs, dark](/screens/admin-dark.png) | ![Filament dashboard with the Preflight tiles for database, Redis, storage and jobs, light](/screens/admin-light.png) |
+| `ADMIN · DARK` — the Preflight-Ampel the checklist reads, one tile per dependency | `ADMIN · LIGHT` |
 
 - [ ] `MODULE_MCP=true` only if the LAN uses agents.
 - [ ] The public host has a valid certificate; `/mcp` is HTTPS.

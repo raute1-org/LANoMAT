@@ -19,6 +19,11 @@ tool catalogue — no imaginary tools, no magic.
 | "Which avatars are on the LAN?" | `recipe_avatars`, presents a multi-select, never invents files |
 | "What's missing for the install?" | `recipe_install_plan`, reports the failed role and glob |
 
+| Dark | Light |
+|---|---|
+| ![MCP docs page with the endpoint, a pairing JSON response and the page links, dark](/screens/docs-mcp-dark.png) | ![MCP docs page with the endpoint, a pairing JSON response and the page links, light](/screens/docs-mcp-light.png) |
+| `MCP · DARK` — endpoint, pairing call and the screenshot pairs; the page behind every prompt | `MCP · LIGHT` |
+
 <div class="callout-live">
   <strong>Live example.</strong> The operator runs the deployed UT2004VR/VRM instance for this recipe
   at <a href="https://ut.raute1.org/">ut.raute1.org</a> — a live counterpart to the prompts below.
@@ -79,6 +84,14 @@ Do not download anything yet.
 `recipe_install_plan` is pure. This is the safe way to check whether the LAN has the disc before
 promising a friend an install.
 
+| Dark | Light |
+|---|---|
+| ![Terminal window running lanomat-agent install --dry-run with planned files, steps and avatars, dark](/screens/agent-install-terminal-dark.png) | ![Terminal window running lanomat-agent install --dry-run with planned files, steps and avatars, light](/screens/agent-install-terminal-light.png) |
+| `lanomat-agent install --dry-run · DARK` — files by role, steps, avatars, not a byte fetched | `lanomat-agent install --dry-run · LIGHT` |
+
+The transcript is what a good prompt should produce: `[LAN]` and `[EXTERNAL]` tags, the byte total,
+four checks, and the avatars offered as a multi-select instead of a yes/no chain.
+
 ## Pick avatars
 
 ```text
@@ -110,6 +123,11 @@ Validate the shape and submit it as a draft.
 
 `recipe_contribute` creates a draft, not a published recipe. The orga reviews it, runs the
 JSON Schema validator and publishes.
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight tiles and the orga sidebar, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight tiles and the orga sidebar, light](/screens/admin-light.png) |
+| `ADMIN · DARK` — the panel where a submitted draft recipe is reviewed and published | `ADMIN · LIGHT` |
 
 ## Troubleshoot
 

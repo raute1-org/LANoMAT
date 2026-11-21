@@ -79,6 +79,18 @@
         "cover": {
             "type": "string"
         },
+        "play_url": {
+            "type": "string",
+            "pattern": "^$|^https?://",
+            "description": "Page a player opens to play on the LAN. Use the {{host}} template variable for the LAN address of the machine that hosts the game; localhost is only correct on that machine itself."
+        },
+        "launch_targets": {
+            "type": "array",
+            "description": "Ways to start the installed game, when they differ (for example flat versus VR). The first entry is the default.",
+            "items": {
+                "$ref": "#/$defs/launchTarget"
+            }
+        },
         "skill": {
             "type": "object",
             "additionalProperties": false,
@@ -125,14 +137,13 @@
                     "type": "string",
                     "minLength": 1
                 },
-                "players_max": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 1024,
-                    "description": "Highest simultaneous player count the recipe's mode supports, for filtering and sorting. Use 1 for a single-player-only recipe."
-                },
                 "lan_recommended": {
                     "type": "boolean"
+                },
+                "live_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "A live deployment of this recipe, when one exists (for example a LAN event's public UT2004VR server)."
                 },
                 "tags": {
                     "type": "array",
@@ -142,73 +153,42 @@
                     },
                     "uniqueItems": true
                 },
+                "players_max": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024,
+                    "description": "Highest simultaneous player count the recipe's mode supports, for filtering and sorting. Use 1 for a single-player-only recipe."
+                },
                 "launch": {
-                    "description": "How to start the installed game: a flat command string, or {kind: steam|uri|exe, target, args?}. For several ways use launch_targets.",
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "minLength": 1
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "target"],
+                    "description": "How a launcher starts the game after the install. Omit when there is no single sensible entry point.",
+                    "properties": {
+                        "kind": {
+                            "enum": ["steam", "uri", "exe"],
+                            "description": "steam = Steam URL, uri = any other registered URL scheme, exe = executable inside the install target."
                         },
-                        {
-                            "$ref": "#/$defs/launchSpec"
+                        "target": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Steam/URI target or executable path. Template variables such as {{target}} are resolved by the installer."
+                        },
+                        "args": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "description": "Arguments passed to the executable, in order."
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "What the user still has to do, for example choosing a server or a game from the emulator list."
                         }
-                    ]
-                },
-                "launch_targets": {
-                    "description": "Named ways to start the installed game, most useful first (flat, VR). Wins over launch.",
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/$defs/launchTarget"
                     }
-                },
-                "launch_vr": {
-                    "description": "Legacy shortcut for a second (VR) command; equivalent to a launch_targets entry with id vr.",
-                    "type": "string",
-                    "minLength": 1
-                },
-                "live_url": {
-                    "type": "string",
-                    "description": "A live deployment of this recipe, when one exists (an event's public server)."
-                },
-                "play_url": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Browser game or web front end; use {{host}} for the LAN address that serves it."
-                },
-                "install_size": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "note": {
-                    "type": "string"
                 }
             }
-        },
-        "play_url": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Deprecated alias of metadata.play_url; metadata wins."
-        },
-        "launch_targets": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "$ref": "#/$defs/launchTarget"
-            },
-            "description": "Deprecated alias of metadata.launch_targets; metadata wins."
-        },
-        "launch": {
-            "oneOf": [
-                {
-                    "type": "string",
-                    "minLength": 1
-                },
-                {
-                    "$ref": "#/$defs/launchSpec"
-                }
-            ],
-            "description": "Deprecated alias of metadata.launch; metadata wins."
         }
     },
     "$defs": {
@@ -220,6 +200,36 @@
         "glob": {
             "type": "string",
             "minLength": 1
+        },
+        "launchTarget": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "os", "command"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                    "maxLength": 64
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                },
+                "os": {
+                    "enum": ["windows", "linux", "any"]
+                },
+                "command": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "shell": {
+                    "enum": ["powershell", "cmd", "bash"]
+                },
+                "notes": {
+                    "type": "string"
+                }
+            }
         },
         "requirement": {
             "type": "object",
@@ -309,8 +319,8 @@
                     "minLength": 1
                 },
                 "os": {
-                    "enum": ["windows", "linux", "macos", "any"],
-                    "description": "Only check this entry on that OS; default any."
+                    "enum": ["windows", "linux", "any"],
+                    "description": "Run this check only on the given platform; omit for any platform the step runs on."
                 }
             },
             "allOf": [
@@ -390,67 +400,6 @@
                     "items": {
                         "$ref": "#/$defs/verification"
                     }
-                }
-            }
-        },
-        "launchSpec": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["kind", "target"],
-            "properties": {
-                "kind": {
-                    "enum": ["steam", "uri", "exe"]
-                },
-                "target": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "args": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
-                },
-                "shell": {
-                    "enum": ["powershell", "cmd", "bash"]
-                },
-                "notes": {
-                    "type": "string"
-                }
-            }
-        },
-        "launchTarget": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id", "label", "os", "command"],
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "label": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "os": {
-                    "enum": ["windows", "linux", "macos", "any"]
-                },
-                "command": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "shell": {
-                    "enum": ["powershell", "cmd", "bash"]
-                },
-                "notes": {
-                    "type": "string"
                 }
             }
         }

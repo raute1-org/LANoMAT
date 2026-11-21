@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
+use App\Support\SafeText;
 
 /**
  * The avatar/content catalogue both the MCP tool and the REST endpoint return.

@@ -343,11 +343,12 @@ lanomat-agent install ut2004 --os windows
    `--avatar` is given;
 4. downloads every LAN file first (resume-safe `.part`, HTTP Range, sha256 verification when the
    server sends one) and then the avatars in parallel (default `--jobs 4`), to the plan's
-   `target_dir` and to `{{avatars}}`; a transfer that delivers no bytes for 60 s is aborted and the
+   `downloads_dir` (usually `<target_dir>/.lanomat-downloads`) and to `{{avatars}}`; a transfer that delivers no bytes for 60 s is aborted and the
    `.part` file is kept for the next attempt, and a body larger than the announced `size_bytes`
    (or an absolute `maxBytes` cap) is refused without producing the final file;
 5. runs the plan's `commands` for the OS (`powershell`, `cmd`, `bash`) in the target directory,
-   substitutes `{{avatars}}`, `{{target_dir}}`, `{{os}}`, `{{slug}}`, `{{event}}` and
+   substitutes `{{target}}`, `{{target_dir}}`, `{{downloads}}` (the download directory),
+   `{{host}}` (the LANoMAT host name), `{{avatars}}`, `{{os}}`, `{{slug}}`, `{{event}}` and
    `{{recipe_dir}}`, asks before optional steps unless `--yes`, and runs the `verify` checks after
    each step;
 6. `--dry-run` prints the plan and every command without downloading or executing.
@@ -410,10 +411,13 @@ Deep-link scheme:
 
 - `play_url` set: opens it in the default browser (`xdg-open` on Linux, `open` on macOS, `start` on
   Windows) and exits 0.
-- otherwise `launch_target` (or `launch_command`): substitutes `{{target}}` with the plan's
-  `target_dir` and `{{avatars}}` with the avatar directory, then runs it through the same command
-  runner as install steps. On Windows the command is `cmd /c start "" "<path>"` so the game starts
-  detached. `--dry-run` prints it without starting.
+- otherwise a launch target: an explicit `--variant <id>` picks one from `launch_targets`
+  (`flat`, `vr`, …; an unknown id exits 2 and lists the available ones), else the recipe-level
+  `launch_target`, else the first target declared for `--os`. The chosen target's `shell` is
+  honoured, so a PowerShell command runs in PowerShell instead of being wrapped in `cmd /c start`.
+  Targets are substituted like step commands (`{{target}}`, `{{avatars}}`, `{{downloads}}`), and a
+  URI such as `steam://rungameid/10` is opened with the platform opener. `--dry-run` prints the
+  command without starting.
 - neither: prints a clear install suggestion and exits 2.
 
 The UT2004 recipe uses
@@ -471,7 +475,7 @@ and passes that path to step commands as `{{avatars}}`. This is the UT2004+VRM p
 | `recipes [--json]` | published recipe list |
 | `plan <slug> [--os] [--event] [--json]` | readable plan |
 | `install <slug> [--os] [--yes] [--avatar …] [--allow-external] [--dry-run] [--jobs] [--chat]` | installer |
-| `launch <slug> [--os] [--target] [--avatars] [--dry-run]` | play_url browser or local launch_target |
+| `launch <slug> [--os] [--target] [--avatars] [--variant <id>] [--dry-run]` | play_url browser or a local launch target (`--variant` picks one) |
 | `open <lanomat://…>` | deep-link handler for install/launch/play |
 | `register [--yes]` | register the `lanomat://` scheme (Linux .desktop / Windows reg) |
 | `avatars [--recipe] [--all] [--avatar …] [--dest] [--jobs]` | VRM catalog + downloads |

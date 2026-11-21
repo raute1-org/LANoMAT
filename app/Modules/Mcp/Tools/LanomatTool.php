@@ -7,7 +7,7 @@ namespace App\Modules\Mcp\Tools;
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Exceptions\RecipeException;
-use App\Modules\GameRecipes\Support\SafeText;
+use App\Modules\Mcp\Support\SafeText;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use DomainException;

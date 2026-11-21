@@ -5,11 +5,11 @@ namespace App\Modules\Files\Actions;
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Contracts\FileStore;
-use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
 use App\Modules\Files\Support\UploadQuota;
+use App\Modules\Files\Support\UploadReview;
 use App\Modules\Files\Support\UploadTypeGuard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -88,7 +88,7 @@ class UploadSharedFile
             // Open resumable-upload reservations hold quota too.
             $existingBytes += UploadQuota::reservedBytes($event->id, $actor->id);
 
-            $quotaBytes = UploadQuota::capBytes();
+            $quotaBytes = UploadQuota::capBytes($actor);
             $sizeBytes = $file->getSize();
 
             if ($sizeBytes === false) {
@@ -121,7 +121,7 @@ class UploadSharedFile
                 'size_bytes' => $sizeBytes,
                 // The sniffed type, not the client's claim.
                 'mime' => UploadTypeGuard::fromConfig()->sniffMime($file) ?? 'application/octet-stream',
-                'visibility' => FileVisibility::Pending,
+                ...UploadReview::initialFor($actor),
             ]);
             $sharedFile->save();
 

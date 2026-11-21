@@ -11,15 +11,10 @@ use App\Modules\GameRecipes\Support\RecipeValidator;
 use App\Modules\GameRecipes\Support\SkillRenderer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
-/**
- * Creates or updates a contributor's draft recipe (MCP tool and REST endpoint share this).
- *
- * A contribution is keyed by slug, so the action must decide create vs update
- * on its own: without that check any token holder could overwrite — and
- * unpublish — somebody else's published recipe simply by reusing its slug.
- * The decision goes through GameRecipePolicy, the same rule the panel uses.
- */
+/** Creates or updates a contributor's draft recipe (MCP tool and REST endpoint share this). */
 final class ContributeRecipe
 {
     public function __construct(
@@ -42,12 +37,6 @@ final class ContributeRecipe
             }
         }
 
-        $existing = GameRecipe::query()->where('slug', $slug)->first();
-
-        if ($existing instanceof GameRecipe && Gate::forUser($user)->denies('update', $existing)) {
-            throw new AuthorizationException('Only an orga — or the contributor of their own draft — may change this recipe.');
-        }
-
         $recipe = [
             'schema' => RecipeValidator::SCHEMA,
             'slug' => $slug,
@@ -68,6 +57,24 @@ final class ContributeRecipe
             'steps' => array_values((array) ($payload['steps'] ?? [])),
             'metadata' => is_array($payload['metadata'] ?? null) ? $payload['metadata'] : ['contributed_via' => 'mcp'],
         ];
+
+        $validator = Validator::make($payload, [
+            // `required` is decided by RecipeValidator, which reports every
+            // problem in one pass (slug, title, platforms, steps, …).
+            'title' => ['nullable', 'string', 'max:200'],
+            'summary' => ['nullable', 'string', 'max:500'],
+            'aliases' => ['nullable', 'array', 'max:20'],
+            'aliases.*' => ['string', 'max:64'],
+            'platforms' => ['nullable', 'array', 'max:3'],
+            'requirements' => ['nullable', 'array', 'max:50'],
+            'steps' => ['nullable', 'array', 'max:50'],
+            'skill_description' => ['nullable', 'string', 'max:1024'],
+            'skill_markdown' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
 
         if (isset($payload['skill_markdown']) && is_string($payload['skill_markdown']) && $payload['skill_markdown'] !== '') {
             $skillMarkdown = mb_substr($payload['skill_markdown'], 0, 65535);

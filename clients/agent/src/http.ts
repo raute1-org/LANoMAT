@@ -210,7 +210,17 @@ export class ApiClient {
     }
 
     async getRecipe(slug: string): Promise<RecipeDetail> {
-        return this.request<RecipeDetail>(`/api/v1/recipes/${encodeURIComponent(validateRecipeSlug(slug))}`);
+        const payload = await this.request<RecipeDetail | { recipe: RecipeDetail }>(
+            `/api/v1/recipes/${encodeURIComponent(validateRecipeSlug(slug))}`,
+        );
+
+        // /api/v1 wraps the detail in {recipe}; accept both shapes so an older
+        // or newer server does not break launch/install.
+        if (typeof payload === 'object' && payload !== null && 'recipe' in payload) {
+            return (payload as { recipe: RecipeDetail }).recipe;
+        }
+
+        return payload as RecipeDetail;
     }
 
     async getSkill(slug: string): Promise<string> {
@@ -223,12 +233,16 @@ export class ApiClient {
     async createPlan(
         slug: string,
         os: Os,
-        options: { eventSlug?: string; includeAvatars?: boolean } = {},
+        options: { eventSlug?: string; includeAvatars?: boolean; dryRun?: boolean } = {},
     ): Promise<RecipePlan> {
         const body: Record<string, unknown> = { os, include_avatars: options.includeAvatars ?? true };
 
         if (options.eventSlug) {
             body.event_slug = options.eventSlug;
+        }
+
+        if (options.dryRun) {
+            body.dry_run = true;
         }
 
         return this.request<RecipePlan>(

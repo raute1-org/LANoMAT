@@ -11,6 +11,7 @@ use App\Modules\GameRecipes\Enums\InstallStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Models\GameRecipeInstall;
+use App\Support\SafeText;
 use Illuminate\Support\Str;
 
 /**
@@ -24,7 +25,7 @@ final class BuildInstallPlan
     public function __construct(private readonly RecipeFileMatcher $matcher) {}
 
     /** @return array<string, mixed> */
-    public function handle(GameRecipe $recipe, User $viewer, string $os, ?Event $event = null): array
+    public function handle(GameRecipe $recipe, User $viewer, string $os, ?Event $event = null, bool $record = true): array
     {
         $os = $this->normalizeOs($os);
         $matches = $this->matcher->matchesFor($recipe, $viewer, $event);
@@ -82,6 +83,10 @@ final class BuildInstallPlan
                 'title' => $recipe->title,
                 'version' => $recipe->version,
                 'skill' => $this->skillName($recipe),
+                'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => $recipe->launchTargets(),
+                'launch_command' => $recipe->launchCommand(),
+                'play_url' => $recipe->playUrl(),
             ],
             'os' => $os,
             'target_dir' => $target,
@@ -94,13 +99,15 @@ final class BuildInstallPlan
             'generated_at' => now()->toIso8601String(),
         ];
 
-        GameRecipeInstall::query()->create([
-            'game_recipe_id' => $recipe->id,
-            'user_id' => $viewer->getKey(),
-            'os' => $os,
-            'status' => InstallStatus::Planned,
-            'plan' => $plan,
-        ]);
+        if ($record) {
+            GameRecipeInstall::query()->create([
+                'game_recipe_id' => $recipe->id,
+                'user_id' => $viewer->getKey(),
+                'os' => $os,
+                'status' => InstallStatus::Planned,
+                'plan' => $plan,
+            ]);
+        }
 
         return $plan;
     }
@@ -131,7 +138,7 @@ final class BuildInstallPlan
     {
         // A title is authored text, not a path: strip every separator and any
         // ".." run before it becomes a directory name on the player's disk.
-        $name = trim((string) preg_replace('/[<>:"|?*\\\\\/]+|\.\.+/', '', $recipe->title));
+        $name = trim((string) preg_replace('/[<>:"|?*~\\\\\/]+|\.\.+/', '', $recipe->title));
 
         if ($name === '') {
             $name = $recipe->slug;
@@ -186,19 +193,27 @@ final class BuildInstallPlan
     /** @return array<string, mixed> */
     private function externalDto(GameRecipeFile $entry): array
     {
+        $url = (string) $entry->url;
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $isFile = preg_match('/\.(iso|zip|7z|rar|tar|bz2|gz|xz|exe|msi|dmg|appimage|vrm|bin|cue|chd)$/i', $path) === 1;
+
         return [
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
             'label' => self::label($entry),
-            'status' => 'external',
+            // A URL that names a file is an external download; anything else
+            // (a release page, a tool homepage) is a manual step.
+            'status' => $isFile ? 'external' : 'manual',
             'required' => $entry->required,
-            'source' => 'external',
-            'name' => SafeText::fileName(basename((string) parse_url((string) $entry->url, PHP_URL_PATH))),
+            'source' => $isFile ? 'external' : 'manual',
+            'name' => $isFile ? SafeText::fileName(basename($path)) : self::label($entry),
             'size_bytes' => $entry->size_bytes,
             'sha256' => $entry->sha256,
             'shared_file_id' => null,
-            'download_url' => $entry->url,
-            'fallback_url' => $entry->url,
+            'download_url' => $isFile ? $url : null,
+            'fallback_url' => $isFile ? $url : null,
+            'url' => $url,
+            'manual' => ! $isFile,
         ];
     }
 

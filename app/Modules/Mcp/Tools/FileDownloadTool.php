@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Mcp\Tools;
 
 use App\Modules\Files\Models\SharedFile;
-use App\Modules\GameRecipes\Support\SafeText;
 use App\Modules\Mcp\Support\AccessibleFiles;
+use App\Modules\Mcp\Support\SafeText;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;

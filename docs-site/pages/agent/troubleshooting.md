@@ -21,11 +21,16 @@ lanomat-agent doctor
 ✓ file host     reachable, bearer-authenticated download URL accepted
 ```
 
+| Dark | Light |
+|---|---|
+| ![Doctor report with config, server, MCP, model catalog, roles and the final Doctor: OK line, dark](/screens/agent-doctor-terminal-dark.png) | ![Doctor report with config, server, MCP, model catalog, roles and the final Doctor: OK line, light](/screens/agent-doctor-terminal-light.png) |
+| `DOCTOR · CONFIG · LOGIN · MCP · MODEL · TOOL CALLS` | `DOCTOR · LIGHT` |
+
 ## Pairing and token
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `401 unauthorized` | Token expired or revoked | `lanomat-agent login --server https://lan.example` |
+| `401 unauthorized` | Token expired or revoked | `lanomat-agent login --url https://lan.example` |
 | `authorization_pending` forever | Code not approved in the browser | Open `verification_uri`, compare the code, approve |
 | Browser opens the wrong host | `APP_URL` differs from the address you use | Pass the exact `--server` URL you open in the browser |
 | Works on the host, not on a laptop | Different network / DNS | Use the venue DNS name, not `localhost` |
@@ -34,12 +39,20 @@ lanomat-agent doctor
 The token is scoped to the user. If a participant token cannot read an orga draft recipe, that is
 correct, not a bug.
 
+The code entry and the devices already paired live on **Agent & MCP verbinden**; **„Trennen“** is
+what turns a working command into a `401`:
+
+| Dark | Light |
+|---|---|
+| ![Agent and MCP pairing page with the eight-character code field and the list of connected agents, dark](/screens/mcp-connect-dark.png) | ![Agent and MCP pairing page with the eight-character code field and the list of connected agents, light](/screens/mcp-connect-light.png) |
+| `AGENT & MCP VERBINDEN · CODE · VERBUNDENE AGENTEN` | `AGENT & MCP VERBINDEN · LIGHT` |
+
 ## Model and fuel
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `401` from Venice | Missing/invalid `VENICE_API_KEY` | Export it in the same shell; `lanomat-agent doctor` |
-| `model not found` | The id was retired | `lanomat-agent model list` and choose a live id |
+| `model not found` | The id was retired | `lanomat-agent model setup` (lists live ids) and choose one |
 | Chat works, tools fail | The model does not support tool calling | Use the fallback `venice/zai-org-glm-5` |
 | `ECONNREFUSED` on a local LLM | Server not running / wrong port | Check `OPENAI_MODEL_BASE_URL`, e.g. `http://127.0.0.1:11434/v1` |
 | Prompt leaves the LAN unexpectedly | A cloud model is still selected | `OPENAI_MODEL_*` or `LANOMAT_AGENT_MODEL` to the local model |
@@ -93,7 +106,7 @@ missing. The correct behaviour is to list the LAN matches, offer a multi-select,
 
 The venue may have no internet. What still works:
 
-- `lanomat-agent skills list` and reading synced skills.
+- `ls ~/.agents/skills` and reading the synced `lanomat-<slug>/SKILL.md` files.
 - `lanomat-agent ask` **only** with a local model.
 - MCP calls to the LAN server.
 - Downloads from the LAN file host.
@@ -105,6 +118,14 @@ What stops:
 - Any step whose recipe explicitly downloads from the internet (UT2004VR, for example).
 
 Run `lanomat-agent skills sync` and download the required content **before** the internet goes away.
+
+The LANoMAT side keeps answering, because it is on the LAN: the dashboard after sign-in still shows
+the current LAN, ticket, seat and teams.
+
+| Dark | Light |
+|---|---|
+| ![Dashboard after sign-in on the LAN: current LAN, ticket, seat A3-1 and teams, dark](/screens/dashboard-dark.png) | ![Dashboard after sign-in on the LAN: current LAN, ticket, seat A3-1 and teams, light](/screens/dashboard-light.png) |
+| `DASHBOARD · CURRENT LAN · TICKET · SEAT · TEAMS` | `DASHBOARD · LIGHT` |
 
 ## Windows SmartScreen
 

@@ -66,15 +66,22 @@ export interface RecipeDownload {
     url: string;
     filename: string;
     sha256?: string;
-    source?: 'lan' | 'external';
+    /** `manual` = the recipe only links a page; the file is not downloadable. */
+    source?: 'lan' | 'external' | 'manual';
     size_bytes?: number;
     fallback_url?: string;
 }
 
+interface VerifyCheckBase {
+    optional?: boolean;
+    /** Run this check only on the given platform. */
+    os?: Os | 'any';
+}
+
 export type VerifyCheck =
-    | { type: 'file_exists'; path: string; optional?: boolean }
-    | { type: 'dir_exists'; path: string; optional?: boolean }
-    | { type: 'command'; command: string; args?: string[]; shell?: 'powershell' | 'cmd' | 'bash'; optional?: boolean };
+    | (VerifyCheckBase & { type: 'file_exists'; path: string })
+    | (VerifyCheckBase & { type: 'dir_exists'; path: string })
+    | (VerifyCheckBase & { type: 'command'; command: string; args?: string[]; shell?: 'powershell' | 'cmd' | 'bash' });
 
 export interface PlanCommand {
     shell: 'powershell' | 'cmd' | 'bash';
@@ -95,14 +102,18 @@ export interface PlanStep {
 
 export interface PlanFile {
     requirement: string;
-    status: 'matched' | 'missing' | 'external';
+    /** `manual` = the recipe only links a page; nothing can be downloaded. */
+    status: 'matched' | 'missing' | 'external' | 'manual';
     name?: string;
+    /** The requirement label ("UT2004 DVD"), safe to show next to the name. */
+    label?: string;
+    required?: boolean;
     size_bytes?: number;
     sha256?: string;
     download_url?: string;
     fallback_url?: string;
     /** Some servers send the source explicitly; the plan renderer derives it when absent. */
-    source?: 'lan' | 'external';
+    source?: 'lan' | 'external' | 'manual';
 }
 
 export interface Avatar {
@@ -131,7 +142,7 @@ export interface RecipeDetail {
     play_url?: string | null;
     /** Local command or executable path, e.g. `C:\Games\...\UT2004.exe`. */
     launch_target?: string | null;
-    /** Named ways to start the game (flat, vr, …); `launch_target` is the default. */
+    /** Alternatives (flat/VR, per-OS). The recipe-level `launch_target` is the default. */
     launch_targets?: LaunchTarget[] | null;
     supports_multiplayer?: boolean;
     install_command?: string | null;
@@ -143,20 +154,35 @@ export interface RecipeDetail {
     [key: string]: unknown;
 }
 
-/** One entry of `metadata.launch_targets` (server-normalised). */
+/**
+ * One entry of `metadata.launch_targets` (server-normalised): a finished
+ * `command`, its shell, and the OS it belongs to.
+ */
 export interface LaunchTarget {
     id: string;
     label?: string;
-    os?: string;
-    command: string;
-    shell?: string | null;
+    os?: Os | 'any' | string;
+    command?: string;
+    /** Older payloads carry the executable as `target` instead of `command`. */
+    target?: string | null;
+    shell?: 'powershell' | 'cmd' | 'bash' | string | null;
     notes?: string | null;
 }
 
 export interface RecipePlan {
-    recipe: { slug: string; title: string; version?: string };
+    recipe: {
+        slug: string;
+        title: string;
+        version?: string;
+        launch_target?: string | null;
+        launch_targets?: LaunchTarget[];
+        launch_command?: string | null;
+        play_url?: string | null;
+    };
     os: Os;
     target_dir: string;
+    /** Where LAN/external downloads go; falls back to `target_dir`. */
+    downloads_dir?: string;
     steps: PlanStep[];
     files: PlanFile[];
     avatars?: Avatar[];

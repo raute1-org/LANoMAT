@@ -6,7 +6,7 @@ namespace App\Modules\Mcp\Tools;
 
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\VisibleFiles;
-use App\Modules\GameRecipes\Support\SafeText;
+use App\Modules\Mcp\Support\SafeText;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;

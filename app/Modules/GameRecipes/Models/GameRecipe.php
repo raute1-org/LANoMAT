@@ -155,7 +155,9 @@ class GameRecipe extends Model
                 continue;
             }
 
-            $command = $entry['command'] ?? null;
+            // A declared entry may carry the finished `command` or the
+            // `{kind, target, args}` shape the `launch` object uses.
+            $command = $entry['command'] ?? $this->launchCommandFrom($entry);
 
             if (! is_string($command) || trim($command) === '') {
                 continue;
@@ -209,29 +211,32 @@ class GameRecipe extends Model
     }
 
     /**
-     * The command for one launch target: by id when given, otherwise the first
-     * (recommended) target. Null when the recipe carries no launch data, or
-     * when the requested id does not exist.
+     * The command for one launch target. Precedence: an explicitly requested
+     * target id, then the first target declared for the requested OS, then the
+     * first (recommended) target. An unknown id falls back to that default
+     * instead of leaving the game unlaunchable.
      */
-    public function launchTarget(?string $id = null): ?string
+    public function launchTarget(?string $id = null, ?string $os = null): ?string
     {
         $targets = $this->launchTargets();
 
-        if ($targets === []) {
-            return null;
-        }
-
-        if ($id === null) {
-            return $targets[0]['command'];
-        }
-
-        foreach ($targets as $target) {
-            if ($target['id'] === $id) {
-                return $target['command'];
+        if ($id !== null) {
+            foreach ($targets as $target) {
+                if ($target['id'] === $id) {
+                    return $target['command'];
+                }
             }
         }
 
-        return null;
+        if ($os !== null) {
+            foreach ($targets as $target) {
+                if ($target['os'] === $os) {
+                    return $target['command'];
+                }
+            }
+        }
+
+        return $targets[0]['command'] ?? null;
     }
 
     /** Flatten the string or `{kind, target, args}` form into one command. */
@@ -245,7 +250,7 @@ class GameRecipe extends Model
             return null;
         }
 
-        $target = $launch['target'] ?? null;
+        $target = $launch['target'] ?? $launch['command'] ?? null;
 
         if (! is_string($target) || trim($target) === '') {
             return null;
@@ -257,30 +262,37 @@ class GameRecipe extends Model
             : (is_string($args) ? $args : '');
 
         return match ($launch['kind'] ?? null) {
-            // Steam takes the app id, not a path: steam://rungameid/<appid>//<args>
-            'steam' => 'steam://rungameid/'.trim($target).($argLine !== '' ? '//'.$argLine : ''),
+            // Steam takes the app id, not a path: steam://rungameid/<appid>//<args>.
+            // A fully formed steam URI is already usable and stays untouched.
+            'steam' => str_starts_with(trim($target), 'steam://')
+                ? trim($target)
+                : 'steam://rungameid/'.trim($target).($argLine !== '' ? '//'.$argLine : ''),
             'uri' => trim($target),
             default => trim($target.($argLine !== '' ? ' '.$argLine : '')),
         };
     }
 
-    /** Optional web-playable URL (e.g. the Ridge Racer cabinet). */
-    public function playUrl(): ?string
+    /**
+     * Optional web-playable URL (e.g. the Ridge Racer cabinet). With a host,
+     * the `{{host}}` template is replaced, so a recipe never hardcodes
+     * `localhost` and the page can use the address the player reached.
+     */
+    public function playUrl(?string $host = null): ?string
     {
-        $url = $this->metadata['play_url'] ?? null;
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $url = $metadata['play_url'] ?? null;
 
-        return is_string($url) && $url !== '' ? $url : null;
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+
+        return $host !== null && $host !== '' ? str_replace('{{host}}', $host, $url) : $url;
     }
 
-    /**
-     * `play_url` with the `{{host}}` template replaced by the host that serves
-     * the game, so a recipe never hardcodes `localhost`.
-     */
+    /** `play_url` with the `{{host}}` template replaced by that host. */
     public function playUrlFor(string $host): ?string
     {
-        $url = $this->playUrl();
-
-        return $url === null ? null : str_replace('{{host}}', $host, $url);
+        return $this->playUrl($host);
     }
 
     /** Whether the recipe has a multiplayer mode (default true; a singleplayer recipe says so). */

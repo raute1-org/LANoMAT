@@ -13,9 +13,10 @@ use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
-use App\Modules\GameRecipes\Support\SafeText;
+use App\Modules\Mcp\Support\SafeText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 /** The agent's REST surface for recipes: list, read, skill, plan, files, avatars, contribute. */
@@ -69,8 +70,11 @@ class RecipeController extends Controller
                 'aliases' => $recipe->aliases,
                 'homepage' => $recipe->homepage,
                 'license' => $recipe->license,
-                'play_url' => $recipe->playUrl(),
+                // {{host}} is substituted with the address the agent reached,
+                // so a recipe never hands localhost to a player.
+                'play_url' => $recipe->playUrl($request->getHost()),
                 'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => $this->launchTargets($recipe),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),
@@ -79,7 +83,7 @@ class RecipeController extends Controller
                 'files' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                     'id' => $file->id,
                     'role' => $file->role->value,
-                    'label' => $file->label,
+                    'label' => SafeText::line($file->label) ?? '',
                     'match' => $file->patterns(),
                     'required' => $file->required,
                     'sha256' => $file->sha256,
@@ -109,6 +113,7 @@ class RecipeController extends Controller
         $data = $request->validate([
             'os' => ['nullable', 'in:windows,linux,macos,win,mac'],
             'event_slug' => ['nullable', 'string', 'max:120'],
+            'dry_run' => ['nullable', 'boolean'],
         ]);
 
         $recipe = $this->findRecipe($request, $slug);
@@ -117,7 +122,14 @@ class RecipeController extends Controller
             : null;
 
         return response()->json(
-            $plan->handle($recipe, $this->authUser($request), (string) ($data['os'] ?? 'windows'), $event),
+            $plan->handle(
+                $recipe,
+                $this->authUser($request),
+                (string) ($data['os'] ?? 'windows'),
+                $event,
+                // A dry run must not write the install audit row.
+                record: ! (bool) ($data['dry_run'] ?? false),
+            ),
             200,
             ['Cache-Control' => 'no-store, private'],
         );
@@ -132,7 +144,7 @@ class RecipeController extends Controller
             'data' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                 'id' => $file->id,
                 'role' => $file->role->value,
-                'label' => $file->label,
+                'label' => SafeText::line($file->label) ?? '',
                 'required' => $file->required,
                 'match' => $file->patterns(),
                 'status' => isset($matches[$file->id]) ? 'matched' : ($file->url !== null ? 'external' : 'missing'),
@@ -159,7 +171,8 @@ class RecipeController extends Controller
     {
         $user = $this->authUser($request);
 
-        abort_if($user->role->value === 'participant' && ! $user->isOrga(), 403);
+        // Anyone may propose a draft; the policy decides, the same as the tool.
+        Gate::forUser($user)->authorize('create', GameRecipe::class);
 
         $data = $request->validate([
             'slug' => ['required', 'string', 'max:120'],
@@ -170,6 +183,7 @@ class RecipeController extends Controller
             'platforms.*' => ['string', 'in:windows,linux,macos'],
             'aliases' => ['nullable', 'array', 'max:20'],
             'aliases.*' => ['string', 'max:60'],
+            'requires' => ['nullable', 'array', 'max:50'],
             'requirements' => ['nullable', 'array', 'max:50'],
             'steps' => ['nullable', 'array', 'max:50'],
             'skill_description' => ['nullable', 'string', 'max:1024'],
@@ -185,6 +199,17 @@ class RecipeController extends Controller
                 'status' => $recipe->status->value,
             ],
         ], 201, ['Cache-Control' => 'no-store, private']);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function launchTargets(GameRecipe $recipe): array
+    {
+        return array_map(static function (array $target): array {
+            $target['label'] = SafeText::line($target['label']) ?? '';
+            $target['notes'] = SafeText::line($target['notes']) ?: null;
+
+            return $target;
+        }, $recipe->launchTargets());
     }
 
     private function findRecipe(Request $request, string $slug): GameRecipe

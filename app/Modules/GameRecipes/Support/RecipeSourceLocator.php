@@ -88,7 +88,7 @@ final class RecipeSourceLocator
             throw RecipeException::source($source, trim($process->getErrorOutput()) ?: 'smbclient failed');
         }
 
-        return ['path' => $temp, 'temporary' => true, 'ref' => $source];
+        return ['path' => $temp, 'temporary' => true, 'ref' => $this->redact($source)];
     }
 
     /**
@@ -151,7 +151,7 @@ final class RecipeSourceLocator
             throw RecipeException::source($source, trim($process->getErrorOutput()) ?: 'git clone failed');
         }
 
-        return ['path' => $temp, 'temporary' => true, 'ref' => $source];
+        return ['path' => $temp, 'temporary' => true, 'ref' => $this->redact($source)];
     }
 
     /**
@@ -177,6 +177,12 @@ final class RecipeSourceLocator
         }
 
         return $url;
+    }
+
+    private function redact(string $source): string
+    {
+        // Never persist or log credentials embedded in a source URL.
+        return (string) preg_replace('#//[^/@\s]+@#', '//***@', $source);
     }
 
     private function tempDir(string $prefix): string

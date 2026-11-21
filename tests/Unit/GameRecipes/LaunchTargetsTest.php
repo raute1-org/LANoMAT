@@ -64,7 +64,9 @@ it('prefers launch_targets over the flat launch field and keeps the declared ord
     expect($targets[1]['notes'])->toBe('SteamVR');
     expect($recipe->launchTarget())->toBe('{{target}}/System/UT2004.exe');
     expect($recipe->launchTarget('vr'))->toBe('{{target}}/System/Play-VR.bat');
-    expect($recipe->launchTarget('nope'))->toBeNull();
+    // An unknown id falls back to the recipe's default (first) target instead
+    // of leaving the game unlaunchable; the agent warns before asking.
+    expect($recipe->launchTarget('nope'))->toBe('{{target}}/System/UT2004.exe');
 });
 
 it('fills defaults for a sparse launch_targets entry and skips unusable ones', function () {

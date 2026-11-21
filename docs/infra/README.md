@@ -23,6 +23,7 @@ rules").
 | [file-host.md](file-host.md)                                       | Shared files stored on and served from the LanCache host: chrooted SFTP account, nginx with signed expiring links, resumable big-file uploads (tusd, tus protocol), TLS, checklist.     |
 | [room-audio-denon.md](room-audio-denon.md)                         | Denon AV receiver at the venue for the `RoomAudio` module: the denon-admin sidecar, network placement, finding the `NET` source, ceiling, Preflight.                                    |
 | [venue-network-crs354.md](venue-network-crs354.md)                 | The venue LAN on a MikroTik CRS354: flat network, LACP server link, DHCP/DNS with the LanCache, WireGuard on the switch, AP, measured routing limits and the traps that cost an outage. |
+| [permanent-server-settings.md](permanent-server-settings.md) | Settings page for the permanent CS2 servers: adopting external servers into Pelican, startup variables, power, live map change, GunGame plugin config. |
 
 ## Suggested reading order
 

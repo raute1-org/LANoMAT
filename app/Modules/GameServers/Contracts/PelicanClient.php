@@ -156,4 +156,44 @@ interface PelicanClient
      * @throws GameServerException
      */
     public function reinstallServer(string $serverId): void;
+
+    /**
+     * Merges the given variables into the server's startup environment
+     * (Application API `PATCH /servers/{id}/startup`). The panel wants the whole
+     * startup definition on every call, so the implementation reads the server
+     * first and sends egg, image, startup command and the complete environment
+     * back with only `$variables` changed. Never retried (a replayed PATCH is
+     * harmless, but a half-applied one is not worth a retry loop). Takes effect on
+     * the next start.
+     *
+     * @param  array<string, string>  $variables  env_variable => value
+     *
+     * @throws GameServerException
+     */
+    public function updateStartupVariables(string $serverId, array $variables): void;
+
+    /**
+     * Runs a console command on a running server (Client API `POST /command`).
+     * `$identifier` is the short uuid. Callers build the command from fixed
+     * templates and validated values only.
+     *
+     * @throws GameServerException
+     */
+    public function sendCommand(string $identifier, string $command): void;
+
+    /**
+     * Raw contents of a file in the server volume (Client API `GET /files/contents`).
+     * The caller must treat the result as sensitive: it is never logged.
+     *
+     * @throws GameServerException
+     */
+    public function readFile(string $identifier, string $path): string;
+
+    /**
+     * Writes (creates or overwrites) a file in the server volume (Client API
+     * `POST /files/write`).
+     *
+     * @throws GameServerException
+     */
+    public function writeFile(string $identifier, string $path, string $contents): void;
 }
