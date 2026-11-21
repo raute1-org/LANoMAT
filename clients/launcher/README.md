@@ -1,8 +1,9 @@
 # LANoMAT Launcher
 
-The one-click desktop launcher for LANoMAT games. The pilot installs **Unreal Tournament 2004**
-(flat) from the LAN file host: the retail DVD image plus the OldUnreal 3374 patch. No Steam, no
-disc mount, no terminal.
+The one-click desktop launcher for LANoMAT games. Every recipe the server publishes as
+launcher-ready installs from the LAN file host: a portable archive (download, unpack, check the
+files, start) is the normal case; the **Unreal Tournament 2004** pilot keeps its dedicated path
+(retail DVD image plus the OldUnreal 3374 patch). No Steam, no disc mount, no terminal.
 
 The launcher is a small Tauri v2 app (Rust core + static HTML/CSS/JS). It uses the same RFC 8628
 device pairing and `/api/v1` bearer API as `lanomat-agent`, but each app mints its own token: the
@@ -15,18 +16,21 @@ launcher and the agent are paired independently, and revoking one does not revok
    `~/Library/Application Support/app.LANoMAT.lanomat-launcher/config.json` on macOS and in
    `%APPDATA%\LANoMAT\lanomat-launcher\config.json` on Windows (file 0600, directory 0700 on Unix;
    on Windows the file inherits the user profile's ACL).
-2. The library shows the published `unreal-tournament-2004` recipe. The server builds the install
-   plan; the launcher lists the LAN ISO and patch and what is missing.
-3. One click downloads the ISO and the patch (resume-safe, SHA-256 checked when the recipe pins a
-   hash), extracts the disc payload without `System/`, applies the patch, verifies
-   `System/Build.ini` and the 64-bit executable, then offers **Starten**.
+2. The library shows the shared catalogue the event publishes. The server builds the install plan;
+   the launcher lists what a recipe needs, what is already installed and what is missing.
+3. One click installs the game: a portable archive downloads (resume-safe, SHA-256 checked when the
+   recipe pins a hash), unpacks and is verified against the plan's file checks. The UT2004 pilot
+   downloads the ISO and patch, extracts the disc payload without `System/`, applies the patch and
+   verifies `System/Build.ini` and the 64-bit executable. Then comes **Starten**. A recipe this
+   build cannot install yet says so and links to the game's page on the website.
 4. `lanomat://install/<slug>`, `lanomat://launch/<slug>` and the one-click
    `lanomat://join/<slug>?address=host:port` (or `?url=<encoded join URL>`) deep links are
    accepted once the launcher is installed (its `.desktop` entry registers the `lanomat` scheme
    on Linux, the app bundle's `Info.plist` on macOS, the installed URL handler on Windows). A
    join runs the install wizard when the game is missing and then launches on that server;
-   UT2004 takes the address as its first argument, other recipes open their join URL after the
-   launch.
+   the pilot's executable takes the address as its first argument, other recipes open their join
+   URL after the launch. `Spiel teilen` opens the paired server's `/games/share` page in the
+   browser — the launcher itself never packs or uploads an archive.
 
 The launcher never prints or logs the token. External fallback downloads (a GitHub release URL in a
 recipe) do not receive the LANoMAT bearer token.
@@ -240,5 +244,5 @@ uploaded the DVD or patch.
 - Downloads resume from `.part`; the final name only appears once the transfer is complete and, if
   the recipe pins a SHA-256, that hash matches. The bearer token is sent only to the LANoMAT origin,
   not to external fallbacks or redirects.
-- The launcher runs as the user, installs under `~/Games/unreal-tournament-2004` (or
-  `C:\Games\...`), and never needs administrator rights.
+- The launcher runs as the user, installs into the target folder the recipe's plan names (usually
+  `~/Games/<slug>`, `C:\Games\<slug>` on Windows), and never needs administrator rights.

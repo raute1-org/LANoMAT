@@ -44,8 +44,9 @@ spots remain. The countdown is a display-only payload, recomputed on every load.
 | ![Countdown, dark](/screens/countdown-dark.png) | ![Countdown, light](/screens/countdown-light.png) |
 | `COUNTDOWN · DARK` — hype mode before the LAN | `COUNTDOWN · LIGHT` |
 
-The event page also carries the servers for the evening: address, port, estimated demand, and a join
-that copies the address for the game client.
+The event page also carries the servers for the evening: address, port, estimated demand, the launcher
+one-click for a published recipe, and a join that copies the address for the game client. The
+cross-event server browser lives at `/servers`.
 
 | Dark | Light |
 |---|---|
@@ -205,8 +206,9 @@ the page it describes share one look.
 | ![Docs, games library, dark](/screens/docs-games-library-dark.png) | ![Docs, games library, light](/screens/docs-games-library-light.png) |
 | `DOCS · DARK` — the games library page with its screenshot pair | `DOCS · LIGHT` |
 
-The page it documents is the app's games library: every published recipe, the LAN dot, and the
-"Nur LAN-Spiele" filter that narrows the list to what runs from the LAN disc.
+The page it documents is the app's games library: every published recipe the lineup allows, the LAN
+dot, the **Spiel teilen** entry, and the "Nur LAN-Spiele" filter that narrows the list to what runs
+from the LAN disc.
 
 | Dark | Light |
 |---|---|
@@ -214,7 +216,8 @@ The page it documents is the app's games library: every published recipe, the LA
 | `GAMES · DARK` — LAN-only filter, two recipes left | `GAMES · LIGHT` |
 
 A recipe opens onto its game page: the server with its join link, the install steps the agent runs,
-and the files and avatars that come from the LAN.
+and the files and avatars that come from the LAN. The server browser at `/servers` answers the same
+question from the other side: what the LAN runs, and how to get onto it.
 
 | Dark | Light |
 |---|---|

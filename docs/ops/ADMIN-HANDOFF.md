@@ -1,29 +1,34 @@
-# Admin handoff — first lineup, NFSU2, Discord, MCP
+# Admin handoff — game sharing, server browser install links, recipe pull requests
 
 Date: 2026-11-21 · Branch: `main` · Commit: the commit that contains this file (`git log -1 --format=%h`)
 
-This is the short runbook for the admin. Detailed evidence lives in
-`docs/ops/ut2004-pilot.md`, `docs/ops/nfsu2.md`, `docs/ops/nfsu2-server.md`,
-`docs/ops/nfsu2-browser.md`, `docs/ops/nfsu2-package.md`, `docs/ops/discord-announcement.md`,
-`docs/ops/discord-agent.md`, `docs/ops/launcher-lineup.md` and
-`docs/launcher-agent-integration.md`.
+This is the runbook for the admin who deploys and configures this release. It has two parts:
+what is new and what to do about it (sections 1 to 8), and what is still open from the first-lineup
+handoff (section 9). Details live in `docs/infra/recipe-pull-requests.md`,
+`docs/deploy-lan-raute1.md`, `docs/ops/launcher-lineup.md`, `docs/infra/mcp-security.md` and the
+participant guide `docs-site/pages/guides/share-a-game.mdx`.
+
+**Nothing in this release has been tried on real hardware or against the real GitHub API.** It is
+covered by automated tests with faked external systems. Section 6 is the short real-world check to
+run after the deploy; section 8 lists what is unverified.
 
 ---
 
-## 1. URLs and addresses
+## 1. What is new
 
-| Thing | Address |
-|---|---|
-| LANoMAT | `https://lan.raute1.org` |
-| Launcher page | `https://lan.raute1.org/launcher` — **live currently 404**, deploy first |
-| First-lineup game page | `https://lan.raute1.org/games/need-for-speed-underground-2` |
-| UT2004 server | `10.23.0.40:7777` (query `7778`, “Raute1 LAN”) |
-| Our NFSU2 server (NFS-Online) | `10.23.3.220:20922` (test laptop) → target `10.23.0.12:20922` |
-| NFSU2 server ports | TCP `13505, 20921, 20922, 20923`; UDP `20000–20005`; `13506` loopback only |
-| NFSU2 browser | `https://nfsu2.xyz/` — **community port, NOT our server** |
-
-`nfsu2.xyz` is the public “Underground 2 Revived” browser port (`th0mk/nfsu2-web`).
-Our own server is the Python `moio9/NFS-Online-Server` running at the address above.
+- **Spiel teilen.** Participants share a ready-to-run game on `/games/share`: they upload a
+  `.zip` or `.tar.bz2` (through the existing file host), name the start file, and get a draft.
+  Entry points: "Spiel teilen" on `/games`, "Als Spiel teilen" on an own archive under Dateien, and
+  in the launcher.
+- **One review step for the orga.** In `/admin/recipes`, the action "Dateien freigeben und
+  veröffentlichen" approves the pinned file and publishes the game. The published game appears on
+  `/games`, in the launcher and next to its servers without a config change.
+- **Server browser leads to the game.** Every running server offers "Im Launcher beitreten"
+  (installs the game when it is missing, then joins), "Spiel installieren" and "Mitspieler suchen".
+- **Recipe pull requests (optional, off).** A shared game's recipe text can be proposed to this
+  repository as a pull request automatically. Needs a GitHub token (section 4).
+- **A fix for "Installieren does nothing".** When no launcher took over a click, the page now
+  says so and offers the download. The cause on production is in section 3.
 
 ---
 
@@ -31,210 +36,229 @@ Our own server is the Python `moio9/NFS-Online-Server` running at the address ab
 
 ```bash
 cd /opt/lanomat
-git pull --ff-only
-./scripts/deploy/deploy.sh
-
-docker compose --profile prod exec -T app \
-  php artisan lanomat:recipes:sync --only=unreal-tournament-2004 --json
-docker compose --profile prod exec -T app \
-  php artisan lanomat:recipes:sync --only=need-for-speed-underground-2 --json
-docker compose --profile prod exec -T app \
-  php artisan lanomat:recipes:sync --only=need-for-speed-underground-2-browser --json
+./scripts/deploy/deploy.sh          # pulls main, rebuilds app queue scheduler reverb-prod, migrates
 ```
 
-Then verify:
+The deploy runs one new migration (`2026_11_22_200000_add_sharing_to_game_recipes`: seven nullable
+or defaulted columns on `game_recipes`; no data is changed).
+
+Then, once:
 
 ```bash
-curl -sI https://lan.raute1.org/launcher | head -1          # must be 200, currently 404
-curl -s  https://lan.raute1.org/api/v1/servers | head -c 300 # new endpoint after deploy
+docker compose --profile prod exec -T app php artisan lanomat:recipes:sync --json
+docker compose --profile prod exec -T app php artisan lanomat:preflight
 ```
 
-MCP pagination must work after deploy (`per_page=100`, all 24 tools, `nextCursor: null`).
+The sync refreshes the catalogue from the configured source (`RECIPES_SOURCE`) and keeps every
+local decision (status, pinned files, lineup switch). `--only=<slug>` and `--prune` are safe to
+combine now: a recipe that still exists in the source is never deleted.
+
+Requirements that already hold on production and must stay: `MODULE_GAME_RECIPES=true`,
+`MODULE_FILES=true`, `MODULE_MCP=true` (or `MODULES_PROFILE=full`), and a running `queue` service.
 
 ---
 
-## 3. First lineup / UI
+## 3. Publish the launcher build (this is why "Installieren" did nothing)
 
-`config/launcher.php`:
-
-```conf
-LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser
-```
-
-That hides every other recipe from the launcher, `/games`, the home chat and the
-MCP `recipes_list`; the database is untouched. The native NFSU2 card and the browser card are both in the first lineup; the native one is first. To keep only the native install:
-
-```conf
-LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2
-```
-
-then `php artisan config:clear` (or `config:cache`) and redeploy. The browser
-recipe is the zero-install fallback; the native recipe installs the game and
-the NFS-Online ASI client.
-
-The launcher library shows UT2004 with Install/Repair/Start; the browser recipe
-shows **Spielen** and opens `play_url`; the native recipe uses the generic
-base/verify/launch fallback.
-
----
-
-## 4. NFSU2 server (our own)
+On production, "Installieren" on a game page currently fires the bare `lanomat://install/<slug>`
+link. The page only sends people to the launcher download when a launcher build is published on
+the server, and `clients-dist/launcher/` is not part of git, so `git pull` never brings one.
 
 ```bash
 cd /opt/lanomat
-NFS_ONLINE_SRC=/srv/nfs-online \
-NFS_PUBLIC_HOST=10.23.0.12 \
-docker compose -f docker/nfs-online/compose.yml up -d --build
-docker compose -f docker/nfs-online/compose.yml ps
+scripts/ops/build-launcher.sh       # Linux x86_64; compiles in Docker, needs a clean tree
+ls clients-dist/launcher/           # manifest.json, SHA256SUMS, the tarball
 ```
 
-- Host decision: **10.23.0.12** for the event (same LAN as clients); the tested
-  fallback is `10.23.3.220` (laptop).
-- `PUBLIC_HOST` is what the server advertises; set it to the address clients use.
-- Firewall: TCP `13505`, `20921:20923`; UDP `20000:20005`. Docker publishes
-  through the `DOCKER` chain; verify from a second LAN host.
-- Account/persona: `python nfs_online.py create-account` (the default auth is
-  password; the client uses the persona). The server has no A2S/UT2004 query, so
-  the server-browser entry is static (`query_protocol = NULL`).
-- Client: `scripts/net_u2.asi` + `scripts/net_u2.ini` (`host = 10.23.0.12` in
-  **both** `[network]` and `[lan]`); `dinput8.dll` at the game root. Linux:
-  `WINEDLLOVERRIDES=dinput8=n,b wine SPEED.EXE` or Proton.
-- The game base is `nfsu2-portable.zip` (2.59 GB, 1.2, `SPEED.EXE`, `DATA/`,
-  `CARS/`, `TRACKS/`); `net_u2.asi` SHA-256
-  `8db6557e685cf2dd47f825e62cc202cbace85f6cc4a43af271b8238e0367a04f`.
-- Not done live: the `GameServer`/`Game` rows in the admin panel and the
-  `10.23.0.12` container deploy (SSH there is password-only).
+The Windows portable exe comes from the GitHub workflow "Release launcher" (`workflow_dispatch`,
+or a `launcher-v*` tag): download its `launcher-release` artifact and copy the contents into
+`clients-dist/launcher/`. Details: `docs/deploy-lan-raute1.md`, "LANoMAT Launcher download".
 
-Admin server entry (when the host is final): create game
-`need-for-speed-underground-2`, permanent server, source **external**, address
-`10.23.0.12`, port `20922`, query **none**, connect string `10.23.0.12`.
-`nfsu2://` is not in the join-URL allowlist; the launcher shows the host as copy
-text.
+Build it from this release: the launcher's own screens changed (the "Spiel teilen" entry, copy for
+more than one game), and those ship inside the binary.
+
+Check: `php artisan lanomat:preflight` shows "Launcher-Download" as OK, `/launcher` offers the
+download, and "Installieren" on a game page leads to `/launcher`.
 
 ---
 
-## 5. Files / file host
+## 4. Recipe pull requests (optional)
 
-| File | State |
+Skip this section to leave the feature off; everything else works without it.
+
+1. Create a **fine-grained personal access token** on GitHub (Settings → Developer settings →
+   Personal access tokens → Fine-grained tokens): resource owner `raute1-org`, repository access
+   "Only select repositories" → `LANoMAT`, repository permissions **Contents: Read and write** and
+   **Pull requests: Read and write**. Nothing else. Prefer a bot account over a personal one: the
+   pull requests are opened in that account's name.
+2. In `/opt/lanomat/.env`:
+
+   ```dotenv
+   RECIPES_PR_ENABLED=true
+   RECIPES_PR_REPOSITORY=raute1-org/LANoMAT
+   RECIPES_PR_TOKEN=<the token>
+   ```
+
+3. Recreate the services so they read the new environment:
+
+   ```bash
+   docker compose --profile prod up -d app queue scheduler reverb-prod
+   docker compose --profile prod exec -T app php artisan lanomat:preflight
+   ```
+
+   "Rezept-Katalog (Pull Requests)" must say that the token may read the catalogue and open pull
+   requests. Every other answer names what is wrong (token rejected, repository not found, no
+   write permission).
+
+What it does with the defaults:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `RECIPES_PR_TRIGGER` | `publish` | A pull request is opened when the orga publishes a shared or panel-written recipe. `contribute` opens it the moment a participant shares. |
+| `RECIPES_PR_PER_USER_HOURLY` | `6` | Automatic proposals per contributor per hour. |
+| `RECIPES_PR_MAX_OPEN` | `30` | Open pull requests of this installation; updates of an open one do not count. |
+| `RECIPES_PR_ATTRIBUTION` | `false` | Adds the contributor's display name to the pull request. Leave it off: the repository is public. |
+| `RECIPES_PR_BASE` / `_BRANCH_PREFIX` / `_PATH` | `main` / `recipes/` / `resources/recipes` | Where the files go. |
+
+- One branch and one pull request per recipe (`recipes/<slug>`); a later change updates it.
+- Only recipe text travels: `recipe.yaml`, `SKILL.md` and the row in `_catalog.md`. Never game
+  files, never file-host addresses.
+- Before anything is sent, the text is checked for addresses, e-mail addresses, keys and tokens,
+  and against the rules of the repository's validator. A recipe that fails is not sent; the panel
+  shows "Nicht gesendet" with the reason under "Katalog (Pull Request)".
+- The workflow "Recipes" validates every recipe pull request. Read the diff before merging: recipe
+  steps and launch targets are commands that run on players' PCs.
+- After a merge, the next deploy ships the recipe in the bundled catalogue; the sync adopts it and
+  keeps the local state.
+
+By hand: `php artisan lanomat:recipes:propose <slug>` proposes one recipe now;
+`php artisan lanomat:recipes:pr-status` refreshes the states (it also runs hourly).
+
+---
+
+## 5. What the orga does during the LAN
+
+1. `/admin/recipes` shows a badge with the number of shared games that wait. The filter "Geteilte
+   Spiele" lists them; the column next to it says whether the file still waits for approval.
+2. Open the game. The section **"Start und Launcher"** shows every launch command and whether the
+   launcher will offer the game. Read the steps and the launch commands: they run on players' PCs.
+3. **"Dateien freigeben und veröffentlichen"** approves the pinned archive and publishes. The
+   confirmation lists the files and the launch commands once more. (A rejected file blocks it:
+   the participant has to share again with another file.)
+4. The game is now on `/games` and in the launcher. "In der Spieleliste zeigen" is switched on
+   automatically for shared games; switch it off to hide a game again without unpublishing it.
+5. If a shared game should not be installable through the launcher, set the launcher switch in
+   "Start und Launcher" to "Nie anbieten".
+
+`LAUNCHER_LINEUP` keeps working as before; the players see the configured lineup plus every recipe
+with the switch. A participant can have at most 20 games waiting for review
+(`RECIPES_MAX_DRAFTS_PER_USER`).
+
+---
+
+## 6. Check after the deploy (15 minutes, two PCs)
+
+1. **Share:** as a participant, upload a small portable game as `.zip` under Dateien of the
+   current LAN, open `/games/share`, pick it, enter title and start file, "Spiel teilen". It appears
+   under "Deine geteilten Spiele" with "Die Orga prüft gerade".
+2. **Review:** as orga, `/admin/recipes` → the game → check "Start und Launcher" → "Dateien
+   freigeben und veröffentlichen".
+3. **Find:** as another participant, the game is on `/games` with "Installieren".
+4. **Install:** on a PC with the launcher from this release, install it and start it.
+5. **Join:** create or use a server of that game (admin: the game's slug must be the recipe's
+   slug, or its name must match the title or an alias). On `/servers/all` the server shows "Im
+   Launcher beitreten"; one click installs when needed and joins.
+6. **No launcher:** on a PC without the launcher, click "Im Launcher beitreten". After two to
+   three seconds the page asks "Kein Launcher-Fenster aufgegangen?" and offers the download.
+7. **Pull request** (only with section 4): after step 2, a pull request `recipes/<slug>` is open
+   in the repository and the panel shows "Pull Request offen". Merge it or close it; within the
+   hour (or after `lanomat:recipes:pr-status`) the panel says "Im Katalog" or "Pull Request
+   geschlossen".
+
+---
+
+## 7. New switches at a glance
+
+| Variable | Default | Section |
+|---|---|---|
+| `RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY`, `RECIPES_PR_TOKEN` | off, empty, empty | 4 |
+| `RECIPES_PR_TRIGGER` | `publish` | 4 |
+| `RECIPES_PR_PER_USER_HOURLY`, `RECIPES_PR_MAX_OPEN` | `6`, `30` | 4 |
+| `RECIPES_PR_ATTRIBUTION` | `false` | 4 |
+| `RECIPES_PR_BASE`, `RECIPES_PR_BRANCH_PREFIX`, `RECIPES_PR_PATH`, `RECIPES_PR_API_URL` | `main`, `recipes/`, `resources/recipes`, GitHub | 4 |
+| `RECIPES_MAX_DRAFTS_PER_USER` | `20` | 5 |
+
+New scheduled commands (they run in the `scheduler` service on their own):
+`lanomat:recipes:pr-status` hourly, `lanomat:files:hash --limit=20` nightly at 04:45 (files that
+arrive through the resumable upload have no SHA-256 until then).
+
+New Preflight check: "Rezept-Katalog (Pull Requests)". It is skipped while the feature is off and
+never turns the event-day check red.
+
+---
+
+## 8. Known limits and what is not verified
+
+- **Not tried for real:** the whole journey on real PCs, the launcher build of this release on
+  Windows and Linux, and the pull request path against the real GitHub API (it is tested against a
+  fake that follows GitHub's documented behaviour). Section 6 is that test.
+- **The "no launcher" notice is a guess by design.** A browser cannot ask whether the launcher is
+  installed; the page only notices that nothing took the focus. A launcher window that opens
+  behind the browser also triggers the notice, which is why it asks instead of claiming a failure.
+- **Shared games are Windows and Linux only**, as a `.zip` or `.tar.bz2` that runs as it is.
+  Installers and disc images are not supported by the share page.
+- **A shared game whose archive is later deleted or rejected** stays listed; the launcher then
+  reports the missing file. The recipe list in the panel shows "Datei fehlt".
+- **The launcher's install folder** on Windows is `C:\Games\<title>` with only letters, digits,
+  space, dot, underscore and hyphen kept. Games installed before this release keep their folder;
+  a title with other characters gets a new folder name on the next install.
+- **The public-safety check catches accidents**, not someone who hides an address on purpose.
+  That is why the default opens pull requests only for recipes the orga has published.
+- **The installer puts the install path into commands as text.** A player who chooses an install
+  path with a quote character in it can break their own install command. Not changed here.
+- **The NFSU2 recipe still carries the test host address** in its steps and metadata
+  (`resources/recipes/need-for-speed-underground-2/recipe.yaml`); see section 9.
+- **CI stays disabled by hand** (`gh workflow enable CI`). The new "Recipes" workflow and the
+  existing public-safety and gitleaks workflows run.
+
+---
+
+## 9. Still open from the first-lineup handoff
+
+Unchanged by this release; listed so nothing gets lost.
+
+| Thing | Address |
 |---|---|
-| `ut2004-base.zip` | 2.5 GB flat base, complete, upload paused (resume) |
-| `ut2k4+keygen.zip` | nosTEAM **installer**, not a portable base |
-| `ut2004-portable-3374-{windows,linux,macos}.zip` | built, verified, not uploaded |
-| `nfsu2-portable.zip` | **uploaded as SharedFile 20**, 2,602,084,675 B, sha256 `7a2897a0498acc8da5975463a68db77431a94cfd04eb2c80eed4a0acbf35efcf`; draft recipe 25 plan matches (win/linux, `missing: []`). Local build: 2,602,084,719 B, sha256 `0d7028…7219` |
-| `net_u2.asi` / `net_u2.ini` | built, 112,640 B / 606 B |
+| LANoMAT | `https://lan.raute1.org` |
+| UT2004 server | `10.23.0.40:7777` (query `7778`, "Raute1 LAN") |
+| Our NFSU2 server (NFS-Online) | `10.23.3.220:20922` (test laptop) → target `10.23.0.12:20922` |
+| NFSU2 server ports | TCP `13505, 20921, 20922, 20923`; UDP `20000–20005`; `13506` loopback only |
+| NFSU2 browser | `https://nfsu2.xyz/` — community port, **not our server** |
 
-Upload only works on the **LANoMAT** WLAN (`10.23.0.0/22`), not on `qc`
-(`10.13.69.0/24`):
+- **First lineup:** `LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser`.
+  Shared games add themselves through the panel switch (section 5).
+- **NFSU2 server on the target host:**
 
-```bash
-scripts/ops/ut2004/upload-file.sh \
-  '/home/reneil1337/Downloads/ut2004-base.zip' ut2004-base.zip 64
-```
+  ```bash
+  NFS_ONLINE_SRC=/srv/nfs-online NFS_PUBLIC_HOST=10.23.0.12 \
+    docker compose -f docker/nfs-online/compose.yml up -d --build
+  NFS_SERVER_HOST=10.23.0.12 docker compose --profile prod exec -T app \
+    php artisan db:seed --class=LauncherLineupSeeder
+  ```
 
-The UT2004 flat base is complete; the upload was stopped for gaming and can be
-resumed (the state file is kept). The portable archives are optional upgrades;
-the flat base + OS patch already works.
+  Firewall: TCP `13505`, `20921:20923`; UDP `20000:20005`. Align the host in the recipe's
+  `net_u2.ini` step and in `make_package.sh --server` with the final address, then sync and publish
+  the native NFSU2 recipe and pin `nfsu2-portable.zip`.
+- **Files:** `nfsu2-portable.zip` is uploaded (SharedFile 20). `ut2004-base.zip` (2.5 GB) and the
+  portable UT2004 archives are built but not uploaded; uploads only work on the event LAN:
+  `scripts/ops/ut2004/upload-file.sh <file> <name> 64`.
+- **Discord:** announcement text in `docs/ops/announcements/2026-11-first-lineup.md`, poster
+  `scripts/ops/discord-announce.sh --file …` with `DISCORD_WEBHOOK_URL`; post only after
+  `/launcher` offers a download. Bot: `DISCORD_AGENT_ENABLED=true`, `LANOMAT_URL`, `LANOMAT_TOKEN`,
+  `PI_MODEL`.
+- **Not tested:** NFSU2 race with two clients and split screen; any macOS run.
+- **MCP:** the server registers 29 tools (`tools/list` with `per_page=100` returns all of them).
 
----
-
-## 6. Discord
-
-- Announcement text: `docs/ops/announcements/2026-11-first-lineup.md`
-- Webhook poster: `scripts/ops/discord-announce.sh --dry-run` / `--file ...`
-- The text correctly calls `nfsu2.xyz` the **community** browser port.
-- Do **not** post until `/launcher` is deployed (currently 404).
-- For the real post, set `DISCORD_WEBHOOK_URL` (or `--webhook-file`); no webhook
-  is committed.
-- Bot → pi/MCP: `docker/discord-gateway/agent.mjs`; message content, mentions
-  and `/ask`; deterministic MCP fallback; 24 Node tests green. Env:
-  `DISCORD_BOT_TOKEN`, `LANOMAT_URL`, `LANOMAT_TOKEN`, `PI_MODEL`. The bot
-  replies with install/join links; it does not install on a user's PC.
-
----
-
-## 7. MCP / pi agent
-
-- 24 tools in `LanomatServer`; page size 15 (page 1) + 9 (page 2). The live
-  m12-768 cursor replayed page 1; HEAD fixes the cursor and supports
-  `per_page=100` / numeric strings / padded base64url.
-- `lanomat-agent mcp install` writes `~/.pi/agent/mcp.json`; token from
-  `LANOMAT_TOKEN`, never in git.
-- Tool matrix: `lanomat_me`, events, files, `recipes_list/get/install_plan/avatars`,
-  `servers_list`, schedule/polls/catering/LFG; writes are registration, match,
-  vote, LFG, draft recipe.
-- The lineup filter applies to `recipes_list`; it does not remove tools.
-- Live `GET /api/v1/servers` is 404 on m12-768; `servers_list` MCP works.
-  After deploy the REST endpoint and the MCP cursor work.
-
----
-
-## 8. macOS / launcher
-
-- macOS release job uses `macos-15` for arm64 + `macos-15-intel` best effort;
-  empty `APPLE_*` secrets are unset so an unsigned `.dmg` builds; signing is a
-  separate step once a Developer ID exists.
-- `clients/launcher` generic fallback handles non-UT2004 recipes: base
-  extraction, plan verify paths, Windows `.exe` / Linux `wine` launch. UT2004
-  path unchanged.
-- `/launcher` and the macOS download are not live until deploy + artifact copy
-  into `clients-dist/launcher/`.
-- Permanent blocker: no SSH from this laptop to `46.225.28.53`; deploy with the
-  key that is on the server.
-
----
-
-## 9. Known issues / blockers
-
-1. **Live `/launcher` 404**, `/api/v1/servers` 404, MCP page-2 cursor stale:
-   deploy `main`.
-2. **SSH deploy key** missing from this laptop; admins deploy.
-3. **File host only on the event LAN**; uploads need the `LANoMAT` WLAN.
-4. **`nfsu2.xyz` is not ours**; do not call it our server.
-5. **NFSU2 native end-to-end** (game client → server login/lobby/race) not
-   tested; server + ASI build are tested separately.
-6. **Server host** currently the laptop `10.23.3.220`; target `10.23.0.12`.
-7. **Live Game/Server rows** for NFSU2 not created yet; admin steps above.
-8. **Recipe validator**: 4 pre-existing errors in `uevr` / `god-of-war-iii-remastered`
-   (aliases/additionalProperties); the UT2004, NFSU2 and browser recipes validate.
-   The browser recipe has a warning because it deliberately has no base/iso.
-9. **No Mac runtime test**; the browser port is tested in Brave/Chrome on Linux.
-10. **Discord webhook** absent; announcement is prepared.
-
----
-
-## 10. Evidence
-
-- UT2004 installed and starts at **v3374**, main menu visible.
-- NFSU2 browser boots to the profile screen in Chrome and Brave with WebGPU;
-  screenshots in `docs/screenshots/nfsu2/`.
-- NFS-Online server: Python tests 30 OK; Docker healthy; ports bound; client
-  `net_u2.asi` PE32 built.
-- Launcher core: 211 tests; generic base test; macOS verify/launch tests.
-- Discord agent: 24 Node tests.
-- PHP: GameRecipes 151, Discord 124, MCP 205 (the 2 pagination expectations
-  were corrected to 24/9 after the 24-tool count).
-
-
----
-
-## 11. Live upload/recipe facts (2026-11-21 16:49)
-
-- **SharedFile 20**: `nfsu2-portable.zip`, approved, **2.602.084.675 B**, SHA-256
-  `7a2897a0498acc8da5975463a68db77431a94cfd04eb2c80eed4a0acbf35efcf`.
-  Download `https://lan.raute1.org/api/v1/files/20/download`; byte ranges verified.
-  The local rebuild is 2.602.084.719 B / `0d7028…7219`; the +44 B is only
-  `README-LANoMAT.txt`, the game/ASI/loader bytes are identical.
-- **Recipe 25 is live as draft**, created via `POST /api/v1/recipes`; base rows
-  280/281 already match SharedFile 20; `plan` for windows/linux reports
-  `missing: []` and `matched`. It lacks `metadata`/`launch_targets`/`version`
-  because that REST path is lossy: run the YAML sync, then check/publish.
-- **Host:** the uploaded package ini advertises `10.23.0.12`; the running test
-  server is the laptop `10.23.3.220`. The recipe step currently rewrites
-  `net_u2.ini` to `10.23.3.220`. For the permanent VM server, align
-  `make_package.sh --server 10.23.0.12`, the YAML step and the server env.
-- **Browser recipe not live yet**; `need-for-speed-underground-2-browser`
-  needs the same deploy/sync. `nfsu2.xyz` remains the community port.
-- **Admin server row**: create game `need-for-speed-underground-2` and a
-  permanent external server `NFSU2 (NFS-Online, unser Server)`, address
-  `10.23.3.220` (test) or `10.23.0.12` (target), port `20922`, query empty,
-  connect string host. The `LauncherLineupSeeder` does this after deploy.
+Evidence and detail for these: `docs/ops/ut2004-pilot.md`, `docs/ops/nfsu2.md`,
+`docs/ops/nfsu2-server.md`, `docs/ops/nfsu2-package.md`, `docs/ops/discord-agent.md`,
+`docs/launcher-agent-integration.md`.

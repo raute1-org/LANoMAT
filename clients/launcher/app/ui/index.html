@@ -288,6 +288,15 @@
                                     Serverbrowser
                                 </button>
                                 <button
+                                    class="btn"
+                                    id="start-share"
+                                    type="button"
+                                    aria-describedby="start-share-hint"
+                                    hidden
+                                >
+                                    Spiel teilen
+                                </button>
+                                <button
                                     class="btn ghost"
                                     id="start-chat"
                                     type="button"
@@ -296,6 +305,8 @@
                                 </button>
                             </div>
                         </div>
+
+                        <p class="small muted" id="start-share-hint" hidden></p>
 
                         <div
                             class="stack-sm"
@@ -427,6 +438,15 @@
                             Aktualisieren
                         </button>
                         <button
+                            class="btn"
+                            id="library-share"
+                            type="button"
+                            aria-describedby="library-share-hint"
+                            hidden
+                        >
+                            Spiel teilen
+                        </button>
+                        <button
                             class="btn ghost"
                             id="library-chat"
                             type="button"
@@ -434,6 +454,8 @@
                             Chat
                         </button>
                     </div>
+
+                    <p class="small muted" id="library-share-hint" hidden></p>
 
         <template id="tpl-game">
             <article class="card game">
@@ -539,7 +561,18 @@
                             <div class="strong">Noch nichts installiert.</div>
                             <div class="small hint-text">
                                 Installiere ein Spiel aus der Serverliste. Es
-                                bleibt auf diesem Gerät.
+                                bleibt auf diesem Gerät. Du hast ein eigenes
+                                Spiel? Teile es über LANoMAT.
+                            </div>
+                            <div class="row wrap empty-actions">
+                                <button
+                                    class="btn"
+                                    id="library-installed-empty-share"
+                                    type="button"
+                                    hidden
+                                >
+                                    Spiel teilen
+                                </button>
                             </div>
                         </div>
                     </section>
@@ -566,7 +599,8 @@
                         <div class="strong">Noch kein Spiel freigegeben.</div>
                         <div class="small hint-text">
                             Sobald die Orga ein Spiel für den Launcher
-                            freigibt, erscheint es hier.
+                            freigibt, erscheint es hier. Du kannst auch selbst
+                            eines teilen.
                         </div>
                         <div class="row wrap empty-actions">
                             <button
@@ -575,6 +609,14 @@
                                 type="button"
                             >
                                 Aktualisieren
+                            </button>
+                            <button
+                                class="btn"
+                                id="library-empty-share"
+                                type="button"
+                                hidden
+                            >
+                                Spiel teilen
                             </button>
                         </div>
                     </div>

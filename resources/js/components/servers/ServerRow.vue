@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
 import { Check, ChevronDown, Copy } from '@lucide/vue';
 import { computed, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
@@ -6,6 +7,7 @@ import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
 import RemoteDockerControls from '@/components/servers/RemoteDockerControls.vue';
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
+import ServerInstallActions from '@/components/servers/ServerInstallActions.vue';
 import { Button } from '@/components/ui/button';
 import { useJoinOption } from '@/composables/useJoinOption';
 import { serverLiveVariant } from '@/lib/serverStatus';
@@ -229,6 +231,16 @@ onUnmounted(() => clearTimeout(hintTimer));
                               : ''
                     }}</span>
                 </span>
+                <!-- Only where the row has room, and not while the panel is
+                     open: the panel's "Spiel installieren" is the same page,
+                     and one destination gets one label per row. -->
+                <Link
+                    v-if="server.install?.pageUrl && !open"
+                    :href="server.install.pageUrl"
+                    class="hidden min-h-8 items-center rounded-sm px-1 text-xs text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex"
+                >
+                    {{ labels.install_game_short }}
+                </Link>
             </template>
             <span
                 v-else
@@ -289,6 +301,15 @@ onUnmounted(() => clearTimeout(hintTimer));
             >
                 {{ labels.connect_plain_hint }}
             </p>
+
+            <!-- The launcher handoff is the panel's first action when the
+                 recipe matches this row's game; the game's own join follows as
+                 the alternative (outline, remembered choice). -->
+            <ServerInstallActions
+                v-if="server.install"
+                :install="server.install"
+                :labels="labels"
+            />
 
             <JoinOptions
                 v-if="joinable && server.joinOptions?.length && address"

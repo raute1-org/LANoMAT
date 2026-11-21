@@ -8,7 +8,7 @@ use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Actions\SyncRecipes;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
-use App\Modules\Mcp\Http\Api\RecipeController;
+use App\Modules\GameRecipes\Support\LauncherSupport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -34,7 +34,7 @@ it('ships the native NFSU2 recipe with the NFS-Online requirements and targets',
     expect($recipe->platforms)->toBe(['windows', 'linux'])
         ->and($recipe->version)->toBe('1.2 + NFS Online')
         ->and($recipe->aliases)->toContain('nfsu2')
-        ->and(RecipeController::supportsLauncher($recipe->slug))->toBeTrue();
+        ->and(app(LauncherSupport::class)->supports($recipe))->toBeTrue();
 
     $base = $recipe->files->first(static fn ($file): bool => $file->role->value === 'base' && $file->os() === 'windows');
     $linuxBase = $recipe->files->first(static fn ($file): bool => $file->role->value === 'base' && $file->os() === 'linux');

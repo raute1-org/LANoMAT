@@ -48,7 +48,7 @@
                         <p class="lc-hint">{{ __('lighting.state.unreachable_hint') }}</p>
                     @else
                         <p class="lc-title">{{ __('lighting.state.online') }}</p>
-                        <p class="lc-hint">{{ __('lighting.state.checked_at', ['time' => $report->checkedAt->setTimezone(config('lanomat.timezone'))->format('H:i:s')]) }}</p>
+                        <p class="lc-hint">{{ __('lighting.state.checked_at', ['time' => \App\Support\DisplayTimezone::local($report->checkedAt)->format('H:i:s')]) }}</p>
                     @endif
                 </div>
                 <span class="lc-busy" style="margin-left:auto" wire:loading.delay.longer>{{ __('lighting.state.loading') }}</span>

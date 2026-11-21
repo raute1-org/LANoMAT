@@ -162,7 +162,7 @@ themselves. The server answers with `application/json` or an SSE stream, as requ
 
 | Surface | Count | Examples |
 |---|---|---|
-| Tools | 27 | `lanomat_me`, `recipes_list`, `recipe_install_plan`, `files_list` |
+| Tools | 29 | `lanomat_me`, `recipes_list`, `recipe_install_plan`, `files_list` |
 | Resources | 2 | `lanomat://recipes/{slug}/skill`, `lanomat://skills/import-menu` |
 | Prompts | 2 | `install-game`, `import-menu` |
 
@@ -173,7 +173,13 @@ The full catalogue, argument schemas and examples are on [Tools & resources](/do
 - No SQL, no arbitrary file paths, no shell.
 - Writes are limited to your own registration, match result, vote, LFG post and a draft recipe. No seat, event or tournament edits, no publish.
 - No other user's private data: every call is scoped to the token's user and their role.
-- No publish action: a contributed recipe is a **draft** for orga review.
+- No publish action: a contributed recipe is a **draft** for orga review. A contribution may carry
+  launch targets, a `play_url`, the `portable` flag and a pin on a LAN file the caller may download;
+  `status`, `in_lineup` and `metadata.launcher_supported` stay with the orga. When the operator
+  enabled recipe pull requests, the draft's text is proposed to the git repository as a pull request
+  after an automatic readiness check (`SKILL.md` 60–150 lines, 3–6 draft steps) and public-safety
+  check — by default on the orga's publish, with `RECIPES_PR_TRIGGER=contribute` right after the
+  contribution. See [Security](/docs/mcp/security#recipe-pull-requests).
 
 | Dark | Light |
 |---|---|

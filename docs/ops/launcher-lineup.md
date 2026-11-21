@@ -37,11 +37,34 @@ LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2,need-for-spe
 - **Leer** (`LAUNCHER_LINEUP=`) heißt „keine Kuratierung“: alle sichtbaren
   Rezepte erscheinen wieder. Das ist der Backcompat-Pfad für bestehende
   Installationen.
-- Der Default im Code ist genau die zwei Slugs oben. Ein Test-Environment
-  setzt die Lineup nicht; einzelne Suites, die den ganzen historischen Katalog
-  prüfen, setzen `launcher.lineup` in ihrem `beforeEach` auf `''`.
+- Der Default in `config/launcher.php` und in `LauncherLineup::DEFAULT` sind
+  die drei Slugs oben. Ein Test-Environment setzt die Lineup nicht; einzelne
+  Suites, die den ganzen historischen Katalog prüfen, setzen
+  `launcher.lineup` in ihrem `beforeEach` auf `''`.
+
+### Geteilte Spiele: das `in_lineup`-Flag
+
+`LauncherLineup::slugs()` ist die konfigurierte Liste **plus** jedes Rezept mit
+`game_recipes.in_lineup = true`. Das Flag setzt die Orga:
+
+- automatisch beim **Veröffentlichen eines geteilten Spiels** (Aktion
+  „Veröffentlichen“, „Dateien freigeben und veröffentlichen“ oder ein
+  Formular-Speichern, das den Status auf `published` dreht — `PublishRecipe`);
+- von Hand im Rezept-Formular mit **„In der Spieleliste zeigen“**
+  (`in_lineup`, nur für Orga/Admin bedienbar).
+
+Damit erscheint ein geteiltes Spiel auf `/games`, im Launcher und neben seinen
+Servern, ohne dass jemand `LAUNCHER_LINEUP` ändert oder den Config-Cache
+leert. Ein Rezept außerhalb der Liste bleibt in der Datenbank und im
+Filament-Admin sichtbar; nur die Spieler-Oberflächen filtern.
+
+**Unrestricted-Fall:** Ist `LAUNCHER_LINEUP` leer, ist die Lineup
+„uneingeschränkt“ — jedes veröffentlichte Rezept erscheint, unabhängig vom
+Flag. Das Flag fügt also nur zu einer kuratierten Liste hinzu; es schaltet
+nie etwas ab und es ersetzt keine Kuratierung.
 
 Nach einer Änderung:
+
 
 ```bash
 php artisan config:clear
@@ -134,5 +157,10 @@ cd resources/recipes/schema && node validate.mjs
   Admin-/Sync-Pfade erreichbar. Sie steuert nur die Spieler-Oberflächen.
 - Ein Lineup-Slug, der nicht publiziert ist, erscheint im Web nicht; der
   Launcher sieht ihn nur, wenn der Nutzer ihn sehen darf (`visibleTo`).
+- Ein veröffentlichtes geteiltes Spiel steht über das Flag sofort auf
+  `/games`; der Launcher kann es aber nur installieren, wenn
+  `LauncherSupport` es als portabel (oder per `metadata.launcher_supported`)
+  einstuft. Sonst führt „Installieren“ auf die Spielseite mit den manuellen
+  Schritten.
 - Der Browser-Port braucht Internet und WebGPU. Er ist ein Fallback, kein
   Ersatz für den nativen NFSU2-Server.

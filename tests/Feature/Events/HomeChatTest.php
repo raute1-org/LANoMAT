@@ -260,7 +260,7 @@ it('leaks no contact or registration data into the chat cards', function () {
         );
 });
 
-it('marks only the launcher pilot recipe as launcher-supported', function () {
+it('marks the launcher pilot and a browser recipe as launcher-supported, not a plain recipe', function () {
     homeChatRecipe('unreal-tournament-2004', 'Unreal Tournament 2004');
     homeChatRecipe('arcade-racer', 'Arcade Racer');
 
@@ -274,6 +274,22 @@ it('marks only the launcher pilot recipe as launcher-supported', function () {
 
     expect($games['unreal-tournament-2004']['launcher_supported'])->toBeTrue()
         ->and($games['arcade-racer']['launcher_supported'])->toBeFalse();
+});
+
+it('marks a portable published recipe as launcher-supported in the chat card', function () {
+    GameRecipe::factory()->published()->portable()->create([
+        'slug' => 'tiny-racer',
+        'title' => 'Tiny Racer',
+        'summary' => 'Ein Archiv, auspacken, losspielen.',
+    ]);
+
+    $response = $this->actingAs(User::factory()->create())->get('/')->assertOk();
+
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('chat.games', 1)
+        ->where('chat.games.0.slug', 'tiny-racer')
+        ->where('chat.games.0.launcher_supported', true)
+    );
 });
 
 it('points the install action at /launcher when a build is published', function () {

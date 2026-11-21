@@ -334,6 +334,12 @@ return [
         'install_hint_download' => 'Download',
         'install_hint_copy' => 'Kopieren',
         'install_hint_copied' => 'Kopiert!',
+        // The recipe way onto this server's game (ServerInstallActions).
+        'install_launcher' => 'Im Launcher beitreten',
+        'install_launcher_hint' => 'Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.',
+        'install_game' => 'Spiel installieren',
+        'install_game_short' => 'Zum Spiel',
+        'install_find_players' => 'Mitspieler suchen',
     ],
     'resource' => [
         'label' => 'Spielserver',

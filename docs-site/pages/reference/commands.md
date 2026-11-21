@@ -46,7 +46,9 @@ These are registered in `routes/console.php` and run via `php artisan schedule:w
 | `lanomat:jukebox-tick` | every minute | Poll Music Assistant and advance the queue |
 | `lanomat:sweep-file-uploads` | every 10 min | Release abandoned tus reservations |
 | `lanomat:refresh-avatars [--all] [--user=<id>] [--pause=150]` | daily 04:30 | Refresh local avatars |
-| `lanomat:recipes:sync [source] [--prune] [--json]` | daily 04:15 | Import recipes from the bundled directory, SMB share or git; updates files in place |
+| `lanomat:recipes:sync [source] [--prune] [--only=<slug>] [--json]` | daily 04:15 | Import recipes from the bundled directory, SMB share or git; updates files in place |
+| `lanomat:recipes:pr-status [--json]` | hourly | Sync the state of open recipe pull requests (quiet when pull requests are off) |
+| `lanomat:files:hash [--event=<id or slug>] [--limit=20] [--force] [--dry-run]` | daily 04:45 | Backfill the SHA-256 of stored files that arrived without one |
 | `presence:refresh-locations` | every minute | Rebuild the "who is where" snapshot |
 | `webvoice:prune` | daily | Remove old web-voice data |
 | `gameservers:refresh-queries` | every minute | Query running game servers |
@@ -84,11 +86,25 @@ All provisioning commands take `--as=<user-id>` when run from the CLI without a 
 
 | Command | What it does |
 |---|---|
-| `lanomat:recipes:sync [source] [--prune] [--json]` | Import recipes; `--prune` removes recipes whose directory vanished |
-| `lanomat:recipes:export <dir> [--all]` | Write the catalogue as agent skill directories (`SKILL.md` + `recipe.json`); drafts only with `--all` |
-| `node resources/recipes/schema/validate.mjs` | Validate every recipe against `lanomat.recipe/v1` |
+| `lanomat:recipes:sync [source] [--prune] [--only=<slug>] [--json]` | Import recipes. `--only` narrows what is **updated**, never what counts as present; `--prune` removes recipes of this source whose directory vanished (and nothing when the source yields no recipe at all) |
+| `lanomat:recipes:export <path> [--all] [--format=skills or repository]` | Write the catalogue to disk. `skills` (default) writes Agent Skill folders (`SKILL.md` + `recipe.json`); `repository` writes the catalogue's own layout (`recipe.yaml` + `SKILL.md`) for a directory that becomes a pull request. Drafts only with `--all` |
+| `lanomat:recipes:propose <slug>` | Open or update the one pull request that carries a recipe into the git catalogue, in the foreground; prints the state and either the PR number/URL or the reason it was not sent. Not subject to the automatic per-contributor or open-pull-request limits |
+| `lanomat:recipes:pr-status [--json]` | Ask the repository how the pull requests LANoMAT believes are open are doing and store the answer; one failing request is reported and skipped. Quiet while pull requests are not configured |
+| `node resources/recipes/schema/validate.mjs [dir]` | Validate recipes against `lanomat.recipe/v1` (the bundled catalogue, or an exported set) |
 | `npm run screenshots` (in `docs-site/`) | Copy the app's screenshots into the docs |
 | `npm run check:links` (in `docs-site/`) | Fail on broken internal doc links |
+
+`lanomat:recipes:propose` needs `RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY` and `RECIPES_PR_TOKEN`;
+without them it prints the "not activated" line and exits non-zero. The automatic path opens or
+updates pull requests on the orga's publish by default (`RECIPES_PR_TRIGGER=publish`); `contribute`
+is the opt-in for proposing right after a share or draft edit. A recipe is only proposed when it is a
+contributed or panel recipe (or already has a pull request) and is not archived. A recipe the
+readiness or public-safety check refused exits non-zero with `Nicht gesendet: <reason>`, and the
+reason is also on the recipe's **Katalog (Pull Request)** section in the panel. A recipe that already
+has an open pull request keeps it: the command prints `Pull Request offen (#…): …` and then warns
+`Der Pull Request bleibt …, wurde aber nicht neu gesendet: <reason>` when this run could not update
+it. The command is not subject to `RECIPES_PR_PER_USER_HOURLY` or `RECIPES_PR_MAX_OPEN`. See
+[Recipe pull requests](/docs/system/modules/gamerecipes#pull-requests-into-the-git-catalogue).
 
 ## Deploy
 

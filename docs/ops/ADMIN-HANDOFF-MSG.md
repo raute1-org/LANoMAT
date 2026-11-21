@@ -1,61 +1,60 @@
-# Admin message — LANoMAT first lineup / NFSU2 (copy/paste)
+# Admin message — Spiele teilen, Serverbrowser, Rezept-Pull-Requests (copy/paste)
 
-**Stand:** `main` = `74a933be` · Live = `m12-791-g7db267fb` (`/launcher` = 200) · 2026-11-21
+**Stand:** `main` = der Commit, der diese Datei enthält (`git log -1 --format=%h`) · 2026-11-21
 
 ---
 
-**LANoMAT ist live: https://lan.raute1.org**
-Launcher: `/launcher` · Spiele: `/games` · Server: `/servers`
+**Neu auf `main`: Spiele teilen, Beitreten aus dem Serverbrowser, Rezepte als Pull Request**
 
-**First Lineup**
-- **UT2004** — `10.23.0.40:7777` (Raute1 LAN, query `7778`), install/start via launcher.
-- **NFSU2 (nativ)** — unser NFS-Online-Server: **`10.23.3.220:20922`** (Test) → Ziel **`10.23.0.12:20922`**; TCP `13505, 20921–20923`, UDP `20000–20005`; Client `net_u2.asi` + `net_u2.ini`, `dinput8.dll`.
-- **NFSU2 (Browser)** — https://nfsu2.xyz/ (Community-Port, **nicht unser Server**); ein Server, Nickname, Join/Leave.
+**Was neu ist**
+- **Spiel teilen** (`/games/share`): Teilnehmer laden ein lauffähiges Spiel als `.zip` oder `.tar.bz2` hoch, geben Titel und Startdatei an, fertig ist ein Entwurf.
+- **Ein Schritt für die Orga** (`/admin/recipes`): „Dateien freigeben und veröffentlichen“. Danach steht das Spiel unter `/games`, im Launcher und neben seinen Servern, ohne Config-Änderung.
+- **Serverbrowser:** jeder Server bietet „Im Launcher beitreten“ (installiert bei Bedarf und tritt bei), „Spiel installieren“ und „Mitspieler suchen“.
+- **Rezept-Pull-Requests** (optional, aus): der Rezepttext eines geteilten Spiels geht automatisch als Pull Request ins Repo. Nie Spieldateien.
+- **Fix:** „Installieren“ endet nicht mehr im Nichts. Öffnet sich kein Launcher, sagt die Seite das und bietet den Download an.
 
-**Pakete**
-- `nfsu2-portable.zip` — **2.602.084.719 B**, SHA-256 `0d7028987ba4fdb5dfbd92e3c5a77fd2d6e98992b85b14ef0268fba040767219` (flach, `speed.exe` + `SPEED2.EXE` v1.2, `net_u2.asi`, `net_u2.ini`, `dinput8.dll`, `start-nfsu2-linux.sh`). Unter Proton bis Menü getestet.
-- `ut2004-base.zip` — 2,5 GB flach; UT2004-Install lokal getestet (v3374, Hauptmenü).
-- Beide Uploads stehen noch aus (Filehost nur im WLAN **LANoMAT**).
-
-**Deploy / Admin-Schritte**
+**1. Deploy**
 ```bash
 cd /opt/lanomat
-git pull --ff-only                 # 74a933be
 ./scripts/deploy/deploy.sh
-
-NFS_SERVER_HOST=10.23.0.12 php artisan db:seed --class=LauncherLineupSeeder
-php artisan lanomat:recipes:sync --only=unreal-tournament-2004 --json
-php artisan lanomat:recipes:sync --only=need-for-speed-underground-2 --json
-php artisan lanomat:recipes:sync --only=need-for-speed-underground-2-browser --json
+docker compose --profile prod exec -T app php artisan lanomat:recipes:sync --json
+docker compose --profile prod exec -T app php artisan lanomat:preflight
 ```
-NFSU2 native recipe im Admin auf **published** stellen und die LAN-Datei `nfsu2-portable.zip` pinnen; Browser-Recipe ist published.
+Eine neue Migration (nur neue Spalten). `queue` muss laufen.
 
-**NFS-Server**
+**2. Launcher-Build veröffentlichen** (deshalb tat „Installieren“ auf Prod nichts)
 ```bash
-NFS_ONLINE_SRC=/srv/nfs-online NFS_PUBLIC_HOST=10.23.0.12 \
-  docker compose -f docker/nfs-online/compose.yml up -d --build
+scripts/ops/build-launcher.sh        # Linux; Windows-exe aus dem Workflow „Release launcher“
 ```
-Firewall: TCP `13505, 20921:20923`, UDP `20000:20005`. Danach `nfs_online.py status` und Login/Lobby mit zwei Clients testen.
+Ergebnis liegt in `clients-dist/launcher/` (nicht in git). Aus diesem Stand bauen: der Launcher hat neue Oberflächen. Danach zeigt Preflight „Launcher-Download“ grün und „Installieren“ führt nach `/launcher`.
 
-**Uploads**
+**3. Pull Requests einschalten** (optional)
+Fine-grained GitHub-Token nur für `raute1-org/LANoMAT`, Rechte **Contents** und **Pull requests** je Read and write; am besten ein Bot-Konto. In `/opt/lanomat/.env`:
+```dotenv
+RECIPES_PR_ENABLED=true
+RECIPES_PR_REPOSITORY=raute1-org/LANoMAT
+RECIPES_PR_TOKEN=<token>
+```
 ```bash
-# WLAN LANoMAT, nicht qc
-scripts/ops/ut2004/upload-file.sh /home/reneil1337/Downloads/nfsu2/nfsu2-portable.zip nfsu2-portable.zip 64
-scripts/ops/ut2004/upload-file.sh /home/reneil1337/Downloads/ut2004-base.zip ut2004-base.zip 64
+docker compose --profile prod up -d app queue scheduler reverb-prod
+docker compose --profile prod exec -T app php artisan lanomat:preflight   # „Rezept-Katalog (Pull Requests)“
 ```
-Danach Rezept-Sync + Plan prüfen (`need-for-speed-underground-2` / `os: windows|linux`).
+Standard: ein Pull Request entsteht, wenn die Orga veröffentlicht (`RECIPES_PR_TRIGGER=publish`). Vor dem Senden prüft LANoMAT den Text auf Adressen, Mails, Schlüssel und Tokens; was durchfällt, wird nicht gesendet und steht im Panel als „Nicht gesendet“ mit Grund. Vor dem Mergen den Diff lesen: Rezept-Schritte sind Befehle auf den PCs der Spieler.
 
-**Discord**
-```bash
-DISCORD_WEBHOOK_URL='…' scripts/ops/discord-announce.sh \
-  --file docs/ops/announcements/2026-11-first-lineup.md
-```
-Bot: `DISCORD_AGENT_ENABLED=true`, `LANOMAT_URL=https://lan.raute1.org`, `LANOMAT_TOKEN=…`, `PI_MODEL=…`; pi/MCP liefert 24 Tools (nach diesem Deploy).
+**4. Während der LAN (Orga)**
+`/admin/recipes` → Filter „Geteilte Spiele“ → Spiel öffnen → Abschnitt „Start und Launcher“ lesen (Startbefehle!) → „Dateien freigeben und veröffentlichen“. Ausblenden ohne Zurückziehen: Schalter „In der Spieleliste zeigen“.
 
-**Jetzt testen**
-1. Launcher: UT2004 starten, `Join Game → LAN` → `10.23.0.40:7777`.
-2. Browser: `https://nfsu2.xyz/` in Chrome/Brave, Profil anlegen, World wählen, joinen/leaven.
-3. Nativ: `nfsu2-portable.zip` entpacken, `start-nfsu2-linux.sh` (Proton) bzw. `SPEED2.EXE`; Lobby `10.23.3.220:20922` (Test).
-4. Launcher-Serverbrowser: nach Seed erscheint `NFSU2 (NFS-Online, unser Server)`; UT2004 bleibt.
+**5. Kurz testen (zwei PCs)**
+1. Als Teilnehmer ein kleines Spiel als `.zip` hochladen und unter `/games/share` teilen.
+2. Als Orga freigeben und veröffentlichen.
+3. Zweiter Teilnehmer: Spiel steht unter `/games`, im Launcher installieren und starten.
+4. Server des Spiels: unter `/servers/all` „Im Launcher beitreten“.
+5. PC ohne Launcher: Klick auf „Im Launcher beitreten“ → nach ein paar Sekunden „Kein Launcher-Fenster aufgegangen?“ mit Download.
+6. Mit Pull Requests: nach Schritt 2 ist `recipes/<slug>` als Pull Request offen.
 
-**Offen:** NFSU2-Recipe live **Draft 25** (`version: null`/`launch_targets: []`, `missing: []`; Datei 20 matcht); Ein-Client-Login/Lobby ist verifiziert, Race-UDP mit zwei Clients offen; NFSU2-Server-Zeile noch nicht geseedet; Filehost-Uploads; Ein-Client-Login/Lobby **verifiziert** (bootstrap → ToS → auth/pers → gsea); Zwei-Client-/Race-UDP und Split-Screen-2P noch offen; Discord-Webhook. Details: `docs/ops/ADMIN-HANDOFF.md`.
+**Offen / nicht verifiziert**
+- Nichts davon lief auf echter Hardware oder gegen die echte GitHub-API (nur automatische Tests mit Attrappen). Schritt 5 ist dieser Test.
+- Geteilte Spiele: nur Windows und Linux, nur Archive, die ohne Installer laufen.
+- Aus der ersten Lineup weiter offen: NFSU2-Server auf dem Zielhost, Uploads (`ut2004-base.zip`), Discord-Ankündigung, Zwei-Client-Rennen.
+
+Details: `docs/ops/ADMIN-HANDOFF.md`, `docs/infra/recipe-pull-requests.md`.

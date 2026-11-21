@@ -6,6 +6,7 @@ import * as chat from './chat.js';
 import * as library from './library.js';
 import * as nav from './nav.js';
 import * as ready from './ready.js';
+import * as share from './share.js';
 import { state, showScreen } from './state.js';
 import { S } from './strings.js';
 import {
@@ -36,6 +37,9 @@ function init() {
     library.init({ status: applyStatus, signedOut: reconnect });
     install.init({ ready: afterInstall, library: goLibrary });
     ready.init({ library: goLibrary });
+    // "Spiel teilen" opens the paired server's `/games/share` in the browser.
+    // Whether it is offered is part of the pairing status, like the header.
+    share.init();
 
     // Keyboard and gamepad: the arcade cabinet has a controller and no mouse.
     // `goBack` owns the "fullscreen first, screen second" order, `reportGamepad`
@@ -45,7 +49,7 @@ function init() {
     $('chat-skip').addEventListener('click', goLibrary);
     $('library-chat').addEventListener('click', goChat);
 
-    // The start page's three main actions: games, servers, chat.
+    // The start page's main actions: games, servers, sharing, chat.
     $('start-games').addEventListener('click', goLibrary);
     $('start-servers').addEventListener('click', () => chat.openServers());
     $('start-chat').addEventListener('click', () => {
@@ -418,6 +422,7 @@ function applyStatus(status) {
     if (!paired) {
         setText('who-text', '');
         paintServerName('');
+        share.sync();
 
         return;
     }
@@ -426,6 +431,7 @@ function applyStatus(status) {
 
     setText('who-text', S.header.connectedTo(server, status.user?.name || ''));
     paintServerName(server);
+    share.sync();
 }
 
 // The library headline names the server the games come from. It is machine data, so only
@@ -664,6 +670,7 @@ async function logout() {
     setHidden('who', true);
     setHidden('logout', true);
     paintServerName('');
+    share.sync();
     connect.show({ url });
     showScreen('connect');
 

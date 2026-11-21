@@ -1,4 +1,5 @@
 import type { MyFoodPayment } from '@/types/catering';
+import type { ServerInstallDto } from '@/types/gameservers';
 import type { HomeChatData } from '@/types/home';
 
 export type NowState = 'live' | 'upcoming' | 'none';
@@ -23,6 +24,8 @@ export interface NowJoin {
     port: number | null;
     players: number;
     maxPlayers: number;
+    /** The matching recipe: install page and launcher join link. */
+    install?: ServerInstallDto | null;
 }
 
 export interface NowPlayingRow {
@@ -32,6 +35,8 @@ export interface NowPlayingRow {
     players: number;
     maxPlayers: number;
     join: NowJoin | null;
+    /** Set when the row has no join server but still a matching recipe. */
+    install?: ServerInstallDto | null;
 }
 
 export interface WantToPlayGame {
@@ -76,6 +81,8 @@ export interface PermanentShortDto {
     maxPlayers: number | null;
     connectString: string;
     connectIsLink: boolean;
+    /** The matching recipe: install page and launcher join link. */
+    install?: ServerInstallDto | null;
 }
 
 export interface NowEvent {

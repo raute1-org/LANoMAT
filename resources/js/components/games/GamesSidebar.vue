@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Gamepad2 } from '@lucide/vue';
+import { Gamepad2, Share2 } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 
 type LibraryGame = {
@@ -77,5 +77,23 @@ const platformLabel = (platforms: string[] | null): string =>
                 </Badge>
             </Link>
         </nav>
+        <!-- Quiet, not part of the list (it must not read as a fifth game):
+             one line below the divider, only on a game's own page (the index
+             carries "Spiel teilen" in its header) and only from `lg`, where
+             the sidebar is not stacked above the page. -->
+        <div
+            v-if="active !== ''"
+            class="mt-2 hidden border-t border-border px-2 pt-2 lg:block"
+        >
+            <p class="text-xs text-muted-foreground">Dein Spiel fehlt?</p>
+            <Link
+                href="/games/share"
+                class="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-sm text-sm text-foreground underline decoration-border underline-offset-2 transition-colors outline-none hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none pointer-coarse:min-h-11"
+                data-test="games-share"
+            >
+                <Share2 class="size-3.5 shrink-0" aria-hidden="true" />
+                Spiel teilen
+            </Link>
+        </div>
     </aside>
 </template>

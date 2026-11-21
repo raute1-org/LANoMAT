@@ -44,9 +44,8 @@ requires:
       label: 'A UE4/UE5 game to inject into'
       match: []
       required: true
-      manual: true
-      url: ''
-      notes: 'User-supplied. Anti-cheat titles (EAC/BattlEye) are unsupported and unsafe to inject into. Verify the game is UE4/UE5 before promising VR.'
+      url: https://docs.uevr.io/
+      notes: 'User-supplied and entered by hand: the installer asks for the game and never matches it on the share. Anti-cheat titles (EAC/BattlEye) are unsupported and unsafe to inject into. Verify the game is UE4/UE5 before promising VR; docs.uevr.io explains how to check the engine.'
 steps:
     - id: install-uevr
       title: 'Install UEVR'

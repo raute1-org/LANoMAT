@@ -29,6 +29,13 @@ const PHASES = [
     'ready',
 ];
 
+// The six-step rail is the same for every recipe, but the words are not: a
+// portable archive has no ISO and no patch, so its download step says "Archiv
+// laden" and the optional patch/extra-files step says "Ergänzen". The UT2004
+// pilot keeps the DVD/patch wording. Mirrors `LAUNCHER_ENGINE_SLUG` in lib.rs.
+const UT2004_SLUG = 'unreal-tournament-2004';
+let phaseLabels = S.phases;
+
 let phaseNodes = new Map();
 let unlisten = null;
 let starting = false;
@@ -68,6 +75,11 @@ export async function begin(recipe, { join = null } = {}) {
     settled = false;
     readyAnnounced = false;
     lastPhase = 'planning';
+
+    // A generic recipe speaks in archives, the pilot in DVD and patch. The step
+    // machine itself stays untouched: only the labels of its six steps change.
+    phaseLabels = labelsFor(recipe);
+    paintPhaseLabels();
 
     state.install = {
         slug: recipe.slug,
@@ -139,6 +151,27 @@ export function retry() {
 
 export const isRunning = () => starting;
 
+function labelsFor(recipe) {
+    return recipe && recipe.slug === UT2004_SLUG ? S.phases : S.phasesArchive;
+}
+
+function phaseLabel(name) {
+    return phaseLabels[name] || S.phases[name] || name;
+}
+
+// The rail's visible labels, the aria-labels below and the stopped-at sentence
+// all read the same active set, so the screen cannot mix "Patchen" into a
+// portable install.
+function paintPhaseLabels() {
+    for (const [name, node] of phaseNodes) {
+        const label = node.lastElementChild;
+
+        if (label && label !== node.firstElementChild) {
+            label.textContent = phaseLabel(name);
+        }
+    }
+}
+
 function onProgress(event) {
     const progress = event?.payload || {};
     const eventSlug = String(progress.slug || '');
@@ -174,7 +207,7 @@ function onProgress(event) {
     lastPhase = phase;
     setPhase(phase);
 
-    const message = progress.message || S.phases[phase] || S.install.message;
+    const message = progress.message || phaseLabel(phase) || S.install.message;
     const total = Number(progress.bytes_total) || 0;
     const done = Number(progress.bytes_done) || 0;
 
@@ -240,7 +273,7 @@ function setPhase(phase, failed = false) {
 
         node.setAttribute(
             'aria-label',
-            `${S.phases[name]}, ${S.phaseState[state]}`,
+            `${phaseLabel(name)}, ${S.phaseState[state]}`,
         );
 
         if (state === 'current') {
@@ -346,7 +379,7 @@ function showError(raw) {
     setHidden('install-error', false);
     setHidden('install-cancelled', true);
     setHidden('install-back', false);
-    setText('install-message', S.install.stoppedAt(S.phases[lastPhase]));
+    setText('install-message', S.install.stoppedAt(phaseLabel(lastPhase)));
     freezeProgress();
 
     const hint = $('install-hint');
@@ -388,7 +421,7 @@ function showCancelled() {
     setHidden('install-cancelled', false);
     setHidden('install-error', true);
     setHidden('install-back', false);
-    setText('install-message', S.install.stoppedAt(S.phases[lastPhase]));
+    setText('install-message', S.install.stoppedAt(phaseLabel(lastPhase)));
     freezeProgress();
 
     const hint = $('install-hint');

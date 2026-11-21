@@ -36,14 +36,23 @@ use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Policies\EventPhotoPolicy;
+use App\Modules\GameRecipes\Contracts\RecipeRepository;
+use App\Modules\GameRecipes\Events\RecipeContributed;
+use App\Modules\GameRecipes\Events\RecipePublished;
+use App\Modules\GameRecipes\Listeners\ProposeContributedRecipe;
+use App\Modules\GameRecipes\Listeners\ProposePublishedRecipe;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\LauncherTerminal;
 use App\Modules\GameRecipes\Policies\GameRecipePolicy;
 use App\Modules\GameRecipes\Policies\LauncherTerminalPolicy;
+use App\Modules\GameRecipes\Support\GitHubRecipeRepository;
+use App\Modules\GameRecipes\Support\NullRecipeRepository;
+use App\Modules\GameRecipes\Support\RecipeInstallLinks;
 use App\Modules\Games\Contracts\EggCatalog;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\Games\Support\NullEggCatalog;
+use App\Modules\GameServers\Contracts\GameInstallLinks;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\RemoteDockerControl;
@@ -58,6 +67,7 @@ use App\Modules\GameServers\Listeners\ProvisionMatchServerOnReady;
 use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
+use App\Modules\GameServers\Support\NullGameInstallLinks;
 use App\Modules\GameServers\Support\PelicanEggCatalog;
 use App\Modules\GameServers\Support\SshRemoteDockerControl;
 use App\Modules\GameServers\Support\TcpMinecraftQuery;
@@ -124,6 +134,7 @@ use App\Modules\Preflight\Checks\MusicAssistantCheck;
 use App\Modules\Preflight\Checks\PelicanCheck;
 use App\Modules\Preflight\Checks\QueueWorkerCheck;
 use App\Modules\Preflight\Checks\ReceiverSidecarCheck;
+use App\Modules\Preflight\Checks\RecipeRepositoryCheck;
 use App\Modules\Preflight\Checks\RedisCheck;
 use App\Modules\Preflight\Checks\ReverbCheck;
 use App\Modules\Preflight\Checks\SchedulerHeartbeatCheck;
@@ -323,6 +334,30 @@ class AppServiceProvider extends ServiceProvider
             ? $app->make(PelicanEggCatalog::class)
             : new NullEggCatalog);
 
+        // GameServers must not import the recipe catalogue, so a server asks the GameServers-owned
+        // GameInstallLinks contract how a player gets its game; GameRecipes answers while it is on.
+        $this->app->bind(GameInstallLinks::class, fn (Application $app): GameInstallLinks => $app->make(Modules::class)->enabled(Module::GameRecipes)
+            ? $app->make(RecipeInstallLinks::class)
+            : new NullGameInstallLinks);
+
+        // Shared recipes travel into the git catalogue as pull requests. Off (null object) until
+        // the feature is enabled and both the repository and its token are set.
+        $this->app->bind(RecipeRepository::class, function (): RecipeRepository {
+            $repository = trim((string) config('recipes.pull_requests.repository'));
+            $token = trim((string) config('recipes.pull_requests.token'));
+
+            if (! (bool) config('recipes.pull_requests.enabled') || $repository === '' || $token === '') {
+                return new NullRecipeRepository;
+            }
+
+            return new GitHubRecipeRepository(
+                $repository,
+                $token,
+                (string) (config('recipes.pull_requests.base') ?: 'main'),
+                rtrim((string) (config('recipes.pull_requests.api_url') ?: 'https://api.github.com'), '/'),
+            );
+        });
+
         $this->app->bind(ServerQuery::class, UdpServerQuery::class);
         $this->app->bind(MinecraftQuery::class, TcpMinecraftQuery::class);
         $this->app->bind(Ut2004Query::class, UdpUt2004Query::class);
@@ -400,7 +435,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::Files) ? [FileHostCheck::class] : []),
             ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class, ClientBuildCheck::class] : []),
-            ...($modules->enabled(Module::GameRecipes) ? [LauncherBuildCheck::class] : []),
+            ...($modules->enabled(Module::GameRecipes) ? [LauncherBuildCheck::class, RecipeRepositoryCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
             ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
@@ -600,8 +635,13 @@ class AppServiceProvider extends ServiceProvider
         }
 
         if ($this->on(Module::GameRecipes)) {
+            // A shared recipe travels into the git catalogue; the listeners only
+            // decide whether to queue, the job does the talking. Registered in
+            // both trigger modes so a publish updates a row opened earlier.
             Gate::policy(GameRecipe::class, GameRecipePolicy::class);
             Gate::policy(LauncherTerminal::class, LauncherTerminalPolicy::class);
+            Event::listen(RecipeContributed::class, ProposeContributedRecipe::class);
+            Event::listen(RecipePublished::class, ProposePublishedRecipe::class);
         }
 
         if ($this->on(Module::Lfg)) {
