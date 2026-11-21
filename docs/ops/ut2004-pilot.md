@@ -560,8 +560,8 @@ Fassung zurück.
 
 ### 5.9 macOS: App bauen, signieren, notarisieren
 
-**UT2004 selbst:** Das Patch-DMG ist nicht von Apple notarisiert und nicht
-signiert.
+**UT2004 selbst:** Das Patch-DMG ist nicht von Apple notarisiert; Gatekeeper
+kann den ersten Start blockieren.
 Auf macOS mounten, `UT2004.app` nach `~/Applications` kopieren, die
 Asset-Ordner nach `~/Library/Application Support/UT2004` (ohne `System/`),
 dann einmalig:

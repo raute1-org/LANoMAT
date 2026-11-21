@@ -608,3 +608,27 @@ started and leaves a pre-existing server on `8099` untouched.
   restores the value captured at the start. Do not run two smoke tests at once.
 - **`--dry-run` says the download is incomplete**: leave the base archive
   alone, finish/merge the parts, then rerun. Nothing was changed.
+
+## upload-file.sh — resumable tus upload to the live file host
+
+Uploads a large file (the 2.55 GB `ut2004-base.zip` is the pilot case) to the
+event file host through the resumable tus endpoint. The bytes go **directly**
+to `https://files.lan.raute1.org:8443/upload/`; `lan.raute1.org` only issues the
+ticket and hook. The laptop must be on the venue WLAN `LANoMAT`
+(`10.23.0.0/22`), not on `qc` (`10.13.69.0/24`).
+
+```bash
+# admin session cookie in Header format, e.g. /tmp/opencode/cookies.txt
+scripts/ops/ut2004/upload-file.sh \
+  '/home/reneil1337/Downloads/ut2004-base.zip' ut2004-base.zip 64
+```
+
+- Ticket: `POST /events/raute1-lan-26/files/uploads` (admin => the finished
+  SharedFile is immediately `approved`).
+- `POST` creates the tus upload, then 64 MiB `PATCH` chunks.
+- State (tus URL) lives in `~/.cache/opencode-upload-test/state-*.env`; rerun
+  the same command after a broken connection and it resumes from `HEAD`.
+- Measured: ~1.2–1.9 MB/s on the venue WLAN; 2.55 GB ≈ 22–35 min.
+- `--` no automatic network switch; keep `LANoMAT` connected for the whole run.
+- Cleanup: the script leaves the tus state until complete; delete the state
+  file after verifying the SharedFile in `/admin`.
