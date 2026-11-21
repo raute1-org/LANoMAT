@@ -8,6 +8,11 @@ This group is the participant's LAN. Everything here is scoped to one `Event` (e
 Teams and Friends, which are cross-event), and every entry point is gated by the event's lifecycle
 and the viewer's policy.
 
+| Dark | Light |
+|---|---|
+| ![Public event page with status, spots left and arrival info](/screens/event-page-dark.png) | ![Public event page in light mode](/screens/event-page-light.png) |
+| `EVENT · DARK` — the participant's entry point | `EVENT · LIGHT` — same status, same spots |
+
 ## How the lifecycle drives the UI
 
 | Event status | What changes |
@@ -20,6 +25,19 @@ and the viewer's policy.
 
 The one rule for "registration open" is `RegistrationAvailability::for($event)` — not a comparison
 of `EventStatus` scattered across controllers.
+
+| Dark | Light |
+|---|---|
+| ![Registration form with ticket tier, spots left and arrival window](/screens/register-dark.png) | ![Registration form in light mode](/screens/register-light.png) |
+| `REGISTRATION · DARK` — ticket tier, spots left, arrival estimate | `REGISTRATION · LIGHT` — same open form |
+
+Check-in reuses the same ticket: the orga scans the QR from the ticket or types the token, and the
+participant's dashboard flips to "eingecheckt".
+
+| Dark | Light |
+|---|---|
+| ![Check-in page with camera scan and manual token entry](/screens/orga-checkin-dark.png) | ![Check-in page in light mode](/screens/orga-checkin-light.png) |
+| `CHECK-IN · DARK` — camera scan or token | `CHECK-IN · LIGHT` — same two paths |
 
 ## Modules in this group
 
@@ -40,6 +58,14 @@ of `EventStatus` scattered across controllers.
 | [Recap](/docs/system/modules/recap) | Post-LAN projection: podiums, photos, songs, MVP | Guests, Orga |
 | [News](/docs/system/modules/news) | Global orga news posts on the homepage | Orga, guests |
 
+Teams are the only place a participant owns a roster before a tournament exists; the screen starts
+empty on a fresh instance and fills with the LAN's squads.
+
+| Dark | Light |
+|---|---|
+| ![Teams page before the first team exists, with the create action](/screens/teams-dark.png) | ![Teams page in light mode, same empty state](/screens/teams-light.png) |
+| `TEAMS · DARK` — empty state, create the first team | `TEAMS · LIGHT` — same call to action |
+
 ## The people model
 
 `users.id` is the sole foreign-key anchor across the schema. `users.discord_id` is the login
@@ -49,6 +75,14 @@ user-fusion feature can repoint foreign keys; nothing depends on Discord's id as
 Roles are `participant`, `orga` and `admin`. Helpers (a role used by Files/Gallery/Jukebox
 moderation) are treated as staff in those modules. Admin `Gate::before` bypasses policies for
 admins only — orga is explicit, not a superuser.
+
+The role column in the admin user list is the same enum the policies read, so promoting someone is
+one explicit edit rather than a hidden flag.
+
+| Dark | Light |
+|---|---|
+| ![Filament user list with role, e-mail and registration date](/screens/admin-users-dark.png) | ![Filament user list in light mode](/screens/admin-users-light.png) |
+| `USERS · DARK` — role, e-mail, registered at | `USERS · LIGHT` — same rows |
 
 <div class="callout-live">
   <strong>Screens first.</strong> The event page, seat map and bracket are the three surfaces a

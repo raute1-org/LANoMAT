@@ -8,6 +8,14 @@ Competition is where LANoMAT is loudest after the beamer: brackets, match report
 servers and stream overlays. The bracket engine is pure domain code under
 `app/Modules/Tournaments/Domain/`, tested exhaustively before any UI touches it.
 
+The participant entry point is the tournament list for the current event: format, start time, entry
+count and the one live badge.
+
+| Dark | Light |
+|---|---|
+| ![Tournament list with format, start time, entries and live badge](/screens/tournaments-dark.png) | ![Tournament list in light mode](/screens/tournaments-light.png) |
+| `TOURNAMENTS · DARK` — format, start, entries, live state | `TOURNAMENTS · LIGHT` — same card |
+
 ## The competition loop
 
 1. **Game** — a cross-event catalogue entry (team size, optional Pelican egg, server presets).
@@ -21,6 +29,14 @@ servers and stream overlays. The bracket engine is pure domain code under
 Mumble/TeamSpeak rooms, web-voice rooms, a game server, presence. Each listener is registered only
 when its module is enabled; the modules never call each other.
 
+Step 5 is the surface that proves it: once the preset is up and A2S answers, the card shows address,
+port and estimated footprint before the match starts.
+
+| Dark | Light |
+|---|---|
+| ![Event game server card with address, port and ready state](/screens/event-servers-dark.png) | ![Event game server card in light mode](/screens/event-servers-light.png) |
+| `GAME SERVER · DARK` — address, port, footprint, connect | `GAME SERVER · LIGHT` — same ready card |
+
 ## Modules in this group
 
 | Module | What it does | Main users |
@@ -30,6 +46,14 @@ when its module is enabled; the modules never call each other.
 | [GameServers](/docs/system/modules/gameservers) | Pelican provisioning, permanent servers, port pool, A2S readiness | Orga, Teilnehmer |
 | [Stats](/docs/system/modules/stats) | Cross-event leaderboards and derived badges | Everyone |
 | [Casting](/docs/system/modules/casting) | Stream links and no-auth OBS overlays | Orga, streamer |
+
+Stats keeps the cross-event scoreboard behind the leaderboard, and the same numbers feed the recap
+podium and the casting overlay.
+
+| Dark | Light |
+|---|---|
+| ![Leaderboard ranked by wins, tournament wins and podiums](/screens/leaderboard-dark.png) | ![Leaderboard in light mode](/screens/leaderboard-light.png) |
+| `LEADERBOARD · DARK` — wins, titles, podiums | `LEADERBOARD · LIGHT` — same ranking |
 
 ## What the bracket guarantees
 
@@ -42,6 +66,14 @@ when its module is enabled; the modules never call each other.
 Byes are handled in the engine, not in the UI. A bracket exists only after the tournament is
 started; before that the page shows slots, start time and rules. A `draft` tournament is invisible
 to everyone but orga — the one rule is `Tournament::scopeVisibleTo`.
+
+The live bracket draws the engine's rounds as-is: played matches carry scores, ready matches wait
+for a report, pending ones show dashes.
+
+| Dark | Light |
+|---|---|
+| ![Live single-elimination bracket with scores and ready matches](/screens/tournament-bracket-dark.png) | ![Live bracket in light mode](/screens/tournament-bracket-light.png) |
+| `BRACKET · DARK` — rounds, scores, ready and pending | `BRACKET · LIGHT` — same live state |
 
 <div class="callout-live">
   <strong>Match result flow.</strong> A player reports, the opponent confirms or disputes. While
