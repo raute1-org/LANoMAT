@@ -19,6 +19,10 @@ resources/recipes/<slug>/
 Use `unreal-tournament-2004` as the reference. The directory name must equal `slug`, the slug must
 be lowercase kebab-case, and aliases must be unique across the catalogue.
 
+An existing database recipe can start the same layout instead of a blank page:
+`lanomat:recipes:export <path> --format=repository` writes `<slug>/recipe.yaml` and `<slug>/SKILL.md`
+for every published recipe (drafts only with `--all`).
+
 ## 2. Write `recipe.yaml`
 
 Start from the schema, not from prose:
@@ -116,6 +120,16 @@ recipe pull requests, LANoMAT proposes them as one pull request on a branch name
 recipe text passes a public-safety check before it is sent, so a private address, an e-mail address
 or a token in the text blocks the proposal instead of publishing it. The game files never travel
 with it — the recipe pins the archive on the LAN file host by name.
+
+The proposal is opened at one of two moments, chosen by the operator: right after the share
+(`RECIPES_PR_TRIGGER=contribute`, the default) or on the orga's publish (`publish`). Publishing a
+contributed or panel recipe always opens or updates it. In the panel it is **Pull Request öffnen /
+aktualisieren** on the recipe's edit page; the **Katalog (Pull Request)** section shows the state
+(**Pull Request offen**, **Im Katalog**, **Pull Request geschlossen**, **Nicht gesendet**,
+**Fehlgeschlagen**), the link, the refusal reason and the last sync. From a shell,
+`lanomat:recipes:propose <slug>` runs one proposal in the foreground and
+`lanomat:recipes:pr-status` sweeps the open ones hourly. Before the LAN, Preflight's
+`recipe_repository` check says whether the token may read and push.
 
 The same validator gates that pull request. A maintainer reviews the diff and merges; the next sync
 from the git source brings the recipe into the catalogue, and the lineup flag then decides whether

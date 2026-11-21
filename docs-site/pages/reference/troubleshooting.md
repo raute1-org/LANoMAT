@@ -65,6 +65,23 @@ only the manual token field works.
 | Gallery photo has GPS | GD re-encode disabled | Keep `IMAGE_DRIVER` empty (GD); Imagick would keep EXIF |
 | Zip download missing | Event not finished | The zip is gated to `finished`/`archived` |
 
+## Games, launcher and shared recipes
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| **Installieren** does nothing | The click fired a `lanomat://` deep link, but the LANoMAT Launcher is not installed on that PC, or it was installed and never started (it can open behind the browser) | Install or start the launcher from `/launcher`; the notice under the click (**„Kein Launcher-Fenster aufgegangen?“**) has **Launcher herunterladen** and **Nochmal versuchen** |
+| The game page has no launcher download, only the deep link | No launcher build is published, so `launcher_available` is `false` and **Installieren** is the `lanomat://install/<slug>` deep link; or the recipe is not `launcher_supported` | Publish a build with `scripts/ops/build-launcher.sh` (writes `manifest.json` last into `clients-dist/launcher`, read via `LAUNCHER_DIST_PATH`), then check `launcher_build` in Preflight. For the recipe, see the **Bald im Launcher** row |
+| A shared game does not appear on `/games` | The recipe is still **Entwurf**, or it is published but outside the lineup. An approved file alone does not put it there | In `/admin` → **Spielrezepte**: if it is still a draft, **Dateien freigeben und veröffentlichen** approves the pinned archive and publishes in one step; if it is published, switch **In der Spieleliste zeigen** on. Publishing a contributed recipe already sets that flag |
+| A shared game is approved and published but has no server row | No published, lineup-allowed recipe matches the server's game (`RecipeGameMatcher`) | The server's game slug/name and the recipe's slug or search terms must match; check the match on `/servers` |
+| No pull request was opened | `RECIPES_PR_ENABLED` is off, or repository/token are missing; or the proposal was refused | `php artisan lanomat:recipes:propose <slug>` prints `Nicht gesendet: …` with the reason; the panel's **Katalog (Pull Request)** section shows the same. Check `recipe_repository` in Preflight for the token's push right |
+| The recipe says **Nicht gesendet** | The public-safety check found a private or public IP address, an e-mail address, a key block, an SSH key or an access token in the recipe text | Fix the text (use `lan.example`, `203.0.113.x`, placeholders), then **Pull Request öffnen / aktualisieren** again |
+| The recipe says **Fehlgeschlagen** | The repository could not take the proposal (bad token, rate limit, unreachable API) and no earlier pull request exists | Read the reason in the **Katalog (Pull Request)** section; fix the named item, then propose again. A transient failure is retried twice by the queued job (after 30 s and 120 s) before it is recorded |
+| The launcher card says **„Bald im Launcher“** | `LauncherSupport` says this launcher build cannot install the recipe: it is not the UT2004 pilot, not the hand-verified NFSU2 recipe, has no `play_url`, and is not portable | Make it portable (`metadata.portable: true`, one required `base` archive, a `file_exists`/`dir_exists` check in a non-optional step, at least one launch target), or set `metadata.launcher_supported: true` as the orga. The card links to `/games/<slug>` meanwhile |
+
+A **skipped** `recipe_repository` in Preflight only means pull requests are off; that is not an
+error. The full check list is on [Preflight](/docs/system/modules/preflight); the workflow is on
+[Game recipes](/docs/system/modules/gamerecipes).
+
 ## Voice
 
 | Symptom | Cause | Fix |

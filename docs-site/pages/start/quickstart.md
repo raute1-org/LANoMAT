@@ -136,14 +136,16 @@ publishes the Linux build into `clients-dist/launcher`; the Windows exe comes fr
 | Let an agent drive LANoMAT | [MCP server](/docs/mcp/overview) and [pi agent](/docs/agent/overview) |
 | Look up a command or env var | [Reference](/docs/reference/commands) |
 
-The games library is what people open first at the venue: every published recipe, what is on the
-LAN, and the one-click round. Opening a game lands on the detail page with install, launch, the live
-server and the files from the LAN file host.
+The games library is what people open first at the venue: every published recipe the lineup allows,
+what is on the LAN, and the one-click round. Opening a game lands on the detail page with install,
+launch, the live server and the files from the LAN file host. **Spiel teilen** in the page header
+opens [`/games/share`](/docs/guides/share-a-game); the server browser at `/servers` lists the servers
+of the LAN with their game and the way onto them.
 
 | Dark | Light |
 |---|---|
-| ![Games library with published recipes and the LAN filter, dark](/screens/games-dark.png) | ![Games library with published recipes and the LAN filter, light](/screens/games-light.png) |
-| `GAMES · DARK` — every recipe, LAN dot, running tournaments | `GAMES · LIGHT` |
+| ![Games library with lineup recipes and the LAN filter, dark](/screens/games-dark.png) | ![Games library with lineup recipes and the LAN filter, light](/screens/games-light.png) |
+| `GAMES · DARK` — lineup recipes, LAN dot, running tournaments | `GAMES · LIGHT` |
 
 | Dark | Light |
 |---|---|

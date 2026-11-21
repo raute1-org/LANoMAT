@@ -73,7 +73,7 @@ php artisan lanomat:recipes:sync --only=counter-strike-1-6
 |---|---|
 | `source` | Directory, `smb://host/share[/path]`, or `git+https://…`; defaults to `RECIPES_SOURCE` |
 | `--prune` | Delete recipes from **this** source that no longer exist there |
-| `--only=<slug>` | Import one recipe |
+| `--only=<slug>` | Update only this recipe; everything else in the source still counts as present |
 | `--json` | Machine-readable result: source, created, updated, pruned |
 
 ```text
@@ -188,20 +188,29 @@ A participant can upload a ready-to-run archive and describe it on `/games/share
 Your part:
 
 1. The file waits on the event Files page as `Wartet auf Freigabe`. Check that it is really a
-   `.zip` or `.tar.bz2` that unpacks into a runnable game folder, then approve it like any other
-   file. A rejected upload's bytes are gone and the participant has to upload again.
-2. Open `/admin` → **Spielrezepte** and review the draft: title, platforms, the Windows start file,
-   the Linux start (Wine or a native binary). The recipe's step commands are prose and manual
-   fallback; the launcher never runs them.
-3. Test the base install on one machine per claimed platform, as in the section below.
-4. Publish the recipe.
-5. Set `game_recipes.in_lineup` for it if the game should reach players. The lineup is the
-   configured `LAUNCHER_LINEUP` **plus** every recipe with that flag (`LauncherLineup::slugs()`),
-   and the same list drives `/games`, the launcher and the server browser. A published recipe
-   outside the lineup stays in the database but has no player-facing link. An empty
-   `LAUNCHER_LINEUP` means no curation: the whole published catalogue is shown anyway.
-6. The catalogue entry follows as a pull request against `resources/recipes/` when recipe pull
-   requests are enabled; game files stay on the file host.
+   `.zip` or `.tar.bz2` that unpacks into a runnable game folder. A rejected upload's bytes are gone
+   and the participant has to upload again.
+2. Open `/admin` → **Spielrezepte**. The navigation badge counts the contributed drafts waiting for
+   review; the **Geteilte Spiele** filter narrows the list to rows with a contributor. The **Datei**
+   column says **„Datei wartet auf Freigabe“**, **„Datei abgelehnt“** or **„Datei fehlt“**.
+3. Review the draft: title, platforms, the Windows start file, the Linux start (Wine or a native
+   binary). The recipe's step commands are prose and manual fallback; the launcher never runs them.
+4. Test the base install on one machine per claimed platform, as in the section below.
+5. **Dateien freigeben und veröffentlichen** approves the pinned archive and publishes the recipe in
+   one action, all or nothing. The button appears only while a pinned file waits (or a rejected one
+   blocks it); if the file was approved earlier, **Veröffentlichen** is enough.
+6. Publishing a contributed recipe sets **In der Spieleliste zeigen** (`game_recipes.in_lineup`), so
+   it reaches `/games`, the launcher and the server browser without a config change. Switch the
+   toggle off to publish a game without a player-facing link. The lineup is the configured
+   `LAUNCHER_LINEUP` **plus** every recipe with that flag (`LauncherLineup::slugs()`); an empty
+   `LAUNCHER_LINEUP` means no curation, and the whole published catalogue is shown anyway.
+7. The catalogue entry follows as a pull request against `resources/recipes/`. When recipe pull
+   requests are enabled (`RECIPES_PR_ENABLED`), it is opened automatically — on the share with
+   `RECIPES_PR_TRIGGER=contribute` (the default), on the publish with `publish`. **Pull Request
+   öffnen / aktualisieren** on the edit page queues it by hand. The **Katalog (Pull Request)**
+   section shows the state: **Pull Request offen**, **Im Katalog**, **Pull Request geschlossen**,
+   **Nicht gesendet** (the public-safety check refused the text, with the reason) or
+   **Fehlgeschlagen**. Game files stay on the file host.
 
 The participant-facing half of this is [Share a game](/docs/guides/share-a-game).
 
@@ -244,6 +253,7 @@ sentence and the next step. The checks that matter for game installs:
 | Storage writability | Uploads and the local store fail |
 | Backup freshness | The marker is older than expected → back up now |
 | File host | Large uploads/downloads fail; `FILES_STORE=host` needs it |
+| Recipe repository | The token may read and push to the git catalogue; a warning, never down |
 | Discord gateway | Announcements and DMs |
 | Pinned image updates | A newer image exists; a warning, never an auto-update |
 
@@ -436,6 +446,8 @@ alone; the Jukebox queue keeps working.
 | Docs 404 | `docker compose --profile docs ps`; router and basePath |
 | Preflight `down` on backup | Run `scripts/ops/backup.sh`; check `BACKUP_MARKER_PATH` |
 | Upload fails at 100 % | File host quota/store; check `FILES_STORE` and tusd |
+| A shared game is missing from `/games` | File not approved, recipe not published, or not in the lineup |
+| A recipe's pull request is **Nicht gesendet** | Read the reason in **Katalog (Pull Request)**; fix the text, propose again |
 | Pairing works for one PC, not another | Wrong `--url`, or the device was revoked under `/mcp/connect` |
 
 ## Related

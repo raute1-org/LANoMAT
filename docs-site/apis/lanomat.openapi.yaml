@@ -824,6 +824,41 @@ paths:
                               label: { type: string }
                               url: { type: string }
                               hint: { type: string }
+                        install:
+                          type: object
+                          nullable: true
+                          description: |
+                            How a player gets the game this server runs: the published recipe that installs it, from
+                            the recipe catalogue, limited to the lineup (`LAUNCHER_LINEUP` plus the recipes the orga
+                            switched on). Null when no such recipe matches the server's game, which is the normal
+                            case for a curated game with no recipe or a game outside the lineup.
+                          required: [recipeSlug, title, pageUrl, launcherSupported, launcherJoinUrl]
+                          properties:
+                            recipeSlug:
+                              type: string
+                              description: The recipe slug; the launcher joins with it.
+                            title:
+                              type: string
+                            pageUrl:
+                              type: string
+                              description: The game's page, `/games/<slug>`.
+                            launcherSupported:
+                              type: boolean
+                              description: |
+                                Whether the LANoMAT launcher can take this recipe from archive to running game
+                                (the UT2004 pilot, the hand-verified NFSU2 recipe, a `play_url` recipe or a portable
+                                one). GameServers does not decide this; the recipe catalogue does.
+                            launcherJoinUrl:
+                              type: string
+                              nullable: true
+                              description: |
+                                One click: `lanomat://join/<slug>` with `?address=<host>:<port>` (UT2004, which
+                                takes the server on its command line) or `?url=<urlencoded join url>` for the
+                                server's own deep link. With only an address and no join URL the link carries no
+                                query; the launcher installs the game and starts it normally. Null when the
+                                launcher cannot install the recipe, or the server has neither a usable
+                                address+port nor an accepted join URL.
+                              example: lanomat://join/unreal-tournament-2004?address=203.0.113.9:7777
               example:
                 events:
                   - slug: lan-raute-1
@@ -842,13 +877,39 @@ paths:
                     event: { slug: lan-raute-1, name: Lan Raute 1, status: live }
                     query: { serverName: Survival, map: world, players: 3, maxPlayers: 20 }
                     joinOptions: []
+                    install: null
                   - id: 12
                     title: UT2004 Dauerwelt
                     game: Unreal Tournament 2004
+                    gameSlug: unreal-tournament-2004
                     status: offline
                     permanent: true
                     event: null
                     joinOptions: []
+                    install:
+                      recipeSlug: unreal-tournament-2004
+                      title: Unreal Tournament 2004
+                      pageUrl: /games/unreal-tournament-2004
+                      launcherSupported: true
+                      launcherJoinUrl: null
+                  - id: 13
+                    title: Skyline Rally Abendrunde
+                    game: Skyline Rally
+                    gameSlug: skyline-rally
+                    status: ready
+                    address: 203.0.113.24
+                    port: 7777
+                    connectString: 203.0.113.24:7777
+                    connectIsLink: false
+                    permanent: true
+                    event: null
+                    joinOptions: []
+                    install:
+                      recipeSlug: skyline-rally
+                      title: Skyline Rally
+                      pageUrl: /games/skyline-rally
+                      launcherSupported: true
+                      launcherJoinUrl: lanomat://join/skyline-rally
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":

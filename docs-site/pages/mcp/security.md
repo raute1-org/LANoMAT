@@ -5,7 +5,8 @@ sidebar_icon: shield
 ---
 
 An MCP server is a door into the LAN's data. LANoMAT keeps it narrow: bearer tokens scoped to one
-user, a read-mostly tool set, no shell, no SQL, and a draft-only write path for recipes.
+user, a read-mostly tool set, no shell, no SQL, and a draft-only write path for recipes (whose text
+may travel to the git catalogue as a pull request, never the game files).
 
 ## Credentials
 
@@ -43,13 +44,53 @@ The role behind the token is the same role the orga sees in the user list:
 | ![Filament user list with role badges per participant, dark](/screens/admin-users-dark.png) | ![Filament user list with role badges per participant, light](/screens/admin-users-light.png) |
 | `Nutzer · DARK` — name, e-mail, Rolle and registration date per account | `Nutzer · LIGHT` |
 
+## What a contribution can and cannot carry
+
+`recipe_contribute` (and `POST /api/v1/recipes`) writes a **draft** recipe, not catalogue text. What
+the caller may put in:
+
+| Allowed | What it is |
+|---|---|
+| `requires[].shared_file_id` | A pin on one LAN file the caller may open anyway: their own upload or an approved one. Another user's pending upload is refused with a validation error on `requirements.N.shared_file_id` |
+| `launch_targets` | Up to 10 ways to start the installed game (same shape as `recipe.yaml`) |
+| `play_url` | A browser recipe's entry point; it needs no install |
+| `portable` | Becomes `metadata.portable`; with one required `base` archive, a file check and a launch target it makes the recipe installable by the launcher |
+
+What it cannot set:
+
+| Refused or ignored | Who owns it |
+|---|---|
+| `status` | Always `draft` on create (an existing recipe keeps its status); the orga publishes in the panel |
+| `in_lineup` | The orga's **In der Spieleliste zeigen** switch |
+| `metadata.launcher_supported` | The orga override; a non-orga value is dropped, and `launcher_supported` in the tool's answer is computed by `LauncherSupport` |
+| `pr_*` | The pull request pipeline (see below) |
+
+A pinned file is not recipe text: it lives on the file row and never in the stored requirement, so a
+contribution can never be used to learn about or reach somebody else's pending upload.
+
+## Recipe pull requests
+
+When the operator enabled them (`RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY`, `RECIPES_PR_TOKEN`),
+a contributed recipe may be **proposed to the repository as a pull request** — the repository can be
+public. Only recipe text travels (`recipe.yaml`, `SKILL.md`, the `_catalog.md` row); game files stay
+on the LAN file host, and the pull request body carries requirement labels, never file-host URLs or
+ids. Before a single request leaves LANoMAT the text passes the same public-safety check as
+`scripts/ops/check-public-safe.sh`: private and public IPv4 addresses, IPv6 addresses, e-mail
+addresses, private keys, SSH keys and bearer tokens block the proposal. A blocked recipe is never
+sent and keeps the reason; a transient repository failure is retried by the queued job, and the last
+try records **Fehlgeschlagen**. The states are **Pull Request offen**, **Im Katalog**, **Pull
+Request geschlossen**, **Nicht gesendet** and **Fehlgeschlagen**.
+
+Attribution (the contributor's display name) is off by default for exactly this reason.
+
 ## What the server cannot do
 
 - No SQL, no arbitrary file path, no shell command.
 - Writes only through the narrow tools: your registration (`event_register`), a match result
   (`match_result`), a poll vote (`poll_vote`), an LFG post (`lfg_create`) and a draft recipe
   (`recipe_contribute`). No seat, event or tournament edits, no file upload, no deletes.
-- No publish: `recipe_contribute` creates a **draft**.
+- No publish: `recipe_contribute` creates a **draft**. Its text may be proposed as a pull request
+  when the operator enabled that; the proposal does not publish the recipe for the LAN.
 - No cross-user read: `lanomat_me` is the token's user; recipe and file reads are public catalogue
   data plus the user's role.
 - No admin panel access; `/admin` remains session-authenticated.
@@ -111,6 +152,8 @@ guest does, and the module toggles sit in the same panel.
 - [ ] `APP_URL` is the host agents use; a mismatch breaks `verification_uri`.
 - [ ] Paired devices are reviewed in settings; old ones revoked.
 - [ ] The recipe catalogue is reviewed; drafts are not published by accident.
+- [ ] Recipe pull requests: `RECIPES_PR_*` set, the token scoped to one repository, and
+      `recipe_repository` in Preflight green — or skipped on purpose.
 - [ ] The file host is not exposed to the internet.
 - [ ] `lanomat:preflight` includes the MCP route and the file host when the module is on.
 - [ ] No token appears in a screenshot, a recipe, a Discord message or this repository.

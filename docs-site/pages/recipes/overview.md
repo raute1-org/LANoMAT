@@ -185,10 +185,14 @@ A participant who has a ready-to-run game folder does not edit `resources/recipe
 1. They pack the folder as `.zip` or `.tar.bz2`, upload it to the LAN file host and describe it on
    `/games/share`. That creates a draft portable recipe with the archive pinned as its required
    `base` requirement.
-2. The orga approves the file and publishes the recipe, then sets `game_recipes.in_lineup` so the
-   game joins the lineup the players see.
-3. The catalogue entry follows as a pull request against this directory. The files stay on the file
-   host; only the recipe text travels.
+2. The orga releases it in `/admin` → **Spielrezepte** with **Dateien freigeben und veröffentlichen**
+   (approves the pinned archive and publishes in one action). Publishing a contributed recipe sets
+   **In der Spieleliste zeigen**, so the game joins the lineup the players see.
+3. The catalogue entry follows as a pull request against this directory — opened by
+   `lanomat:recipes:propose`, automatically on the share or on the publish when the operator enabled
+   recipe pull requests. The files stay on the file host; only the recipe text travels. The
+   **Katalog (Pull Request)** section in the panel and the **Katalog** column on `/games/share` show
+   where it stands.
 
 Read [Share a game](/docs/guides/share-a-game) for the participant side and
 [Contributing](/docs/recipes/contributing) for the repository side.

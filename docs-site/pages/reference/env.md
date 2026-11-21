@@ -184,7 +184,35 @@ under "Verbundene Geräte" until they are disconnected.
 | `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
 | `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |
 | `LAUNCHER_DIST_PATH` | `clients-dist/launcher` | Where the published launcher builds and `manifest.json` live; read by `/launcher` and the Preflight `launcher_build` check |
-| `LAUNCHER_LINEUP` | `unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser` | Comma-separated recipe allowlist for the launcher library, `/games`, home chat cards and MCP `recipes_list`; empty = show every visible recipe |
+| `LAUNCHER_LINEUP` | `unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser` | Comma-separated recipe allowlist for the launcher catalogue, `/games`, the home chat cards, MCP `recipes_list` and the install link next to a server; the lineup players see is this list **plus** every recipe with `game_recipes.in_lineup = true` (the panel toggle **In der Spieleliste zeigen**). Empty = unrestricted: the whole visible catalogue is shown and the flag changes nothing |
+
+Malformed entries in `LAUNCHER_LINEUP` are ignored, so a typo never hides the catalogue. The flag is
+the only way a shared game reaches the players without a deploy: publishing a contributed recipe in
+the panel sets it (`LauncherLineup::slugs()`).
+
+### Recipe pull requests
+
+`config/recipes.php` → `pull_requests`. Off by default. When enabled, LANoMAT proposes a recipe's text
+to the git catalogue as one pull request per recipe (branch `recipes/<slug>` by default); game files
+stay on the LAN file host. The token is a fine-grained GitHub token with **Contents** and **Pull
+requests** read and write on exactly that repository.
+
+| Variable | Default | Note |
+|---|---|---|
+| `RECIPES_PR_ENABLED` | `false` | Master switch. Off = no proposal is ever sent, and `lanomat:recipes:pr-status` does nothing |
+| `RECIPES_PR_REPOSITORY` | empty | `owner/name`; `.env.example` uses `raute1-org/LANoMAT` |
+| `RECIPES_PR_TOKEN` | empty | Fine-grained token, scoped to that one repository |
+| `RECIPES_PR_BASE` | `main` | Base branch the pull request targets |
+| `RECIPES_PR_BRANCH_PREFIX` | `recipes/` | One branch per recipe: `recipes/<slug>`; a later proposal moves the same branch |
+| `RECIPES_PR_PATH` | `resources/recipes` | Catalogue path inside the repository (`<path>/<slug>/recipe.yaml`, `<slug>/SKILL.md`, `_catalog.md`) |
+| `RECIPES_PR_TRIGGER` | `contribute` | `contribute` opens the pull request as soon as a participant shares; `publish` waits for the orga. With the switch on, publishing a contributed or panel recipe always opens or updates it |
+| `RECIPES_PR_ATTRIBUTION` | `false` | Adds the contributor's display name to the pull request body. Leave it off for a public repository |
+| `RECIPES_PR_API_URL` | `https://api.github.com` | GitHub REST base; set it for GitHub Enterprise |
+
+`RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY` and `RECIPES_PR_TOKEN` must all be there: enabled
+without them, the Preflight `recipe_repository` check warns and every shared recipe stays a local
+draft. See [Preflight](/docs/system/modules/preflight) and
+[Contributing](/docs/recipes/contributing).
 
 ## Agent and model variables (client side)
 

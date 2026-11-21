@@ -137,7 +137,7 @@ Under **„Deine Spiele“** every share is one row with three columns, in the o
 |---|---|---|
 | **Datei** | „wartet auf Freigabe“, „freigegeben“, „abgelehnt“, „fehlt“ | The archive the recipe pins. „wartet auf Freigabe“ is normal right after the upload; „abgelehnt“ means the orga removed it and you need a new upload. |
 | **Prüfung** | „Die Orga prüft dein Spiel“, **„Veröffentlicht“**, **„Archiviert“** | The recipe's status. A draft is not on `/games` yet. |
-| **Katalog** | a pull request state, or „—“ with „Noch kein Eintrag im Katalog“ | The catalogue entry, which is written after publishing. It is not your job. |
+| **Katalog** | „Pull Request offen“, „Im Katalog“, „Pull Request geschlossen“, „Nicht gesendet“, „Fehlgeschlagen“ — or „—“ with „Noch kein Eintrag im Katalog“ | The catalogue entry in the git repository. **Im Katalog** means the pull request was merged; **Nicht gesendet** means LANoMAT refused to send the text (the reason is on the panel's **Katalog (Pull Request)** section). The state is not your job, but it is the honest answer to „steht mein Spiel im Katalog?“ |
 
 A published game also shows **„Zum Spiel“** when the lineup allows it, and a mono **„Im Launcher“**
 marker when it is switched on for the launcher. Each row ends with „Aktualisiert …“ and the display
@@ -148,19 +148,22 @@ time.
 1. You submit. The page shows the flash: „Entwurf für „Skyline Rally“ gespeichert. Die Orga prüft
    deine Datei und gibt das Spiel frei.“
 2. Your row reads „Datei: wartet auf Freigabe“ and „Prüfung: Die Orga prüft dein Spiel“.
-3. The orga checks the archive and approves the file. The row reads „freigegeben“.
-4. The orga reviews your description and publishes the game. The row reads „Veröffentlicht“.
-5. The orga switches the game on for the lineup — the `game_recipes.in_lineup` flag in the
-   database. From then on the game appears on `/games`, in the launcher's **Spiele** list and in
-   the server browser next to every server that runs it.
-6. The catalogue entry follows as a pull request against the recipe catalogue. When the orga has
-   enabled recipe pull requests, the shared recipe is proposed there automatically; see
-   [Contributing](/docs/recipes/contributing) for that side.
+3. The orga checks the archive and uses **Dateien freigeben und veröffentlichen** in `/admin` →
+   **Spielrezepte**: the file is approved and the recipe published in one action. The row reads
+   „freigegeben“ and „Veröffentlicht“.
+4. Publishing a shared game switches **In der Spieleliste zeigen** on, so the game appears on
+   `/games`, in the launcher's **Spiele** list and in the server browser next to every server that
+   runs it. The orga can switch the toggle off again; the recipe then stays in the database without a
+   player-facing link (unless no lineup is configured at all — then every published recipe shows).
+5. The catalogue entry follows as a pull request against the recipe catalogue. When the orga has
+   enabled recipe pull requests, it is opened automatically — right after the share
+   (`RECIPES_PR_TRIGGER=contribute`, the default) or on the publish (`publish`). The **Katalog**
+   column tells you where it stands; see [Contributing](/docs/recipes/contributing) for that side.
 
 A published game outside the lineup stays in the database but has no player-facing link. The
 lineup is the configured `LAUNCHER_LINEUP` plus every recipe the orga switched on; an empty
-`LAUNCHER_LINEUP` means no curation and shows the whole catalogue. Your row tells you which case
-you are in: „Zum Spiel“ and „Im Launcher“ appear only when the lineup allows the game.
+`LAUNCHER_LINEUP` means no curation and shows the whole published catalogue. Your row tells you
+which case you are in: „Zum Spiel“ and „Im Launcher“ appear only when the lineup allows the game.
 
 ## What the launcher does with your game
 
