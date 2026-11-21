@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Modules\Assistant\Models\AssistantAction;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Events\Models\Event;
@@ -26,6 +27,8 @@ use Illuminate\Routing\Route as LaravelRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Laravel\Ai\Contracts\ConversationStore;
+use Laravel\Ai\Models\Conversation;
 
 uses(RefreshDatabase::class);
 
@@ -764,4 +767,38 @@ it('rejects match actions from users who are not entrants', function () {
         expect($status)->toBeIn([403, 404, 422], "matches/{id}/{$action} returned {$status}");
         expect($status)->not->toBeIn([200, 302], "matches/{id}/{$action} must not succeed for a stranger");
     }
+});
+
+/* ---------------------------------------------------------------- 6. Assistant */
+
+/**
+ * The assistant routes carry `role:orga`, so the generic scenarios above skip them. What the role
+ * does not cover is ownership: a conversation belongs to the orga it was started for, and neither
+ * another orga nor an admin (whose Gate::before would pass any ability) may read it, continue it,
+ * decide on its approval cards or delete it. The controller checks the policy directly for that reason.
+ */
+it('keeps assistant conversations private to their owner (IDOR, also against orga and admin)', function () {
+    $owner = User::factory()->orga()->create();
+    $store = resolve(ConversationStore::class);
+    $id = $store->storeConversation(Conversation::participantType($owner), Conversation::participantKey($owner), 'privat');
+    $action = AssistantAction::factory()->create(['user_id' => $owner->id, 'conversation_id' => $id, 'tool_call_id' => 'call_1']);
+
+    $requests = [
+        ['GET', "/orga/assistant/{$id}", []],
+        ['POST', '/orga/assistant/chat', ['message' => 'mitlesen', 'conversation_id' => $id]],
+        ['POST', "/orga/assistant/{$id}/decisions", ['decisions' => ['call_1' => 'approve']]],
+        ['DELETE', "/orga/assistant/{$id}", []],
+    ];
+
+    foreach ([User::factory()->orga()->create(), User::factory()->admin()->create(), User::factory()->helper()->create(), User::factory()->create()] as $intruder) {
+        $this->actingAs($intruder);
+
+        foreach ($requests as [$method, $uri, $body]) {
+            expect($this->call($method, $uri, $body)->getStatusCode())->toBeIn([403, 404], "{$method} {$uri} as {$intruder->role->value}");
+        }
+    }
+
+    expect($store->conversationBelongsTo($id, Conversation::participantType($owner), Conversation::participantKey($owner)))->toBeTrue()
+        ->and(DB::table('agent_conversation_messages')->where('conversation_id', $id)->count())->toBe(0)
+        ->and($action->fresh()->status->value)->toBe('proposed');
 });

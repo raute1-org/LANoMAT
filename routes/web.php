@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DevLoginController;
 use App\Http\Controllers\HomeController;
+use App\Modules\Assistant\Http\AssistantController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Catering\Http\DishImageController;
@@ -522,6 +523,18 @@ if ($modules->routable(Module::Discord)) {
     Route::post('internal/discord/gateway', GatewayIngressController::class)
         ->middleware('discord.gateway')
         ->name('discord.gateway.ingress');
+}
+
+if ($modules->routable(Module::Assistant)) {
+    // Orga-only AI chat. Role middleware gates the whole group; every conversation id is then checked
+    // against its owner (AssistantConversationPolicy). Only the endpoints that call the model are throttled.
+    Route::middleware(['auth', 'role:orga'])->prefix('orga/assistant')->name('orga.assistant.')->group(function () {
+        Route::get('/', [AssistantController::class, 'index'])->name('index');
+        Route::post('chat', [AssistantController::class, 'chat'])->middleware('throttle:assistant')->name('chat');
+        Route::get('{conversation}', [AssistantController::class, 'show'])->name('show');
+        Route::post('{conversation}/decisions', [AssistantController::class, 'decide'])->middleware('throttle:assistant')->name('decide');
+        Route::delete('{conversation}', [AssistantController::class, 'destroy'])->name('destroy');
+    });
 }
 
 require __DIR__.'/settings.php';

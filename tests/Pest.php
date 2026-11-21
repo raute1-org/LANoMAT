@@ -213,6 +213,24 @@ function runApproved(string $class, User $actor, array $args, string $callId = '
     return (string) (new $class($actor))->handle(new Request($args, $callId));
 }
 
+/** Start a chat turn and return the response with its streamed body drained (persists the turn). */
+function assistantChat(object $test, User $user, string $message, ?string $conversationId = null)
+{
+    $response = $test->actingAs($user)->post('/orga/assistant/chat', array_filter(['message' => $message, 'conversation_id' => $conversationId]));
+    $response->streamedContent();
+
+    return $response;
+}
+
+/** The Inertia props of a page, fetched the way the client does (no HTML shell, no built asset needed). */
+function assistantPageProps(object $test, string $url): array
+{
+    $props = $test->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia\Inertia::getVersion()])->get($url)->assertOk()->json('props');
+    $test->flushHeaders();
+
+    return $props;
+}
+
 function fakePelican(): FakePelicanClient
 {
     $fake = new FakePelicanClient;

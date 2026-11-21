@@ -65,6 +65,21 @@ final class AssistantActionLog
     }
 
     /**
+     * After a resume: cards that were approved but did not run (the run ended
+     * early) must not stay armed. Only the given calls, only `approved`: a new
+     * card the same run proposed is left alone.
+     *
+     * @param  list<string>  $callIds
+     */
+    public function disarmApproved(User $user, string $conversationId, array $callIds): int
+    {
+        return AssistantAction::query()
+            ->where('user_id', $user->id)->where('conversation_id', $conversationId)
+            ->whereIn('tool_call_id', $callIds)->where('status', AssistantActionStatus::Approved->value)
+            ->update(['status' => AssistantActionStatus::Superseded->value, 'secret' => null, 'updated_at' => now()]);
+    }
+
+    /**
      * @throws DomainException unless the card is still proposed
      */
     public function decide(AssistantAction $action, bool $approve, ?string $secret = null): void

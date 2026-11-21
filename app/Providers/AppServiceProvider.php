@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Modules\Assistant\Listeners\RecordProposedAction;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Models\Restaurant;
@@ -104,6 +105,7 @@ use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
 use App\Modules\Preflight\Actions\RunPreflight;
+use App\Modules\Preflight\Checks\AssistantProviderCheck;
 use App\Modules\Preflight\Checks\BackupFreshnessCheck;
 use App\Modules\Preflight\Checks\ClientBuildCheck;
 use App\Modules\Preflight\Checks\DatabaseCheck;
@@ -232,6 +234,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Ai\Events\ToolApprovalRequested;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Steam\Provider as SteamProvider;
@@ -400,6 +403,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
             ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
             ...($modules->enabled(Module::Lighting) ? [LightBridgeCheck::class] : []),
+            ...($modules->enabled(Module::Assistant) ? [AssistantProviderCheck::class] : []),
         ], 'preflight.checks');
 
         $this->app->bind(LatestRelease::class, HttpLatestRelease::class);
@@ -524,6 +528,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureAuthorization(): void
     {
+        RateLimiter::for('assistant', fn (Request $request) => Limit::perMinute(max(1, (int) config('assistant.throttle_per_minute')))->by('assistant|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('csp-report', fn (Request $request) => Limit::perMinute(60)->by('csp-report|'.$request->ip()));
         RateLimiter::for('file-upload-tickets', fn (Request $request) => Limit::perMinute(max(1, (int) config('files.tus.tickets_per_minute')))->by('file-upload-tickets|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('self-checkin', fn (Request $request) => Limit::perMinute(30)->by('self-checkin|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
@@ -722,6 +727,10 @@ class AppServiceProvider extends ServiceProvider
             Event::listen(TournamentStarted::class, ProvisionWebVoiceTeamChannelsOnTournamentStarted::class);
             Event::listen(MatchCompleted::class, CloseWebVoiceChannelsOnMatchCompleted::class);
             Event::listen(TournamentCompleted::class, CloseWebVoiceChannelsOnTournamentCompleted::class);
+        }
+
+        if ($this->on(Module::Assistant)) {
+            Event::listen(ToolApprovalRequested::class, RecordProposedAction::class);
         }
 
         if ($this->on(Module::GameServers)) {
