@@ -484,3 +484,39 @@ conflicts against the slice are all "both hardened the same code":
 | `RecipeValidator.php` | keep w2's `match must be a list` check, keep HEAD's `required`/`manual` default and its message |
 | `RecipeFileMatcher.php` | use w2's `$this->query($event)->whereKey(...)` — the helper carries the same visibility + non-draft + event filters as HEAD's inline query |
 | `RecipeSourceLocator.php` | keep HEAD's credentials file (`-A`, password out of `ps`) **and** w2's `-D <sub>` argv form; git branch keeps HEAD's `--`+scheme allowlist and w2's `ExecutableFinder` try/catch |
+
+### 11.2 Wave results (integration/mcp-agent, continued)
+
+Each row lists the merge commit and what had to be decided. Every row was followed by pint + PHPStan +
+the full Pest suite on `lanomat_review_r5`; rows that touch the frontend/agent/docs also ran the
+frontend checks, the agent suite and the docs build.
+
+| Ref | Commit | Conflicts / decisions | Gate after |
+|---|---|---|---|
+| `swarm/w4` (R15) | `bc3b31e` | `EventGetTool`: `$this->on(...)` helper (w4) over the raw `modules()->enabled`. `MatchResultTool`: HEAD's explicit `lock_version` guard **plus** w4's `authorize('confirm'/'withdrawReport')` policy calls; `$report` → `$pending`. `RecipeContributeTool`: w4's `try/catch (RecipeException)` + HEAD's `requires ?? requirements` canonical alias + de-duplicated `$user` line | 3 615 passed |
+| `swarm/w5` (R11) | `5e22b8e` | N+1 refactor taken wholesale (matches + servers + tournaments + LFG loaded once); re-applied the canonical launch fields (`play_urlFor(host)`, `launch_targets`) inside w5's `card()`; kept HEAD's `game_modules` prop name (a `modules` prop shadows the shell's list) and fixed the three w5 assertions that used `modules.*`; `GamePageController` now reads `avatar_converter_url` | 3 628 passed, `types:check` + `lint:check` green |
+| `swarm/w1` (R7) | `0423443` | clean (admin resource, policy, factories, tests) | 3 661 passed |
+| `swarm/w8` (R16) | `e30789a` | clean. Agent: `npm ci` / `lint` / `test` (180 passed, 2 skipped) / `build` green | agent suite green |
+| `swarm/w16` (R20) | `2808dcb` | 7 conflicts: `LanomatTool` keeps HEAD's rich exception ladder + w16's `SafeText` clamps and field-prefixed validation text; `FileDownloadTool` = policy 403 **and** `AccessibleFiles` 404; `PollVoteTool` uses the stronger `isPubliclyVisible()`; `BuildInstallPlan` keeps w16's `..`-strip; `RecipeSourceLocator` = w16's argv style + HEAD's credentials file (`-A`) and `-D` for the sub-directory (a bare argument is read as the password); `RecipeController` = w16's bounds + the `requires` alias | 3 694 passed |
+| `swarm/w17` (R23b) | `54e7ccb` | `.env.example`: w17's `<NAS_HOST>` placeholder, but the "smbclient is not in the app image" claim is wrong since `c238734` installs `smbclient`+`git` — rewritten. README takes w17's public-safe phrasing. `client-agent.yml` keeps **w7's** SHA-pinned workflow (R8-approved) over w17's older variant | Architecture + Ops green |
+| `swarm/w9` | `09096c4` | 9 conflicts. w9's UT2004/Ridge recipes and SKILLs win; `uevr` stays ours (w9 did not touch it; its older copy lacked `manual: true`). Schema becomes the union: canonical `metadata.launch`/`launch_targets` (string, object, array) + deprecated top-level aliases + w9's `verify.os`; `RecipeParser` folds top-level launch keys into `metadata` so older recipes survive import | 87 targeted, validator green |
+| `swarm/w10` | `cfdf270` | 31 conflicts. w10's normalised drafts, the `god-of-war-iii` rename (old directory removed) and CS 1.6 win; UT2004/Ridge keep **w9's** fact-checked content (w10's copies predate it) — the open content diff for those two is W9/W10 follow-up. Schema union extended (`manual`, `players_max`, …); `uevr` requirement restored to `manual: true` | 3 699 passed |
+| `swarm/w15` | `6df619e` | 30 conflicts, resolved by policy: **page copy from feat/mcp-server** (newer), deployment artifacts from w15 (`compose.yml` service, `scripts/check-links.mjs`) | docs build + 62 pages / 182 assets link-check green |
+| `swarm/w13` | `bb7408d` | 5 conflicts, all in `resources/recipes/**` from its old base → kept ours (w9/w10 content); screenshots and doc pages came in clean | full suite 3 698 passed (1 artefact failure, see below) |
+
+Additional integration fixes (mechanical, recorded here):
+
+- `9717ab4` — `feat/mcp-server`'s `f709b8a` re-introduced the real NAS IP in
+  `docs-site/pages/recipes/smb.md`; restored the `nas.local` placeholder (public-safe gate).
+- `a5cb079` — `scripts/ops/check-public-safe.sh` fallback prunes `node_modules`, `vendor`,
+  `public/build`, `docs-site/dist`, `storage`, `.git`. Without git (a tarball, or a container where
+  the repo is not trusted) the check used to scan the built docs site and fail
+  `PublicSafeScriptTest` depending on whether the docs build had run first.
+
+Deferred (not merged): `swarm/w2` (R13 re-review), `swarm/w6` (R6), `swarm/w11` (R12),
+`swarm/w12`, `swarm/w14`, `swarm/w22` (their page copy is older than feat/mcp-server's; merge after a
+rebase or accept "ours" for pages), `swarm/w18`/`w19` (E2E scripts, no review yet).
+
+Final state of the wave: `pint` 0, PHPStan level 8 0 errors, Pest 3 699 passed / 2 risky / 5 skipped,
+`types:check` + `lint:check` + `format:check` + `vite build` green, agent 180 tests + build green,
+docs build + link check green (62 pages), public-safe green, `composer validate` green.
