@@ -6,6 +6,7 @@ namespace App\Modules\Preflight\Checks;
 
 use App\Modules\Preflight\Contracts\HealthCheck;
 use App\Modules\Preflight\Support\HealthResult;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -16,6 +17,9 @@ use Throwable;
  *
  * - `anthropic`: GET /models with the API key. Skipped without a key; an
  *   unreachable API is only a warning (the venue can switch to ollama).
+ * - `openai`: GET /models with the bearer key, same rules as `anthropic`; additionally
+ *   a configured model missing from the account's model list is only a warning (an
+ *   account may reach a model through an alias).
  * - `ollama`: GET /api/tags; down when the server is unreachable or the
  *   configured model is not pulled, since there is no fallback.
  * Neither call produces a model run, so the probe costs nothing.
@@ -36,6 +40,7 @@ class AssistantProviderCheck implements HealthCheck
     {
         return match ((string) config('assistant.provider')) {
             'anthropic' => $this->anthropic(),
+            'openai' => $this->openai(),
             'ollama' => $this->ollama(),
             default => HealthResult::skipped(__('preflight.messages.not_configured')),
         };
@@ -49,16 +54,63 @@ class AssistantProviderCheck implements HealthCheck
             return HealthResult::skipped(__('preflight.messages.not_configured'));
         }
 
-        try {
-            $response = Http::timeout(3)->withoutRedirecting()->acceptJson()
-                ->withHeaders(['x-api-key' => (string) $key, 'anthropic-version' => '2023-06-01'])
-                ->get(rtrim((string) config('ai.providers.anthropic.url', 'https://api.anthropic.com/v1'), '/').'/models');
-        } catch (Throwable) {
-            return HealthResult::warn(__('preflight.messages.assistant_unreachable'));
+        $response = $this->listModels(
+            (string) config('ai.providers.anthropic.url', 'https://api.anthropic.com/v1'),
+            ['x-api-key' => (string) $key, 'anthropic-version' => '2023-06-01'],
+        );
+
+        return $this->cloudResult($response) ?? HealthResult::ok();
+    }
+
+    private function openai(): HealthResult
+    {
+        $key = config('ai.providers.openai.key');
+
+        if (blank($key)) {
+            return HealthResult::skipped(__('preflight.messages.not_configured'));
         }
 
+        $response = $this->listModels(
+            (string) config('ai.providers.openai.url', 'https://api.openai.com/v1'),
+            ['Authorization' => 'Bearer '.$key],
+        );
+
+        $failure = $this->cloudResult($response);
+
+        if ($failure !== null) {
+            return $failure;
+        }
+
+        $model = (string) config('assistant.model');
+        $ids = collect((array) $response?->json('data'))
+            ->map(fn (mixed $m): string => is_array($m) ? (string) ($m['id'] ?? '') : '')
+            ->filter();
+
+        return $model === '' || $ids->contains($model)
+            ? HealthResult::ok()
+            : HealthResult::warn(__('preflight.messages.assistant_openai_model_missing', ['model' => $model]));
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function listModels(string $baseUrl, array $headers): ?Response
+    {
+        try {
+            return Http::timeout(3)->withoutRedirecting()->acceptJson()
+                ->withHeaders($headers)
+                ->get(rtrim($baseUrl, '/').'/models');
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** Null when the response is a 2xx; otherwise the warn/down result shared by the cloud providers. */
+    private function cloudResult(?Response $response): ?HealthResult
+    {
         return match (true) {
-            $response->successful() => HealthResult::ok(),
+            $response === null => HealthResult::warn(__('preflight.messages.assistant_unreachable')),
+            $response->successful() => null,
             in_array($response->status(), [401, 403], true) => HealthResult::down(__('preflight.messages.assistant_key_rejected')),
             default => HealthResult::warn(__('preflight.messages.assistant_unreachable')),
         };

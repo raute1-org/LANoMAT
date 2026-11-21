@@ -15,9 +15,10 @@ plan: [`docs/superpowers/plans/2026-11-21-ai-assistant.md`](../superpowers/plans
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `MODULE_ASSISTANT` | off in `core`, on in `full` | Module toggle. No hard dependency; each tool is hidden while the module it wraps (Tournaments, GameServers) is off |
-| `ASSISTANT_PROVIDER` | `anthropic` | `anthropic` (cloud) or `ollama` (local/offline) |
-| `ASSISTANT_MODEL` | `claude-opus-5-5` | Model for `anthropic` |
+| `ASSISTANT_PROVIDER` | `anthropic` | `anthropic` or `openai` (cloud), or `ollama` (local/offline) |
+| `ASSISTANT_MODEL` | `claude-opus-5-5` | Model for `anthropic` and `openai` (e.g. `gpt-6.2-sol` as an orientation; check the names in your account with `GET /models`) |
 | `ANTHROPIC_API_KEY` | empty | API key for `anthropic`; never committed, set it only in the server `.env` |
+| `OPENAI_API_KEY` | empty | API key for `openai`; never committed, set it only in the server `.env` |
 | `OLLAMA_URL` | `http://localhost:11434` (SDK default) | Base URL of the Ollama server, e.g. `http://ollama.internal:11434` |
 | `ASSISTANT_OLLAMA_MODEL` | empty | Model name for `ollama`, must support tool calling |
 | `ASSISTANT_MAX_STEPS` | `12` | Model/tool round trips per prompt |
@@ -34,6 +35,16 @@ After changing the module toggle or the provider, rebuild/restart the app image 
 
 Cost: every chat turn is a paid API call, and a turn with tools is several calls (read tools, then the answer).
 `ASSISTANT_THROTTLE_PER_MINUTE` and `ASSISTANT_MAX_STEPS` bound the worst case per orga.
+
+## OpenAI
+
+1. Put an API key into the server `.env` as `OPENAI_API_KEY`, set `ASSISTANT_PROVIDER=openai` and
+   `ASSISTANT_MODEL=<model>` (for example `gpt-6.2-sol`; list the names your account can use with
+   `GET https://api.openai.com/v1/models`).
+2. Preflight probes `GET /v1/models` with the key (no model run, costs nothing). A rejected key is "down", an
+   unreachable API is a warning, and a configured model that is missing from the account's model list is a
+   warning too (an account may reach a model through an alias).
+3. Privacy: names and data from tool results are sent to OpenAI (see Privacy below); passwords never are.
 
 ## Ollama (offline at the venue)
 
@@ -95,7 +106,7 @@ answer arrives in one piece, exclude `text/event-stream` from `encode` (a `match
 ## Privacy
 
 With the cloud provider, names and data from tool results (participants, teams, tournament and server names,
-logs the orga asked for) are sent to Anthropic as part of the conversation. Ollama keeps everything on the
+logs the orga asked for) are sent to the cloud provider (Anthropic or OpenAI) as part of the conversation. Ollama keeps everything on the
 venue network. Passwords never reach the provider. Conversations are kept until their owner deletes them
 (trash button; there is no automatic expiry); audit rows (`assistant_actions`) survive a deleted conversation.
 See ruling AU in [`docs/qa/rulings.md`](../qa/rulings.md).
