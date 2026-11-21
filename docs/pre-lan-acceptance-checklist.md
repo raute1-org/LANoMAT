@@ -263,7 +263,7 @@ a browser on the LAN, and — for the last two checks — `RECIPES_PR_ENABLED`, 
       engine can unpack-and-launch it (a required base archive, a file check, launch targets); otherwise
       **Installieren** on the game page is a manual install and the share page is still correct. Try a
       title with brackets or `$` in it and confirm the install folder on disk keeps only letters,
-      digits, space, dot, underscore and hyphen.
+      digits, space, dot, underscore and hyphen (Windows) or their slug form (Linux and macOS).
 - [ ] **Join through the server browser:** a server whose game matches the published recipe shows
       **"Im Launcher beitreten"** first; the click installs if needed and starts the game on that exact
       server (UT2004 passes `?address=<host>:<port>`, other games open the server's join URL). The

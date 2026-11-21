@@ -385,8 +385,8 @@ waiting drafts (`RECIPES_MAX_DRAFTS_PER_USER`) and keeps the pin on the file row
 Approval and publishing stay with the orga (`PublishRecipe`).
 
 `BuildInstallPlan::targetDir()` turns the title into the player's install folder with only
-`A-Za-z0-9 ._-`, because that folder is substituted into the quoted arguments of the step and launch
-commands.
+`A-Za-z0-9 ._-` (Windows: `C:\Games\<name>`) or `Str::slug()` of that (Linux and macOS), because the
+folder is substituted into the quoted arguments of the step and launch commands.
 
 **Two contracts carry the cross-module questions.** Both are bound in `AppServiceProvider::register()`
 and both have a null object, so a module can ask without importing its neighbour:
