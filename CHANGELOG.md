@@ -37,6 +37,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 - Docs: built-output guard against doubled base paths (`/docs/docs/`) in `.md` raw anchors
 
 ### Fixed
+- Voice: the TeamSpeak sidecar stays on the ServerQuery allowlist (`scripts/ops/teamspeak-allow-sidecar.sh`, run by `deploy.sh`); a flood ban made every presence refresh time out and stalled the queue worker (docs/teamspeak-setup.md 4a).
 
 - Fixed: the UT2004 query parser used a wrong byte layout (server info began one byte too early; the player list has no count byte). It now matches a real UT2004 server and the tests use captured answers
 
