@@ -299,9 +299,11 @@ function absoluteTime(iso: string): string {
                             aria-label="Spiel suchen"
                         />
                     </label>
+                    <!-- A pressed filter is a state, not the screen's primary
+                         action: amber stays on the cards' "Installieren". -->
                     <Button
                         type="button"
-                        :variant="onlyLan ? 'default' : 'outline'"
+                        :variant="onlyLan ? 'secondary' : 'outline'"
                         :aria-pressed="onlyLan"
                         data-test="only-lan"
                         @click="toggleOnlyLan"
@@ -599,6 +601,7 @@ function absoluteTime(iso: string): string {
                         </CardHeader>
                         <CardContent class="flex flex-1 flex-col gap-3">
                             <p
+                                lang="en"
                                 class="line-clamp-3 text-sm text-muted-foreground"
                             >
                                 {{ game.summary }}

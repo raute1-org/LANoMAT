@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
-import type { JoinOptionDto } from '@/types';
+import type { JoinOptionDto, ServerInstallDto } from '@/types';
 
 type ServerRow = {
     id: number;
@@ -37,17 +37,8 @@ type ServerRow = {
     connectIsLink: boolean;
     /** Server-built ways in (Steam, native); empty for games without templates. */
     joinOptions?: JoinOptionDto[];
-    /**
-     * The published launcher recipe that matches this server's game; null/absent
-     * when there is none. `launcherJoinUrl` is `lanomat://join/<slug>?…`.
-     */
-    install?: {
-        recipeSlug: string;
-        title: string;
-        pageUrl: string;
-        launcherSupported: boolean;
-        launcherJoinUrl: string | null;
-    } | null;
+    /** The published launcher recipe that matches this server's game, if any. */
+    install?: ServerInstallDto | null;
     status: string;
     query: {
         serverName: string;
@@ -282,7 +273,10 @@ function announceRound(): void {
                         <h1 class="mt-1 text-3xl font-semibold tracking-tight">
                             {{ game.title }}
                         </h1>
-                        <p class="mt-2 max-w-2xl text-sm text-muted-foreground">
+                        <p
+                            lang="en"
+                            class="mt-2 max-w-2xl text-sm text-muted-foreground"
+                        >
                             {{ game.summary }}
                         </p>
                         <p
@@ -619,6 +613,7 @@ function announceRound(): void {
                                         v-if="active_event"
                                         size="sm"
                                         type="button"
+                                        variant="outline"
                                         @click="announceRound"
                                     >
                                         <Plus
@@ -908,6 +903,7 @@ function announceRound(): void {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent
+                                lang="en"
                                 class="text-sm whitespace-pre-line text-muted-foreground"
                             >
                                 {{ game.description }}

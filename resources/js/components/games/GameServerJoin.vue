@@ -5,18 +5,21 @@ import CopyText from '@/components/CopyText.vue';
 import LauncherLink from '@/components/LauncherLink.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import { Button } from '@/components/ui/button';
-import type { JoinOptionDto } from '@/types';
+import { isAllowedJoinUrl } from '@/composables/useJoinOption';
+import type { JoinOptionDto, ServerInstallDto } from '@/types';
 
 /**
  * The join block of one server row on the game page. It renders exactly what
- * the server row proves, in this order: a launcher one-click, the game's own
- * join options, a link on the scheme allowlist, or the address as copyable
- * mono text — never a guessed `steam://` URL for a non-Steam game.
+ * the server row proves, in this order: the launcher handoff
+ * ("Im Launcher beitreten" — it installs the game when needed and starts it on
+ * that server), then the game's own join as the alternative: join options, a
+ * link on the scheme allowlist, or the address as copyable mono text — never a
+ * guessed `steam://` URL for a non-Steam game.
  *
- * With a launcher link the one-click stays the row's primary action; a PC
- * that already has the game installed (Steam, a manual install) keeps every
- * direct way behind a quiet "Anders verbinden" disclosure, so nobody is
- * forced through the launcher's own install.
+ * A PC that already has the game installed (Steam, a manual install) keeps
+ * every direct way behind a quiet "Anders verbinden" disclosure, so nobody is
+ * forced through the launcher's own install. The launcher link is outline: on
+ * the game page only "Installieren" carries the one amber accent.
  */
 const props = defineProps<{
     server: {
@@ -25,8 +28,8 @@ const props = defineProps<{
         connectString: string;
         connectIsLink: boolean;
         joinOptions?: JoinOptionDto[];
-        /** Optional until the server projection carries the install block. */
-        install?: { launcherJoinUrl: string | null } | null;
+        /** The matching recipe and its launcher handoff; absent when there is none. */
+        install?: ServerInstallDto | null;
     };
 }>();
 
@@ -41,15 +44,12 @@ const launcherJoinUrl = computed<string | null>(() => {
 });
 
 /**
- * The scheme allowlist of `useJoinOption.ts`: a connect string only becomes a
- * link on these schemes. A plain `host:port` stays copy-only instead of
- * turning into a dead or invented URL.
+ * A connect string only becomes a link on the same scheme allowlist
+ * `JoinOptions` uses; a plain `host:port` stays copy-only instead of turning
+ * into a dead or invented URL.
  */
-const JOIN_LINK_SCHEMES = /^(steam|ut2004|https?):\/\//;
-
 const connectLink = computed<string | null>(() =>
-    props.server.connectIsLink &&
-    JOIN_LINK_SCHEMES.test(props.server.connectString)
+    props.server.connectIsLink && isAllowedJoinUrl(props.server.connectString)
         ? props.server.connectString
         : null,
 );
@@ -69,7 +69,7 @@ const hasJoinOptions = computed(
     () =>
         address.value !== '' &&
         (props.server.joinOptions ?? []).some((option) =>
-            JOIN_LINK_SCHEMES.test(option.url),
+            isAllowedJoinUrl(option.url),
         ),
 );
 
@@ -89,8 +89,9 @@ const hasAlternatives = computed(
 );
 
 /**
- * `gameservers.join_ui`, inline: the game page has no label prop, and the join
- * block is the same component the server browser uses. No handler help here —
+ * `gameservers.join_ui` from `lang/de/gameservers.php`, inline: the game page
+ * has no label prop, and these words belong to the same controls the server
+ * browser renders — keep them in step with that file. No handler help here —
  * its copy names one game and this page serves every game.
  */
 const labels: Record<string, string> = {
@@ -113,9 +114,12 @@ const labels: Record<string, string> = {
              The direct ways stay reachable for a PC that already has the game. -->
         <template v-if="launcherJoinUrl">
             <div class="flex flex-wrap items-center gap-2">
+                <!-- The same words as `install_launcher` in
+                     lang/de/gameservers.php. -->
                 <LauncherLink
                     :href="launcherJoinUrl"
                     size="sm"
+                    variant="outline"
                     :manual-hint="
                         hasAlternatives
                             ? 'Unter „Anders verbinden“ steht die Serveradresse zum Kopieren.'
@@ -123,7 +127,7 @@ const labels: Record<string, string> = {
                     "
                 >
                     <Play class="size-4" aria-hidden="true" />
-                    Beitreten
+                    Im Launcher beitreten
                 </LauncherLink>
             </div>
 

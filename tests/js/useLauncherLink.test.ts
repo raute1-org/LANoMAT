@@ -4,7 +4,10 @@ import { afterEach, describe, it } from 'node:test';
 import type { EffectScope } from 'vue';
 import { effectScope } from 'vue';
 import type { LauncherLinkControls } from '../../resources/js/composables/useLauncherLink.ts';
-import { useLauncherLink } from '../../resources/js/composables/useLauncherLink.ts';
+import {
+    LAUNCHER_OPENED_RESET_MS,
+    useLauncherLink,
+} from '../../resources/js/composables/useLauncherLink.ts';
 
 type FakeWindow = EventTarget & { location: { href: string } };
 type FakeDocument = EventTarget & {
@@ -120,6 +123,37 @@ describe('useLauncherLink', () => {
         link.open(INSTALL_URL);
         doc.visibilityState = 'hidden';
         doc.dispatchEvent(new Event('visibilitychange'));
+
+        assert.equal(link.state.value, 'opened');
+    });
+
+    it('confirms a takeover briefly, then goes quiet', async () => {
+        installBrowser();
+        const link = launcher();
+
+        link.open(INSTALL_URL, { openedResetMs: 20 });
+        win.dispatchEvent(new Event('blur'));
+
+        assert.equal(link.state.value, 'opened');
+
+        await wait(60);
+
+        assert.equal(link.state.value, 'idle');
+        assert.equal(link.lastUrl.value, INSTALL_URL);
+    });
+
+    it('keeps the confirmation for its default while, then idles', async () => {
+        assert.ok(LAUNCHER_OPENED_RESET_MS >= 3000);
+    });
+
+    it('drops the confirmation timer when it is disposed', async () => {
+        installBrowser();
+        const link = launcher();
+
+        link.open(INSTALL_URL, { openedResetMs: 20 });
+        win.dispatchEvent(new Event('blur'));
+        scope?.stop();
+        await wait(60);
 
         assert.equal(link.state.value, 'opened');
     });

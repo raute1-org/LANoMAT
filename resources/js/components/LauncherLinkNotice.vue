@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
  * question, not a verdict. The page cannot know whether the launcher came up
  * (a window that opens behind the browser never takes the focus), so the text
  * holds in both cases: the likely reason when nothing opened, and where to
- * look when it did. It sits directly under the action that was clicked and is
- * announced politely, so a screen reader gets the same sentence as everybody.
+ * look when it did. It sits directly under the action that was clicked; the
+ * announcement itself comes from the parent's one persistent live region, so
+ * this block carries no `role="status"` of its own.
  *
  * The box is built from inline-level elements only (`span`, `a`, `button`), so
  * it stays valid inside the small text paragraphs where some deep links live.
@@ -35,11 +36,7 @@ const emit = defineEmits<{
         data-test="launcher-unanswered"
     >
         <span class="flex items-start justify-between gap-2">
-            <span
-                role="status"
-                aria-live="polite"
-                class="block min-w-0 space-y-1"
-            >
+            <span class="block min-w-0 space-y-1">
                 <span class="block font-medium text-foreground"
                     >Kein Launcher-Fenster aufgegangen?</span
                 >

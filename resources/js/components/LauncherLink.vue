@@ -37,6 +37,30 @@ const props = withDefaults(
 const attrs = useAttrs();
 const { state, open, retry, dismiss } = useLauncherLink();
 
+const TRYING_TEXT = 'Öffne den Launcher …';
+const OPENED_TEXT =
+    'Launcher geöffnet. Schau in die Taskleiste, falls du kein Fenster siehst.';
+// The same question the visible notice asks, plus its one-sentence answer.
+const UNANSWERED_TEXT =
+    'Kein Launcher-Fenster aufgegangen? Dann ist der LANoMAT Launcher auf diesem PC meist noch nicht installiert oder wurde nach der Installation noch nie gestartet.';
+
+/**
+ * The one live region this action owns. Everything the page has to say about
+ * an attempt goes through here — the visible lines below only mirror it, so a
+ * screen reader never misses a state because an element was inserted late.
+ */
+const announcement = computed<string>(() => {
+    if (state.value === 'trying') {
+        return TRYING_TEXT;
+    }
+
+    if (state.value === 'opened') {
+        return OPENED_TEXT;
+    }
+
+    return state.value === 'unanswered' ? UNANSWERED_TEXT : '';
+});
+
 const textLink = computed(() =>
     cn(
         'inline-block rounded-sm font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none',
@@ -94,11 +118,10 @@ function onClick(event: MouseEvent): void {
             <slot />
         </a>
 
-        <!-- One persistent polite region (CopyText pattern): the wait is
-             announced even though the visible line is inserted later. The
-             notice below carries its own status when nobody answered. -->
+        <!-- One persistent polite region (CopyText pattern): every state is
+             announced from here, never from an element inserted later. -->
         <span class="sr-only" role="status" aria-live="polite">{{
-            state === 'trying' ? 'Öffne den Launcher …' : ''
+            announcement
         }}</span>
 
         <!-- The attempt is waiting for a takeover. -->
@@ -107,7 +130,18 @@ function onClick(event: MouseEvent): void {
             aria-hidden="true"
             class="font-mono text-[11px] text-muted-foreground"
         >
-            Öffne den Launcher …
+            {{ TRYING_TEXT }}
+        </span>
+
+        <!-- Something took over: a short confirmation, then back to quiet
+             (the composable resets to idle after a few seconds). -->
+        <span
+            v-else-if="state === 'opened'"
+            aria-hidden="true"
+            class="text-xs text-muted-foreground"
+            data-test="launcher-opened"
+        >
+            {{ OPENED_TEXT }}
         </span>
 
         <!-- Nobody answered: say what that usually means and what to do. -->

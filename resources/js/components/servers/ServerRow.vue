@@ -231,9 +231,11 @@ onUnmounted(() => clearTimeout(hintTimer));
                               : ''
                     }}</span>
                 </span>
-                <!-- Only where the row has room: the panel carries the full set. -->
+                <!-- Only where the row has room, and not while the panel is
+                     open: the panel's "Spiel installieren" is the same page,
+                     and one destination gets one label per row. -->
                 <Link
-                    v-if="server.install?.pageUrl"
+                    v-if="server.install?.pageUrl && !open"
                     :href="server.install.pageUrl"
                     class="hidden min-h-8 items-center rounded-sm px-1 text-xs text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex"
                 >
@@ -300,6 +302,15 @@ onUnmounted(() => clearTimeout(hintTimer));
                 {{ labels.connect_plain_hint }}
             </p>
 
+            <!-- The launcher handoff is the panel's first action when the
+                 recipe matches this row's game; the game's own join follows as
+                 the alternative (outline, remembered choice). -->
+            <ServerInstallActions
+                v-if="server.install"
+                :install="server.install"
+                :labels="labels"
+            />
+
             <JoinOptions
                 v-if="joinable && server.joinOptions?.length && address"
                 :options="server.joinOptions"
@@ -307,13 +318,6 @@ onUnmounted(() => clearTimeout(hintTimer));
                 :labels="labels"
                 handler-help
                 :primary="false"
-            />
-
-            <!-- The recipe way in comes before the hand-written install hint. -->
-            <ServerInstallActions
-                v-if="server.install"
-                :install="server.install"
-                :labels="labels"
             />
 
             <div

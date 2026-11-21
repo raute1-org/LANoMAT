@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Check, ChevronDown, Copy, Download, TriangleAlert } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import LauncherLink from '@/components/LauncherLink.vue';
@@ -62,6 +62,10 @@ const props = defineProps<{
 }>();
 
 const { isNavigating, hasError } = usePageLoadState();
+
+function retry(): void {
+    router.reload();
+}
 
 const osNames: Record<Os, string> = {
     linux: 'Linux',
@@ -303,14 +307,25 @@ function serversHref(server: LiveServer): string {
         </div>
 
         <!-- error -->
-        <p
+        <div
             v-else-if="hasError"
-            class="rounded-3xl border border-destructive/50 bg-destructive/10 p-10 text-center text-sm text-destructive"
+            class="rounded-3xl border border-destructive/50 bg-destructive/10 p-10 text-center"
             role="alert"
         >
-            Die Launcher-Builds konnten nicht geladen werden. Lade die Seite
-            neu; bleibt es dabei, frag im Orga-Team nach.
-        </p>
+            <p class="text-sm text-destructive">
+                Die Launcher-Builds konnten nicht geladen werden. Prüfe deine
+                Verbindung und versuch es noch einmal.
+            </p>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="mt-3"
+                @click="retry"
+            >
+                Erneut versuchen
+            </Button>
+        </div>
 
         <!-- empty -->
         <div

@@ -11,6 +11,9 @@ export const LAUNCHER_SCHEME = 'lanomat://';
 /** How long an attempt may stay unanswered before the page says so. */
 export const LAUNCHER_ATTEMPT_TIMEOUT_MS = 2500;
 
+/** How long "Launcher geöffnet" stays after a takeover before going quiet. */
+export const LAUNCHER_OPENED_RESET_MS = 6000;
+
 export type LauncherLinkState = 'idle' | 'trying' | 'opened' | 'unanswered';
 
 export interface LauncherLinkAttemptOptions {
@@ -22,6 +25,8 @@ export interface LauncherLinkAttemptOptions {
     navigate?: boolean;
     /** Override the wait for a takeover (tests, a slow machine). */
     timeoutMs?: number;
+    /** Override how long the "opened" confirmation stays (tests). */
+    openedResetMs?: number;
 }
 
 export interface LauncherLinkControls {
@@ -54,6 +59,7 @@ export function useLauncherLink(): LauncherLinkControls {
     const trying = computed(() => state.value === 'trying');
 
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
     let detach: (() => void) | null = null;
 
     function clearAttempt(): void {
@@ -62,13 +68,30 @@ export function useLauncherLink(): LauncherLinkControls {
             timer = null;
         }
 
+        if (resetTimer !== null) {
+            clearTimeout(resetTimer);
+            resetTimer = null;
+        }
+
         detach?.();
         detach = null;
     }
 
-    function settle(next: LauncherLinkState): void {
+    function settle(
+        next: LauncherLinkState,
+        openedResetMs = LAUNCHER_OPENED_RESET_MS,
+    ): void {
         clearAttempt();
         state.value = next;
+
+        // A takeover ends in a short confirmation, then the block goes quiet
+        // again: the page must not keep claiming something it cannot know.
+        if (next === 'opened') {
+            resetTimer = setTimeout(() => {
+                resetTimer = null;
+                state.value = 'idle';
+            }, openedResetMs);
+        }
     }
 
     function open(url: string, options: LauncherLinkAttemptOptions = {}): void {
@@ -86,12 +109,15 @@ export function useLauncherLink(): LauncherLinkControls {
         lastUrl.value = url;
         state.value = 'trying';
 
+        const restoreAfterOpened =
+            options.openedResetMs ?? LAUNCHER_OPENED_RESET_MS;
+
         // A takeover shows up as a lost focus or a hidden/unloaded page. Not
         // every operating system fires the same one, so we listen to all three.
-        const takeover = (): void => settle('opened');
+        const takeover = (): void => settle('opened', restoreAfterOpened);
         const onVisibilityChange = (): void => {
             if (document.visibilityState === 'hidden') {
-                settle('opened');
+                settle('opened', restoreAfterOpened);
             }
         };
 
@@ -122,7 +148,7 @@ export function useLauncherLink(): LauncherLinkControls {
                 typeof document.hasFocus === 'function' &&
                 !document.hasFocus()
             ) {
-                settle('opened');
+                settle('opened', restoreAfterOpened);
             } else {
                 settle('unanswered');
             }
