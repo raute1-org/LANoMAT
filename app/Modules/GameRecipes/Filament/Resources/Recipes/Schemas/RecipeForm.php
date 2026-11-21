@@ -2,8 +2,10 @@
 
 namespace App\Modules\GameRecipes\Filament\Resources\Recipes\Schemas;
 
+use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\RecipeStatusOptions;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -22,7 +24,8 @@ class RecipeForm
                 ->label(__('game_recipes.fields.slug'))
                 ->required()
                 ->maxLength(120)
-                ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/'),
+                ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/')
+                ->unique(ignoreRecord: true),
             TextInput::make('title')
                 ->label(__('game_recipes.fields.title'))
                 ->required()
@@ -36,7 +39,9 @@ class RecipeForm
                 ->maxLength(60),
             Select::make('status')
                 ->label(__('game_recipes.fields.status'))
-                ->options(collect(RecipeStatus::cases())->mapWithKeys(fn (RecipeStatus $s) => [$s->value => $s->label()])->all())
+                ->options(fn (): array => RecipeStatusOptions::for(auth()->user()))
+                ->default(RecipeStatus::Draft->value)
+                ->disabled(fn (): bool => ! RecipeStatusOptions::canReview(auth()->user()))
                 ->required(),
             CheckboxList::make('platforms')
                 ->label(__('game_recipes.fields.platforms'))
@@ -76,9 +81,18 @@ class RecipeForm
                     TextInput::make('sha256')
                         ->label(__('game_recipes.fields.sha256'))
                         ->maxLength(64),
+                    TextInput::make('size_bytes')
+                        ->label(__('game_recipes.fields.size_bytes'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(0)
+                        ->helperText(__('game_recipes.fields.size_bytes_help')),
                     TextInput::make('shared_file_id')
                         ->label(__('game_recipes.fields.shared_file'))
                         ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->exists(SharedFile::class, 'id')
                         ->helperText(__('game_recipes.fields.shared_file_help')),
                     Toggle::make('required')
                         ->label(__('game_recipes.fields.required')),

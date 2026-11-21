@@ -24,6 +24,15 @@ class RecipesTable
                     ->label(__('game_recipes.fields.status'))
                     ->badge()
                     ->formatStateUsing(fn (RecipeStatus $state) => $state->label()),
+                TextColumn::make('contributor.name')
+                    ->label(__('game_recipes.fields.contributor'))
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('reviewed_at')
+                    ->label(__('game_recipes.fields.reviewed'))
+                    ->dateTime()
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('files_count')->label(__('game_recipes.fields.files'))->counts('files'),
                 TextColumn::make('updated_at')->label(__('game_recipes.fields.updated'))->dateTime()->sortable(),
             ])
