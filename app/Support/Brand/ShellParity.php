@@ -57,6 +57,12 @@ final class ShellParity
     /** German label of the `mcp/connect` user-menu entry, shared by both shells; the copy stays device-neutral. */
     public const DEVICES_MCP_LABEL = 'Geräte & MCP';
 
+    /** German label of the AI assistant entry; Orga sidebar item in the Vue app AND navigation item in Filament (orga/admin only, while the Assistant module has routes). */
+    public const ASSISTANT_LABEL = 'Assistent';
+
+    /** The assistant chat page (orga only). */
+    public const ASSISTANT_URL = '/orga/assistant';
+
     /** German labels of the Vue user menu (UserMenuContent.vue): admin link, settings, logout. */
     public const VUE_MENU_LABELS = ['Admin-Bereich', 'Einstellungen', 'Abmelden'];
 

@@ -110,7 +110,7 @@ See ruling AU in [`docs/qa/rulings.md`](../qa/rulings.md).
    (`curl -N -b <session> -d '{"message":"hi"}' -H 'Content-Type: application/json' https://<host>/orga/assistant/chat`
    with a valid session prints chunks over time); a console command shows verbatim; a server password is typed on
    the card and is not in the chat history.
-4. `/admin/assistant-actions` lists every proposal and outcome.
+4. The admin panel list "Assistent-Protokoll" (Nutzer group) shows every proposal and outcome.
 
 ## Spike notes (what was verified against `laravel/ai` 1.4.x)
 

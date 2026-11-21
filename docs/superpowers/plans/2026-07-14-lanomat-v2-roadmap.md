@@ -849,6 +849,22 @@ Fortsetzung der Tabelle oben (Nr. 18 ff., alle `offen`); Detailschritte in `clie
 
 ---
 
+## Post-Roadmap: KI-Assistent für die Orga (Nov 2026)
+
+Optionales Modul `Assistant` (Orga-Chat unter `/orga/assistant`, `laravel/ai`, Claude als Standard, Ollama offline mit vollem Toolset). Spec: `docs/superpowers/specs/2026-11-21-ai-assistant-design.md`, Plan: `docs/superpowers/plans/2026-11-21-ai-assistant.md`, Betrieb: `docs/infra/assistant.md`.
+
+**Erkenntnisse aus dem Spike und der Umsetzung:**
+
+- Das SDK-Approval-Muster trägt (Pfad A): `pendingApprovalsFor()` aus der gespeicherten Pause ist die Wahrheit, `Request::toolCallId()` ist in `handle()` verfügbar (Secrets binden an die Call-ID, der Argument-Hash bleibt als Prüfung "Karte = Ausführung"), ein neuer Prompt bei offener Karte wird vom SDK als "nicht ausgeführt" abgeschlossen.
+- Das SDK verlangt eine Entscheidung für **alle** Karten eines pausierten Zuges; die Seite sammelt die Wahl je Karte und sendet einmal.
+- `needsApproval()` wird außerhalb des Tool-Fehler-Mappings aufgerufen: rein und wirft nie; unbrauchbare Argumente überspringen die Karte, `handle()` antwortet lesbar. Ein Schreib-Tool läuft nur gegen eine freigegebene Audit-Zeile (fail closed, atomar beansprucht).
+- Falle: das `Gate::before` für Admins würde Konversationen fremder Orgas öffnen; die Eigentümerprüfung ruft die Policy daher direkt auf.
+- Falle: der Fake-Gateway des SDK führt bei Decisions nur dann das echte Resume aus, wenn die Karte beim Resume noch Approval verlangt; Pfade nach geänderter Welt werden deshalb auf Tool-Ebene getestet.
+- Streaming: eigener kleiner Reader für den Vercel-UI-Message-Stream statt `@ai-sdk/vue`; die Ergebnisse resumierter Calls liefert der Stream nicht, die Seite lädt den gespeicherten Verlauf nach jedem Zug.
+- Offen (echter Schlüssel/Server nötig): Opus über das SDK, Ollama-Roundtrip, Proxy-Streaming (Caddy `encode` und `no-transform` unverifiziert).
+
+---
+
 ## Arbeitsweise
 
 1. **Detailpläne just-in-time:** Vor jedem Phasenstart wird aus dieser Roadmap der Detailplan der Phase erzeugt (Format wie [M0-Plan](2026-07-14-m0-fundament.md): bite-sized Steps, kompletter Code, TDD). Roadmap-Task-Nummern bleiben als Referenz erhalten.

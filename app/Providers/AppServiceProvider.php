@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Modules\Assistant\Listeners\RecordProposedAction;
+use App\Modules\Assistant\Models\AssistantAction;
+use App\Modules\Assistant\Policies\AssistantActionPolicy;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Models\Restaurant;
@@ -567,6 +569,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
 
         Gate::policy(EventModel::class, EventPolicy::class);
+        Gate::policy(AssistantAction::class, AssistantActionPolicy::class);
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
         Gate::policy(TicketType::class, TicketTypePolicy::class);
         Gate::policy(EventPaymentSettings::class, EventPaymentSettingsPolicy::class);

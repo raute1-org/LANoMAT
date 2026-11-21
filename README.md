@@ -408,10 +408,12 @@ for any field of 2 to 64, round robin, check-in, submit/confirm/dispute reportin
 Reverb, a dedicated `MatchStatus::Live`), Identity (Discord-only login with an optional guild gate,
 Steam/Twitch account linking, local avatar copies), Notifications and Preflight.
 
-**Optional modules** (31 modules in total, switched per deployment, see "Module toggles" below):
+**Optional modules** (32 modules in total, switched per deployment, see "Module toggles" below):
 Schedule, Catering, Voting, Lfg, Infoscreen, Stats, Friends, Presence, Casting (OBS overlays), Jukebox
 (LAN radio via Music Assistant), Gallery, Recap, News, Discord, Voice (Mumble and TeamSpeak), WebVoice,
-GameServers, CustomServers, Hosts, Lancache, Files, Provisioning.
+GameServers, CustomServers, Hosts, Lancache, Files, Provisioning, Assistant (orga-only AI chat that reads
+the state and proposes tournament and game server changes behind approval cards; Claude or a local Ollama
+model, see [`docs/infra/assistant.md`](docs/infra/assistant.md)).
 
 **Participant app:** a logged-in participant lands on **Jetzt** (`/`), one page for the current LAN:
 what needs them now (match, vote, order), what is being played (per game: people, servers, join), a
