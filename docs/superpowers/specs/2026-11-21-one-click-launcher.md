@@ -45,7 +45,7 @@ the browser and in the launcher.
 > pairing, and the launcher's own library/install/ready windows with real percentages. The chat,
 > `/games` and the launcher render the same read models; the deterministic fallback answers every
 > intent when no model is reachable. Normative UI rules live in `docs/design.md`
-> ("Start-page chat (the front door) — pilot"); the guide is
+> ("Start-page chat (the front door after login) — pilot"); the guide is
 > `docs-site/pages/guides/launcher.mdx`. The multi-terminal model and the arcade QR sign-in are
 > specified there too: one pairing, token and local install library per terminal, a shared
 > catalogue, offline-startable installs, and a per-terminal device list with **online**,
@@ -61,10 +61,11 @@ the browser and in the launcher.
    A fourth, smaller **`?` Handbuch** button sits beside them and opens the user-facing handbook
    (docs, screenshots, usage around the three activities, food ordering, chat integration, and a
    preloaded live example conversation that shows how the app launches and how the launcher is
-   installed). A huge, always-visible **Launcher** button sits at the very top of the sidebar
-   (above the nav), not only in the hero. The sidebar otherwise stays as it is. OS buttons:
-   Windows, Linux, macOS. The chat greets the participant, explains LANoMAT, and can already
-   answer "what can I do?" / "install UT2004" with inline game, server and install cards.
+   installed). **Pilot:** the **Launcher** entry lives in the sidebar's **Mehr** group; a
+   top-of-sidebar button is not part of the pilot. The sidebar otherwise stays as it is. OS
+   buttons: Windows and Linux (macOS has no build in the pilot). The chat greets the participant,
+   explains LANoMAT, and can already answer "what can I do?" / "install UT2004" with inline game,
+   server and install cards.
 1. Website `/games` lists every live recipe as a row with **Installieren**, server browser/join, and
    **Fragen** (chat). No launcher installed → the button downloads the launcher.
 2. One launcher download (`LANoMAT-Setup.exe` / `.AppImage` / `.dmg`) → first run provisions via a

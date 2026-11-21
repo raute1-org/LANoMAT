@@ -142,6 +142,7 @@ const PUBLIC_ROUTES = [
     'GET discord/voice' => 'public no-PII voice occupancy projection',
     'GET filament/exports/{export}/download' => 'Filament action middleware authorizes the owner',
     'GET filament/imports/{import}/failed-rows/download' => 'Filament action middleware authorizes the owner',
+    'GET catering/dish-image/{foodOrder}/{key}' => 'published rounds of publicly visible events only (draft round, draft event, dish without image: 404); content-hashed file, public cache',
     'GET gallery/public/photos/{eventPhoto}' => 'approved photos of publicly visible events only',
     'GET gallery/public/photos/{eventPhoto}/thumb' => 'approved photos of publicly visible events only',
     'POST internal/discord/gateway' => 'shared-secret middleware (VerifyGatewaySecret)',
@@ -169,7 +170,7 @@ const SELF_SERVICE_ROUTES = [
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/all', 'GET servers/permanent',
     // The launcher page and its binaries sit behind the Discord login; {filename} is no
     // bound model, it is only compared against the validated manifest (LauncherBuilds).
-    'GET launcher', 'GET launcher/download/{filename}',
+    'GET launcher', 'GET launcher/download-latest', 'GET launcher/download/{filename}',
     'GET voice/setup', 'GET app', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'GET mcp/connect', 'POST mcp/connect', 'GET games', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',

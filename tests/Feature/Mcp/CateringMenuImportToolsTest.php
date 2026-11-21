@@ -274,3 +274,54 @@ it('serves the import prompt and skill resource', function () {
         ->assertOk()->assertSee('karte.pdf')->assertSee('catering_menu_preview');
     LanomatServer::resource(ImportMenuSkillResource::class)->assertOk()->assertSee('catering_menu_import');
 });
+
+it('imports, returns and merges dish descriptions', function () {
+    asOrga();
+    $event = Event::factory()->create();
+
+    LanomatServer::tool(CateringMenuImportTool::class, [
+        'event_slug' => $event->slug, 'mode' => 'create', 'title' => 'Pizza',
+        'items' => [['name' => 'Margherita', 'price_cents' => 850, 'description' => 'Tomaten, Mozzarella'], ['name' => 'Salami', 'price_cents' => 950]],
+    ])->assertOk();
+
+    $order = FoodOrder::query()->firstOrFail();
+    expect($order->menu[0]->description)->toBe('Tomaten, Mozzarella')->and($order->menu[1]->description)->toBeNull();
+
+    LanomatServer::tool(CateringMenuGetTool::class, ['event_slug' => $event->slug])
+        ->assertStructuredContentPath('orders.0.items.0.description', 'Tomaten, Mozzarella');
+
+    // merge: fills an empty description, keeps a filled one (warns), counts the fill as a change
+    $report = LanomatServer::tool(CateringMenuImportTool::class, [
+        'event_slug' => $event->slug, 'mode' => 'merge', 'order_id' => $order->id,
+        'items' => [['name' => 'Margherita', 'price_cents' => 850, 'description' => 'Anders'], ['name' => 'Salami', 'price_cents' => 950, 'description' => 'Scharf']],
+    ])->assertOk()->assertStructuredContentPath('unchanged', false)->assertStructuredContentPath('changes.changed', 1);
+
+    $menu = $order->fresh()->menu;
+    expect($menu[0]->description)->toBe('Tomaten, Mozzarella')->and($menu[1]->description)->toBe('Scharf');
+
+    // replace sets it and keeps a photo of the same key
+    $image = 'catering/dishes/0123456789abcdef.webp';
+    $order->menu = [$menu[0]->with($menu[0]->description, $image), $menu[1]];
+    $order->save();
+
+    LanomatServer::tool(CateringMenuImportTool::class, [
+        'event_slug' => $event->slug, 'mode' => 'replace', 'order_id' => $order->id,
+        'items' => [['key' => $menu[0]->key, 'name' => 'Margherita', 'price_cents' => 850, 'description' => 'Neu', 'has_image' => true], ['key' => $menu[1]->key, 'name' => 'Salami', 'price_cents' => 950]],
+    ])->assertOk();
+
+    $after = $order->fresh()->menu;
+    expect($after[0]->description)->toBe('Neu')->and($after[0]->image)->toBe($image)->and($after[1]->description)->toBe('Scharf');
+});
+
+it('warns and shortens a description above 600 characters in the preview', function () {
+    asOrga();
+    $event = Event::factory()->create();
+
+    $result = LanomatServer::tool(CateringMenuPreviewTool::class, [
+        'event_slug' => $event->slug, 'mode' => 'create', 'title' => 'Pizza',
+        'items' => [['name' => 'Margherita', 'price_cents' => 850, 'description' => str_repeat('a', 700)]],
+    ])->assertOk()->assertStructuredContentPath('valid', true);
+
+    $result->assertStructuredContentPath('warnings.0', fn ($w) => str_contains($w, 'shortened'));
+    $result->assertStructuredContentPath('menu.0.description', fn ($d) => mb_strlen($d) === 600);
+});

@@ -205,12 +205,19 @@ class ImportFoodOrderMenu
                 $byKey[$option->key] = $option;
             }
 
+            $menu = [];
+
             foreach ($incoming as $option) {
                 $old = $byKey[$option->key] ?? null;
 
+                // Photos are not part of an import: a dish that stays keeps its photo, and one
+                // without a description in the import keeps the one it has.
+                $description = $option->description ?? $old?->description;
+                $menu[] = $option->with($description, $old?->image);
+
                 if ($old === null) {
                     $changes['added']++;
-                } elseif ($old->name === $option->name && $old->priceCents === $option->priceCents) {
+                } elseif ($old->name === $option->name && $old->priceCents === $option->priceCents && $old->description === $description) {
                     $changes['kept']++;
                 } else {
                     $changes['changed']++;
@@ -252,13 +259,24 @@ class ImportFoodOrderMenu
                     $warnings[] = 'Kept existing price for "'.SafeText::line($match->name, 80).'" ('.$match->priceCents.' cents); the import said '.$option->priceCents.'. Use mode=replace to change prices.';
                 }
 
+                if ($option->description !== null && $option->description !== $match->description) {
+                    if ($match->description === null) {
+                        // Filling an empty description is the one thing merge may do to an existing dish.
+                        $merged = array_map(static fn (MenuOption $o): MenuOption => $o->key === $match->key ? $o->with($option->description, $o->image) : $o, $merged);
+                        $changes['kept']--;
+                        $changes['changed']++;
+                    } else {
+                        $warnings[] = 'Kept existing description for "'.SafeText::line($match->name, 80).'"; the import said something else. Use mode=replace to change descriptions.';
+                    }
+                }
+
                 continue;
             }
 
             $key = isset($usedKeys[$option->key]) ? MenuImport::uniqueKey($option->name, $usedKeys) : $option->key;
             $usedKeys[$key] = true;
             $byName[mb_strtolower($option->name)] = $option;
-            $merged[] = new MenuOption($key, $option->name, $option->priceCents);
+            $merged[] = new MenuOption($key, $option->name, $option->priceCents, $option->description);
             $changes['added']++;
         }
 
@@ -266,7 +284,7 @@ class ImportFoodOrderMenu
             $errors[] = 'The merged menu would exceed '.MenuImport::MAX_ITEMS.' dishes.';
         }
 
-        $unchanged = $errors === [] && $changes['added'] === 0;
+        $unchanged = $errors === [] && $changes['added'] === 0 && $changes['changed'] === 0;
 
         return new MenuImportReport($mode->value, false, false, $unchanged, $errors, $warnings, $merged, $changes, $orderInfo);
     }

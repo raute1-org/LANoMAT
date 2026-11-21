@@ -1,0 +1,176 @@
+schema: lanomat.recipe/v1
+slug: hookshot-standalone
+title: 'Hookshot Standalone (Ocarina of Time Switch 2)'
+aliases:
+    [
+        'hookshot standalone',
+        'oot switch 2 standalone',
+        'ocarina of time switch 2 standalone',
+        'ocarina of time switch 2 all files',
+        'hookshot all files',
+        'hookshot package',
+    ]
+version: '3.0.1 standalone package'
+status: draft
+platforms: [windows]
+summary: 'Run the prebuilt Hookshot for Ocarina of Time (Switch 2) from one standalone package: hookshot.exe, the built game folder and mods, no dump and no 10-45 minute build.'
+description: |
+    Hookshot turns the Switch 2 remake of Ocarina of Time into a native Windows
+    program. The official path builds it on the player's PC from a supported
+    game dump and needs the builder, about 500 MB of tools, 16 GB RAM and
+    10-45 minutes. The LAN already has the result: one standalone package with
+    `hookshot.exe`, the built `game` folder and a `mods` folder.
+
+    This recipe installs that package. There is no `.nup` to select, no
+    Hookshot Builder, no compiler and no first-run build. Unpack the ZIP, keep
+    `hookshot.exe` next to `game` and `mods`, start it and map the controller.
+    The package is user-supplied and includes the translated game code; do not
+    mix it with a different Hookshot version or a second `game` folder.
+
+    Use the `hookshot` recipe instead when the player has the supported dump
+    and wants to build locally. The exact dump for that path is program
+    `0400486024DEC000`, update `v131072`, build `e0f3ccfa`; this standalone
+    package carries the same built build and needs none of it.
+
+    Needs verification on the LAN hardware: unpack on a fresh Windows PC,
+    confirm the build version in `hookshot_log.txt`, boot the intro, make a
+    save and check the controller and the package's mods. The package name and
+    the executable layout are recorded here but not yet tested on the venue
+    PCs.
+homepage: https://hookshot.pro/
+license: 'Nintendo; game data user-supplied (Hookshot: GPL-3.0)'
+cover: ''
+skill:
+    name: hookshot-standalone
+    description: 'Install and run the prebuilt Hookshot standalone package for the Ocarina of Time Switch 2 remake: unpack hookshot.exe with the built game and mods, configure graphics and controller, verify the version and save, and skip the dump, builder and 10-45 minute compile. Use when the user says Hookshot standalone, Ocarina of Time Switch 2 all files, or wants the ready package instead of building.'
+    compatibility: 'Windows 10/11 x64; Vulkan 1.3 with mesh shaders; 16 GB RAM; about 10 GB after unpacking; no game dump, builder, compiler or Visual Studio'
+requires:
+    - role: base
+      label: 'Hookshot standalone package (hookshot.exe + game + mods)'
+      os: windows
+      match:
+          [
+              'hookshot-standalone*.zip',
+              'Hookshot-standalone*.zip',
+              'Hookshot-*-standalone*.zip',
+              'Hookshot-Standalone*.zip',
+          ]
+      required: true
+      sha256: ''
+      url: ''
+      notes: 'The LAN package, not the official 124 KB builder ZIP. It contains hookshot.exe, the built game folder (game/) and usually mods/. About 10 GB packed; the built game is roughly 4-10 GB. A package with only hookshot.exe and an empty game folder is incomplete.'
+    - role: mod
+      label: 'Hookshot RomFS mods (optional)'
+      match:
+          [
+              '*OoT*Mod*.zip',
+              '*OOT*Mod*.zip',
+              '*hookshot*mod*.zip',
+              '*Hookshot*Mod*.zip',
+          ]
+      required: false
+      sha256: ''
+      url: ''
+      notes: 'Mods live in mods/<name>/romfs/... beside hookshot.exe. ExeFS patches (.ips/.pchtxt) are applied at build time, so a standalone package only carries RomFS mods unchanged.'
+steps:
+    - id: unpack-package
+      title: 'Unpack the standalone package'
+      os: windows
+      optional: false
+      detail: |
+          Extract `hookshot-standalone*.zip` into `{{target}}` (for example
+          `C:\Games\Hookshot`). The ZIP has one top-level folder; move its
+          contents up so `hookshot.exe`, `game/` and, when present, `mods/`
+          sit directly in `{{target}}`.
+
+          Do not unpack a second package over an existing one. If the folder
+          already has a `game` from another Hookshot version, rename or remove
+          it first; two game trees make the launcher pick the wrong build.
+      commands:
+          - shell: powershell
+            run: |
+                $zip = (Get-ChildItem "{{downloads}}/hookshot-standalone*.zip" | Select-Object -First 1).FullName
+                Expand-Archive -Path $zip -DestinationPath "{{target}}" -Force
+                $inner = Get-ChildItem "{{target}}" -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'hookshot.exe') } | Select-Object -First 1
+                if ($inner) { Get-ChildItem $inner.FullName -Force | Move-Item -Destination "{{target}}" -Force; Remove-Item $inner.FullName -Force }
+      verify:
+          - type: file_exists
+            path: '{{target}}/hookshot.exe'
+          - type: dir_exists
+            path: '{{target}}/game'
+    - id: check-package
+      title: 'Check that the package is complete'
+      os: windows
+      optional: false
+      detail: |
+          `hookshot.exe` must sit next to `game/` (not inside it). `game/`
+          carries the translated code and assets; `mods/` is optional. A
+          package that is only a few megabytes is the builder ZIP, not the
+          built game; stop and ask the orga for the standalone package.
+
+          Record the Hookshot version from the package name or
+          `hookshot_log.txt`. The LAN build is 3.0.x; a 2.x package needs its
+          own matching `game` folder. Do not mix versions.
+      verify:
+          - type: file_exists
+            path: '{{target}}/hookshot.exe'
+          - type: dir_exists
+            path: '{{target}}/game'
+    - id: first-run
+      title: 'First run and graphics'
+      os: windows
+      optional: false
+      detail: |
+          Start `hookshot.exe`. The first launch prepares shaders and may sit
+          on a black window for several minutes; later starts use the cache.
+
+          Set the resolution and fullscreen mode, then check that the game
+          reaches the title screen and the intro. Hookshot needs Vulkan 1.3
+          with mesh shaders; a GPU driver that only reports Vulkan 1.2 stops
+          with a graphics error. Close other applications: the running game
+          uses close to 10 GB of RAM.
+    - id: controls-and-save
+      title: 'Controller, save and log'
+      os: windows
+      optional: false
+      detail: |
+          Map a gamepad or keyboard in the Hookshot options and play through
+          the first save. Start the game once more and confirm the save loads.
+
+          `hookshot_log.txt` beside the executable names the build and any
+          mod that failed to load. It is the first file to read when the intro
+          stays black or a mod does not appear.
+    - id: mods
+      title: 'Add RomFS mods (optional)'
+      os: windows
+      optional: true
+      detail: |
+          Put mods in `mods/<name>/romfs/...` beside `hookshot.exe`, or point
+          `HOS_MODS` at another folder. A folder starting with `-` or `_` is
+          off; the in-game Mods tab orders and switches them.
+
+          ExeFS patches (`.ips`/`.pchtxt`) are applied when the game is
+          built. A standalone package cannot apply a new ExeFS patch without a
+          rebuild; use the `hookshot` builder recipe for those.
+    - id: verify
+      title: 'Verify the package'
+      os: windows
+      optional: false
+      detail: |
+          Confirm the title screen, a save, the controller and at least one
+          mod if the package ships mods. Check `hookshot_log.txt` for the
+          version and loaded mods.
+
+          Draft recipe: unpacking, the executable layout (`hookshot.exe` at
+          the root or under `bin/`), the version string and the real first-run
+          shader wait still need verification on the LAN hardware.
+metadata:
+    genre: action-adventure
+    players: '1'
+    players_max: 1
+    lan_recommended: false
+    tags: [adventure, switch2, nintendo, zelda, recomp, standalone]
+    launch:
+        kind: exe
+        target: '{{target}}/hookshot.exe'
+        notes: 'Start the packaged launcher directly. If the package keeps it under bin/, use {{target}}/bin/hookshot.exe and keep game/ beside the exe or point --user at the data folder.'

@@ -1,0 +1,254 @@
+schema: lanomat.recipe/v1
+slug: minecraft
+title: 'Minecraft: Java Edition'
+aliases:
+    [
+        'minecraft java',
+        'minecraft java edition',
+        'mc',
+        'mcje',
+        'minecraft fabric',
+    ]
+version: '26.3 + Fabric 0.19.5'
+status: draft
+platforms: [windows, linux, macos]
+summary: 'Install Minecraft Java 26.3 through portable Prism Launcher, add Fabric and the LAN performance mods, then join the LAN server with one instance.'
+description: |
+    Minecraft: Java Edition is the LAN's block sandbox: one shared survival
+    world or a handful of modded instances, played together over the local
+    network. This recipe installs the game through Prism Launcher, the
+    open-source launcher that keeps every instance, mod and Java runtime in
+    one portable folder.
+
+    The preferred LAN path is a ready Prism instance exported by the orga:
+    Minecraft 26.3, Fabric Loader 0.19.5, Sodium and Lithium, and the LAN
+    server already in the multiplayer list. Import the ZIP, sign in with a
+    Microsoft account once, press Play. The manual path builds the same
+    instance in Prism without any LAN file.
+
+    Java Edition needs a Microsoft account for the official Mojang session
+    service. A LAN can run the server with `online-mode=false` and Prism's
+    offline accounts, but every offline name gets a new UUID on each join, so
+    inventories and whitelists do not survive; use that only for a throwaway
+    event world. The server itself is a separate LANoMAT game server (Java 25
+    for 26.x), not part of this client install.
+
+    Researched online on 2026-11-21 against Prism Launcher 11.1.1, Minecraft
+    Java Edition 26.3 ("Wilderness Bound", released 2026-09-15) and Fabric
+    Loader 0.19.5. The recipe needs verification on the LAN hardware before
+    it is published: the portable extracts, Microsoft sign-in, Java 25, the
+    imported instance and a real client/server join still have to be checked
+    on the venue PCs and the venue network.
+homepage: https://www.minecraft.net/en-us/about-minecraft
+license: 'Mojang/Microsoft; game files are user-supplied through the official launcher; Prism Launcher GPL-3.0; Fabric Loader Apache-2.0'
+cover: ''
+skill:
+    name: minecraft
+    description: 'Install Minecraft: Java Edition 26.3 on a LAN PC through portable Prism Launcher 11.1.1, import or create the LAN Fabric instance (Sodium, Lithium, Fabric API), sign in with Microsoft, add the LAN server and launch with the right Java 25 runtime. Use when the user says install Minecraft, Minecraft Java, MC, Minecraft Fabric, or asks to join the LAN Minecraft server.'
+    compatibility: 'Windows 10/11, macOS 12+ or 64-bit Linux; Java SE 25 (Prism can download it); 8 GB RAM minimum, 4 GB allocated to the game; Microsoft account for online mode'
+requires:
+    - role: base
+      label: 'Prism Launcher 11.1.1 portable (Windows x86-64)'
+      os: windows
+      match:
+          [
+              'PrismLauncher-Windows-*-Portable-*.zip',
+              'PrismLauncher-Windows-*.zip',
+          ]
+      required: true
+      sha256: ''
+      url: https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.1/PrismLauncher-Windows-MinGW-w64-Portable-11.1.1.zip
+      notes: 'Official portable build from the Prism Launcher 11.1.1 release. The ZIP is flat: prismlauncher.exe, portable.txt and the Qt DLLs sit at the root. Unpack it into {{target}}; the portable.txt keeps accounts, instances and Java under that folder.'
+    - role: base
+      label: 'Prism Launcher 11.1.1 portable (Linux x86-64)'
+      os: linux
+      match:
+          [
+              'PrismLauncher-Linux-*-Portable-*.tar.gz',
+              'PrismLauncher-Linux-*.tar.gz',
+          ]
+      required: true
+      sha256: ''
+      url: https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.1/PrismLauncher-Linux-Qt6-Portable-11.1.1.tar.gz
+      notes: 'Official portable tarball from the Prism Launcher 11.1.1 release. It carries one top-level PrismLauncher/ folder with bin/prismlauncher and portable.txt; extract with --strip-components=1 into {{target}}. The AppImage is an equivalent alternative when the LAN host only offers that file.'
+    - role: base
+      label: 'Prism Launcher 11.1.1 (macOS universal)'
+      os: macos
+      match:
+          [
+              'PrismLauncher-macOS-*.zip',
+              'PrismLauncher-macOS-*.dmg',
+          ]
+      required: true
+      sha256: ''
+      url: https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.1/PrismLauncher-macOS-11.1.1.zip
+      notes: 'Universal build, macOS 12 Monterey or later. The ZIP contains Prism Launcher.app; unpack it into {{target}} and start it from there with the data folder override so the instance stays inside {{target}}. A .dmg on the LAN is accepted as the same base.'
+    - role: content
+      label: 'LAN Prism instance (26.3 + Fabric + server list)'
+      match:
+          [
+              'minecraft-lan*.zip',
+              'minecraft-26.3*.zip',
+              'minecraft*.mrpack',
+          ]
+      required: false
+      sha256: ''
+      url: ''
+      notes: 'Preferred path, exported once by the orga from a working Prism 11.1.1 setup: instance name lanomat-26.3-fabric, Minecraft 26.3, Fabric Loader 0.19.5, Sodium, Lithium, Fabric API and the LAN server in servers.dat. Prism imports both its own instance ZIP and a Modrinth .mrpack. The export carries mods and config, not the game JARs; Prism downloads those from Mojang after the Microsoft sign-in.'
+steps:
+    - id: install-prism-windows
+      title: 'Unpack Prism Launcher (Windows)'
+      os: windows
+      optional: false
+      detail: |
+          Unpack `PrismLauncher-Windows-*-Portable-*.zip` into `{{target}}`
+          (for example `C:\Games\Minecraft`). The archive is flat, so
+          `prismlauncher.exe` and `portable.txt` sit directly in
+          `{{target}}`; do not leave a nested `PrismLauncher/` folder.
+
+          Start `prismlauncher.exe` once. The portable marker keeps accounts,
+          instances, Java runtimes and logs inside that folder, so the whole
+          install can be copied to another PC or deleted without touching
+          `%APPDATA%`.
+      commands:
+          - shell: powershell
+            run: |
+                $zip = (Get-ChildItem "{{downloads}}/PrismLauncher-Windows-*-Portable-*.zip" | Select-Object -First 1).FullName
+                Expand-Archive -Path $zip -DestinationPath "{{target}}" -Force
+                $inner = Get-ChildItem "{{target}}" -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'prismlauncher.exe') } | Select-Object -First 1
+                if ($inner) { Get-ChildItem $inner.FullName -Force | Move-Item -Destination "{{target}}" -Force; Remove-Item $inner.FullName -Force }
+      verify:
+          - type: file_exists
+            path: '{{target}}/prismlauncher.exe'
+          - type: file_exists
+            path: '{{target}}/portable.txt'
+    - id: install-prism-linux
+      title: 'Unpack Prism Launcher (Linux)'
+      os: linux
+      optional: false
+      detail: |
+          Extract `PrismLauncher-Linux-*-Portable-*.tar.gz` into `{{target}}`
+          with `--strip-components=1`; the archive's single top-level
+          `PrismLauncher/` folder then disappears and `bin/prismlauncher`,
+          `portable.txt` and `lib/` sit directly in `{{target}}`.
+
+          Start `{{target}}/bin/prismlauncher` once. The portable marker keeps
+          accounts, instances and Java in that folder. If the LAN only offers
+          the AppImage, copy it into `{{target}}` as `prismlauncher.AppImage`,
+          make it executable and use the same data folder override.
+      commands:
+          - shell: bash
+            run: 'mkdir -p "{{target}}"'
+          - shell: bash
+            run: 'tar -xzf "$(find "{{downloads}}" -maxdepth 1 -iname "PrismLauncher-Linux-*-Portable-*.tar.gz" -print -quit)" -C "{{target}}" --strip-components=1'
+      verify:
+          - type: file_exists
+            path: '{{target}}/bin/prismlauncher'
+          - type: file_exists
+            path: '{{target}}/portable.txt'
+    - id: install-prism-macos
+      title: 'Unpack Prism Launcher (macOS)'
+      os: macos
+      optional: false
+      detail: |
+          Unpack `PrismLauncher-macOS-*.zip` into `{{target}}`; it contains
+          `Prism Launcher.app`. Start it with the `-d` data folder override so
+          the instance and Java stay with the install instead of
+          `~/Library/Application Support/PrismLauncher`:
+
+          `open -a "{{target}}/Prism Launcher.app" --args -d "{{target}}/data"`
+
+          Gatekeeper may ask once because the build is not notarized; open it
+          with right-click -> Open, or allow it in System Settings ->
+          Privacy & Security.
+      commands:
+          - shell: bash
+            run: 'mkdir -p "{{target}}"'
+          - shell: bash
+            run: 'unzip -o "$(find "{{downloads}}" -maxdepth 1 -iname "PrismLauncher-macOS-*.zip" -print -quit)" -d "{{target}}"'
+      verify:
+          - type: dir_exists
+            path: '{{target}}/Prism Launcher.app'
+    - id: instance-and-mods
+      title: 'Import the LAN instance or create the Fabric instance'
+      os: any
+      optional: false
+      detail: |
+          **Preferred:** in Prism use Add Instance -> Import, pick
+          `minecraft-lan*.zip` (or `minecraft*.mrpack`) and keep the instance
+          name `lanomat-26.3-fabric`. The export already carries Fabric
+          0.19.5, Sodium, Lithium, Fabric API, the memory setting and the LAN
+          server in the multiplayer list. Prism downloads the 26.3 game files
+          from Mojang after sign-in.
+
+          **Manual:** Add Instance -> Minecraft 26.3 -> Fabric 0.19.5. In
+          Edit -> Mods install Sodium, Lithium and Fabric API from Modrinth
+          for 26.3, then set Edit -> Settings -> Memory to about 4 GB. Keep
+          the instance name `lanomat-26.3-fabric` if the launch target in
+          this recipe should work unchanged.
+
+          Do not mix a Fabric installer from an older game version with 26.3:
+          Fabric Loader 0.19.5 is the stable build for this release.
+    - id: sign-in-java
+      title: 'Sign in with Microsoft and select Java 25'
+      os: any
+      optional: false
+      detail: |
+          Prism -> Accounts -> Add Microsoft account and finish the browser
+          sign-in. Minecraft 26.x requires Java SE 25; Prism downloads a
+          matching runtime automatically. In Edit -> Settings -> Java, pick
+          the downloaded Java 25 entry (or point at an installed Java 25) if
+          Prism did not select it.
+
+          Allocate about 4 GB of memory (`-Xmx4G`) on an 8 GB PC; 6-8 GB is
+          fine on a 16 GB PC. Leave the rest of the JVM arguments at the
+          Prism defaults. Online mode needs the Microsoft account; offline
+          accounts only work against a server started with
+          `online-mode=false`.
+    - id: join-lan-server
+      title: 'Join the LAN server'
+      os: any
+      optional: false
+      detail: |
+          The orga shares the server address (the LANoMAT server page shows
+          it; the default Java port is 25565). In Minecraft choose
+          Multiplayer -> Add Server, name it `LANoMAT`, paste `host:port` and
+          join. With the imported LAN instance the entry is already there.
+
+          Everyone must run the same Minecraft version and the same mods as
+          the server. A vanilla 26.3 server needs no client mods; the LAN
+          Fabric server needs Fabric Loader 0.19.5 and the same mod set. For
+          a player-hosted world, use Open to LAN instead: the game prints a
+          random port, everyone joins `host:port`, and the host must keep the
+          world open.
+
+          If the server uses offline mode (`online-mode=false`), set Prism to
+          an offline account with the requested name; inventories still bind
+          to a fresh UUID on each join. This recipe needs verification on the
+          LAN hardware, especially the first Microsoft sign-in without a
+          stable internet uplink.
+launch_targets:
+    - id: prism-windows
+      label: 'Prism Launcher (Windows)'
+      os: windows
+      shell: powershell
+      command: 'Start-Process -FilePath (Join-Path "{{target}}" ''prismlauncher.exe'') -ArgumentList ''-d'', (Join-Path "{{target}}" ''data''), ''-l'', ''lanomat-26.3-fabric'''
+      notes: 'Starts the LAN instance directly. The instance ID is the folder name under data/instances; rename the instance or this target if it differs.'
+    - id: prism-linux
+      label: 'Prism Launcher (Linux)'
+      os: linux
+      shell: bash
+      command: 'PRISM_DATA="{{target}}/data"; "{{target}}/bin/prismlauncher" -d "$PRISM_DATA" -l lanomat-26.3-fabric'
+      notes: 'Starts the LAN instance directly. For the AppImage, replace the binary with {{target}}/prismlauncher.AppImage.'
+    - id: prism-macos
+      label: 'Prism Launcher (macOS)'
+      os: macos
+      shell: bash
+      command: 'PRISM_DATA="{{target}}/data"; open -a "{{target}}/Prism Launcher.app" --args -d "$PRISM_DATA" -l lanomat-26.3-fabric'
+      notes: 'Starts the LAN instance through LaunchServices with the data folder inside {{target}}.'
+metadata:
+    genre: sandbox
+    players: '2-32 on the LAN'
+    players_max: 32
+    lan_recommended: true
+    tags: [sandbox, survival, fabric, java, prism, microsoft-account]

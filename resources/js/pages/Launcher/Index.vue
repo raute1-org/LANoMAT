@@ -23,6 +23,22 @@ type Build = {
     url: string;
 };
 
+/** One live server row: the whole start page list, one action per row. */
+type LiveServer = {
+    id: number | string | null;
+    title: string;
+    game: string | null;
+    gameSlug: string | null;
+    status: 'ready' | 'not_responding';
+    players: number | null;
+    maxPlayers: number | null;
+    map: string | null;
+    address: string | null;
+    permanent: boolean;
+    event: { name: string; slug: string } | null;
+    join: { href: string; launcher: boolean } | null;
+};
+
 const props = defineProps<{
     state: 'none' | 'published';
     release: {
@@ -36,6 +52,8 @@ const props = defineProps<{
     files: Build[];
     server: { name: string; url: string; version: string };
     detectedOs: Os | null;
+    /** Every server that is live right now, for the one-click join list. */
+    servers: LiveServer[];
 }>();
 
 const { isNavigating, hasError } = usePageLoadState();
@@ -117,7 +135,7 @@ const gameSteps = [
         text: 'Der Launcher zeigt einen Code — hier auf der Seite bestätigen.',
     },
     {
-        title: 'UT2004 installieren + Starten',
+        title: 'Spiel installieren + Starten',
         text: 'Ein Klick im Launcher, dann direkt auf den Server.',
     },
 ] as const;
@@ -235,6 +253,22 @@ function megabytes(bytes: number): string {
 const copyAnnouncement = computed(() =>
     copied.value === null ? '' : `${copied.value.name} kopiert`,
 );
+
+function playerLabel(server: LiveServer): string {
+    if (server.players === null || server.maxPlayers === null) {
+        return '';
+    }
+
+    return `${server.players}/${server.maxPlayers} Spieler`;
+}
+
+function whereLabel(server: LiveServer): string {
+    if (server.permanent) {
+        return 'Dauerserver';
+    }
+
+    return server.event?.name ?? '';
+}
 </script>
 
 <template>
@@ -451,6 +485,139 @@ const copyAnnouncement = computed(() =>
                             SmartScreen-Warnung — der Build ist nicht signiert.
                         </span>
                     </p>
+                </div>
+            </section>
+
+            <!-- The launcher start page: every live server, one click onto it. -->
+            <section
+                class="mt-4 sm:mt-6"
+                aria-labelledby="launcher-live"
+                data-test="launcher-live"
+            >
+                <div
+                    class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
+                >
+                    <h2
+                        id="launcher-live"
+                        class="text-lg font-semibold tracking-tight text-foreground"
+                    >
+                        Jetzt live
+                    </h2>
+                    <p class="font-mono text-xs text-muted-foreground">
+                        {{ servers.length }} Server
+                    </p>
+                </div>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Ein Klick: Der Launcher installiert das Spiel, falls nötig,
+                    und startet direkt auf dem Server. Ohne Launcher zuerst oben
+                    herunterladen.
+                </p>
+
+                <ul
+                    v-if="servers.length > 0"
+                    class="mt-3 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card"
+                >
+                    <li
+                        v-for="live in servers"
+                        :key="`${live.id}-${live.address}`"
+                        class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5"
+                        data-test="launcher-live-row"
+                    >
+                        <div class="min-w-0 flex-1">
+                            <div
+                                class="flex flex-wrap items-center gap-x-2 gap-y-1"
+                            >
+                                <span
+                                    class="size-2 shrink-0 rounded-full"
+                                    :class="
+                                        live.status === 'ready'
+                                            ? 'bg-live'
+                                            : 'bg-muted-foreground'
+                                    "
+                                    aria-hidden="true"
+                                />
+                                <p
+                                    class="truncate text-sm font-medium text-foreground"
+                                >
+                                    {{ live.title }}
+                                </p>
+                                <span
+                                    v-if="live.game"
+                                    class="font-mono text-xs text-muted-foreground"
+                                >
+                                    {{ live.game }}
+                                </span>
+                            </div>
+                            <p
+                                class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] text-muted-foreground"
+                            >
+                                <span v-if="whereLabel(live)">{{
+                                    whereLabel(live)
+                                }}</span>
+                                <span v-if="live.map">· {{ live.map }}</span>
+                                <span v-if="playerLabel(live)"
+                                    >· {{ playerLabel(live) }}</span
+                                >
+                                <span v-if="live.address" class="break-all"
+                                    >· {{ live.address }}</span
+                                >
+                            </p>
+                        </div>
+
+                        <div class="flex shrink-0 items-center gap-2">
+                            <Button
+                                v-if="live.join?.launcher"
+                                as-child
+                                size="sm"
+                                data-test="launcher-live-join"
+                            >
+                                <a :href="live.join.href">Beitreten</a>
+                            </Button>
+                            <Button
+                                v-else-if="live.join"
+                                as-child
+                                size="sm"
+                                variant="outline"
+                                data-test="launcher-live-join"
+                            >
+                                <a
+                                    :href="live.join.href"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Beitreten
+                                </a>
+                            </Button>
+                            <Button v-else as-child size="sm" variant="outline">
+                                <Link
+                                    :href="
+                                        live.event?.slug
+                                            ? `/events/${live.event.slug}/servers`
+                                            : '/servers'
+                                    "
+                                >
+                                    Server ansehen
+                                </Link>
+                            </Button>
+                        </div>
+                    </li>
+                </ul>
+
+                <div
+                    v-else
+                    class="mt-3 rounded-3xl border border-dashed border-border p-6 text-sm text-muted-foreground sm:p-8"
+                    data-test="launcher-live-empty"
+                >
+                    <p class="font-medium text-foreground">
+                        Gerade läuft kein Server.
+                    </p>
+                    <p class="mt-1">
+                        Sobald ein Server bereit ist, erscheint er hier mit
+                        einem Klick zum Beitreten.
+                    </p>
+                    <Button as-child variant="outline" size="sm" class="mt-4">
+                        <Link href="/servers">Zum Serverbrowser</Link>
+                    </Button>
                 </div>
             </section>
 

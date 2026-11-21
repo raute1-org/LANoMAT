@@ -37,6 +37,7 @@ let settled = false;
 let readyAnnounced = false;
 let lastPhase = 'planning';
 let currentRecipe = null;
+let currentJoin = null;
 let onReady = () => {};
 let onLibrary = () => {};
 
@@ -56,13 +57,14 @@ export function init({ ready, library }) {
     $('install-back-cancelled').addEventListener('click', onLibrary);
 }
 
-export async function begin(recipe) {
+export async function begin(recipe, { join = null } = {}) {
     if (starting || !recipe) {
         return;
     }
 
     starting = true;
     currentRecipe = recipe;
+    currentJoin = join;
     settled = false;
     readyAnnounced = false;
     lastPhase = 'planning';
@@ -132,7 +134,7 @@ export function retry() {
         return;
     }
 
-    begin(currentRecipe);
+    begin(currentRecipe, { join: currentJoin });
 }
 
 export const isRunning = () => starting;
@@ -330,7 +332,7 @@ function finishReady(record) {
     }
 
     announceReady();
-    onReady(record, currentRecipe);
+    onReady(record, currentRecipe, currentJoin);
 }
 
 function showError(raw) {

@@ -7,6 +7,8 @@ export interface MenuItemInput {
     key: string;
     name: string;
     priceCents: number;
+    description?: string | null;
+    imageUrl?: string | null;
 }
 
 export interface MenuGroupItem {
@@ -14,6 +16,8 @@ export interface MenuGroupItem {
     /** Dish name without the category prefix. */
     label: string;
     priceCents: number;
+    description: string | null;
+    imageUrl: string | null;
 }
 
 export interface MenuGroup {
@@ -76,6 +80,8 @@ export function buildMenuGroups(menu: MenuItemInput[]): {
             key: option.key,
             label: prefix === null ? option.name : label,
             priceCents: option.priceCents,
+            description: option.description ?? null,
+            imageUrl: option.imageUrl ?? null,
         });
     }
 
@@ -90,6 +96,8 @@ export function buildMenuGroups(menu: MenuItemInput[]): {
                         key: option.key,
                         label: option.name,
                         priceCents: option.priceCents,
+                        description: option.description ?? null,
+                        imageUrl: option.imageUrl ?? null,
                     })),
                 },
             ],
@@ -104,7 +112,7 @@ export function buildMenuGroups(menu: MenuItemInput[]): {
     return { grouped: true, groups };
 }
 
-/** Keeps matching dishes (category names match too); drops empty groups. */
+/** Keeps matching dishes (name, description and category match); drops empty groups. */
 export function filterMenuGroups(
     groups: MenuGroup[],
     query: string,
@@ -123,8 +131,12 @@ export function filterMenuGroups(
                 ...group,
                 items: groupMatches
                     ? group.items
-                    : group.items.filter((item) =>
-                          normalizeText(item.label).includes(needle),
+                    : group.items.filter(
+                          (item) =>
+                              normalizeText(item.label).includes(needle) ||
+                              normalizeText(item.description ?? '').includes(
+                                  needle,
+                              ),
                       ),
             };
         })

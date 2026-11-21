@@ -24,6 +24,7 @@ let onStatus = () => {};
 let lastIntent = null;
 let requestId = 0;
 let demoTimer = 0;
+let liveLoading = false;
 
 export function init({ signedOut, status }) {
     onSignedOut = signedOut;
@@ -39,6 +40,7 @@ export function init({ signedOut, status }) {
         demoTimer += 1;
     });
     $('chat-clear').addEventListener('click', reset);
+    $('start-live-retry').addEventListener('click', () => loadLive());
 
     for (const chip of document.querySelectorAll('#chat-suggestions [data-intent]')) {
         chip.addEventListener('click', () => {
@@ -58,11 +60,179 @@ export function show() {
     if (!$('chat-log').firstElementChild) {
         reset({ focus: false });
     }
+
+    // The start page is the first thing after pairing: load every live server
+    // right away instead of waiting for a chat question.
+    loadLive();
 }
 
 export function retry() {
     if (lastIntent) {
         runIntent(lastIntent);
+    } else {
+        loadLive();
+    }
+}
+
+/** The paired server's browser page, for the start page's second main action. */
+export async function openServers() {
+    const base = serverBase();
+
+    if (!base) {
+        toast(S.ready.browserError, 'error');
+
+        return;
+    }
+
+    await openServer(`${base}${SERVERS_PATH}`);
+}
+
+/**
+ * One click from the start page: already installed -> launch on the server,
+ * installable -> the install wizard with the server waiting at the end, else
+ * the game's own join URL.
+ */
+async function joinServer(server) {
+    const recipe = recipeFor(server);
+    // An empty object (rather than null) keeps the "one click" promise: the
+    // install still auto-launches on the ready screen when the game has no
+    // join argument or URL.
+    const join = joinInfoOf(server) || { address: null, url: null };
+    const record = recipe ? latestInstall(recipe.slug) : null;
+
+    if (recipe && !record && recipe.launcher_supported !== false && recipe.installable !== false) {
+        announce(S.start.joinInstalling(recipe.title || recipe.slug));
+        await install.begin(recipe, { join });
+
+        return;
+    }
+
+    if (recipe && record) {
+        ready.show(recipe.slug, { launch: true, join });
+
+        return;
+    }
+
+    const url = join?.url || recipe?.play_url || pageUrlOf(server);
+
+    if (url) {
+        await openServer(url);
+
+        return;
+    }
+
+    toast(S.start.joinError, 'error');
+}
+
+function recipeFor(server) {
+    const slug = String(server.gameSlug || '');
+
+    return (state.games || []).find((game) => game && game.slug === slug) || null;
+}
+
+function latestInstall(slug) {
+    const records = Array.isArray(state.status?.installs)
+        ? state.status.installs
+        : [];
+    const matches = records.filter((record) => record && record.slug === slug);
+
+    return matches.length ? matches[matches.length - 1] : null;
+}
+
+/**
+ * The argument UT2004 launches with (`host:port`). Other recipes keep their
+ * join URL: their launch command does not promise a server argument.
+ */
+function joinInfoOf(server) {
+    const url = joinUrlOf(server);
+    const address =
+        server.gameSlug === 'unreal-tournament-2004'
+            ? ut2004Address(server)
+            : null;
+
+    return address || url ? { address, url } : null;
+}
+
+function ut2004Address(server) {
+    const host = String(server.address || '').trim();
+    const port = Number(server.port);
+
+    if (host !== '' && Number.isInteger(port) && port > 0 && port <= 65535) {
+        const bracketed = host.includes(':') && !host.startsWith('[')
+            ? `[${host}]`
+            : host;
+
+        return `${bracketed}:${port}`;
+    }
+
+    const connect = String(server.connectString || '').trim();
+
+    return /^[a-z0-9._:[\]-]+$/i.test(connect) && connect.includes(':')
+        ? connect
+        : null;
+}
+
+// ---- the start page's live list ----
+
+export async function loadLive() {
+    if (liveLoading) {
+        return;
+    }
+
+    liveLoading = true;
+    setHidden('start-live-loading', false);
+    setHidden('start-live-empty', true);
+    setHidden('start-live-error', true);
+
+    const [serversResult, gamesResult] = await Promise.all([
+        call('list_servers'),
+        state.games.length === 0
+            ? call('list_games')
+            : Promise.resolve({ ok: true, value: state.games }),
+    ]);
+
+    liveLoading = false;
+    setHidden('start-live-loading', true);
+
+    if (gamesResult.ok && Array.isArray(gamesResult.value)) {
+        state.games = gamesResult.value;
+    }
+
+    if (!serversResult.ok) {
+        setHidden('start-live-list', true);
+        setHidden('start-live-error', false);
+        setText('start-live-error-text', failureText(serversResult.error));
+
+        return;
+    }
+
+    const list = serversResult.value || {};
+    const all = Array.isArray(list.servers) ? list.servers : [];
+    // "Jetzt live" is joinable only: a starting/offline server is not a
+    // one-click destination, and the chat still shows the complete list.
+    const servers = all.filter(
+        (server) =>
+            server &&
+            (server.status === 'ready' || server.status === 'not_responding'),
+    );
+
+    state.servers = { events: list.events || [], servers };
+
+    if (servers.length === 0) {
+        setHidden('start-live-list', true);
+        setHidden('start-live-empty', false);
+
+        return;
+    }
+
+    const grid = $('start-live-list');
+
+    grid.replaceChildren(...servers.map(serverCard));
+    setHidden('start-live-list', false);
+    setHidden('start-live-empty', true);
+
+    if (state.stage === 'chat') {
+        announce(S.start.liveLoaded(servers.length));
     }
 }
 
@@ -445,8 +615,21 @@ function serverCard(server) {
     address.textContent = addressText || S.chat.noJoin;
 
     const action = node.querySelector('[data-action="join"]');
+    const recipe = recipeFor(server);
+    const record = recipe ? latestInstall(recipe.slug) : null;
+    const joinable = server.status === 'ready' || server.status === 'not_responding';
+    const throughLauncher =
+        joinable &&
+        recipe !== null &&
+        recipe.launcher_supported !== false &&
+        (record !== null || recipe.installable !== false);
 
-    if (joinUrl || page) {
+    if (throughLauncher) {
+        // One click: install (if needed), then start on this server.
+        action.textContent = S.start.join;
+        action.classList.add('primary');
+        action.addEventListener('click', () => joinServer(server));
+    } else if (joinUrl || page) {
         action.textContent = joinUrl ? S.chat.join : S.chat.page;
         action.classList.toggle('primary', Boolean(joinUrl));
         action.addEventListener('click', () => openServer(joinUrl || page));

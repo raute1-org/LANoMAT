@@ -1,7 +1,14 @@
 schema: lanomat.recipe/v1
 slug: need-for-speed-underground-2-browser
 title: 'Need for Speed: Underground 2 (Browser)'
-aliases: ['nfsu2 browser', 'nfsu2 web', 'underground 2 browser', 'ug2 browser', 'nfsu2.xyz']
+aliases:
+    [
+        'nfsu2 browser',
+        'nfsu2 web',
+        'underground 2 browser',
+        'ug2 browser',
+        'nfsu2.xyz',
+    ]
 version: '2026-11-21'
 status: published
 platforms: [windows, linux, macos]

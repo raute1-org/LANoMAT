@@ -62,12 +62,12 @@ copy.
 
 ## Decision: public server or self-host?
 
-| Situation | Use |
-| --- | --- |
-| Quick fallback, internet at the venue | The public server, `https://nfsu2.xyz/` |
-| Closed group, no strangers, LAN-only traffic | Self-host at the venue |
-| No internet at all | Self-host; the public page needs the internet for a first load |
-| One or two weak laptops | Public server first; it needs no disk and no Wine |
+| Situation                                    | Use                                                            |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| Quick fallback, internet at the venue        | The public server, `https://nfsu2.xyz/`                        |
+| Closed group, no strangers, LAN-only traffic | Self-host at the venue                                         |
+| No internet at all                           | Self-host; the public page needs the internet for a first load |
+| One or two weak laptops                      | Public server first; it needs no disk and no Wine              |
 
 The public server is a live multiplayer service. Other players are real, many
 races are ranked, and cheat tools are banned. Do not modify the game module or
@@ -93,16 +93,16 @@ automate driving.
 
 ## Troubleshooting
 
-| Symptom | Action |
-| --- | --- |
+| Symptom                        | Action                                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
 | `GPU-OFF`, `GPU-ADAPTER-LINUX` | Install the Vulkan driver, update the browser, or enable `chrome://flags/#enable-unsafe-webgpu` |
-| `PAGE-NOT-SECURE` | Use `https://`, not `http://` (except localhost) |
-| `PAGE-NOT-ISOLATED` | Guest window or disable extensions; the page must be served by the game server |
-| `PAGE-NO-MEMORY` | Close tabs, restart the browser, free about 1 GB |
-| `PAGE-NO-SIMD` | CPU without SSE4.1 or a too-old browser; the game cannot run |
-| Game stops (`GPU-LOST`) | Press Play again; update the graphics driver if it repeats |
-| Empty lobby / no other cars | Everyone must use the same server and world; check the world name |
-| Offline after a reload | Download the game data first; free roam and Online still need the server |
+| `PAGE-NOT-SECURE`              | Use `https://`, not `http://` (except localhost)                                                |
+| `PAGE-NOT-ISOLATED`            | Guest window or disable extensions; the page must be served by the game server                  |
+| `PAGE-NO-MEMORY`               | Close tabs, restart the browser, free about 1 GB                                                |
+| `PAGE-NO-SIMD`                 | CPU without SSE4.1 or a too-old browser; the game cannot run                                    |
+| Game stops (`GPU-LOST`)        | Press Play again; update the graphics driver if it repeats                                      |
+| Empty lobby / no other cars    | Everyone must use the same server and world; check the world name                               |
+| Offline after a reload         | Download the game data first; free roam and Online still need the server                        |
 
 ## Verify before promising it
 

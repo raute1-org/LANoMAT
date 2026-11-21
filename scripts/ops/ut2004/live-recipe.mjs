@@ -75,12 +75,14 @@ const BOOL_FLAGS = new Set(['help', 'apply', 'yes', 'record', 'json']);
 function usageError(message) {
     const error = new Error(message);
     error.exitCode = 2;
+
     return error;
 }
 
 function fail(message) {
     const error = new Error(message);
     error.exitCode = 1;
+
     return error;
 }
 
@@ -114,12 +116,14 @@ function parseArgs(argv) {
             if (i + 1 >= rest.length) {
                 throw usageError(`--${key} needs a value`);
             }
+
             value = rest[i + 1];
             i += 1;
         } else if (equals === -1) {
             if (!BOOL_FLAGS.has(key)) {
                 throw usageError(`unknown option --${key}`);
             }
+
             value = true;
         }
 
@@ -213,6 +217,7 @@ async function readLauncherConfig(options) {
 
     try {
         const config = await readJson(file);
+
         return { file, ...config };
     } catch (error) {
         return { file, error: error.message };
@@ -232,13 +237,17 @@ function parseCookieHeader(raw, host, secure) {
         .filter(Boolean)
         .map((pair) => {
             const index = pair.indexOf('=');
+
             if (index <= 0) {
                 return null;
             }
+
             let value = pair.slice(index + 1).trim();
+
             if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
                 value = value.slice(1, -1);
             }
+
             return {
                 name: pair.slice(0, index).trim(),
                 value,
@@ -258,6 +267,7 @@ function parseCookieFile(raw, host, secure) {
     if (trimmed.startsWith('{')) {
         try {
             const parsed = JSON.parse(trimmed);
+
             if (Array.isArray(parsed.cookies)) {
                 return parsed.cookies.map((cookie) => ({
                     domain: host,
@@ -305,6 +315,7 @@ async function loadCookies(options, base) {
     }
 
     let raw;
+
     try {
         raw = await fsp.readFile(file, 'utf8');
     } catch (error) {
@@ -312,6 +323,7 @@ async function loadCookies(options, base) {
     }
 
     const cookies = parseCookieFile(raw, url.hostname, secure);
+
     if (cookies.length === 0) {
         throw fail(`cookie file ${file} contains no cookies`);
     }
@@ -324,15 +336,18 @@ async function loadPlaywright() {
         return await import('playwright');
     } catch {
         const entry = path.join(REPO_ROOT, 'node_modules/playwright/index.mjs');
+
         if (!fs.existsSync(entry)) {
             throw fail(`Playwright not found (looked for ${entry})`);
         }
+
         return import(pathToFileURL(entry).href);
     }
 }
 
 function findChromium() {
     const explicit = process.env.LANOMAT_CHROMIUM || process.env.CHROMIUM_PATH;
+
     if (explicit && fs.existsSync(explicit)) {
         return explicit;
     }
@@ -345,6 +360,7 @@ function findChromium() {
             if (entry.startsWith('chromium_headless_shell-')) {
                 candidates.push(path.join(root, entry, 'chrome-headless-shell-linux64', 'chrome-headless-shell'));
             }
+
             if (entry.startsWith('chromium-')) {
                 candidates.push(path.join(root, entry, 'chrome-linux64', 'chrome'));
                 candidates.push(path.join(root, entry, 'chrome-linux', 'chrome'));
@@ -403,10 +419,13 @@ async function waitForEditor(page) {
             const element = [...document.querySelectorAll('[wire\\:id]')].find((node) =>
                 (node.getAttribute('wire:snapshot') || '').includes('EditRecipe'),
             );
+
             if (!element) {
                 return false;
             }
+
             const component = window.Livewire.find(element.getAttribute('wire:id'));
+
             return Boolean(component && component.get('data') && component.get('data.slug'));
         },
         null,
@@ -433,9 +452,11 @@ async function openEditor(options) {
         if (!response) {
             throw fail(`GET ${url} returned no response`);
         }
+
         if (response.status() >= 400) {
             throw fail(`GET ${url} answered HTTP ${response.status()}`);
         }
+
         if (/\/login|\/auth\//.test(page.url())) {
             throw fail('admin session expired (redirected to login); refresh the cookie file');
         }
@@ -445,6 +466,7 @@ async function openEditor(options) {
         return { browser, page, base, id, cookieSource: source };
     } catch (error) {
         await browser.close().catch(() => {});
+
         throw error;
     }
 }
@@ -454,17 +476,23 @@ async function readState(page) {
         const element = [...document.querySelectorAll('[wire\\:id]')].find((node) =>
             (node.getAttribute('wire:snapshot') || '').includes('EditRecipe'),
         );
+
         if (!element) {
             throw new Error('EditRecipe component not found');
         }
+
         const component = window.Livewire.find(element.getAttribute('wire:id'));
+
         if (!component) {
             throw new Error('Livewire EditRecipe component is not initialised');
         }
+
         const data = component.get('data');
+
         if (!data || typeof data !== 'object') {
             throw new Error('Livewire data is not loaded');
         }
+
         return data;
     });
 }
@@ -475,9 +503,11 @@ async function setField(page, name, value) {
             const element = [...document.querySelectorAll('[wire\\:id]')].find((node) =>
                 (node.getAttribute('wire:snapshot') || '').includes('EditRecipe'),
             );
+
             if (!element) {
                 throw new Error('EditRecipe component not found');
             }
+
             const component = window.Livewire.find(element.getAttribute('wire:id'));
             await component.set(fieldName, fieldValue);
         },
@@ -490,12 +520,16 @@ async function saveEditor(page) {
         const element = [...document.querySelectorAll('[wire\\:id]')].find((node) =>
             (node.getAttribute('wire:snapshot') || '').includes('EditRecipe'),
         );
+
         if (!element) {
             throw new Error('EditRecipe component not found');
         }
+
         const component = window.Livewire.find(element.getAttribute('wire:id'));
+
         try {
             await component.call('save');
+
             return { ok: true };
         } catch (error) {
             return { ok: false, error: String(error?.message || error) };
@@ -506,6 +540,7 @@ async function saveEditor(page) {
 
     if (!result.ok) {
         const visible = await validationErrors(page);
+
         throw fail(`Livewire save failed: ${result.error}${visible.length ? ` (${visible.join(' | ')})` : ''}`);
     }
 }
@@ -521,12 +556,15 @@ async function validationErrors(page) {
 
 async function reloadEditor(page, base, id) {
     const response = await page.goto(editUrl(base, id), { waitUntil: 'domcontentloaded', timeout: 60000 });
+
     if (!response || response.status() >= 400) {
         throw fail(`reloading the editor answered HTTP ${response ? response.status() : '?'}`);
     }
+
     if (/\/login|\/auth\//.test(page.url())) {
         throw fail('admin session expired while reloading the editor');
     }
+
     await waitForEditor(page);
 }
 
@@ -543,6 +581,7 @@ function findRequirement(state, role, requirementOs) {
         if (requirementOs === undefined) {
             return true;
         }
+
         return (requirement.os ?? null) === requirementOs;
     });
 
@@ -550,23 +589,18 @@ function findRequirement(state, role, requirementOs) {
         const known = entriesByRole(state, role)
             .map(([, requirement]) => requirement.os ?? 'any')
             .join(', ');
+
         throw fail(
             `recipe has no requirement with role="${role}"${requirementOs ? ` and os="${requirementOs}"` : ''}` +
                 (known ? ` (found ${role} for: ${known})` : ''),
         );
     }
+
     if (entries.length > 1) {
         throw fail(`recipe has ${entries.length} requirements with role="${role}"` + (requirementOs ? ` and os="${requirementOs}"` : '') + '; refusing to guess');
     }
 
     return entries[0];
-}
-
-function makeChange(changes, field, from, to, target) {
-    if (isDeepStrictEqual(from, to)) {
-        return;
-    }
-    changes.push({ field, from, to, target });
 }
 
 function parsePlatforms(value) {
@@ -580,6 +614,7 @@ function parsePlatforms(value) {
     }
 
     const unknown = platforms.filter((platform) => !PLATFORMS.includes(platform));
+
     if (unknown.length > 0) {
         throw usageError(`unknown platform(s): ${unknown.join(', ')} (allowed: ${PLATFORMS.join(', ')})`);
     }
@@ -600,29 +635,37 @@ function parsePatterns(value) {
 
 function parseUrl(value, label) {
     const url = String(value).trim();
+
     if (url === '') {
         return null;
     }
+
     let parsed;
+
     try {
         parsed = new URL(url);
     } catch {
         throw usageError(`${label} is not a valid URL: ${url}`);
     }
+
     if (!['http:', 'https:'].includes(parsed.protocol)) {
         throw usageError(`${label} must be http(s): ${url}`);
     }
+
     return url;
 }
 
 function parseSha(value, label) {
     const sha = String(value).trim();
+
     if (sha === '') {
         return null;
     }
+
     if (!SHA256_RE.test(sha)) {
         throw usageError(`${label} must be 64 hex characters`);
     }
+
     return sha.toLowerCase();
 }
 
@@ -630,17 +673,23 @@ function semanticValue(state, target) {
     if (target.kind === 'platforms') {
         return state.platforms ?? [];
     }
+
     if (target.kind === 'iso') {
         const [, requirement] = findRequirement(state, 'iso');
+
         return requirement[target.field] ?? null;
     }
+
     if (target.kind === 'patch') {
         const [, requirement] = findRequirement(state, 'patch', target.os);
+
         return requirement[target.field] ?? null;
     }
+
     if (target.kind === 'top') {
         return state[target.key] ?? null;
     }
+
     throw new Error(`unknown target kind ${target.kind}`);
 }
 
@@ -648,17 +697,23 @@ function canonical(value) {
     if (Array.isArray(value)) {
         return value.map(canonical);
     }
+
     if (value && typeof value === 'object') {
         const keys = Object.keys(value);
+
         if (keys.length > 0 && keys.every((key) => UUID_RE.test(key))) {
             return keys.map((key) => canonical(value[key]));
         }
+
         const result = {};
+
         for (const key of keys.sort()) {
             result[key] = canonical(value[key]);
         }
+
         return result;
     }
+
     return value;
 }
 
@@ -688,6 +743,7 @@ async function writeBackup(state, base, out, backupDir = '/tmp/opencode') {
     }
 
     let file = out;
+
     if (!file) {
         const dir = path.resolve(backupDir);
         await fsp.mkdir(dir, { recursive: true });
@@ -698,11 +754,13 @@ async function writeBackup(state, base, out, backupDir = '/tmp/opencode') {
     }
 
     await fsp.writeFile(file, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+
     return { payload, file };
 }
 
 async function commandShow(options) {
     const session = await openEditor(options);
+
     try {
         const state = await readState(session.page);
         const output = {
@@ -718,6 +776,7 @@ async function commandShow(options) {
             updated_at: state.updated_at,
         };
         console.log(JSON.stringify(output, null, 2));
+
         return 0;
     } finally {
         await session.browser.close().catch(() => {});
@@ -726,6 +785,7 @@ async function commandShow(options) {
 
 async function commandPlan(options) {
     const requestedOs = String(options.os || '').toLowerCase();
+
     if (!['linux', 'windows', 'macos'].includes(requestedOs)) {
         throw usageError('plan needs --os linux|windows|macos');
     }
@@ -741,6 +801,7 @@ async function commandPlan(options) {
     const slug = String(options.slug || DEFAULT_SLUG);
     const url = `${base}/api/v1/recipes/${encodeURIComponent(slug)}/plan`;
     let response;
+
     try {
         response = await fetch(url, {
             method: 'POST',
@@ -760,6 +821,7 @@ async function commandPlan(options) {
 
     const text = await response.text();
     let body;
+
     try {
         body = JSON.parse(text);
     } catch {
@@ -768,6 +830,7 @@ async function commandPlan(options) {
 
     if (!response.ok) {
         const message = body?.message || body?.error || `HTTP ${response.status}`;
+
         throw fail(`plan request answered HTTP ${response.status}: ${String(message).slice(0, 500)}`);
     }
 
@@ -789,6 +852,7 @@ async function commandPlan(options) {
     };
 
     console.log(JSON.stringify(output, null, 2));
+
     return 0;
 }
 
@@ -800,6 +864,7 @@ async function buildSetPlan(state, options) {
     if (options['iso-url'] !== undefined) {
         const [, requirement] = findRequirement(state, 'iso');
         const value = parseUrl(options['iso-url'], '--iso-url');
+
         if (!isDeepStrictEqual(requirement.url ?? null, value)) {
             const key = findRequirementKey(state, 'iso');
             desired.requirements[key].url = value;
@@ -816,6 +881,7 @@ async function buildSetPlan(state, options) {
     if (options['iso-match'] !== undefined) {
         const [, requirement] = findRequirement(state, 'iso');
         const value = parsePatterns(options['iso-match']);
+
         if (!isDeepStrictEqual(requirement.match ?? [], value)) {
             const key = findRequirementKey(state, 'iso');
             desired.requirements[key].match = value;
@@ -831,6 +897,7 @@ async function buildSetPlan(state, options) {
 
     if (options.platforms !== undefined) {
         const value = parsePlatforms(options.platforms);
+
         if (!isDeepStrictEqual(state.platforms ?? [], value)) {
             desired.platforms = value;
             changes.push({
@@ -855,6 +922,7 @@ async function buildSetPlan(state, options) {
 
         if (options[urlKey] !== undefined) {
             const value = parseUrl(options[urlKey], `--${urlKey}`);
+
             if (!isDeepStrictEqual(requirement.url ?? null, value)) {
                 desired.requirements[key].url = value;
                 changes.push({
@@ -869,6 +937,7 @@ async function buildSetPlan(state, options) {
 
         if (options[shaKey] !== undefined) {
             const value = parseSha(options[shaKey], `--${shaKey}`);
+
             if (!isDeepStrictEqual(requirement.sha256 ?? null, value)) {
                 desired.requirements[key].sha256 = value;
                 changes.push({
@@ -904,6 +973,7 @@ function verifySet(before, after, changes) {
 
     for (const change of changes) {
         const actual = semanticValue(after, change.target);
+
         if (!isDeepStrictEqual(actual, change.to)) {
             problems.push(`${change.field} did not round-trip (expected ${JSON.stringify(change.to)}, got ${JSON.stringify(actual)})`);
         }
@@ -932,11 +1002,13 @@ async function applySet(options) {
 
         if (changes.length === 0 && !options.apply) {
             console.log(JSON.stringify({ ...spec, applied: false, changed: false, message: 'no changes' }, null, 2));
+
             return 0;
         }
 
         if (!options.apply) {
             console.log(JSON.stringify({ ...spec, applied: false, changed: changes.length > 0, dry_run: true }, null, 2));
+
             return 0;
         }
 
@@ -945,14 +1017,17 @@ async function applySet(options) {
         if (touched.has('requirements')) {
             await setField(page, 'data.requirements', desired.requirements);
         }
+
         if (touched.has('platforms')) {
             await setField(page, 'data.platforms', desired.platforms);
         }
 
         const staged = await readState(page);
+
         if (staged.status !== before.status) {
             throw fail(`status changed in the browser before saving (${before.status} -> ${staged.status}); aborted`);
         }
+
         if (!semanticEqual(staged.metadata, before.metadata)) {
             throw fail('metadata changed in the browser before saving; aborted');
         }
@@ -964,6 +1039,7 @@ async function applySet(options) {
 
         if (problems.length > 0) {
             const visible = await validationErrors(page);
+
             throw fail(`save verification failed: ${problems.join('; ')}${visible.length ? ` (${visible.join(' | ')})` : ''}`);
         }
 
@@ -983,6 +1059,7 @@ async function applySet(options) {
                 2,
             ),
         );
+
         return 0;
     } finally {
         await session.browser.close().catch(() => {});
@@ -999,6 +1076,7 @@ async function commandSet(options) {
         'patch-macos-url',
         'patch-macos-sha',
     ];
+
     if (!known.some((key) => options[key] !== undefined)) {
         throw usageError(`set needs at least one of --${known.join(', --')}`);
     }
@@ -1008,13 +1086,17 @@ async function commandSet(options) {
 
 async function commandBackup(options) {
     const session = await openEditor(options);
+
     try {
         const state = await readState(session.page);
         const result = await writeBackup(state, session.base, options.out);
+
         if (options.out === '-') {
             console.log(JSON.stringify(result.payload, null, 2));
+
             return 0;
         }
+
         console.log(
             JSON.stringify(
                 {
@@ -1027,6 +1109,7 @@ async function commandBackup(options) {
                 2,
             ),
         );
+
         return 0;
     } finally {
         await session.browser.close().catch(() => {});
@@ -1037,25 +1120,31 @@ function readBackupState(payload) {
     if (payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object') {
         return payload.data;
     }
+
     if (payload && typeof payload === 'object' && payload.state && typeof payload.state === 'object') {
         return payload.state;
     }
+
     if (payload && typeof payload === 'object' && payload.slug) {
         return payload;
     }
+
     throw fail('backup file does not contain a recipe state (expected data/state or the state itself)');
 }
 
 function restoreChanges(live, backup) {
     const changes = [];
+
     for (const key of RESTORE_KEYS) {
         if (!(key in backup)) {
             continue;
         }
+
         if (!semanticEqual(live[key], backup[key])) {
             changes.push(key);
         }
     }
+
     return changes;
 }
 
@@ -1063,12 +1152,14 @@ async function commandRestore(options) {
     if (!options.file) {
         throw usageError('restore needs --file FILE (use - for stdin)');
     }
+
     if (options.apply && !options.yes) {
         throw usageError('--apply needs --yes (explicit confirmation); nothing was saved');
     }
 
     const raw = options.file === '-' ? await readStdin() : await fsp.readFile(path.resolve(options.file), 'utf8');
     let parsed;
+
     try {
         parsed = JSON.parse(raw);
     } catch (error) {
@@ -1103,11 +1194,13 @@ async function commandRestore(options) {
 
         if (changed.length === 0 && !metadataDiffers && !options.apply) {
             console.log(JSON.stringify({ ...spec, applied: false, changed: false, message: 'backup already matches the live state' }, null, 2));
+
             return 0;
         }
 
         if (!options.apply) {
             console.log(JSON.stringify({ ...spec, applied: false, dry_run: true }, null, 2));
+
             return 0;
         }
 
@@ -1123,14 +1216,17 @@ async function commandRestore(options) {
         const after = await readState(page);
 
         const problems = [];
+
         for (const key of changed) {
             if (!semanticEqual(after[key], backup[key])) {
                 problems.push(key);
             }
         }
+
         if (after.status !== (backup.status ?? before.status)) {
             problems.push(`status (expected ${backup.status ?? before.status}, got ${after.status})`);
         }
+
         if (!semanticEqual(after.metadata, before.metadata)) {
             problems.push('metadata (live metadata changed during restore)');
         }
@@ -1156,6 +1252,7 @@ async function commandRestore(options) {
                 2,
             ),
         );
+
         return 0;
     } finally {
         await session.browser.close().catch(() => {});
@@ -1176,16 +1273,19 @@ function readStdin() {
 
 async function main() {
     let options;
+
     try {
         options = parseArgs(process.argv.slice(2));
     } catch (error) {
         console.error(`error: ${error.message}`);
         console.error('run with --help for usage');
+
         return error.exitCode ?? 2;
     }
 
     if (options.help || !options.command) {
         console.log(helpText(options.command));
+
         return 0;
     }
 
@@ -1207,9 +1307,11 @@ async function main() {
         }
     } catch (error) {
         console.error(`error: ${error.message}`);
+
         if (error.exitCode === 2) {
             console.error('run with --help for usage');
         }
+
         return error.exitCode ?? 1;
     }
 }

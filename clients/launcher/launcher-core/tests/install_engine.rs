@@ -189,6 +189,37 @@ fn launch_starts_the_flat_game_from_system() {
     assert!(marker.is_file(), "the game process did not start");
 }
 
+#[cfg(unix)]
+#[test]
+fn launch_join_hands_the_server_address_to_the_game() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let system = dir.path().join("System");
+    std::fs::create_dir_all(&system).unwrap();
+    let exe = system.join("ut2004-bin-amd64");
+    std::fs::write(
+        &exe,
+        "#!/bin/sh\nprintf '%s' \"$1\" > \"$(dirname \"$0\")/joined\"\n",
+    )
+    .unwrap();
+    let mut permissions = std::fs::metadata(&exe).unwrap().permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&exe, permissions).unwrap();
+
+    InstallEngine::launch_join(dir.path(), "203.0.113.9:7777").unwrap();
+
+    let marker = system.join("joined");
+    for _ in 0..100 {
+        if marker.is_file() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "203.0.113.9:7777");
+}
+
 #[test]
 fn launch_reports_a_missing_executable() {
     let dir = tempfile::tempdir().unwrap();

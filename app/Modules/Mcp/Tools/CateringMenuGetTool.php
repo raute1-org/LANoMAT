@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Mcp\Tools;
 
+use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Events\Models\Event;
 use App\Modules\Mcp\Support\SafeText;
@@ -18,7 +19,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('catering_menu_get')]
-#[Description('Orga/admin: the food rounds of an event including drafts, with the menu in exactly the shape catering_menu_preview/import accept (items[].key, name, price_cents) plus the number of ordered items. Use it for a round trip or before replace/merge.')]
+#[Description('Orga/admin: the food rounds of an event including drafts, with the menu in exactly the shape catering_menu_preview/import accept (items[].key, name, price_cents, description) plus the number of ordered items. Use it for a round trip or before replace/merge.')]
 #[IsReadOnly]
 class CateringMenuGetTool extends LanomatTool
 {
@@ -59,10 +60,12 @@ class CateringMenuGetTool extends LanomatTool
                 'payment_method' => $order->payment_method->value,
                 'payment_link' => $order->payment_link,
                 'ordered_items' => (int) $order->items_count,
-                'items' => array_map(static fn ($option): array => [
+                'items' => array_map(static fn (MenuOption $option): array => [
                     'key' => $option->key,
                     'name' => SafeText::line($option->name, 255) ?? '',
                     'price_cents' => $option->priceCents,
+                    ...($option->description === null ? [] : ['description' => SafeText::line($option->description, MenuOption::MAX_DESCRIPTION_LENGTH)]),
+                    ...($option->image === null ? [] : ['has_image' => true]),
                 ], $order->menu),
             ])->all(),
         ]);

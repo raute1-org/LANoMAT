@@ -3,7 +3,13 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Modules\Events\Models\Event;
+use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
+use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Enums\ServerLinkStatus;
+use App\Modules\GameServers\Models\ServerLink;
 use App\Support\Modules\InvalidModuleConfiguration;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -124,6 +130,103 @@ it('shows the published builds, one primary download per OS', function () {
             ->where('server.url', rtrim((string) config('app.url'), '/'))
             ->where('server.version', 'v1')
             ->where('detectedOs', 'linux'));
+});
+
+it('sends the shell download button straight to the build for the visitor', function () {
+    launcherRelease();
+
+    $this->withHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0')
+        ->get('/launcher/download-latest')
+        ->assertRedirect('/launcher/download/lanomat-launcher-v1-linux-x86_64.tar.gz');
+
+    $this->withHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+        ->get('/launcher/download-latest')
+        ->assertRedirect('/launcher/download/lanomat-launcher-v1-windows-x86_64-setup.exe');
+
+    // A known system without a build falls back to the page that names the gap.
+    $this->withHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)')
+        ->get('/launcher/download-latest')
+        ->assertRedirect('/launcher');
+
+    // Without a published build the page explains the empty state, never a 404.
+    Config::set('launcher.dist_path', sys_get_temp_dir().'/lanomat-launcher-none-'.bin2hex(random_bytes(4)));
+
+    $this->get('/launcher/download-latest')->assertRedirect('/launcher');
+});
+
+it('lists every live server with the one-click action that joins it', function () {
+    launcherRelease();
+
+    // UT2004 has a published launcher recipe: the row links into the launcher
+    // with the server address, so the install wizard and the launch happen in
+    // one flow. The browser recipe keeps its own https entry point.
+    GameRecipe::factory()->published()->create([
+        'slug' => 'unreal-tournament-2004',
+        'title' => 'Unreal Tournament 2004',
+    ]);
+
+    $ut = Game::factory()->create([
+        'slug' => 'unreal-tournament-2004',
+        'name' => 'Unreal Tournament 2004',
+    ]);
+
+    $event = Event::factory()->live()->create(['name' => 'Raute1 LAN']);
+
+    ServerLink::factory()->create([
+        'event_id' => $event->id,
+        'game_id' => $ut->id,
+        'title' => 'Raute1 DM',
+        'status' => ServerLinkStatus::Ready,
+        'join_info' => new JoinInfo(address: '203.0.113.9', port: 7777),
+        'query_info' => [
+            'name' => 'Raute1 DM',
+            'map' => 'DM-CORRUPTION',
+            'players' => 4,
+            'max_players' => 16,
+        ],
+        'queried_at' => now(),
+    ]);
+
+    $browser = Game::factory()->create([
+        'slug' => 'need-for-speed-underground-2-browser',
+        'name' => 'Need for Speed: Underground 2 (Browser)',
+    ]);
+
+    ServerLink::factory()->permanent()->create([
+        'game_id' => $browser->id,
+        'title' => 'NFSU2 (Browser)',
+        'status' => ServerLinkStatus::Ready,
+        'join_info' => new JoinInfo(
+            address: 'nfsu2.xyz',
+            port: 443,
+            connectString: 'https://nfsu2.xyz/',
+        ),
+    ]);
+
+    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
+        ->component('Launcher/Index')
+        ->has('servers', 2)
+        // The projection sorts by game, so the browser recipe leads here.
+        ->where('servers.0.title', 'NFSU2 (Browser)')
+        ->where('servers.0.join.launcher', false)
+        ->where('servers.0.join.href', 'https://nfsu2.xyz/')
+        ->where('servers.1.title', 'Raute1 DM')
+        ->where('servers.1.game', 'Unreal Tournament 2004')
+        ->where('servers.1.gameSlug', 'unreal-tournament-2004')
+        ->where('servers.1.players', 4)
+        ->where('servers.1.maxPlayers', 16)
+        ->where('servers.1.map', 'DM-CORRUPTION')
+        ->where('servers.1.address', '203.0.113.9:7777')
+        ->where('servers.1.event.name', 'Raute1 LAN')
+        ->where('servers.1.join.launcher', true)
+        ->where('servers.1.join.href', 'lanomat://join/unreal-tournament-2004?address='.rawurlencode('203.0.113.9:7777')));
+});
+
+it('keeps the launcher start page honest without a running server', function () {
+    launcherRelease();
+
+    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
+        ->has('servers', 0));
 });
 
 it('prefers the app over a CLI build and the installer over portable and archive', function () {
@@ -339,6 +442,13 @@ it('is reachable: layout entry, sidebar entry and both homepage tiles exist', fu
 
     expect((string) file_get_contents(base_path('resources/js/components/AppSidebar.vue')))
         ->toContain("href: '/launcher'");
+
+    // The download is the one shell action above everything: prominent in the
+    // top-right of every authenticated page, not only in the sidebar.
+    expect((string) file_get_contents(base_path('resources/js/components/AppSidebarHeader.vue')))
+        ->toContain('data-test="header-launcher"')
+        ->toContain('href="/launcher/download-latest"')
+        ->toContain("has('game_recipes')");
 
     expect((string) file_get_contents(base_path('resources/js/pages/Event/Show.vue')))
         ->toContain('href="/launcher"');

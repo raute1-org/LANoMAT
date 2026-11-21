@@ -4,21 +4,27 @@ namespace App\Modules\Catering\Filament\Resources\FoodOrders\Schemas;
 
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodPaymentMethod;
+use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\PaymentLink;
+use App\Support\Images\InvalidImageException;
 use App\Support\Money\Euro;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Validation\ValidationException;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class FoodOrderForm
 {
@@ -132,6 +138,32 @@ class FoodOrderForm
                                 : null)
                             ->dehydrateStateUsing(fn (?string $state): ?int => self::euroToCents($state))
                             ->rules([self::priceRule()]),
+                        Textarea::make('description')
+                            ->label(__('catering.fields.menu_description'))
+                            ->helperText(__('catering.fields.menu_description_help'))
+                            ->rows(2)
+                            ->maxLength(MenuOption::MAX_DESCRIPTION_LENGTH)
+                            ->rules([self::noNulBytes()])
+                            ->columnSpan(2),
+                        // The upload is re-encoded to a small WebP by DishImageStore and filed under
+                        // its content hash on the private disk. Files are shared between dishes and
+                        // rounds, so removing one here only clears the reference.
+                        FileUpload::make('image')
+                            ->label(__('catering.fields.menu_image'))
+                            ->helperText(__('catering.fields.menu_image_help'))
+                            ->disk(DishImageStore::DISK)
+                            ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->maxSize(3072)
+                            ->imagePreviewHeight('96')
+                            ->saveUploadedFileUsing(function (TemporaryUploadedFile $file): string {
+                                try {
+                                    return app(DishImageStore::class)->store((string) $file->getRealPath());
+                                } catch (InvalidImageException) {
+                                    throw ValidationException::withMessages(['image' => __('catering.validation.image_unreadable')]);
+                                }
+                            })
+                            ->deleteUploadedFileUsing(fn (): null => null),
                     ])
                     ->columns(3)
                     ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)

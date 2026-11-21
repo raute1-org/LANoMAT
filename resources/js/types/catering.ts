@@ -2,6 +2,8 @@ export interface MenuOptionDto {
     key: string;
     name: string;
     priceCents: number;
+    description?: string | null;
+    imageUrl?: string | null;
 }
 
 export interface FoodOrderItemDto {

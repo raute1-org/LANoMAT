@@ -67,7 +67,7 @@ steps on macOS; the agent follows them.
    a plan never takes another platform's folder.
 3. **Otherwise copy the base game assets from Disc 1.** Mount the ISO and copy
    every disc folder except `System` into `{{target}}` (`~/Library/Application
-   Support/UT2004` on macOS). OldUnreal's patch brings the complete `System`
+Support/UT2004` on macOS). OldUnreal's patch brings the complete `System`
    tree, and a retail `System` mixed in keeps the patched game from starting
    (on Linux it fails outright). On Linux unpack the ISO with `bsdtar`; on
    macOS use `hdiutil`/`ditto`. No Wine. Globs are matched literally, so the

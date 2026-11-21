@@ -232,7 +232,11 @@
                 >
                     <div class="screen-head">
                         <div>
-                            <h1 id="chat-title" tabindex="-1">Chat</h1>
+                            <h1 id="chat-title" tabindex="-1">Start</h1>
+                            <p class="muted small">
+                                Ein Klick: Das Spiel installieren, falls nötig,
+                                und direkt auf dem Server starten.
+                            </p>
                             <p class="muted small" id="chat-server" hidden>
                                 Server:
                                 <span class="mono" id="chat-server-name"></span>
@@ -255,6 +259,98 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- The start page: the main actions, then every live
+                         server with the one click that starts the game on it. -->
+                    <section class="card stack" aria-labelledby="start-live-title">
+                        <div class="row wrap between">
+                            <div class="stack-sm">
+                                <h2 id="start-live-title">Jetzt live</h2>
+                                <p class="small muted" id="start-live-lead">
+                                    Jeder Server hier startet mit einem Klick —
+                                    samt Installation, wenn das Spiel noch
+                                    fehlt.
+                                </p>
+                            </div>
+                            <div class="row wrap" aria-label="Hauptaktionen">
+                                <button
+                                    class="btn"
+                                    id="start-games"
+                                    type="button"
+                                >
+                                    Spiele
+                                </button>
+                                <button
+                                    class="btn"
+                                    id="start-servers"
+                                    type="button"
+                                >
+                                    Serverbrowser
+                                </button>
+                                <button
+                                    class="btn ghost"
+                                    id="start-chat"
+                                    type="button"
+                                >
+                                    Chat
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="stack-sm"
+                            id="start-live-loading"
+                            aria-busy="true"
+                            aria-label="Live-Server werden geladen"
+                        >
+                            <div class="skeleton skeleton-line"></div>
+                            <div class="skeleton skeleton-line"></div>
+                        </div>
+
+                        <div
+                            class="empty"
+                            id="start-live-empty"
+                            role="status"
+                            hidden
+                        >
+                            <div class="strong">Gerade läuft kein Server.</div>
+                            <div class="small hint-text">
+                                Sobald ein Server bereit ist, erscheint er hier
+                                mit einem Klick zum Beitreten.
+                            </div>
+                        </div>
+
+                        <div
+                            class="error stack-sm"
+                            id="start-live-error"
+                            role="alert"
+                            hidden
+                        >
+                            <strong
+                                >Server konnten nicht geladen werden.</strong
+                            >
+                            <span id="start-live-error-text"></span>
+                            <div class="row wrap">
+                                <button
+                                    class="btn"
+                                    id="start-live-retry"
+                                    type="button"
+                                >
+                                    Erneut versuchen
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="start-live-grid"
+                            id="start-live-list"
+                            role="region"
+                            aria-label="Live-Server"
+                            hidden
+                        ></div>
+                    </section>
+
+                    <h2>Chat</h2>
 
                     <div
                         class="chat card"

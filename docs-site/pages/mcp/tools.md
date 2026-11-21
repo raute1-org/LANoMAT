@@ -191,13 +191,16 @@ The draft waits in the Filament admin until an orga reviews it:
 
 The agent reads the menu itself (PDF, web page, text, photo) and passes **structured data**. LANoMAT never
 fetches a URL or parses a document for this, and treats every string as plain data (control characters are
-flattened, markup is stored as text, nothing is executed). The data model is flat: a dish has a `key`, a `name`
-and a price in integer cents. There are no categories, descriptions or allergen flags; the preview reports such
-fields as ignored, and qualifiers such as "vegetarisch" belong into the name.
+flattened, markup is stored as text, nothing is executed). The data model is flat: a dish has a `key`, a `name`,
+a price in integer cents and an optional short `description`. There are no categories or allergen flags; the
+preview reports such fields as ignored, and qualifiers such as "vegetarisch" belong into the name. **Photos are
+not imported through MCP**: they are uploaded per dish in the admin panel or assigned in bulk with the artisan
+command `catering:import-dish-media`.
 
 Item fields: `name` (required, max 255), exactly one of `price_cents` (integer, 0 to 100000) or `price_eur`
 (text with at most two decimals, `"8,50"`), optional `key` (`a-z0-9_-`, max 64, derived from the name when
-omitted). At most 300 dishes. The three tools share their arguments:
+omitted), optional `description` (plain text, max 600 characters; a longer text is shortened with a warning).
+At most 300 dishes. The three tools share their arguments:
 
 ```json
 {
@@ -238,10 +241,10 @@ omitted). At most 300 dishes. The three tools share their arguments:
 | `mode` | Behaviour |
 |---|---|
 | `create` | New **draft** round with `title` (required) and optional `opens_at`, `closes_at`, `payment_method`, `payment_link`. Importing the same title and menu again returns the existing draft (`unchanged: true`). |
-| `replace` | Swaps the menu of `order_id` (and optionally the round settings). Refused for closed rounds and for rounds that already have ordered items. |
-| `merge` | Appends dishes whose name is new; existing dishes and prices stay untouched (a differing price is a warning). Round settings are refused. Works on open rounds with orders. |
+| `replace` | Swaps the menu of `order_id` (and optionally the round settings); sets descriptions, and a dish that keeps its key keeps its photo. Refused for closed rounds and for rounds that already have ordered items. |
+| `merge` | Appends dishes whose name is new; existing dishes and prices stay untouched (a differing price is a warning). The one exception: a description is filled in when the existing dish has none (a differing description is a warning). Round settings are refused. Works on open rounds with orders. |
 
-`catering_menu_get` returns `items` in exactly this shape (with the stored keys), so get, edit, import is a
-round trip. Only orga and admin accounts may call the three tools (`FoodOrderPolicy`); the write is one
+`catering_menu_get` returns `items` in exactly this shape (with the stored keys and descriptions; `has_image: true`
+marks a dish with a photo and is ignored on import), so get, edit, import is a round trip. Only orga and admin accounts may call the three tools (`FoodOrderPolicy`); the write is one
 transaction with the round locked, and an audit log line (`catering.menu_import`: user, event, round, mode,
 dish count, no dish text) is written.

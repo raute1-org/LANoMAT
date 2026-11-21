@@ -6,6 +6,13 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import FoodReceipt from '@/components/catering/FoodReceipt.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Sheet,
@@ -273,6 +280,33 @@ function formatDateTime(iso: string): string {
     return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
 }
 
+// Long descriptions are clamped to two lines; this is only a length heuristic for offering "Mehr".
+const LONG_DESCRIPTION = 90;
+const expanded = ref<Set<string>>(new Set());
+
+function toggleExpanded(key: string): void {
+    const next = new Set(expanded.value);
+
+    if (next.has(key)) {
+        next.delete(key);
+    } else {
+        next.add(key);
+    }
+
+    expanded.value = next;
+}
+
+// One controlled dialog for the whole round, not one per dish.
+const photo = ref<{ label: string; url: string } | null>(null);
+const photoOpen = computed({
+    get: () => photo.value !== null,
+    set: (open: boolean) => {
+        if (!open) {
+            photo.value = null;
+        }
+    },
+});
+
 const sheetOpen = ref(false);
 // Mount exactly one receipt so ids, live regions and the pay button never double up.
 const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -479,14 +513,77 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                                 :key="item.key"
                                 class="flex items-center gap-2 py-1"
                             >
-                                <p class="min-w-0 flex-1 text-sm break-words">
-                                    <span
-                                        v-if="countFor(item.key) > 0"
-                                        class="mr-1.5 font-mono font-medium tabular-nums"
-                                        >{{ countFor(item.key) }}×</span
-                                    >
-                                    {{ item.label }}
-                                </p>
+                                <button
+                                    v-if="item.imageUrl"
+                                    type="button"
+                                    class="size-14 shrink-0 overflow-hidden rounded-md border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    :aria-label="
+                                        labels.dish_photo_open.replace(
+                                            ':dish',
+                                            item.label,
+                                        )
+                                    "
+                                    data-test="dish-photo"
+                                    @click="
+                                        photo = {
+                                            label: item.label,
+                                            url: item.imageUrl,
+                                        }
+                                    "
+                                >
+                                    <img
+                                        :src="item.imageUrl"
+                                        alt=""
+                                        width="56"
+                                        height="56"
+                                        loading="lazy"
+                                        decoding="async"
+                                        class="size-14 object-cover"
+                                    />
+                                </button>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm break-words">
+                                        <span
+                                            v-if="countFor(item.key) > 0"
+                                            class="mr-1.5 font-mono font-medium tabular-nums"
+                                            >{{ countFor(item.key) }}×</span
+                                        >
+                                        {{ item.label }}
+                                    </p>
+                                    <template v-if="item.description">
+                                        <p
+                                            :id="`dish-desc-${foodOrder.id}-${item.key}`"
+                                            :class="[
+                                                'text-sm break-words text-muted-foreground',
+                                                expanded.has(item.key)
+                                                    ? ''
+                                                    : 'line-clamp-2',
+                                            ]"
+                                            data-test="dish-description"
+                                        >
+                                            {{ item.description }}
+                                        </p>
+                                        <button
+                                            v-if="
+                                                item.description.length >
+                                                LONG_DESCRIPTION
+                                            "
+                                            type="button"
+                                            class="rounded-sm text-sm text-muted-foreground underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                                            :aria-expanded="
+                                                expanded.has(item.key)
+                                            "
+                                            :aria-controls="`dish-desc-${foodOrder.id}-${item.key}`"
+                                            @click="toggleExpanded(item.key)"
+                                        >
+                                            {{
+                                                expanded.has(item.key)
+                                                    ? labels.dish_less
+                                                    : labels.dish_more
+                                            }}
+                                        </button>
+                                    </template>
+                                </div>
                                 <span
                                     class="shrink-0 text-right font-mono text-sm tabular-nums"
                                 >
@@ -599,6 +696,26 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                 {{ labels.cart_bar_open }}
             </Button>
         </div>
+
+        <Dialog v-model:open="photoOpen">
+            <DialogContent class="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{{ photo?.label }}</DialogTitle>
+                    <DialogDescription>
+                        {{ labels.dish_photo_hint }}
+                    </DialogDescription>
+                </DialogHeader>
+                <img
+                    v-if="photo"
+                    :src="photo.url"
+                    alt=""
+                    width="800"
+                    height="600"
+                    decoding="async"
+                    class="max-h-[70vh] w-full rounded-md object-contain"
+                />
+            </DialogContent>
+        </Dialog>
 
         <Sheet v-if="!isDesktop" v-model:open="sheetOpen">
             <SheetContent
