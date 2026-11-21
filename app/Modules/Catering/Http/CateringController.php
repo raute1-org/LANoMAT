@@ -17,6 +17,7 @@ use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Catering\Support\MyFoodPayment;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventPaymentSettings;
+use App\Support\Money\Euro;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,12 +64,17 @@ class CateringController extends Controller
         $data = $request->validated();
 
         try {
-            $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null);
+            $item = $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null);
         } catch (CateringException $exception) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey, $exception->parameters)]);
 
             return back();
         }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('catering.page.toast_added', [
+            'dish' => $this->dishName($foodOrder, $data['option_key']),
+            'price' => Euro::format($item->price_cents),
+        ])]);
 
         return back();
     }
@@ -76,6 +82,9 @@ class CateringController extends Controller
     public function destroy(Request $request, FoodOrderItem $foodOrderItem, CancelFoodOrderItem $action): RedirectResponse
     {
         $this->authorize('delete', $foodOrderItem);
+
+        $order = $foodOrderItem->foodOrder;
+        $optionKey = (string) ($foodOrderItem->selection['option_key'] ?? '');
 
         try {
             $action->handle($foodOrderItem);
@@ -85,7 +94,27 @@ class CateringController extends Controller
             return back();
         }
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans('catering.page.toast_removed', [
+            'dish' => $this->dishName($order, $optionKey),
+        ])]);
+
         return back();
+    }
+
+    /** The dish name without its "Category: " prefix, as the page shows it. */
+    private function dishName(?FoodOrder $order, string $optionKey): string
+    {
+        $option = collect($order?->menu)->first(fn (MenuOption $menuOption): bool => $menuOption->key === $optionKey);
+        $name = $option === null ? $optionKey : $option->name;
+        $index = strpos($name, ': ');
+
+        if ($index === false || $index <= 0 || $index > 32) {
+            return $name;
+        }
+
+        $label = trim(substr($name, $index + 2));
+
+        return $label === '' ? $name : $label;
     }
 
     /**

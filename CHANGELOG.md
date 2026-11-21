@@ -37,6 +37,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Changed
 
+- Catering: clear order feedback (button spinner then check, success toast with price, receipt row highlight, mobile cart bar flash, one screen-reader announcement) and menu filter chips (my selection, up to 10 or 15 euro, N of M count, reset).
 - Catering page redesign for long menus: dishes grouped by name prefix with search and a sticky category jump bar, add/remove buttons per dish (identical dishes shown as "2×"), the order as a sticky receipt ("Bon") on large screens and a bottom bar with a sheet on phones, note field moved into the receipt, calm ghost remove buttons
 - Onboarding/MVP: the guest landing at `/` is only a login gate (mark, wordmark, tagline/hint, "Mit Discord anmelden"); `/launcher` and its downloads require login, and the chat (Now, event pages, dock) and the sidebar entry "Launcher" appear only after the Discord login
 - Docs: the docs site is an optional `docs` compose profile (non-root nginx at `/docs`, read-only, healthcheck) with verified one-hour screenshot caching, `/docs/games` redirects, a prerendered introduction at `/docs/`, real 404s and HSTS matching the app

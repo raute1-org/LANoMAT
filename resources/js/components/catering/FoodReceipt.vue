@@ -42,7 +42,7 @@ function lineKey(line: { optionKey: string | null; included: boolean }) {
 
 <template>
     <div class="flex min-h-0 flex-1 flex-col gap-4" data-test="food-receipt">
-        <div class="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
+        <div class="min-h-0 flex-1 overflow-y-auto">
             <p
                 v-if="lines.length === 0"
                 class="text-sm text-muted-foreground"
@@ -121,7 +121,6 @@ function lineKey(line: { optionKey: string | null; included: boolean }) {
             <div
                 v-if="hasPayableItems"
                 class="flex items-baseline justify-between gap-3 border-t border-border pt-3"
-                aria-live="polite"
             >
                 <span class="text-sm font-semibold">{{ labels.my_total }}</span>
                 <span
