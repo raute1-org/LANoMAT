@@ -33,7 +33,7 @@ function queryInfo(int $players, int $maxPlayers): array
     return ['name' => 'Server', 'map' => 'de_dust2', 'players' => $players, 'max_players' => $maxPlayers];
 }
 
-it('groups the event servers per game and sums players and slots', function () {
+it('groups the event servers per game and sums players and slots of ready servers', function () {
     $event = Event::factory()->live()->create();
     $cs = Game::factory()->create(['name' => 'Counter-Strike 2']);
     $ut = Game::factory()->create(['name' => 'UT2004']);
@@ -45,9 +45,9 @@ it('groups the event servers per game and sums players and slots', function () {
     $summary = ServerGameSummary::forEvent($event);
 
     expect($summary)->toHaveCount(2)
-        ->and($summary[0])->toMatchArray(['game' => 'Counter-Strike 2', 'servers' => 2, 'players' => 3, 'maxPlayers' => 18])
+        ->and($summary[0])->toMatchArray(['game' => 'Counter-Strike 2', 'servers' => 2, 'players' => 3, 'maxPlayers' => 10])
         ->and($summary[1])->toMatchArray(['game' => 'UT2004', 'servers' => 1, 'players' => 4, 'maxPlayers' => 16]);
-    // The NotResponding server's query data is stale: it counts as a server, not as players.
+    // The NotResponding server's query data is stale: it counts as a server, not as players or slots.
     expect(ServerGameSummary::totalPlayers($event))->toBe(7);
 });
 

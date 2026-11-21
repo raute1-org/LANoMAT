@@ -647,8 +647,9 @@ class AppServiceProvider extends ServiceProvider
         if ($this->on(Module::Catering)) {
             // The sidebar's "order food" hint hides once the viewer ordered; drop the cached hint
             // the moment an item is placed or cancelled instead of waiting out the TTL.
-            FoodOrderItem::created(fn (FoodOrderItem $item) => NavSignals::forget($item->user_id));
-            FoodOrderItem::deleted(fn (FoodOrderItem $item) => NavSignals::forget($item->user_id));
+            // Deferred to commit so a concurrent request cannot re-cache the pre-commit state.
+            FoodOrderItem::created(fn (FoodOrderItem $item) => DB::afterCommit(fn () => NavSignals::forget($item->user_id)));
+            FoodOrderItem::deleted(fn (FoodOrderItem $item) => DB::afterCommit(fn () => NavSignals::forget($item->user_id)));
         }
 
         if ($this->on(Module::Infoscreen)) {

@@ -39,7 +39,7 @@ class ServerGameSummary
             }
 
             $players = self::countedPlayers($dto);
-            $maxPlayers = self::queryCount($dto, 'maxPlayers');
+            $maxPlayers = $dto['status'] === ServerLinkStatus::Ready->value ? self::queryCount($dto, 'maxPlayers') : 0;
 
             $groups[$label] ??= ['game' => $label, 'servers' => 0, 'players' => 0, 'maxPlayers' => 0, 'join' => null, 'candidates' => []];
             $groups[$label]['servers']++;
