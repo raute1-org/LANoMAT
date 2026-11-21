@@ -31,7 +31,7 @@ its own card in section 5. Integration branch: `feat/game-sharing`.
 | D7 | Before anything is sent, the text passes a public-safety check (private and public IP addresses, e-mail addresses, key material, tokens). A refused recipe gets `pr_state = blocked` and is never sent. Attribution is off by default. |
 | D8 | One branch and one pull request per recipe: `recipes/<slug>`. A new proposal moves the branch; it never opens a second pull request. |
 | D9 | Uploads keep going through the Files module, bound to the current event. `/games/share` reuses the existing ticket and upload routes; it adds no upload endpoint. |
-| D10 | No new MCP tool. `recipe_contribute` and `POST /api/v1/recipes` forward the fields `ContributeRecipe` now understands. The tool count stays 27. |
+| D10 | No new MCP tool. `recipe_contribute` and `POST /api/v1/recipes` forward the fields `ContributeRecipe` now understands. The tool count does not change. |
 | D11 | Recipe text under `resources/recipes/**` is machine-written from now on, so `recipe.yaml` and `SKILL.md` leave the Prettier check; the schema validator is the gate and runs in a GitHub workflow. |
 | D12 | Out of scope: account-level "who is on this server" on server cards (needs a Presence to GameServers edge), packing or uploading from the launcher, macOS for shared games, automatic hashing of tus uploads on arrival (a nightly `lanomat:files:hash` run is scheduled instead). |
 
