@@ -59,6 +59,14 @@ That starts `php artisan serve`, the queue worker and Vite together. Open
 
 <div class="live">LIVE 17:42 · local dev · queue worker up</div>
 
+The seeded demo logs you into a dashboard with a next match, a ticket, a seat and the notification
+bell — the same screen a participant sees at the venue.
+
+| Dark | Light |
+|---|---|
+| ![Participant dashboard with next match, ticket and seat, dark](/screens/dashboard-dark.png) | ![Participant dashboard with next match, ticket and seat, light](/screens/dashboard-light.png) |
+| `DASHBOARD · DARK` — next match, ticket, bell, seat | `DASHBOARD · LIGHT` — same calm desk |
+
 ## 5. Optional: Discord for a real login
 
 1. Create an application in the [Discord Developer Portal](https://discord.com/developers/applications).
@@ -99,6 +107,14 @@ lanomat-agent ask "install ut2004 for me on my pc"
 Read [Models & fuel](/docs/agent/venice) for the default model, the generic `OPENAI_MODEL_*`
 variables and the precedence rules.
 
+Pairing happens in the browser, not in the terminal: `lanomat-agent login` prints a code, and you
+approve it on `/mcp/connect` while signed in.
+
+| Dark | Light |
+|---|---|
+| ![MCP device pairing page with the agent code waiting for approval, dark](/screens/mcp-connect-pending-dark.png) | ![MCP device pairing page with the agent code waiting for approval, light](/screens/mcp-connect-pending-light.png) |
+| `MCP · DARK` — device code approved in the browser | `MCP · LIGHT` — same code, same scopes |
+
 ## Where to go next
 
 | If you want to… | Read |
@@ -109,6 +125,20 @@ variables and the precedence rules.
 | Install a game through a recipe | [Game recipes](/docs/recipes/overview) |
 | Let an agent drive LANoMAT | [MCP server](/docs/mcp/overview) and [pi agent](/docs/agent/overview) |
 | Look up a command or env var | [Reference](/docs/reference/commands) |
+
+The games library is what people open first at the venue: every published recipe, what is on the
+LAN, and the one-click round. Opening a game lands on the detail page with install, launch, the live
+server and the files from the LAN file host.
+
+| Dark | Light |
+|---|---|
+| ![Games library with published recipes and the LAN filter, dark](/screens/games-dark.png) | ![Games library with published recipes and the LAN filter, light](/screens/games-light.png) |
+| `GAMES · DARK` — every recipe, LAN dot, running tournaments | `GAMES · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![UT2004 game detail page with install, live server and LAN files, dark](/screens/game-ut2004-dark.png) | ![UT2004 game detail page with install, live server and LAN files, light](/screens/game-ut2004-light.png) |
+| `GAME · DARK` — install, launch, live server, LAN files | `GAME · LIGHT` |
 
 <div class="callout-live">
   <strong>The ten-minute principle.</strong> When you evaluate LANoMAT, do not tour every module.
