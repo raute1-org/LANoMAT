@@ -133,8 +133,9 @@ onUnmounted(() => clearTimeout(hintTimer));
                 <LiveIndicator
                     :variant="liveVariant[server.status]"
                     :pulse="server.status === 'provisioning'"
-                    :aria-label="statusText"
+                    aria-hidden="true"
                 />
+                <span class="sr-only">{{ statusText }}</span>
                 <span class="min-w-0">
                     <span
                         class="block truncate text-sm font-medium text-foreground"
@@ -264,6 +265,7 @@ onUnmounted(() => clearTimeout(hintTimer));
                 :address="address"
                 :labels="labels"
                 handler-help
+                :primary="primary"
             />
 
             <div

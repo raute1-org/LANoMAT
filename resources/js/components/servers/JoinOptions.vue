@@ -15,14 +15,21 @@ import type { JoinOptionDto } from '@/types';
  * Rendered only when `options` is non-empty; callers keep their existing
  * connect button for servers without options.
  */
-const props = defineProps<{
-    options: JoinOptionDto[];
-    address: string;
-    /** `gameservers.join_ui` labels. */
-    labels: Record<string, string>;
-    /** Shows the ut2004:// link-handler help next to the native option. */
-    handlerHelp?: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        options: JoinOptionDto[];
+        address: string;
+        /** `gameservers.join_ui` labels. */
+        labels: Record<string, string>;
+        /** Shows the ut2004:// link-handler help next to the native option. */
+        handlerHelp?: boolean;
+        /** Amber "Beitreten" button; false renders it as an outline button. */
+        primary?: boolean;
+    }>(),
+    {
+        primary: true,
+    },
+);
 
 const STORAGE_KEY = 'lanomat.join-option';
 const ALLOWED = /^(steam|ut2004|https?):\/\//;
@@ -101,7 +108,11 @@ const helpOpen = ref(false);
                 </button>
             </div>
 
-            <Button as-child size="sm">
+            <Button
+                as-child
+                size="sm"
+                :variant="primary ? 'default' : 'outline'"
+            >
                 <a :href="selected.url">{{ labels.join }}</a>
             </Button>
 
