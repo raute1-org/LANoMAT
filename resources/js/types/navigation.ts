@@ -6,8 +6,7 @@ export type BreadcrumbItem = {
     href: NonNullable<InertiaLinkProps['href']>;
 };
 
-/** Live nav badges, shared Inertia prop `navSignals` (null for guests). */
-/** Defined with the Now page types; re-exported for the sidebar. */
+/** Live nav badges, shared Inertia prop `navSignals` (null for guests); defined with the Now page types. */
 export type { NavSignals } from '@/types/now';
 
 export type NavBadge = {

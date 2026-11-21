@@ -8,9 +8,15 @@ export type NowLabelFn = (
 
 const key: InjectionKey<NowLabelFn> = Symbol('now-labels');
 
-/** Called once by the Now page: exposes `trans('now')` to all panels. */
-export function provideNowLabels(labels: () => Record<string, string>): void {
-    provide(key, (name, replacements = {}) => {
+/**
+ * Called once by the Now page: exposes `trans('now')` to all panels and returns
+ * the same translator. (A component cannot `inject` what it `provide`s itself,
+ * so the page must use the returned function.)
+ */
+export function provideNowLabels(
+    labels: () => Record<string, string>,
+): NowLabelFn {
+    const translate: NowLabelFn = (name, replacements = {}) => {
         let text = labels()[name] ?? name;
 
         for (const [k, v] of Object.entries(replacements)) {
@@ -18,7 +24,11 @@ export function provideNowLabels(labels: () => Record<string, string>): void {
         }
 
         return text;
-    });
+    };
+
+    provide(key, translate);
+
+    return translate;
 }
 
 export function useNowLabels(): NowLabelFn {

@@ -2,10 +2,15 @@
 import { Link } from '@inertiajs/vue3';
 import { useId } from 'vue';
 
-defineProps<{
-    title: string;
-    link?: { href: string; label: string };
-}>();
+withDefaults(
+    defineProps<{
+        title: string;
+        link?: { href: string; label: string };
+        /** Heading level of the title: 2 on a page root, 3 below a round/section h2. */
+        level?: 2 | 3;
+    }>(),
+    { level: 2 },
+);
 
 const headingId = useId();
 </script>
@@ -16,12 +21,13 @@ const headingId = useId();
         :aria-labelledby="headingId"
     >
         <div class="flex items-baseline justify-between gap-3 px-4 pt-3 pb-2">
-            <h2
+            <component
+                :is="`h${level}`"
                 :id="headingId"
                 class="text-sm font-medium text-muted-foreground"
             >
                 {{ title }}
-            </h2>
+            </component>
             <Link
                 v-if="link"
                 :href="link.href"

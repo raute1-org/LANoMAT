@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import LiveIndicator from '@/components/LiveIndicator.vue';
-import { formatInstant } from '@/lib/datetime';
+import Panel from '@/components/Panel.vue';
+import { formatClock } from '@/lib/datetime';
 import { index as scheduleIndex } from '@/routes/schedule';
 import type { ScheduleItemDto } from '@/types/now';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 defineProps<{
@@ -15,10 +15,6 @@ defineProps<{
 }>();
 
 const t = useNowLabels();
-
-function hm(iso: string): string {
-    return formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
-}
 </script>
 
 <template>
@@ -28,7 +24,7 @@ function hm(iso: string): string {
     >
         <p
             v-if="!schedule.current && schedule.upcoming.length === 0"
-            class="border-t border-border px-4 py-4 text-sm text-muted-foreground"
+            class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
         >
             {{ t('next_empty') }}
         </p>
@@ -37,7 +33,7 @@ function hm(iso: string): string {
                 v-if="schedule.current"
                 class="flex items-center gap-3 px-4 py-2.5 text-sm"
             >
-                <span class="w-12 font-mono text-xs text-foreground">{{
+                <span class="w-16 shrink-0 font-mono text-xs text-foreground">{{
                     t('now')
                 }}</span>
                 <span class="min-w-0 flex-1 font-medium text-foreground">{{
@@ -51,8 +47,8 @@ function hm(iso: string): string {
                 class="flex items-center gap-3 px-4 py-2.5 text-sm"
             >
                 <span
-                    class="w-12 font-mono text-xs text-muted-foreground tabular-nums"
-                    >{{ hm(item.startsAt) }}</span
+                    class="w-16 shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
+                    >{{ formatClock(item.startsAt) }}</span
                 >
                 <span class="min-w-0 flex-1 text-foreground">{{
                     item.title

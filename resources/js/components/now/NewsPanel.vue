@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import Panel from '@/components/Panel.vue';
 import { formatInstant } from '@/lib/datetime';
 import { show as eventShow } from '@/routes/events';
 import type { NowNewsItem } from '@/types/now';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 defineProps<{ news: NowNewsItem[]; eventSlug?: string | null }>();

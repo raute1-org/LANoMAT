@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import Panel from '@/components/Panel.vue';
+import { serverLiveVariant } from '@/lib/serverStatus';
 import { index as serversIndex } from '@/routes/servers';
 import type { PermanentShortDto } from '@/types/now';
 import JoinButton from './JoinButton.vue';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 defineProps<{ title: string; servers: PermanentShortDto[] }>();
 
 const t = useNowLabels();
 
+function variant(server: PermanentShortDto) {
+    return serverLiveVariant(server.status);
+}
+
 function online(server: PermanentShortDto): boolean {
-    return server.status === 'ready' || server.status === 'running';
+    return server.status === 'ready' || server.status === 'not_responding';
 }
 </script>
 
@@ -22,7 +27,7 @@ function online(server: PermanentShortDto): boolean {
     >
         <p
             v-if="servers.length === 0"
-            class="border-t border-border px-4 py-4 text-sm text-muted-foreground"
+            class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
         >
             {{ t('permanent_empty') }}
         </p>
@@ -32,10 +37,7 @@ function online(server: PermanentShortDto): boolean {
                 :key="server.id"
                 class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm"
             >
-                <LiveIndicator
-                    :variant="online(server) ? 'ok' : 'down'"
-                    :pulse="false"
-                />
+                <LiveIndicator :variant="variant(server)" :pulse="false" />
                 <span class="min-w-0 flex-1 basis-40">
                     <span class="font-medium text-foreground">{{
                         server.title
@@ -52,6 +54,7 @@ function online(server: PermanentShortDto): boolean {
                         {{ server.players ?? 0 }}/{{ server.maxPlayers }}
                     </span>
                     <JoinButton
+                        v-if="server.connectString"
                         :connect-string="server.connectString"
                         :connect-is-link="server.connectIsLink"
                     />

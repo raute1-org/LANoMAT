@@ -2,11 +2,11 @@
 import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
-import { formatInstant } from '@/lib/datetime';
+import { formatClock } from '@/lib/datetime';
 import type { NowCardDto } from '@/types/now';
 import JoinButton from './JoinButton.vue';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 const props = defineProps<{
@@ -21,6 +21,7 @@ const showMore = ref(false);
 interface MatchServer {
     connectString?: string;
     connectIsLink?: boolean;
+    status?: string;
 }
 
 function matchServer(card: NowCardDto): MatchServer | null {
@@ -35,7 +36,8 @@ const primaryId = computed<string | null>(() => {
         (c) =>
             c.kind === 'match' &&
             c.state === 'ready' &&
-            Boolean(matchServer(c)?.connectString),
+            Boolean(matchServer(c)?.connectString) &&
+            matchServer(c)?.status === 'ready',
     );
 
     return card?.id ?? null;
@@ -46,9 +48,7 @@ const visible = computed(() =>
 );
 
 function time(card: NowCardDto): string | null {
-    return card.at
-        ? formatInstant(card.at, { hour: '2-digit', minute: '2-digit' })
-        : null;
+    return card.at ? formatClock(card.at) : null;
 }
 
 function dot(card: NowCardDto): 'live' | 'warn' | null {
@@ -56,7 +56,9 @@ function dot(card: NowCardDto): 'live' | 'warn' | null {
         return 'live';
     }
 
-    return card.state === 'warn' ? 'warn' : null;
+    return card.state === 'closing_soon' || card.state === 'checkin_open'
+        ? 'warn'
+        : null;
 }
 
 function actionLabel(card: NowCardDto): string {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import Panel from '@/components/now/Panel.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

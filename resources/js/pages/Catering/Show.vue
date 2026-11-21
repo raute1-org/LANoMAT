@@ -2,8 +2,8 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
-import Panel from '@/components/now/Panel.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatInstant } from '@/lib/datetime';
@@ -155,7 +155,7 @@ function menuOptionName(
                     />
                 </div>
 
-                <Panel :title="labels.menu">
+                <Panel :title="labels.menu" :level="3">
                     <ul class="divide-y divide-border border-t border-border">
                         <li
                             v-for="option in foodOrder.menu"
@@ -172,6 +172,7 @@ function menuOptionName(
                             </div>
                             <Button
                                 size="sm"
+                                variant="outline"
                                 :disabled="
                                     !foodOrder.isOpen || registration.required
                                 "
@@ -198,7 +199,7 @@ function menuOptionName(
                     </div>
                 </Panel>
 
-                <Panel :title="labels.my_order">
+                <Panel :title="labels.my_order" :level="3">
                     <p
                         v-if="foodOrder.myItems.length === 0"
                         class="border-t border-border p-4 text-sm text-muted-foreground"

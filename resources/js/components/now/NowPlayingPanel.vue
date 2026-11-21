@@ -1,14 +1,16 @@
 <script setup lang="ts">
+import Panel from '@/components/Panel.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { index as serversIndex } from '@/routes/servers';
 import type { NowPlayingRow } from '@/types/now';
 import JoinButton from './JoinButton.vue';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 defineProps<{
     rows?: NowPlayingRow[] | null;
     loading?: boolean;
+    /** The deferred prop failed to load. */
+    failed?: boolean;
 }>();
 
 const t = useNowLabels();
@@ -44,8 +46,15 @@ function where(row: NowPlayingRow): string {
             </li>
         </ul>
         <p
+            v-else-if="failed"
+            class="border-t border-border px-4 py-3 text-sm text-destructive"
+            role="alert"
+        >
+            {{ t('load_failed') }}
+        </p>
+        <p
             v-else-if="!rows || rows.length === 0"
-            class="border-t border-border px-4 py-4 text-sm text-muted-foreground"
+            class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
         >
             {{ t('now_playing_empty') }}
         </p>
@@ -56,7 +65,7 @@ function where(row: NowPlayingRow): string {
                 class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5"
             >
                 <span
-                    class="min-w-0 basis-40 text-sm font-medium text-foreground"
+                    class="min-w-0 flex-1 basis-40 text-sm font-medium text-foreground"
                 >
                     {{ row.game }}
                 </span>

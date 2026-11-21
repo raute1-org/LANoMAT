@@ -7,6 +7,7 @@ import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue'
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import { Button } from '@/components/ui/button';
 import { useJoinOption } from '@/composables/useJoinOption';
+import { serverLiveVariant } from '@/lib/serverStatus';
 import type { GameServerDto } from '@/types';
 
 /**
@@ -30,16 +31,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ toggle: [] }>();
 
-const liveVariant: Record<GameServerDto['status'], 'ok' | 'warn' | 'down'> = {
-    ready: 'ok',
-    provisioning: 'warn',
-    pending: 'warn',
-    failed: 'down',
-    stopped: 'down',
-    not_responding: 'warn',
-    install_failed: 'down',
-    offline: 'down',
-};
+const liveVariant = computed(() => serverLiveVariant(props.server.status));
 
 const statusText = computed(
     () => props.labels[`status_${props.server.status}`] ?? props.server.status,
@@ -156,7 +148,7 @@ onUnmounted(() => clearTimeout(hintTimer));
                 @click="emit('toggle')"
             >
                 <LiveIndicator
-                    :variant="liveVariant[server.status]"
+                    :variant="liveVariant"
                     :pulse="server.status === 'provisioning'"
                     aria-hidden="true"
                 />
