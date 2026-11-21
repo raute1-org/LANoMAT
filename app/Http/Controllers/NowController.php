@@ -22,10 +22,8 @@ use App\Modules\Presence\Support\LocatedGames;
 use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
-use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\MyRegistration;
 use App\Modules\Registration\Support\PaymentDue;
-use App\Modules\Registration\Support\TicketLabel;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\MySeat;
@@ -33,6 +31,7 @@ use App\Modules\Teams\Support\MyTeams;
 use App\Modules\WebVoice\NativeClient\Support\NowFeed;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use App\Support\Money\Euro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -160,20 +159,21 @@ class NowController extends Controller
             return null;
         }
 
-        $name = TicketType::findForEvent($event, $registration->ticket_type)->name ?? TicketLabel::for($registration->ticket_type);
+        $name = $due['ticketName'];
 
         return [
             'kind' => 'payment',
             'id' => 'payment:'.$registration->id,
             'state' => 'open',
             'title' => trans('now.payment_title'),
-            'body' => number_format($due['amountCents'] / 100, 2, ',', '.').' € · '.$name,
+            'body' => Euro::format($due['amountCents']).' · '.$name,
             'at' => null,
             'data' => [
                 'amountCents' => $due['amountCents'],
+                'ticketName' => $name,
                 'actionLabel' => trans('now.card_action_payment'),
             ],
-            'href' => route('events.register', $event),
+            'href' => route('events.register', $event).'#payment',
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Modules\Catering\Enums\FoodPaymentMethod;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\PaymentLink;
+use App\Support\Money\Euro;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
@@ -115,7 +116,8 @@ class FoodOrderForm
     }
 
     /**
-     * The event's active ticket types, keyed by their stable key.
+     * ALL of the event's ticket types (inactive ones marked), keyed by their stable key — a round
+     * may still include a since-deactivated key and must stay saveable.
      *
      * @return array<string, string>
      */
@@ -131,8 +133,13 @@ class FoodOrderForm
             return [];
         }
 
-        return TicketType::activeFor($event)
-            ->mapWithKeys(fn (TicketType $type): array => [$type->key => $type->name])
+        return TicketType::query()
+            ->where('event_id', $event->id)
+            ->orderBy('sort')->orderBy('id')
+            ->get()
+            ->mapWithKeys(fn (TicketType $type): array => [
+                $type->key => $type->active ? $type->name : $type->name.' '.__('registration.admin.ticket_types.inactive_suffix'),
+            ])
             ->all();
     }
 
@@ -143,13 +150,7 @@ class FoodOrderForm
      */
     public static function euroToCents(?string $value): ?int
     {
-        $value = trim((string) $value);
-
-        if (preg_match('/^(\d{1,4})(?:[.,](\d{1,2}))?$/', $value, $matches) !== 1) {
-            return null;
-        }
-
-        return ((int) $matches[1]) * 100 + (int) str_pad($matches[2] ?? '0', 2, '0');
+        return Euro::toCents($value);
     }
 
     private static function priceRule(): Closure

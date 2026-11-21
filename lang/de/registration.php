@@ -111,6 +111,8 @@ return [
         'payment_open' => 'Zahlung offen',
         'change_ticket' => 'Ticket ändern',
         'reprice' => 'Preis aus Ticket übernehmen',
+        'change_ticket_done' => 'Ticket geändert, Preis neu übernommen.',
+        'change_ticket_done_paid' => 'Ticket geändert. Bezahlt — Preis unverändert.',
         'reprice_done' => ':updated aktualisiert, :skipped übersprungen (bezahlt)',
         'ticket_types' => [
             'title' => 'Tickets',
@@ -124,6 +126,8 @@ return [
             'price_invalid' => 'Bitte einen gültigen Betrag eingeben (z. B. 35,00).',
             'sort' => 'Reihenfolge',
             'active' => 'Aktiv',
+            'inactive_suffix' => '(inaktiv)',
+            'registrations_count' => 'Anmeldungen',
             'last_active' => 'Das letzte aktive Ticket kann nicht deaktiviert werden.',
             'delete_blocked' => 'Dieses Ticket kann nicht gelöscht werden (in Benutzung oder letztes aktives Ticket).',
         ],

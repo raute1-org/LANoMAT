@@ -11,7 +11,7 @@ use App\Modules\Registration\Models\TicketType;
 class PaymentDue
 {
     /**
-     * @return array{amountCents: int, paid: bool, url: ?string, linkAppendsAmount: bool, reference: string, note: ?string}|null
+     * @return array{amountCents: int, paid: bool, url: ?string, linkAppendsAmount: bool, reference: string, note: ?string, ticketName: string}|null
      */
     public static function forRegistration(EventRegistration $registration): ?array
     {
@@ -26,6 +26,7 @@ class PaymentDue
         $settings = EventPaymentSettings::forEvent($event);
         $ticket = TicketType::findForEvent($event, $registration->ticket_type);
         $link = $settings->payment_link;
+        $ticketName = $ticket->name ?? TicketLabel::for($registration->ticket_type);
 
         return [
             'amountCents' => $amount,
@@ -35,8 +36,9 @@ class PaymentDue
             'reference' => PaymentReference::for(
                 $event->name,
                 $user->name,
-                $ticket->name ?? TicketLabel::for($registration->ticket_type),
+                $ticketName,
             ),
+            'ticketName' => $ticketName,
             'note' => $settings->payment_note !== '' ? $settings->payment_note : null,
         ];
     }

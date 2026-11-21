@@ -20,9 +20,12 @@ class PaymentLink
 
         $parts = parse_url($link);
 
-        return is_array($parts)
-            && strtolower($parts['scheme'] ?? '') === 'https'
-            && ($parts['host'] ?? '') !== '';
+        if (! is_array($parts) || strtolower($parts['scheme'] ?? '') !== 'https' || ($parts['host'] ?? '') === '') {
+            return false;
+        }
+
+        // A paypal.me link without a handle cannot be paid.
+        return ! self::isPayPalMe($link) || self::handle($link) !== null;
     }
 
     public static function appendsAmount(?string $link): bool
@@ -42,10 +45,8 @@ class PaymentLink
             return $link;
         }
 
-        $path = (string) parse_url($link, PHP_URL_PATH);
         $host = strtolower((string) parse_url($link, PHP_URL_HOST));
-        $segments = array_values(array_filter(explode('/', $path), fn (string $s): bool => $s !== ''));
-        $handle = $segments[0] ?? null;
+        $handle = self::handle($link);
 
         if ($handle === null) {
             return null;
@@ -60,6 +61,14 @@ class PaymentLink
         $formatted = intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
 
         return rtrim(rtrim($formatted, '0'), '.');
+    }
+
+    private static function handle(string $link): ?string
+    {
+        $path = (string) parse_url($link, PHP_URL_PATH);
+        $segments = array_values(array_filter(explode('/', $path), fn (string $s): bool => $s !== ''));
+
+        return $segments[0] ?? null;
     }
 
     private static function isPayPalMe(string $link): bool

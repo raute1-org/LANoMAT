@@ -46,7 +46,7 @@ class RegistrationController extends Controller
             'tickets' => $this->tickets($event),
             'registration' => $registration === null ? null : [
                 'ticketType' => $registration->ticket_type,
-                'ticketLabel' => TicketLabel::for($registration->ticket_type),
+                'ticketLabel' => TicketType::findForEvent($event, $registration->ticket_type)->name ?? TicketLabel::for($registration->ticket_type),
                 'status' => $registration->status->value,
                 'paid' => $registration->paid_at !== null,
                 'payment' => PaymentDue::forRegistration($registration),

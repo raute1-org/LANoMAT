@@ -8,7 +8,6 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventPaymentSettings;
-use App\Modules\Registration\Support\MyRegistration;
 use App\Modules\Registration\Support\PaymentLink;
 use App\Modules\Registration\Support\PaymentReference;
 use Illuminate\Support\Collection;
@@ -21,18 +20,17 @@ class MyFoodPayment
 {
     /**
      * @param  Collection<int, FoodOrderItem>  $myItems  the viewer's items of this round
+     * @param  EventPaymentSettings|null  $settings  the event's payment settings when the caller already has them (avoids one query per round)
      * @return array{method: string, dueCents: int, url: string|null, reference: string|null}|null
      */
-    public static function for(FoodOrder $order, Event $event, User $viewer, Collection $myItems): ?array
+    public static function for(FoodOrder $order, Event $event, User $viewer, Collection $myItems, ?EventPaymentSettings $settings = null): ?array
     {
         if ($myItems->isEmpty()) {
             return null;
         }
 
-        $ticketKey = MyRegistration::find($event, $viewer)?->ticket_type;
-        $included = FoodIncluded::for($order, $ticketKey) || $myItems->every(fn (FoodOrderItem $item): bool => $item->included);
-
-        if ($included) {
+        // Item flags are the single source (same as CostSplit, the export and the admin).
+        if ($myItems->every(fn (FoodOrderItem $item): bool => $item->included)) {
             return ['method' => 'included', 'dueCents' => 0, 'url' => null, 'reference' => null];
         }
 
@@ -45,7 +43,7 @@ class MyFoodPayment
         }
 
         // The round link is only read for paypal rounds (it stays stored when the orga switches to cash).
-        $link = $order->payment_link ?: EventPaymentSettings::forEvent($event)->payment_link;
+        $link = $order->payment_link ?: ($settings ?? EventPaymentSettings::forEvent($event))->payment_link;
 
         return [
             'method' => 'paypal',

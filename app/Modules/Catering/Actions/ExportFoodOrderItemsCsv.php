@@ -4,6 +4,7 @@ namespace App\Modules\Catering\Actions;
 
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Support\Csv\CsvSafe;
 
 /**
  * One row per ordered item, for the kitchen and the cashier. Written for German
@@ -14,8 +15,6 @@ use App\Modules\Catering\Models\FoodOrder;
  */
 class ExportFoodOrderItemsCsv
 {
-    private const FORMULA_PREFIXES = ['=', '+', '-', '@', "\t", "\r"];
-
     public function handle(FoodOrder $order): string
     {
         /** @var array<string, MenuOption> $menu */
@@ -36,9 +35,9 @@ class ExportFoodOrderItemsCsv
             $optionName = isset($menu[$optionKey]) ? $menu[$optionKey]->name : $optionKey;
 
             fputcsv($handle, [
-                $this->safe((string) ($item->user->name ?? '')),
-                $this->safe($optionName),
-                $this->safe((string) ($item->selection['note'] ?? '')),
+                CsvSafe::cell((string) ($item->user->name ?? '')),
+                CsvSafe::cell($optionName),
+                CsvSafe::cell((string) ($item->selection['note'] ?? '')),
                 number_format($item->price_cents / 100, 2, ',', ''),
                 $item->paid_at !== null ? 'ja' : 'nein',
                 $item->included ? 'ja' : 'nein',
@@ -50,14 +49,5 @@ class ExportFoodOrderItemsCsv
         fclose($handle);
 
         return "\xEF\xBB\xBF".($csv === false ? '' : $csv);
-    }
-
-    private function safe(string $value): string
-    {
-        if ($value !== '' && in_array($value[0], self::FORMULA_PREFIXES, true)) {
-            return "'".$value;
-        }
-
-        return $value;
     }
 }

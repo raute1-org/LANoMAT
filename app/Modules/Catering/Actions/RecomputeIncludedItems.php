@@ -26,7 +26,7 @@ class RecomputeIncludedItems
         $changed = 0;
         $ticketByUser = [];
 
-        $items = $order->items()->whereNull('paid_at')->get();
+        $items = $order->items()->with('user')->whereNull('paid_at')->get();
 
         foreach ($items as $item) {
             $userId = $item->user_id;

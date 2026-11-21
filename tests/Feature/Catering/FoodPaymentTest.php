@@ -151,11 +151,13 @@ it('rejects an http payment link and accepts https', function () {
     expect($order->fresh()->payment_method)->toBe(FoodPaymentMethod::Paypal);
 });
 
-it('offers the events active ticket types as form options', function () {
+it('offers all event ticket types as form options, marking inactive ones', function () {
     $order = paymentOrder();
     TicketType::query()->where('event_id', $order->event_id)->where('key', 'basic')->update(['active' => false]);
 
-    expect(array_keys(FoodOrderForm::ticketOptions($order->event_id)))->toContain('flatrate')->not->toContain('basic');
+    $options = FoodOrderForm::ticketOptions($order->event_id);
+
+    expect($options)->toHaveKeys(['flatrate', 'basic'])->and($options['basic'])->toBe('Basic (inaktiv)');
 });
 
 it('treats a viewer without registration as not included', function () {

@@ -3,6 +3,7 @@
 namespace App\Modules\Registration\Filament\RelationManagers;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\TicketTypeGuard;
 use App\Support\Money\Euro;
@@ -85,6 +86,12 @@ class TicketTypesRelationManager extends RelationManager
                 TextColumn::make('price_cents')
                     ->label(__('registration.admin.ticket_types.price'))
                     ->formatStateUsing(fn (int $state): string => Euro::format($state)),
+                TextColumn::make('registrations_count')
+                    ->label(__('registration.admin.ticket_types.registrations_count'))
+                    ->state(fn (TicketType $record): int => EventRegistration::query()
+                        ->where('event_id', $record->event_id)
+                        ->where('ticket_type', $record->key)
+                        ->count()),
                 IconColumn::make('active')->label(__('registration.admin.ticket_types.active'))->boolean(),
                 TextColumn::make('sort')->label(__('registration.admin.ticket_types.sort')),
             ])

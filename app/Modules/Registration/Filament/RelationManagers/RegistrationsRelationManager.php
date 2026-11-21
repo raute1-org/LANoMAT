@@ -9,6 +9,7 @@ use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\ArrivalPlanView;
 use App\Modules\Registration\Support\TicketLabel;
+use App\Support\Csv\CsvSafe;
 use App\Support\Money\Euro;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -130,6 +131,7 @@ class RegistrationsRelationManager extends RelationManager
                 Action::make('change_ticket')
                     ->label(__('registration.admin.change_ticket'))
                     ->authorize(fn (EventRegistration $record): bool => Gate::allows('update', $record))
+                    ->visible(fn (EventRegistration $record): bool => $record->status !== RegistrationStatus::Cancelled)
                     ->fillForm(fn (EventRegistration $record): array => ['ticket_type' => $record->ticket_type])
                     ->schema(fn (EventRegistration $record): array => [
                         Select::make('ticket_type')
@@ -152,10 +154,20 @@ class RegistrationsRelationManager extends RelationManager
                             return;
                         }
 
-                        // Changing the ticket re-snapshots the price.
                         $record->ticket_type = $type->key;
-                        $record->ticket_price_cents = $type->price_cents;
+
+                        // Changing the ticket re-snapshots the price, except for a paid
+                        // registration: what was paid stays the amount owed (same as the bulk action).
+                        $paid = $record->paid_at !== null;
+                        if (! $paid) {
+                            $record->ticket_price_cents = $type->price_cents;
+                        }
                         $record->save();
+
+                        Notification::make()
+                            ->title(__($paid ? 'registration.admin.change_ticket_done_paid' : 'registration.admin.change_ticket_done'))
+                            ->success()
+                            ->send();
                     }),
             ])
             ->toolbarActions([
@@ -184,7 +196,15 @@ class RegistrationsRelationManager extends RelationManager
                                     ->where('event_id', $record->event_id)
                                     ->where('key', $record->ticket_type)
                                     ->value('price_cents');
-                                $record->ticket_price_cents = is_numeric($price) ? (int) $price : 0;
+
+                                if (! is_numeric($price)) {
+                                    // The ticket type row is gone: never write 0 for an unknown price.
+                                    $skipped++;
+
+                                    continue;
+                                }
+
+                                $record->ticket_price_cents = (int) $price;
                                 $record->save();
                                 $updated++;
                             }
@@ -225,12 +245,12 @@ class RegistrationsRelationManager extends RelationManager
 
             foreach ($rows as $row) {
                 fputcsv($out, [
-                    $row->user?->name,
-                    $row->ticket_type,
+                    CsvSafe::cell($row->user?->name),
+                    CsvSafe::cell($row->ticket_type),
                     $row->ticket_price_cents === null ? '' : number_format($row->ticket_price_cents / 100, 2, '.', ''),
                     $row->status->value,
                     $row->paid_at?->toIso8601String(),
-                    $row->paid_by,
+                    CsvSafe::cell($row->paid_by),
                     $row->checked_in_at?->toIso8601String(),
                 ]);
             }

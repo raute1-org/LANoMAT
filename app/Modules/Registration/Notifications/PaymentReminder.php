@@ -3,12 +3,14 @@
 namespace App\Modules\Registration\Notifications;
 
 use App\Modules\Discord\Channels\DiscordChannel;
+use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Registration\Models\PaymentReminderSent;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\TicketLabel;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use App\Support\Money\Euro;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -29,6 +31,17 @@ class PaymentReminder extends Notification implements ShouldQueue
         public readonly string $kind,
     ) {
         $this->category = 'payment';
+    }
+
+    /** The reminder is queued: re-check the registration at send time (paid / cancelled meanwhile). */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        $registration = EventRegistration::query()->find($this->registration->id);
+
+        return $registration !== null
+            && $registration->paid_at === null
+            && $registration->status !== RegistrationStatus::Cancelled
+            && (int) $registration->ticket_price_cents > 0;
     }
 
     /**
@@ -65,7 +78,7 @@ class PaymentReminder extends Notification implements ShouldQueue
         return __('registration.notifications.payment_reminder.'.$key, [
             'event' => $event->name,
             'ticket' => $ticket->name ?? TicketLabel::for($this->registration->ticket_type),
-            'amount' => number_format((int) $this->registration->ticket_price_cents / 100, 2, ',', '.').' €',
+            'amount' => Euro::format((int) $this->registration->ticket_price_cents),
             'url' => route('events.register', $event),
         ]);
     }

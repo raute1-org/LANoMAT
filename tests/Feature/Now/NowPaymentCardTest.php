@@ -44,8 +44,8 @@ it('shows the payment card for an unpaid ticket', function (string $state) {
         'title' => 'Ticket noch nicht bezahlt',
         'body' => '25,00 € · Flatrate',
         'at' => null,
-        'href' => route('events.register', $event),
-    ])->and($card['data'])->toBe(['amountCents' => 2500, 'actionLabel' => 'Bezahlen'])
+        'href' => route('events.register', $event).'#payment',
+    ])->and($card['data'])->toBe(['amountCents' => 2500, 'ticketName' => 'Flatrate', 'actionLabel' => 'Bezahlen'])
         ->and(json_encode($card))->not->toContain('paypal');
 })->with(['upcoming', 'live']);
 

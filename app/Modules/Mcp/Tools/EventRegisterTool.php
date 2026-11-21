@@ -22,7 +22,7 @@ class EventRegisterTool extends LanomatTool
     {
         return [
             'slug' => $schema->string()->description('Event slug.')->required(),
-            'ticket_type' => $schema->string()->description('Ticket type key from the event settings; omit for the event default.'),
+            'ticket_type' => $schema->string()->description('Key of one of the active ticket types of the event; omit for the event default.'),
         ];
     }
 

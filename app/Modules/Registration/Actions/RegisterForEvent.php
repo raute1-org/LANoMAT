@@ -8,6 +8,7 @@ use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\PaymentReminderSent;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\EventDays;
 use App\Modules\Registration\ValueObjects\ArrivalPlan;
@@ -82,6 +83,10 @@ class RegisterForEvent
                 $existing->paid_at = null;
                 $existing->paid_by = null;
                 $existing->ticket_price_cents = $priceCents;
+                // The returning participant is "registered" anew: reminder history starts over and
+                // the after-registration reminder counts from now.
+                $existing->created_at = now();
+                PaymentReminderSent::query()->where('event_registration_id', $existing->id)->delete();
                 // A returning participant states their plan afresh.
                 UpdateArrivalPlan::apply($existing, $plan ?? new ArrivalPlan);
                 $existing->save();
