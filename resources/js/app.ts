@@ -20,19 +20,21 @@ const reverbPort =
         ? Number(reverb.port)
         : undefined;
 
-configureEcho({
-    broadcaster: 'reverb',
-    // Pusher throws when the key is missing, which used to blank any page
-    // that subscribes during setup (Now, Polls, Presence, …). A deployment
-    // without Reverb (BROADCAST_CONNECTION=log) still needs a constructible
-    // client; the placeholder never matches a real server key.
-    key: reverb?.key ?? 'lanomat-no-reverb',
-    wsHost: reverb?.host ?? undefined,
-    wsPort: reverbPort,
-    wssPort: reverbPort,
-    forceTLS: reverb?.scheme === 'https',
-    enabledTransports: ['ws', 'wss'],
-});
+// Without a key (BROADCAST_CONNECTION=log, or Reverb not configured) Pusher
+// throws on construction, which used to blank every page that subscribes
+// during setup. Skip the client entirely; the real-time composables check
+// `hasEcho()` and become no-ops.
+if (reverb?.key) {
+    configureEcho({
+        broadcaster: 'reverb',
+        key: reverb.key,
+        wsHost: reverb.host ?? undefined,
+        wsPort: reverbPort,
+        wssPort: reverbPort,
+        forceTLS: reverb.scheme === 'https',
+        enabledTransports: ['ws', 'wss'],
+    });
+}
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

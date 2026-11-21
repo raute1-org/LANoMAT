@@ -342,13 +342,15 @@ function announceRound(): void {
                         type="button"
                         size="sm"
                         variant="ghost"
+                        class="h-auto max-w-full text-left whitespace-normal"
                         @click="
                             copy(game.launch_command, 'Startbefehl kopiert')
                         "
                     >
-                        <span class="font-mono text-muted-foreground">{{
-                            game.launch_command
-                        }}</span>
+                        <span
+                            class="font-mono break-all text-muted-foreground"
+                            >{{ game.launch_command }}</span
+                        >
                     </Button>
                 </div>
                 <p
@@ -387,7 +389,7 @@ function announceRound(): void {
 
                 <Separator class="my-8" />
 
-                <div class="grid gap-6 xl:grid-cols-[1fr_20rem]">
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_20rem]">
                     <div class="space-y-6">
                         <!-- running tournaments -->
                         <Card v-if="tournaments.length > 0">

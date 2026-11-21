@@ -1,5 +1,6 @@
 import { useEchoPublic } from '@laravel/echo-vue';
 import { onUnmounted, reactive } from 'vue';
+import { hasEcho } from '@/lib/echo';
 
 export interface MatchScoreState {
     team1?: string;
@@ -42,6 +43,10 @@ export function useMatchScore(
     matchId: number,
 ): MatchScoreState {
     const state = reactive<MatchScoreState>({});
+
+    if (!hasEcho()) {
+        return state;
+    }
 
     const { stopListening, leaveChannel } =
         useEchoPublic<MatchScoreUpdatedPayload>(

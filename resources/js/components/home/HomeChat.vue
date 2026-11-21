@@ -393,7 +393,7 @@ onBeforeUnmount(cancelDemo);
                  "Start-page chat"). role=log announces appended answers once. -->
             <ol
                 ref="transcript"
-                class="max-h-[8rem] space-y-5 overflow-y-auto pr-1 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-h-[min(52svh,24rem)]"
+                class="max-h-[7rem] space-y-5 overflow-y-auto pr-1 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-h-[min(52svh,24rem)]"
                 role="log"
                 aria-live="polite"
                 aria-label="Chat-Verlauf"

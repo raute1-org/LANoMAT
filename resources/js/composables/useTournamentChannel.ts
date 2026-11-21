@@ -2,6 +2,7 @@ import { router } from '@inertiajs/vue3';
 import { useEchoPublic } from '@laravel/echo-vue';
 import { onUnmounted } from 'vue';
 import { useResync } from '@/composables/useResync';
+import { hasEcho } from '@/lib/echo';
 
 /**
  * Subscribes to the public `tournament.{id}` broadcast channel (see
@@ -33,6 +34,10 @@ export function useTournamentChannel(tournamentId: number): {
 } {
     const reload = () => router.reload({ only: LIVE_PROPS });
     const { status } = useResync(reload);
+
+    if (!hasEcho()) {
+        return { connection: status };
+    }
 
     const { stopListening, leaveChannel } = useEchoPublic(
         `tournament.${tournamentId}`,
