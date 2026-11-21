@@ -285,7 +285,7 @@ class FakePelicanClient implements PelicanClient
         }
 
         $this->importedEggs[] = $content;
-        $parsed = Yaml::parse($content);
+        $parsed = str_starts_with(ltrim($content), '{') ? json_decode($content, true) : Yaml::parse($content);
         $uuid = (string) ($parsed['uuid'] ?? '');
 
         foreach ($this->eggs as $existing) {

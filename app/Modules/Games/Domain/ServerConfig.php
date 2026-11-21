@@ -33,6 +33,11 @@ final readonly class ServerConfig
      * @param  list<string>  $extraPorts  Env variable names that each get an extra allocation's
      *                                    port (e.g. `TV_PORT` for CS2 SourceTV); one pool allocation
      *                                    per entry besides the main one.
+     * @param  array<string, int>  $fixedPorts  Fixed node ports instead of pool ports: key `main` (the
+     *                                          server's main port) or an egg variable name that carries
+     *                                          the port (it gets its own allocation, like `extraPorts`);
+     *                                          each port 1024..65535, no duplicates. Absent slots still
+     *                                          come from the pool.
      * @param  string|null  $readinessType  `a2s` (Source query) or null/`none`.
      * @param  string|null  $contentType  `none`, `workshop` or `upload`.
      */
@@ -47,6 +52,7 @@ final readonly class ServerConfig
         public array $environment = [],
         public array $overridable = [],
         public array $extraPorts = [],
+        public array $fixedPorts = [],
         public ?string $readinessType = null,
         public ?string $readinessGame = null,
         public ?string $readinessFolder = null,
@@ -55,7 +61,31 @@ final readonly class ServerConfig
         public ?string $contentType = null,
         public ?string $contentRef = null,
         public ?string $installMarker = null,
-    ) {}
+    ) {
+        self::assertValidFixedPorts($fixedPorts);
+    }
+
+    /**
+     * @param  array<string, int>  $fixedPorts
+     *
+     * @throws InvalidArgumentException when a port is out of range, a key is empty or a port is used twice.
+     */
+    public static function assertValidFixedPorts(array $fixedPorts): void
+    {
+        $seen = [];
+
+        foreach ($fixedPorts as $slot => $port) {
+            if ((string) $slot === '' || $port < 1024 || $port > 65535) {
+                throw new InvalidArgumentException("Fixed port [{$slot}] must be 1024..65535 with a non-empty key.");
+            }
+
+            if (isset($seen[$port])) {
+                throw new InvalidArgumentException("Fixed port {$port} is used twice.");
+            }
+
+            $seen[$port] = true;
+        }
+    }
 
     /**
      * @return array<string, mixed>
@@ -73,6 +103,7 @@ final readonly class ServerConfig
             'environment' => $this->environment,
             'overridable' => $this->overridable,
             'extra_ports' => $this->extraPorts,
+            'fixed_ports' => $this->fixedPorts,
             'readiness_type' => $this->readinessType,
             'readiness_game' => $this->readinessGame,
             'readiness_folder' => $this->readinessFolder,
@@ -109,6 +140,7 @@ final readonly class ServerConfig
             environment: is_array($environment) ? $environment : [],
             overridable: self::stringList($data['overridable'] ?? []),
             extraPorts: self::stringList($data['extra_ports'] ?? []),
+            fixedPorts: self::fixedPortMap($data['fixed_ports'] ?? []),
             readinessType: self::nullableString($data['readiness_type'] ?? null),
             readinessGame: self::nullableString($data['readiness_game'] ?? null),
             readinessFolder: self::nullableString($data['readiness_folder'] ?? null),
@@ -118,6 +150,39 @@ final readonly class ServerConfig
             contentRef: self::nullableString($data['content_ref'] ?? null),
             installMarker: self::nullableString($data['install_marker'] ?? null),
         );
+    }
+
+    /**
+     * Tolerant reader for stored data: entries that are not a valid, unique port are dropped
+     * (the strict check is the constructor, which new data passes through).
+     *
+     * @return array<string, int>
+     */
+    private static function fixedPortMap(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $ports = [];
+        $used = [];
+
+        foreach ($value as $slot => $port) {
+            if (! is_numeric($port) || (string) $slot === '') {
+                continue;
+            }
+
+            $port = (int) $port;
+
+            if ($port < 1024 || $port > 65535 || isset($used[$port])) {
+                continue;
+            }
+
+            $used[$port] = true;
+            $ports[(string) $slot] = $port;
+        }
+
+        return $ports;
     }
 
     /**

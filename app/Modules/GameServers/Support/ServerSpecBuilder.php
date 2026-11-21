@@ -61,7 +61,7 @@ final class ServerSpecBuilder
      * @param  array<string, mixed>  $config
      * @param  list<PelicanAllocation>  $allocations  Planned allocations: the first is the main
      *                                                port, each further one belongs to the
-     *                                                config's `extra_ports` variable of the same
+     *                                                config's extra port variable (see PortSlots) of the same
      *                                                position. Empty: the client picks one.
      * @param  string|null  $displayName  Human name for the server browser, sent through the
      *                                    egg's hostname variable unless the config sets it.
@@ -127,7 +127,7 @@ final class ServerSpecBuilder
             }
         }
 
-        $extraPorts = array_values(is_array($config['extra_ports'] ?? null) ? $config['extra_ports'] : []);
+        $extraPorts = PortSlots::variables($config);
         $additional = array_slice($allocations, 1);
 
         foreach ($extraPorts as $i => $variable) {

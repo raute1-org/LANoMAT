@@ -49,3 +49,25 @@ it('reads a legacy preset without the new keys as an enabled preset with no requ
 it('drops empty optional values from the stored config array', function () {
     expect((new ServerConfig(maxPlayers: 4))->toArray())->toBe(['max_players' => 4]);
 });
+
+it('round-trips fixed ports and reads old presets without them', function () {
+    $config = new ServerConfig(fixedPorts: ['main' => 17777, 'QUERY_PORT' => 17778]);
+
+    expect(ServerConfig::fromArray($config->toArray()))->toEqual($config)
+        ->and(ServerConfig::fromArray(['max_players' => 4])->fixedPorts)->toBe([])
+        ->and((new ServerConfig(maxPlayers: 4))->toArray())->not->toHaveKey('fixed_ports');
+});
+
+it('rejects invalid fixed ports and drops them when reading stored data', function (array $ports) {
+    expect(fn () => new ServerConfig(fixedPorts: $ports))->toThrow(InvalidArgumentException::class);
+})->with([
+    'too low' => [['main' => 80]],
+    'too high' => [['main' => 70000]],
+    'duplicate' => [['main' => 17777, 'QUERY_PORT' => 17777]],
+]);
+
+it('tolerates broken stored fixed ports instead of throwing', function () {
+    $config = ServerConfig::fromArray(['fixed_ports' => ['main' => 17777, 'A' => 17777, 'B' => 80, 'C' => 'x', 'D' => '17780']]);
+
+    expect($config->fixedPorts)->toBe(['main' => 17777, 'D' => 17780]);
+});
