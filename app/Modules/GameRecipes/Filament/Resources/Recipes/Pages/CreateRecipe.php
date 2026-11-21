@@ -2,7 +2,10 @@
 
 namespace App\Modules\GameRecipes\Filament\Resources\Recipes\Pages;
 
+use App\Modules\GameRecipes\Actions\PublishRecipe;
 use App\Modules\GameRecipes\Actions\SyncRecipeFilesFromRequirements;
+use App\Modules\GameRecipes\Enums\RecipeStatus;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\ResolvesReviewer;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\SyncsRequirementPins;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\RecipeResource;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ReviewStamp;
@@ -11,6 +14,7 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateRecipe extends CreateRecord
 {
+    use ResolvesReviewer;
     use SyncsRequirementPins;
 
     protected static string $resource = RecipeResource::class;
@@ -36,11 +40,19 @@ class CreateRecipe extends CreateRecord
 
     protected function afterCreate(): void
     {
-        if (! $this->record instanceof GameRecipe) {
+        $record = $this->record;
+
+        if (! $record instanceof GameRecipe) {
             return;
         }
 
-        app(SyncRecipeFilesFromRequirements::class)->handle($this->record);
-        $this->applyRequirementPins($this->record);
+        app(SyncRecipeFilesFromRequirements::class)->handle($record);
+        $this->applyRequirementPins($record);
+
+        // A recipe created as published is a release like any other: the pull
+        // request pipeline hears about it exactly once.
+        if ($record->status === RecipeStatus::Published) {
+            app(PublishRecipe::class)->releaseAfterFormSave($record, $this->reviewer());
+        }
     }
 }
