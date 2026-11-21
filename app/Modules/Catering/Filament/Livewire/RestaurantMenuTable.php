@@ -8,6 +8,7 @@ use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Exceptions\MenuProtectedException;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Schemas\FoodOrderForm;
 use App\Modules\Catering\Models\Restaurant;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Catering\Support\GroupOrder;
 use App\Support\Images\InvalidImageException;
@@ -21,11 +22,12 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Image;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -100,9 +102,15 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                     ->formatStateUsing(fn (mixed $state): string => Euro::format((int) $state))
                     ->alignEnd()
                     ->fontFamily('mono'),
-                IconColumn::make('has_image')
+                ImageColumn::make('image_url')
                     ->label(__('catering.restaurant.menu.photo'))
-                    ->boolean(),
+                    ->imageSize(48)
+                    ->extraImgAttributes(fn (array $record): array => [
+                        'loading' => 'lazy',
+                        'alt' => $record['full_name'],
+                        'class' => 'rounded-md object-cover',
+                    ])
+                    ->placeholder(__('catering.restaurant.menu.no_photo')),
                 TextColumn::make('ordered')
                     ->label(__('catering.restaurant.menu.ordered'))
                     ->numeric()
@@ -151,7 +159,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
     }
 
     /**
-     * @return array<string, array{key: string, category: string, label: string, full_name: string, price_cents: int, description: string|null, has_image: bool, ordered: int, open: int}>
+     * @return array<string, array{key: string, category: string, label: string, full_name: string, price_cents: int, description: string|null, image_url: string|null, ordered: int, open: int}>
      */
     private function rows(): array
     {
@@ -169,7 +177,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                 'full_name' => $option->name,
                 'price_cents' => $option->priceCents,
                 'description' => $option->description,
-                'has_image' => $option->image !== null,
+                'image_url' => DishImage::previewUrl($restaurant, $option),
                 'ordered' => $ordered[$option->key] ?? 0,
                 'open' => $open[$option->key] ?? 0,
             ];
@@ -202,6 +210,10 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                 ->rows(2)
                 ->maxLength(MenuOption::MAX_DESCRIPTION_LENGTH)
                 ->rules([FoodOrderForm::noNulBytes()]),
+            Hidden::make('preview_url'),
+            Image::make(fn (Get $get): string => (string) $get('preview_url'), __('catering.restaurant.menu.photo_preview'))
+                ->imageHeight('14rem')
+                ->visible(fn (Get $get): bool => filled($get('preview_url'))),
             FileUpload::make('image')
                 ->label(__('catering.restaurant.menu.photo'))
                 ->helperText(__('catering.fields.menu_image_help'))
@@ -274,6 +286,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                     'price' => $option === null ? null : number_format($option->priceCents / 100, 2, ',', ''),
                     'description' => $option?->description,
                     'image' => $option?->image,
+                    'preview_url' => $option === null ? null : DishImage::previewUrl($this->restaurant(), $option),
                     'reprice_open' => false,
                     'open_count' => $record['open'],
                 ];

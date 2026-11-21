@@ -174,6 +174,13 @@ Route::middleware(['auth', 'role:helper'])->group(function () {
 
 Route::middleware(['auth', 'role:orga'])->group(function () {
     Route::get('/orga/events/{event:slug}/checkin-qr', CheckinQrPrintController::class)->name('orga.checkin.print');
+    // Menu editor previews of private restaurant images (the public routes below stay gated by
+    // "used by a published round"); the policy check lives in the controller.
+    Route::get('/orga/catering/restaurants/{restaurant}/logo', [RestaurantImageController::class, 'previewLogo'])
+        ->name('orga.catering.restaurant-logo');
+    Route::get('/orga/catering/restaurants/{restaurant}/image/{key}', [RestaurantImageController::class, 'previewDish'])
+        ->where('key', DishImage::KEY_PATTERN)
+        ->name('orga.catering.restaurant-image');
 });
 
 Route::middleware(['guest'])->group(function () {

@@ -224,6 +224,7 @@ return [
             'description_help' => 'Wird Teilnehmern im Kopf der Essensrunde gezeigt (max. 600 Zeichen).',
             'logo' => 'Logo',
             'logo_help' => 'JPG, PNG oder WebP, max. 3 MB. Wird als kleines WebP gespeichert und im Kopf der Essensrunde gezeigt.',
+            'logo_preview' => 'Aktuelles Logo',
             'phone' => 'Telefon',
             'address' => 'Adresse',
             'website' => 'Webseite',
@@ -276,6 +277,7 @@ return [
             'protected_many' => 'Nicht möglich, bestellte Gerichte bleiben erhalten: :list.',
             'key_taken' => 'Dieses Gericht gibt es schon (gleicher Schlüssel).',
             'no_photo' => 'ohne Foto',
+            'photo_preview' => 'Vorschau des Gericht-Fotos',
         ],
         'table' => [
             'empty' => 'Noch keine Restaurants',

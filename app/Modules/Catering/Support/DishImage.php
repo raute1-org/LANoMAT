@@ -39,4 +39,23 @@ final class DishImage
 
         return route('catering.restaurant-logo', ['restaurant' => $restaurant->id, 'v' => basename($restaurant->logo, '.webp')]);
     }
+
+    /** Orga-only preview URL of a dish photo (menu editor); independent of round visibility. */
+    public static function previewUrl(Restaurant $restaurant, MenuOption $option): ?string
+    {
+        if ($option->image === null || preg_match('/^'.self::KEY_PATTERN.'$/', $option->key) !== 1) {
+            return null;
+        }
+
+        return route('orga.catering.restaurant-image', ['restaurant' => $restaurant->id, 'key' => $option->key, 'v' => basename($option->image, '.webp')]);
+    }
+
+    public static function previewLogoUrl(Restaurant $restaurant): ?string
+    {
+        if ($restaurant->logo === null) {
+            return null;
+        }
+
+        return route('orga.catering.restaurant-logo', ['restaurant' => $restaurant->id, 'v' => basename($restaurant->logo, '.webp')]);
+    }
 }
