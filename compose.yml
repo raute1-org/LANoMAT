@@ -499,36 +499,59 @@ services:
       traefik.http.routers.livekit.tls.certresolver: 'letsencrypt'
       traefik.http.services.livekit.loadbalancer.server.port: '7880'
 
-  # Docs site (Zudoku, docs-site/). Same host as the app, path-routed at
-  # /docs so devs can vibecode against the MCP without another DNS name:
+  # Docs site (Zudoku, docs-site/). Optional and static: no database, no
+  # Redis, no secrets, no volume. It can run on its own for a preview:
   #   docker compose --profile docs up -d docs
-  # The app's /docs link and the Traefik router use the same prefix. This is
-  # a static build; it never touches the database or the app's secrets.
+  #   curl -I http://127.0.0.1:4015/docs/
+  # or next to the app + Traefik (the docs router needs the app's Traefik):
+  #   docker compose --profile prod --profile docs up -d traefik docs
+  # and it is served at https://${APP_DOMAIN}/docs.
+  #
+  # The container always serves the /docs prefix (Zudoku's basePath), so the
+  # Traefik router must NOT strip it. Its own image sets the security and
+  # cache headers; the app's `secure-headers@file` middleware is deliberately
+  # not attached here (it would duplicate X-Frame-Options with DENY vs
+  # SAMEORIGIN). Details: docs-site/README.md, docs-site/deploy/traefik.docs.yml.
+  #
+  # The image runs as uid 101 and listens on 8080 (nginx-unprivileged).
+  # read_only + tmpfs: nginx only needs /tmp for pid and request buffers;
+  # the document root is never written at runtime.
+  #
+  # Loopback preview is published on 4015 (non-default, mirroring the app's
+  # 8000 convention) so the profile is usable without Traefik. Nothing is
+  # exposed off-box; public traffic goes through Traefik when the prod
+  # profile is active.
   docs:
     restart: unless-stopped
     build:
       context: ./docs-site
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    image: lanomat-docs:${APP_VERSION:-dev}
     profiles: [docs]
     read_only: true
-    tmpfs: [/tmp]
-    security_opt: [no-new-privileges:true]
-    cap_drop: [ALL]
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports: ['127.0.0.1:${DOCS_HOST_PORT:-4015}:8080']
+    expose: ['8080']
+    # The image's HEALTHCHECK probes /docs/ with BusyBox wget (no curl).
     labels:
       traefik.enable: 'true'
       traefik.http.routers.docs.rule: 'Host(`${APP_DOMAIN}`) && PathPrefix(`/docs`)'
-      traefik.http.routers.docs.priority: '1000'
+      # Explicit: longer than the app's Host-only rule, but never rely on
+      # Traefik's default rule-length priority for a correctness decision.
+      traefik.http.routers.docs.priority: '100'
       traefik.http.routers.docs.entrypoints: 'websecure'
       traefik.http.routers.docs.tls: 'true'
       traefik.http.routers.docs.tls.certresolver: 'letsencrypt'
       traefik.http.services.docs.loadbalancer.server.port: '8080'
       traefik.http.services.docs.loadbalancer.healthcheck.path: '/docs/'
-    healthcheck:
-      test: ['CMD', '/usr/share/nginx/html/healthcheck.sh']
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
+      traefik.http.services.docs.loadbalancer.healthcheck.interval: '30s'
 
 volumes:
   pgdata:
