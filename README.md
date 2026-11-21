@@ -165,6 +165,21 @@ the bundled directory, a local path, `git+https://…` or the NAS share
 (`smb://<NAS_HOST>/games-recipes/`, via `smbclient` or a host mount), and runs daily at 04:15
 while `MODULE_GAME_RECIPES` is on.
 
+**Sharing a game** needs no recipe author: upload a ready-to-run `.zip`/`.tar.bz2` to the LAN file
+host, describe it on `/games/share`, and the orga approves the file and publishes the game in one
+panel action. A published share appears on `/games`, in the launcher and next to its servers without a
+config change; matching server rows offer **"Im Launcher beitreten"** (`lanomat://join/<slug>`) and
+"Spiel installieren". The rule that decides whether the launcher can install a recipe and the lineup
+rule (configured list plus the `in_lineup` flag) are in
+[`docs/launcher-agent-integration.md`](docs/launcher-agent-integration.md) and
+[`docs/ops/launcher-lineup.md`](docs/ops/launcher-lineup.md).
+
+**Recipe pull requests** (off by default): a shared recipe can travel back into the git catalogue as
+a pull request on `recipes/<slug>` — recipe text only, never game files. A public-safety check refuses
+private IPs, e-mail addresses and tokens before anything leaves LANoMAT.
+[`docs/infra/recipe-pull-requests.md`](docs/infra/recipe-pull-requests.md) has the token, the switches,
+the states, the Preflight check and the troubleshooting.
+
 The full reference — every module, the MCP tool catalogue, the REST API, the agent and the recipe
 schema, with screenshots — is a Zudoku site in [`docs-site/`](docs-site/), served at `/docs` next to
 the app:
@@ -408,10 +423,12 @@ for any field of 2 to 64, round robin, check-in, submit/confirm/dispute reportin
 Reverb, a dedicated `MatchStatus::Live`), Identity (Discord-only login with an optional guild gate,
 Steam/Twitch account linking, local avatar copies), Notifications and Preflight.
 
-**Optional modules** (32 modules in total, switched per deployment, see "Module toggles" below):
+**Optional modules** (36 modules in total — 9 core, 27 optional — switched per deployment, see "Module toggles" below):
 Schedule, Catering, Voting, Lfg, Infoscreen, Stats, Friends, Presence, Casting (OBS overlays), Jukebox
 (LAN radio via Music Assistant), Gallery, Recap, News, Discord, Voice (Mumble and TeamSpeak), WebVoice,
-GameServers, CustomServers, Hosts, Lancache, Files, Provisioning, Assistant (orga-only AI chat that reads
+GameServers, GameRecipes (recipes, game sharing, launcher catalogue and recipe pull requests), Mcp (MCP
+server and agent API), CustomServers, Hosts, Lancache, Files, Lighting, RoomAudio, Provisioning, Assistant
+(orga-only AI chat that reads
 the state and proposes tournament and game server changes behind approval cards; Claude or a local Ollama
 model, see [`docs/infra/assistant.md`](docs/infra/assistant.md)).
 
@@ -423,6 +440,17 @@ registration action and who is coming; without a LAN, the permanent servers and 
 sidebar has seven main items with live badges (servers online, ready match, food deadline, own seat,
 people present) and collapsible groups Mehr, Voice and Orga. All game servers (match, tournament,
 event, permanent) are on one page, `/servers`. `/dashboard` redirects to `/`.
+
+**Games and the launcher:** `/games` is the library, `/games/{slug}` the install page with the honest
+order — launcher download, `lanomat://` install/launch, the manual command with a copy button. Any
+participant can **share a game** on `/games/share` (an archive from the LAN file host plus a short
+description); the orga approves the file and publishes it in one panel action, and the game appears on
+`/games`, in the launcher and next to its servers. Matching server rows carry "Im Launcher beitreten"
+(`lanomat://join/<slug>`), "Spiel installieren" and "Mitspieler suchen". A published share can travel
+back into the git catalogue as a **recipe pull request** (recipe text only)
+([`docs/infra/recipe-pull-requests.md`](docs/infra/recipe-pull-requests.md),
+[`docs/launcher-agent-integration.md`](docs/launcher-agent-integration.md),
+[`docs/design.md`](docs/design.md)).
 
 **Native desktop client** (`clients/voice/`, Rust + Tauri v2, Linux x86_64 and Windows x86_64; macOS is
 deliberately not built):

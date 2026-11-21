@@ -235,6 +235,52 @@ never seen this LAN. Requires `MODULE_GAME_RECIPES=true`, `MODULE_FILES=true` an
       a verified UT2004 install still offers **Starten**, and the catalogue area says the server is
       offline instead of pretending to be empty.
 
+## 12. Sharing a game, installing it, and the recipe pull request
+
+The end-to-end gaming journey was built against fakes and a fake repository
+(`fakeRecipeRepository()`); nothing here was run on real hardware or against the real GitHub API.
+Prerequisites: `MODULE_GAME_RECIPES=true` with `Files` and `Mcp` (hard dependencies), a second PC with
+a browser on the LAN, and — for the last two checks — `RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY` and
+`RECIPES_PR_TOKEN` pointing at the real repository
+([`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md)).
+
+- [ ] **Share from a second PC:** upload a real ready-to-run archive (`.zip` or `.tar.bz2`) on the files
+      page, press **"Als Spiel teilen"**, describe it (title, start file `bin/Game.exe` or similar,
+      platforms) and submit. The draft appears under **"Deine geteilten Spiele"** with
+      **Datei** "wartet auf Freigabe" and **Prüfung** "Die Orga prüft dein Spiel"; `/admin/recipes`
+      lists the row and the navigation badge counts it.
+- [ ] **Approve and publish in one step:** on the recipe's edit page press
+      **"Dateien freigeben und veröffentlichen"**. One notification, the file is "freigegeben", the
+      status is `published`, **"In der Spieleliste zeigen"** is on, and the game appears on `/games`
+      and in the launcher catalogue **without** a `LAUNCHER_LINEUP` change or a config-cache clear.
+- [ ] **Install with the launcher on a fresh PC:** pair the launcher on a machine that has never seen
+      this LAN, press **Installieren**, and let it download from the LAN file host; **Starten** reaches
+      the game without internet. A shared game counts as installable only when the launcher's generic
+      engine can unpack-and-launch it (a required base archive, a file check, launch targets); otherwise
+      **Installieren** on the game page is a manual install and the share page is still correct.
+- [ ] **Join through the server browser:** a server whose game matches the published recipe shows
+      **"Im Launcher beitreten"**; the click installs if needed and starts the game on that exact
+      server (UT2004 passes `?address=<host>:<port>`, other games open the server's join URL). The
+      row's own **Verbinden** and the **"Anders verbinden"** disclosure stay usable.
+- [ ] **Launcher-link notice on a PC without the launcher:** click a `lanomat://` action there. After
+      about 2.5 s the notice asks **"Kein Launcher-Fenster aufgegangen?"**, explains the likely reason,
+      and offers **"Launcher herunterladen"** and **"Nochmal versuchen"**; it claims no failure and uses
+      no amber. On a PC with the launcher, no notice appears.
+- [ ] **Pull request against the real repository:** `php artisan lanomat:recipes:propose <slug>` (or a
+      share with `RECIPES_PR_TRIGGER=contribute`) opens one pull request on `recipes/<slug>` with
+      `recipe.yaml`, `SKILL.md` and the `_catalog.md` row; the **Recipes** workflow is green. A second
+      proposal updates the same pull request instead of opening another one.
+- [ ] **Merge:** merge in GitHub, then `php artisan lanomat:recipes:pr-status` (or wait for the hourly
+      run): the state becomes **"Im Katalog"**, and the share page's **Katalog** step links to the
+      pull request.
+- [ ] **Public-safety gate:** put an e-mail address or a private IP into a summary, propose again. The
+      state is **"Nicht gesendet"**, the panel shows a redacted reason (`line …, an e-mail address
+      jo[REDACTED len=…]`), and GitHub saw no new commit. Fix the text and re-propose.
+- [ ] **After the merge:** deploy (the image ships `resources/recipes`), or run
+      `php artisan lanomat:recipes:sync resources/recipes --only=<slug> --json` on the running instance:
+      the recipe is adopted, and the moderation status, the file pins, `in_lineup` and the `pr_*`
+      columns survive.
+
 ---
 
 *Source notes distilled from: the per-phase "Vertagt auf reale Infra" sections

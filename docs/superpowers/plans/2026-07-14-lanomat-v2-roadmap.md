@@ -865,6 +865,52 @@ Optionales Modul `Assistant` (Orga-Chat unter `/orga/assistant`, `laravel/ai`, C
 
 ---
 
+## Post-Roadmap: Spiele teilen, Server-Install und Rezept-Pull-Requests (Nov 2026)
+
+Das operating spec dieser Runde ist [`2026-11-21-game-sharing-swarm.md`](2026-11-21-game-sharing-swarm.md) (Journey, Entscheidungen D1–D12, eingefrorene Verträge). Alles unten ist gegen Fakes getestet; **nichts davon lief auf echter Hardware oder gegen die echte GitHub-API**.
+
+### Umgesetzt
+
+- **Spiel teilen** (`/games/share`, `Games/Share`, `GameShareController`): ein Teilnehmer wählt ein eigenes Archiv des laufenden Events (`.zip`/`.tar.bz2`), beschreibt das Spiel und bekommt einen Entwurf; `ShareGame` + `PortableRecipeBuilder` erzeugen ein portables Rezept mit gepinnter Datei (`metadata.portable: true`). Einstieg auch von der Dateien-Seite („Als Spiel teilen“) und über `recipe_contribute`/`POST /api/v1/recipes`.
+- **Freigeben und veröffentlichen in einem Schritt:** `PublishRecipe` gibt die wartenden Dateien frei, setzt `published`, setzt `in_lineup` für ein geteiltes Spiel und verschickt `RecipePublished` genau einmal; die Panel-Aktion „Dateien freigeben und veröffentlichen“ bündelt das.
+- **Install-Block auf jeder Serverzeile:** `ServerListProjection` fragt den neuen Vertrag `GameServers\Contracts\GameInstallLinks`; `RecipeGameMatcher` findet das Rezept, `LauncherSupport` entscheidet `launcherSupported`, `LauncherJoinLink` baut `lanomat://join/<slug>?address=…|?url=…`. Die Zeilen zeigen „Im Launcher beitreten“, „Spiel installieren“, „Mitspieler suchen“; die Spielseite führt „Installieren“ ohne veröffentlichten Build weiterhin über den `lanomat://`-Link.
+- **`lanomat://`-Hinweis:** `LauncherLink` beobachtet den Klick und `LauncherLinkNotice` fragt nach 2,5 s „Kein Launcher-Fenster aufgegangen?“, statt einen Fehler zu behaupten.
+- **Rezept-Pull-Requests** (aus per Default): `ProposeRecipe`, `ProposeRecipePullRequestJob`, die Listener auf `RecipeContributed`/`RecipePublished`, `RecipeYamlExporter`, `CatalogFile`, `GitHubRecipeRepository`, die Befehle `lanomat:recipes:propose` und `lanomat:recipes:pr-status` (stündlich), der Preflight-Check `recipe_repository` und die Panel-Sektion „Katalog (Pull Request)“.
+- **Katalog-Validierung als Gate:** `resources/recipes/schema/validate.mjs` prüft zusätzlich den Katalog-Index (`_catalog.md`), und `.github/workflows/recipes.yml` lässt ihn für jeden Pull Request und jeden Push auf `main` laufen (plain `pull_request`, `contents: read`, keine Secrets).
+
+### Entscheidungen
+
+- **Eine Klasse entscheidet `launcher_supported`** (`GameRecipes\Support\LauncherSupport`): Override in `metadata.launcher_supported`, dann UT2004-Pilot und die handgeprüften Slugs, dann ein Browser-Rezept mit `play_url`, sonst „portabel“ (Base-Archiv, Datei-Check, Launch-Target). Die alten Slug-Listen in Controller, Home-Chat und Launcher-Seite sind weg.
+- **Ein geteiltes Spiel ist ein portables Rezept:** der Launcher entpackt das Basis-Archiv und startet ein Launch-Target; er führt nie die Schritt-Befehle eines Rezepts aus.
+- **Lineup = konfigurierte Liste plus `in_lineup`** (`LauncherLineup::slugs()`), und eine leere Liste bleibt „uneingeschränkt“. Das Veröffentlichen eines geteilten Spiels setzt das Flag; damit braucht es keinen Config-Eingriff.
+- **GameServers importiert GameRecipes nicht:** die Serverprojektion fragt `GameInstallLinks`, GameRecipes antwortet (`RecipeInstallLinks`), sonst `NullGameInstallLinks`.
+- **Pull Requests laufen über `RecipeRepository`** (`GitHubRecipeRepository`, `NullRecipeRepository`, Test-Fake), aus per Default; fehlendes Repository oder Token heißt „nicht konfiguriert“, nicht „Fehler“.
+- **Zwei Auslöser, ein Ergebnis:** `RECIPES_PR_TRIGGER=contribute` schlägt beim Teilen vor, `publish` erst nach der Freigabe; Veröffentlichen schlägt in beiden Modi (aktualisierend) vor.
+- **Vor dem Senden prüfen:** `PublicSafeText` blockt private und öffentliche IPs, E-Mail-Adressen, Schlüssel und Tokens; ein blockiertes Rezept bekommt `pr_state = blocked` und wird nie gesendet. Attribution ist aus, weil das Repository öffentlich ist.
+- **Ein Branch, ein offener Pull Request:** `recipes/<slug>` wird force-moved; ein vorhandener offener Pull Request wird im Titel/Text aktualisiert statt verdoppelt.
+- **Der Upload bleibt im Files-Modul:** `/games/share` erweitert keinen Upload-Endpunkt, es nutzt Ticket- und Store-Routen des laufenden Events.
+- **Kein neues MCP-Tool:** `recipe_contribute` und `POST /api/v1/recipes` reichen die neuen Felder durch (`launch_targets`, `play_url`, `portable`, `shared_file_id`), der Katalog bleibt 29 Tools.
+- **Rezepttext ist maschinengeschrieben:** `recipe.yaml`/`SKILL.md` sind aus dem Prettier-Check, der Schema-Validator ist das Gate.
+- **Bewusst außen vor:** Konten-Präsenz auf Serverkarten (braucht eine Presence→GameServers-Kante), Packen/Upload aus dem Launcher, macOS für geteilte Spiele, automatisches Hashen beim tus-Upload (stattdessen `lanomat:files:hash --limit=20` um 04:45).
+
+### Erkenntnisse
+
+- **Der Katalog-Index ist selbst ein Gate.** Ein Pull Request, der die Rezeptzeile einfach anhängt, fällt im Validator durch (Rezept fehlt, doppelt oder unter falschem Status). `CatalogFile` sortiert die Zeile ein und ersetzt jede vorhandene Zeile desselben Slugs; ohne passende Status-Überschrift wird der Vorschlag blockiert, statt eine Zeile zu erfinden.
+- **`permissions.push` ist der einzige verlässliche Schreib-Indikator** der Repository-Abfrage. Ein fine-grained Token, das ein Repository nicht sieht, bekommt **404**, nicht 403 — dieselbe Antwort wie ein Tippfehler im `owner/name`. Der Preflight-Check warnt bei beidem.
+- **Ein Force-Move ist normal.** Ein neuer Commit auf dem aktuellen Base-Head ist fast nie ein Fast-Forward des alten Branch-Heads; der Branch wird deshalb immer mit `force: true` bewegt, und `isUnchanged()` verhindert den leeren Commit.
+- **Rezepttext ≠ Instanzdaten.** Der Export normalisiert auf die Schema-Schlüssel; Datei-Pins, Moderationsstatus, `in_lineup`, `contributor_user_id` und die `pr_*`-Spalten bleiben lokal. Eine Adoption per Sync überschreibt Titel/Texte aus der YAML, behält aber genau diese Spalten.
+- **Die Lineup ist an mehreren Stellen ein Read-Filter** (REST-Katalog, Web-Bibliothek, Spielseite, Home-Chat, MCP-Liste, Install-Block). Eine neue Spieler-Oberfläche muss durch `LauncherLineup::allows()/filter()` gehen, sonst leakt sie den ganzen Katalog.
+- **Das Flag allein macht kein Spiel installierbar.** Ein geteiltes Spiel erscheint nach dem Veröffentlichen überall, aber „Installieren“ wird erst zum Ein-Klick, wenn `LauncherSupport` es als portabel einstuft (oder `metadata.launcher_supported` es freischaltet).
+- **Eine UI-Erwartung, die der Browser nicht erfüllen kann:** ob ein `lanomat://`-Handler existiert, ist nicht abfragbar. Der Hinweis fragt deshalb, statt zu behaupten, und die Seite behandelt „Fokus weg“ als Versuch, nicht als Erfolg.
+
+### Offen: echte Hardware und die echte GitHub-API
+
+- **Pull Request gegen das echte Repository:** Token-Anlage (fine-grained, ein Repository, Contents + Pull requests), erster Vorschlag, grüner Recipes-Workflow, Force-Move bei einem zweiten Vorschlag, Merge, `lanomat:recipes:pr-status` → „Im Katalog“, Adoption per Deploy bzw. `lanomat:recipes:sync --only=<slug>`.
+- **Zwei echte PCs:** Teilen von einem zweiten PC, Freigeben/Veröffentlichen in einem Schritt, Installation auf einem frischen PC ohne Internet, Beitritt über den Serverbrowser (`?address=` bei UT2004, `?url=` sonst), Hinweis auf einem PC ohne Launcher.
+- **Archive in der Praxis:** ein echtes portables `.zip` und `.tar.bz2` durch den generischen Launcher-Engine (Entpacken, Datei-Check, Launch-Target) auf Linux und Windows.
+- **Blockiert-Fall am echten Panel:** eine E-Mail-Adresse in der Kurzbeschreibung, rote Begründung mit Redaktion, GitHub sieht nichts; danach korrigieren und erneut vorschlagen.
+- **Der Hinweis „ohne Build“:** ein Deploy ohne `clients-dist/launcher/manifest.json` — „Installieren“ ist dann nur der `lanomat://`-Link, und der Hinweis darunter stimmt.
+
 ## Arbeitsweise
 
 1. **Detailpläne just-in-time:** Vor jedem Phasenstart wird aus dieser Roadmap der Detailplan der Phase erzeugt (Format wie [M0-Plan](2026-07-14-m0-fundament.md): bite-sized Steps, kompletter Code, TDD). Roadmap-Task-Nummern bleiben als Referenz erhalten.
