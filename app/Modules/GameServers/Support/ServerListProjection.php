@@ -43,9 +43,9 @@ class ServerListProjection
     /**
      * @return list<array<string, mixed>>
      */
-    public static function forEvent(Event $event): array
+    public static function forEvent(Event $event, bool $withPlayerList = false): array
     {
-        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link))->all());
+        return array_values(self::linksForEvent($event)->map(fn (ServerLink $link): array => self::dto($link, $withPlayerList))->all());
     }
 
     /**
@@ -130,9 +130,9 @@ class ServerListProjection
     /**
      * @return array<string, mixed>
      */
-    public static function permanentDto(ServerLink $link): array
+    public static function permanentDto(ServerLink $link, bool $withPlayerList = false): array
     {
-        return self::dto($link) + [
+        return self::dto($link, $withPlayerList) + [
             'description' => $link->description,
             'source' => $link->source->value,
         ];
@@ -158,9 +158,13 @@ class ServerListProjection
     }
 
     /**
+     * The who-is-on-it list (`query.playerList`, in-game nicknames) is included only when
+     * `$withPlayerList` is set; callers pass it for logged-in viewers on their own pages and
+     * never for guests, projections (infoscreen, overlays) or broadcasts.
+     *
      * @return array<string, mixed>
      */
-    public static function dto(ServerLink $link): array
+    public static function dto(ServerLink $link, bool $withPlayerList = false): array
     {
         $tournament = self::tournamentFor($link);
         $game = $tournament !== null ? $tournament->game : $link->game;
@@ -175,7 +179,7 @@ class ServerListProjection
             'connectString' => PelicanJoinLink::for($link->join_info),
             'connectIsLink' => str_contains(PelicanJoinLink::for($link->join_info), '://'),
             'status' => $link->status->value,
-            'query' => self::queryFor($link),
+            'query' => self::queryFor($link, $withPlayerList),
             'estimate' => $link->permanent ? null : self::estimateFor($game),
             'installHint' => self::installHintFor($game),
             'joinOptions' => JoinLinkTemplates::optionsFor($game, $link->join_info),
@@ -186,9 +190,9 @@ class ServerListProjection
      * The last A2S answer (server name, map, players) or null when the server was never
      * queried (no query check, or still starting).
      *
-     * @return array{serverName: string, map: string, players: int, maxPlayers: int, checkedAt: string|null}|null
+     * @return array{serverName: string, map: string, players: int, maxPlayers: int, checkedAt: string|null, playerList?: list<array{name: string, score: int|null, seconds: int|null}>}|null
      */
-    private static function queryFor(ServerLink $link): ?array
+    private static function queryFor(ServerLink $link, bool $withPlayerList = false): ?array
     {
         $info = $link->query_info;
 
@@ -197,13 +201,25 @@ class ServerListProjection
             return null;
         }
 
-        return [
+        $query = [
             'serverName' => (string) ($info['name'] ?? ''),
             'map' => (string) ($info['map'] ?? ''),
             'players' => (int) ($info['players'] ?? 0),
             'maxPlayers' => (int) ($info['max_players'] ?? 0),
             'checkedAt' => $link->queried_at?->toIso8601String(),
         ];
+
+        if (! $withPlayerList) {
+            return $query;
+        }
+
+        // Servers that only volunteer names (Minecraft's status sample) get them without a score.
+        $names = is_array($info['player_names'] ?? null)
+            ? array_map(static fn (mixed $name): array => ['name' => $name], $info['player_names'])
+            : [];
+        $rows = is_array($info['player_list'] ?? null) ? $info['player_list'] : $names;
+
+        return $query + ['playerList' => PlayerList::normalize($rows)];
     }
 
     /**

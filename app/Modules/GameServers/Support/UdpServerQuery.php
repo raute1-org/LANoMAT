@@ -40,10 +40,35 @@ final class UdpServerQuery implements ServerQuery
                 $answer = $this->exchange($socket, SourceQueryParser::REQUEST.$challenge);
             }
 
-            return $answer === null ? null : SourceQueryParser::parseInfo($answer);
+            $info = $answer === null ? null : SourceQueryParser::parseInfo($answer);
+
+            // Nobody on: nothing to list, and no point in waiting for another answer.
+            if ($info === null || $info->players < 1) {
+                return $info;
+            }
+
+            return $info->withPlayerList($this->players($socket));
         } finally {
             fclose($socket);
         }
+    }
+
+    /**
+     * A2S_PLAYER (challenge round trip first). Best effort: any trouble is an empty list.
+     *
+     * @param  resource  $socket
+     * @return list<array{name: string, score: int|null, seconds: int|null}>
+     */
+    private function players($socket): array
+    {
+        $answer = $this->exchange($socket, SourceQueryParser::PLAYER_REQUEST.SourceQueryParser::NO_CHALLENGE);
+        $challenge = $answer === null ? null : SourceQueryParser::challenge($answer);
+
+        if ($challenge !== null) {
+            $answer = $this->exchange($socket, SourceQueryParser::PLAYER_REQUEST.$challenge);
+        }
+
+        return $answer === null ? [] : (SourceQueryParser::parsePlayers($answer) ?? []);
     }
 
     /**

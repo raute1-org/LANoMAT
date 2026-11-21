@@ -40,6 +40,7 @@ use App\Modules\Games\Support\NullEggCatalog;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\ServerQuery;
+use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
 use App\Modules\GameServers\Events\ServerLinkUpdated;
 use App\Modules\GameServers\HttpPelicanClient;
@@ -52,6 +53,7 @@ use App\Modules\GameServers\Policies\ServerLinkPolicy;
 use App\Modules\GameServers\Support\PelicanEggCatalog;
 use App\Modules\GameServers\Support\TcpMinecraftQuery;
 use App\Modules\GameServers\Support\UdpServerQuery;
+use App\Modules\GameServers\Support\UdpUt2004Query;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Hosts\Policies\RemoteHostPolicy;
@@ -296,6 +298,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(ServerQuery::class, UdpServerQuery::class);
         $this->app->bind(MinecraftQuery::class, TcpMinecraftQuery::class);
+        $this->app->bind(Ut2004Query::class, UdpUt2004Query::class);
 
         $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(
             (int) config('services.hosts.connect_timeout'),

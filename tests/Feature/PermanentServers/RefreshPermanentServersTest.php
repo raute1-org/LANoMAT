@@ -4,6 +4,7 @@ use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\ServerQuery;
+use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\QueryProtocol;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -15,6 +16,7 @@ use App\Modules\GameServers\Support\PermanentServerRefresher;
 use App\Modules\GameServers\Testing\FakeMinecraftQuery;
 use App\Modules\GameServers\Testing\FakePelicanClient;
 use App\Modules\GameServers\Testing\FakeServerQuery;
+use App\Modules\GameServers\Testing\FakeUt2004Query;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Domain\CommandResult;
 use App\Modules\Hosts\Exceptions\RemoteExecutionException;
@@ -174,7 +176,7 @@ it('keeps going when refreshing one server throws', function () {
     $first = permanentLink(ServerSource::External, ['title' => 'A', 'status' => ServerLinkStatus::Offline]);
     $second = permanentLink(ServerSource::External, ['title' => 'B', 'status' => ServerLinkStatus::Offline]);
 
-    app()->instance(PermanentServerRefresher::class, new class(app(PelicanClient::class), $this->a2s, new FakeMinecraftQuery(FakeMinecraftQuery::serverInfo()), app(DockerServerControl::class)) extends PermanentServerRefresher
+    app()->instance(PermanentServerRefresher::class, new class(app(PelicanClient::class), $this->a2s, new FakeMinecraftQuery(FakeMinecraftQuery::serverInfo()), new FakeUt2004Query, app(DockerServerControl::class)) extends PermanentServerRefresher
     {
         public function refresh(ServerLink $link): void
         {
@@ -212,4 +214,32 @@ it('is not touched by the match/event query refresh', function () {
 
     expect($this->a2s->queries)->toBe([])
         ->and($link->refresh()->queried_at)->toBeNull();
+});
+
+it('uses the UT2004 query with the game port and stores players, never player names', function () {
+    $ut = new FakeUt2004Query(FakeUt2004Query::serverInfo(players: 2, max: 16));
+    app()->instance(Ut2004Query::class, $ut);
+    $link = permanentLink(ServerSource::External, ['query_protocol' => QueryProtocol::Ut2004, 'status' => ServerLinkStatus::Offline]);
+
+    refreshPermanent();
+
+    $link->refresh();
+    expect($link->status)->toBe(ServerLinkStatus::Ready)
+        ->and($link->query_info['players'])->toBe(2)
+        ->and($link->query_info['max_players'])->toBe(16)
+        ->and($link->query_info['map'])->toBe('DM-DE-GRENDELKEEP')
+        ->and($link->query_info)->not->toHaveKey('player_names')
+        ->and($ut->queries[0]['port'])->toBe(25565)
+        ->and($this->mc->queries)->toBe([]);
+});
+
+it('handles a silent UT2004 server without failing', function () {
+    app()->instance(Ut2004Query::class, new FakeUt2004Query(null));
+    $link = permanentLink(ServerSource::External, ['query_protocol' => QueryProtocol::Ut2004, 'status' => ServerLinkStatus::Ready, 'queried_at' => now()->subHour(), 'query_info' => ['players' => 3]]);
+
+    refreshPermanent();
+
+    $link->refresh();
+    expect($link->status)->toBe(ServerLinkStatus::Offline)
+        ->and($link->query_info)->toBeNull();
 });

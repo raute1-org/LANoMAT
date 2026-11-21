@@ -7,6 +7,7 @@ use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\GameServers\Models\ServerLink;
+use App\Modules\GameServers\Support\ServerListProjection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 
@@ -114,4 +115,51 @@ it('keeps match and event servers manageable by orga as before', function () {
         ->and($orga->can('delete', $link))->toBeTrue()
         ->and($participant->can('view', $link))->toBeFalse()
         ->and($participant->can('power', $link))->toBeFalse();
+});
+
+it('shows the UT2004 players as 2/16 and the who-is-on list to logged-in users only', function () {
+    ServerLink::factory()->permanent(ServerSource::External)->create([
+        'title' => 'UT2004 VRM',
+        'query_info' => [
+            'name' => 'Raute1 LAN', 'map' => 'DM-DE-GRENDELKEEP', 'players' => 2, 'max_players' => 16,
+            'player_list' => [
+                ['name' => 'Kleintonno', 'score' => 2, 'seconds' => null],
+                ['name' => 'klaus', 'score' => 17, 'seconds' => null],
+            ],
+        ],
+        'queried_at' => now(),
+        'join_info' => new JoinInfo(address: '203.0.113.20', port: 7777),
+    ]);
+
+    $this->actingAs(User::factory()->create())->get('/servers')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('servers.0.query.players', 2)
+            ->where('servers.0.query.maxPlayers', 16)
+            ->where('servers.0.query.playerList.0.name', 'klaus')
+            ->where('servers.0.query.playerList.1.name', 'Kleintonno')
+        );
+
+    auth()->logout();
+    $this->get('/servers')->assertRedirect(route('login'));
+});
+
+it('keeps the player list out of every projection that is not an authenticated page', function () {
+    $link = ServerLink::factory()->permanent(ServerSource::External)->create([
+        'query_info' => ['players' => 1, 'max_players' => 8, 'player_list' => [['name' => 'geheim', 'score' => 1, 'seconds' => 1]]],
+        'queried_at' => now(),
+    ]);
+
+    expect(json_encode(ServerListProjection::permanentDto($link)))->not->toContain('geheim')
+        ->and(json_encode(ServerListProjection::forPermanent()))->not->toContain('geheim')
+        ->and(json_encode(ServerListProjection::permanentDto($link, withPlayerList: true)))->toContain('geheim');
+});
+
+it('lists the Minecraft status sample names without scores', function () {
+    $link = ServerLink::factory()->permanent(ServerSource::External)->create([
+        'query_info' => ['players' => 1, 'max_players' => 8, 'player_names' => ['Steve']],
+        'queried_at' => now(),
+    ]);
+
+    expect(ServerListProjection::permanentDto($link, withPlayerList: true)['query']['playerList'])
+        ->toBe([['name' => 'Steve', 'score' => null, 'seconds' => null]]);
 });
