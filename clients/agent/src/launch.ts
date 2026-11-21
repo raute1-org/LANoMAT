@@ -47,7 +47,14 @@ function launchFields(recipe: RecipeDetail, plan: RecipePlan | null): {
 } {
     return {
         playUrl: recipe.play_url ?? plan?.play_url ?? null,
-        target: recipe.launch_target ?? recipe.launch_command ?? plan?.launch_target ?? plan?.launch_command ?? null,
+        target:
+            recipe.launch_target ??
+            recipe.launch_command ??
+            plan?.launch_target ??
+            plan?.launch_command ??
+            (plan?.recipe as { launch_target?: string; launch_command?: string } | undefined)?.launch_target ??
+            (plan?.recipe as { launch_target?: string; launch_command?: string } | undefined)?.launch_command ??
+            null,
     };
 }
 

@@ -58,8 +58,8 @@ export function missingRequiredFiles(plan: RecipePlan): string[] {
     const missing = new Set<string>(plan.missing ?? []);
 
     for (const file of plan.files ?? []) {
-        if (file.status === 'missing') {
-            missing.add(file.name ?? file.requirement);
+        if (file.status === 'missing' && file.required !== false) {
+            missing.add(file.name ?? file.label ?? file.requirement);
         }
     }
 
@@ -132,7 +132,7 @@ export function formatPlan(plan: RecipePlan, options: { color?: boolean } = {}):
 
     for (const file of plan.files ?? []) {
         const label = sourceLabel(fileSource(file));
-        const parts = [file.name ?? file.requirement];
+        const parts = [file.label ?? file.name ?? file.requirement];
 
         if (file.size_bytes) {
             parts.push(formatBytes(file.size_bytes));

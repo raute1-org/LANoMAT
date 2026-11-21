@@ -210,7 +210,17 @@ export class ApiClient {
     }
 
     async getRecipe(slug: string): Promise<RecipeDetail> {
-        return this.request<RecipeDetail>(`/api/v1/recipes/${encodeURIComponent(slug)}`);
+        const payload = await this.request<RecipeDetail | { recipe: RecipeDetail }>(
+            `/api/v1/recipes/${encodeURIComponent(slug)}`,
+        );
+
+        // /api/v1 wraps the detail in {recipe}; accept both shapes so an older
+        // or newer server does not break launch/install.
+        if (typeof payload === 'object' && payload !== null && 'recipe' in payload) {
+            return (payload as { recipe: RecipeDetail }).recipe;
+        }
+
+        return payload as RecipeDetail;
     }
 
     async getSkill(slug: string): Promise<string> {

@@ -97,6 +97,8 @@ export interface PlanFile {
     requirement: string;
     status: 'matched' | 'missing' | 'external';
     name?: string;
+    label?: string;
+    required?: boolean;
     size_bytes?: number;
     sha256?: string;
     download_url?: string;
@@ -145,6 +147,7 @@ export interface RecipePlan {
     recipe: { slug: string; title: string; version?: string };
     os: Os;
     target_dir: string;
+    downloads_dir?: string;
     steps: PlanStep[];
     files: PlanFile[];
     avatars?: Avatar[];
@@ -157,6 +160,8 @@ export interface RecipePlan {
     supports_multiplayer?: boolean;
     install_command?: string | null;
     launch_command?: string | null;
+    /** The server nests the recipe-level launch fields under `recipe`. */
+    recipe_launch?: unknown;
 }
 
 export interface AvatarCatalog {

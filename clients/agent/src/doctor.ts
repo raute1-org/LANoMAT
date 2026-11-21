@@ -83,10 +83,18 @@ async function checkMcpEndpoint(api: ApiClient): Promise<{ ok: boolean; detail: 
         const client = new Client({ name: 'lanomat-agent-doctor', version: '0.1.0' });
 
         await client.connect(transport);
-        const tools = await client.listTools();
+        let cursor: string | undefined;
+        let count = 0;
+
+        do {
+            const page = await client.listTools(cursor ? { cursor } : undefined);
+            count += page.tools.length;
+            cursor = page.nextCursor;
+        } while (cursor);
+
         await client.close();
 
-        return { ok: true, detail: `${tools.tools.length} MCP tool(s) available` };
+        return { ok: true, detail: `${count} MCP tool(s) available` };
     } catch (error) {
         return { ok: false, detail: `MCP handshake failed: ${(error as Error).message}` };
     } finally {

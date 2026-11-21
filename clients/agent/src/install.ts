@@ -79,9 +79,10 @@ export async function selectInstallAvatars(options: {
 function fileTasks(options: {
     api: ApiClient;
     plan: RecipePlan;
-    targetDir: string;
+    downloadDir: string;
     allowExternal: boolean;
 }): { tasks: DownloadTask[]; skippedExternal: string[]; external: string[] } {
+    const downloadsDir = options.downloadDir;
     const tasks: DownloadTask[] = [];
     const skippedExternal: string[] = [];
     const external: string[] = [];
@@ -100,7 +101,7 @@ function fileTasks(options: {
             tasks.push({
                 url,
                 filename: sanitizeName(download.filename),
-                destDir: options.targetDir,
+                destDir: downloadsDir,
                 sha256: download.sha256,
                 size_bytes: download.size_bytes,
                 source: 'external',
@@ -114,7 +115,7 @@ function fileTasks(options: {
         tasks.push({
             url,
             filename: sanitizeName(download.filename),
-            destDir: options.targetDir,
+            destDir: downloadsDir,
             sha256: download.sha256,
             size_bytes: download.size_bytes,
             source: 'lan',
@@ -182,10 +183,14 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
         return { ...empty, code: 2 };
     }
 
+    const downloadsDir = plan.downloads_dir
+        ? expandTargetDir(plan.downloads_dir, { home: process.env.HOME ?? '', avatars: avatarDir })
+        : targetDir;
+
     const files = fileTasks({
         api: options.api,
         plan: planForDownloads,
-        targetDir,
+        downloadDir: downloadsDir,
         allowExternal: options.allowExternal ?? false,
     });
 
@@ -201,7 +206,9 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
 
     const variables: Record<string, string> = {
         avatars: avatarDir,
+        target: targetDir,
         target_dir: targetDir,
+        downloads: downloadsDir,
         os: options.os,
         slug: options.slug,
         event: options.eventSlug ?? '',
