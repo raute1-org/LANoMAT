@@ -140,6 +140,41 @@ class GameServerException extends DomainException
         return new self("Docker host unavailable. {$detail}", 'gameservers.permanent.errors.docker_unavailable');
     }
 
+    /** The server has no (complete) remote container link, so there is nothing to control over SSH. */
+    public static function remoteNotLinked(): self
+    {
+        return new self('This server is not linked to a remote Docker container.', 'gameservers.remote.errors.not_linked');
+    }
+
+    /** The remote host is unreachable, timed out, or the Hosts module is off. */
+    public static function remoteUnavailable(): self
+    {
+        return new self('The remote host is unavailable.', 'gameservers.remote.errors.unavailable');
+    }
+
+    /** The command ran but failed. Never carries the remote output, which may hold secrets. */
+    public static function remoteCommandFailed(): self
+    {
+        return new self('The command failed on the remote host.', 'gameservers.remote.errors.command_failed');
+    }
+
+    /** The container exists but is stopped, so the console cannot answer. */
+    public static function remoteNotRunning(): self
+    {
+        return new self('The container is not running.', 'gameservers.remote.errors.not_running');
+    }
+
+    public static function remoteContainerMissing(): self
+    {
+        return new self('The container does not exist on the host.', 'gameservers.remote.errors.container_missing');
+    }
+
+    /** One of container, command, lines or console kind failed validation (`$field` selects the message). */
+    public static function remoteInvalid(string $field): self
+    {
+        return new self("Invalid remote control input ({$field}).", "gameservers.remote.errors.invalid_{$field}");
+    }
+
     public static function permanentInputInvalid(string $translationKey): self
     {
         return new self("Invalid permanent server input ({$translationKey}).", $translationKey);

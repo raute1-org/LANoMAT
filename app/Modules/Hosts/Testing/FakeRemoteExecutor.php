@@ -45,6 +45,12 @@ class FakeRemoteExecutor implements RemoteExecutor
     /** When set, every SFTP file operation throws it (simulates an unreachable host). */
     public ?RemoteExecutionException $failWith = null;
 
+    /** @var list<int|null> the timeout passed with each run() call, index-aligned with {@see} */
+    public array $timeouts = [];
+
+    /** When set, run() throws it (simulates an unreachable host or a timeout). */
+    public ?RemoteExecutionException $failWithOnRun = null;
+
     public HostProbe $nextProbe;
 
     public function __construct()
@@ -57,9 +63,14 @@ class FakeRemoteExecutor implements RemoteExecutor
         $this->results[$match] = $result;
     }
 
-    public function run(RemoteHost $host, string $command): CommandResult
+    public function run(RemoteHost $host, string $command, ?int $timeoutSeconds = null): CommandResult
     {
         $this->commands[] = ['host_id' => $host->id, 'command' => $command];
+        $this->timeouts[] = $timeoutSeconds;
+
+        if ($this->failWithOnRun !== null) {
+            throw $this->failWithOnRun;
+        }
 
         foreach ($this->results as $match => $result) {
             if (str_contains($command, $match)) {

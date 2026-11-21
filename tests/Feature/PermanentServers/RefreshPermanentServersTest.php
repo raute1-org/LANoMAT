@@ -161,7 +161,7 @@ it('treats a missing container as offline and an unreachable host as unknown', f
     // Host cannot be reached: nothing is known about the container, the game server's own answer decides.
     app()->instance(RemoteExecutor::class, new class extends FakeRemoteExecutor
     {
-        public function run(RemoteHost $host, string $command): CommandResult
+        public function run(RemoteHost $host, string $command, ?int $timeoutSeconds = null): CommandResult
         {
             throw RemoteExecutionException::commandFailed();
         }

@@ -666,6 +666,18 @@ function idorScenarios(): array
                 return [['POST', "/servers/{$s->id}/restart-round"], ['POST', "/servers/{$s->id}/reload-map"], ['POST', "/servers/{$s->id}/map", ['map' => 'de_dust2']]];
             },
         ],
+        'remote server power, console and logs by a participant' => [
+            'covers' => ['POST servers/{serverLink}/remote/power', 'POST servers/{serverLink}/remote/command', 'GET servers/{serverLink}/remote/logs'],
+            'build' => function (User $a, User $b) {
+                $s = ServerLink::factory()->remoteDocker(null, 'game-container')->create();
+
+                return [
+                    ['POST', "/servers/{$s->id}/remote/power", ['action' => 'restart']],
+                    ['POST', "/servers/{$s->id}/remote/command", ['command' => 'list']],
+                    ['GET', "/servers/{$s->id}/remote/logs?lines=10"],
+                ];
+            },
+        ],
         'team management by a non-owner' => [
             'covers' => ['PATCH teams/{team}', 'GET teams/{team}/edit', 'POST teams/{team}/requests/{teamRequest}', 'POST teams/{team}/transfer'],
             'build' => function (User $a, User $b) {
