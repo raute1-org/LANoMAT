@@ -5,6 +5,15 @@ import type { JoinOptionDto } from '@/types';
 const STORAGE_KEY = 'lanomat.join-option';
 const ALLOWED = /^(steam|ut2004|https?):\/\//;
 
+/**
+ * The one scheme allowlist for join links: a server-built join URL only becomes
+ * a clickable link on these schemes. A plain `host:port` or anything else stays
+ * copy-only instead of turning into a dead or invented URL.
+ */
+export function isAllowedJoinUrl(url: string): boolean {
+    return ALLOWED.test(url);
+}
+
 function remembered(): string | null {
     try {
         return localStorage.getItem(STORAGE_KEY);
@@ -33,7 +42,7 @@ export function useJoinOption(options: () => JoinOptionDto[]): {
     selected: ComputedRef<JoinOptionDto | null>;
 } {
     const safeOptions = computed(() =>
-        options().filter((option) => ALLOWED.test(option.url)),
+        options().filter((option) => isAllowedJoinUrl(option.url)),
     );
     const selected = computed(
         () =>

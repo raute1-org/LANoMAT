@@ -6,11 +6,13 @@ import {
     MonitorPlay,
     Search,
     Server,
+    Share2,
     Trophy,
     Users,
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatInstant } from '@/lib/datetime';
 
 /** The compact live readout of the last server that ran this game. */
@@ -80,6 +84,14 @@ const query = ref('');
 // server-side filter all agree. A partial reload only re-fetches games+filters.
 const onlyLan = computed(() => props.filters.only_lan);
 
+// Only a full GET visit swaps the page for skeletons; the LAN filter is a
+// partial reload and keeps the list on screen (see usePageLoadState).
+const { isNavigating, hasError } = usePageLoadState();
+
+function retry(): void {
+    router.reload();
+}
+
 function toggleOnlyLan(): void {
     router.get('/games', onlyLan.value ? {} : { only_lan: 1 }, {
         only: ['games', 'filters'],
@@ -134,9 +146,8 @@ const platformLabel = (platforms: string[] | null): string =>
  * firing `lanomat://` into a PC that has no handler for it yet. The deep link
  * stays as the quiet "Im Launcher öffnen" action beside it.
  *
- * The shipped launcher only knows the pilot engine, so every other recipe
- * keeps its agent path (the detail page with the deep link) instead of a
- * detour through a launcher page that can only list it.
+ * `launcher_supported` is the server's answer for this recipe (the launcher's
+ * generic engine), so the same rule holds for every game it can install.
  */
 function launcherPrimary(game: GameCard): boolean {
     return (
@@ -207,7 +218,70 @@ function absoluteTime(iso: string): string {
         title="Spiele"
         description="Was auf dieser LAN läuft — installieren, starten, zusammen spielen."
     >
-        <div class="mt-6 grid gap-8 lg:grid-cols-[16rem_1fr]">
+        <template #actions>
+            <Button as-child variant="outline" size="sm" data-test="share-game">
+                <Link href="/games/share">
+                    <Share2 class="size-4" aria-hidden="true" />
+                    Spiel teilen
+                </Link>
+            </Button>
+        </template>
+
+        <!-- loading: a full visit only, e.g. entering the page again -->
+        <div
+            v-if="isNavigating"
+            class="mt-6 grid gap-8 lg:grid-cols-[16rem_1fr]"
+            role="status"
+            aria-label="Spiele werden geladen"
+            data-test="games-loading"
+        >
+            <div class="space-y-2">
+                <Skeleton class="h-5 w-24 rounded-md" />
+                <Skeleton
+                    v-for="n in 6"
+                    :key="n"
+                    class="h-12 w-full rounded-md"
+                />
+            </div>
+            <div class="space-y-4">
+                <div class="flex flex-wrap gap-3">
+                    <Skeleton class="h-9 min-w-56 flex-1 rounded-md" />
+                    <Skeleton class="h-9 w-40 rounded-md" />
+                </div>
+                <Skeleton class="h-4 w-64 rounded-md" />
+                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <Skeleton
+                        v-for="n in 6"
+                        :key="n"
+                        class="h-64 w-full rounded-md"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <!-- error -->
+        <div
+            v-else-if="hasError"
+            class="mt-6 rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center"
+            role="alert"
+            data-test="games-error"
+        >
+            <p class="text-sm text-destructive">
+                Die Spiele konnten nicht geladen werden. Prüfe deine Verbindung
+                und versuch es noch einmal.
+            </p>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="mt-3"
+                @click="retry"
+            >
+                Erneut versuchen
+            </Button>
+        </div>
+
+        <div v-else class="mt-6 grid gap-8 lg:grid-cols-[16rem_1fr]">
             <GamesSidebar :games="games" active="" />
 
             <section>
@@ -225,9 +299,11 @@ function absoluteTime(iso: string): string {
                             aria-label="Spiel suchen"
                         />
                     </label>
+                    <!-- A pressed filter is a state, not the screen's primary
+                         action: amber stays on the cards' "Installieren". -->
                     <Button
                         type="button"
-                        :variant="onlyLan ? 'default' : 'outline'"
+                        :variant="onlyLan ? 'secondary' : 'outline'"
                         :aria-pressed="onlyLan"
                         data-test="only-lan"
                         @click="toggleOnlyLan"
@@ -427,12 +503,13 @@ function absoluteTime(iso: string): string {
                                         class="text-xs leading-relaxed text-muted-foreground"
                                     >
                                         Launcher schon da?
-                                        <a
+                                        <LauncherLink
                                             :href="game.install_deeplink"
-                                            class="inline-block font-medium whitespace-nowrap text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                            variant="text"
+                                            manual-hint="Die Spielseite nennt Befehl und Dateien."
                                         >
                                             Im Launcher öffnen
-                                        </a>
+                                        </LauncherLink>
                                     </p>
                                 </CardContent>
                             </Card>
@@ -447,6 +524,15 @@ function absoluteTime(iso: string): string {
                 >
                     Noch keine Spiele in der Bibliothek. Die Orga pflegt sie
                     über die Rezepte.
+                    <span class="mt-2 block" data-test="share-invite">
+                        Dein Spiel fehlt?
+                        <Link
+                            href="/games/share"
+                            class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            Teile es mit der LAN.
+                        </Link>
+                    </span>
                 </p>
                 <p
                     v-else-if="filtered.length === 0"
@@ -465,6 +551,15 @@ function absoluteTime(iso: string): string {
                         oder frag die Orga, ob die Dateien schon auf der LAN
                         liegen.
                     </template>
+                    <span class="mt-2 block" data-test="share-invite">
+                        Dein Spiel fehlt?
+                        <Link
+                            href="/games/share"
+                            class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            Teile es mit der LAN.
+                        </Link>
+                    </span>
                 </p>
 
                 <div
@@ -615,12 +710,13 @@ function absoluteTime(iso: string): string {
                                 data-test="card-launcher"
                             >
                                 Launcher schon da?
-                                <a
+                                <LauncherLink
                                     :href="game.install_deeplink"
-                                    class="inline-block font-medium whitespace-nowrap text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                    variant="text"
+                                    manual-hint="Die Spielseite nennt Befehl und Dateien."
                                 >
                                     Im Launcher öffnen
-                                </a>
+                                </LauncherLink>
                             </p>
                         </CardContent>
                     </Card>

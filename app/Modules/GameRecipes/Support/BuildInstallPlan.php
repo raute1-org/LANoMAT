@@ -153,9 +153,16 @@ final class BuildInstallPlan
 
     private function targetDir(GameRecipe $recipe, string $os): string
     {
-        // A title is authored text, not a path: strip every separator and any
-        // ".." run before it becomes a directory name on the player's disk.
-        $name = trim((string) preg_replace('/[<>:"|?*~\\\\\/]+|\.\.+/', '', $recipe->title));
+        // A title is authored text (since game sharing, by any participant),
+        // and the folder it becomes is substituted into the quoted arguments
+        // of step and launch commands. So the folder keeps only characters
+        // that mean nothing to PowerShell, cmd or a POSIX shell: letters,
+        // digits, space, dot, underscore and hyphen. No quote, `$`, backtick,
+        // semicolon, bracket or separator survives, whatever the title says.
+        $name = (string) preg_replace('/[^A-Za-z0-9 ._-]+/', '', Str::ascii($recipe->title));
+        $name = (string) preg_replace('/\.\.+/', '.', (string) preg_replace('/\s+/', ' ', $name));
+        // Windows refuses a folder that starts or ends with a dot or a space.
+        $name = trim($name, ' .');
 
         if ($name === '') {
             $name = $recipe->slug;
@@ -165,13 +172,19 @@ final class BuildInstallPlan
             return 'C:\\Games\\'.$name;
         }
 
-        // The OldUnreal macOS bundle reads its assets from Application Support,
-        // not from a ~/Games folder. UT2004 is the only macOS recipe today.
-        if ($os === 'macos') {
+        if ($os === 'macos' && $recipe->slug === LauncherSupport::PILOT_SLUG) {
+            // The OldUnreal macOS bundle reads its assets from Application
+            // Support, not from a ~/Games folder. Only the UT2004 pilot ships
+            // that bundle; every other macOS recipe gets its own folder.
             return '~/Library/Application Support/UT2004';
         }
 
-        return '~/Games/'.Str::slug($name);
+        // One folder per game, named like the Linux one. A title that is all
+        // separators already fell back to the slug; Str::slug could still come
+        // back empty for a degenerate slug, which must never yield `~/Games/`.
+        $folder = Str::slug($name);
+
+        return '~/Games/'.($folder !== '' ? $folder : 'game');
     }
 
     /** @param array<string, mixed> $step

@@ -22,6 +22,7 @@ import {
     ref,
     watch,
 } from 'vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 
@@ -671,22 +672,33 @@ onBeforeUnmount(() => {
                                                     game.launcher_supported
                                                 "
                                             >
-                                                <Button as-child>
-                                                    <a
-                                                        :href="
-                                                            game.launcher_url ??
-                                                            game.install_deeplink
-                                                        "
+                                                <Button
+                                                    v-if="game.launcher_url"
+                                                    as-child
+                                                >
+                                                    <a :href="game.launcher_url"
                                                         >Installieren</a
                                                     >
                                                 </Button>
-                                                <a
+                                                <LauncherLink
+                                                    v-else
+                                                    :href="
+                                                        game.install_deeplink
+                                                    "
+                                                    manual-hint="Befehl und Dateien stehen auf der Spielseite."
+                                                >
+                                                    Installieren
+                                                </LauncherLink>
+                                                <LauncherLink
                                                     v-if="game.launcher_url"
                                                     :href="
                                                         game.install_deeplink
                                                     "
-                                                    class="rounded-sm text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                                                    >Im Launcher öffnen</a
+                                                    variant="text"
+                                                    class="text-sm text-muted-foreground"
+                                                    manual-hint="Befehl und Dateien stehen auf der Spielseite."
+                                                    >Im Launcher
+                                                    öffnen</LauncherLink
                                                 >
                                             </template>
                                             <Button

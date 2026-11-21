@@ -11,6 +11,20 @@ npm install          # once: ajv, ajv-formats, yaml
 node validate.mjs    # or: npm run validate
 ```
 
+Pass a directory to check another recipes root, for example a set exported by
+LANoMAT before it becomes a pull request:
+
+```bash
+node validate.mjs /path/to/recipes
+npm run validate -- /path/to/recipes
+```
+
+With no argument the validator checks the catalog that ships in this repository
+(the parent of `schema/`). Exit code 0 means every recipe is valid, 1 means at
+least one error (one line per problem) and 2 means the argument is not a
+directory. Warnings never fail the run. The last line always says how many
+recipes were checked.
+
 The validator exits non-zero and prints every error. It checks:
 
 1. `recipe.yaml` parses and matches the schema (strict; unknown keys fail);
@@ -25,11 +39,19 @@ The validator exits non-zero and prints every error. It checks:
 8. a draft that carries a `sha256` gets a warning (confirm it or leave it empty);
 9. `os: windows` steps use only `powershell`/`cmd` and `os: linux` steps only
    `bash` (mixed `os: any` steps are allowed and filtered per shell);
-10. `match` globs contain no `/` or `\` (they match base names, case-insensitively).
+10. `match` globs contain no `/` or `\` (they match base names, case-insensitively);
+11. `_catalog.md` lists every recipe directory exactly once, in the table whose
+    heading matches the recipe's `status` (`## Published`, `## Draft`,
+    `## Archived`), with the slug in backticks in the first column. A missing
+    row, a row without a directory, a duplicate row and a row under the wrong
+    status are errors naming the slug. When the checked directory has no
+    `_catalog.md` (an exported set), this check is skipped with a note.
 
 The validator is the executable contract test: `npm test` (or `node
 validate.mjs`) must stay green before a recipe PR. The glob and command
 semantics it enforces are documented in [`../README.md`](../README.md#matching-and-execution-contract).
+The workflow `.github/workflows/recipes.yml` runs the same check on every pull
+request that touches `resources/recipes/**`.
 
 ### Backend note
 
@@ -51,24 +73,24 @@ Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 
 ## Shape
 
-| Key           | Required | Notes                                                                            |
-| ------------- | -------- | -------------------------------------------------------------------------------- |
-| `schema`      | yes      | Always `lanomat.recipe/v1`.                                                      |
-| `slug`        | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                           |
-| `title`       | yes      | Display name; quote it if it contains `: `.                                      |
-| `aliases`     | yes      | Chat phrases that resolve to this recipe; unique.                                |
-| `version`     | yes      | String. Patch, port or release the recipe targets.                               |
-| `status`      | yes      | `draft`, `published` or `archived`.                                              |
-| `platforms`   | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                 |
-| `summary`     | yes      | One sentence, ≤ 200 chars.                                                       |
-| `description` | yes      | Multi-line markdown: what it is, why LAN, what the files are.                    |
-| `homepage`    | no       | URI (official project/emulator page).                                            |
-| `license`     | yes      | Who owns the game; what the user supplies; mod license.                          |
-| `cover`       | no       | Docs image name; may be empty.                                                   |
-| `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                            |
-| `requires`    | yes      | File groups; see below. May be empty for pure tools.                             |
-| `steps`       | yes      | 1–20 ordered steps.                                                              |
-| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`. |
+| Key           | Required | Notes                                                                                                              |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `schema`      | yes      | Always `lanomat.recipe/v1`.                                                                                        |
+| `slug`        | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                                                             |
+| `title`       | yes      | Display name; quote it if it contains `: `.                                                                        |
+| `aliases`     | yes      | Chat phrases that resolve to this recipe; unique.                                                                  |
+| `version`     | yes      | String. Patch, port or release the recipe targets.                                                                 |
+| `status`      | yes      | `draft`, `published` or `archived`.                                                                                |
+| `platforms`   | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                                                   |
+| `summary`     | yes      | One sentence, ≤ 200 chars.                                                                                         |
+| `description` | yes      | Multi-line markdown: what it is, why LAN, what the files are.                                                      |
+| `homepage`    | no       | URI (official project/emulator page).                                                                              |
+| `license`     | yes      | Who owns the game; what the user supplies; mod license.                                                            |
+| `cover`       | no       | Docs image name; may be empty.                                                                                     |
+| `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                                                              |
+| `requires`    | yes      | File groups; see below. May be empty for pure tools.                                                               |
+| `steps`       | yes      | 1–20 ordered steps.                                                                                                |
+| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`, `portable`, `launcher_supported`. |
 
 ### Metadata
 
@@ -90,6 +112,13 @@ metadata:
 (executable inside `{{target}}`, optional `args`). Omit `launch` when there is
 no single sensible entry point, for example an installer whose executable name
 still needs verification.
+
+`portable: true` marks a recipe whose required base archive is a ready-to-run
+game tree: unpacking it is the whole install. The launcher installs such a
+recipe on its own — it unpacks the archive, checks the files a step verifies and
+starts a launch target, but never runs the step commands. `launcher_supported`
+is the orga override for the launcher (`true` offers a recipe that is not
+portable, `false` hides it); omit it to let LANoMAT decide from the recipe.
 
 ### Requirements
 

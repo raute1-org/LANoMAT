@@ -5,6 +5,7 @@ import { computed, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
+import ServerInstallActions from '@/components/servers/ServerInstallActions.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { GlobalServerRowDto } from '@/types';
@@ -15,6 +16,11 @@ import type { GlobalServerRowDto } from '@/types';
  * needs to decide — status, map, players, address and the way in — plus a link
  * to the event the server belongs to. Join links come from `JoinOptions`
  * (server-built `JoinLinkTemplates`), never built here.
+ *
+ * Order and emphasis match every other server surface: when the launcher can
+ * take this row's game on, "Im Launcher beitreten" comes first and the game's
+ * own join follows as the alternative. The card is not a "Dein Match" row, so
+ * nothing on it is amber.
  */
 const props = defineProps<{
     server: GlobalServerRowDto;
@@ -185,6 +191,17 @@ onUnmounted(() => clearTimeout(copiedTimer));
             {{ labels.offline_hint }}
         </p>
 
+        <!-- The launcher handoff comes first: it installs the game when needed
+             and starts it on this exact server. -->
+        <ServerInstallActions
+            v-if="server.install"
+            class="mt-3"
+            :install="server.install"
+            :labels="labels"
+        />
+
+        <!-- The game's own join follows as the alternative; nothing amber,
+             because the launcher link above is the row's first action. -->
         <JoinOptions
             v-if="server.joinOptions?.length && address"
             class="mt-3"
@@ -192,12 +209,18 @@ onUnmounted(() => clearTimeout(copiedTimer));
             :address="address"
             :labels="labels"
             handler-help
+            :primary="false"
         />
         <div
             v-else-if="server.connectString"
             class="mt-3 flex flex-wrap items-center gap-2"
         >
-            <Button v-if="server.connectIsLink" as-child size="sm">
+            <Button
+                v-if="server.connectIsLink"
+                as-child
+                size="sm"
+                variant="outline"
+            >
                 <a :href="server.connectString">{{ labels.connect }}</a>
             </Button>
             <code

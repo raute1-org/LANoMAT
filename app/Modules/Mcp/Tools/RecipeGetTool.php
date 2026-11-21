@@ -6,6 +6,7 @@ namespace App\Modules\Mcp\Tools;
 
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
+use App\Modules\GameRecipes\Support\LauncherSupport;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\Mcp\Support\SafeText;
 use App\Support\Modules\Module;
@@ -38,17 +39,19 @@ class RecipeGetTool extends LanomatTool
     protected function run(Request $request): Response|ResponseFactory
     {
         $matcher = app(RecipeFileMatcher::class);
+        $support = app(LauncherSupport::class);
+        $user = $this->user();
         $needle = mb_strtolower((string) $request->get('slug'));
 
         $recipe = GameRecipe::query()
-            ->visibleTo($this->user())
+            ->visibleTo($user)
             ->get()
             ->first(fn (GameRecipe $candidate): bool => in_array($needle, $candidate->searchTerms(), true)
                 || $candidate->slug === $needle);
 
         abort_unless($recipe instanceof GameRecipe, 404, 'Recipe not found.');
 
-        $matches = $matcher->matchesFor($recipe, $this->user());
+        $matches = $matcher->matchesFor($recipe, $user);
 
         return $this->structured([
             'recipe' => [
@@ -62,6 +65,13 @@ class RecipeGetTool extends LanomatTool
                 'aliases' => $recipe->aliases,
                 'homepage' => $recipe->homepage,
                 'license' => $recipe->license,
+                // The launcher's own support decision, so an agent does not
+                // have to re-derive it from requirements and steps.
+                'launcher_supported' => $support->supports($recipe),
+                'portable' => $support->isPortable($recipe),
+                'pull_request' => $user->isOrga() || $recipe->contributor_user_id === $user->id
+                    ? $recipe->pullRequest()
+                    : null,
                 // The MCP request wrapper has no host; the HTTP request does, and a
                 // tool always runs inside one (streamable HTTP transport).
                 'play_url' => $recipe->playUrlFor(request()->getHost()),

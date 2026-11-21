@@ -20,6 +20,7 @@ use App\Modules\Friends\Http\FriendsController;
 use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameRecipes\Http\GamePageController;
+use App\Modules\GameRecipes\Http\GameShareController;
 use App\Modules\GameRecipes\Http\LauncherPageController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\GlobalServerPageController;
@@ -78,6 +79,12 @@ if ($modules->routable(Module::GameRecipes)) {
         // The participant games library: install/launch, live servers, running
         // tournaments and a one-click "Runde" into the event's voice chat.
         Route::get('/games', [GamePageController::class, 'index'])->name('games.index');
+        // "Spiel teilen" must be registered before `/games/{slug}`, otherwise
+        // the slug route swallows it.
+        Route::get('/games/share', [GameShareController::class, 'index'])->name('games.share');
+        Route::post('/games/share', [GameShareController::class, 'store'])
+            ->middleware('throttle:20,60')
+            ->name('games.share.store');
         Route::get('/games/{slug}', [GamePageController::class, 'show'])->name('games.show');
         Route::post('/games/{slug}/lfg', [GamePageController::class, 'createLfg'])
             ->middleware('throttle:20,1')

@@ -7,6 +7,8 @@ use App\Modules\Assistant\Support\ArgumentsHash;
 use App\Modules\Assistant\Tools\ApprovableTool;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
+use App\Modules\GameRecipes\Contracts\RecipeRepository;
+use App\Modules\GameRecipes\Testing\FakeRecipeRepository;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Domain\PelicanAllocation;
 use App\Modules\GameServers\Testing\FakePelicanClient;
@@ -108,6 +110,15 @@ expect()->extend('toBeOne', function () {
 | Helpers
 |--------------------------------------------------------------------------
 */
+
+/** Bind an in-memory recipe repository, so no test opens a pull request. */
+function fakeRecipeRepository(): FakeRecipeRepository
+{
+    $fake = new FakeRecipeRepository;
+    app()->instance(RecipeRepository::class, $fake);
+
+    return $fake;
+}
 
 function fakeDiscord(): FakeDiscordClient
 {

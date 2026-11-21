@@ -10,12 +10,21 @@ use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\RecipeParser;
 use App\Modules\GameRecipes\Support\RecipeSourceLocator;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Upserts every recipe in a source directory. The YAML is the authority;
  * a resync preserves the admin-set pins (`shared_file_id`) and the review
  * state (`status=draft` stays draft until an orga publishes it) so a nightly
  * sync of the NAS share never undoes a moderation decision.
+ *
+ * `--only` narrows what is *updated*, never what counts as present: a recipe
+ * that still has a directory in the source is kept, even when it was not
+ * selected or its file failed validation. `--prune` therefore only deletes
+ * rows of this source kind whose slug has no recipe directory any more —
+ * and nothing at all when the source yields no recipe directory (an empty or
+ * unreadable source must never look like "everything was deleted").
  */
 final class SyncRecipes
 {
@@ -30,28 +39,38 @@ final class SyncRecipes
     public function handle(string $source, bool $prune = false, ?string $only = null): array
     {
         $materialized = $this->locator->materialize($source);
+        $kind = $this->sourceKind($source);
+        $only = $only !== null && $only !== '' ? $only : null;
         $created = 0;
         $updated = 0;
         $skipped = [];
-        $seen = [];
+        /** @var list<string> $present */
+        $present = [];
 
         try {
             foreach ($this->recipeFiles($materialized['path']) as $yamlPath) {
                 try {
-                    $payload = $this->parser->parseFile($yamlPath, $this->sourceKind($source), $source);
+                    $payload = $this->parser->parseFile($yamlPath, $kind, $source);
                 } catch (RecipeException $exception) {
                     $skipped[] = $yamlPath.': '.$exception->summary();
+
+                    // An invalid file is a warning, not a deletion: its slug
+                    // still has a recipe directory, so --prune must keep it.
+                    $slug = $this->slugOfUnparsedFile($yamlPath);
+
+                    if ($slug !== null) {
+                        $present[] = $slug;
+                    }
 
                     continue;
                 }
 
                 $slug = (string) $payload['recipe']['slug'];
+                $present[] = $slug;
 
-                if ($only !== null && $only !== '' && $slug !== $only) {
+                if ($only !== null && $slug !== $only) {
                     continue;
                 }
-
-                $seen[] = $slug;
 
                 DB::transaction(function () use ($payload, &$created, &$updated): void {
                     $existing = GameRecipe::query()->where('slug', $payload['recipe']['slug'])->first();
@@ -103,13 +122,24 @@ final class SyncRecipes
                 });
             }
 
+            $present = array_values(array_unique($present));
+
+            if ($only !== null && ! in_array($only, $present, true)) {
+                $skipped[] = sprintf('%s: the source has no recipe with this slug', $only);
+            }
+
             $pruned = 0;
 
             if ($prune) {
-                $pruned = GameRecipe::query()
-                    ->where('source', $this->sourceKind($source))
-                    ->when($seen !== [], fn ($query) => $query->whereNotIn('slug', $seen))
-                    ->delete();
+                if ($present === []) {
+                    // An empty or unreadable source is not a deleted catalogue.
+                    $skipped[] = 'Nothing pruned: the source has no recipe directories.';
+                } else {
+                    $pruned = GameRecipe::query()
+                        ->where('source', $kind)
+                        ->whereNotIn('slug', $present)
+                        ->delete();
+                }
             }
 
             return [
@@ -144,6 +174,37 @@ final class SyncRecipes
         sort($files);
 
         return $files;
+    }
+
+    /**
+     * The slug of a recipe file the parser refused. The file itself is read
+     * leniently first (`slug:` survives most schema errors), then the name of
+     * its directory, which is the catalogue's slug convention. Null only when
+     * nothing usable is left, so a broken file cannot empty the present set.
+     */
+    private function slugOfUnparsedFile(string $yamlPath): ?string
+    {
+        try {
+            $data = Yaml::parseFile($yamlPath);
+        } catch (ParseException) {
+            $data = null;
+        }
+
+        $slug = is_array($data) && is_string($data['slug'] ?? null) ? trim($data['slug']) : '';
+
+        if ($slug !== '') {
+            return $slug;
+        }
+
+        $name = basename($yamlPath, '.yaml');
+
+        if ($name !== '' && $name !== 'recipe') {
+            return $name;
+        }
+
+        $directory = basename(dirname($yamlPath));
+
+        return $directory !== '' && $directory !== '.' ? $directory : null;
     }
 
     private function sourceKind(string $source): string

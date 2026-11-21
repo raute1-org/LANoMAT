@@ -18,12 +18,13 @@ the shell returns. It never fabricates progress, files, versions or server state
 | `js/nav.js` | keyboard + gamepad navigation and the footer's gamepad indicator |
 | `js/connect.js` | device flow: URL, QR, code, poll states, reconnect/logout entry |
 | `js/chat.js` | the Start page (main actions + the live-server list with one-click join) and the arcade front desk: greeting, deterministic `games`/`servers` intents, skippable demo, game/server cards |
-| `js/library.js` | `get_status` + `list_games`: „Meine Bibliothek" from the local install ledger, the shared catalogue with one primary action per card, `verify_install` record state and reinstall/repair |
+| `js/library.js` | `get_status` + `list_games`: „Meine Bibliothek" from the local install ledger, the shared catalogue with one primary action per installable card and a web fallback for the rest, `verify_install` record state and reinstall/repair |
+| `js/share.js` | „Spiel teilen": the paired server's `/games/share` page through `open_url`, offered only while paired with a valid http(s) base |
 | `js/install.js` | `install-progress` listener, phases, bytes/speed/ETA, cancel, errors |
 | `js/ready.js` | launch, repair, target path, server browser |
 | `js/qr.js` | dependency-free QR encoder (byte mode, ECC M/L) for the phone sign-in |
 | `js/util.js` | invoke/listen wrappers, German number formatting, error classification |
-| `js/strings.js` | every visible string, German, in one place |
+| `js/strings.js` | every string the JS paints, German, in one place; static screen copy (headings, empty states) lives in `index.html` |
 | `fonts/` | Space Grotesk + JetBrains Mono (woff2) and their licences, copied from the voice client |
 | `logo-mark.svg` | the node-L mark, shared with the voice client |
 | `check-ui.mjs` | dependency-free contract check (ids, strings, commands, tokens, CSP) |
@@ -42,14 +43,14 @@ Every call goes through `window.__TAURI__.core.invoke`; the progress event comes
 | Escape / gamepad B | `leave_fullscreen` | – | `true` when the fullscreen was the step back; `false` in kiosk mode or when the window is not fullscreen |
 | gamepad hot-plug | `set_gamepad` | `{connected}` | mirrors the footer indicator into the terminal heartbeat |
 | Abmelden | `logout` | – | local only: deletes the pairing, the server token is revoked on `/mcp/connect` |
-| library | `list_games` | – | `RecipeSummary[]` (`slug,title,summary,version,status,platforms,installable,launcher_supported`), the installable pilot first, the rest of the catalogue after it |
+| library | `list_games` | – | `RecipeSummary[]` (`slug,title,summary,version,status,platforms,installable,launcher_supported`), the recipes this build can install first, the rest of the catalogue after them |
 | chat → „Welche Server laufen?“ | `list_servers` | – | `{events[], servers[]}`: the aggregated event + permanent server projection, no player names |
 | Installieren | `install` | `{slug}` | `InstallRecord` `{slug, target_dir, version, verified[]}` (promise) |
 | progress | event `install-progress` | – | `{slug, phase, message, file?, bytes_done, bytes_total, percent?, bytes_per_second, eta_secs?}` |
 | Abbrechen | `cancel_install` | – | – |
 | record state / `Reparieren` | `verify_install` | `{slug}` | `{ok, exists, missing[]}` — a local check of the recorded target **ohne etwas herunterzuladen**; `exists: false` means the folder was moved or deleted, `missing[]` names requirement groups (alternatives joined by `or`) |
-| Starten | `launch` | `{slug, join?}` | executable path; `join` is the `host:port` UT2004 starts on |
-| Browser öffnen / Serverbrowser / Spielseite | `open_url` | `{url}` | – |
+| Starten | `launch` | `{slug, join?}` | executable path; `join` is the `host:port` the pilot's executable starts on |
+| Browser öffnen / Serverbrowser / Spielseite / Spiel teilen | `open_url` | `{url}` | – |
 | header + footer (decoration) | `get_environment` | – | `{version, commit, host, arcade, kiosk}` — `host` is this terminal's name, `arcade`/`kiosk` the start flags |
 | footer (update watch) | `check_launcher_update` | – | `{available, latest, page}` or `null` |
 | deep link while running | event `deep-link` | – | `{action: "install"\|"launch", slug}` |
@@ -58,7 +59,7 @@ Every call goes through `window.__TAURI__.core.invoke`; the progress event comes
 file …`, …). The UI maps the known shapes to German and shows the raw string only for unknown ones
 rather than guessing or repeating it.
 
-`get_plan` exists in the shell but the library screen does not call it: the pilot shows the
+`get_plan` exists in the shell but the library screen does not call it: the cards show the
 published summary and the install record only.
 
 ### Command mismatch with L4 / the wave brief
@@ -83,8 +84,8 @@ only while paired:
 - `join`: the website's one-click action. An installed recipe goes straight to
   `ready.show(..., {launch: true, join})`; a missing installable recipe runs the install wizard and
   auto-launches on the same server afterwards; a browser/an older launcher falls back to the
-  server's allowlisted join URL. The address is passed to UT2004's executable, the URL is opened
-  after a generic launch.
+  server's allowlisted join URL. The address is passed to the pilot's executable (UT2004 takes
+  `host:port`), the URL is opened after a generic launch.
 - while an install runs, every link keeps the install screen (progress, file, cancel stay
   visible) and answers with the `S.deepLink.busy` toast instead of switching screens.
 - unpaired: the UI stores nothing, shows a "zuerst verbinden" toast, and lets the shell replay
@@ -98,7 +99,8 @@ The shell validates the slug (`[a-z0-9-]{1,120}`) before it ever reaches the UI.
 
 One stage at a time: `boot → connect → chat → library → install → ready`. `chat` is the home
 once paired — the **Start** page with the main actions and the live-server list, plus the
-arcade chat below it; `library` is one big game tile for the UT2004 pilot; `install` returns
+arcade chat below it; `library` is this terminal's own installs next to the shared catalogue
+(one primary action per installable recipe, the rest with an honest web fallback); `install` returns
 to `library` on error/cancel and to `ready` on success.
 
 - **Connect**: editable server URL (default `https://lan.raute1.org`), `Verbinden` → a large,
@@ -111,29 +113,36 @@ to `library` on error/cancel and to `ready` on success.
   it deletes the local pairing, while the bearer token stays valid on the server until it
   is revoked there on `/mcp/connect` (the button's tooltip and description say so). The next
   player starts on the same QR screen.
-- **Start (the screen after pairing)**: the main actions `Spiele`, `Serverbrowser` and `Chat`,
-  then **Jetzt live** — every `ready`/`not_responding` server from `list_servers`, one row per
-  server. The row's primary action is `Beitreten`: a missing installable recipe runs the install
-  wizard and auto-launches on that server; an installed recipe launches on it immediately;
+- **Start (the screen after pairing)**: the main actions `Spiele`, `Serverbrowser`, `Spiel teilen`
+  and `Chat`, then **Jetzt live** — every `ready`/`not_responding` server from `list_servers`, one
+  row per server. The row's primary action is `Beitreten`: a missing installable recipe runs the
+  install wizard and auto-launches on that server; an installed recipe launches on it immediately;
   every other game opens its own allowlisted join URL (steam/ut2004/https) or the server page.
+  `Spiel teilen` opens `<paired server>/games/share` in the browser; it is not offered while
+  unpaired or without a valid http(s) base, and the one-line hint next to it says that the
+  archive is uploaded and described there and appears here after the orga's check.
   Loading, empty, error and normal states are explicit, and the list loads on the first show
   instead of waiting for a chat question. Below it sits the chat: greeting with the player's
   name, a skippable demo (typing/backspacing a suggestion, instant under `prefers-reduced-motion`),
   suggestion chips and a text input. Intents are deterministic and local: `games` asks
   `list_games` + `get_status`, `servers` asks `list_servers`. Answers are cards, not prose: the
   game tile with `Installieren`/`Starten`, and one aggregated server grid across every
-  active/recent event plus the permanent servers. `Neu starten` clears the transcript,
-  `Zu den Spielen` skips straight to the library.
-- **Library**: two lists in one screen. „Meine Bibliothek" is the local install ledger from
-  `get_status.installs` — one card per installed game with title, `Ordner` (folder, mono, quiet),
-  verified file count and one big `Starten` that launches the local executable (no network, so it
-  works with the server switched off). It is painted before the catalogue is judged, so an
-  offline server never hides what is already installed. „Spiele vom Server" is the shared
-  catalogue from `list_games`: every published recipe, the installable pilot as the hero tile and
-  the rest below. A card with `launcher_supported: true` gets `Installieren` (or `Starten` once a
-  record exists); every other card says `Bald im Launcher` and links to the game's
-  `<paired server>/games/{slug}` page through `open_url` instead of showing a dead install
-  button. `installable: false` (or an absent flag on an older server) never hides the card.
+  active/recent event plus the permanent servers. An empty games answer offers `Spiel teilen` as
+  well. `Neu starten` clears the transcript, `Zu den Spielen` skips straight to the library.
+- **Library**: two lists in one screen, the share entry in the header next to `Aktualisieren`.
+  „Meine Bibliothek" is the local install ledger from `get_status.installs` — one card per
+  installed game with title, `Ordner` (folder, mono, quiet), verified file count and one big
+  `Starten` that launches the local executable (no network, so it works with the server switched
+  off). It is painted before the catalogue is judged, so an offline server never hides what is
+  already installed. „Spiele vom Server" is the shared catalogue from `list_games`: every
+  published recipe, the first installable recipe as the hero tile and the rest below. A card with
+  `launcher_supported: true` gets `Installieren` (or `Starten` once a record exists); the label
+  covers the dedicated pilot engine, the generic portable-archive engine and the browser
+  `play_url` path. Every other card says `Bald im Launcher` with what is true — the game needs
+  manual steps — and links to the game's own `<paired server>/games/{slug}` page through
+  `open_url` instead of showing a dead install button (`soonHint` when the URL is known,
+  `soonHintNoUrl` without a valid base). `installable: false` (or an absent flag on an older
+  server) never hides the card.
   A record is **never a dead end**: next to `Starten` both the local tile and the catalogue card
   keep a quiet `Neu installieren` / `Reparieren`. The label comes from `verify_install`, which
   checks the recorded target on disk before either list is painted: `ok` labels the record
@@ -142,9 +151,16 @@ to `library` on error/cancel and to `ready` on success.
   action re-runs the same `install` command (download resumes, extraction is idempotent) and
   lands in the normal install → ready flow. An older shell without `verify_install` leaves the
   check unknown: the record keeps the quiet `Neu installieren` and nothing is downloaded.
+  Both empty states (`library-empty` for the catalogue, `library-installed-empty` for the local
+  ledger) keep their `Aktualisieren`/folder hint and add the same `Spiel teilen` action. Their
+  copy is static markup in `index.html`; `strings.js` holds no second copy of those sentences.
   Loading skeletons, empty, error and content as before; `Chat` returns to the front desk.
-- **Install**: six phases (Planen, Herunterladen, Entpacken, Patchen, Prüfen, Fertig), current
-  file, one large `bytes_done / bytes_total` bar with a big percent, speed, ETA. `Abbrechen`
+- **Install**: six phases (Planen, Herunterladen/Archiv laden, Entpacken, Patchen/Ergänzen,
+  Prüfen, Fertig), current file, one large `bytes_done / bytes_total` bar with a big percent,
+  speed, ETA. The rail keeps its six steps for every recipe; `js/install.js` picks the label set
+  per recipe kind (mirroring `LAUNCHER_ENGINE_SLUG` in `src/lib.rs`): the pilot keeps the DVD and
+  patch wording, a portable archive reads `Archiv laden` and `Ergänzen`, so a generic install
+  never promises an ISO or a patch it does not have. `Abbrechen`
   calls `cancel_install`. The promise rejection and the `error` phase both settle the screen;
   `cancelled` gets its own calm state. No fake progress: an unknown percent is indeterminate.
   The current step carries `aria-current="step"` and every step an `aria-label` with its state
@@ -177,11 +193,21 @@ that machine) and only **shares the event catalogue** the orga publishes on the 
 why the header names the machine, why `Starten` needs no server, and why the catalogue can be
 empty or offline without touching the local library.
 
-`launcher_supported` is the shell's verdict, not the server's: only `unreal-tournament-2004` has a
-verified install engine today (`LAUNCHER_ENGINE_SLUG` in `src/lib.rs`). `installable` is the
-server's answer about the recipe (requirements, steps and a launch target); `null`/absent means an
-older server and stays "unknown", never "no". Once the engine is generic, the flag follows the
-plan's verify steps and no UI change is needed.
+`launcher_supported` is the shell's verdict, not the server's: the server marks every **portable**
+recipe (a ready-to-run archive: download, unpack, check files, start) as launcher-ready, the shell
+keeps the UT2004 pilot's dedicated engine and the browser `play_url` path, and the generic engine
+installs any such archive. `installable` is the server's answer about the recipe (requirements,
+steps and a launch target); `null`/absent means an older server and stays "unknown", never "no".
+
+`Spiel teilen` is the one entry that leaves the launcher on purpose: it opens
+`<paired server>/games/share` in the browser through `open_url`. The URL is built like the
+server-browser and game-page URLs — `serverBase()` in `js/util.js` validates the paired server's
+http(s) base and `SHARE_PATH` (`'/games/share'`) in `js/strings.js` adds the path, the result goes
+through `safeHttpUrl()` — so a LAN-only installation never opens a public host. Without pairing or
+a valid base the entry (and its hint) stays hidden. The launcher never packs, hashes or uploads;
+the share page does that, the orga checks the archive, and the published recipe then arrives
+through the normal `list_games` catalogue. The empty catalogue and the empty local library invite
+the same action instead of only stating emptiness.
 
 `Starten` on the library card opens Ready and launches immediately, so the button's label is
 true. Ready's own `Starten` repeats the launch. `Reparieren` and `Neu installieren` never touch

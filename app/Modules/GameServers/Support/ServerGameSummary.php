@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Support;
 
 use App\Modules\Events\Models\Event;
+use App\Modules\GameServers\Contracts\GameInstallLinks;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 
 /**
@@ -24,14 +25,14 @@ class ServerGameSummary
     /**
      * Groups come out in first-appearance order, unsorted; the consumer sorts them.
      *
-     * @return list<array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int}|null}>
+     * @return list<array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null}|null}>
      */
-    public static function forEvent(?Event $event): array
+    public static function forEvent(?Event $event, ?GameInstallLinks $install = null): array
     {
-        /** @var array<string, array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int}|null, candidates: list<array<string, mixed>>}> $groups */
+        /** @var array<string, array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null}|null, candidates: list<array<string, mixed>>}> $groups */
         $groups = [];
 
-        foreach (self::liveDtos($event) as $dto) {
+        foreach (self::liveDtos($event, $install) as $dto) {
             $label = self::label($dto);
 
             if ($label === null) {
@@ -65,11 +66,11 @@ class ServerGameSummary
     }
 
     /** Players on all live servers of the event and the permanent ones (nav badge). */
-    public static function totalPlayers(?Event $event): int
+    public static function totalPlayers(?Event $event, ?GameInstallLinks $install = null): int
     {
         $total = 0;
 
-        foreach (self::liveDtos($event) as $dto) {
+        foreach (self::liveDtos($event, $install) as $dto) {
             $total += self::countedPlayers($dto);
         }
 
@@ -81,8 +82,13 @@ class ServerGameSummary
      *
      * @return list<array<string, mixed>>
      */
-    private static function liveDtos(?Event $event): array
+    private static function liveDtos(?Event $event, ?GameInstallLinks $install = null): array
     {
+        // Own instance per summary: a caller (NavSignals) asks repeatedly with a
+        // fixed query budget, so the catalogue read belongs to this call, not to
+        // a page-wide memo.
+        $install ??= app(GameInstallLinks::class);
+
         $links = $event !== null ? ServerListProjection::linksForEvent($event)->all() : [];
         $links = [...$links, ...ServerListProjection::permanentLinks()->all()];
 
@@ -95,7 +101,7 @@ class ServerGameSummary
             }
 
             $seen[$link->id] = true;
-            $dtos[] = ServerListProjection::dto($link);
+            $dtos[] = ServerListProjection::dto($link, install: $install);
         }
 
         return $dtos;
@@ -136,7 +142,7 @@ class ServerGameSummary
      * those without, then the most players, lowest id last.
      *
      * @param  list<array<string, mixed>>  $candidates
-     * @return array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int}|null
+     * @return array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null}|null
      */
     private static function pickJoin(array $candidates): ?array
     {
@@ -152,6 +158,9 @@ class ServerGameSummary
             return null;
         }
 
+        /** @var array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null $install */
+        $install = is_array($best['install'] ?? null) ? $best['install'] : null;
+
         return [
             'serverId' => (int) $best['id'],
             'title' => self::stringOf($best['title'] ?? null) ?? self::stringOf($best['matchLabel'] ?? null) ?? (string) $best['game'],
@@ -161,6 +170,8 @@ class ServerGameSummary
             'port' => is_int($best['port'] ?? null) ? $best['port'] : null,
             'players' => self::queryCount($best, 'players'),
             'maxPlayers' => self::queryCount($best, 'maxPlayers'),
+            // The row the summary picked also answers how to get its game.
+            'install' => $install,
         ];
     }
 

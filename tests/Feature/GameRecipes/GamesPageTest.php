@@ -8,6 +8,7 @@ use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Tournaments\Models\Tournament;
@@ -233,6 +234,62 @@ it('counts a running server on the card, the detail page and the sidebar', funct
             ->where('servers.0.title', 'UT2004 Dauerserver')
             ->has('tournaments', 1)
             ->where('tournaments.0.id', $tournament->id));
+});
+
+it('passes the join options and the install block of each server to the game page', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+
+    // The UT2004 pilot: per-game deep links plus the launcher's address form.
+    gamePageRecipe();
+    $ut = Game::factory()->create([
+        'name' => 'Unreal Tournament 2004',
+        'slug' => 'unreal-tournament-2004',
+    ]);
+
+    ServerLink::factory()->permanent()->create([
+        'game_id' => $ut->id,
+        'title' => 'UT2004 Dauerserver',
+        'join_info' => new JoinInfo(address: '203.0.113.5', port: 7777),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('servers', 1)
+            ->where('servers.0.joinOptions.0.key', 'steam')
+            ->where('servers.0.joinOptions.0.url', 'steam://run/13230//203.0.113.5:7777')
+            ->where('servers.0.install.recipeSlug', 'unreal-tournament-2004')
+            ->where('servers.0.install.launcherSupported', true)
+            ->where('servers.0.install.launcherJoinUrl', 'lanomat://join/unreal-tournament-2004?address='.rawurlencode('203.0.113.5:7777')));
+
+    // A shared portable game is launcher-supported too: the row carries the
+    // one-click join, so the game page never has to rebuild it.
+    GameRecipe::factory()->published()->portable()->create([
+        'slug' => 'tiny-racer',
+        'title' => 'Tiny Racer',
+    ]);
+
+    $racer = Game::factory()->create([
+        'name' => 'Tiny Racer',
+        'slug' => 'tiny-racer',
+    ]);
+
+    ServerLink::factory()->permanent()->create([
+        'game_id' => $racer->id,
+        'title' => 'Tiny Racer Server',
+        'join_info' => new JoinInfo(address: '203.0.113.6', port: 27015),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games/tiny-racer')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('servers', 1)
+            ->where('servers.0.install.recipeSlug', 'tiny-racer')
+            ->where('servers.0.install.launcherSupported', true)
+            ->where('servers.0.install.launcherJoinUrl', 'lanomat://join/tiny-racer?url='.rawurlencode('steam://connect/203.0.113.6:27015')));
 });
 
 it('filters only LAN-ready games on the server when ?only_lan=1 is given', function () {

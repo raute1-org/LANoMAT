@@ -111,6 +111,7 @@ function where(row: NowPlayingRow): string {
                     v-if="row.join"
                     :connect-string="row.join.connectString"
                     :connect-is-link="row.join.connectIsLink"
+                    :install="row.join.install ?? row.install ?? null"
                 />
             </li>
         </ul>

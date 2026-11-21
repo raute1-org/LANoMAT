@@ -2,26 +2,70 @@
 
 namespace App\Modules\GameRecipes\Filament\Resources\Recipes\Pages;
 
+use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Actions\ProposeRecipe;
+use App\Modules\GameRecipes\Actions\PublishRecipe;
 use App\Modules\GameRecipes\Actions\SyncRecipeFilesFromRequirements;
+use App\Modules\GameRecipes\Contracts\RecipeRepository;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\ResolvesReviewer;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\SyncsRequirementPins;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\RecipeResource;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ContributionFiles;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\LauncherReview;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ReviewStamp;
+use App\Modules\GameRecipes\Jobs\ProposeRecipePullRequestJob;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\HtmlString;
 
 class EditRecipe extends EditRecord
 {
-    use SyncsRequirementPins;
+    use ResolvesReviewer;
+    use SyncsRequirementPins {
+        mutateFormDataBeforeFill as hydrateRequirementPins;
+    }
 
     protected static string $resource = RecipeResource::class;
+
+    /** Status the record had before the running save, so a re-save never re-announces. */
+    protected ?RecipeStatus $statusBeforeSave = null;
+
+    /**
+     * The requirement pins come from the file rows (see the trait); the
+     * launcher override has no model column, so its three-state value is read
+     * from `metadata.launcher_supported` here.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data = $this->hydrateRequirementPins($data);
+
+        // No form field edits metadata. Sending it through the form would
+        // write the whole document back on every save (and Postgres normalises
+        // jsonb key order on the way), so the override merges its one key into
+        // the stored document instead.
+        unset($data['metadata']);
+
+        $data['launcher_override'] = LauncherReview::overrideState(
+            $this->record instanceof GameRecipe ? $this->record : null,
+        );
+
+        return $data;
+    }
 
     /**
      * The status can also be set through the form. It is stamped only on a
      * transition into Published (see ReviewStamp); saving a published recipe
-     * again keeps the reviewer who released it.
+     * again keeps the reviewer who released it. A contributed recipe that is
+     * released here joins the player lineup, exactly as the publish action
+     * does, and afterSave dispatches RecipePublished once.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -29,26 +73,94 @@ class EditRecipe extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $data = $this->captureRequirementPins($data);
+        $data = $this->applyLauncherOverride($data);
 
-        return ReviewStamp::forTransition(
-            $data,
-            $this->record instanceof GameRecipe ? $this->record->status : null,
-        );
+        $this->statusBeforeSave = $this->record instanceof GameRecipe ? $this->record->status : null;
+        $data = ReviewStamp::forTransition($data, $this->statusBeforeSave);
+
+        if ($this->record instanceof GameRecipe && $this->record->isContribution() && $this->releasesIn($data)) {
+            $data['in_lineup'] = true;
+        }
+
+        return $data;
     }
 
     protected function afterSave(): void
     {
-        if (! $this->record instanceof GameRecipe) {
+        $record = $this->record;
+
+        if (! $record instanceof GameRecipe) {
             return;
         }
 
-        app(SyncRecipeFilesFromRequirements::class)->handle($this->record);
-        $this->applyRequirementPins($this->record);
+        app(SyncRecipeFilesFromRequirements::class)->handle($record);
+        $this->applyRequirementPins($record);
+
+        if ($this->statusBeforeSave !== RecipeStatus::Published && $record->status === RecipeStatus::Published) {
+            app(PublishRecipe::class)->releaseAfterFormSave($record, $this->reviewer());
+        }
     }
 
     protected function getHeaderActions(): array
     {
         return [
+            // The one-step handoff: approve the shared file and publish the
+            // recipe together. Visible while a pinned file still waits or a
+            // rejected one blocks the release.
+            Action::make('publishWithFiles')
+                ->label(__('game_recipes.actions.publish_with_files'))
+                ->icon('heroicon-o-check-badge')
+                ->color('success')
+                ->visible(fn (GameRecipe $record): bool => $record->status !== RecipeStatus::Published
+                    && $this->canApprovePinnedFiles($record)
+                    && (ContributionFiles::pending($record)->isNotEmpty() || ContributionFiles::rejected($record)->isNotEmpty()))
+                ->authorize('review')
+                ->requiresConfirmation()
+                ->modalHeading(__('game_recipes.actions.publish_with_files'))
+                ->modalDescription(fn (GameRecipe $record): HtmlString => $this->releaseDescription($record, withFiles: true))
+                ->modalSubmitActionLabel(__('game_recipes.actions.publish_with_files_submit'))
+                ->disabled(fn (GameRecipe $record): bool => ContributionFiles::rejected($record)->isNotEmpty())
+                ->tooltip(fn (GameRecipe $record): ?string => ContributionFiles::rejected($record)->isNotEmpty()
+                    ? (string) __('game_recipes.actions.publish_with_files_rejected')
+                    : null)
+                ->action(function (GameRecipe $record): void {
+                    $approved = ContributionFiles::pending($record)->count();
+
+                    try {
+                        app(PublishRecipe::class)->handle($record, $this->reviewer(), approveFiles: true);
+                    } catch (AuthorizationException) {
+                        // The Files module's own gate refused: nothing was
+                        // published (one transaction), so say so instead of
+                        // half-succeeding silently.
+                        Notification::make()
+                            ->title(__('game_recipes.actions.publish_with_files_forbidden'))
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    $this->refreshFormData(['status', 'in_lineup']);
+
+                    Notification::make()
+                        ->title(trans_choice('game_recipes.actions.published_with_files', $approved, ['count' => $approved]))
+                        ->success()
+                        ->send();
+
+                    // A rejected pin can only survive a race (the action is
+                    // disabled while one exists): name it instead of pretending
+                    // the release was complete.
+                    $record->load('files.sharedFile');
+                    $rejected = ContributionFiles::rejected($record);
+
+                    if ($rejected->isNotEmpty()) {
+                        Notification::make()
+                            ->title(__('game_recipes.actions.publish_with_files_left_rejected'))
+                            ->body(implode(', ', ContributionFiles::describe($rejected)))
+                            ->warning()
+                            ->send();
+                    }
+                }),
             // Visible only while the recipe is not published, so both actions
             // are always a status transition; the policy decides who may make it.
             Action::make('publish')
@@ -56,14 +168,31 @@ class EditRecipe extends EditRecord
                 ->visible(fn (GameRecipe $record): bool => $record->status !== RecipeStatus::Published)
                 ->authorize('review')
                 ->requiresConfirmation()
+                ->modalDescription(fn (GameRecipe $record): HtmlString => $this->releaseDescription($record, withFiles: false))
                 ->action(function (GameRecipe $record): void {
-                    $record->forceFill([
-                        'status' => RecipeStatus::Published,
-                        'reviewed_by' => auth()->id(),
-                        'reviewed_at' => now(),
-                    ])->save();
+                    app(PublishRecipe::class)->handle($record, $this->reviewer());
 
-                    $this->refreshFormData(['status']);
+                    $this->refreshFormData(['status', 'in_lineup']);
+
+                    Notification::make()
+                        ->title(__('game_recipes.actions.published'))
+                        ->success()
+                        ->send();
+                }),
+            Action::make('proposePullRequest')
+                ->label(__('game_recipes.actions.propose_pull_request'))
+                ->icon('heroicon-o-arrow-up-tray')
+                // Only for a recipe the pipeline would actually take: offering the
+                // button for a synced recipe would queue a job that does nothing.
+                ->visible(fn (GameRecipe $record): bool => app(RecipeRepository::class)->isConfigured()
+                    && app(ProposeRecipe::class)->isProposable($record)
+                    && $this->reviewer()->can('review', $record))
+                ->authorize('review')
+                ->requiresConfirmation()
+                ->modalHeading(__('game_recipes.actions.propose_pull_request'))
+                ->modalDescription(__('game_recipes.actions.propose_pull_request_help'))
+                ->action(function (GameRecipe $record): void {
+                    $this->requestPullRequest($record);
                 }),
             Action::make('archive')
                 ->label(__('game_recipes.actions.archive'))
@@ -78,5 +207,100 @@ class EditRecipe extends EditRecord
                 }),
             DeleteAction::make(),
         ];
+    }
+
+    /**
+     * Hands the recipe to the pull request pipeline. The job exports the text,
+     * runs the public-safety check and opens or updates the one pull request;
+     * the result shows up in the "Katalog (Pull Request)" section.
+     */
+    private function requestPullRequest(GameRecipe $record): void
+    {
+        ProposeRecipePullRequestJob::dispatch((int) $record->getKey());
+
+        Notification::make()
+            ->title(__('game_recipes.actions.propose_requested'))
+            ->body(__('game_recipes.actions.propose_requested_help'))
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Whether the saved form flips the recipe into Published right now.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function releasesIn(array $data): bool
+    {
+        if ($this->statusBeforeSave === RecipeStatus::Published) {
+            return false;
+        }
+
+        $status = $data['status'] ?? null;
+
+        if ($status instanceof RecipeStatus) {
+            return $status === RecipeStatus::Published;
+        }
+
+        return is_string($status) && $status === RecipeStatus::Published->value;
+    }
+
+    /**
+     * The launcher override has no model column of its own: the form carries it
+     * as `launcher_override` and only `metadata.launcher_supported` changes.
+     * Every other metadata key keeps its value and position, and a save without
+     * the field (disabled for a non-reviewer) leaves metadata untouched.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applyLauncherOverride(array $data): array
+    {
+        if (! array_key_exists('launcher_override', $data)) {
+            return $data;
+        }
+
+        $state = $data['launcher_override'];
+        unset($data['launcher_override']);
+
+        if (! is_string($state) || ! $this->record instanceof GameRecipe) {
+            return $data;
+        }
+
+        $metadata = LauncherReview::withOverride($this->record->metadata, $state);
+
+        if ($metadata !== $this->record->metadata) {
+            $data['metadata'] = $metadata;
+        }
+
+        return $data;
+    }
+
+    /** What the confirmation shows: the files that get approved (optional) and what runs on the players' PCs. */
+    private function releaseDescription(GameRecipe $record, bool $withFiles): HtmlString
+    {
+        $parts = [];
+
+        if ($withFiles) {
+            $parts[] = implode('<br>', [
+                e(__('game_recipes.actions.publish_with_files_confirm')),
+                ...array_map(
+                    static fn (string $line): string => '• '.e($line),
+                    ContributionFiles::describe(ContributionFiles::pending($record)),
+                ),
+            ]);
+        }
+
+        $parts[] = LauncherReview::releaseSummary($record)->toHtml();
+
+        return new HtmlString(implode('<br><br>', $parts));
+    }
+
+    /** Whether the current user may approve the files this recipe pins (asks the Files policy). */
+    private function canApprovePinnedFiles(GameRecipe $record): bool
+    {
+        $file = collect(ContributionFiles::pinned($record))->first();
+
+        return $file instanceof SharedFile && $this->reviewer()->can('approve', $file);
     }
 }

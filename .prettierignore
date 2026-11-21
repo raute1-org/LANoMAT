@@ -1,2 +1,7 @@
 resources/js/components/ui/*
 resources/views/mail/*
+
+# Machine-written recipe text (shared games become pull requests). The recipe
+# schema validator is the gate for these files; Prettier must not rewrite them.
+resources/recipes/**/recipe.yaml
+resources/recipes/**/SKILL.md

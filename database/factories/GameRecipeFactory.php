@@ -112,6 +112,46 @@ class GameRecipeFactory extends Factory
         ]);
     }
 
+    /** Switched onto the player surfaces by the orga, next to the configured lineup. */
+    public function inLineup(): static
+    {
+        return $this->state(['in_lineup' => true]);
+    }
+
+    /**
+     * A ready-to-run archive: unpacking the base is the whole install, so the
+     * launcher's generic engine can install it (see LauncherSupport).
+     */
+    public function portable(string $archive = 'game-portable.zip', string $executable = 'Game.exe'): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'requirements' => [[
+                'role' => 'base',
+                'label' => 'Portable archive',
+                'match' => [$archive],
+                'required' => true,
+            ]],
+            'steps' => [[
+                'id' => 'check-install',
+                'title' => 'Unpack and check',
+                'os' => 'any',
+                'optional' => false,
+                'detail' => 'Unpack the archive into the target folder.',
+                'verify' => [['type' => 'file_exists', 'path' => '{{target}}/'.$executable]],
+            ]],
+            'metadata' => [
+                ...(is_array($attributes['metadata'] ?? null) ? $attributes['metadata'] : []),
+                'portable' => true,
+                'launch_targets' => [[
+                    'id' => 'windows',
+                    'label' => 'Windows',
+                    'os' => 'windows',
+                    'command' => '{{target}}/'.$executable,
+                ]],
+            ],
+        ]);
+    }
+
     /** @param list<array<string, mixed>> $requirements */
     public function withRequirements(array $requirements): static
     {

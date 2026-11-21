@@ -8,6 +8,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
 use App\Modules\GameRecipes\Support\LauncherLineup;
+use App\Modules\GameRecipes\Support\LauncherSupport;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
@@ -56,6 +57,7 @@ final class HomeChatData
         private readonly LauncherBuilds $launcher,
         private readonly RecipeFileMatcher $matcher,
         private readonly LauncherLineup $lineup,
+        private readonly LauncherSupport $support,
     ) {}
 
     /**
@@ -205,13 +207,10 @@ final class HomeChatData
                 'lan_ready' => $lanReady,
                 'server_count' => count($recipeServers),
                 'installable' => $recipe->files->isNotEmpty() || ($recipe->requirements ?? []) !== [],
-                // A dedicated recipe installs, the generic engine handles its
-                // plan, and a browser recipe opens its play_url. Everything
-                // else is "Ansehen" in the chat card.
-                'launcher_supported' => in_array($recipe->slug, [
-                    'unreal-tournament-2004',
-                    'need-for-speed-underground-2',
-                ], true) || $recipe->playUrl(request()->getHost()) !== null,
+                // The launcher's own support rule: a dedicated recipe, a
+                // portable archive, a browser recipe's play_url, or the orga's
+                // override. Everything else is "Ansehen" in the chat card.
+                'launcher_supported' => $this->support->supports($recipe),
                 'play_url' => $recipe->playUrl(request()->getHost()),
                 'server_note' => $recipe->serverNote(),
                 // Null when no launcher build is published, so the card never

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
@@ -247,4 +248,157 @@ it('lists every validation problem of an invalid contribution in one error', fun
             'title is required',
             'steps must be a non-empty list',
         ]);
+});
+
+it('forwards the extended contribution fields from recipe_contribute', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->registration()->create();
+    $file = SharedFile::factory()->create([
+        'event_id' => $event->id,
+        'user_id' => $user->id,
+        'original_name' => 'tiny-racer.zip',
+    ]);
+
+    LanomatServer::actingAs($user);
+
+    LanomatServer::tool(RecipeContributeTool::class, [
+        'slug' => 'tiny-racer',
+        'title' => 'Tiny Racer',
+        'version' => '1.2.3',
+        'homepage' => 'https://tiny-racer.lan.example/',
+        'license' => 'Freeware; the archive is user-supplied',
+        'platforms' => ['windows'],
+        'requires' => [[
+            'role' => 'base',
+            'label' => 'Tiny Racer archive',
+            'match' => ['tiny-racer.zip'],
+            'required' => true,
+            'shared_file_id' => $file->id,
+            'os' => 'windows',
+            'notes' => 'Unpack the archive into the target folder.',
+        ]],
+        'steps' => [[
+            'id' => 'check-install',
+            'title' => 'Unpack and check',
+            'os' => 'windows',
+            'optional' => false,
+            'detail' => 'Unpack the archive into the target folder.',
+            'verify' => [['type' => 'file_exists', 'path' => '{{target}}/TinyRacer.exe']],
+        ]],
+        'launch_targets' => [[
+            'id' => 'windows',
+            'label' => 'Windows',
+            'os' => 'windows',
+            'command' => '{{target}}/TinyRacer.exe',
+        ]],
+        'portable' => true,
+        'skill_description' => 'Install Tiny Racer from the LAN file host.',
+    ])
+        ->assertOk()
+        ->assertStructuredContentPath('recipe.slug', 'tiny-racer')
+        ->assertStructuredContentPath('recipe.status', 'draft')
+        ->assertStructuredContentPath('recipe.launcher_supported', true)
+        ->assertStructuredContentPath('recipe.pull_request', null);
+
+    $recipe = GameRecipe::query()->where('slug', 'tiny-racer')->firstOrFail();
+
+    expect($recipe->source_ref)->toBe('mcp')
+        ->and($recipe->version)->toBe('1.2.3')
+        ->and($recipe->homepage)->toBe('https://tiny-racer.lan.example/')
+        ->and($recipe->license)->toBe('Freeware; the archive is user-supplied')
+        ->and($recipe->metadata['portable'])->toBeTrue()
+        ->and($recipe->launchTargets())->toHaveCount(1)
+        ->and($recipe->files()->first()->shared_file_id)->toBe($file->id);
+});
+
+it('answers a pinned foreign file through recipe_contribute with a readable field error', function () {
+    $user = User::factory()->create();
+    $foreign = SharedFile::factory()->create(['original_name' => 'not-mine.zip']);
+
+    LanomatServer::actingAs($user);
+
+    LanomatServer::tool(RecipeContributeTool::class, [
+        'slug' => 'pinned-foreign',
+        'title' => 'Pinned Foreign',
+        'platforms' => ['windows'],
+        'requires' => [[
+            'role' => 'base',
+            'label' => 'Archive',
+            'match' => ['not-mine.zip'],
+            'required' => true,
+            'shared_file_id' => $foreign->id,
+        ]],
+        'steps' => [[
+            'id' => 'check-install',
+            'title' => 'Unpack',
+            'os' => 'windows',
+            'verify' => [['type' => 'file_exists', 'path' => '{{target}}/game.exe']],
+        ]],
+    ])->assertHasErrors(['requirements.0.shared_file_id']);
+});
+
+it('reports launcher support and portability through recipe_get', function () {
+    $user = User::factory()->create();
+    GameRecipe::factory()->published()->portable()->create([
+        'slug' => 'tiny-racer',
+        'title' => 'Tiny Racer',
+    ]);
+
+    LanomatServer::actingAs($user);
+
+    LanomatServer::tool(RecipeGetTool::class, ['slug' => 'tiny-racer'])
+        ->assertOk()
+        ->assertStructuredContentPath('recipe.launcher_supported', true)
+        ->assertStructuredContentPath('recipe.portable', true);
+});
+
+it('shows a recipe pull request to its contributor and hides it from another participant', function () {
+    $author = User::factory()->create();
+    $stranger = User::factory()->create();
+
+    $recipe = GameRecipe::factory()->published()->create([
+        'slug' => 'own-contribution',
+        'title' => 'Own Contribution',
+        'source' => GameRecipe::SOURCE_CONTRIBUTION,
+        'contributor_user_id' => $author->id,
+    ]);
+    $recipe->forceFill([
+        'pr_number' => 42,
+        'pr_url' => 'https://github.com/lanomat/recipes/pull/42',
+        'pr_branch' => 'recipes/own-contribution',
+        'pr_state' => PullRequestState::Open,
+    ])->save();
+
+    LanomatServer::actingAs($author);
+    LanomatServer::tool(RecipeGetTool::class, ['slug' => 'own-contribution'])
+        ->assertOk()
+        ->assertStructuredContentPath('recipe.pull_request.number', 42);
+
+    LanomatServer::actingAs($stranger);
+    LanomatServer::tool(RecipeGetTool::class, ['slug' => 'own-contribution'])
+        ->assertOk()
+        ->assertStructuredContentPath('recipe.pull_request', null);
+});
+
+it('reports the lineup flag and the caller own pull request through recipes_list', function () {
+    $author = User::factory()->create();
+
+    $recipe = GameRecipe::factory()->contributedBy($author)->inLineup()->create([
+        'slug' => 'own-draft',
+        'title' => 'Own Draft',
+    ]);
+    $recipe->forceFill([
+        'pr_number' => 11,
+        'pr_url' => 'https://github.com/lanomat/recipes/pull/11',
+        'pr_branch' => 'recipes/own-draft',
+        'pr_state' => PullRequestState::Open,
+    ])->save();
+
+    LanomatServer::actingAs($author);
+
+    LanomatServer::tool(RecipesListTool::class)
+        ->assertOk()
+        ->assertStructuredContentPath('recipes.0.slug', 'own-draft')
+        ->assertStructuredContentPath('recipes.0.in_lineup', true)
+        ->assertStructuredContentPath('recipes.0.pull_request.number', 11);
 });

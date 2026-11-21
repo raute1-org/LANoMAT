@@ -339,10 +339,13 @@ paths:
       operationId: contributeRecipe
       summary: Contribute recipe
       description: |
-        Creates a **draft** recipe from a `recipe.yaml` object and an optional `SKILL.md`. It
+        Creates a **draft** recipe from a `recipe.yaml`-shaped body and an optional `SKILL.md`. It
         does not publish. Orga review plus the JSON Schema validator
         (`resources/recipes/schema/validate.mjs`) is the gate. The server validates the same
-        shape: slug, required fields, at most 20 steps and 40 requirements.
+        shape: slug, required fields, at most 20 steps and 40 requirements. The keys are sent at
+        the top level of the body (the MCP `recipe_contribute` tool takes the same set);
+        `requires` and the older `requirements` are both accepted. `via` is always recorded as
+        `api`.
       requestBody:
         required: true
         content:
@@ -351,36 +354,51 @@ paths:
               $ref: "#/components/schemas/RecipeContribution"
             example:
               slug: trackmania-nations-forever
-              recipe:
-                schema: lanomat.recipe/v1
-                slug: trackmania-nations-forever
-                title: Trackmania Nations Forever
-                aliases: [tmnf, trackmania nations]
-                version: "1.0.0"
-                status: draft
-                platforms: [windows]
-                summary: Install Trackmania Nations Forever from the LAN installer.
-                license: Ubisoft; installer is user-supplied
-                skill:
-                  name: trackmania-nations-forever
-                  description: Install Trackmania Nations Forever on a LAN PC. Use when the user says install TMNF.
-                requires:
-                  - role: iso
-                    label: TMNF installer
-                    match: [TMNF*.exe, trackmania*nations*.exe]
-                    required: true
-                steps:
-                  - id: install
-                    title: Run the installer
-                    os: windows
-                    optional: false
-                    detail: Run the installer and point it at the target folder.
-                metadata:
-                  genre: racing
-                  players: 1-100
-                  lan_recommended: true
-                  tags: [racing]
-              skill: |
+              title: Trackmania Nations Forever
+              summary: Install Trackmania Nations Forever from the LAN installer.
+              version: "1.0.0"
+              homepage: https://www.trackmania.com/
+              license: Ubisoft; installer is user-supplied
+              platforms: [windows]
+              aliases: [tmnf, trackmania nations]
+              requires:
+                - role: iso
+                  label: TMNF installer
+                  match: [TMNF*.exe, trackmania*nations*.exe]
+                  required: true
+                  shared_file_id: 9184
+                - role: base
+                  label: TMNF portable archive
+                  match: [TMNF-portable*.zip]
+                  required: true
+                  os: windows
+                  notes: Unpack the archive into the target folder.
+              steps:
+                - id: check-install
+                  title: Unpack and check
+                  os: windows
+                  optional: false
+                  detail: Unpack the archive into the target folder.
+                  verify:
+                    - type: file_exists
+                      path: "{{target}}/TrackMania.exe"
+              launch_targets:
+                - id: windows
+                  label: Windows
+                  os: windows
+                  command: "{{target}}/TrackMania.exe"
+                  shell: powershell
+                  notes: Starts the game directly.
+              metadata:
+                portable: true
+                genre: racing
+                players: 1-100
+                players_max: 100
+                lan_recommended: true
+                multiplayer: true
+                tags: [racing]
+              skill_description: Install Trackmania Nations Forever on a LAN PC. Use when the user says install TMNF.
+              skill_markdown: |
                 ---
                 name: trackmania-nations-forever
                 description: "Install Trackmania Nations Forever on a LAN PC. Use when the user says install TMNF."
@@ -396,14 +414,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContributionResult"
               example:
-                id: 31
-                slug: trackmania-nations-forever
-                status: draft
-                validation:
-                  valid: true
-                  warnings:
-                    - "SKILL.md has 42 lines; the validator expects 60-150."
-                review_url: https://lan.example/admin/game-recipes/31
+                recipe:
+                  slug: trackmania-nations-forever
+                  title: Trackmania Nations Forever
+                  status: draft
+                  launcher_supported: true
+                  pull_request: null
         "422":
           description: Schema validation failed.
           content:
@@ -654,6 +670,16 @@ paths:
         is returned with `present: false` and no URL.
       parameters:
         - $ref: "#/components/parameters/RecipeSlug"
+        - name: query
+          in: query
+          description: Free-text filter over the avatar label and author.
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: Older name for `query`; still accepted.
+          schema:
+            type: string
       responses:
         "200":
           description: Avatar options.
@@ -798,6 +824,41 @@ paths:
                               label: { type: string }
                               url: { type: string }
                               hint: { type: string }
+                        install:
+                          type: object
+                          nullable: true
+                          description: |
+                            How a player gets the game this server runs: the published recipe that installs it, from
+                            the recipe catalogue, limited to the lineup (`LAUNCHER_LINEUP` plus the recipes the orga
+                            switched on). Null when no such recipe matches the server's game, which is the normal
+                            case for a curated game with no recipe or a game outside the lineup.
+                          required: [recipeSlug, title, pageUrl, launcherSupported, launcherJoinUrl]
+                          properties:
+                            recipeSlug:
+                              type: string
+                              description: The recipe slug; the launcher joins with it.
+                            title:
+                              type: string
+                            pageUrl:
+                              type: string
+                              description: The game's page, `/games/<slug>`.
+                            launcherSupported:
+                              type: boolean
+                              description: |
+                                Whether the LANoMAT launcher can take this recipe from archive to running game
+                                (the UT2004 pilot, the hand-verified NFSU2 recipe, a `play_url` recipe or a portable
+                                one). GameServers does not decide this; the recipe catalogue does.
+                            launcherJoinUrl:
+                              type: string
+                              nullable: true
+                              description: |
+                                One click: `lanomat://join/<slug>` with `?address=<host>:<port>` (UT2004, which
+                                takes the server on its command line) or `?url=<urlencoded join url>` for the
+                                server's own deep link. With only an address and no join URL the link carries no
+                                query; the launcher installs the game and starts it normally. Null when the
+                                launcher cannot install the recipe, or the server has neither a usable
+                                address+port nor an accepted join URL.
+                              example: lanomat://join/unreal-tournament-2004?address=203.0.113.9:7777
               example:
                 events:
                   - slug: lan-raute-1
@@ -816,13 +877,39 @@ paths:
                     event: { slug: lan-raute-1, name: Lan Raute 1, status: live }
                     query: { serverName: Survival, map: world, players: 3, maxPlayers: 20 }
                     joinOptions: []
+                    install: null
                   - id: 12
                     title: UT2004 Dauerwelt
                     game: Unreal Tournament 2004
+                    gameSlug: unreal-tournament-2004
                     status: offline
                     permanent: true
                     event: null
                     joinOptions: []
+                    install:
+                      recipeSlug: unreal-tournament-2004
+                      title: Unreal Tournament 2004
+                      pageUrl: /games/unreal-tournament-2004
+                      launcherSupported: true
+                      launcherJoinUrl: null
+                  - id: 13
+                    title: Skyline Rally Abendrunde
+                    game: Skyline Rally
+                    gameSlug: skyline-rally
+                    status: ready
+                    address: 203.0.113.24
+                    port: 7777
+                    connectString: 203.0.113.24:7777
+                    connectIsLink: false
+                    permanent: true
+                    event: null
+                    joinOptions: []
+                    install:
+                      recipeSlug: skyline-rally
+                      title: Skyline Rally
+                      pageUrl: /games/skyline-rally
+                      launcherSupported: true
+                      launcherJoinUrl: lanomat://join/skyline-rally
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -1226,6 +1313,17 @@ components:
             enum: [windows, linux, macos]
         summary:
           type: string
+        launcher_supported:
+          type: boolean
+          description: |
+            The native launcher can install or open this recipe (one decision, `LauncherSupport`):
+            the UT2004 pilot, a verified recipe, a `play_url` browser recipe, a portable archive or
+            an orga override.
+        in_lineup:
+          type: boolean
+          description: Pinned to the launcher lineup by the orga, next to the configured lineup.
+        pull_request:
+          $ref: "#/components/schemas/PullRequest"
         base_required:
           type: boolean
           description: Always true; the base content is required.
@@ -1284,6 +1382,24 @@ components:
           type: string
         cover:
           type: string
+        play_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Browser play URL (`{{host}}` is replaced with the address the client used).
+        launcher_supported:
+          type: boolean
+          description: The launcher can install or open this recipe (`LauncherSupport`).
+        portable:
+          type: boolean
+          description: A ready-to-run archive the generic engine installs by unpacking and checking one file.
+        pull_request:
+          $ref: "#/components/schemas/PullRequest"
+        launch_targets:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/LaunchTarget"
         skill:
           type: object
           required: [name, description]
@@ -1309,8 +1425,18 @@ components:
               type: string
             players:
               type: string
+            players_max:
+              type: integer
             lan_recommended:
               type: boolean
+            multiplayer:
+              type: boolean
+            portable:
+              type: boolean
+              description: The required base archive only needs unpacking; the launcher's generic engine installs it.
+            launcher_supported:
+              type: boolean
+              description: Orga override for the launcher decision (ignored from a participant contribution).
             tags:
               type: array
               items:
@@ -1331,6 +1457,17 @@ components:
             type: string
         required:
           type: boolean
+        os:
+          type: string
+          nullable: true
+          enum: [windows, linux, macos, any]
+          description: Narrow the requirement (and its plan) to one platform.
+        shared_file_id:
+          type: integer
+          nullable: true
+          description: |
+            Pin a LAN file the contributor may open (their own upload or an approved one) to this
+            requirement. The pin lives on the recipe file, never in the recipe text.
         size_bytes:
           type: integer
           format: int64
@@ -1340,6 +1477,17 @@ components:
           type: string
         notes:
           type: string
+        author:
+          type: string
+          maxLength: 120
+          description: Author of an avatar/content file.
+        license:
+          type: string
+          maxLength: 200
+          description: License of an avatar/content file.
+        manual:
+          type: boolean
+          description: The requirement is satisfied by hand; it needs no matching file or URL.
         tags:
           type: array
           items:
@@ -1384,6 +1532,55 @@ components:
                 type: string
               command:
                 type: string
+
+    LaunchTarget:
+      type: object
+      required: [command]
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          description: Stable id (e.g. `flat`, `vr`, `windows`).
+        label:
+          type: string
+          maxLength: 160
+        os:
+          type: string
+          enum: [windows, linux, macos, any]
+          default: any
+        command:
+          type: string
+          maxLength: 2000
+          description: The command the launcher runs; `{{target}}` is the install folder.
+        shell:
+          type: string
+          nullable: true
+          enum: [powershell, cmd, bash]
+        notes:
+          type: string
+          nullable: true
+          maxLength: 1000
+
+    PullRequest:
+      type: object
+      nullable: true
+      description: |
+        The recipe's pull request into the git catalogue. Null while nothing was proposed and for
+        a participant looking at somebody else's recipe.
+      required: [state, label]
+      properties:
+        number:
+          type: integer
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+        state:
+          type: string
+          enum: [open, merged, closed, blocked, failed]
+        label:
+          type: string
 
     PlanRequest:
       type: object
@@ -1532,27 +1729,6 @@ components:
           type: integer
           nullable: true
 
-    LaunchTarget:
-      type: object
-      properties:
-        id:
-          type: string
-        label:
-          type: string
-        os:
-          type: string
-          enum: [windows, linux, macos, any]
-        shell:
-          type: string
-          enum: [powershell, cmd, bash]
-        target:
-          type: string
-        command:
-          type: string
-        notes:
-          type: string
-          nullable: true
-
     RecipeFile:
       type: object
       required: [role, label, file, required, present]
@@ -1637,39 +1813,124 @@ components:
 
     RecipeContribution:
       type: object
-      required: [slug, recipe]
+      required: [slug, title, requires, steps]
       properties:
         slug:
           type: string
-        recipe:
-          $ref: "#/components/schemas/Recipe"
-        skill:
+          maxLength: 120
+        title:
           type: string
+          maxLength: 200
+        summary:
+          type: string
+          maxLength: 500
+        description:
+          type: string
+          maxLength: 10000
+        version:
+          type: string
+          maxLength: 40
+        homepage:
+          type: string
+          format: uri
+          maxLength: 500
+          nullable: true
+        license:
+          type: string
+          maxLength: 200
+        play_url:
+          type: string
+          format: uri
+          maxLength: 500
+          nullable: true
+          description: Browser play URL; makes the recipe launcher-supported without an install.
+        platforms:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+            enum: [windows, linux, macos]
+        aliases:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 64
+        requires:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/Requirement"
+        requirements:
+          type: array
+          maxItems: 50
+          description: Older name for `requires`; both are accepted.
+          items:
+            $ref: "#/components/schemas/Requirement"
+        steps:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/Step"
+        launch_targets:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/LaunchTarget"
+        metadata:
+          type: object
+          description: Only `portable`, `genre`, `players`, `players_max`, `lan_recommended`, `tags` and `multiplayer` are accepted from a contribution.
+          properties:
+            portable:
+              type: boolean
+            genre:
+              type: string
+              maxLength: 80
+            players:
+              type: string
+              maxLength: 20
+            players_max:
+              type: integer
+              minimum: 1
+              maximum: 1024
+            lan_recommended:
+              type: boolean
+            multiplayer:
+              type: boolean
+            tags:
+              type: array
+              maxItems: 20
+              items:
+                type: string
+                maxLength: 40
+        skill_description:
+          type: string
+          maxLength: 1024
+        skill_markdown:
+          type: string
+          maxLength: 65535
           description: The SKILL.md content, including Agent Skills frontmatter.
 
     ContributionResult:
       type: object
-      required: [id, slug, status]
+      required: [recipe]
       properties:
-        id:
-          type: integer
-        slug:
-          type: string
-        status:
-          type: string
-          const: draft
-        validation:
+        recipe:
           type: object
+          required: [slug, title, status, launcher_supported, pull_request]
           properties:
-            valid:
+            slug:
+              type: string
+            title:
+              type: string
+            status:
+              type: string
+              const: draft
+            launcher_supported:
               type: boolean
-            warnings:
-              type: array
-              items:
-                type: string
-        review_url:
-          type: string
-          format: uri
+              description: Whether the launcher can install the new draft as it stands.
+            pull_request:
+              $ref: "#/components/schemas/PullRequest"
 
     Error:
       type: object

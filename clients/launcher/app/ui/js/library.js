@@ -362,16 +362,17 @@ function latestInstall(slug) {
 
 /**
  * Whether this build may offer `Installieren` for the recipe. The shell sets
- * `launcher_supported` (only the UT2004 engine runs today); `installable` is
- * the server's answer about the recipe itself, where an absent field means
- * "older server, unknown" — and unknown must not read as "no".
+ * `launcher_supported` for every recipe it can drive (the UT2004 pilot, the
+ * server's portable-archive recipes and the browser `play_url` path);
+ * `installable` is the server's answer about the recipe itself, where an absent
+ * field means "older server, unknown" — and unknown must not read as "no".
  */
 function canInstall(recipe) {
     return Boolean(recipe.launcher_supported) && recipe.installable !== false;
 }
 
 /**
- * A browser recipe (NFSU2) has no install path: the server sends
+ * A browser recipe (e.g. NFSU2) has no install path: the server sends
  * `installable: false` plus a `play_url`. Its card offers "Spielen" and opens
  * that URL through the shell's `open_url`; no plan, download or verify runs.
  */
@@ -427,8 +428,10 @@ async function openGamePage(event, slug) {
 
 /**
  * One game tile, shared by the library and the chat answer. The hero variant
- * (the one installable game of the catalogue) carries the screen's primary
- * action; every card has exactly one primary action: Install or Start.
+ * (the first installable game of the catalogue, the shell sorts it first)
+ * carries the screen's primary action. Every installable card has exactly one
+ * primary action (Install, Start, or Spielen for a browser recipe); a card this
+ * build cannot install has no primary action, only the web fallback.
  */
 export function gameCard(recipe, { hero = false } = {}) {
     const template = $('tpl-game');
@@ -525,16 +528,17 @@ export function gameCard(recipe, { hero = false } = {}) {
     reinstallButton.addEventListener('click', () => install.begin(recipe));
 
     if (!record && !installable && !browser) {
-        // "Bald im Launcher": the browser page is the honest next step, and no
-        // Install button promises an install this build cannot finish.
+        // "Bald im Launcher": this build cannot install the game yet, so the
+        // card says what is true (manual steps) and links to the game's own
+        // page, where the instructions and files live. No Install button
+        // promises an install this build cannot finish.
         const soon = node.querySelector('[data-field="soon"]');
         const soonHint = node.querySelector('[data-field="soon-hint"]');
+        const url = gamePageUrl(recipe.slug);
 
         soon.hidden = false;
         soonHint.hidden = false;
-        setText(soonHint, S.library.soonHint);
-
-        const url = gamePageUrl(recipe.slug);
+        setText(soonHint, url ? S.library.soonHint : S.library.soonHintNoUrl);
 
         if (url) {
             webLink.href = url;

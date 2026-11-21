@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Check, ChevronDown, Copy, Download, TriangleAlert } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatInstant } from '@/lib/datetime';
+import { index as serversIndex } from '@/routes/servers';
+import type { ServerInstallDto } from '@/types';
 
 type Os = 'linux' | 'windows' | 'macos';
 type Variant = 'installer' | 'portable' | 'archive';
@@ -37,6 +40,8 @@ type LiveServer = {
     permanent: boolean;
     event: { name: string; slug: string } | null;
     join: { href: string; launcher: boolean } | null;
+    /** The matching recipe, so a row without a join still leads to its game. */
+    install?: ServerInstallDto | null;
 };
 
 const props = defineProps<{
@@ -57,6 +62,10 @@ const props = defineProps<{
 }>();
 
 const { isNavigating, hasError } = usePageLoadState();
+
+function retry(): void {
+    router.reload();
+}
 
 const osNames: Record<Os, string> = {
     linux: 'Linux',
@@ -269,6 +278,13 @@ function whereLabel(server: LiveServer): string {
 
     return server.event?.name ?? '';
 }
+
+// The old per-event server URL only redirects; the overview takes the event as a query.
+function serversHref(server: LiveServer): string {
+    return server.event?.slug
+        ? `${serversIndex.url()}?event=${encodeURIComponent(server.event.slug)}`
+        : serversIndex.url();
+}
 </script>
 
 <template>
@@ -291,14 +307,25 @@ function whereLabel(server: LiveServer): string {
         </div>
 
         <!-- error -->
-        <p
+        <div
             v-else-if="hasError"
-            class="rounded-3xl border border-destructive/50 bg-destructive/10 p-10 text-center text-sm text-destructive"
+            class="rounded-3xl border border-destructive/50 bg-destructive/10 p-10 text-center"
             role="alert"
         >
-            Die Launcher-Builds konnten nicht geladen werden. Lade die Seite
-            neu; bleibt es dabei, frag im Orga-Team nach.
-        </p>
+            <p class="text-sm text-destructive">
+                Die Launcher-Builds konnten nicht geladen werden. Prüfe deine
+                Verbindung und versuch es noch einmal.
+            </p>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="mt-3"
+                @click="retry"
+            >
+                Erneut versuchen
+            </Button>
+        </div>
 
         <!-- empty -->
         <div
@@ -326,13 +353,11 @@ function whereLabel(server: LiveServer): string {
                 </p>
                 <p class="mt-2 max-w-xl text-sm text-muted-foreground">
                     Sobald ein Build bereitsteht, findest du hier den Download
-                    für Windows und Linux. Bis dahin installierst du Unreal
-                    Tournament 2004 wie gewohnt von Hand über die Spiele-Seite.
+                    für Windows und Linux. Bis dahin installierst du die Spiele
+                    wie gewohnt von Hand über die Spiele-Bibliothek.
                 </p>
                 <Button as-child size="lg" class="mt-8">
-                    <Link href="/games/unreal-tournament-2004">
-                        Zum Spiel Unreal Tournament 2004
-                    </Link>
+                    <Link href="/games">Zu den Spielen</Link>
                 </Button>
             </div>
         </div>
@@ -565,14 +590,15 @@ function whereLabel(server: LiveServer): string {
                         </div>
 
                         <div class="flex shrink-0 items-center gap-2">
-                            <Button
+                            <LauncherLink
                                 v-if="live.join?.launcher"
-                                as-child
+                                :href="live.join.href"
                                 size="sm"
                                 data-test="launcher-live-join"
+                                manual-hint="Die Serveradresse oben bleibt gültig — du kannst auch im Spiel beitreten."
                             >
-                                <a :href="live.join.href">Beitreten</a>
-                            </Button>
+                                Beitreten
+                            </LauncherLink>
                             <Button
                                 v-else-if="live.join"
                                 as-child
@@ -589,16 +615,17 @@ function whereLabel(server: LiveServer): string {
                                 </a>
                             </Button>
                             <Button v-else as-child size="sm" variant="outline">
-                                <Link
-                                    :href="
-                                        live.event?.slug
-                                            ? `/events/${live.event.slug}/servers`
-                                            : '/servers'
-                                    "
-                                >
+                                <Link :href="serversHref(live)">
                                     Server ansehen
                                 </Link>
                             </Button>
+                            <Link
+                                v-if="!live.join && live.install?.pageUrl"
+                                :href="live.install.pageUrl"
+                                class="inline-flex min-h-8 items-center rounded-sm px-1 text-xs text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+                            >
+                                Zum Spiel
+                            </Link>
                         </div>
                     </li>
                 </ul>
@@ -855,13 +882,13 @@ function whereLabel(server: LiveServer): string {
                     </div>
 
                     <p class="text-sm text-muted-foreground">
-                        Im Pilotbetrieb installiert der Launcher Unreal
-                        Tournament 2004.
+                        Der Launcher installiert jedes Spiel, das in der
+                        Spiele-Bibliothek mit „Installieren“ angeboten wird.
                         <Link
-                            href="/games/unreal-tournament-2004"
+                            href="/games"
                             class="rounded-sm underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                            Zum Spiel Unreal Tournament 2004
+                            Zu den Spielen
                         </Link>
                     </p>
                 </div>

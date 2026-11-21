@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
-    ClipboardCopy,
     Download,
     ExternalLink,
     Gamepad2,
@@ -14,13 +13,18 @@ import {
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
-import { toast } from 'vue-sonner';
+import CopyText from '@/components/CopyText.vue';
+import GameServerJoin from '@/components/games/GameServerJoin.vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePageLoadState } from '@/composables/usePageLoadState';
+import type { JoinOptionDto, ServerInstallDto } from '@/types';
 
 type ServerRow = {
     id: number;
@@ -31,6 +35,10 @@ type ServerRow = {
     port: number | null;
     connectString: string;
     connectIsLink: boolean;
+    /** Server-built ways in (Steam, native); empty for games without templates. */
+    joinOptions?: JoinOptionDto[];
+    /** The published launcher recipe that matches this server's game, if any. */
+    install?: ServerInstallDto | null;
     status: string;
     query: {
         serverName: string;
@@ -126,6 +134,14 @@ const readyServers = computed(() =>
     ),
 );
 
+// Only a full GET visit swaps the page for skeletons; a failed one offers the
+// retry instead of leaving the old content silently in place.
+const { isNavigating, hasError } = usePageLoadState();
+
+function retry(): void {
+    router.reload();
+}
+
 /** "1 Avatar zur Auswahl" / "3 Avatare zur Auswahl" — never "1 Avatare". */
 const avatarLabel = computed<string>(() =>
     props.game.avatars === 1
@@ -157,14 +173,23 @@ const formatBytes = (bytes: number | null): string => {
     return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
 };
 
-async function copy(value: string, label: string): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(value);
-        toast.success(label);
-    } catch {
-        toast.error('Konnte nicht kopieren — bitte manuell markieren.');
-    }
-}
+/**
+ * The launcher download, when one is published and can install this recipe.
+ * Not null means "Installieren" leads to the download page instead of firing
+ * `lanomat://` at a PC that may have no handler for it yet.
+ */
+const launcherDownload = computed<string | null>(() =>
+    props.game.installable &&
+    props.game.launcher_supported &&
+    props.game.launcher_available &&
+    props.game.launcher_url !== null
+        ? props.game.launcher_url
+        : null,
+);
+
+/** The manual way stays on this page: install command and file list. */
+const manualInstallHint =
+    'Installationsbefehl und Dateien stehen direkt unter den Aktionen.';
 
 function announceRound(): void {
     router.post(`/games/${props.game.slug}/lfg`, {}, { preserveScroll: true });
@@ -175,7 +200,64 @@ function announceRound(): void {
     <Head :title="game.title" />
 
     <PageContainer width="wide">
-        <div class="grid gap-8 lg:grid-cols-[16rem_1fr]">
+        <!-- loading: a full visit only, e.g. entering the page again -->
+        <div
+            v-if="isNavigating"
+            class="grid gap-8 lg:grid-cols-[16rem_1fr]"
+            role="status"
+            aria-label="Spiel wird geladen"
+            data-test="game-loading"
+        >
+            <div class="space-y-2">
+                <Skeleton class="h-5 w-24 rounded-md" />
+                <Skeleton
+                    v-for="n in 6"
+                    :key="n"
+                    class="h-12 w-full rounded-md"
+                />
+            </div>
+            <div class="min-w-0 space-y-6">
+                <div class="space-y-2">
+                    <Skeleton class="h-3 w-32 rounded-md" />
+                    <Skeleton class="h-8 w-64 max-w-full rounded-md" />
+                    <Skeleton class="h-4 w-full max-w-2xl rounded-md" />
+                    <Skeleton class="h-6 w-72 max-w-full rounded-md" />
+                </div>
+                <Skeleton class="h-10 w-48 rounded-md" />
+                <Skeleton class="h-40 w-full rounded-md" />
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_20rem]">
+                    <div class="space-y-6">
+                        <Skeleton class="h-48 w-full rounded-md" />
+                        <Skeleton class="h-48 w-full rounded-md" />
+                    </div>
+                    <Skeleton class="h-64 w-full rounded-md" />
+                </div>
+            </div>
+        </div>
+
+        <!-- error -->
+        <div
+            v-else-if="hasError"
+            class="rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center"
+            role="alert"
+            data-test="game-error"
+        >
+            <p class="text-sm text-destructive">
+                „{{ game.title }}“ konnte nicht geladen werden. Prüfe deine
+                Verbindung und versuch es noch einmal.
+            </p>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="mt-3"
+                @click="retry"
+            >
+                Erneut versuchen
+            </Button>
+        </div>
+
+        <div v-else class="grid gap-8 lg:grid-cols-[16rem_1fr]">
             <GamesSidebar :games="library" :active="active" />
 
             <div class="min-w-0">
@@ -248,50 +330,39 @@ function announceRound(): void {
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        <!-- A fresh PC has no `lanomat://` handler; for the one
-                             recipe the pilot build installs, the primary action
-                             opens the launcher download. Every other recipe
-                             keeps the agent deep link. -->
+                        <!-- A fresh PC has no `lanomat://` handler; for every
+                             recipe the launcher can install, the primary action
+                             opens the launcher download. The rest keep the
+                             agent deep link. -->
                         <Button
-                            v-if="game.installable"
+                            v-if="launcherDownload"
                             as-child
                             data-test="install"
                         >
-                            <Link
-                                v-if="
-                                    game.launcher_supported &&
-                                    game.launcher_available &&
-                                    game.launcher_url
-                                "
-                                :href="game.launcher_url"
-                            >
+                            <Link :href="launcherDownload">
                                 <Download class="size-4" aria-hidden="true" />
                                 Installieren
                             </Link>
-                            <a v-else :href="game.install_deeplink">
-                                <Download class="size-4" aria-hidden="true" />
-                                Installieren
-                            </a>
                         </Button>
-                        <Button
-                            v-if="
-                                game.installable &&
-                                game.launcher_supported &&
-                                game.launcher_available &&
-                                game.launcher_url
-                            "
-                            as-child
+                        <LauncherLink
+                            v-else-if="game.installable"
+                            :href="game.install_deeplink"
+                            data-test="install"
+                            :manual-hint="manualInstallHint"
+                        >
+                            <Download class="size-4" aria-hidden="true" />
+                            Installieren
+                        </LauncherLink>
+                        <LauncherLink
+                            v-if="launcherDownload"
+                            :href="game.install_deeplink"
                             variant="ghost"
                             data-test="install-launcher"
+                            :manual-hint="manualInstallHint"
                         >
-                            <a :href="game.install_deeplink">
-                                <ExternalLink
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                                Im Launcher öffnen
-                            </a>
-                        </Button>
+                            <ExternalLink class="size-4" aria-hidden="true" />
+                            Im Launcher öffnen
+                        </LauncherLink>
                         <Button
                             v-if="game.play_url"
                             as-child
@@ -310,57 +381,68 @@ function announceRound(): void {
                                 Spielen
                             </a>
                         </Button>
-                        <Button
+                        <LauncherLink
                             v-else-if="game.requires_agent"
-                            as-child
+                            :href="game.launch_deeplink"
                             variant="outline"
                             data-test="launch"
+                            manual-hint="Der Startbefehl steht direkt unter den Aktionen."
                         >
-                            <a :href="game.launch_deeplink">
-                                <Play class="size-4" aria-hidden="true" />
-                                Starten
-                            </a>
-                        </Button>
+                            <Play class="size-4" aria-hidden="true" />
+                            Starten
+                        </LauncherLink>
                     </div>
                 </header>
 
+                <!-- The install button IS the deep link when no build is
+                     published: say what it can and cannot do instead of
+                     pretending the click always installs. With a build, the
+                     primary action leads to the download instead. -->
+                <p
+                    v-if="game.installable && !launcherDownload"
+                    class="mt-4 max-w-2xl text-xs leading-relaxed text-muted-foreground"
+                    data-test="install-deeplink-hint"
+                >
+                    Ist der LANoMAT Launcher schon auf diesem PC, öffnet der
+                    Klick die Installation. Sonst gelten die manuellen Schritte
+                    unten — Installationsbefehl und Dateien stehen direkt
+                    darunter.
+                </p>
+
                 <div
                     v-if="game.installable || game.requires_agent"
-                    class="mt-4 flex flex-wrap gap-2 text-xs"
+                    class="mt-4 flex flex-col gap-2 text-xs"
                 >
-                    <Button
+                    <div
                         v-if="game.installable"
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        class="h-auto max-w-full text-left whitespace-normal"
-                        @click="
-                            copy(
-                                game.install_command,
-                                'Installationsbefehl kopiert',
-                            )
-                        "
+                        class="flex flex-wrap items-center gap-2"
                     >
-                        <ClipboardCopy class="size-4" aria-hidden="true" />
-                        <span class="font-mono break-all">{{
-                            game.install_command
-                        }}</span>
-                    </Button>
-                    <Button
-                        v-if="game.requires_agent"
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        class="h-auto max-w-full text-left whitespace-normal"
-                        @click="
-                            copy(game.launch_command, 'Startbefehl kopiert')
-                        "
-                    >
-                        <span
-                            class="font-mono break-all text-muted-foreground"
-                            >{{ game.launch_command }}</span
+                        <code
+                            class="max-w-full rounded-md bg-muted px-2 py-1 font-mono break-all text-foreground"
+                            >{{ game.install_command }}</code
                         >
-                    </Button>
+                        <CopyText
+                            :text="game.install_command"
+                            label="Installationsbefehl kopieren"
+                            copied-label="Kopiert!"
+                            failed-label="Kopieren nicht möglich"
+                        />
+                    </div>
+                    <div
+                        v-if="game.requires_agent"
+                        class="flex flex-wrap items-center gap-2"
+                    >
+                        <code
+                            class="max-w-full rounded-md bg-muted px-2 py-1 font-mono break-all text-muted-foreground"
+                            >{{ game.launch_command }}</code
+                        >
+                        <CopyText
+                            :text="game.launch_command"
+                            label="Startbefehl kopieren"
+                            copied-label="Kopiert!"
+                            failed-label="Kopieren nicht möglich"
+                        />
+                    </div>
                 </div>
                 <p
                     v-else
@@ -371,22 +453,14 @@ function announceRound(): void {
                     Browser. Der Agent ist optional.
                 </p>
 
-                <!-- The deep link only fires once the launcher is installed;
-                     this explains why the primary action leads to the download
-                     on a fresh PC (pilot recipe plus a published build). -->
                 <p
-                    v-if="
-                        game.requires_agent &&
-                        game.launcher_supported &&
-                        game.launcher_available &&
-                        game.launcher_url
-                    "
+                    v-if="game.requires_agent && launcherDownload"
                     class="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
                     data-test="launcher-download"
                 >
                     Noch kein Launcher auf diesem PC? „Installieren“ führt zum
                     <Link
-                        :href="game.launcher_url"
+                        :href="launcherDownload"
                         class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                         Launcher-Download</Link
@@ -489,7 +563,7 @@ function announceRound(): void {
                                                 }}
                                             </p>
                                             <p
-                                                class="font-mono text-xs text-muted-foreground"
+                                                class="font-mono text-xs break-words text-muted-foreground"
                                             >
                                                 {{ server.connectString }}
                                                 <span v-if="server.query">
@@ -502,34 +576,23 @@ function announceRound(): void {
                                                 </span>
                                             </p>
                                         </div>
-                                        <Button
-                                            as-child
-                                            size="sm"
-                                            variant="outline"
-                                        >
-                                            <a
-                                                :href="
-                                                    server.connectIsLink
-                                                        ? server.connectString
-                                                        : `steam://connect/${server.connectString}`
-                                                "
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                <ExternalLink
-                                                    class="size-4"
-                                                    aria-hidden="true"
-                                                />
-                                                Joinen
-                                            </a>
-                                        </Button>
+                                        <!-- Honest per server: launcher link,
+                                             the game's join options, an
+                                             allowlisted link, or the address
+                                             to copy — never a guessed
+                                             `steam://connect/…`. -->
+                                        <GameServerJoin :server="server" />
                                     </li>
                                 </ul>
                             </CardContent>
                         </Card>
 
                         <!-- lfg -->
-                        <Card v-if="game_modules.lfg">
+                        <Card
+                            v-if="game_modules.lfg"
+                            id="zusammen-spielen"
+                            class="scroll-mt-24"
+                        >
                             <CardHeader>
                                 <CardTitle
                                     class="flex items-center gap-2 text-base"
@@ -547,6 +610,7 @@ function announceRound(): void {
                                         v-if="active_event"
                                         size="sm"
                                         type="button"
+                                        variant="outline"
                                         @click="announceRound"
                                     >
                                         <Plus
