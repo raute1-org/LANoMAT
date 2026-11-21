@@ -21,8 +21,10 @@ that are synced automatically. Participants can favourite items and export the p
 
 | Dark | Light |
 |---|---|
-| ![Schedule, dark](/screens/schedule-dark.png) | ![Schedule, light](/screens/schedule-light.png) |
-| `SCHEDULE · DARK` — now/next, favourites | `SCHEDULE · LIGHT` |
+| ![Schedule timeline grouped by day with a now card, favourites and ICS export, dark](/screens/schedule-dark.png) | ![Schedule timeline grouped by day with a now card, favourites and ICS export, light](/screens/schedule-light.png) |
+| `SCHEDULE · DARK` — now/next, favourites, ICS export | `SCHEDULE · LIGHT` |
+| ![Admin schedule list with title, type, start and event, dark](/screens/admin-schedule-dark.png) | ![Admin schedule list with title, type, start and event, light](/screens/admin-schedule-light.png) |
+| `ADMIN · SCHEDULE` — slots and synced tournament matches | `ADMIN · LIGHT` |
 
 ## Guards and rules
 

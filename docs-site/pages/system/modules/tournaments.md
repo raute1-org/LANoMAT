@@ -22,8 +22,10 @@ fan-out on `MatchReady` and `MatchCompleted`.
 
 | Dark | Light |
 |---|---|
-| ![Tournaments, dark](/screens/tournaments-dark.png) | ![Tournaments, light](/screens/tournaments-light.png) |
-| `TOURNAMENTS · DARK` — bracket and match actions | `TOURNAMENTS · LIGHT` |
+| ![Tournament list with format, live status and entry count, dark](/screens/tournaments-dark.png) | ![Tournament list with format, live status and entry count, light](/screens/tournaments-light.png) |
+| `TOURNAMENTS · DARK` — list, format, LIVE, entries | `TOURNAMENTS · LIGHT` |
+| ![Live bracket with completed, running and pending matches, dark](/screens/tournament-bracket-dark.png) | ![Live bracket with completed, running and pending matches, light](/screens/tournament-bracket-light.png) |
+| `BRACKET · DARK` — rounds, scores, report/confirm | `BRACKET · LIGHT` |
 
 ## Guards and rules
 
