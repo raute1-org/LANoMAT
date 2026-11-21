@@ -1,0 +1,235 @@
+---
+title: Install Counter-Strike 1.6
+description: Half-Life plus Counter-Strike 1.6 on a LAN PC — Steam apps 70/10/90, the cstrike folder, the LAN config, connecting to the server, and the tournament and LFG path.
+---
+
+Counter-Strike 1.6 runs on **Half-Life** (GoldSrc). Every player needs the Half-Life base and the
+`cstrike` game folder; the LAN server is a separate install on the game-server host or on a spare PC.
+The recipe is `counter-strike-1-6` (aliases `cs1.6`, `cs 1.6`, `cstrike`, `counter strike`).
+
+The repository's recipe is currently **`status: draft`**. It is not on `/games` and not in
+`lanomat-agent recipes` for participants until an orga publishes it
+([runbook](/docs/guides/lan-party-runbook)). The plan and install flow below are the same once it is
+published; the file layout and the Steam app ids are already fixed.
+
+<div class="live">LIVE 17:42 · CS 1.6 · Half-Life base · cstrike · LAN server 27015</div>
+
+## Who this is for
+
+| Role | What they do here |
+|---|---|
+| **Participant** | Installs Half-Life + CS 1.6, configures it, joins the LAN server |
+| **Team captain** | Makes sure five players have the same version and config before a cup |
+| **Orga** | Publishes the recipe, runs the server, opens the tournament and the LFG post |
+
+GoldSrc is old software with modern failure modes: a wrong `-game` flag, a missing `cstrike` folder or
+a Steam download that never finished. The checklist at the end is the short version.
+
+## What you need
+
+| Requirement | Value / why |
+|---|---|
+| LANoMAT account + paired agent | The recipe, plan and file matching ([agent guide](/docs/guides/install-the-agent)) |
+| Steam | Half-Life is installed through Steam; CS 1.6 is a Steam app |
+| Half-Life base | **Steam app 70**; retail/GOG also works if the folder contains `hl.exe` |
+| Counter-Strike 1.6 | **Steam app 10**; the recipe's `cstrike*.zip` is the LAN copy |
+| Half-Life Dedicated Server (optional) | **Steam app 90**, only for a server on a player PC |
+| Disk | About **1 GB** for Half-Life + CS 1.6 |
+| OS | Windows 10/11; Linux through Proton/Wine |
+| LAN config (optional) | `autoexec.cfg`, `server.cfg` from the file host |
+| Server address | The join string on the game page, usually `host:27015` |
+
+The recipe's requirements:
+
+| Role | Label | Required | Match |
+|---|---|---|---|
+| `base` | Half-Life base (Steam/GOG or retail) | **yes** | `half-life*.iso`, `hl*.iso`, `HalfLife*.exe` |
+| `mod` | Counter-Strike 1.6 (cstrike folder or installer) | **yes** | `cstrike*.zip`, `counter-strike*.exe`, `cs16*.exe`, `cstrike*.7z` |
+| `config` | LAN config (autoexec.cfg, server.cfg) | no | `autoexec*.cfg`, `server*.cfg` |
+
+<div class="callout-live">
+  <strong>Steam app ids.</strong> 70 = Half-Life, 10 = Counter-Strike, 90 = Half-Life Dedicated
+  Server. The recipe uses <code>steam://install/70</code> and <code>steam://rungameid/70</code>;
+  install app 10 separately in Steam or from the LAN copy.
+</div>
+
+## 1. Publish the recipe (orga, once)
+
+```bash
+php artisan lanomat:recipes:sync --only=counter-strike-1-6
+```
+
+Then open `/admin` → **Spielrezepte**, open `counter-strike-1-6`, set the status to
+**Veröffentlicht** and save. Until then:
+
+- `/games` does not list it,
+- `lanomat-agent recipes` does not show it,
+- `lanomat-agent install counter-strike-1-6` may answer with an unknown recipe.
+
+Drafts are visible to orga and to an orga token; participants see published recipes only.
+
+## 2. Install Half-Life (Steam app 70)
+
+```powershell
+Start-Process "steam://install/70"
+```
+
+Or in Steam: **Library → Half-Life → Install**. Verification in the recipe is the folder
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\Half-Life
+```
+
+That folder must contain `hl.exe`. If you use a second Steam library on another drive, the path is
+`<library>\steamapps\common\Half-Life`; the recipe's example assumes the default library.
+
+**Retail or GOG copy:** install it from the LAN file or copy the working folder. The base requirement
+is `HalfLife*.exe` or a Half-Life ISO; it does not have to be Steam.
+
+## 3. Install Counter-Strike 1.6 (Steam app 10)
+
+Two equivalent paths:
+
+| Path | How |
+|---|---|
+| Steam | `steam://install/10`, or Steam → Store → Counter-Strike → Play |
+| LAN copy | Extract `cstrike.zip` into the Half-Life folder |
+
+```powershell
+Expand-Archive -Path "{{downloads}}/cstrike.zip" -DestinationPath "C:\Program Files (x86)\Steam\steamapps\common\Half-Life" -Force
+```
+
+The archive must land **next to** `hl.exe`, producing
+`…\Half-Life\cstrike\liblist.gam`, `…\cstrike\maps\`, etc. A `cstrike` folder nested one level too
+deep is the most common failure: the game starts as plain Half-Life.
+
+If the LAN file is an installer (`counter-strike*.exe`, `cs16*.exe`), run it and point it at the same
+Half-Life folder. Keep the installed `cstrike` folder; do not merge two versions.
+
+## 4. Start the game with the right game folder
+
+```powershell
+Start-Process "steam://rungameid/70"
+```
+
+Then choose **Counter-Strike** from the Half-Life menu. The direct equivalent is:
+
+```text
+"C:\Program Files (x86)\Steam\steamapps\common\Half-Life\hl.exe" -game cstrike
+```
+
+`-game cstrike` is not optional when you start `hl.exe` yourself. Without it you get Half-Life's
+menu, and the console reports no CS maps. The recipe's metadata uses exactly that command as its
+launch target.
+
+## 5. Apply the LAN config (optional)
+
+The recipe offers `autoexec*.cfg` and `server*.cfg` from the file host. Place them where GoldSrc
+reads them:
+
+| File | Place in | Purpose |
+|---|---|---|
+| `autoexec.cfg` | `…\Half-Life\cstrike\` or `…\cstrike\cfg\` | Client settings executed at start |
+| `server.cfg` | the server's `cstrike\` folder | Server name, password, round settings |
+
+Keep the LAN's copy rather than inventing your own; a config that differs per player causes
+"unknown command" churn and mismatched rates. For a player PC the only hard requirement is that the
+game starts and connects — the config is a convenience.
+
+## 6. Join the LAN server
+
+Open `/games/counter-strike-1-6` (or `/games/cs16`). The **live servers** section lists the server
+with map and player count. Counter-Strike is a Steam game, so the row is a
+`steam://connect/<address>` link; the same address works in the console.
+
+| Path | How |
+|---|---|
+| Game page | Press the server row; Steam opens and connects |
+| Browser / Run dialog | `steam://connect/lan.example:27015` |
+| In-game console | `~` → `connect lan.example:27015` |
+| Steam server browser | **View → Servers → Favorites → Add server** with `host:27015` |
+
+The default GoldSrc port is **27015**. A server on another port shows it in the join string; use the
+string, not a guess. If the list is empty, no `ServerLink` exists for the game on this event — ask the
+orga, or start a local match with bots.
+
+## 7. Tournament and LFG
+
+Counter-Strike 1.6 tournaments appear on the game page while they are `announced`, `enrollment`,
+`check_in` or `live`; a finished tournament drops off. The page links to the bracket at
+`/tournaments/<id>`.
+
+- **Enroll:** open the tournament, press enroll, then check in during the check-in window.
+- **Team size:** the tournament defines it; CS is conventionally five players. Check the cup's own
+  team size before you recruit.
+- **Match flow:** report the result on the match page, the opponent confirms, a dispute goes to the
+  orga. The bracket updates live.
+- **Runde ankündigen:** one click on the game page creates an LFG post and links the event voice room
+  at `/talk`. It does not create a tournament or start a server.
+
+| Light |
+|---|
+| ![Tournament bracket, light](/docs/screens/tournament-bracket-light.png) |
+| `TOURNAMENT · BRACKET · REPORT · CONFIRM` |
+
+## 8. Verify
+
+| Check | Expected |
+|---|---|
+| Half-Life folder | `hl.exe` exists |
+| CS folder | `…\Half-Life\cstrike\liblist.gam` exists |
+| Menu | Counter-Strike appears and loads its own background |
+| Console | `~` opens; `version` reports a GoldSrc build |
+| Local match | A map with bots loads, mouse and sound work |
+| Server | `connect host:27015` reaches the map and the player list |
+| Config | No "unknown command" spam at start |
+| Tournament | The game page lists the cup; enrollment works |
+
+## The four states
+
+| State | What you see | What it means |
+|---|---|---|
+| **Normal** | `/games/counter-strike-1-6` lists the game and a server; the client boots CS | Recipe published, base + cstrike installed, server reachable |
+| **Empty** | The game is missing from `/games` and from `recipes` | The recipe is still `draft`; an orga publishes it |
+| **Loading** | Steam shows a download; the plan shows a download bar | App 70/10 or the LAN archive is still transferring |
+| **Error** | Plain Half-Life menu, "You have no games installed", or connection failed | Missing/misplaced `cstrike`, wrong `-game` flag, or server/port/firewall |
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Game starts as Half-Life, no CS menu | `cstrike` not next to `hl.exe`, or `-game cstrike` missing | Move the folder; add the flag |
+| "You have no games installed" | `cstrike/liblist.gam` missing or corrupt | Re-extract the archive into the Half-Life folder |
+| `steam://install/70` opens nothing | Steam not running or not registered | Start Steam, then retry; or install from the Library |
+| `steam://install/10` says already owned but not installed | App 10 not installed in this library | Install it explicitly; check the library drive |
+| `steam://connect/...` opens the wrong game | Another Steam game owns the URL handler | Use the in-game console `connect host:port` |
+| "CD key in use" | Same key on two machines | Close the other session; retail keys are per install |
+| Server list empty | No `ServerLink` for this event | Ask the orga; add the address under Favorites |
+| Connection timed out | Wrong port, firewall, or server down | Use the join string; allow UDP/TCP 27015 on the server |
+| High ping or choke on the LAN | Wi-Fi, or a background download | Wire the PC; stop Steam downloads |
+| No microphone | Steam voice not configured | Steam → Settings → Voice; test before the cup |
+| Game runs at 60 Hz only | Display/compositor cap | Windowed or driver-level refresh; GoldSrc is old |
+| Linux: `hl.exe` not found | Proton prefix differs | Run through Steam Play; the prefix lives under `steamapps/compatdata/70` |
+| VAC message on a LAN server | VAC only matters on secured servers | A LAN server usually runs unsecured; ignore on the LAN |
+| Tournament missing on the game page | Status is finished/draft, or the game name does not match | Ask the orga; the page lists active cups only |
+
+## Checklist
+
+- [ ] Recipe published (`/admin` → Spielrezepte → Veröffentlicht).
+- [ ] Half-Life installed; `hl.exe` present.
+- [ ] `cstrike` folder next to `hl.exe`; `liblist.gam` present.
+- [ ] Game starts as Counter-Strike, not plain Half-Life.
+- [ ] Console opens; a local map with bots runs.
+- [ ] Optional LAN config placed; no unknown-command spam.
+- [ ] Server address tested (`steam://connect/…` or `connect …`).
+- [ ] Tournament enrollment and check-in understood.
+- [ ] Voice tested if the team uses `/talk`.
+- [ ] Five players on the same client version before the first cup match.
+
+## Related
+
+- [Install the agent](/docs/guides/install-the-agent) — pairing and the plan flow
+- [Upload ISOs and avatars](/docs/guides/upload-isos-and-avatars) — the Half-Life and cstrike files
+- [Tournaments](/docs/system/modules/tournaments) — enrollment, check-in, report and confirm
+- [Games library](/docs/system/games-library) — servers, tournaments and „Runde ankündigen“
+- [LFG](/docs/system/modules/lfg) — the open-slot board behind the one-click round

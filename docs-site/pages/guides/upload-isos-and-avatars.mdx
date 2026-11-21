@@ -1,0 +1,236 @@
+---
+title: Upload ISOs and avatars
+description: Put a game ISO, patch, VR mod or .vrm avatar on the LAN file host — the event Files page, the approval step, the matching rules, pinning a file in the admin recipe, and the privacy and licensing rules.
+---
+
+A recipe never ships a game file. It carries **globs** — `ut2004*.iso`,
+`OldUnreal-UT2004Patch3374-*.zip`, `*.vrm` — and the installer matches them against the **approved
+files on the LAN file host**. Uploading the bytes is therefore half of every install guide; this page
+is that half.
+
+There are two surfaces: the participant/orga **Files page** at `/events/<slug>/files`, and the
+Filament moderation table at `/admin`. An upload is not visible to a plan until it is approved.
+
+<div class="live">LIVE 17:42 · 4 files pending · 2 approved · 18.4 GB shared · quota 100 GB</div>
+
+## Who this is for
+
+| Role | What they do here |
+|---|---|
+| **Participant** | Uploads a mod, map, patch or avatar; waits for approval |
+| **Orga / helper** | Uploads the ISOs before the event, approves or rejects, fixes names |
+| **Recipe author** | Writes the `match` globs or pins one file id, then re-plans |
+
+## What you need
+
+| Requirement | Value / why |
+|---|---|
+| LANoMAT account | Any logged-in account can upload within its quota |
+| Event membership | The Files page is event-scoped: `/events/<slug>/files` |
+| The file | ISO, patch, mod, `.vrm`, config — any type except browser-executable ones |
+| A stable name | The recipe matches the **original file name**; renaming after approval breaks plans |
+| Free quota | Default **100 GB per user per event** (`FILES_PER_USER_QUOTA_MB=102400`) |
+| Size within the cap | Default **50 GB per file** (`FILES_MAX_FILE_GB=50`); the non-resumable path caps at 200 MB (`FILES_MAX_UPLOAD_MB`) |
+| Orga for approval | A pending file is visible to its uploader and staff only |
+
+## 1. Open the event Files page
+
+```text
+https://lan.example/events/lan-raute-1/files
+```
+
+The page has an upload card, a quota bar and the file list. Every row shows its name, size, status
+and uploader. The quota bar is a quiet gauge: it turns amber near the cap, but the server enforces the
+quota, not the bar.
+
+From the home page (`/`) open your event, then **Dateien**; the direct URL is the one above. The home
+page itself is a login gate: guests see the event-free landing, every event page needs an account.
+
+| Dark | Light |
+|---|---|
+| ![Home after login, dark](/docs/screens/home-dark.png) | ![Home after login, light](/docs/screens/home-light.png) |
+| `HOME · EVENT · NEXT · TICKET` | `HOME · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Files page with upload and quota, dark](/docs/screens/files-upload-dark.png) | ![Files page with upload and quota, light](/docs/screens/files-upload-light.png) |
+| `FILES · UPLOAD · QUOTA · PENDING` | `FILES · LIGHT` |
+
+## 2. Upload
+
+**Small files (default path).** Choose a file under **„Datei hochladen“** and press **„Hochladen“**.
+The form posts one file; the row appears with **„Wartet auf Freigabe“**.
+
+**Large files (resumable).** When the file host runs with tus, the page shows a drop area:
+
+```text
+Dateien auswählen — oder hierher ziehen
+Auch große Spiele sind möglich, bis 50 GB pro Datei. Sie werden in Teilen direkt zum
+Dateiserver übertragen und machen nach einer Unterbrechung an derselben Stelle weiter.
+```
+
+- Keep the page open during the upload. The row shows queued / preparing / uploading / paused /
+  reconnecting / done.
+- After a reload or a closed tab, select **the same file** again; the upload resumes where it stopped.
+- Do not rename the file while it uploads. The original name is what the matcher sees.
+- Pause/resume and cancel are on the row; a cancelled upload releases its reservation.
+
+| Status on the row | Meaning |
+|---|---|
+| `Wartet auf Freigabe` | Uploaded; an orga must approve it |
+| `Freigegeben` | Visible to plans and to other participants |
+| `Abgelehnt` | Rejected; the bytes are removed and cannot be approved later |
+
+## 3. What is allowed
+
+| Rule | Detail |
+|---|---|
+| Any type except browser-executable | HTML, SVG and JavaScript are refused: they would run on the app's origin |
+| `.exe`, `.msi`, `.iso`, `.zip`, `.7z`, `.bin`, `.cue`, `.chd`, `.vrm` | Allowed; moderation still applies |
+| Per-file cap | `FILES_MAX_FILE_GB` (default 50 GB), equal to tusd's `-max-size` |
+| Per-user quota | `FILES_PER_USER_QUOTA_MB` (default 100 GB) per event |
+| Store | `FILES_STORE=local` or `host`; a row remembers its store, so switching never strands a file |
+| Download | Signed URL with an expiry on the host store; a policy-checked attachment on the local store |
+
+A rejected file's bytes are gone. To try again, upload it anew — an old row cannot be resurrected.
+
+## 4. Approval (orga)
+
+Open `/admin` → **Dateien**. The table shows visibility, uploader, size and store. Two row actions:
+
+| Action | Result |
+|---|---|
+| **Freigeben** | `approved`; the file becomes visible to plans and participants |
+| **Ablehnen** | `rejected`; the bytes are removed from the store |
+
+Approve only what the recipe should use. A file that is approved but misnamed is worse than a missing
+one: the plan shows `[MISSING]` for a name that looks present to a human. Check the name against the
+recipe's `match` list before approving.
+
+| Light |
+|---|
+| ![Admin recipes list, light](/docs/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` |
+
+## 5. How matching works
+
+A recipe's requirement has a `role`, a `label`, a `match` list and a `required` flag. The server
+matches each glob against the **original filename of approved `SharedFile` rows**, case-insensitively.
+
+| Part | Example | Meaning |
+|---|---|---|
+| `role` | `iso`, `patch`, `mod`, `tool`, `avatar`, `content`, `config` | What the file is for; only `avatar` is selectable |
+| `match` | `ut2004*.iso` | Glob against the original name; `*` spans any characters |
+| `required` | `true` | A plan without it is invalid |
+| `size_bytes` / `sha256` | optional | Verification when present; an empty hash is allowed |
+| `url` | upstream release page | Provenance, and the external fallback |
+
+Practical rules:
+
+- **One source per item.** Two ISOs with different names can both match a broad glob; the plan may
+  pick either. Delete the duplicate or make the glob specific.
+- **Keep upstream names.** `OldUnreal-UT2004Patch3374-Windows-d906d39a.zip` matches
+  `OldUnreal-UT2004Patch3374-*.zip`; a renamed `patch.zip` does not.
+- **Approval is part of matching.** A pending upload is invisible to the matcher, so a fresh upload
+  needs the orga step before a plan can see it.
+- **Base required, extras optional.** A recipe must install with its `required: true` entries alone.
+  Mods and avatars never block the base install.
+- **Avatars are multi-select.** Every matching `.vrm` is offered as one choice list; zero is valid.
+
+### Pinning one file instead of a glob
+
+The Filament recipe form has a **LAN-Datei-ID** (`shared_file_id`) field per requirement:
+
+> „Optional eine konkrete hochgeladene Datei festnageln (statt Muster-Matching).“
+
+Use it when exactly one upload is the right one — a specific patched ISO, or an avatar whose name is
+too generic for a glob. The field takes the numeric id of an approved `SharedFile`. Pinning wins over
+matching; a deleted or rejected file leaves the requirement unmatched again.
+
+| Light |
+|---|
+| ![Admin recipe edit with requirements, light](/docs/screens/admin-recipe-edit-light.png) |
+| `ADMIN · REZEPT · DATEIEN · ROLLE · MUSTER` |
+
+## 6. Avatars (`.vrm`)
+
+Avatars are ordinary files with `role: avatar` on the recipe. The UT2004 recipe repeats one entry per
+catalogue avatar (Ayla, Brutus, Kestrel, Mako, Sable) plus a broad `*.vrm`; the installer shows every
+LAN match as one multi-select.
+
+| Rule | Detail |
+|---|---|
+| Format | `.vrm` (VRM 0.x or 1.0) |
+| Naming | Keep a human name (`ayla.vrm`); the prompt shows label and size |
+| Metadata | The recipe file's metadata can carry author, license and preview |
+| Selection | Multi-select, any number, zero valid; `--avatar <id>`, `--avatar all`, or `-y` for none |
+| Conversion | UT2004 characters need a converter: [ut.raute1.org](https://ut.raute1.org/) or the server-side `vrm2ut2004` |
+| Path after download | `~/.local/share/lanomat/avatars/` (Linux), `%LOCALAPPDATA%\LANoMAT\avatars` (Windows) |
+
+Upload the **source** `.vrm`, not a converted UT2004 package, unless the recipe explicitly asks for
+the package.
+
+## 7. Privacy and licensing
+
+| Question | Rule |
+|---|---|
+| Who owns the game files? | The user. LANoMAT ships no disc, ROM, BIOS or patch; the copy is user-supplied for the LAN |
+| Is the file host a redistribution channel? | No. It is reachable on the venue network and serves approved files to the event |
+| May I upload a BIOS or ROM? | Only a dump you own and may use; the Ridge Racer recipe explicitly says never download a BIOS for the user |
+| Avatars and personal data | A `.vrm` can identify a person. Upload only with the creator's consent; put author and license in the metadata |
+| Mods and patches | Respect the upstream license (UT2004VR is MIT; the base game is Epic's) |
+| What does approval mean? | A human checked the file; it is not a legal review and not a virus scan |
+| Deletion | A rejected file is removed at once; an approved file can be removed by its uploader or an orga, and plans then re-resolve |
+
+## The four states of an upload
+
+| State | What you see | What it means |
+|---|---|---|
+| **Normal** | Row reads `Freigegeben`; the plan shows `[LAN]` | The matcher can use it |
+| **Empty** | „Noch keine Dateien für dieses Event — lade die erste hoch.“ | Nothing uploaded yet |
+| **Loading** | Queued / preparing / uploading / paused / reconnecting | Resumable transfer in flight; keep the page open |
+| **Error** | `Wartet auf Freigabe`, `Abgelehnt`, quota exceeded, blocked type | Pending waits for an orga; rejected needs a re-upload; read the inline German sentence |
+
+The most common "error" is not an error: a pending file is a normal intermediate state. The second is
+a quota cap — the server refuses the upload and the UI says the quota is exhausted.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Upload button does nothing | File type blocked (HTML/SVG/JS) or no file chosen | Choose another file; read the inline sentence |
+| „Dein Upload-Kontingent … ausgeschöpft.“ | Quota reached | Delete an old upload or ask the orga to raise the quota |
+| Quota bar amber but upload proceeds | Near the cap, not over it | Finish; the next large file may fail |
+| Upload restarts from zero | Different file selected, or a new upload started | Select the **same** file; the reservation resumes it |
+| „Der Dateiserver ist gerade nicht erreichbar.“ | File host down | Retry in a few minutes; tell the orga |
+| File stays `Wartet auf Freigabe` | No orga approved it | Ask in the event channel; the row is invisible to plans |
+| Plan still says `[MISSING]` after approval | Name does not match the glob | Rename the upload or fix the recipe's `match` |
+| `[EXTERNAL]` instead of `[LAN]` | Only the recipe's internet fallback exists | Upload the LAN copy and approve it |
+| Two files match one requirement | Duplicate under different names | Delete one, or make the glob specific |
+| Approved file disappeared from plans | It was deleted, rejected or its event changed | Re-upload; check the recipe's event scope |
+| Pinned file no longer resolves | The pinned `shared_file_id` was removed | Pin a new approved file or switch back to a glob |
+| Download from outside the LAN fails | The file host is LAN-only; the signed URL is not routable | Download at the venue |
+| Avatar not offered | `.vrm` pending, or no `role: avatar` requirement | Approve it; check the recipe's avatar entries |
+| Avatar offered but conversion fails | It is a source VRM, not a UT2004 package | Use [ut.raute1.org](https://ut.raute1.org/) or `vrm2ut2004` |
+
+## Checklist
+
+- [ ] Correct event; the file is on `/events/<slug>/files`.
+- [ ] Original name matches the recipe's glob (or the requirement is pinned).
+- [ ] Size under the per-file cap; quota has room.
+- [ ] Type allowed (not HTML/SVG/JS).
+- [ ] Upload finished; row reads `Wartet auf Freigabe`.
+- [ ] Orga approved it; row reads `Freigegeben`.
+- [ ] `lanomat-agent plan <slug>` now shows `[LAN]` for that file.
+- [ ] A second plan on the other OS still resolves (Windows and Linux assets).
+- [ ] Avatars: `.vrm`, rights clear, author/license in the metadata.
+- [ ] No duplicate under a second name.
+- [ ] Re-check the recipe after any rename.
+
+## Related
+
+- [Install UT2004 end to end](/docs/guides/install-ut2004) — the plan that consumes these files
+- [LAN party runbook](/docs/guides/lan-party-runbook) — the orga sequence around upload and approval
+- [Files module](/docs/system/modules/files) — quota, stores, signed downloads and moderation
+- [How recipes work](/docs/recipes/overview) — `requires`, roles and matching
+- [SMB import](/docs/recipes/smb) — staging large content on the share
