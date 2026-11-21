@@ -55,6 +55,7 @@ return [
         'uploaded_by' => 'Hochgeladen von',
         'delete' => 'Löschen',
         'download' => 'Herunterladen',
+        'share_as_game' => 'Als Spiel teilen',
         'load_error' => 'Die Dateiliste konnte nicht geladen werden.',
         'quota_label' => 'Kontingent',
 
