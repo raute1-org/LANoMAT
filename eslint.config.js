@@ -91,6 +91,7 @@ export default defineConfigWithVueTs(
             'clients-dist/**',
             'bootstrap/ssr',
             'tailwind.config.js',
+            'tests/js/**',
             'vite.config.ts',
             'resources/js/actions/**',
             'resources/js/components/ui/*',

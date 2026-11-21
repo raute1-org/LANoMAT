@@ -193,3 +193,25 @@ it('ignores a stored round link when the round is cash', function () {
 
     expect(myPayment($user, $event, $order)['url'])->toBeNull();
 });
+
+it('renders a round with 154 dishes and passes every dish plus the new page labels', function () {
+    $event = Event::factory()->registration()->create();
+    $menu = [];
+    foreach (range(1, 154) as $i) {
+        $menu[] = new MenuOption(key: "dish_{$i}", name: 'Kategorie '.intdiv($i, 20).": Gericht {$i}", priceCents: 500 + $i);
+    }
+    FoodOrder::factory()->for($event)->open()->create(['menu' => $menu]);
+
+    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/catering")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Catering/Show')
+            ->has('orders.0.menu', 154)
+            ->where('orders.0.menu.0.name', 'Kategorie 0: Gericht 1')
+            ->where('labels.receipt_empty', 'Noch nichts bestellt. Tippe bei einem Gericht auf +.')
+            ->has('labels.search_placeholder')
+            ->has('labels.add_aria')
+            ->has('labels.remove_aria')
+            ->has('labels.cart_bar_open')
+        );
+});
