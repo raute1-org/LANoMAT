@@ -30,7 +30,7 @@ const { verify, isLoading, error, isSupported } = usePasskeyVerify({
           }
         : {}),
     onSuccess: (response) => {
-        router.visit(response.redirect ?? '/dashboard');
+        router.visit(response.redirect ?? '/');
     },
 });
 </script>

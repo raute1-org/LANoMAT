@@ -14,17 +14,17 @@ it('shows the current event on the home page', function () {
     $this->actingAs(User::factory()->create())->get('/')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Event/Show')
+            ->component('Now')
+            ->where('state', 'upcoming')
             ->where('event.name', 'Testlan 2026')
             ->where('event.status', 'registration')
-            ->where('labels.when', 'Wann')
         );
 });
 
-it('shows the archive on the home page when no event is public', function () {
+it('shows the archive at /events when no event is public', function () {
     Event::factory()->archived()->create();
 
-    $this->actingAs(User::factory()->create())->get('/')
+    $this->actingAs(User::factory()->create())->get('/events')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Event/Index'));
 });

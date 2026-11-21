@@ -6,6 +6,14 @@ export type BreadcrumbItem = {
     href: NonNullable<InertiaLinkProps['href']>;
 };
 
+/** Live nav badges, shared Inertia prop `navSignals` (null for guests); defined with the Now page types. */
+export type { NavSignals } from '@/types/now';
+
+export type NavBadge = {
+    text: string;
+    variant?: 'live' | 'ok' | 'warn' | 'muted';
+};
+
 export type NavItem = {
     title: string;
     href: NonNullable<InertiaLinkProps['href']>;
@@ -16,4 +24,6 @@ export type NavItem = {
     prefix?: boolean;
     /** Small status dot with an accessible text, e.g. a build exists for the visitor's system. */
     indicator?: string;
+    /** Right-aligned live value (hidden when the sidebar is icon-collapsed). */
+    badge?: NavBadge;
 };

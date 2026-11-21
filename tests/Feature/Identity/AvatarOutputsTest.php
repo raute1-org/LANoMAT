@@ -96,7 +96,7 @@ it('feeds the browser pages the browser path as an Inertia prop', function () {
         ->assertInertia(fn ($page) => $page->component('Profile/Show')->where('profile.avatarUrl', $this->bobWeb));
 
     // The shared auth user carries the local avatar and no CDN or storage path.
-    $page = $this->actingAs($this->ada)->get('/dashboard')->assertOk();
+    $page = $this->actingAs($this->ada)->get('/')->assertOk();
     expect($page->getContent())->not->toContain('discordapp')->not->toContain('secret-source')
         ->and($page->getContent())->toContain('avatar_src');
 });

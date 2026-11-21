@@ -368,6 +368,9 @@ it('keeps the games library at a constant query count as the catalogue grows', f
 
     $seed(1, 2);
 
+    // Warm the per-user navSignals cache so it is not counted as page queries.
+    $this->actingAs($user)->get('/games')->assertOk();
+
     $queries = 0;
     DB::listen(function () use (&$queries): void {
         $queries++;

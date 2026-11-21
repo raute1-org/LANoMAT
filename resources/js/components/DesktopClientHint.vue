@@ -81,7 +81,7 @@ function dismiss(): void {
             <p class="mt-1 text-sm text-muted-foreground">
                 {{ labels.body.replace(':os', osLabel) }}
             </p>
-            <!-- Outline, not amber: the dashboard already carries its one primary action (design.md: amber is rationed). -->
+            <!-- Outline, not amber: Jetzt already carries its one primary action (design.md: amber is rationed). -->
             <Button as-child class="mt-3" size="sm" variant="outline">
                 <Link :href="client.url">{{ labels.cta }}</Link>
             </Button>

@@ -4,7 +4,6 @@ namespace App\Modules\Events\Http;
 
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
-use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Support\NewsQuery;
 use App\Modules\Registration\Enums\RegistrationAvailability;
@@ -21,23 +20,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class EventPageController
 {
-    public function home(Request $request, CurrentEvent $current): Response
-    {
-        // Guests get an event-free landing: no event data may leave the server
-        // for anyone who is not logged in.
-        if ($request->user() === null) {
-            return Inertia::render('Welcome', [
-                'labels' => trans('welcome'),
-            ]);
-        }
-
-        $event = $current->get();
-
-        return $event === null
-            ? $this->archive()
-            : $this->renderShow($request, $event);
-    }
-
     public function show(Request $request, Event $event): Response
     {
         if (! $event->isPubliclyVisible()) {

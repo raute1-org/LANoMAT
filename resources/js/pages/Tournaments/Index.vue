@@ -71,7 +71,7 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
     <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <div
             v-if="tournaments.length === 0"
-            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+            class="mt-6 rounded-md border border-dashed border-border p-6 text-center"
         >
             <p class="text-sm text-muted-foreground">
                 {{ labels.no_tournaments }}
@@ -80,12 +80,12 @@ function showsOwnershipWarning(tournament: TournamentSummary): boolean {
 
         <ul
             v-else
-            class="mt-8 divide-y divide-border rounded-lg border border-border"
+            class="mt-6 divide-y divide-border rounded-md border border-border bg-card"
         >
             <li
                 v-for="tournament in tournaments"
                 :key="tournament.id"
-                class="flex items-center justify-between gap-4 px-4 py-4"
+                class="flex items-center justify-between gap-4 px-4 py-2.5"
             >
                 <div>
                     <Link

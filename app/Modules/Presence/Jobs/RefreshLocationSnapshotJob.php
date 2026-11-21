@@ -5,17 +5,21 @@ declare(strict_types=1);
 namespace App\Modules\Presence\Jobs;
 
 use App\Modules\Presence\Support\LocationSnapshotBuilder;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Queued by a request that found no snapshot (cold cache), so the next read has one. Guarded by a
- * short lock: a burst of such requests builds the snapshot once.
+ * Queued by a request that found no snapshot (cold cache), so the next read has one. Unique while one is
+ * queued and guarded by a short lock: a burst of such requests builds the snapshot once.
  */
-class RefreshLocationSnapshotJob implements ShouldQueue
+class RefreshLocationSnapshotJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
+
+    /** A queued refresh blocks further dispatches for this long (the build itself is short). */
+    public int $uniqueFor = 20;
 
     public function handle(LocationSnapshotBuilder $builder): void
     {

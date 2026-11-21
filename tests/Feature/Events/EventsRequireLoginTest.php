@@ -72,7 +72,7 @@ it('shows authenticated users the current event on home', function () {
         ->get('/')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Event/Show')
+            ->component('Now')
             ->where('event.name', 'Zebrakuchen LAN 2099')
         );
 });

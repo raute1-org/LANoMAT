@@ -4,14 +4,9 @@ import { CalendarPlus, Star } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { dayKey, formatInstant } from '@/lib/datetime';
 import { favorite, ics, unfavorite } from '@/routes/schedule';
 import type { ScheduleItemDto } from '@/types';
@@ -117,44 +112,43 @@ const groupedItems = computed(() => {
     <Head :title="`${labels.title} — ${event.name}`" />
 
     <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
-        <div v-if="now || next" class="mt-8 grid gap-4 sm:grid-cols-2">
-            <Card v-if="now" class="border-primary">
-                <CardHeader>
-                    <LiveIndicator variant="live" :label="labels.now" />
-                    <CardTitle class="mt-2">{{ now.title }}</CardTitle>
-                    <CardDescription>
-                        <span class="font-mono tabular-nums">
-                            {{ formatWhen(now.startsAt) }}
-                            <template v-if="now.endsAt">
-                                – {{ formatEnd(now) }}
-                            </template>
-                        </span>
-                        <template v-if="now.location">
-                            · {{ now.location }}
+        <div v-if="now || next" class="mt-6 grid gap-4 sm:grid-cols-2">
+            <div
+                v-if="now"
+                class="rounded-md border border-primary bg-card p-4"
+            >
+                <LiveIndicator variant="live" :label="labels.now" />
+                <p class="mt-1 font-medium">{{ now.title }}</p>
+                <p class="text-sm text-muted-foreground">
+                    <span class="font-mono tabular-nums">
+                        {{ formatWhen(now.startsAt) }}
+                        <template v-if="now.endsAt">
+                            – {{ formatEnd(now) }}
                         </template>
-                    </CardDescription>
-                </CardHeader>
-            </Card>
+                    </span>
+                    <template v-if="now.location">
+                        · {{ now.location }}
+                    </template>
+                </p>
+            </div>
 
-            <Card v-if="next">
-                <CardHeader>
-                    <Badge variant="outline">{{ labels.next }}</Badge>
-                    <CardTitle class="mt-2">{{ next.title }}</CardTitle>
-                    <CardDescription>
-                        <span class="font-mono tabular-nums">{{
-                            formatWhen(next.startsAt)
-                        }}</span>
-                        <template v-if="next.location">
-                            · {{ next.location }}
-                        </template>
-                    </CardDescription>
-                </CardHeader>
-            </Card>
+            <div v-if="next" class="rounded-md border bg-card p-4">
+                <Badge variant="outline">{{ labels.next }}</Badge>
+                <p class="mt-1 font-medium">{{ next.title }}</p>
+                <p class="text-sm text-muted-foreground">
+                    <span class="font-mono tabular-nums">{{
+                        formatWhen(next.startsAt)
+                    }}</span>
+                    <template v-if="next.location">
+                        · {{ next.location }}
+                    </template>
+                </p>
+            </div>
         </div>
 
         <div
             v-if="items.length > 0"
-            class="mt-8 flex flex-wrap items-center gap-2"
+            class="mt-4 flex flex-wrap items-center gap-2"
             data-test="schedule-toolbar"
         >
             <Button
@@ -189,7 +183,7 @@ const groupedItems = computed(() => {
 
         <div
             v-if="items.length === 0"
-            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+            class="mt-6 rounded-md border border-dashed border-border p-6 text-center"
         >
             <p class="text-sm text-muted-foreground">
                 {{ labels.empty }}
@@ -198,26 +192,24 @@ const groupedItems = computed(() => {
 
         <div
             v-else-if="visibleItems.length === 0"
-            class="mt-6 rounded-lg border border-dashed border-border p-8 text-center"
+            class="mt-6 rounded-md border border-dashed border-border p-6 text-center"
         >
             <p class="text-sm text-muted-foreground">
                 {{ labels.no_favorites }}
             </p>
         </div>
 
-        <div v-else class="mt-6 space-y-8">
-            <section v-for="group in groupedItems" :key="group.day">
-                <h2 class="text-lg font-semibold tracking-tight">
-                    {{ group.day }}
-                </h2>
-
-                <ul
-                    class="mt-3 divide-y divide-border rounded-lg border border-border"
-                >
+        <div v-else class="mt-4 space-y-4">
+            <Panel
+                v-for="group in groupedItems"
+                :key="group.day"
+                :title="group.day"
+            >
+                <ul class="divide-y divide-border border-t border-border">
                     <li
                         v-for="item in group.items"
                         :key="item.id"
-                        class="flex items-center justify-between gap-4 px-4 py-4"
+                        class="flex items-center justify-between gap-4 px-4 py-2.5"
                     >
                         <div>
                             <p class="font-medium">{{ item.title }}</p>
@@ -274,7 +266,7 @@ const groupedItems = computed(() => {
                         </div>
                     </li>
                 </ul>
-            </section>
+            </Panel>
         </div>
     </PageContainer>
 </template>

@@ -169,7 +169,7 @@ return [
         'revoke' => 'Trennen',
     ],
 
-    // Entry points to the download page outside the voice area (dashboard card, device page, ...).
+    // Entry points to the download page outside the voice area (Jetzt page, device page, ...).
     'client_hint' => [
         'region' => 'Desktop-App',
         'heading' => 'Alles in einer App: Sprache, Chat, Essen, Abstimmungen, Server',

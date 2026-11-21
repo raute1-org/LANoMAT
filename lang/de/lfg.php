@@ -22,6 +22,10 @@ return [
         'invalid_title' => 'Der Titel ist ungültig (max. 120 Zeichen).',
     ],
 
+    'want_to_play' => [
+        'title' => 'Bock auf :game',
+    ],
+
     'page' => [
         'title' => 'Mitspieler finden',
         'empty' => 'Aktuell gibt es keine offenen Anzeigen für dieses Event.',

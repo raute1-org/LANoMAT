@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'title' => 'Präsenz',
+    'title' => 'Leute',
     'checked_in_count' => 'Eingecheckt: :count',
     'error' => 'Die Präsenzanzeige konnte nicht geladen werden. Bitte Seite neu laden.',
 

@@ -3,14 +3,8 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useEventChannel } from '@/composables/useEventChannel';
@@ -18,6 +12,7 @@ import { usePageLoadState } from '@/composables/usePageLoadState';
 import { useResync } from '@/composables/useResync';
 import { show as tournamentsShow } from '@/routes/tournaments';
 import type { PresenceBoardDto } from '@/types';
+import type { LiveMatchPresenceDto } from '@/types/presence';
 
 interface PresenceLabels {
     title: string;
@@ -113,6 +108,20 @@ const visibleParticipants = computed(() => {
     return participants;
 });
 
+function knownGame(game: string | null): string | null {
+    return game !== null && game !== '' && game !== '?' ? game : null;
+}
+
+// Muted subline of a live match: the game (when known) and the players, but
+// never a repeat of the row title.
+function matchSubline(match: LiveMatchPresenceDto): string {
+    const players = match.players.join(' vs ');
+
+    return [knownGame(match.game), players !== match.label ? players : null]
+        .filter((part): part is string => !!part)
+        .join(' · ');
+}
+
 function openSpotsLabel(openSpots: number | null): string {
     return openSpots === null
         ? t('free_slots', 'open_unlimited')
@@ -134,7 +143,7 @@ function openSpotsLabel(openSpots: number | null): string {
         </template>
 
         <!-- loading: only shown mid-navigation, e.g. a partial reload -->
-        <div v-if="isNavigating" class="mt-8 space-y-4">
+        <div v-if="isNavigating" class="mt-6 space-y-4">
             <Skeleton class="h-24 w-full rounded-lg" />
             <Skeleton class="h-24 w-full rounded-lg" />
         </div>
@@ -142,14 +151,14 @@ function openSpotsLabel(openSpots: number | null): string {
         <!-- error: a failed client-driven reload/navigation -->
         <div
             v-else-if="hasError"
-            class="mt-8 rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center"
+            class="mt-6 rounded-md border border-destructive/50 bg-destructive/10 p-6 text-center"
         >
             <p class="text-sm text-destructive">{{ labels.error }}</p>
         </div>
 
         <template v-else>
             <!-- filters -->
-            <div class="mt-8 flex flex-wrap gap-2">
+            <div class="mt-6 flex flex-wrap gap-2">
                 <Button
                     type="button"
                     size="sm"
@@ -188,175 +197,170 @@ function openSpotsLabel(openSpots: number | null): string {
                 </Button>
             </div>
 
-            <!-- participants -->
-            <section class="mt-8">
-                <h2
-                    class="text-lg font-semibold tracking-tight text-foreground"
-                >
-                    {{ t('participants', 'heading') }}
-                </h2>
-
-                <div
-                    v-if="visibleParticipants.length === 0"
-                    class="mt-4 rounded-lg border border-dashed border-border p-8 text-center"
-                >
-                    <p class="text-sm text-muted-foreground">
+            <div class="mt-4 space-y-4">
+                <!-- participants -->
+                <Panel :title="t('participants', 'heading')">
+                    <p
+                        v-if="visibleParticipants.length === 0"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
+                    >
                         {{ t('participants', 'empty') }}
                     </p>
-                </div>
 
-                <ul v-else class="mt-4 space-y-2">
-                    <li
-                        v-for="participant in visibleParticipants"
-                        :key="participant.registrationId"
-                        class="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+                    <ul
+                        v-else
+                        class="divide-y divide-border border-t border-border"
                     >
-                        <UserAvatar
-                            :name="participant.name"
-                            :src="participant.avatarUrl"
-                            :size="36"
-                        />
+                        <li
+                            v-for="participant in visibleParticipants"
+                            :key="participant.registrationId"
+                            class="flex items-center gap-3 px-4 py-2"
+                        >
+                            <UserAvatar
+                                :name="participant.name"
+                                :src="participant.avatarUrl"
+                                :size="32"
+                            />
 
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2">
-                                <p class="truncate font-medium text-foreground">
-                                    {{ participant.name }}
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2">
+                                    <p
+                                        class="truncate font-medium text-foreground"
+                                    >
+                                        {{ participant.name }}
+                                    </p>
+                                    <LiveIndicator
+                                        v-if="participant.isPlaying"
+                                        variant="live"
+                                        :label="t('live_matches', 'live_label')"
+                                    />
+                                </div>
+                                <p
+                                    class="truncate text-sm text-muted-foreground"
+                                >
+                                    {{
+                                        participant.activity ??
+                                        t('participants', 'idle')
+                                    }}
                                 </p>
-                                <LiveIndicator
-                                    v-if="participant.isPlaying"
-                                    variant="live"
-                                    :label="t('live_matches', 'live_label')"
-                                />
                             </div>
-                            <p class="truncate text-sm text-muted-foreground">
-                                {{
-                                    participant.activity ??
-                                    t('participants', 'idle')
-                                }}
-                            </p>
-                        </div>
 
-                        <a
-                            v-if="participant.streamUrl"
-                            :href="participant.streamUrl"
-                            target="_blank"
-                            rel="noopener"
-                            class="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        >
-                            {{ t('participants', 'stream_link') }}
-                        </a>
-
-                        <div
-                            v-if="participant.seatLabel"
-                            class="shrink-0 text-right"
-                        >
-                            <p class="text-xs text-muted-foreground">
-                                {{ t('participants', 'seat_label') }}
-                            </p>
-                            <p
-                                class="font-mono text-sm text-foreground tabular-nums"
+                            <a
+                                v-if="participant.streamUrl"
+                                :href="participant.streamUrl"
+                                target="_blank"
+                                rel="noopener"
+                                class="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                             >
-                                {{ participant.seatLabel }}
-                            </p>
-                        </div>
-                    </li>
-                </ul>
-            </section>
+                                {{ t('participants', 'stream_link') }}
+                            </a>
 
-            <!-- free slots -->
-            <section v-if="!playingOnly" class="mt-10">
-                <h2
-                    class="text-lg font-semibold tracking-tight text-foreground"
-                >
-                    {{ t('free_slots', 'heading') }}
-                </h2>
+                            <div
+                                v-if="participant.seatLabel"
+                                class="shrink-0 text-right"
+                            >
+                                <p class="text-xs text-muted-foreground">
+                                    {{ t('participants', 'seat_label') }}
+                                </p>
+                                <p
+                                    class="font-mono text-sm text-foreground tabular-nums"
+                                >
+                                    {{ participant.seatLabel }}
+                                </p>
+                            </div>
+                        </li>
+                    </ul>
+                </Panel>
 
-                <div
-                    v-if="presence.freeSlots.length === 0"
-                    class="mt-4 rounded-lg border border-dashed border-border p-8 text-center"
-                >
-                    <p class="text-sm text-muted-foreground">
+                <!-- free slots -->
+                <Panel v-if="!playingOnly" :title="t('free_slots', 'heading')">
+                    <p
+                        v-if="presence.freeSlots.length === 0"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
+                    >
                         {{ t('free_slots', 'empty') }}
                     </p>
-                </div>
 
-                <div v-else class="mt-4 space-y-3">
-                    <Card
-                        v-for="slot in presence.freeSlots"
-                        :key="slot.tournamentId"
+                    <ul
+                        v-else
+                        class="divide-y divide-border border-t border-border"
                     >
-                        <CardHeader>
-                            <div
-                                class="flex items-center justify-between gap-4"
-                            >
-                                <CardTitle>{{ slot.name }}</CardTitle>
+                        <li
+                            v-for="slot in presence.freeSlots"
+                            :key="slot.tournamentId"
+                            class="flex items-center justify-between gap-3 px-4 py-2.5"
+                        >
+                            <div class="min-w-0">
+                                <p class="truncate font-medium">
+                                    {{ slot.name }}
+                                </p>
+                                <p
+                                    v-if="knownGame(slot.game)"
+                                    class="truncate text-sm text-muted-foreground"
+                                >
+                                    {{ knownGame(slot.game) }}
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-3">
                                 <span
                                     class="font-mono text-sm text-foreground tabular-nums"
                                     >{{ openSpotsLabel(slot.openSpots) }}</span
                                 >
+                                <Button as-child size="sm" variant="outline">
+                                    <Link
+                                        :href="
+                                            tournamentsShow.url(
+                                                slot.tournamentId,
+                                            )
+                                        "
+                                        >{{ t('free_slots', 'join') }}</Link
+                                    >
+                                </Button>
                             </div>
-                            <CardDescription v-if="slot.game">{{
-                                slot.game
-                            }}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Button as-child size="sm" variant="outline">
-                                <Link
-                                    :href="
-                                        tournamentsShow.url(slot.tournamentId)
-                                    "
-                                    >{{ t('free_slots', 'join') }}</Link
-                                >
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            </section>
+                        </li>
+                    </ul>
+                </Panel>
 
-            <!-- live matches -->
-            <section v-if="!freeSlotsOnly" class="mt-10">
-                <h2
-                    class="text-lg font-semibold tracking-tight text-foreground"
+                <!-- live matches -->
+                <Panel
+                    v-if="!freeSlotsOnly"
+                    :title="t('live_matches', 'heading')"
                 >
-                    {{ t('live_matches', 'heading') }}
-                </h2>
-
-                <div
-                    v-if="presence.liveMatches.length === 0"
-                    class="mt-4 rounded-lg border border-dashed border-border p-8 text-center"
-                >
-                    <p class="text-sm text-muted-foreground">
+                    <p
+                        v-if="presence.liveMatches.length === 0"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
+                    >
                         {{ t('live_matches', 'empty') }}
                     </p>
-                </div>
 
-                <div v-else class="mt-4 space-y-3">
-                    <Card
-                        v-for="match in presence.liveMatches"
-                        :key="match.matchId"
+                    <ul
+                        v-else
+                        class="divide-y divide-border border-t border-border"
                     >
-                        <CardHeader>
-                            <div
-                                class="flex items-center justify-between gap-4"
-                            >
-                                <CardTitle>{{ match.label }}</CardTitle>
-                                <LiveIndicator
-                                    variant="live"
-                                    :label="t('live_matches', 'live_label')"
-                                />
+                        <li
+                            v-for="match in presence.liveMatches"
+                            :key="match.matchId"
+                            class="flex items-center justify-between gap-3 px-4 py-2.5"
+                        >
+                            <div class="min-w-0">
+                                <p class="truncate font-medium">
+                                    {{ match.label }}
+                                </p>
+                                <p
+                                    v-if="matchSubline(match)"
+                                    class="truncate text-sm text-muted-foreground"
+                                >
+                                    {{ matchSubline(match) }}
+                                </p>
                             </div>
-                            <CardDescription v-if="match.game">{{
-                                match.game
-                            }}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p class="text-sm text-muted-foreground">
-                                {{ match.players.join(' vs ') }}
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
-            </section>
+                            <LiveIndicator
+                                variant="live"
+                                :label="t('live_matches', 'live_label')"
+                            />
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
         </template>
     </PageContainer>
 </template>

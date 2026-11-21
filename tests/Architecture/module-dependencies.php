@@ -111,6 +111,8 @@ return [
     'Lfg' => [
         0 => 'Discord',
         1 => 'Events',
+        2 => 'Friends',
+        3 => 'Games',
     ],
     'Lighting' => [
         0 => 'Events',
