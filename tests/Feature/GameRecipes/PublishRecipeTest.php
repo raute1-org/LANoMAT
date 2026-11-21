@@ -205,7 +205,10 @@ it('names the file in the confirmation text of the combined action', function ()
     $description = $component->instance()->getMountedAction()->getModalDescription();
 
     expect((string) $description)->toContain('tiny-racer.zip')
-        ->and((string) $description)->toContain(__('game_recipes.actions.publish_with_files_confirm'));
+        ->and((string) $description)->toContain(__('game_recipes.actions.publish_with_files_confirm'))
+        // The same confirmation also says what will run on the players' PCs.
+        ->and((string) $description)->toContain(__('game_recipes.release.heading'))
+        ->and((string) $description)->toContain(__('game_recipes.release.runs_on_players'));
 });
 
 it('hides the combined action while nothing waits for approval', function () {

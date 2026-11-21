@@ -32,6 +32,10 @@ class CreateRecipe extends CreateRecord
     {
         $data = $this->captureRequirementPins($data);
 
+        // The launcher section (and its override field) only exists on the edit
+        // page; the virtual key must never reach the model.
+        unset($data['launcher_override']);
+
         $data['source'] = GameRecipe::SOURCE_PANEL;
         $data['source_ref'] = null;
 

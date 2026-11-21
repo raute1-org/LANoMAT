@@ -11,6 +11,7 @@ use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\ResolvesRe
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\SyncsRequirementPins;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\RecipeResource;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ContributionFiles;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\LauncherReview;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ReviewStamp;
 use App\Modules\GameRecipes\Jobs\ProposeRecipePullRequestJob;
 use App\Modules\GameRecipes\Models\GameRecipe;
@@ -24,12 +25,39 @@ use Illuminate\Support\HtmlString;
 class EditRecipe extends EditRecord
 {
     use ResolvesReviewer;
-    use SyncsRequirementPins;
+    use SyncsRequirementPins {
+        mutateFormDataBeforeFill as hydrateRequirementPins;
+    }
 
     protected static string $resource = RecipeResource::class;
 
     /** Status the record had before the running save, so a re-save never re-announces. */
     protected ?RecipeStatus $statusBeforeSave = null;
+
+    /**
+     * The requirement pins come from the file rows (see the trait); the
+     * launcher override has no model column, so its three-state value is read
+     * from `metadata.launcher_supported` here.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data = $this->hydrateRequirementPins($data);
+
+        // No form field edits metadata. Sending it through the form would
+        // write the whole document back on every save (and Postgres normalises
+        // jsonb key order on the way), so the override merges its one key into
+        // the stored document instead.
+        unset($data['metadata']);
+
+        $data['launcher_override'] = LauncherReview::overrideState(
+            $this->record instanceof GameRecipe ? $this->record : null,
+        );
+
+        return $data;
+    }
 
     /**
      * The status can also be set through the form. It is stamped only on a
@@ -44,6 +72,7 @@ class EditRecipe extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $data = $this->captureRequirementPins($data);
+        $data = $this->applyLauncherOverride($data);
 
         $this->statusBeforeSave = $this->record instanceof GameRecipe ? $this->record->status : null;
         $data = ReviewStamp::forTransition($data, $this->statusBeforeSave);
@@ -87,13 +116,7 @@ class EditRecipe extends EditRecord
                 ->authorize('review')
                 ->requiresConfirmation()
                 ->modalHeading(__('game_recipes.actions.publish_with_files'))
-                ->modalDescription(fn (GameRecipe $record): HtmlString => new HtmlString(implode('<br>', [
-                    e(__('game_recipes.actions.publish_with_files_confirm')),
-                    ...array_map(
-                        static fn (string $line): string => '• '.e($line),
-                        ContributionFiles::describe(ContributionFiles::pending($record)),
-                    ),
-                ])))
+                ->modalDescription(fn (GameRecipe $record): HtmlString => $this->releaseDescription($record, withFiles: true))
                 ->modalSubmitActionLabel(__('game_recipes.actions.publish_with_files_submit'))
                 ->disabled(fn (GameRecipe $record): bool => ContributionFiles::rejected($record)->isNotEmpty())
                 ->tooltip(fn (GameRecipe $record): ?string => ContributionFiles::rejected($record)->isNotEmpty()
@@ -144,6 +167,7 @@ class EditRecipe extends EditRecord
                 ->visible(fn (GameRecipe $record): bool => $record->status !== RecipeStatus::Published)
                 ->authorize('review')
                 ->requiresConfirmation()
+                ->modalDescription(fn (GameRecipe $record): HtmlString => $this->releaseDescription($record, withFiles: false))
                 ->action(function (GameRecipe $record): void {
                     app(PublishRecipe::class)->handle($record, $this->reviewer());
 
@@ -215,6 +239,57 @@ class EditRecipe extends EditRecord
         }
 
         return is_string($status) && $status === RecipeStatus::Published->value;
+    }
+
+    /**
+     * The launcher override has no model column of its own: the form carries it
+     * as `launcher_override` and only `metadata.launcher_supported` changes.
+     * Every other metadata key keeps its value and position, and a save without
+     * the field (disabled for a non-reviewer) leaves metadata untouched.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applyLauncherOverride(array $data): array
+    {
+        if (! array_key_exists('launcher_override', $data)) {
+            return $data;
+        }
+
+        $state = $data['launcher_override'];
+        unset($data['launcher_override']);
+
+        if (! is_string($state) || ! $this->record instanceof GameRecipe) {
+            return $data;
+        }
+
+        $metadata = LauncherReview::withOverride($this->record->metadata, $state);
+
+        if ($metadata !== $this->record->metadata) {
+            $data['metadata'] = $metadata;
+        }
+
+        return $data;
+    }
+
+    /** What the confirmation shows: the files that get approved (optional) and what runs on the players' PCs. */
+    private function releaseDescription(GameRecipe $record, bool $withFiles): HtmlString
+    {
+        $parts = [];
+
+        if ($withFiles) {
+            $parts[] = implode('<br>', [
+                e(__('game_recipes.actions.publish_with_files_confirm')),
+                ...array_map(
+                    static fn (string $line): string => '• '.e($line),
+                    ContributionFiles::describe(ContributionFiles::pending($record)),
+                ),
+            ]);
+        }
+
+        $parts[] = LauncherReview::releaseSummary($record)->toHtml();
+
+        return new HtmlString(implode('<br><br>', $parts));
     }
 
     /** Whether the current user may approve the files this recipe pins (asks the Files policy). */
