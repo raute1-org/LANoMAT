@@ -1,0 +1,225 @@
+---
+title: Share a game
+description: Turn a game folder on your PC into a ready-to-run archive, describe it on /games/share, and get it onto the LAN — the archive, every field and its rules, what the orga does next, and what the launcher can and cannot do with it.
+---
+
+You have a game folder on your PC that runs as it is. You pack it once, upload it to the LAN file
+host and describe it on `/games/share`. The orga checks the file, publishes the game, and from then
+on it sits on `/games`, in the launcher and next to its servers.
+
+You do not need to know the word **recipe**. A recipe is the small description the launcher reads;
+this page writes one for you.
+
+Open the page from any of these places:
+
+- **Spiel teilen** in the header of `/games`, and in the library's empty states under „Dein Spiel
+  fehlt?“
+- **Spiel teilen** at the bottom of the games sidebar on every `/games` page.
+- **Als Spiel teilen** on one of your own archives on the Files page — it opens `/games/share` with
+  that file already selected.
+- **Spiel teilen** in the launcher. The launcher cannot pack or upload anything itself; the button
+  opens this page in your browser. The entry is hidden until the launcher is paired, and without a
+  connection it says „Zum Teilen zuerst mit einem LANoMAT-Server verbinden.“
+
+## What a shareable archive is
+
+A shareable archive is **one folder that runs as it is**, packed as `.zip` or `.tar.bz2`. Unpack it
+and the game is there: no installer, no disc image, no setup wizard, no registry step. If your copy
+still needs an installer or a mounted ISO, it is not ready to share yet — install it once, then pack
+the installed folder.
+
+The page accepts exactly two extensions: `.zip` and `.tar.bz2`. An installer `.exe`, a `.7z`, a
+`.rar` or an `.iso` is refused when you try to describe it as a game; the upload itself still works
+on the Files page.
+
+## Pack the folder
+
+Pack the **contents** of the game folder, not the folder itself, so the start file sits at the top
+level of the archive (or one folder down — the launcher lifts one wrapper folder, see below).
+
+**Windows (Explorer).** Right-click the game folder → „Compress to ZIP file“. Or in PowerShell:
+
+```powershell
+Compress-Archive -Path 'C:\Games\Skyline Rally\*' -DestinationPath 'C:\Users\you\skyline-rally.zip'
+```
+
+**Windows (7-Zip or similar).** Add the folder contents to a `.zip`. Do not use `.7z` or `.rar`.
+
+**Linux.**
+
+```bash
+# .zip
+cd "$HOME/Games/Skyline Rally" && zip -r "$HOME/skyline-rally.zip" .
+
+# .tar.bz2, contents only, no wrapper folder
+tar -cjf "$HOME/skyline-rally.tar.bz2" -C "$HOME/Games/Skyline Rally" .
+```
+
+Keep the archive name simple. It becomes the file name the recipe pins, and the launcher looks for
+exactly that name in your download folder.
+
+## The page: three sections
+
+The page has three numbered sections in the order of the work: **„01 Archiv“**, **„02 Spiel“** and
+**„03 Deine geteilten Spiele“**. The description under the title says what happens:
+„Lade ein Spiel hoch und beschreibe es. Die Orga prüft es und gibt es für alle frei.“
+
+### 01 Archiv
+
+The section text is the rule in one sentence: „Ein Ordner, der nach dem Entpacken sofort startet:
+packe ihn als .zip oder .tar.bz2. Keine Installer und keine ISO-Dateien — die Orga prüft die Datei
+vor der Freigabe.“
+
+Under **„Datei auswählen“** you either upload a new archive or pick one you already uploaded for
+the current LAN:
+
+- Uploads go through the Files module, so your quota applies. When the file host runs with
+  resumable uploads, a large archive resumes after a broken connection.
+- The list shows your own files of the current event, newest first, at most 50. Each row reads
+  **„Wartet auf Freigabe“** or **„Freigegeben“**.
+- A file whose name does not end in `.zip` or `.tar.bz2` stays visible but cannot be selected. It
+  says: „Kein Archiv — lade den entpackten Spielordner als .zip oder .tar.bz2 hoch.“
+- Without a current LAN, the upload area says „Der Upload öffnet mit der nächsten LAN.“ You can
+  still pick an archive that is already on the file host.
+
+### 02 Spiel
+
+The section text says: „Beschreibe, was die anderen herunterladen und starten. Pfade zählen ab dem
+Ordner, den du hochgeladen hast.“
+
+| Field | Rule |
+|---|---|
+| **Titel** | Required, 2 to 120 characters. It becomes the slug (`Skyline Rally` → `skyline-rally`) and the name in the library. A title whose slug is `share` is refused, because `/games/share` already uses it. A slug that belongs to somebody else's recipe is refused; your own draft may be re-submitted. |
+| **Plattformen** | Required, at least one of **Windows** or **Linux**. |
+| **Startdatei** | Required. The path inside the unpacked folder, at most 200 characters, for example `bin/Game.exe`. Relative only: no leading `/`, no drive letter (`C:`), no `.` or `..` segment, no control characters and no shell characters (quotes, backtick, dollar, semicolon, pipe, ampersand, angle brackets, asterisk, question mark). A trailing `/` is refused too. Backslashes are turned into `/` before validation. |
+| **Linux-Start** | Appears when Linux is selected, and is then required. **„Läuft über Wine“** starts the Windows start file through Wine; **„Eigenes Linux-Programm“** starts a native binary. Wine is preselected. |
+| **Linux-Startdatei** | Only for „Eigenes Linux-Programm“, and required then. Same path rules and 200 characters, for example `Skyline.sh`. |
+| **Kurzbeschreibung** | Optional, at most 200 characters, one or two sentences for the library. Empty is fine; a generic sentence is generated then. |
+| **Version** | Optional, at most 40 characters. Empty means `1.0`. |
+| **Spieleranzahl** | Optional, at most 20 characters, a human string such as `2-8`. Empty means `1+`. |
+| **Mehrspieler** | A checkbox, checked by default. Untick it for a single-player-only game; the games page then leaves out servers and rounds. |
+| **Homepage** | Optional, an `http(s)` URL, at most 500 characters. Only when there is an official page. |
+
+The submit button reads **„Spiel teilen“** and, while it posts, **„Wird geteilt …“**. It stays
+disabled until an archive and a title are there; the page says which one is missing.
+
+### A worked example
+
+An invented game, **Skyline Rally**, shared as `skyline-rally.zip`. The archive unpacks to a folder
+with `bin/Skyline.exe`, `Skyline.sh`, `data/` and `readme.txt`.
+
+| Field | What you enter |
+|---|---|
+| Titel | `Skyline Rally` (slug `skyline-rally`, page `/games/skyline-rally`) |
+| Plattformen | Windows and Linux |
+| Startdatei | `bin/Skyline.exe` |
+| Linux-Start | „Eigenes Linux-Programm“ |
+| Linux-Startdatei | `Skyline.sh` |
+| Kurzbeschreibung | `Arcade-Rennen für bis zu acht Spieler.` |
+| Version | `1.0` |
+| Spieleranzahl | `2-8` |
+| Mehrspieler | checked |
+| Homepage | `https://lan.example/skyline-rally` |
+
+The archive is at the top level after packing, so both paths resolve directly in the unpacked
+folder. If the zip had one wrapper folder `Skyline Rally/`, the paths would be the same, because
+the launcher lifts a single wrapper folder before it checks them.
+
+### 03 Deine geteilten Spiele
+
+The section text is the promise: „Nach dem Absenden prüft die Orga Datei und Angaben. Sobald beides
+passt, steht dein Spiel unter Spiele und im Launcher; der Katalog-Eintrag entsteht danach
+automatisch.“
+
+Under **„Deine Spiele“** every share is one row with three columns, in the order the work happens:
+
+| Column | Values | Meaning |
+|---|---|---|
+| **Datei** | „wartet auf Freigabe“, „freigegeben“, „abgelehnt“, „fehlt“ | The archive the recipe pins. „wartet auf Freigabe“ is normal right after the upload; „abgelehnt“ means the orga removed it and you need a new upload. |
+| **Prüfung** | „Die Orga prüft dein Spiel“, **„Veröffentlicht“**, **„Archiviert“** | The recipe's status. A draft is not on `/games` yet. |
+| **Katalog** | a pull request state, or „—“ with „Noch kein Eintrag im Katalog“ | The catalogue entry, which is written after publishing. It is not your job. |
+
+A published game also shows **„Zum Spiel“** when the lineup allows it, and a mono **„Im Launcher“**
+marker when it is switched on for the launcher. Each row ends with „Aktualisiert …“ and the display
+time.
+
+## What happens next
+
+1. You submit. The page shows the flash: „Entwurf für „Skyline Rally“ gespeichert. Die Orga prüft
+   deine Datei und gibt das Spiel frei.“
+2. Your row reads „Datei: wartet auf Freigabe“ and „Prüfung: Die Orga prüft dein Spiel“.
+3. The orga checks the archive and approves the file. The row reads „freigegeben“.
+4. The orga reviews your description and publishes the game. The row reads „Veröffentlicht“.
+5. The orga switches the game on for the lineup — the `game_recipes.in_lineup` flag in the
+   database. From then on the game appears on `/games`, in the launcher's **Spiele** list and in
+   the server browser next to every server that runs it.
+6. The catalogue entry follows as a pull request against the recipe catalogue. When the orga has
+   enabled recipe pull requests, the shared recipe is proposed there automatically; see
+   [Contributing](/docs/recipes/contributing) for that side.
+
+A published game outside the lineup stays in the database but has no player-facing link. The
+lineup is the configured `LAUNCHER_LINEUP` plus every recipe the orga switched on; an empty
+`LAUNCHER_LINEUP` means no curation and shows the whole catalogue. Your row tells you which case
+you are in: „Zum Spiel“ and „Im Launcher“ appear only when the lineup allows the game.
+
+## What the launcher does with your game
+
+The launcher downloads your archive from the LAN file host and then:
+
+1. Unpacks it into the target folder — `Expand-Archive` on Windows, `bsdtar -xf` for `.zip` and
+   `tar -xjf` for `.tar.bz2` on Linux.
+2. Lifts **one** wrapper folder when the checked files are not at the top level.
+3. Checks that the start file you named exists: `{{target}}/<Startdatei>` on Windows and
+   `{{target}}/<Linux-Startdatei>` on Linux.
+4. Starts the game: `Start-Process` for the Windows `.exe`, the native binary directly on Linux, or
+   `wine "{{target}}/<Startdatei>"` when you chose „Läuft über Wine“.
+
+It **never runs the step commands** in the recipe. Those commands are the manual fallback for a
+human or an agent, not the launcher's path. A shared game is installable by the launcher because
+your archive is ready to run and the recipe carries one required base archive, a file check and a
+launch target.
+
+There are builds for Linux and Windows. macOS is not built, so a Mac cannot install a shared game
+through the launcher.
+
+## Licensing, in two sentences
+
+The game files stay on the LAN file host and never enter git; only the text recipe travels, and it
+pins the archive by name. Share only what you may share — the orga's approval is a human check of
+the file, not a legal review.
+
+## Troubleshooting
+
+These are the messages the page can show, and what each one means:
+
+| Message or symptom | What it means | What to do |
+|---|---|---|
+| „Nur .zip- und .tar.bz2-Archive können als Spiel geteilt werden.“ | The file's name does not end in an accepted extension, so it cannot be a portable archive — `.7z`, `.rar`, `.iso` and `.exe` all land here. | Repack the installed folder as `.zip` or `.tar.bz2` and upload it again. |
+| „Der Titel „Share“ ist für die Teilen-Seite reserviert. Wähle einen anderen Titel.“ | The title's slug is `share` (or the title produced no slug at all), and `/games/share` already owns that address. | Pick a title with letters and digits. |
+| „Ein Spiel mit diesem Titel gibt es schon. Wähle einen anderen Titel oder ändere deinen eigenen Entwurf.“ | The slug belongs to another recipe, or to your own game that is already published. Only your own draft may be re-submitted. | Pick another title, or edit the draft you already have. |
+| „Diese Datei gehört dir nicht oder ist nicht freigegeben. Lade sie selbst hoch oder wähle eine freigegebene Datei.“ | The id is neither your own upload nor an approved file you may see. | Upload your own archive, or pick an approved one from the list. |
+| „Diese Datei wurde abgelehnt. Lade sie neu hoch oder wähle eine andere Datei.“ | The orga rejected that upload, and a rejected file's bytes are removed. | Upload the archive again. |
+| „Der Pfad muss relativ zum Spielordner sein: ohne führenden Schrägstrich, ohne Laufwerksbuchstabe, ohne „..“ und ohne Anführungszeichen, Semikolon, Sternchen oder andere Sonderzeichen.“ | The start file is written as `C:\…` or `\…`, starts with `/`, contains a `.`/`..` segment, or contains a shell character. | Write the path as it appears inside the archive, for example `bin/Skyline.exe`. |
+| „Der Pfad ist zu lang (höchstens 200 Zeichen).“ | The path exceeds 200 characters. | Unpack less deeply, or shorten the folder names in the archive. |
+| The launcher stops with a missing file. | The start file is not where the recipe says, or its name differs in case. One wrapper folder is lifted automatically; two nested folders are not. | Repack with the file at the top level or one folder down, and copy its name exactly. |
+| „Der Upload öffnet mit der nächsten LAN.“ | There is no current event, so the upload is closed. | Pick an archive that is already on the file host, or upload once the event is open. |
+| The file is approved but there is no „Zum Spiel“. | The recipe is still a draft, or the lineup does not allow it. | Wait for the publish, or ask the orga about the lineup. |
+
+The four you will most likely hit first:
+
+- **Wrong archive type** — pack the installed game folder as `.zip` or `.tar.bz2`, not as a `.7z`,
+  `.rar` or `.iso`.
+- **Executable path wrong** — the path is relative to the unpacked folder; one wrapper folder is
+  lifted, so name the file as it sits inside that folder.
+- **Title already taken** — the slug is global; pick another title or edit your own draft.
+- **No upload** — without a running LAN the page says „Der Upload öffnet mit der nächsten LAN.“;
+  choosing an archive that is already on the file host still works.
+
+## Related
+
+- [One-click launcher](/docs/guides/launcher) — the app that installs a shared game
+- [Upload ISOs and avatars](/docs/guides/upload-isos-and-avatars) — the upload and approval flow behind section 01
+- [Games library](/docs/system/games-library) — where a published game appears
+- [How recipes work](/docs/recipes/overview) — the recipe behind your share
+- [Contributing](/docs/recipes/contributing) — the catalogue and its pull requests
+- [LAN party runbook](/docs/guides/lan-party-runbook) — the orga's side: approve, publish, lineup

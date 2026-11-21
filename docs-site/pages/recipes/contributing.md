@@ -26,17 +26,21 @@ Start from the schema, not from prose:
 ```bash
 cd resources/recipes/schema
 npm install
-npm run validate
+node validate.mjs                 # the bundled catalogue
+node validate.mjs /path/to/recipes  # an exported set, before it becomes a pull request
 ```
 
 The validator checks, in order:
 
-1. `recipe.yaml` parses and matches `recipe.schema.json` (JSON Schema 2020-12).
+1. `recipe.yaml` parses and matches `recipe.schema.json` (JSON Schema 2020-12, strict).
 2. The directory name equals the slug.
 3. Slugs, skill names and aliases are unique across the catalogue.
 4. `SKILL.md` exists, has Agent Skills frontmatter, and its `name`/`description` agree with the YAML.
 5. Commands contain no `&&` chains — one command per entry.
 6. `SKILL.md` is between 60 and 150 lines.
+7. Drafts have 3–6 steps and say that they still need verification on the LAN.
+8. OS-specific steps use only that OS's shells; `match` globs carry no path separators.
+9. `_catalog.md` lists every recipe directory exactly once, in the table for its status.
 
 Hard requirements for a merge:
 
@@ -44,9 +48,18 @@ Hard requirements for a merge:
   `platforms` entry.
 - A `skill` block whose `description` says when to use it, including the words a user would say.
 - `requires[]` with `role`, `label`, `match`, `required`; **the base game is required**, extras are
-  optional.
+  optional. `manual: true` marks a file the player supplies by hand.
 - At least one step with a `detail`; every non-optional step should end in a `verify` check.
-- `metadata` with genre, players, `lan_recommended` and tags.
+- `metadata` with genre, players, `lan_recommended` and tags; `multiplayer: false` for a
+  single-player-only game.
+- A row in `_catalog.md` under the recipe's status.
+
+If the recipe should be installable by the native launcher, make it **portable**: `metadata.portable:
+true`, one required `base` archive that only needs unpacking, a `file_exists` or `dir_exists` check
+in a non-optional step, and at least one launch target in `launch_targets`. The launcher unpacks the
+archive, checks the file and starts the target; it never runs the step commands.
+`metadata.launcher_supported` is the orga override (`true` offers a non-portable recipe anyway,
+`false` hides it). A browser recipe needs `play_url` instead.
 
 The admin form edits the same fields without YAML: role and label per requirement, the file-name
 patterns as removable chips, and a `Pflicht` (required) toggle for the base entry.
@@ -94,10 +107,29 @@ optional, say so in `notes` and keep `required: false`.
 | ![Admin shared files list with disc image, patch and avatar uploads and their release status, dark](/screens/admin-shared-files-dark.png) | ![Admin shared files list with disc image, patch and avatar uploads and their release status, light](/screens/admin-shared-files-light.png) |
 | `FILES · NAME · SIZE · STATUS` | `FILES · LIGHT` |
 
+## The automatic path (a shared game)
+
+A participant who shares a game on `/games/share` produces the same three artefacts without touching
+the repository: `recipe.yaml`, `SKILL.md` and the `_catalog.md` row. When the orga has enabled
+recipe pull requests, LANoMAT proposes them as one pull request on a branch named after the recipe
+(`recipes/<slug>`); a new proposal moves that branch instead of opening a second pull request. The
+recipe text passes a public-safety check before it is sent, so a private address, an e-mail address
+or a token in the text blocks the proposal instead of publishing it. The game files never travel
+with it — the recipe pins the archive on the LAN file host by name.
+
+The same validator gates that pull request. A maintainer reviews the diff and merges; the next sync
+from the git source brings the recipe into the catalogue, and the lineup flag then decides whether
+players see it on `/games` and in the launcher. The manual path above stays for recipes written by
+hand.
+
+Read [Share a game](/docs/guides/share-a-game) for the participant side.
+
 ## 5. Review checklist
 
-- [ ] `npm run validate` is green.
+- [ ] `node validate.mjs` is green, including the `_catalog.md` row.
 - [ ] The base install works with only the required entries.
+- [ ] A recipe meant for the launcher is portable (one required `base` archive, a file check, a
+      launch target) or carries the orga's `metadata.launcher_supported` flag.
 - [ ] Optional content is genuinely optional and does not block verification.
 - [ ] `SKILL.md` names the aliases, the optional questions and the failure modes.
 - [ ] Commands are one per entry, quoted, and use `{{target}}`/`{{downloads}}`.

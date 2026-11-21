@@ -19,7 +19,12 @@ and team-size range stay stable across LANs, so stats and history accumulate.
 - Tournament create/edit — game picker; the tournament inherits team-size defaults.
 
 Participants meet the catalogue through the games library at `/games`: one card per published
-recipe, with a LAN badge when the content is already on the file host.
+recipe, with a LAN badge when the content is already on the file host. A card offers
+**Installieren** (the launcher download when the launcher can install the recipe, else the deep
+link), **Im Launcher öffnen** when a build exists, **Spielen** for a browser game, and **Details**
+when there is nothing to install. The game page's server rows offer **Beitreten** through the
+launcher, **Anders verbinden** for the direct ways and **Mitspieler suchen**; the library header and
+sidebar also lead to **Spiel teilen**. Only a published, lineup-allowed recipe gets here.
 
 | Dark | Light |
 |---|---|

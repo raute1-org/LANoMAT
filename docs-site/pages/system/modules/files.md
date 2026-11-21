@@ -30,6 +30,11 @@ LanCache file host (nginx + tusd), where bytes never pass through the app.
 The upload card is the participant's side of the flow: a quiet quota bar, a file picker and one
 button. A newly uploaded row waits for moderation before anyone else sees it.
 
+A ready-to-run game archive is an upload too. On your own `.zip` or `.tar.bz2` row, **Als Spiel
+teilen** opens `/games/share?file=<id>` with the archive selected, where you describe the game and
+the orga reviews it. Other archive types and other people's files get no such link. Read
+[Share a game](/docs/guides/share-a-game).
+
 | Dark | Light |
 |---|---|
 | ![Files upload card with quota bar and pending rows, dark](/screens/files-upload-dark.png) | ![Files upload card with quota bar and pending rows, light](/screens/files-upload-light.png) |

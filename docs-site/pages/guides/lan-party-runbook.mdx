@@ -80,6 +80,11 @@ php artisan lanomat:recipes:sync --only=counter-strike-1-6
 Recipes synced from smb://nas.lan/games-recipes/recipes: 3 created, 18 updated, 1 pruned.
 ```
 
+`--only` narrows what is **updated**, never what counts as present. A recipe that still has a
+directory in the source keeps its row even when it was not selected or its YAML failed validation,
+so `--only=<slug> --prune` never deletes the other recipes. `--prune` against an empty or unreadable
+source prunes nothing and says so.
+
 Read the warnings. A skipped folder is usually a validation failure (bad slug, mismatched directory
 name, a `SKILL.md` whose frontmatter disagrees with the YAML).
 
@@ -91,11 +96,16 @@ undoes a moderation decision and a draft stays a draft. Validate before importin
 ```bash
 cd resources/recipes/schema
 npm install
-npm run validate
+node validate.mjs              # the bundled catalogue
+node validate.mjs /path/to/recipes   # an exported set, e.g. before it becomes a pull request
 ```
 
-The validator checks the JSON schema, directory name = slug, unique slugs/skill names/aliases, a
-`SKILL.md` with Agent Skills frontmatter, no `&&` chains in commands, and a 60–150 line skill.
+The validator checks the JSON schema, directory name = slug, unique slugs/skill names/aliases, the
+`SKILL.md` contract (frontmatter, 60–150 lines), no `&&` chains, OS-matching shells, globs without
+path separators, the draft rules (3–6 steps and the "needs verification" sentence), and that
+`_catalog.md` lists every recipe directory exactly once under its status. Exit code 0 means every
+recipe is valid; warnings never fail. The GitHub workflow `.github/workflows/recipes.yml` runs the
+same check on a pull request that touches `resources/recipes/**`.
 
 ### What sync does not do
 
@@ -170,6 +180,30 @@ Before publishing a draft:
 
 Pinning a file in the requirement (**LAN-Datei-ID**) is the escape hatch when a glob is too broad. It
 is per requirement and wins over matching; a removed file leaves the requirement unmatched.
+
+### Shared games from participants
+
+A participant can upload a ready-to-run archive and describe it on `/games/share` — the page is
+**Spiel teilen**. The result is a draft recipe whose required `base` requirement pins that archive.
+Your part:
+
+1. The file waits on the event Files page as `Wartet auf Freigabe`. Check that it is really a
+   `.zip` or `.tar.bz2` that unpacks into a runnable game folder, then approve it like any other
+   file. A rejected upload's bytes are gone and the participant has to upload again.
+2. Open `/admin` → **Spielrezepte** and review the draft: title, platforms, the Windows start file,
+   the Linux start (Wine or a native binary). The recipe's step commands are prose and manual
+   fallback; the launcher never runs them.
+3. Test the base install on one machine per claimed platform, as in the section below.
+4. Publish the recipe.
+5. Set `game_recipes.in_lineup` for it if the game should reach players. The lineup is the
+   configured `LAUNCHER_LINEUP` **plus** every recipe with that flag (`LauncherLineup::slugs()`),
+   and the same list drives `/games`, the launcher and the server browser. A published recipe
+   outside the lineup stays in the database but has no player-facing link. An empty
+   `LAUNCHER_LINEUP` means no curation: the whole published catalogue is shown anyway.
+6. The catalogue entry follows as a pull request against `resources/recipes/` when recipe pull
+   requests are enabled; game files stay on the file host.
+
+The participant-facing half of this is [Share a game](/docs/guides/share-a-game).
 
 ## 6. Smoke-test a plan per OS
 
@@ -374,7 +408,8 @@ alone; the Jukebox queue keeps working.
 - [ ] `lanomat:recipes:sync --prune` ran; warnings read and understood.
 - [ ] `npm run validate` green for the catalogue.
 - [ ] Every required ISO/patch approved; names match the globs.
-- [ ] Every recipe you intend to offer is **Veröffentlicht**.
+- [ ] Every recipe you intend to offer is **Veröffentlicht**, and every shared game is in the
+      lineup (`game_recipes.in_lineup`).
 - [ ] One Windows and one Linux plan smoke-tested end to end.
 - [ ] `lanomat:preflight` green (or every `warn` understood).
 - [ ] Backup after the final publish; marker fresh.

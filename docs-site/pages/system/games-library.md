@@ -50,31 +50,52 @@ supplied disc, but the LAN dot tells you whether the fast path exists.
 
 ### Install
 
-The primary action is **Install**. It offers two equivalent paths:
+The primary action is **Installieren**. Its target depends on whether the launcher can install the
+recipe and whether a launcher build is published for your OS:
 
-- **Deep link:** `lanomat://install/<slug>` — opens the pi agent with the recipe selected.
-- **Copyable command:** `lanomat-agent install <slug>` — for a terminal, a script or a machine
-  without the deep-link handler.
+- Both yes: **Installieren** opens the launcher download page on a fresh PC, and a quiet „Launcher
+  schon da? **Im Launcher öffnen**“ uses the deep link `lanomat://install/<slug>`.
+- Otherwise: **Installieren** fires the deep link itself, which opens the pi agent.
 
-The agent still reads the recipe skill and asks about optional content. The button does not bypass
-the plan; it only saves typing the slug.
+A browser game with a `play_url` shows **Spielen** instead; there is nothing to install.
+
+The launcher unpacks a portable recipe's archive, checks the start file and starts the game — it
+never runs the recipe's step commands. The agent path (`lanomat-agent install <slug>`, for a
+terminal or a script) is still there and reads the skill, including the questions about optional
+content. The game page's hint says the same in German: „Noch kein Launcher auf diesem PC?
+„Installieren“ führt zum Launcher-Download“.
 
 ### Launch
 
-When the game has a launch path, a **Start** button appears:
+When the game has a launch path, a start action appears:
 
 - `lanomat://launch/<slug>` for a local install, or
-- a `play_url` when the game runs in the browser (the Ridge Racer cabinet, for example).
+- **Spielen** with a `play_url` when the game runs in the browser (the Ridge Racer cabinet, for
+  example).
 
-A game that is not installed shows Install only. A singleplayer game shows Install and Start, with
-no server section.
+A game that is not installed shows the install action only. A singleplayer game shows install and
+start, with no server section and a **Solo** badge.
 
 ### Live servers
 
-If LANoMAT knows a running server for the game, the page lists it with the join string, map and
-player count. The join string is the same one the match page and the native client use — a
-`steam://` URL, a plain `address:port` for UT2004, or a web URL. A plain address is a copyable mono
-value, not a dead button.
+If LANoMAT knows a running server for the game, the page lists it with map and player count, and one
+honest action per row, in this order:
+
+1. A launcher join link (`lanomat://join/<slug>?address=<host>:<port>`, or `?url=<urlencoded url>`)
+   makes **Beitreten** the primary action, with the sentence „Der Launcher installiert das Spiel bei
+   Bedarf und startet direkt auf diesem Server.“
+2. **Anders verbinden** keeps the direct ways for a PC that already has the game: the game's own
+   join options (a `ut2004://` or `steam://` form), an allowlisted connect link, or the address as
+   copyable mono text.
+3. Without a launcher link the row shows exactly what it can prove — join options, an allowlisted
+   link, or **Adresse kopieren** — never a guessed `steam://connect/…`.
+
+The same recipe actions appear wherever a server row knows its game. On `/servers` and
+`/servers/all` a card offers **Im Launcher beitreten** with the hint „Der Launcher installiert das
+Spiel, falls es fehlt, und startet es auf diesem Server.“, **Spiel installieren** (or **Zum Spiel**
+in a narrow row) and **Mitspieler suchen**, which opens the page's „Zusammen spielen“ card. On
+`/launcher`, each live server has **Beitreten**; a server with nothing to join keeps **Server
+ansehen** and a quiet **Zum Spiel**.
 
 ### Running tournaments
 
@@ -94,6 +115,22 @@ It is the shortest path from "we should play" to "everyone is in the room":
 
 The action requires a non-cancelled event registration, like every LFG post. It does not create a
 tournament, start a server or reserve a seat.
+
+### Spiel teilen
+
+Anyone can add a game. The entry points are deliberate and all lead to `/games/share`:
+
+- **Spiel teilen** in the page header of `/games`;
+- the same link at the bottom of the games sidebar;
+- the empty states — „Noch keine Spiele in der Bibliothek“ and „Kein Spiel passt“ each carry „Dein
+  Spiel fehlt? Teile es mit der LAN.“;
+- **Als Spiel teilen** on your own `.zip` or `.tar.bz2` row on the Files page, which preselects that
+  file;
+- **Spiel teilen** in the launcher, which opens the page in your browser.
+
+A share becomes a draft recipe. The library only shows it after the orga approves the archive,
+publishes the game and sets `game_recipes.in_lineup`; then it appears here, in the launcher and
+next to its servers like any other game. Read [Share a game](/docs/guides/share-a-game).
 
 ## Same list, same words, in the launcher
 
@@ -119,9 +156,16 @@ for the card anatomy and the typewriter rules.
 
 ## For operators
 
-Publish the recipe, put the required file on the LAN file host, and the LAN dot appears. Create the
-tournament and let the match-server preset provision a server; the game page picks it up through the
-same read-models as the match page. Nothing on `/games` needs a separate configuration screen.
+Publish the recipe, put the required file on the LAN file host, and the LAN dot appears. For a game
+a participant shared, approve the archive, publish the draft recipe and set `game_recipes.in_lineup`
+so it joins the lineup. Create the tournament and let the match-server preset provision a server;
+the game page picks it up through the same read-models as the match page. Nothing on `/games` needs
+a separate configuration screen.
+
+The server browser's recipe actions come from the same catalogue: a published, lineup-allowed
+recipe is matched to the server's game, and the launcher join link is only built when the launcher
+can actually install that recipe. A server whose game has no recipe keeps its own join string and
+install hint.
 
 <div class="callout-live">
   <strong>The library is a view, not a new module.</strong> It reads the recipe catalogue, the

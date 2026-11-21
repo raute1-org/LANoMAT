@@ -18,7 +18,7 @@ reads to behave well: which aliases the user might say, which questions to ask (
 multi-select), which steps are optional, and what the known failure modes are.
 
 Participants do not read the YAML. They open the **[games library](/docs/system/games-library)** at
-`/games`, which lists every published recipe, marks what is already on the LAN, and connects Install,
+`/games`, which lists every published recipe the lineup allows, marks what is already on the LAN, and connects Install,
 Launch, servers and tournaments in one page.
 
 | Dark | Light |
@@ -66,6 +66,10 @@ metadata:
 to name the required patch. `slug` must equal the directory name. Aliases are unique across the
 catalogue.
 
+Two keys sit at the top level of the YAML, not under `metadata`: `play_url` (a page the player opens
+instead of installing anything) and `launch_targets` (the ways to start an installed game, the first
+entry being the default).
+
 ## Requirements: roles and matching
 
 `requires[]` is how a recipe asks for content without hardcoding a URL. Each entry has a `role`, a
@@ -85,6 +89,9 @@ catalogue.
 Matching is against the LAN file host's file names, not the internet. A requirement may carry a
 `size_bytes`, a `sha256` for verification, an optional `url` for provenance, and `notes` for the
 human/agent reading the plan. Empty `sha256`/`url` are allowed.
+
+`manual: true` marks a requirement the player supplies by hand: the installer asks for it and never
+matches it on the share. A required manual entry needs neither `match` patterns nor a `url`.
 
 | Dark | Light |
 |---|---|
@@ -139,17 +146,75 @@ built) is rejected and rebuilt.
 | ![Agent install dry run printing required files, ordered steps, verify checks and avatar choices, dark](/screens/agent-install-terminal-dark.png) | ![Agent install dry run printing required files, ordered steps, verify checks and avatar choices, light](/screens/agent-install-terminal-light.png) |
 | `AGENT · PLAN · STEPS · VERIFY · DRY RUN` | `AGENT · LIGHT` |
 
+## Portable recipes and the launcher
+
+The native launcher is a second consumer next to the agent. It downloads archives, unpacks them,
+checks files and starts a launch target — and it **never runs the step commands**. A recipe is
+installable in the launcher when its shape fits that: it is **portable**.
+
+```yaml
+metadata:
+  portable: true
+  multiplayer: true          # false for a single-player-only game
+```
+
+A portable recipe has all of these:
+
+- `metadata.portable: true` — the author's promise that unpacking the required base archive is the
+  whole install;
+- one required `base` requirement: the ready-to-run archive;
+- a `file_exists` or `dir_exists` check in a non-optional step;
+- at least one launch target in `launch_targets` (or `metadata.launch`).
+
+The launcher lifts one wrapper folder, checks the path the step verifies and starts the matching
+launch target: the Windows `.exe`, a native Linux binary, or the Windows tree through Wine.
+
+`metadata.launcher_supported` is the orga's override for a recipe without that shape: `true` offers
+it in the launcher anyway, `false` hides it. A browser recipe with `play_url` needs no install at
+all. The UT2004 pilot has a dedicated launcher path; Need for Speed: Underground 2 was verified by
+hand with the generic engine.
+
+A published recipe that the launcher cannot drive is still a full catalogue entry: it has its page,
+its servers and its tournaments, and the launcher card links to the game page instead of offering an
+install.
+
+## The automatic path next to the hand-written one
+
+A participant who has a ready-to-run game folder does not edit `resources/recipes/` by hand:
+
+1. They pack the folder as `.zip` or `.tar.bz2`, upload it to the LAN file host and describe it on
+   `/games/share`. That creates a draft portable recipe with the archive pinned as its required
+   `base` requirement.
+2. The orga approves the file and publishes the recipe, then sets `game_recipes.in_lineup` so the
+   game joins the lineup the players see.
+3. The catalogue entry follows as a pull request against this directory. The files stay on the file
+   host; only the recipe text travels.
+
+Read [Share a game](/docs/guides/share-a-game) for the participant side and
+[Contributing](/docs/recipes/contributing) for the repository side.
+
 ## Validation and contributing
 
-Every recipe is checked by `resources/recipes/schema/validate.mjs`: JSON Schema validation, directory
-name equals slug, unique slugs/skill names/aliases, a `SKILL.md` with Agent Skills frontmatter that
-agrees with the YAML, no `&&` chains in commands, and a SKILL.md length of 60–150 lines.
+Every recipe is checked by `resources/recipes/schema/validate.mjs`. With no argument it checks the
+bundled catalogue; a directory argument checks another recipes root, for example a set exported
+before it becomes a pull request.
 
 ```bash
 cd resources/recipes/schema
 npm install
-npm run validate
+node validate.mjs                 # the bundled catalogue
+node validate.mjs /path/to/recipes  # an exported set
 ```
+
+The validator checks the JSON Schema (strict: unknown keys fail), that the directory name equals the
+slug, unique slugs/skill names/aliases, the `SKILL.md` contract (frontmatter, name and description,
+60–150 lines), no `&&` chains, OS-matching shells, globs without path separators, the draft rules
+(3–6 steps and the "needs verification on the LAN" sentence), and that `_catalog.md` lists every
+recipe directory exactly once in the table for its status. Exit code 0 means every recipe is valid;
+warnings never fail the run.
+
+The same check runs in `.github/workflows/recipes.yml` on every pull request and every push to
+`main` that touches `resources/recipes/**`.
 
 The admin recipe list mirrors the catalogue: one row per recipe with its slug, version, status and
 last update, so a draft and a published recipe stay distinguishable before anyone opens the YAML.
@@ -159,10 +224,10 @@ last update, so a draft and a published recipe stay distinguishable before anyon
 | ![Admin recipe list showing slug, version, draft or published status and file count per recipe, dark](/screens/admin-recipes-dark.png) | ![Admin recipe list showing slug, version, draft or published status and file count per recipe, light](/screens/admin-recipes-light.png) |
 | `ADMIN · RECIPES · SLUG · STATUS · UPDATED` | `ADMIN · LIGHT` |
 
-The catalogue currently contains UT2004, Ridge Racer Type 4, F-Zero X VR, Pokémon Snap, Super Mario
-Galaxy, Super Mario Sunshine, and the three Zelda recipes (Ocarina of Time 3D, Majora's Mask 3D,
-Wind Waker). **CS 1.6** is in the catalogue as a draft: it is not listed on `/games` until it is
-published, and its game page surfaces the CS 1.6 tournament and servers once they exist. See
+The bundled catalogue's published entries are UT2004, Need for Speed: Underground 2 (the portable
+tree and the browser variant) and Ridge Racer Type 4. Everything else is a draft — from F-Zero X VR
+and the Super Mario and Zelda titles to **CS 1.6**. A draft is not listed on `/games` until it is
+published, and a game page surfaces its tournament and servers once they exist. See
 [Contributing](/docs/recipes/contributing) for the workflow.
 
 <div class="callout-live">

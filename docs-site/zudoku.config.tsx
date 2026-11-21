@@ -151,6 +151,7 @@ const config: ZudokuConfig = {
       icon: "book-open",
       items: [
         { type: "doc", file: "guides/launcher", label: "One-click launcher" },
+        { type: "doc", file: "guides/share-a-game", label: "Share a game" },
         { type: "doc", file: "guides/install-the-agent", label: "Install the agent" },
         { type: "doc", file: "guides/install-ut2004", label: "Install UT2004 (+VR)" },
         { type: "doc", file: "guides/install-ridge-racer", label: "Install Ridge Racer 4" },

@@ -1,13 +1,35 @@
 ---
 title: One-click launcher
-description: From the start-page chat to a running Unreal Tournament 2004 — one download, one pairing code, one button. No terminal, no Steam, no disc mount.
+description: From the start-page chat to a running game — one download, one pairing code, one button. No terminal, no Steam, no disc mount. What the launcher can install, how it joins a server from any page, and how sharing a game works.
 ---
 
 The LANoMAT Launcher is the desktop app for people who do not want a terminal. It pairs once, shows
-the games the LAN publishes and installs **Unreal Tournament 2004** from the LAN file host with one
-button. The UT2004 pilot is flat only; VR is a later switch. There are builds for Linux and Windows
-x86_64; macOS has none yet. In the pilot **only UT2004 is installable in the launcher**; every
-other published recipe is catalog-only until the recipe engine is generic.
+the games the LAN publishes and installs a game from the LAN file host with one button. It is not
+limited to one title: the launcher installs **every recipe whose shape it can handle**, from the
+UT2004 pilot through portable archives that participants share themselves. The UT2004 pilot is flat
+only; VR is a later switch. There are builds for Linux and Windows x86_64; macOS has none yet.
+
+## What the launcher can install
+
+The launcher downloads archives, unpacks them, checks the files a recipe verifies and starts one
+launch target. It **never runs a recipe's step commands** — those are the manual fallback for a
+human or an agent. A recipe is therefore installable in the launcher when one of these holds:
+
+- it is the UT2004 pilot, which has a dedicated engine path;
+- it is Need for Speed: Underground 2, verified by hand with the generic engine;
+- it is a browser recipe with a `play_url` — there is nothing to install, so its card offers
+  **Spielen**;
+- it is **portable**: `metadata.portable: true`, one required `base` archive, a file or folder check
+  and a launch target. "Portable" is the author's promise that unpacking the archive is the whole
+  install.
+
+`metadata.launcher_supported` is the orga's override for a recipe that is not portable: `true`
+offers it anyway, `false` hides it. A published recipe that fits none of these stays on `/games`
+with its servers and tournaments, but its launcher card reads **Bald im Launcher** and links to the
+game page instead of showing an Install button.
+
+A shared game is exactly this portable case: a participant packs a ready-to-run game folder, uploads
+it and describes it on `/games/share`. Read [Share a game](/docs/guides/share-a-game) for that path.
 
 ## The whole path, in order
 
@@ -147,6 +169,12 @@ it happens:
    tree), then the patch is extracted over the target.
 4. The launcher checks `System/Build.ini` and the 64-bit executable, then offers **Starten**.
 
+For a portable recipe the phases are shorter, because the archive is the install: download the one
+base archive, unpack it into the target folder (`Expand-Archive` on Windows, `bsdtar -xf` for `.zip`
+and `tar -xjf` for `.tar.bz2` on Linux), lift one wrapper folder when the checked file is not at the
+top level, check the start file and start the launch target — the `.exe` through `Start-Process`,
+the native Linux binary directly, or the Windows `.exe` through Wine.
+
 | Dark |
 |---|
 | ![Launcher install screen with phase rail, percent, speed and ETA, dark](/screens/launcher-install-dark.png) |
@@ -179,10 +207,42 @@ same server list the chat card and the website use — so a fresh PC goes from d
 without typing an address. `lanomat://install/<slug>` and `lanomat://launch/<slug>` do the same from
 a browser once the launcher is installed; the `.desktop` entry registers the scheme.
 
+The one-click join is not tied to `/launcher`. Wherever a server row knows its recipe, the row
+offers it:
+
+- on `/launcher`, each live server has **Beitreten**; without a join link it offers **Server
+  ansehen** and a quiet **Zum Spiel**;
+- on `/servers` and `/servers/all`, a server card offers **Im Launcher beitreten** with the hint
+  „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“, plus
+  **Spiel installieren** and **Mitspieler suchen**;
+- on the game page, each server row makes **Beitreten** the primary action with the sentence „Der
+  Launcher installiert das Spiel bei Bedarf und startet direkt auf diesem Server.“ A PC that
+  already has the game keeps every direct way under **Anders verbinden** — the game's own join
+  options, an allowlisted link, or the address to copy.
+
+The link is `lanomat://join/<slug>`. UT2004 carries the server as `?address=<host>:<port>` and
+starts already on it; every other recipe launches normally and then opens the server's own join URL
+as `?url=<urlencoded url>`. A server with neither an address nor an accepted join URL gets no
+launcher link, so the row keeps its own fallback action.
+
 The footer of the launcher window names the build it is running (`Launcher <version> · <commit>`) —
 handy when something has to be reported. When the server publishes a different build, one link
 appears next to it: „Neue Launcher-Version verfügbar: &lt;version&gt; — Launcher-Seite öffnen". It opens
 `/launcher` in the browser, where the file is one click away.
+
+## Spiel teilen
+
+The launcher cannot pack, hash or upload an archive itself. Its **Spiel teilen** entry hands that
+work to the browser: it opens the paired server's `/games/share`, where you upload or pick an
+archive and describe the game. Until the launcher is paired the entry is hidden, and clicking it
+without a connection says „Zum Teilen zuerst mit einem LANoMAT-Server verbinden.“
+
+The hint next to the button says what happens: „Öffnet LANoMAT im Browser: Archiv hochladen, Spiel
+beschreiben — nach der Prüfung durch die Orga erscheint es hier.“ A successful handover reads
+„LANoMAT im Browser geöffnet: Spiel teilen.“; a failure reads „Die Seite „Spiel teilen“ konnte nicht
+geöffnet werden.“
+
+The full path from a game folder to a playable entry is [Share a game](/docs/guides/share-a-game).
 
 ## Terminals in the room (multi-terminal LAN)
 
@@ -212,8 +272,9 @@ Checklist for the room:
 - [ ] One terminal is wiped and reinstalled: pairing revoked on `/mcp/connect`, pair again, and the
       game reappears with **Installieren** instead of a phantom "installed".
 - [ ] A terminal that already installed UT2004 keeps **Starten** with the server switched off.
-- [ ] Only UT2004 is installable in the launcher; other published recipes are catalog-only until
-      the engine is generic.
+- [ ] Every game the launcher offers actually installs on a fresh terminal: the UT2004 pilot, the
+      portable recipes and the browser games; anything else reads **Bald im Launcher** and links to
+      its game page.
 
 ## Arcade terminals: sign in by QR
 
@@ -242,8 +303,9 @@ or removes a retired machine without walking around.
 Arcade mode starts fullscreen; `--kiosk` additionally locks the window on top and disables the
 Escape exit. Targets are large, the whole flow works with keyboard or gamepad (QR → **Verbinden** →
 library → **Installieren** / **Starten** → **Abmelden / Nächstes Gerät**). The screen shows the
-display name only — no e-mail, no Discord id, no token. The pilot still installs UT2004 only; other published recipes stay catalog-only until
-the recipe engine is generic.
+display name only — no e-mail, no Discord id, no token. The install set is the same as on a
+personal terminal: the UT2004 pilot, the portable recipes and the browser games; a recipe the
+launcher cannot drive reads **Bald im Launcher** and links to its game page.
 
 ## If a file is missing
 

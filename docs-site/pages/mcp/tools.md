@@ -37,16 +37,21 @@ this table, the server does not have it.
 | `catering_round_create` | `event_slug`, `restaurant`, `opens_at`, `closes_at`, `payment_method`, `title?`, `payment_link?` | Orga/admin: creates a food round as a **draft**; never opens it | — |
 | `lfg_list` | `event_slug` | Active looking-for-group posts | — |
 | `lfg_create` | `event_slug`, `title`, `game`, `body?`, `slots_needed?` | The created post | — |
-| `recipes_list` | `query?`, `platform?` | Recipe summaries | `GET /api/v1/recipes` |
-| `recipe_get` | `slug`, `include_skill?` | Full recipe, requirements, steps, file matches | `GET /api/v1/recipes/{slug}` |
+| `recipes_list` | `query?`, `platform?` | Recipe summaries with `in_lineup` and the caller's own `pull_request` | `GET /api/v1/recipes` |
+| `recipe_get` | `slug`, `include_skill?` | Full recipe, requirements, steps, file matches, `launcher_supported`, `portable`, `pull_request`, `play_url` | `GET /api/v1/recipes/{slug}` |
 | `recipe_install_plan` | `slug`, `os?`, `event_slug?` | Install plan (pure, no download) | `POST /api/v1/recipes/{slug}/plan` |
 | `recipe_avatars` | `slug?`, `query?` | Avatar/content packs with LAN status | `GET /api/v1/recipes/{slug}/avatars` |
-| `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `platforms?`, `aliases?`, `requirements?`, `steps?`, `skill_description?` | Draft recipe | `POST /api/v1/recipes` |
+| `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `version?`, `homepage?`, `license?`, `platforms?`, `aliases?`, `requires?` (with `shared_file_id` per entry), `steps?`, `launch_targets?`, `play_url?`, `portable?`, `skill_description?` | Draft recipe with `launcher_supported` and `pull_request` | `POST /api/v1/recipes` |
 
 Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `lfg_create`,
 `recipe_contribute` and `catering_menu_import`; `recipe_contribute` and `catering_menu_import` only create or
 change **drafts** (a round is never opened by the tool). Nothing in the catalogue
 publishes, deletes or edits an event.
+
+The recipe tools carry the launcher's view of a recipe. `recipes_list` returns `in_lineup` and the
+caller's own `pull_request`; `recipe_get` returns `launcher_supported`, `portable`, `pull_request`
+and `play_url`. The REST catalogue and the REST contribution answer with the same fields, and a
+participant never sees somebody else's `pull_request`.
 
 A tool result carries the same values the participant app renders — event state, ticket, seat and
 teams:
@@ -179,7 +184,14 @@ client exposes it.
 - `recipes_list` returns at most 100 summaries; narrow with `query`.
 - `files_list` returns the visible files of one event (no cursor paging).
 - `file_download_url` returns a bearer-authenticated URL: fetch it with the same token, not a browser.
-- `recipe_contribute` creates a draft and validates it against the schema: 1–20 steps, unknown keys rejected.
+- `recipe_contribute` creates a draft and validates it against the schema: 1–20 steps, unknown keys
+  rejected. `version` (max 40), `homepage` (http(s), max 500) and `license` (max 200) are the recipe
+  fields; `launch_targets` holds up to 10 start commands; `play_url` makes a browser recipe
+  launcher-supported without an install. `portable: true` marks a ready-to-run archive (one required
+  `base` requirement, a file check, a launch target) and becomes `metadata.portable`. A
+  `requires[]` entry may carry `shared_file_id` to pin a LAN file the caller may open — their own
+  upload or an approved one. The result names `status`, `launcher_supported` and `pull_request`;
+  `pull_request` is null for anyone who is not the contributor.
 - Rate limit: 240 MCP API requests per minute per token and IP, `429` beyond that.
 
 The draft waits in the Filament admin until an orga reviews it:

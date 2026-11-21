@@ -102,6 +102,21 @@ ISO and its OldUnreal patch — all allowed types, all approved and therefore vi
 | ![Event Files list with a .chd disc image, five .vrm avatars, the UT2004 ISO and patch, dark](/docs/screens/files-dark.png) | ![Event Files list with a .chd disc image, five .vrm avatars, the UT2004 ISO and patch, light](/docs/screens/files-light.png) |
 | `FILES · CHD · VRM · ISO · PATCH` | `FILES · LIGHT` |
 
+### Sharing an archive as a game
+
+A ready-to-run game folder is a special upload: pack it as `.zip` or `.tar.bz2`, upload it like any
+other file, and describe it on `/games/share`. On your own archive's row the Files page shows a quiet
+**Als Spiel teilen** link; it opens `/games/share?file=<id>` with that archive already selected.
+
+- Only `.zip` and `.tar.bz2` can back a shared game. A `.7z`, `.rar` or `.iso` uploads fine but its
+  row has no **Als Spiel teilen** link.
+- The link appears on **your own** archives, and only while the `game_recipes` module is enabled.
+- The file still needs the orga's approval, and the game needs the orga's publish, before anyone
+  sees it on `/games`.
+
+The whole path — the archive, every field, the refusals and what the launcher does with it — is
+[Share a game](/docs/guides/share-a-game).
+
 ## 4. Approval (orga)
 
 Open `/admin` → **Dateien**. The table shows visibility, uploader, size and store. Two row actions:

@@ -23,6 +23,11 @@ to the match page, Discord embed and native client.
 The participant view is one card per link: game, address, port, estimated demand and a primary
 join action. A plain `address:port` gets a copy button next to it.
 
+A card whose game has a matching recipe also carries the recipe way in: **Im Launcher beitreten**
+with the hint „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem
+Server.“, **Spiel installieren** („Zum Spiel“ in a narrow row) and **Mitspieler suchen**. The same
+block appears on the game page, where the launcher join becomes the primary action.
+
 | Dark | Light |
 |---|---|
 | ![Event servers page in dark theme with a ready UT2004 server, address, port and join and copy actions](/screens/event-servers-dark.png) | ![Event servers page in light theme with a ready UT2004 server, address, port and join and copy actions](/screens/event-servers-light.png) |
@@ -50,6 +55,14 @@ and deprovision, plus the start-from-preset action.
 - A server is only listed to participants when it is ready; `failed`/`install_failed` stay orga-only.
 - `provisioning` and `not_responding` are `warn`, not alarms; the UI explains what is happening.
 - A plain `address:port` without a URL scheme is a copyable mono value, not a dead button.
+- The `install` block on a server row comes from the `GameInstallLinks` contract. `GameRecipes`
+  answers with the published, lineup-allowed recipe whose slug equals the game's slug first, then
+  the recipe whose search terms match the game's name or slug. No match means `install: null`, and
+  the row keeps its own connect string and install hint. With the module off, a null implementation
+  answers.
+- `launcherJoinUrl` is `lanomat://join/<slug>`, built only when the launcher can install the recipe.
+  UT2004 passes the server as `?address=<host>:<port>`; every other recipe passes the server's own
+  join URL as `?url=…`. Neither an address+port nor an accepted join URL means no launcher link.
 - The port pool is transactional: two matches cannot get the same port.
 - Readiness uses A2S (Source) or a Minecraft TCP query; the protocol is part of the server link.
 - Permanent servers (`permanent=true`) have no event/match and are not cleaned up with an event.

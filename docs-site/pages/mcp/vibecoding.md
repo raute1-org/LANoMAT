@@ -82,7 +82,9 @@ Do not download anything yet.
 ```
 
 `recipe_install_plan` is pure. This is the safe way to check whether the LAN has the disc before
-promising a friend an install.
+promising a friend an install. `recipe_get` says whether the native launcher can install the recipe
+(`launcher_supported`) and whether it is a portable archive (`portable`), so the agent plans an
+install only where one exists and opens `play_url` for a browser game.
 
 | Dark | Light |
 |---|---|
@@ -121,8 +123,12 @@ Base game required, one optional mod, no avatars yet.
 Validate the shape and submit it as a draft.
 ```
 
-`recipe_contribute` creates a draft, not a published recipe. The orga reviews it, runs the
-JSON Schema validator and publishes.
+`recipe_contribute` creates a draft, not a published recipe. Say `portable: true` when the required
+base is a ready-to-run archive that only needs unpacking, and pass `launch_targets` so the launcher
+can start it; `play_url` marks a browser game that needs no install. A `requires[]` entry with
+`shared_file_id` pins a LAN file you may open. The answer carries the draft's `status`,
+`launcher_supported` and its `pull_request` — null for anyone but the contributor. The orga reviews
+it, runs the JSON Schema validator and publishes.
 
 | Dark | Light |
 |---|---|
