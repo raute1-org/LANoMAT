@@ -4,6 +4,9 @@ Approved direction: clickable prototype "LANoMAT Jetzt-Cockpit" (Design canvas, 
 owner), signed off on 2026-11-21. This plan is the executable breakdown, derived just in time per
 PR like the earlier phase plans.
 
+**Status (2026-11-21): done.** PR A merged as #164; PR B, C and D merged together as #167 after a
+whole-branch review and two fix rounds.
+
 **Goal:** a participant opens LANoMAT and immediately sees what is going on — which games are
 being played, what they want to play, food, their next match — with few clicks. Navigation shrinks
 to what matters for the current LAN, and every kind of game server (match, tournament, event,
@@ -462,4 +465,22 @@ Target (prototype `Main` artboard sidebar):
 - "Desktop-App" stays in `AppSidebar.vue` (Shell parity test reads it).
 - Gates: four frontend checks + `./vendor/bin/pest tests/Architecture tests/Feature/ShellParity`.
 
-## PR D — density pass (tasks added when PR C is merged)
+## PR D — density pass
+
+### Task 10: compact layout on the remaining participant pages
+
+**Files:** `resources/js/pages/Catering/Show.vue`, `Tournaments/Index.vue`, `Lfg/Index.vue`,
+`Presence/Index.vue`, `Schedule/Index.vue` (and their page-local components only if needed);
+`docs/design.md` § "Page anatomy & layout rules" (document the Panel pattern and the density values).
+
+- Reuse `resources/js/components/now/Panel.vue` (move it to `resources/js/components/Panel.vue`
+  and update the imports in `components/now/*` and `pages/Now.vue` — it is now a general building block).
+- Density values: section cards `p-4` instead of `p-5`; vertical rhythm between sections `space-y-4`/`mt-6`
+  instead of `mt-8`–`mt-14`; page titles via `PageContainer` stay, but no oversized display type
+  (`text-4xl`+) on these pages; list rows `py-2`–`py-2.5` with `divide-y`; secondary info muted `text-sm`.
+- Convert big standalone cards that hold a single fact or a short list into `Panel` + rows
+  (as on the "Jetzt" page). Keep every existing behaviour, state (empty/loading/error/normal),
+  label and test hook (`data-test` attributes); this is a visual density pass, not a redesign of flows.
+- Responsive to 375 px, visible focus, no new colours, one amber primary per page.
+- Document in `docs/design.md`: the Panel pattern (header row `h2 text-sm font-medium text-muted-foreground`
+  + optional right link, rows with `divide-y`, `p-4`) and the density values above, as the default for new pages.

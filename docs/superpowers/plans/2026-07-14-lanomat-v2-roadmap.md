@@ -804,6 +804,7 @@ Stand 2026-11-01. Nach dem Produktiv-Deployment (PRs #53–#132, alles auf `main
 - **Update-Wächter** (PR #110): Preflight-Check `dependency_updates` für gepinnte Fremd-Images, warnt nur.
 - **Web-Voice** (PR #100, #107): LiveKit, Chat, Diagnose, Latenz-Selbsttest, Headset-Modus. **Voice/Discord** (PR #72, #74, #78–#79, #89–#97, #105/#106): Mumble 1.5, TeamSpeak gegen echten Server, Kategorie pro Event und Raum pro Team, leere Räume sofort weg.
 - **Raum-Audio (Denon)** (optionales Modul `RoomAudio`, Profil `full`, #139): Orga steuert Power, Lautstärke mit Obergrenze, Mute, Eingang und Klangmodus des AV-Receivers über den Telnet-Sidecar `docker/denon-admin/`; Preflight-Check `room_audio`; Runbook [`docs/infra/room-audio-denon.md`](../../infra/room-audio-denon.md). Music Assistant spielt weiterhin über HEOS am Receiver; LANoMAT steuert nur. Hinweis-Idee „Receiver aus während die Jukebox spielt“ ist bewusst nicht umgesetzt (kein Import aus Jukebox ins Modul).
+- **Teilnehmer-UI „Jetzt-Cockpit“** (PR #164, #167, Plan `docs/superpowers/plans/2026-11-21-jetzt-cockpit.md`): ein Server-Überblick unter `/servers` (Match-, Turnier-, Event- und Dauerserver in Zeilen); Startseite **Jetzt** unter `/` mit „Für dich“, „Läuft gerade“, „Bock auf“ (ein Klick, intern ein ablaufender LFG-Post), Essen, „Als Nächstes“ und Du-Zeile, eigene Zustände vor der LAN und ohne LAN; `/dashboard` leitet um; Sidebar mit sieben Hauptpunkten, Live-Badges (`navSignals`, 30 s pro Nutzer gecacht) und einklappbaren Gruppen Mehr/Voice/Orga; Dichte-Durchgang mit gemeinsamem `Panel`.
 - **Weiteres:** `MatchStatus::Live` (PR #112), Galerie-Retract (PR #111), Dauer-Gameserver (PR #99), Provisioning (PR #61), Paper-Preset mit `USER_AGENT` (PR #118), Schriften selbst gehostet (PR #98), QA Runde 2 mit Fixes (PR #66–#71).
 
 ### Entscheidungen
@@ -826,6 +827,9 @@ Stand 2026-11-01. Nach dem Produktiv-Deployment (PRs #53–#132, alles auf `main
 - **Der Client hat keine Host-Toolchain:** Bau und Tests laufen in Docker (`clients/voice/Dockerfile.dev`); die Route-Autorisierungsmatrix muss jede neue Client-Route kennen.
 - **Offene Lücke:** der Befehl `get_update_status` existiert im Client, die Oberfläche zeigt aber noch keinen Update-Hinweis; die Aktualisierung ist heute „neue Version unter `/app` laden".
 
+- **`provide` und `inject` in derselben Vue-Komponente greifen nicht:** `inject` liest die `provides` des Elternteils, eine Komponente sieht also ihr eigenes `provide` nie. Die Jetzt-Seite zeigte deshalb rohe Label-Schlüssel, während die Kind-Panels korrekt übersetzten; `provideNowLabels` gibt seine Übersetzungsfunktion jetzt zurück. Gefunden erst durch Playwright-Screenshots, nicht durch Tests.
+- **Deferred Props brauchen `rescue: true`, damit der `#rescue`-Slot von `<Deferred>` greift:** ohne die Option wird eine fehlschlagende Closure ein 500 statt eines Fehlerzustands im Block.
+
 ### PRE-LAN-CHECKLISTE: Ergänzungen (Client und Betrieb)
 
 Fortsetzung der Tabelle oben (Nr. 18 ff., alle `offen`); Detailschritte in `clients/voice/README.md` und `docs/infra/livekit-web-voice.md`.
@@ -841,6 +845,7 @@ Fortsetzung der Tabelle oben (Nr. 18 ff., alle `offen`); Detailschritte in `clie
 | 24 | Windows SmartScreen: Ablauf „Weitere Informationen, Trotzdem ausführen" mit der unsignierten Datei; SignPath-Antrag stellen | Owner | offen |
 | 25 | Produktiv-`REVERB_ALLOWED_ORIGINS` prüfen (Host-Name ohne Schema, Browser und Client verbinden sich) | Owner | offen |
 | 26 | Download-Seite auf dem Server: `clients-dist/` passt zur deployten Version (Preflight „Desktop-App-Download" grün) | Owner | offen |
+| 27 | Jetzt-Seite unter echter Last: Live-Badges, Live-Aktualisierung, „Bock auf“ in zwei Browsern, Handy-Ansicht | Owner | offen |
 
 ---
 
