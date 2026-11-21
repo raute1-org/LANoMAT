@@ -135,6 +135,11 @@ class TournamentException extends DomainException
         return new self('The tournament is not a draft.', 'tournaments.errors.not_draft');
     }
 
+    public static function notEditable(): self
+    {
+        return new self('Only a draft or announced tournament can be edited.', 'tournaments.errors.not_editable');
+    }
+
     public static function notAnnounced(): self
     {
         return new self('Only a draft or announced tournament can be opened for enrollment.', 'tournaments.errors.not_announced');
