@@ -1,0 +1,1775 @@
+{
+  "admin-custom-servers-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23309,
+    "referencedBy": []
+  },
+  "admin-custom-servers-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23168,
+    "referencedBy": []
+  },
+  "admin-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31402,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/discord.md"
+    ]
+  },
+  "admin-disputes-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21569,
+    "referencedBy": []
+  },
+  "admin-disputes-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21506,
+    "referencedBy": []
+  },
+  "admin-event-photos-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 39250,
+    "referencedBy": []
+  },
+  "admin-event-photos-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 39972,
+    "referencedBy": []
+  },
+  "admin-events-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 40855,
+    "referencedBy": []
+  },
+  "admin-events-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 40982,
+    "referencedBy": []
+  },
+  "admin-food-orders-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 25779,
+    "referencedBy": []
+  },
+  "admin-food-orders-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 25775,
+    "referencedBy": []
+  },
+  "admin-games-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23558,
+    "referencedBy": []
+  },
+  "admin-games-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23713,
+    "referencedBy": []
+  },
+  "admin-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31391,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/discord.md"
+    ]
+  },
+  "admin-news-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31399,
+    "referencedBy": []
+  },
+  "admin-news-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31404,
+    "referencedBy": []
+  },
+  "admin-recipe-edit-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 48711,
+    "referencedBy": []
+  },
+  "admin-recipe-edit-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 48026,
+    "referencedBy": [
+      "pages/guides/upload-isos-and-avatars.mdx"
+    ]
+  },
+  "admin-recipes-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 47107,
+    "referencedBy": []
+  },
+  "admin-recipes-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 46976,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx"
+    ]
+  },
+  "admin-remote-hosts-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23378,
+    "referencedBy": []
+  },
+  "admin-remote-hosts-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23248,
+    "referencedBy": []
+  },
+  "admin-room-control-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31415,
+    "referencedBy": []
+  },
+  "admin-room-control-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31436,
+    "referencedBy": []
+  },
+  "admin-schedule-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 35205,
+    "referencedBy": []
+  },
+  "admin-schedule-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 35173,
+    "referencedBy": []
+  },
+  "admin-seats-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 41689,
+    "referencedBy": []
+  },
+  "admin-seats-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 41757,
+    "referencedBy": []
+  },
+  "admin-server-links-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 25284,
+    "referencedBy": []
+  },
+  "admin-server-links-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 25148,
+    "referencedBy": []
+  },
+  "admin-shared-files-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 49576,
+    "referencedBy": []
+  },
+  "admin-shared-files-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 49641,
+    "referencedBy": []
+  },
+  "admin-teams-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21108,
+    "referencedBy": []
+  },
+  "admin-teams-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 20992,
+    "referencedBy": []
+  },
+  "admin-users-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 44955,
+    "referencedBy": []
+  },
+  "admin-users-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 45126,
+    "referencedBy": []
+  },
+  "agent-doctor-terminal-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28216,
+    "referencedBy": []
+  },
+  "agent-doctor-terminal-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 29363,
+    "referencedBy": []
+  },
+  "agent-doctor-terminal.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 29363,
+    "referencedBy": [
+      "pages/guides/install-the-agent.mdx"
+    ]
+  },
+  "agent-install-terminal-dark.png": {
+    "width": 1440,
+    "height": 1847,
+    "bytes": 69244,
+    "referencedBy": []
+  },
+  "agent-install-terminal-light.png": {
+    "width": 1440,
+    "height": 1847,
+    "bytes": 68628,
+    "referencedBy": []
+  },
+  "agent-install-terminal.png": {
+    "width": 1440,
+    "height": 1524,
+    "bytes": 54454,
+    "referencedBy": [
+      "pages/guides/install-the-agent.mdx"
+    ]
+  },
+  "catering-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 29975,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/catering.md"
+    ]
+  },
+  "catering-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 30059,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/catering.md"
+    ]
+  },
+  "connections-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 32013,
+    "referencedBy": []
+  },
+  "connections-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31931,
+    "referencedBy": []
+  },
+  "countdown-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37124,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "countdown-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36944,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "dashboard-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34793,
+    "referencedBy": [
+      "pages/guides/install-ut2004.mdx"
+    ]
+  },
+  "dashboard-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34391,
+    "referencedBy": [
+      "pages/guides/install-ut2004.mdx"
+    ]
+  },
+  "dashboard-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 13375,
+    "referencedBy": []
+  },
+  "dashboard-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 13348,
+    "referencedBy": []
+  },
+  "docs-games-library-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 164533,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "docs-games-library-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 164037,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "docs-mcp-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 129856,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "docs-mcp-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 129257,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "event-page-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 42428,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/events.md"
+    ]
+  },
+  "event-page-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 42382,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/events.md"
+    ]
+  },
+  "event-page-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 12990,
+    "referencedBy": []
+  },
+  "event-page-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 13006,
+    "referencedBy": []
+  },
+  "event-servers-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 25302,
+    "referencedBy": []
+  },
+  "event-servers-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 25285,
+    "referencedBy": []
+  },
+  "files-dark.png": {
+    "width": 1440,
+    "height": 2330,
+    "bytes": 76955,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/files.md"
+    ]
+  },
+  "files-light.png": {
+    "width": 1440,
+    "height": 2330,
+    "bytes": 77737,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/files.md"
+    ]
+  },
+  "files-upload-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36957,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx"
+    ]
+  },
+  "files-upload-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36941,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx"
+    ]
+  },
+  "files-upload-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 15323,
+    "referencedBy": []
+  },
+  "files-upload-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 15459,
+    "referencedBy": []
+  },
+  "friends-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37905,
+    "referencedBy": []
+  },
+  "friends-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37735,
+    "referencedBy": []
+  },
+  "gallery-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 26679,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/gallery.md"
+    ]
+  },
+  "gallery-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 26809,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/gallery.md"
+    ]
+  },
+  "game-ut2004-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 55236,
+    "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/games-library.md"
+    ]
+  },
+  "game-ut2004-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 55593,
+    "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/games-library.md"
+    ]
+  },
+  "game-ut2004-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 15522,
+    "referencedBy": []
+  },
+  "game-ut2004-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 15565,
+    "referencedBy": []
+  },
+  "games-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 53477,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/games-library.md"
+    ]
+  },
+  "games-filter-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 39104,
+    "referencedBy": [
+      "pages/guides/install-ridge-racer.mdx"
+    ]
+  },
+  "games-filter-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 39227,
+    "referencedBy": [
+      "pages/guides/install-ridge-racer.mdx"
+    ]
+  },
+  "games-filter-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 12490,
+    "referencedBy": []
+  },
+  "games-filter-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 12543,
+    "referencedBy": []
+  },
+  "games-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 53845,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/games-library.md"
+    ]
+  },
+  "home-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 6922,
+    "referencedBy": [
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/deployment.md",
+      "pages/start/introduction.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md"
+    ]
+  },
+  "home-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 6848,
+    "referencedBy": [
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md"
+    ]
+  },
+  "home-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 5658,
+    "referencedBy": []
+  },
+  "home-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 5589,
+    "referencedBy": []
+  },
+  "infoscreen-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 14107,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/infoscreen.md"
+    ]
+  },
+  "infoscreen-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 14107,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/infoscreen.md"
+    ]
+  },
+  "infoscreen-recap-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 12789,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md"
+    ]
+  },
+  "infoscreen-recap-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 12789,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md"
+    ]
+  },
+  "jukebox-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 30641,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/jukebox.md"
+    ]
+  },
+  "jukebox-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 30371,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/jukebox.md"
+    ]
+  },
+  "leaderboard-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36213,
+    "referencedBy": []
+  },
+  "leaderboard-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36218,
+    "referencedBy": []
+  },
+  "lfg-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 29237,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/lfg.md"
+    ]
+  },
+  "lfg-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 29272,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/lfg.md"
+    ]
+  },
+  "mcp-connect-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31825,
+    "referencedBy": [
+      "pages/agent/install.md"
+    ]
+  },
+  "mcp-connect-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 31653,
+    "referencedBy": [
+      "pages/agent/install.md"
+    ]
+  },
+  "mcp-connect-pending-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 35121,
+    "referencedBy": [
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/mcp/overview.md",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "mcp-connect-pending-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34999,
+    "referencedBy": [
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/mcp/overview.md",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "notifications-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36332,
+    "referencedBy": []
+  },
+  "notifications-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36089,
+    "referencedBy": []
+  },
+  "orga-checkin-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21877,
+    "referencedBy": []
+  },
+  "orga-checkin-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21895,
+    "referencedBy": []
+  },
+  "orga-checkin-qr-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 18982,
+    "referencedBy": []
+  },
+  "orga-checkin-qr-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 18982,
+    "referencedBy": []
+  },
+  "presence-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37522,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/presence.md"
+    ]
+  },
+  "presence-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37371,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/presence.md"
+    ]
+  },
+  "recap-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28856,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/recap.md"
+    ]
+  },
+  "recap-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28895,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/recap.md"
+    ]
+  },
+  "register-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28167,
+    "referencedBy": []
+  },
+  "register-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28341,
+    "referencedBy": []
+  },
+  "schedule-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 32150,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/schedule.md"
+    ]
+  },
+  "schedule-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 32210,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/schedule.md"
+    ]
+  },
+  "seating-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34295,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/seating.md"
+    ]
+  },
+  "seating-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 33851,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/seating.md"
+    ]
+  },
+  "servers-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21173,
+    "referencedBy": []
+  },
+  "servers-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 21146,
+    "referencedBy": []
+  },
+  "settings-connections-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 81143,
+    "referencedBy": []
+  },
+  "settings-connections-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 81197,
+    "referencedBy": []
+  },
+  "talk-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23368,
+    "referencedBy": []
+  },
+  "talk-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23205,
+    "referencedBy": []
+  },
+  "teams-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 19245,
+    "referencedBy": []
+  },
+  "teams-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 19217,
+    "referencedBy": []
+  },
+  "tournament-bracket-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34135,
+    "referencedBy": []
+  },
+  "tournament-bracket-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 33907,
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx"
+    ]
+  },
+  "tournament-bracket-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 12145,
+    "referencedBy": []
+  },
+  "tournament-bracket-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 12297,
+    "referencedBy": []
+  },
+  "tournaments-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23016,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/tournaments.md"
+    ]
+  },
+  "tournaments-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23067,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/tournaments.md"
+    ]
+  },
+  "voice-app/01-connect.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12238,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/02-connect-wait.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 19568,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/03-guide-headset.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 14208,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/04-guide-meter.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 13212,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/05-guide-tone.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12221,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/06-guide-key.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 19050,
+    "referencedBy": [
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/10-jetzt.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24433,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md"
+    ]
+  },
+  "voice-app/11-jetzt-vote.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21826,
+    "referencedBy": []
+  },
+  "voice-app/12-jetzt-voted.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22453,
+    "referencedBy": []
+  },
+  "voice-app/13-jetzt-match.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26609,
+    "referencedBy": [
+      "pages/start/screenshots.md"
+    ]
+  },
+  "voice-app/14-jetzt-in-room.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26610,
+    "referencedBy": []
+  },
+  "voice-app/15-help.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 31690,
+    "referencedBy": []
+  },
+  "voice-app/16-keyboard-focus.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26710,
+    "referencedBy": []
+  },
+  "voice-app/17-jetzt-team-strip.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24471,
+    "referencedBy": []
+  },
+  "voice-app/17b-jetzt-team-strip-follow.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24633,
+    "referencedBy": []
+  },
+  "voice-app/20-sprache.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22408,
+    "referencedBy": []
+  },
+  "voice-app/21-chat-mention.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24582,
+    "referencedBy": []
+  },
+  "voice-app/22-badge-mention.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 25524,
+    "referencedBy": []
+  },
+  "voice-app/23-chat-ratelimit.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 25960,
+    "referencedBy": []
+  },
+  "voice-app/24-sprache-personen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 29935,
+    "referencedBy": []
+  },
+  "voice-app/24b-personen-followed-into-room.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 20187,
+    "referencedBy": []
+  },
+  "voice-app/25-personen-follow-panel.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 29570,
+    "referencedBy": []
+  },
+  "voice-app/25b-personen-follow-ada.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 28629,
+    "referencedBy": []
+  },
+  "voice-app/26-personen-filter-team.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26100,
+    "referencedBy": []
+  },
+  "voice-app/27-personen-nomatch.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22243,
+    "referencedBy": []
+  },
+  "voice-app/28-personen-hidden-self.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 31267,
+    "referencedBy": []
+  },
+  "voice-app/29-personen-not-joinable.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 31685,
+    "referencedBy": []
+  },
+  "voice-app/30-spielen-matches.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26558,
+    "referencedBy": []
+  },
+  "voice-app/31-spielen-report-form.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26054,
+    "referencedBy": []
+  },
+  "voice-app/32-spielen-reported.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 27034,
+    "referencedBy": []
+  },
+  "voice-app/33-spielen-tournaments.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 20704,
+    "referencedBy": []
+  },
+  "voice-app/34-spielen-servers.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21362,
+    "referencedBy": []
+  },
+  "voice-app/40-essen-menu.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23111,
+    "referencedBy": []
+  },
+  "voice-app/41-essen-total.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23419,
+    "referencedBy": []
+  },
+  "voice-app/41b-essen-placed.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24546,
+    "referencedBy": []
+  },
+  "voice-app/42-essen-limit.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23217,
+    "referencedBy": []
+  },
+  "voice-app/43-essen-orders.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23256,
+    "referencedBy": []
+  },
+  "voice-app/50-mehr.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 20183,
+    "referencedBy": []
+  },
+  "voice-app/51-polls.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 15659,
+    "referencedBy": []
+  },
+  "voice-app/52-poll-results.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 17657,
+    "referencedBy": []
+  },
+  "voice-app/53-files.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23226,
+    "referencedBy": []
+  },
+  "voice-app/54-files-download-progress.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22673,
+    "referencedBy": []
+  },
+  "voice-app/55-files-download-done.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23343,
+    "referencedBy": []
+  },
+  "voice-app/56-files-upload-progress.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21390,
+    "referencedBy": []
+  },
+  "voice-app/57-files-upload-paused.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21728,
+    "referencedBy": []
+  },
+  "voice-app/58-files-upload-done.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21420,
+    "referencedBy": []
+  },
+  "voice-app/59-notifications.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 29234,
+    "referencedBy": []
+  },
+  "voice-app/60-notifications-ruhe.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 29219,
+    "referencedBy": []
+  },
+  "voice-app/61-settings.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 25862,
+    "referencedBy": []
+  },
+  "voice-app/62-settings-lower.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21391,
+    "referencedBy": []
+  },
+  "voice-app/63-account.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 18850,
+    "referencedBy": []
+  },
+  "voice-app/64-friends.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22591,
+    "referencedBy": []
+  },
+  "voice-app/64-update-available.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24600,
+    "referencedBy": []
+  },
+  "voice-app/65-friends-error.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21801,
+    "referencedBy": []
+  },
+  "voice-app/65-update-incompatible.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24584,
+    "referencedBy": []
+  },
+  "voice-app/66-account-version.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22788,
+    "referencedBy": []
+  },
+  "voice-app/66-friends-confirm.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22292,
+    "referencedBy": []
+  },
+  "voice-app/67-friends-blocked.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21063,
+    "referencedBy": []
+  },
+  "voice-app/68-profile.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 18491,
+    "referencedBy": []
+  },
+  "voice-app/69-profile-errors.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21578,
+    "referencedBy": []
+  },
+  "voice-app/69b-profile-privacy.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23886,
+    "referencedBy": []
+  },
+  "voice-app/69c-profile-connections.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24928,
+    "referencedBy": []
+  },
+  "voice-app/69d-profile-link-waiting.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 26905,
+    "referencedBy": []
+  },
+  "voice-app/69e-profile-linked.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24446,
+    "referencedBy": []
+  },
+  "voice-app/69f-profile-unlink-confirm.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 25199,
+    "referencedBy": []
+  },
+  "voice-app/69g-profile-reauth.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 25514,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-essen-menu.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 10931,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-essen-orders.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 11106,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-files.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 15545,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-friends.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 9652,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-jetzt.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 15344,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-notifications.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22742,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-polls.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 9475,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-profile.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 16004,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-spielen-matches.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 11346,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-spielen-servers.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 10701,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-spielen-tournaments.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 10339,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-sprache-personen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 17913,
+    "referencedBy": []
+  },
+  "voice-app/70-empty-sprache.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 20950,
+    "referencedBy": []
+  },
+  "voice-app/80-error-essen-menu.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12293,
+    "referencedBy": []
+  },
+  "voice-app/80-error-essen-orders.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12292,
+    "referencedBy": []
+  },
+  "voice-app/80-error-files.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 14029,
+    "referencedBy": []
+  },
+  "voice-app/80-error-friends.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 11264,
+    "referencedBy": []
+  },
+  "voice-app/80-error-jetzt.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 10904,
+    "referencedBy": []
+  },
+  "voice-app/80-error-notifications.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 23558,
+    "referencedBy": []
+  },
+  "voice-app/80-error-polls.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 11501,
+    "referencedBy": []
+  },
+  "voice-app/80-error-profile.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 10978,
+    "referencedBy": []
+  },
+  "voice-app/80-error-spielen-matches.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12395,
+    "referencedBy": []
+  },
+  "voice-app/80-error-spielen-servers.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12361,
+    "referencedBy": []
+  },
+  "voice-app/80-error-spielen-tournaments.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 12440,
+    "referencedBy": []
+  },
+  "voice-app/80-error-sprache-personen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 16437,
+    "referencedBy": []
+  },
+  "voice-app/80-error-sprache.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 21145,
+    "referencedBy": []
+  },
+  "voice-app/80-stale-spielen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 25153,
+    "referencedBy": []
+  },
+  "voice-app/81-error-recovered.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24564,
+    "referencedBy": []
+  },
+  "voice-app/85-offline.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 27744,
+    "referencedBy": []
+  },
+  "voice-app/90-modules-off-mehr.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 13534,
+    "referencedBy": []
+  },
+  "voice-app/91-chat-moderator.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 19000,
+    "referencedBy": []
+  },
+  "voice-app/dark-essen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22535,
+    "referencedBy": []
+  },
+  "voice-app/dark-friends.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 22011,
+    "referencedBy": []
+  },
+  "voice-app/dark-jetzt.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24542,
+    "referencedBy": []
+  },
+  "voice-app/dark-notifications.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 27587,
+    "referencedBy": []
+  },
+  "voice-app/dark-personen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 28371,
+    "referencedBy": []
+  },
+  "voice-app/dark-profile.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 16731,
+    "referencedBy": []
+  },
+  "voice-app/dark-spielen.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 24638,
+    "referencedBy": []
+  },
+  "voice-app/dark-sprache.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 20793,
+    "referencedBy": []
+  },
+  "voice-app/narrow-essen.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 15790,
+    "referencedBy": []
+  },
+  "voice-app/narrow-friends.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 16401,
+    "referencedBy": []
+  },
+  "voice-app/narrow-jetzt.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 18426,
+    "referencedBy": []
+  },
+  "voice-app/narrow-notifications.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 21326,
+    "referencedBy": []
+  },
+  "voice-app/narrow-personen.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 20860,
+    "referencedBy": []
+  },
+  "voice-app/narrow-profile.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 14170,
+    "referencedBy": []
+  },
+  "voice-app/narrow-spielen.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 21524,
+    "referencedBy": []
+  },
+  "voice-app/narrow-sprache.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 15544,
+    "referencedBy": []
+  },
+  "voice-app/narrow-text-125.png": {
+    "width": 430,
+    "height": 760,
+    "bytes": 20089,
+    "referencedBy": []
+  },
+  "voice-app/v01-connect.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 243,
+    "referencedBy": []
+  },
+  "voice-app/v02-connect-wait.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 54503,
+    "referencedBy": []
+  },
+  "voice-app/v03-rooms.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 33449,
+    "referencedBy": [
+      "pages/start/tour.md",
+      "pages/system/modules/webvoice.md"
+    ]
+  },
+  "voice-app/v04-room-muted.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 69246,
+    "referencedBy": []
+  },
+  "voice-app/v05-talking.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 69884,
+    "referencedBy": []
+  },
+  "voice-app/v06-muted-again.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 69175,
+    "referencedBy": []
+  },
+  "voice-app/v07-mouse-hold.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 70288,
+    "referencedBy": []
+  },
+  "voice-app/v08-settings.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 71678,
+    "referencedBy": []
+  },
+  "voice-app/v10-connect-denied.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 37376,
+    "referencedBy": []
+  },
+  "voice-app/v11-rooms-empty.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 60600,
+    "referencedBy": []
+  },
+  "voice-app/v12-rooms-error.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 60593,
+    "referencedBy": []
+  },
+  "voice-app/v13-settings-scrolled.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 75146,
+    "referencedBy": []
+  },
+  "voice-app/v14-overlay.png": {
+    "width": 960,
+    "height": 760,
+    "bytes": 74450,
+    "referencedBy": [
+      "pages/start/tour.md",
+      "pages/system/modules/webvoice.md"
+    ]
+  },
+  "voting-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 22986,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/voting.md"
+    ]
+  },
+  "voting-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 23071,
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/voting.md"
+    ]
+  }
+}

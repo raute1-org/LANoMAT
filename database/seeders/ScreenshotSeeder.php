@@ -11,8 +11,10 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Gallery\Models\EventPhoto;
+use App\Modules\GameRecipes\Actions\SyncRecipes;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
@@ -22,6 +24,9 @@ use App\Modules\Infoscreen\Enums\SceneType;
 use App\Modules\Infoscreen\Models\InfoscreenScene;
 use App\Modules\Jukebox\Enums\QueueItemStatus;
 use App\Modules\Jukebox\Models\JukeboxItem;
+use App\Modules\Mcp\Models\McpDeviceCode;
+use App\Modules\Mcp\Models\McpToken;
+use App\Modules\Mcp\Support\McpCodes;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Schedule\Models\ScheduleItem;
@@ -78,6 +83,35 @@ class ScreenshotSeeder extends Seeder
     public const ORGA_EMAIL = 'screenshot-orga@example.test';
 
     public const ORGA_PASSWORD = 'screenshot-demo-password';
+
+    /**
+     * The pairing code the docs capture visits (`/mcp/connect?code=DEMO-2345`)
+     * and the bearer token the terminal capture uses for the real CLI
+     * (`lanomat-agent install … --dry-run`). Both only exist in throwaway
+     * demo databases, exactly like ORGA_PASSWORD; the token is never printed
+     * in a screenshot and never written outside the capture's temp HOME.
+     */
+    public const MCP_PAIRING_CODE = 'DEMO-2345';
+
+    public const MCP_AGENT_TOKEN = 'lmcp_screenshotAgentToken000000000000000000000000000';
+
+    /**
+     * Recipes shown as the published catalogue on the games page. The YAML
+     * files stay the authority everywhere else; this list only makes the
+     * seeded library look like a real LAN catalogue.
+     *
+     * @var list<string>
+     */
+    private const LIBRARY_SLUGS = [
+        'unreal-tournament-2004',
+        'ridge-racer-type-4',
+        'counter-strike-1-6',
+        'f-zero-x-vr',
+        'crash-team-racing',
+        'bloodborne',
+        'super-mario-sunshine',
+        'zelda-ocarina-of-time-3d',
+    ];
 
     public function run(): void
     {
@@ -136,6 +170,14 @@ class ScreenshotSeeder extends Seeder
                 ]),
             );
 
+            // The orga is a participant too: the dashboard screenshot then
+            // shows a ticket and a seat instead of the empty "not registered"
+            // state, and the gallery page offers the upload card.
+            $orgaRegistration = EventRegistration::factory()->checkedIn()->create([
+                'event_id' => $event->id,
+                'user_id' => $orga->id,
+            ]);
+
             // Seating: a filled 4x4 grid, occupy the first 8 seats with the
             // checked-in participants.
             app(GenerateSeatGrid::class)->handle($event, rows: 4, cols: 4, labelPrefix: 'A');
@@ -151,6 +193,20 @@ class ScreenshotSeeder extends Seeder
                         'registration_id' => $this->at($registrations, $index)->id,
                     ]);
                 });
+
+            $orgaSeat = Seat::query()
+                ->where('event_id', $event->id)
+                ->whereDoesntHave('assignment')
+                ->orderBy('pos_y')
+                ->orderBy('pos_x')
+                ->first();
+
+            if ($orgaSeat instanceof Seat) {
+                SeatAssignment::factory()->create([
+                    'seat_id' => $orgaSeat->id,
+                    'registration_id' => $orgaRegistration->id,
+                ]);
+            }
 
             // Tournament: a live single-elimination bracket with 8 entries
             // and two round-1 matches ready to play.
@@ -169,41 +225,66 @@ class ScreenshotSeeder extends Seeder
                 ]),
             )->values();
 
-            GameMatch::factory()->create([
+            // A real 8-entry single-elimination bracket, not just a round-1
+            // list: two played matches with scores, two in progress, the
+            // resulting semi-finals and the final. State fields bypass the
+            // fillable guard exactly like the other fixtures.
+            $roundOne = [];
+
+            foreach ([[0, 1], [2, 3], [4, 5], [6, 7]] as $position => $pair) {
+                $roundOne[$position] = GameMatch::factory()->create([
+                    'tournament_id' => $tournament->id,
+                    'round' => 1,
+                    'position' => $position,
+                    'entry1_id' => $this->at($entries, $pair[0])->id,
+                    'entry2_id' => $this->at($entries, $pair[1])->id,
+                ]);
+            }
+
+            $roundOne[0]->forceFill([
+                'status' => MatchStatus::Completed,
+                'score1' => 13,
+                'score2' => 7,
+                'winner_entry_id' => $this->at($entries, 0)->id,
+            ])->save();
+
+            $roundOne[1]->forceFill([
+                'status' => MatchStatus::Completed,
+                'score1' => 9,
+                'score2' => 13,
+                'winner_entry_id' => $this->at($entries, 3)->id,
+            ])->save();
+
+            $roundOne[2]->forceFill(['status' => MatchStatus::Live])->save();
+            $roundOne[3]->forceFill(['status' => MatchStatus::Ready])->save();
+
+            $semiOne = GameMatch::factory()->create([
                 'tournament_id' => $tournament->id,
-                'round' => 1,
+                'round' => 2,
                 'position' => 0,
                 'entry1_id' => $this->at($entries, 0)->id,
-                'entry2_id' => $this->at($entries, 1)->id,
-                'status' => MatchStatus::Live,
-            ]);
-
-            GameMatch::factory()->create([
-                'tournament_id' => $tournament->id,
-                'round' => 1,
-                'position' => 1,
-                'entry1_id' => $this->at($entries, 2)->id,
                 'entry2_id' => $this->at($entries, 3)->id,
-                'status' => MatchStatus::Ready,
+            ]);
+            $semiOne->forceFill(['status' => MatchStatus::Ready])->save();
+
+            $semiTwo = GameMatch::factory()->create([
+                'tournament_id' => $tournament->id,
+                'round' => 2,
+                'position' => 1,
             ]);
 
-            GameMatch::factory()->create([
+            $final = GameMatch::factory()->create([
                 'tournament_id' => $tournament->id,
-                'round' => 1,
-                'position' => 2,
-                'entry1_id' => $this->at($entries, 4)->id,
-                'entry2_id' => $this->at($entries, 5)->id,
-                'status' => MatchStatus::Pending,
+                'round' => 3,
+                'position' => 0,
             ]);
 
-            GameMatch::factory()->create([
-                'tournament_id' => $tournament->id,
-                'round' => 1,
-                'position' => 3,
-                'entry1_id' => $this->at($entries, 6)->id,
-                'entry2_id' => $this->at($entries, 7)->id,
-                'status' => MatchStatus::Pending,
-            ]);
+            foreach ([[0, $semiOne, 1], [1, $semiOne, 2], [2, $semiTwo, 1], [3, $semiTwo, 2]] as [$position, $next, $slot]) {
+                $roundOne[$position]->forceFill(['next_match_id' => $next->id, 'next_slot' => $slot])->save();
+            }
+
+            $semiOne->forceFill(['next_match_id' => $final->id, 'next_slot' => 1])->save();
+            $semiTwo->forceFill(['next_match_id' => $final->id, 'next_slot' => 2])->save();
 
             // Files: a couple of approved shared files.
             SharedFile::factory()->approved()->create([
@@ -283,6 +364,7 @@ class ScreenshotSeeder extends Seeder
         $this->seedUpcomingEvent();
         $this->seedNews();
         $this->seedGameLibrary();
+        $this->seedMcpPairing();
     }
 
     /**
@@ -597,71 +679,83 @@ class ScreenshotSeeder extends Seeder
     }
 
     /**
-     * Demo rows for the participant games library (/games + /games/{slug}).
-     * One published recipe with a real LAN match and one ready server so the
-     * page shows all four states of the UI (install, start, server, files).
+     * The participant games library (/games + /games/{slug}): the bundled
+     * recipe catalogue, published in a screenshot-sized slice, with LAN copies
+     * pinned for two titles so the "Nur LAN-Spiele" filter has something to
+     * filter, plus one ready server.
      */
     private function seedGameLibrary(): void
     {
-        $orga = $this->seededOrga();
+        // The YAML files are the authority; run the real sync instead of
+        // duplicating recipe content in the seeder.
+        app(SyncRecipes::class)->handle((string) config('recipes.source'));
+
+        GameRecipe::query()
+            ->whereIn('slug', self::LIBRARY_SLUGS)
+            ->update(['status' => RecipeStatus::Published->value]);
+
         $event = Event::query()->where('slug', 'screenshot-demo')->first();
 
-        $recipe = GameRecipe::query()->updateOrCreate(
-            ['slug' => 'unreal-tournament-2004'],
-            [
-                'title' => 'Unreal Tournament 2004',
-                'aliases' => ['ut2004', 'ut2k4', 'ut 2k4', 'unreal tournament'],
-                'version' => '3374',
-                'status' => RecipeStatus::Published,
-                'source' => 'bundled',
-                'platforms' => ['windows', 'linux'],
-                'summary' => 'Arena shooter from the LAN disc image, with the optional UT2004VR mod.',
-                'description' => 'Der LAN-Klassiker: Base Game vom Disc-Image, OldUnreal-Patch 3374 und optional UT2004VR (SteamVR).',
-                'homepage' => 'https://www.oldunreal.com',
-                'license' => 'Epic Games; base game files are user-supplied',
-                'skill_markdown' => "---\nname: ut2004\ndescription: Install Unreal Tournament 2004 from the LAN.\n---\n# UT2004\n",
-                'requirements' => [
-                    ['role' => 'iso', 'label' => 'UT2004 DVD 1', 'match' => ['ut2004*.iso'], 'required' => true],
-                    ['role' => 'patch', 'label' => 'OldUnreal 3374', 'match' => ['ut2004patch*.zip'], 'required' => true],
-                    ['role' => 'avatar', 'label' => 'VRM avatar · Alyx', 'match' => ['alyx*.vrm'], 'required' => false],
-                ],
-                'steps' => [
-                    ['id' => 'install', 'title' => 'Base Game installieren', 'os' => 'windows', 'optional' => false, 'detail' => 'Disc mounten, Setup starten, nach C:\Games\Unreal Tournament 2004 installieren.', 'commands' => [], 'verify' => []],
-                    ['id' => 'vr', 'title' => 'UT2004VR (optional)', 'os' => 'windows', 'optional' => true, 'detail' => 'SteamVR-Mod von jmkokko installieren.', 'commands' => [], 'verify' => []],
-                ],
-                'metadata' => ['launch' => 'C:\Games\Unreal Tournament 2004\System\UT2004.exe', 'multiplayer' => true, 'players' => '2-32', 'players_max' => 32, 'genre' => 'arena-shooter', 'lan_recommended' => true, 'tags' => ['fps', 'vr']],
-            ],
-        );
-
-        $recipe->files()->delete();
-        foreach ([
-            ['role' => 'iso', 'label' => 'UT2004 DVD 1', 'match_patterns' => ['ut2004*.iso'], 'required' => true, 'sort' => 0],
-            ['role' => 'patch', 'label' => 'OldUnreal 3374', 'match_patterns' => ['ut2004patch*.zip'], 'required' => true, 'sort' => 1],
-            ['role' => 'avatar', 'label' => 'VRM avatar · Alyx', 'match_patterns' => ['alyx*.vrm'], 'required' => false, 'sort' => 2, 'metadata' => ['author' => 'Valve', 'license' => 'CC-BY']],
-        ] as $file) {
-            $recipe->files()->create($file);
+        if (! $event instanceof Event) {
+            return;
         }
 
-        if ($event !== null) {
-            // SharedFile's fillable list deliberately excludes disk/path/visibility
-            // (only UploadSharedFile writes them); updateOrCreate would drop them
-            // and insert a row with a null path. forceFill is the seeder path.
-            $shared = SharedFile::query()->firstOrNew([
-                'event_id' => $event->id,
-                'original_name' => 'UT2004-DVD1.iso',
-            ]);
-            $shared->forceFill([
-                'user_id' => $orga->id,
-                'disk' => 'local',
-                'path' => 'event-'.$event->id.'/screenshot-ut2004.iso',
-                'size_bytes' => 4_500_000_000,
-                'mime' => 'application/octet-stream',
-                'visibility' => FileVisibility::Approved,
-                'reviewed_by' => $orga->id,
-                'reviewed_at' => now(),
-            ])->save();
-            $recipe->files()->where('label', 'UT2004 DVD 1')->update(['shared_file_id' => $shared->id]);
+        $orga = $this->seededOrga();
 
+        $ut = $this->pinLanCopy(
+            'unreal-tournament-2004',
+            $event,
+            $orga,
+            'UT2004-DVD1.iso',
+            4_500_000_000,
+            'event-'.$event->id.'/screenshot-ut2004.iso',
+        );
+
+        // The patch and one avatar make the agent's dry-run plan complete
+        // (no "missing required files" at the end of the terminal capture).
+        $this->pinLanCopy(
+            'unreal-tournament-2004',
+            $event,
+            $orga,
+            'OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2',
+            42_000_000,
+            'event-'.$event->id.'/screenshot-ut2004-patch.tar.bz2',
+            'patch',
+        );
+
+        // The whole avatar shelf, so the agent's dry-run finds no missing
+        // optional file (the installer currently reports every missing file,
+        // optional or not, as a blocker).
+        foreach ([
+            ['VRM avatars (multi-select from the LAN file host)', 'avatar-library.vrm', 63_000_000],
+            ['VRM avatar · Ayla (agile scout)', 'alyx.vrm', 18_000_000],
+            ['VRM avatar · Brutus (heavy assault)', 'brutus.vrm', 21_000_000],
+            ['VRM avatar · Kestrel (shock rifle)', 'kestrel.vrm', 19_000_000],
+            ['VRM avatar · Mako (arena duelist)', 'mako.vrm', 24_000_000],
+            ['VRM avatar · Sable (night ops)', 'sable.vrm', 20_000_000],
+        ] as [$label, $file, $bytes]) {
+            $this->pinLanCopy(
+                'unreal-tournament-2004',
+                $event,
+                $orga,
+                $file,
+                $bytes,
+                'event-'.$event->id.'/screenshot-'.$file,
+                'avatar',
+                $label,
+            );
+        }
+
+        $this->pinLanCopy(
+            'ridge-racer-type-4',
+            $event,
+            $orga,
+            'Ridge Racer Type 4 (USA).chd',
+            357_817_282,
+            'event-'.$event->id.'/screenshot-r4.chd',
+        );
+
+        if ($ut !== null) {
             $game = Game::query()->updateOrCreate(
                 ['slug' => 'unreal-tournament-2004'],
                 ['name' => 'Unreal Tournament 2004', 'min_team_size' => 1, 'max_team_size' => 16],
@@ -676,7 +770,116 @@ class ScreenshotSeeder extends Seeder
                 'status' => ServerLinkStatus::Ready,
                 'manual' => true,
                 'permanent' => false,
-                'join_info' => new JoinInfo(address: 'lan.raute1.org', port: 7777, connectString: 'unreal://lan.raute1.org:7777'),
+                'join_info' => new JoinInfo(address: 'lan.example', port: 7777, connectString: 'unreal://lan.example:7777'),
+            ])->save();
+        }
+    }
+
+    /**
+     * An approved shared file on the demo event, pinned to the recipe's `iso`
+     * requirement, so the game page and the files page agree that the game is
+     * on the LAN. Returns the File row (only used as an existence guard) or
+     * null when the recipe is not installed in this checkout.
+     */
+    private function pinLanCopy(
+        string $slug,
+        Event $event,
+        User $orga,
+        string $name,
+        int $sizeBytes,
+        string $path,
+        string $role = 'iso',
+        ?string $label = null,
+    ): ?SharedFile {
+        $recipe = GameRecipe::query()->where('slug', $slug)->first();
+
+        if (! $recipe instanceof GameRecipe) {
+            return null;
+        }
+
+        // SharedFile's fillable list deliberately excludes disk/path/visibility
+        // (only UploadSharedFile writes them); updateOrCreate would drop them
+        // and insert a row with a null path. forceFill is the seeder path.
+        $shared = SharedFile::query()->firstOrNew([
+            'event_id' => $event->id,
+            'original_name' => $name,
+        ]);
+        $shared->forceFill([
+            'user_id' => $orga->id,
+            'disk' => 'local',
+            'path' => $path,
+            'size_bytes' => $sizeBytes,
+            'mime' => 'application/octet-stream',
+            'visibility' => FileVisibility::Approved,
+            'reviewed_by' => $orga->id,
+            'reviewed_at' => now(),
+        ])->save();
+
+        // Pin the exact requirement when a label is given (the avatar role
+        // has one row per avatar); otherwise the first row of the role.
+        $entry = GameRecipeFile::query()
+            ->where('game_recipe_id', $recipe->id)
+            ->where('role', $role)
+            ->when($label !== null, fn ($query) => $query->where('label', $label))
+            ->orderBy('sort')
+            ->first();
+
+        $entry?->forceFill(['shared_file_id' => $shared->id])->save();
+
+        return $shared;
+    }
+
+    /**
+     * The browser end of the agent pairing flow: one pending device code with
+     * the documented DEMO-2345 user code and two connected agents with honest
+     * timestamps (created before last use, both inside the token TTL). The
+     * docs captures need exactly this state, and the terminal capture needs a
+     * working bearer token.
+     */
+    private function seedMcpPairing(): void
+    {
+        $orga = $this->seededOrga();
+
+        McpDeviceCode::query()
+            ->whereIn('user_code_hash', [
+                McpCodes::hash('DEMO2345'),
+                McpCodes::hash('DEMO-2345'),
+            ])
+            ->delete();
+
+        $device = new McpDeviceCode;
+        $device->forceFill([
+            'device_code_hash' => McpCodes::hash('screenshot-demo-device'),
+            'user_code_hash' => McpCodes::hash('DEMO2345'),
+            'device_name' => 'pi · demo-laptop',
+            'status' => McpDeviceCode::PENDING,
+            'interval' => 5,
+            'expires_at' => now()->addMinutes(15),
+            'created_at' => now()->subMinutes(2),
+            'updated_at' => now()->subMinutes(2),
+        ])->save();
+
+        $agents = [
+            ['name' => 'pi · demo-laptop', 'token' => self::MCP_AGENT_TOKEN, 'created_days' => 3, 'used_minutes' => 12],
+            ['name' => 'Claude Code · workshop-laptop', 'token' => self::MCP_AGENT_TOKEN.'-workshop', 'created_days' => 9, 'used_minutes' => 2 * 24 * 60],
+        ];
+
+        foreach ($agents as $agent) {
+            $token = McpToken::query()
+                ->where('user_id', $orga->id)
+                ->where('name', $agent['name'])
+                ->first() ?? new McpToken;
+
+            $token->forceFill([
+                'user_id' => $orga->id,
+                'name' => $agent['name'],
+                'token_hash' => McpCodes::hash($agent['token']),
+                'abilities' => null,
+                'last_used_at' => now()->subMinutes($agent['used_minutes']),
+                'expires_at' => now()->addDays(90),
+                'revoked_at' => null,
+                'created_at' => now()->subDays($agent['created_days']),
+                'updated_at' => now()->subMinutes($agent['used_minutes']),
             ])->save();
         }
     }
