@@ -38,6 +38,27 @@ Full production detail, including the Discord guild gate, backups and the CSP, l
 repository's `docs/deploy-lan-raute1.md`; the venue/offline variant is in
 `docs/infra/app-at-the-venue.md`.
 
+After `lanomat:install` the panel answers on `/admin`, in the same shell as the app. The dashboard is
+the fastest health check on a fresh host: the Preflight traffic light reads database, Redis, file
+storage, failed jobs, Reverb, scheduler and queue worker, and `Neu prüfen` re-runs it after a fix.
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight traffic light for database, Redis, storage, jobs, Reverb, scheduler and queue worker, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight traffic light for database, Redis, storage, jobs, Reverb, scheduler and queue worker, light](/screens/admin-light.png) |
+| `ADMIN · DARK` — `/admin`, Preflight traffic light | `ADMIN · LIGHT` — same checks, paper tokens |
+
+## The agent endpoint
+
+The deployment doubles as an MCP server: `lanomat-agent login` asks `/api/mcp/device` for a code,
+and the browser approves it on `/mcp/connect` while signed in. The page lists every paired device with
+its pairing date and last use, plus the `Trennen` button that revokes exactly that device — the
+revocation is what you check when a laptop leaves the LAN.
+
+| Dark | Light |
+|---|---|
+| ![Agent and MCP connect page with the approval prompt for pi · demo-laptop and two paired devices, dark](/screens/mcp-connect-pending-dark.png) | ![Agent and MCP connect page with the approval prompt for pi · demo-laptop and two paired devices, light](/screens/mcp-connect-pending-light.png) |
+| `MCP PAIRING · DARK` — `/mcp/connect`, approve the code, revoke devices | `MCP PAIRING · LIGHT` |
+
 ## Docs container
 
 The docs image is a two-stage build: Node builds the Zudoku site, nginx serves the static result.
@@ -52,6 +73,14 @@ docker run --rm -p 8080:80 lanomat-docs
 `basePath` is `/docs`, so the build writes into `dist/docs/`. nginx serves `dist` as its root and
 falls back to `dist/docs/index.html` for client-side routes. The container answers
 `GET /docs/` with the documentation, and `/` redirects to `/docs/`.
+
+What it serves is this site: the same pages, the same screenshot pairs and the generated OpenAPI
+reference, all under the `/docs` prefix.
+
+| Dark | Light |
+|---|---|
+| ![Documentation site served from the docs container, showing the MCP page with the device-code request and the pairing screenshot, dark](/screens/docs-mcp-dark.png) | ![Documentation site served from the docs container, showing the MCP page with the device-code request and the pairing screenshot, light](/screens/docs-mcp-light.png) |
+| `DOCS · DARK` — `/docs/mcp`, served by the separate container | `DOCS · LIGHT` — the same build, same base path |
 
 ### Coolify
 
