@@ -48,6 +48,14 @@ Hard requirements for a merge:
 - At least one step with a `detail`; every non-optional step should end in a `verify` check.
 - `metadata` with genre, players, `lan_recommended` and tags.
 
+The admin form edits the same fields without YAML: role and label per requirement, the file-name
+patterns as removable chips, and a `Pflicht` (required) toggle for the base entry.
+
+| Dark | Light |
+|---|---|
+| ![Admin recipe edit form with SKILL.md text, requirement role, match patterns and required toggle, dark](/screens/admin-recipe-edit-dark.png) | ![Admin recipe edit form with SKILL.md text, requirement role, match patterns and required toggle, light](/screens/admin-recipe-edit-light.png) |
+| `ADMIN · RECIPE EDIT · ROLE · MATCH · REQUIRED` | `ADMIN · LIGHT` |
+
 ## 3. Write `SKILL.md`
 
 The skill is for an agent, not for a search engine. Keep it 60–150 lines and make it operational:
@@ -81,6 +89,11 @@ Add `size_bytes` when you know it, and `sha256` if the file is stable. A `match`
 specific enough to avoid grabbing the wrong disc (`ut2004*.iso`, not `*.iso`). If the content is
 optional, say so in `notes` and keep `required: false`.
 
+| Dark | Light |
+|---|---|
+| ![Admin shared files list with disc image, patch and avatar uploads and their release status, dark](/screens/admin-shared-files-dark.png) | ![Admin shared files list with disc image, patch and avatar uploads and their release status, light](/screens/admin-shared-files-light.png) |
+| `FILES · NAME · SIZE · STATUS` | `FILES · LIGHT` |
+
 ## 5. Review checklist
 
 - [ ] `npm run validate` is green.
@@ -92,8 +105,25 @@ optional, say so in `notes` and keep `required: false`.
 - [ ] The recipe page renders (the docs build includes it).
 - [ ] The pull request says which platforms you actually tested.
 
+A merged recipe ends up on the game page: Install and Launch, the join string, the server list and
+the optional avatar picks all come from the YAML you just wrote.
+
+| Dark | Light |
+|---|---|
+| ![UT2004 game page with Install, Launch, server join and avatar selection from the recipe, dark](/screens/game-ut2004-dark.png) | ![UT2004 game page with Install, Launch, server join and avatar selection from the recipe, light](/screens/game-ut2004-light.png) |
+| `GAME · UT2004 · INSTALL · SERVER · AVATARS` | `GAME · LIGHT` |
+
 <div class="callout-live">
   <strong>Test on a clean machine.</strong> A recipe that only works on the author's PC is a note,
   not a recipe. At minimum, test the base path on a fresh Windows install and, if you claim Linux,
   in a fresh prefix.
 </div>
+
+The agent's dry run is the cheapest way to prove that: it lists the files your `match` globs actually
+resolve, the steps in order, and the verify checks that will run — without moving any bytes.
+
+| Dark | Light |
+|---|---|
+| ![Agent install dry run listing resolved files, ordered steps and verify checks, dark](/screens/agent-install-terminal-dark.png) | ![Agent install dry run listing resolved files, ordered steps and verify checks, light](/screens/agent-install-terminal-light.png) |
+| `AGENT · PLAN · FILES · STEPS · VERIFY` | `AGENT · LIGHT` |
+
