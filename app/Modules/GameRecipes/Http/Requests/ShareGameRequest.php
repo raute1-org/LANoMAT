@@ -34,7 +34,9 @@ final class ShareGameRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'min:2', 'max:'.self::TITLE_MAX],
-            'shared_file_id' => ['required', 'integer', 'exists:shared_files,id'],
+            // No `exists` rule: an unknown id and somebody else's file must get the
+            // same answer, which the action gives after its visibility check.
+            'shared_file_id' => ['required', 'integer'],
             'platforms' => ['required', 'array', 'min:1'],
             'platforms.*' => ['string', 'in:windows,linux'],
             'executable' => ['required', 'string', 'max:'.self::EXECUTABLE_MAX, $this->pathRule()],

@@ -434,3 +434,27 @@ it('does not let /games/{slug} swallow the share page', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('Games/Share'));
 });
+
+it('answers an unknown file id exactly like a file of somebody else', function () {
+    $user = User::factory()->create();
+    $foreign = SharedFile::factory()->create(['original_name' => 'foreign.zip']);
+
+    $body = [
+        'title' => 'Tiny Racer',
+        'platforms' => ['windows'],
+        'executable' => 'TinyRacer.exe',
+    ];
+
+    // Same message for both, so the form cannot be used to probe file ids.
+    $expected = ['shared_file_id' => __('game_share.errors.file_missing')];
+
+    $this->actingAs($user)
+        ->post('/games/share', [...$body, 'shared_file_id' => 987654321])
+        ->assertSessionHasErrors($expected);
+
+    $this->actingAs($user)
+        ->post('/games/share', [...$body, 'shared_file_id' => $foreign->id])
+        ->assertSessionHasErrors($expected);
+
+    expect(GameRecipe::query()->count())->toBe(0);
+});
