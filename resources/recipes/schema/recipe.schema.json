@@ -148,12 +148,7 @@
                 "server": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": [
-                        "name",
-                        "address",
-                        "port",
-                        "connect_url"
-                    ],
+                    "required": ["name", "address", "port", "connect_url"],
                     "description": "The one public server of a browser recipe. It is not a managed ServerLink row: the recipe page shows it and 'join' opens connect_url.",
                     "properties": {
                         "name": {

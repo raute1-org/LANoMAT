@@ -74,7 +74,7 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
 ## Starting the game
 
 - **Windows:** `Start-Process -FilePath "{{target}}/SPEED2.EXE"
-  -WorkingDirectory "{{target}}"`, or simply `SPEED2.EXE`.
+-WorkingDirectory "{{target}}"`, or simply `SPEED2.EXE`.
 - **Linux, Wine (default):**
   `WINEDLLOVERRIDES="dinput8=n,b" wine "{{target}}/SPEED2.EXE"`.
 - **Linux, Proton (optional):**
