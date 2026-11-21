@@ -7,6 +7,7 @@ use App\Modules\Registration\Actions\RegisterForEvent;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -20,6 +21,7 @@ it('registers a user for an open event as confirmed', function () {
     $event = Event::factory()->registration()->create([
         'settings' => ['tickets' => ['standard', 'early_bird']],
     ]);
+    TicketType::query()->create(['event_id' => $event->id, 'key' => 'early_bird', 'name' => 'Early Bird', 'sort' => 1]);
 
     $reg = register($event, User::factory()->create(), 'early_bird');
 
@@ -75,6 +77,7 @@ it('reactivates a cancelled registration on re-register', function () {
     $event = Event::factory()->registration()->create([
         'settings' => ['tickets' => ['standard', 'early_bird']],
     ]);
+    TicketType::query()->create(['event_id' => $event->id, 'key' => 'early_bird', 'name' => 'Early Bird', 'sort' => 1]);
     $user = User::factory()->create();
 
     $original = register($event, $user, 'standard');

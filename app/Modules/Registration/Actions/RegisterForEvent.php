@@ -8,6 +8,7 @@ use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Exceptions\RegistrationException;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\EventDays;
 use App\Modules\Registration\ValueObjects\ArrivalPlan;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,9 @@ class RegisterForEvent
                 throw RegistrationException::full();
             }
 
+            // Price snapshot: taken once here, never changed by later edits of the ticket type.
+            $priceCents = TicketType::findForEvent($event, $ticketType)->price_cents ?? 0;
+
             if ($existing !== null) {
                 // Reactivate the cancelled registration in place rather than
                 // inserting a new row, since (event_id, user_id) is uniquely
@@ -76,6 +80,8 @@ class RegisterForEvent
                 // should count again) and must never carry over silently.
                 $existing->checked_in_at = null;
                 $existing->paid_at = null;
+                $existing->paid_by = null;
+                $existing->ticket_price_cents = $priceCents;
                 // A returning participant states their plan afresh.
                 UpdateArrivalPlan::apply($existing, $plan ?? new ArrivalPlan);
                 $existing->save();
@@ -89,6 +95,7 @@ class RegisterForEvent
                 'ticket_type' => $ticketType,
             ]);
             $registration->status = RegistrationStatus::Confirmed;
+            $registration->ticket_price_cents = $priceCents;
             UpdateArrivalPlan::apply($registration, $plan ?? new ArrivalPlan);
             $registration->save();
 
@@ -101,8 +108,6 @@ class RegisterForEvent
      */
     public static function allowedTickets(Event $event): array
     {
-        $tickets = $event->settings['tickets'] ?? [];
-
-        return empty($tickets) ? ['standard'] : array_values($tickets);
+        return TicketType::activeFor($event)->pluck('key')->values()->all();
     }
 }
