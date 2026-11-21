@@ -165,7 +165,7 @@ latency-kritisch. Details, Compose und Firewall:
 | Browser-Variante | `need-for-speed-underground-2-browser` (Repo `published`, live noch nicht gelistet, `play_url: https://nfsu2.xyz/`) |
 | Lineup | `config/launcher.php` bzw. `LAUNCHER_LINEUP` enthält beide NFSU2-Slugs |
 
-**Live-Stand 2026-11-21 16:10:** Der native Slug ist über die API sichtbar,
+**Live-Stand 2026-11-21 16:18:** Der native Slug ist über die API sichtbar,
 aber `status: draft`, `version: null`, `launch_targets: []` und
 `installable: false`. Deshalb zeigt die Launcher-Bibliothek noch **keine**
 NFSU2-Karte; sichtbar sind nur UT2004 und Apocalypse. Nach Publish/Sync
@@ -230,9 +230,10 @@ dann „Stopped“, obwohl die Ports lauschen. Für die Prüfung zusätzlich
 ## 9. Bekannte Blocker
 
 1. **Keine NFSU2-Karte im Launcher.** Das Rezept ist live `draft`
-   (`version: null`, `launch_targets: []`). Erst nach Publish und
-   Datei-Match erscheint die Karte; der Screenshot unten zeigt den Zustand
-   ohne NFSU2.
+   (`version: null`, `launch_targets: []`), und die live installierte App
+   meldet zusätzlich `launcher_supported: false` — sie ist älter als der
+   Repo-Code. Erst nach Deploy, Publish und Datei-Match erscheint die Karte;
+   der Screenshot unten zeigt den Zustand ohne NFSU2.
 2. **Das portable ZIP ist noch das rohe Archiv.** Es hat den Wrapper-Ordner,
    `scripts/net_u2.asi`, `scripts/net_u2.ini`, README und Startskript fehlen;
    die enthaltene `dinput8.dll` ist die 2,2-MB-Version des Archivs, nicht
@@ -254,8 +255,9 @@ dann „Stopped“, obwohl die Ports lauschen. Für die Prüfung zusätzlich
 8. **`nfsu2.xyz` ist nicht unser Server.** Der Browser-Port ist ein
    unabhängiges öffentliches Deployment mit fremden Spielern, Internetzwang
    und WebGPU-Voraussetzung. Kein LAN-Ersatz, kein NFS-Online-Client.
-9. **Split-Screen + Online ist ungetestet.** Beide ASIs patchen das Spiel;
-   nicht ungeprüft parallel laden. Split-Screen zuerst allein testen.
+9. **Split-Screen + Online ist nur im Load getestet.** Beide ASIs laden in
+   einem Prozess (Abschnitt 13), aber ein 2P-Rennen mit `net_u2.asi` wurde
+   nicht gefahren. Split-Screen zuerst allein testen.
 10. **Kein voller Online-Renn-Handshake getestet.** Serverports, HTTP und
     UDP-Bind sind geprüft; Login/Lobby/Rennen mit `net_u2.asi` und zwei
     echten Clients stehen noch aus.

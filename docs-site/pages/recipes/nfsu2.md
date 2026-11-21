@@ -8,7 +8,7 @@ Need for Speed: Underground 2 is the LAN's open-city street racer: career garage
 free roam. EA's online service is gone, so the recipe adds the community **NFS-Online** client and
 points it at the LAN server. The base game is user-supplied; no game files ship with LANoMAT.
 
-<div class="live">LIVE 16:10 · NFSU2 · recipe draft · NFS-Online 1.1.3 · browser fallback nfsu2.xyz</div>
+<div class="live">LIVE 16:18 · NFSU2 · recipe draft · NFS-Online 1.1.3 · browser fallback nfsu2.xyz</div>
 
 There are two paths, and they are not the same service:
 
@@ -101,4 +101,5 @@ The upstream repository is archived since 2026-11-09; the public server continue
 - `python nfs_online.py status` reports `Stopped` for a foreground/container start because
   `runtime/services.json` is missing; check ports and `/news` instead.
 - A full login/lobby/race handshake with two real clients is still untested.
-- Split-screen and the NFS-Online ASI both patch the game; do not combine them untested.
+- Split-screen and the NFS-Online ASI both patch the game. They load together in one process, but a
+  2-player race with both is untested.
