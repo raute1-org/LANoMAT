@@ -250,6 +250,7 @@ steps:
 metadata:
     launch: 'C:\Games\Unreal Tournament 2004\System\UT2004.exe'
     launch_vr: 'C:\Games\Unreal Tournament 2004\System\Play-VR.bat'
+    avatar_converter_url: 'https://ut.raute1.org/'
     multiplayer: true
     install_size: '~5 GB'
     genre: arena-shooter
