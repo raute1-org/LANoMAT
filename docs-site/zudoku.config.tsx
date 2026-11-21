@@ -1,4 +1,5 @@
 import type { ZudokuConfig } from "zudoku";
+import { ZoomableImage } from "./src/ZoomableImage";
 import "./styles.css";
 
 const moduleDocs = {
@@ -47,6 +48,11 @@ const moduleCategory = (label: string, group: keyof typeof moduleDocs, icon: str
 
 const config: ZudokuConfig = {
   basePath: "/docs",
+  mdx: {
+    components: {
+      img: ZoomableImage,
+    },
+  },
   site: {
     title: "LANoMAT Docs",
     logo: {

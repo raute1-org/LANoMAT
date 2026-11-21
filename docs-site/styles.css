@@ -390,3 +390,168 @@ button:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* Click-to-zoom screenshots (docs-site/src/ZoomableImage.tsx). */
+.shot-zoomable {
+  cursor: zoom-in;
+}
+
+.shot-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: color-mix(in srgb, #080a0c 94%, transparent);
+}
+
+.shot-zoom-figure {
+  display: flex;
+  max-width: min(96vw, 1600px);
+  max-height: 92vh;
+  margin: 0;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.shot-zoom-figure img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: calc(92vh - 3rem);
+  object-fit: contain;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: var(--radius);
+  background: var(--background);
+}
+
+.shot-zoom-figure figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #e7ecef;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shot-zoom-count {
+  flex: none;
+  color: #9aa5ad;
+  font-variant-numeric: tabular-nums;
+}
+
+.shot-zoom-close,
+.shot-zoom-nav {
+  position: absolute;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, #e7ecef 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #101418 82%, transparent);
+  color: #e7ecef;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shot-zoom-close {
+  top: 1rem;
+  right: 1rem;
+}
+
+.shot-zoom-prev {
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+}
+
+.shot-zoom-next {
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+}
+
+.shot-zoom-close:hover,
+.shot-zoom-nav:hover {
+  background: #1b2228;
+}
+
+.shot-zoom-close:focus-visible,
+.shot-zoom-nav:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .shot-zoom {
+    padding: 0.5rem;
+  }
+
+  .shot-zoom-close,
+  .shot-zoom-nav {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.2rem;
+  }
+
+  .shot-zoom-prev {
+    left: 0.25rem;
+  }
+
+  .shot-zoom-next {
+    right: 0.25rem;
+  }
+
+  .shot-zoom-figure figcaption {
+    font-size: 0.62rem;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Two-column screenshot tables shrink instead of widening the page. */
+  main table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+  }
+
+  main table img {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+  }
+
+  main table code {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Long commands scroll inside the code block, not the page. */
+main pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 760px) {
+  /* Long LIVE/status strips wrap instead of widening the page. */
+  .live,
+  .status {
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  /* Long shell commands wrap on a phone; the full line is still copyable. */
+  main pre,
+  main pre code {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+  }
+}
