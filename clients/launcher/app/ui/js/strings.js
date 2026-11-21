@@ -12,6 +12,10 @@ export const SERVERS_PATH = '/servers';
 // a "Bald im Launcher" card links there instead of promising an install.
 export const GAMES_PATH = '/games/';
 
+// The share page of the paired server (`/games/share`): the launcher cannot pack
+// or upload an archive itself, so "Spiel teilen" opens this page in the browser.
+export const SHARE_PATH = '/games/share';
+
 export const S = {
     loading: 'Wird geladen …',
     defaultUrl: DEFAULT_URL,
@@ -39,11 +43,25 @@ export const S = {
             'Der Server konnte nicht geöffnet werden. Öffne den Serverbrowser.',
     },
 
+    // Six-step rail for the UT2004 pilot: DVD image plus the OldUnreal patch.
     phases: {
         planning: 'Planen',
         downloading: 'Herunterladen',
         extracting: 'Entpacken',
         patching: 'Patchen',
+        verifying: 'Prüfen',
+        ready: 'Fertig',
+    },
+
+    // The same rail for a portable archive (any other recipe this build can
+    // install): one ready-to-run archive, no ISO and no patch. "Ergänzen" covers
+    // the optional patch/extra files, which the engine applies when the plan
+    // has them and skips otherwise. `install.js` picks the set per recipe kind.
+    phasesArchive: {
+        planning: 'Planen',
+        downloading: 'Archiv laden',
+        extracting: 'Entpacken',
+        patching: 'Ergänzen',
         verifying: 'Prüfen',
         ready: 'Fertig',
     },
@@ -95,7 +113,7 @@ export const S = {
         loading: 'Spiele werden geladen',
         emptyTitle: 'Noch kein Spiel freigegeben.',
         emptyText:
-            'Sobald die Orga ein Spiel für den Launcher freigibt, erscheint es hier.',
+            'Sobald die Orga ein Spiel für den Launcher freigibt, erscheint es hier. Du kannst auch selbst eines teilen.',
         errorTitle: 'Spiele konnten nicht geladen werden.',
         errorText: 'Der letzte Stand ist nicht verfügbar.',
         authText:
@@ -121,13 +139,23 @@ export const S = {
         verified: (count) =>
             count === 1 ? '1 Datei geprüft' : `${count} Dateien geprüft`,
         noVersion: 'Version ohne Angabe',
+        // Sharing: the launcher does not pack or upload; the paired server's
+        // `/games/share` page does, and the orga checks the archive before the
+        // game shows up in this catalogue.
+        share: 'Spiel teilen',
+        shareHint:
+            'Öffnet LANoMAT im Browser: Archiv hochladen, Spiel beschreiben — nach der Prüfung durch die Orga erscheint es hier.',
+        shareOpened: 'LANoMAT im Browser geöffnet: Spiel teilen.',
+        shareError: 'Die Seite „Spiel teilen“ konnte nicht geöffnet werden.',
+        shareUnavailable:
+            'Zum Teilen zuerst mit einem LANoMAT-Server verbinden.',
         // The local library: this terminal's own installs, no server involved.
         libraryTitle: 'Meine Bibliothek',
         libraryHint:
             'Auf diesem Gerät installiert — der Start klappt auch ohne Server.',
         libraryEmptyTitle: 'Noch nichts installiert.',
         libraryEmptyText:
-            'Installiere ein Spiel aus der Serverliste. Es bleibt auf diesem Gerät.',
+            'Installiere ein Spiel aus der Serverliste. Es bleibt auf diesem Gerät. Du hast ein eigenes Spiel? Teile es über LANoMAT.',
         installedLoaded: (count) =>
             count === 1
                 ? '1 Spiel in deiner Bibliothek.'
@@ -141,7 +169,9 @@ export const S = {
         // A published recipe this build's install engine cannot drive yet.
         soon: 'Bald im Launcher',
         soonHint:
-            'Der Launcher installiert dieses Spiel noch nicht. Auf der Webseite stehen alle Infos.',
+            'Dieses Spiel braucht noch manuelle Schritte. Auf seiner Spielseite stehen Anleitung und Dateien.',
+        soonHintNoUrl:
+            'Dieses Spiel braucht noch manuelle Schritte. Sobald der Server erreichbar ist, steht seine Spielseite auf LANoMAT.',
         play: 'Spielen',
         playTitle: (title) => `${title} im Browser öffnen`,
         playError: 'Das Spiel konnte nicht im Browser geöffnet werden.',
@@ -174,7 +204,7 @@ export const S = {
                 : `${count} Spiele vom Server:`,
         gamesEmptyTitle: 'Gerade ist kein Spiel freigegeben.',
         gamesEmptyText:
-            'Sobald die Orga ein Spiel für den Launcher freigibt, erscheint es hier.',
+            'Sobald die Orga ein Spiel für den Launcher freigibt, erscheint es hier. Du kannst auch selbst eines teilen: „Spiel teilen“ öffnet LANoMAT im Browser.',
         serversSummary: (servers, games) =>
             servers === 1
                 ? `Ein Server${games ? ` in ${games === 1 ? 'einem Spiel' : `${games} Spielen`}` : ''}:`
@@ -301,7 +331,7 @@ export const S = {
         notInstalled:
             'Deep-Link: Das Spiel ist noch nicht installiert. Installiere es zuerst.',
         notSupported: (slug) =>
-            `Deep-Link: „${slug}“ ist noch nicht im Launcher installierbar. Die Webseite zeigt alle Infos.`,
+            `Deep-Link: „${slug}“ ist noch nicht im Launcher installierbar — das Spiel braucht manuelle Schritte. Die Webseite zeigt alle Infos.`,
         busy: 'Deep-Link: Es läuft bereits eine Installation.',
         joinUnknown: (slug) =>
             `Deep-Link: „${slug}“ ist auf diesem Server nicht freigegeben.`,

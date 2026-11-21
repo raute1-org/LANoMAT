@@ -59,6 +59,7 @@ const jsFiles = [
     'js/connect.js',
     'js/chat.js',
     'js/library.js',
+    'js/share.js',
     'js/install.js',
     'js/ready.js',
     'js/qr.js',
@@ -206,16 +207,21 @@ const requiredIds = [
     'start-live-list',
     'start-games',
     'start-servers',
+    'start-share',
+    'start-share-hint',
     'start-chat',
     'screen-library',
     'library-title',
     'library-server',
     'library-server-name',
     'library-refresh',
+    'library-share',
+    'library-share-hint',
     'library-chat',
     'library-loading',
     'library-empty',
     'library-empty-retry',
+    'library-empty-share',
     'library-error',
     'library-error-text',
     'library-retry',
@@ -272,6 +278,7 @@ const requiredIds = [
     'library-installed-title',
     'library-installed',
     'library-installed-empty',
+    'library-installed-empty-share',
     'library-catalog-head',
 ];
 
@@ -436,6 +443,11 @@ const requiredStrings = [
     'Spiele vom Server',
     'Bald im Launcher',
     'Auf der Webseite ansehen',
+    'Spiel teilen',
+    'Archiv hochladen',
+    'Archiv laden',
+    'Ergänzen',
+    'manuelle Schritte',
     'Dieses Gerät',
 ];
 
@@ -859,6 +871,137 @@ check(
     'record states use the status roles',
 );
 
+// ---- sharing: /games/share in the browser, no packing in the launcher ----
+// The launcher cannot pack or upload an archive. "Spiel teilen" opens the paired
+// server's share page; the orga checks the upload before the game appears here.
+const shareJs = sources.get('js/share.js');
+const stringJs = sources.get('js/strings.js');
+
+check(
+    stringJs.includes("SHARE_PATH = '/games/share'"),
+    'the share path is the paired server page',
+);
+check(
+    !/lan\.raute1\.org\/games\/share/i.test(`${html}\n${js}`),
+    'share URL is not hardcoded',
+);
+check(
+    shareJs.includes('serverBase') && shareJs.includes('SHARE_PATH'),
+    'the share URL derives from the paired server',
+);
+check(
+    shareJs.includes('safeHttpUrl'),
+    'the share URL keeps the http(s) allowlist',
+);
+check(
+    /call\('open_url'/.test(shareJs),
+    'share opens through the shell, not by navigating the window',
+);
+check(
+    shareJs.includes('state.status?.paired'),
+    'the share entry needs a paired server',
+);
+check(
+    shareJs.includes('setHidden'),
+    'the share entries are hidden without a known URL',
+);
+check(
+    /export function sync\(\)/.test(shareJs) &&
+        (mainJs.match(/share\.sync\(\)/g) || []).length >= 2,
+    'the share entries follow the pairing status on every change',
+);
+check(
+    shareJs.includes('isOffered()') && shareJs.includes('openShare'),
+    'the share action re-checks before it opens the browser',
+);
+check(
+    stringJs.includes('nach der Prüfung durch die Orga'),
+    'the share hint names the orga check before the game appears',
+);
+check(
+    stringJs.includes('shareError') && stringJs.includes('shareUnavailable'),
+    'a failed share page has German error copy',
+);
+
+for (const id of [
+    'library-share',
+    'start-share',
+    'library-empty-share',
+    'library-installed-empty-share',
+]) {
+    check(/\shidden(\s|>)/.test(tagFor(html, id)), `${id} starts hidden`);
+    check(shareJs.includes(`'${id}'`), `share.js offers ${id}`);
+}
+
+check(
+    /id="library-share"[^>]*aria-describedby="library-share-hint"/.test(html),
+    'the library share entry is described by its hint',
+);
+check(
+    /id="start-share"[^>]*aria-describedby="start-share-hint"/.test(html),
+    'the start share entry is described by its hint',
+);
+check(
+    /id="library-refresh"[\s\S]{0,600}?id="library-share"/.test(html),
+    'the share entry sits next to the refresh action',
+);
+check(
+    /id="start-servers"[\s\S]{0,600}?id="start-share"/.test(html),
+    'the share entry sits among the start page main actions',
+);
+check(
+    /id="library-empty"[\s\S]{0,1200}?id="library-empty-share"/.test(html),
+    'the empty catalogue invites sharing',
+);
+check(
+    /id="library-installed-empty"[\s\S]{0,1200}?id="library-installed-empty-share"/.test(html),
+    'the empty local library invites sharing',
+);
+check(
+    chatJs.includes('share.isOffered') && chatJs.includes('share.openShare'),
+    'the empty chat games answer offers the same share entry',
+);
+check(
+    !/nur\s+(Unreal|UT2004)|only\s+(Unreal|UT2004)/i.test(stringJs),
+    'visible copy does not claim the pilot is the only installable game',
+);
+
+// ---- a catalogue of several games: honest labels for a generic install ----
+check(
+    stringJs.includes('phasesArchive') && /Archiv laden/.test(stringJs),
+    'a portable archive install reads "Archiv laden"',
+);
+check(
+    /Ergänzen/.test(stringJs),
+    'the optional patch step has neutral wording for a generic recipe',
+);
+check(
+    installJs.includes('labelsFor(recipe)') &&
+        installJs.includes('paintPhaseLabels'),
+    'the install rail is labelled per recipe kind',
+);
+check(
+    /\$\{phaseLabel\(name\)\}/.test(installJs),
+    'phase aria-labels use the active label set',
+);
+check(
+    /stoppedAt\(phaseLabel\(lastPhase\)\)/.test(installJs),
+    'the stopped-at sentence uses the active label set',
+);
+check(
+    /progress\.message \|\| phaseLabel\(phase\)/.test(installJs),
+    'a progress message without text falls back to the active label',
+);
+check(
+    libraryJs.includes('soonHintNoUrl'),
+    'a "Bald im Launcher" card without a server URL still says what to do',
+);
+check(
+    /GAMES_PATH\}\$\{encodeURIComponent\(slug\)\}/.test(libraryJs) &&
+        /webLink\.href = url/.test(libraryJs),
+    'the web fallback targets the game page /games/<slug>',
+);
+
 // ---- README contract ----
 check(readme.includes('check-ui.mjs'), 'README names the check script');
 check(readme.includes('start_device'), 'README records the start_device mismatch');
@@ -888,6 +1031,12 @@ check(readme.includes('ohne etwas herunterzuladen'), 'README says the check down
 check(readme.includes('leave_fullscreen'), 'README documents leaving the arcade fullscreen');
 check(readme.includes('Nächstes Gerät'), 'README documents the arcade sign-out');
 check(readme.includes('Gamepad verbunden'), 'README documents the gamepad indicator');
+check(readme.includes('Spiel teilen'), 'README documents the share entry');
+check(readme.includes('SHARE_PATH'), 'README documents the share path');
+check(readme.includes('games/share'), 'README names the share page on the paired server');
+check(readme.includes('Archiv laden'), 'README documents the generic install wording');
+check(readme.includes('Bald im Launcher'), 'README documents the not-installable card');
+check(readme.includes('portable'), 'README explains the portable archive recipes');
 
 // ---- arcade terminals: QR payload, fullscreen, kiosk, keyboard + gamepad ----
 // The QR payload contract is executable: the payload the shell builds for the
