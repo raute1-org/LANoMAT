@@ -42,6 +42,7 @@ class CateringMenuTool extends LanomatTool
         $orders = FoodOrder::query()
             ->where('event_id', $event->id)
             ->when(! $this->user()->isOrga(), static fn ($query) => $query->where('status', '!=', FoodOrderStatus::Draft->value))
+            ->with('restaurant')
             ->orderBy('opens_at')
             ->orderBy('id')
             ->get();
@@ -54,6 +55,11 @@ class CateringMenuTool extends LanomatTool
                 'opens_at' => $order->opens_at?->toIso8601String(),
                 'closes_at' => $order->closes_at?->toIso8601String(),
                 'is_open_now' => $order->isOpenNow(),
+                // Name and description only: the contact data of a restaurant is orga data.
+                'restaurant' => $order->restaurant === null ? null : [
+                    'name' => SafeText::line($order->restaurant->name, 255),
+                    'description' => SafeText::line((string) $order->restaurant->description, MenuOption::MAX_DESCRIPTION_LENGTH),
+                ],
                 'menu' => array_map(
                     static fn (MenuOption $option): array => [
                         'key' => $option->key,

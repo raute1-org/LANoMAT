@@ -39,6 +39,8 @@ function mcpPaginationToolNames(): array
         'catering_menu_get',
         'catering_menu_preview',
         'catering_menu_import',
+        'catering_round_create',
+        'restaurants_list',
         'lfg_list',
         'lfg_create',
         'recipes_list',
@@ -124,17 +126,17 @@ function mcpCollectTools(string $token, int $perPage): array
     return ['names' => $names, 'pages' => $pages];
 }
 
-it('returns all 27 tools on the default page, without a cursor', function () {
+it('returns all 29 tools on the default page, without a cursor', function () {
     $token = mcpPaginationToken();
 
     $json = mcpToolsListRequest($token);
 
-    expect($json['result']['tools'])->toHaveCount(27)
+    expect($json['result']['tools'])->toHaveCount(29)
         ->and(array_column($json['result']['tools'], 'name'))->toBe(mcpPaginationToolNames())
         ->and($json['result'])->not->toHaveKey('nextCursor');
 });
 
-it('collects all 27 tools through the cursor when a client asks for 15 per page', function () {
+it('collects all 29 tools through the cursor when a client asks for 15 per page', function () {
     $token = mcpPaginationToken();
 
     $first = mcpToolsListRequest($token, ['per_page' => 15]);
@@ -153,7 +155,7 @@ it('returns every tool on one page with per_page=100 and no nextCursor', functio
 
     $json = mcpToolsListRequest($token, ['per_page' => 100]);
 
-    expect($json['result']['tools'])->toHaveCount(27)
+    expect($json['result']['tools'])->toHaveCount(29)
         ->and(array_column($json['result']['tools'], 'name'))->toBe(mcpPaginationToolNames())
         ->and($json['result'])->not->toHaveKey('nextCursor');
 });
