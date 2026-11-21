@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\User;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
 use App\Support\Modules\InvalidModuleConfiguration;
 use App\Support\Modules\Module;
@@ -74,6 +75,9 @@ beforeEach(function () {
     $this->launcherDirs = [];
     Config::set('app.version', 'v1');
     Config::set('app.name', 'LANoMAT');
+
+    // The launcher sits behind the Discord login; guests are covered by a dedicated test.
+    $this->actingAs(User::factory()->create());
 });
 
 afterEach(function () {
@@ -86,7 +90,16 @@ afterEach(function () {
     }
 });
 
-it('shows the published builds to a guest, one primary download per OS', function () {
+it('sends guests to the login for the page and the download', function () {
+    // beforeEach signed a user in; the guest branch needs the session cleared.
+    auth()->logout();
+
+    $this->get('/launcher')->assertRedirect(route('login'));
+    $this->get('/launcher/download/lanomat-launcher-v1-linux-x86_64.tar.gz')
+        ->assertRedirect(route('login'));
+});
+
+it('shows the published builds, one primary download per OS', function () {
     launcherRelease();
 
     $this->withHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0')

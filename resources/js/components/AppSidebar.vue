@@ -270,8 +270,8 @@ const moreItems = computed<NavItem[]>(() => {
 
     if (has('game_recipes')) {
         items.push({ title: 'Spiele', href: '/games', icon: Gamepad2 });
-        // The launcher page is public (a fresh PC installs it before login);
-        // the entry stays gated because the route belongs to GameRecipes.
+        // The launcher page is behind login like every participant page; the
+        // entry stays gated because the route belongs to GameRecipes.
         items.push({ title: 'Launcher', href: '/launcher', icon: Download });
     }
 

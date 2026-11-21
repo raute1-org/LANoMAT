@@ -120,7 +120,7 @@ text.
 | `ut2004-base.zip` | 2.5 GB flat base, complete, upload paused (resume) |
 | `ut2k4+keygen.zip` | nosTEAM **installer**, not a portable base |
 | `ut2004-portable-3374-{windows,linux,macos}.zip` | built, verified, not uploaded |
-| `nfsu2-portable.zip` | **2,602,084,719 B**, sha256 `0d7028987ba4fdb5dfbd92e3c5a77fd2d6e98992b85b14ef0268fba040767219`, flat, net_u2.asi/ini + dinput8 + start-nfsu2-linux.sh; upload pending |
+| `nfsu2-portable.zip` | **uploaded as SharedFile 20**, 2,602,084,675 B, sha256 `7a2897a0498acc8da5975463a68db77431a94cfd04eb2c80eed4a0acbf35efcf`; draft recipe 25 plan matches (win/linux, `missing: []`). Local build: 2,602,084,719 B, sha256 `0d7028…7219` |
 | `net_u2.asi` / `net_u2.ini` | built, 112,640 B / 606 B |
 
 Upload only works on the **LANoMAT** WLAN (`10.23.0.0/22`), not on `qc`
@@ -213,3 +213,28 @@ the flat base + OS patch already works.
 - Discord agent: 24 Node tests.
 - PHP: GameRecipes 151, Discord 124, MCP 205 (the 2 pagination expectations
   were corrected to 24/9 after the 24-tool count).
+
+
+---
+
+## 11. Live upload/recipe facts (2026-11-21 16:49)
+
+- **SharedFile 20**: `nfsu2-portable.zip`, approved, **2.602.084.675 B**, SHA-256
+  `7a2897a0498acc8da5975463a68db77431a94cfd04eb2c80eed4a0acbf35efcf`.
+  Download `https://lan.raute1.org/api/v1/files/20/download`; byte ranges verified.
+  The local rebuild is 2.602.084.719 B / `0d7028…7219`; the +44 B is only
+  `README-LANoMAT.txt`, the game/ASI/loader bytes are identical.
+- **Recipe 25 is live as draft**, created via `POST /api/v1/recipes`; base rows
+  280/281 already match SharedFile 20; `plan` for windows/linux reports
+  `missing: []` and `matched`. It lacks `metadata`/`launch_targets`/`version`
+  because that REST path is lossy: run the YAML sync, then check/publish.
+- **Host:** the uploaded package ini advertises `10.23.0.12`; the running test
+  server is the laptop `10.23.3.220`. The recipe step currently rewrites
+  `net_u2.ini` to `10.23.3.220`. For the permanent VM server, align
+  `make_package.sh --server 10.23.0.12`, the YAML step and the server env.
+- **Browser recipe not live yet**; `need-for-speed-underground-2-browser`
+  needs the same deploy/sync. `nfsu2.xyz` remains the community port.
+- **Admin server row**: create game `need-for-speed-underground-2` and a
+  permanent external server `NFSU2 (NFS-Online, unser Server)`, address
+  `10.23.3.220` (test) or `10.23.0.12` (target), port `20922`, query empty,
+  connect string host. The `LauncherLineupSeeder` does this after deploy.

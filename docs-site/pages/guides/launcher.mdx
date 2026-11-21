@@ -14,8 +14,8 @@ other published recipe is catalog-only until the recipe engine is generic.
 This is the pilot flow the website and the launcher share. You can start at any step; the chat on
 the start page is simply the shortest way in.
 
-1. **Start page chat** — `/` opens with the chat. Ask what is playable on this LAN; it answers with
-   inline game and server cards, not a link list.
+1. **Start page chat** — after the Discord login, `/` opens with the chat. Ask what is playable on
+   this LAN; it answers with inline game and server cards, not a link list.
 2. **Games** — the card's quiet "Seite öffnen" (or the **Spiele verwalten** tile) leads to
    `/games`, the catalogue of everything the LAN publishes.
 3. **Zuletzt gespielt** — the first row on `/games` is what this device installed or launched
@@ -34,8 +34,8 @@ the start page is simply the shortest way in.
 ## First visit: the demo conversation
 
 The start-page chat greets with deterministic copy (it works without a model key) and answers with
-cards built from the same catalogue data as `/games`. A first visit reads roughly like this — the
-German strings are the ones the UI uses:
+cards built from the same catalogue data as `/games`. A first visit to the start page after login
+reads roughly like this — the German strings are the ones the UI uses:
 
 > **LANoMAT** — Willkommen auf der LAN. Du kannst hier Spiele installieren, Server finden und
 > Sprache chatten.
@@ -67,11 +67,12 @@ in the design system, [Start-page chat](https://github.com/raute1-org/LANoMAT/bl
 
 ## Download
 
-Open the **Launcher** entry in the sidebar, the **LANoMAT Launcher herunterladen** link on the
-start page, or the page directly at `/launcher` — for example
-[lan.raute1.org/launcher](https://lan.raute1.org/launcher). The primary build for each OS is listed
-with its size, its SHA-256 and the steps for that file; extra files appear further down under
-**Weitere Dateien**:
+After the Discord login, open the **Launcher** entry in the sidebar, the **Launcher herunterladen**
+shortcut on **Jetzt** (the start page after login), or the page directly at `/launcher` — for
+example [lan.raute1.org/launcher](https://lan.raute1.org/launcher). Guests only see the login gate
+at `/`, so the launcher and its downloads are reached after login. The primary build for each OS
+is listed with its size, its SHA-256 and the steps for that file; extra files appear further down
+under **Weitere Dateien**:
 
 | Dark | Light |
 |---|---|

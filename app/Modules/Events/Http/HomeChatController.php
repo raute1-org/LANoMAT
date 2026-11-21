@@ -15,8 +15,8 @@ use Illuminate\Http\Request;
  * page and the event pages get the same payload as an Inertia prop; the dock
  * fetches it on first open so every other page stays free of the queries.
  *
- * Auth-gated in `routes/web.php`; `HomeChatData` itself stays viewer-agnostic
- * and is called with `guest: false` here (the route only exists with a user).
+ * Auth-gated in `routes/web.php`: the route only exists with a user, so the
+ * payload is the same authenticated projection as the start and event pages.
  */
 class HomeChatController extends Controller
 {

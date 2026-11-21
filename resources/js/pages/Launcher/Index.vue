@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { Check, ChevronDown, Copy, Download, TriangleAlert } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
@@ -39,9 +39,6 @@ const props = defineProps<{
 }>();
 
 const { isNavigating, hasError } = usePageLoadState();
-
-// The page is public: logged-in visitors get the app shell, guests the bare one.
-const isAuthenticated = computed(() => usePage().props.auth?.user != null);
 
 const osNames: Record<Os, string> = {
     linux: 'Linux',
@@ -243,7 +240,7 @@ const copyAnnouncement = computed(() =>
 <template>
     <Head title="LANoMAT Launcher" />
 
-    <PageContainer width="wide" :as="isAuthenticated ? 'div' : 'main'">
+    <PageContainer width="wide">
         <!-- loading -->
         <div
             v-if="isNavigating"
@@ -752,15 +749,5 @@ const copyAnnouncement = computed(() =>
 
         <!-- One polite confirmation for whichever copy button was pressed. -->
         <span class="sr-only" aria-live="polite">{{ copyAnnouncement }}</span>
-
-        <p v-if="!isAuthenticated" class="mt-8 text-sm text-muted-foreground">
-            Schon auf der LAN?
-            <Link
-                href="/login"
-                class="rounded-sm underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                >Mit Discord anmelden</Link
-            >
-            — dann siehst du Events, Turniere und deine Spiele.
-        </p>
     </PageContainer>
 </template>

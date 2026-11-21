@@ -386,6 +386,7 @@ class GamePageController extends Controller
      */
     private function serversForRecipe(GameRecipe $recipe, Collection $links): array
     {
+        /** @var list<array<string, mixed>> $servers */
         $servers = $this->matchedLinks($recipe, $links)
             ->map(static function (ServerLink $link): array {
                 $dto = ServerListProjection::dto($link);

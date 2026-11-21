@@ -17,7 +17,8 @@ import UserInfo from '@/components/UserInfo.vue';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 
 const page = usePage();
-const user = computed(() => page.props.auth.user);
+// The sidebar only mounts inside the authenticated app shell.
+const user = computed(() => page.props.auth.user!);
 const { isMobile, state } = useSidebar();
 </script>
 

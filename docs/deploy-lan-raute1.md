@@ -269,8 +269,9 @@ tells users how to click through the SmartScreen warning. The Preflight check `c
 ("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
 repeat the fetch (or the build) after every deploy that changes the version.
 
-**LANoMAT Launcher download (Linux and Windows).** `/launcher` is the public download page for the
-desktop launcher that installs UT2004 from the LAN with one button (guide:
+**LANoMAT Launcher download (Linux and Windows).** `/launcher` is the download page (behind the
+Discord login, like the rest of the participant UI) for the desktop launcher that installs UT2004
+from the LAN with one button (guide:
 <https://lan.raute1.org/docs/guides/launcher>). It needs `MODULE_GAME_RECIPES=true` — and
 `MODULE_FILES=true` (recipes find their ISO/patch uploads through Files) and `MODULE_MCP=true` (the
 launcher pairs and plans through the bearer API; GameRecipes declares both as hard dependencies, so
@@ -319,8 +320,8 @@ release. Publishing is safe to repeat. Preflight's `launcher_build` check reads 
 files themselves: it warns when nothing is published, when only one OS is present, or when the
 build is older than 30 days; a file that no longer matches its size or SHA-256 turns it down.
 Like `clients-dist` itself, publish before the first `up`, otherwise Docker creates the directory as
-root. The page is public on purpose (a fresh PC installs the launcher before its owner logs in) and
-carries no user data.
+root. The page requires login like the rest of the participant UI and carries no user data beyond the
+session.
 
 Every terminal pairs its own device: the catalogue is shared, the installs are local, and the same
 account can run the launcher on any number of machines without copying a config file. Arcade

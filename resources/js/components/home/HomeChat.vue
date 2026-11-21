@@ -39,14 +39,12 @@ interface ChatMessage {
 const props = withDefaults(
     defineProps<{
         chat: HomeChatData;
-        /** Guests see the public catalogue only; never event/member data. */
-        guest?: boolean;
         /** Compact dock variant: no hero header, no autoplay, fills its panel. */
         compact?: boolean;
         /** Hide the action row when the page already shows the same buttons. */
         showActions?: boolean;
     }>(),
-    { guest: false, compact: false, showActions: true },
+    { compact: false, showActions: true },
 );
 
 // The autoplay types the very questions the chips offer, so the demo always
@@ -423,9 +421,7 @@ function answerFor(text: string): Omit<ChatMessage, 'id'> {
                     ? 'Diese Spiele laufen gerade:'
                     : props.chat.games.length > 0
                       ? 'Gerade läuft kein Spiel. Diese Spiele gibt es auf der LAN:'
-                      : props.guest
-                        ? 'Gerade läuft kein Spiel. Melde dich an, dann siehst du die Spiele-Bibliothek.'
-                        : 'Gerade läuft kein Spiel und es sind keine Spiele freigegeben.',
+                      : 'Gerade läuft kein Spiel und es sind keine Spiele freigegeben.',
             cards: live.length > 0 ? 'live' : 'games',
         };
     }
@@ -435,12 +431,8 @@ function answerFor(text: string): Omit<ChatMessage, 'id'> {
             role: 'assistant',
             text:
                 props.chat.games.length > 0
-                    ? props.guest
-                        ? 'Diese Spiele gibt es auf der LAN:'
-                        : 'Diese Spiele stehen bereit:'
-                    : props.guest
-                      ? 'Noch keine Spiele freigeschaltet. Melde dich an — dann siehst du die Spiele-Bibliothek.'
-                      : 'Gerade sind keine Spiele freigegeben. Sobald die Orga welche freischaltet, erscheinen sie hier.',
+                    ? 'Diese Spiele stehen bereit:'
+                    : 'Gerade sind keine Spiele freigegeben. Sobald die Orga welche freischaltet, erscheinen sie hier.',
             cards: 'games',
         };
     }
@@ -450,9 +442,7 @@ function answerFor(text: string): Omit<ChatMessage, 'id'> {
         text:
             props.chat.servers.length > 0
                 ? 'Diese Server laufen gerade:'
-                : props.guest
-                  ? 'Melde dich an, um laufende Server zu sehen.'
-                  : 'Gerade läuft kein Server. Sobald einer startet, steht er hier.',
+                : 'Gerade läuft kein Server. Sobald einer startet, steht er hier.',
         cards: 'servers',
     };
 }
@@ -546,7 +536,7 @@ onBeforeUnmount(() => {
             <!-- The three things a fresh player actually needs, without a detour
                  through the sidebar. -->
             <div
-                v-if="!guest && showActions"
+                v-if="showActions"
                 class="mb-4 flex flex-wrap gap-2"
                 data-test="home-chat-actions"
             >
@@ -725,11 +715,7 @@ onBeforeUnmount(() => {
                                     v-else
                                     class="mt-2 rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
                                 >
-                                    {{
-                                        guest
-                                            ? 'Noch keine Spiele freigeschaltet — melde dich an.'
-                                            : 'Noch keine Spiele freigegeben.'
-                                    }}
+                                    Noch keine Spiele freigegeben.
                                 </p>
                             </div>
 
@@ -855,11 +841,7 @@ onBeforeUnmount(() => {
                                     v-else
                                     class="mt-2 rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
                                 >
-                                    {{
-                                        guest
-                                            ? 'Melde dich an, um laufende Server zu sehen.'
-                                            : 'Gerade läuft kein Server.'
-                                    }}
+                                    Gerade läuft kein Server.
                                 </p>
                             </div>
                         </div>

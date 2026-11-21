@@ -36,7 +36,8 @@ defineOptions({
 });
 
 const page = usePage();
-const user = computed(() => page.props.auth.user);
+// Settings only mounts inside the authenticated app shell.
+const user = computed(() => page.props.auth.user!);
 const bio = ref(props.profile.bio ?? '');
 </script>
 

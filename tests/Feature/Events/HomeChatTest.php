@@ -58,7 +58,7 @@ function homeChatGame(): Game
     ]);
 }
 
-it('greets guests with a public chat hero and no event or draft data', function () {
+it('treats the guest root as a login gate without chat, event or launcher data', function () {
     Event::factory()->registration()->create(['name' => 'Zebrakuchen LAN 2099']);
     homeChatRecipe();
     GameRecipe::factory()->draft()->create([
@@ -73,26 +73,18 @@ it('greets guests with a public chat hero and no event or draft data', function 
 
     $response->assertInertia(fn (AssertableInertia $page) => $page
         ->component('Welcome')
-        ->has('chat.greeting')
-        ->has('chat.suggestions', 2)
-        ->has('chat.servers', 0)
-        ->has('chat.games', 1)
-        ->where('chat.games.0.slug', 'arcade-racer')
-        ->where('chat.games.0.title', 'Arcade Racer')
-        ->where('chat.games.0.installable', true)
-        ->where('chat.games.0.launcher_supported', false)
-        ->where('chat.games.0.lan_ready', false)
-        ->where('chat.games.0.server_count', 0)
-        ->where('chat.games.0.install_deeplink', 'lanomat://install/arcade-racer')
-        ->missing('chat.games.1')
+        ->has('labels')
+        ->missing('chat')
+        // Shared, lazy and null for guests: the key exists but carries no event.
+        ->where('currentEvent', null)
     );
 
-    $props = $response->viewData('page')['props'];
-
-    expect($props['chat']['greeting'])->toContain('Willkommen')
-        ->and($props['chat']['suggestions'])->toBe(['Welche Spiele laufen?', 'Welche Server laufen?'])
-        ->and($response->getContent())->not->toContain('Zebrakuchen')
-        ->and($response->getContent())->not->toContain('Secret Draft');
+    expect((string) $response->getContent())
+        ->toContain('Mit Discord anmelden')
+        ->not->toContain('Zebrakuchen')
+        ->not->toContain('Secret Draft')
+        ->not->toContain('lanomat-launcher')
+        ->not->toContain('Launcher herunterladen');
 });
 
 it('answers logged-in visitors with games and aggregated servers', function () {
@@ -356,11 +348,10 @@ it('keeps the home query count bounded', function () {
     expect($queries)->toBeLessThan(60);
 });
 
-it('places the chat hero above the fold on every start page', function () {
+it('places the chat hero above the fold on every authenticated start page', function () {
     $pages = [
         'resources/js/pages/Event/Show.vue' => 'data-test="event-launcher"',
         'resources/js/pages/Event/Index.vue' => 'aria-labelledby="events-current"',
-        'resources/js/pages/Welcome.vue' => 'data-test="welcome-login-discord"',
     ];
 
     foreach ($pages as $file => $belowTheFoldMarker) {
@@ -372,4 +363,14 @@ it('places the chat hero above the fold on every start page', function () {
             ->and($markerAt)->not->toBeFalse("{$file} lost its expected content marker.")
             ->and($chatAt)->toBeLessThan($markerAt);
     }
+});
+
+it('keeps the guest welcome page a login gate without a chat or launcher link', function () {
+    $source = (string) file_get_contents(base_path('resources/js/pages/Welcome.vue'));
+
+    expect($source)
+        ->not->toContain('<HomeChat')
+        ->not->toContain('/launcher')
+        ->not->toContain('Launcher herunterladen')
+        ->toContain('data-test="welcome-login-discord"');
 });

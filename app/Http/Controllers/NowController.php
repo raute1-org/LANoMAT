@@ -76,9 +76,9 @@ class NowController extends Controller
             'permanent' => $state !== 'live' && $modules->enabled(Module::GameServers) && $this->mayViewServers($user)
                 ? array_slice(array_map($this->permanentDto(...), ServerListProjection::forPermanent()), 0, self::PERMANENT_ROWS)
                 : null,
-            // The same start-page chat as the guest landing; it only reads the
-            // public recipe catalogue and the visible servers of the event.
-            'chat' => app(HomeChatData::class)->forEvent($event, guest: false),
+            // The start-page chat; it only reads the visible recipe catalogue
+            // and the visible servers of the event.
+            'chat' => app(HomeChatData::class)->forEvent($event),
             'labels' => trans('now'),
             'clientHint' => trans('web_voice.client_hint'),
         ];

@@ -93,9 +93,12 @@ final class LauncherLineup
 
         $slugs = $this->slugs();
 
-        return $recipes
+        /** @var Collection<int, TValue> $filtered */
+        $filtered = $recipes
             ->filter(static fn (object $recipe): bool => isset($recipe->slug)
                 && in_array(mb_strtolower((string) $recipe->slug), $slugs, true))
             ->values();
+
+        return $filtered;
     }
 }

@@ -110,17 +110,17 @@ Non-negotiable, unannounced:
 
 The layout of every Inertia page is decided in **one table**: `resources/js/lib/pageLayouts.ts` (consumed by `layout:` in `resources/js/app.ts`). Unknown pages throw; `tests/Architecture/PageLayoutsTest.php` fails when a page under `resources/js/pages` has no entry or an entry matches no page. Add the entry in the same commit as the page.
 
-| Kind       | Shell                                                | Pages                                                                                                                                                                                                         |
-| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app`      | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Now`, `Checkin/*` (phone self check-in, `narrow`, see docs/self-checkin.md), `Event/*`, `Teams/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Recap/*`, `Gallery/*`, `Schedule/*`, `Servers/*`, … |
-| `settings` | `AppLayout` + `layouts/settings/Layout.vue`          | `settings/*`                                                                                                                                                                                                  |
-| `auth`     | `AuthLayout`                                         | `auth/*`                                                                                                                                                                                                      |
-| `profile`  | `AppLayout` if logged in, bare for guests            | `Profile/Show` (`/users/{user}` stays publicly reachable), `Launcher/Index` (`/launcher` is public: guests get the bare chrome, logged-in viewers the app shell)                                                  |
-| `bare`     | none                                                 | `Welcome` (guest landing, no event data), `Screen/*` (beamer), `Overlay/*` (OBS)                                                                                                                              |
+| Kind       | Shell                                                | Pages                                                                                                                                                                                                                                                      |
+| ---------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app`      | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Now`, `Checkin/*` (phone self check-in, `narrow`, see docs/self-checkin.md), `Event/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Launcher/Index` (`/launcher`), `Recap/*`, `Gallery/*`, `Schedule/*`, `Servers/*`, … |
+| `settings` | `AppLayout` + `layouts/settings/Layout.vue`          | `settings/*`                                                                                                                                                                                                                                               |
+| `auth`     | `AuthLayout`                                         | `auth/*`                                                                                                                                                                                                                                                   |
+| `profile`  | `AppLayout` if logged in, bare for guests            | `Profile/Show` (`/users/{user}` stays publicly reachable), `Teams/*` (`/teams` and `/teams/{team}` are the public team directory; guests get the bare chrome, logged-in viewers the app shell)                                                               |
+| `bare`     | none                                                 | `Welcome` (guest landing = Discord login gate: mark, wordmark, one-line tagline/hint, `Mit Discord anmelden`; no event data), `Screen/*` (beamer), `Overlay/*` (OBS)                                                                                       |
 
 Choosing for a new page: behind `auth` middleware → `app` (default answer). Reachable by guests → it must be guest-safe and `bare`/`profile`. Unattended or transparent surfaces → `bare`. There is no `PublicShell`; the `<Toaster/>` is mounted once, inside `AppSidebarLayout`, so flash toasts only work on `app`/`settings` pages.
 
-**`Launcher/Index` (`/launcher`)** is a public download page on the `profile` tier: a guest lands on bare chrome (no sidebar, no bell) because a fresh PC installs the launcher before its owner logs in; a logged-in viewer sees it inside `AppLayout`, with the sidebar entry "Launcher". It carries no user data, only the builds and SHA-256 values from `clients-dist/launcher/manifest.json`; the empty state says that no build has been published yet.
+**`Launcher/Index` (`/launcher`)** is an authenticated download page on the `app` tier: it is reached after the Discord login from `Now` and from the sidebar entry "Launcher" (Mehr group), and neither the page nor its downloads are offered before login. It carries no user data, only the builds and SHA-256 values from `clients-dist/launcher/manifest.json`; the empty state says that no build has been published yet.
 
 ### 2. Page anatomy (`app` pages)
 
@@ -234,37 +234,35 @@ Team tournaments (`team_size > 1`) replace the one-click "Anmelden" with a team 
 
 ## Start-page chat (the front door) — pilot
 
-Since the one-click launcher pilot the guest landing page (`Welcome`, `/`) has one job: get a
-first-time visitor from "what is this?" to a running game without reading a manual. It is laid out
-in two bands, and the order is binding.
+The guest landing (`Welcome`, `/`) is only a login gate: the logo mark, the wordmark, one line of
+tagline, one line of hint and the single **Mit Discord anmelden** button. No chat, no game or server
+cards, no launcher download and no launcher link before login — `/launcher` and its downloads need
+the session too. After the Discord login, `/` is the `Now` start page inside `AppLayout`, with the
+left sidebar; there the start-page chat does the onboarding job: get a participant from "what is
+this?" to a running game without reading a manual. Its order is binding.
 
-**Above the fold, in this order:**
+**Above the fold on `Now`, in this order:**
 
-- the **chat** — greeting plus input, the first interactive thing on the page;
-- the **three large primary tiles**, left to right: **Spiele verwalten** → `/games`,
-  **Serverbrowser** → `/servers`, **Voice-Chats** → `/talk` while voice is live, otherwise the
-  native voice client or its download entry;
-- a fourth, smaller **`?` Handbuch** button beside them, which opens the user-facing handbook
-  (usage around the three activities, food ordering, chat integration, and a preloaded example
-  conversation that shows the launcher install).
+- the **page header** — the current event's name (or the no-event title) with its live line;
+- the **three shortcuts**, left to right: **Spiele installieren** → `/games`,
+  **Server ansehen** → `/servers`, **Launcher herunterladen** → `/launcher`, each hidden while its
+  module is off;
+- the **chat** — greeting plus input, directly under the shortcuts.
 
-Everything that used to be the landing page (tagline, Discord login, feature list) moves **below
-the fold**; the Discord login stays reachable there and in the sidebar. A huge **Launcher** button
-sits at the very top of the sidebar, above the nav, not only in the hero. `Welcome` keeps the
-`bare` tier and stays guest-safe: no sidebar, no bell, no user data, no modal on load, no cookie
-banner.
+The chat keeps rendering with no active event, no recipes and no optional modules: a module that is
+off hides its shortcut (and its chat cards) instead of showing an empty one. The chat never takes
+focus on load; `Tab` reaches it.
 
-The page must render with no active event, no recipes and no optional modules: a module that is
-off hides its tile (and its chat cards) instead of showing an empty one, and the Handbuch stays.
-The chat never takes focus on load; `Tab` reaches it.
+`Welcome` keeps the `bare` tier and stays guest-safe: no sidebar, no bell, no user data, no chat,
+no launcher link, no modal on load, no cookie banner.
 
 ### Chat anatomy
 
 | Part | Rule |
 |---|---|
 | Header row | the wordmark `LANoMAT // Start` and one `LiveIndicator` for running servers. No second navigation. |
-| Transcript | one `role="log"`/`aria-live="polite"` region, `max-h-[7rem]` on phones and `min(52svh,24rem)` from `sm`, scrolls internally only; assistant prose is plain and left-aligned, the visitor's own lines sit right in a `bg-muted` bubble. The streamed text keeps `aria-hidden` carets and is announced once when it settles, never per chunk. |
-| Greeting | instant, not animated, no skeleton: what LANoMAT is and what is playable on this LAN right now. It is deterministic copy from `HomeChatData`, not model output, so the front door is never empty. |
+| Transcript | one `role="log"`/`aria-live="polite"` region, `max-h-[7rem]` on phones and `min(52svh,24rem)` from `sm`, scrolls internally only; assistant prose is plain and left-aligned, the participant's own lines sit right in a `bg-muted` bubble. The streamed text keeps `aria-hidden` carets and is announced once when it settles, never per chunk. |
+| Greeting | instant, not animated, no skeleton: what LANoMAT is and what is playable on this LAN right now. It is deterministic copy from `HomeChatData`, not model output, so the start page is never empty. |
 | Agent feedback | a polite `role="status"` line between transcript and chips: `LANoMAT denkt …` (three bouncing dots) for ~320 ms, then `LANoMAT schreibt …` while the answer streams in 3-character chunks (~13 ms each). Input/chips are disabled while an answer is in flight; the input stays focused. `prefers-reduced-motion` shortens the think to ~140 ms and writes the answer at once. |
 | Suggestions | two question buttons above the input: **Welche Spiele laufen?** (live games only) and **Welche Server laufen?**. They send on the first press. A typed catalogue question ("Was gibt es zu spielen?") still answers with the full library. |
 | Input | one real `<form>`: Enter sends, send is a `Button` named "Fragen". The input stays enabled while an answer streams; sending is disabled until it settles. |
@@ -276,7 +274,7 @@ The chat is the third door to the same data, not a second store: every card is t
 as the page it links to (`/games/<slug>`, `/servers`, the launcher's install record). A card is
 only rendered when its data exists; the answer text alone is the fallback.
 
-### Autoplay demo (the first visit)
+### Autoplay demo (the first visit to `Now`)
 
 The hero types the first suggestion once, pauses, backspaces and types the second, then renders
 both answer sets. It is the only ambient motion on the page:

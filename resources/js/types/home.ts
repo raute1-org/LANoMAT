@@ -1,7 +1,7 @@
 /**
  * Wire shape of the start page's chat hero (see
- * `App\Modules\Events\Support\HomeChatData`). The data is small, public-safe
- * and bounded — the chat itself is deterministic browser logic, not an LLM.
+ * `App\Modules\Events\Support\HomeChatData`). The data is small and bounded —
+ * the chat itself is deterministic browser logic, not an LLM.
  */
 
 export interface HomeChatGame {

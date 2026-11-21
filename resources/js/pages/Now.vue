@@ -196,8 +196,8 @@ const dateRange = computed(() => {
                 </Button>
             </div>
 
-            <!-- The start-page chat: the same front door as the guest landing.
-                 The action row already sits above it on this page. -->
+            <!-- The start-page chat: the front door after login. The action
+                 row already sits above it on this page. -->
             <HomeChat :chat="chat" :show-actions="false" />
 
             <!-- Live -->

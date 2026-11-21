@@ -37,6 +37,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Changed
 
+- Onboarding/MVP: the guest landing at `/` is only the mark plus "Mit Discord anmelden"; the `/launcher` page and its downloads require login, and the start-page chat and launcher entry appear only after the Discord login on Now with the left sidebar
 - Docs: the docs site is an optional `docs` compose profile (non-root nginx at `/docs`, read-only, healthcheck) with verified one-hour screenshot caching, `/docs/games` redirects, a prerendered introduction at `/docs/`, real 404s and HSTS matching the app
 - Docs: built-output guard against doubled base paths (`/docs/docs/`) in `.md` raw anchors
 

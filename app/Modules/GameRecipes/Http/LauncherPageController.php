@@ -12,12 +12,11 @@ use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * The public `/launcher` page and the file route behind it: one download per OS from
+ * The `/launcher` page and the file route behind it: one download per OS from
  * the validated launcher manifest, with checksums, install steps and the address of
  * this server to pair with.
  *
- * Both routes are reachable without a login (a fresh PC installs the launcher before
- * its owner signs in) and carry no user data. The set of files is whatever
+ * Both routes require login, and the page carries no user data. The set of files is whatever
  * {@see LauncherBuilds} lists; a name from the request is only ever compared with that
  * list, never used as a path.
  */

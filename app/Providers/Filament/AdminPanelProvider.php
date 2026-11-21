@@ -70,7 +70,7 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(1000)
                     ->visible(fn (): bool => app(Modules::class)->routable(Module::WebVoice)),
-                // The public launcher download page, same label as the participant sidebar.
+                // The launcher download page, same label as the participant sidebar.
                 NavigationItem::make(ShellParity::LAUNCHER_LABEL)
                     ->url(ShellParity::LAUNCHER_URL)
                     ->icon('heroicon-o-rocket-launch')

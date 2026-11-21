@@ -45,7 +45,7 @@ final class ShellParity
     /** German label of the launcher download entry; sidebar item in the Vue app AND navigation item in Filament. */
     public const LAUNCHER_LABEL = 'Launcher';
 
-    /** The public launcher download page (no login needed). */
+    /** The launcher download page (behind the Discord login). */
     public const LAUNCHER_URL = '/launcher';
 
     /** German label of the `mcp/connect` user-menu entry, shared by both shells; the copy stays device-neutral. */

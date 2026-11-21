@@ -20,10 +20,10 @@ use Illuminate\Support\Collection;
 /**
  * Server-side data for the start page's chat hero (`components/home/HomeChat`).
  *
- * The hero answers two first-visitor questions deterministically in the
- * browser: "which games are there?" and "which servers are running?". This
- * class only prepares the small, fixed-size answer sets — it never talks to
- * an LLM and never exposes anything the viewer could not already open:
+ * The hero answers two first-look questions deterministically in the browser:
+ * "which games are there?" and "which servers are running?". This class only
+ * prepares the small, fixed-size answer sets — it never talks to an LLM and
+ * never exposes anything the viewer could not already open:
  *
  * - games: published recipes only ({@see GameRecipe::scopePublished()}), with
  *   the same LAN-readiness rule the games library uses (a required LAN file is
@@ -32,8 +32,9 @@ use Illuminate\Support\Collection;
  *   {@see ServerListProjection} so the chat cards and the server pages never
  *   drift apart.
  *
- * Guests get the public catalogue (published recipes) but no servers (the
- * server pages are login-gated) and no event data at all.
+ * The chat is only used after login (the "Jetzt" page, event pages and the
+ * dock), so every call returns the full authenticated projection: published
+ * recipes plus the servers the viewer may already open.
  *
  * Both optional modules are reached through `Modules::enabled()` guards, so a
  * `core` install renders the greeting and chips with empty answers.
@@ -65,26 +66,20 @@ final class HomeChatData
      *     servers: list<array<string, mixed>>
      * }
      */
-    public function forEvent(?Event $event, bool $guest = false): array
+    public function forEvent(?Event $event): array
     {
-        $links = $this->serverLinks($event, $guest);
+        $links = $this->serverLinks($event);
 
         return [
-            'greeting' => $this->greeting($event, $guest),
+            'greeting' => $this->greeting($event),
             'suggestions' => self::SUGGESTIONS,
             'games' => $this->games($event, $links),
-            // Guests never see aggregated server data: the server pages are
-            // login-gated and the joins would lead nowhere useful.
-            'servers' => $guest ? [] : $this->serverCards($links, $event),
+            'servers' => $this->serverCards($links, $event),
         ];
     }
 
-    private function greeting(?Event $event, bool $guest): string
+    private function greeting(?Event $event): string
     {
-        if ($guest) {
-            return 'Willkommen bei LANoMAT! Frage mich nach Spielen — melde dich an, um laufende Server zu sehen und loszulegen.';
-        }
-
         if ($event !== null) {
             return "Hi! Willkommen bei {$event->name}. Frage mich nach Spielen oder laufenden Servern.";
         }
@@ -99,9 +94,9 @@ final class HomeChatData
      *
      * @return Collection<int, ServerLink>
      */
-    private function serverLinks(?Event $event, bool $guest): Collection
+    private function serverLinks(?Event $event): Collection
     {
-        if ($guest || ! $this->modules->enabled(Module::GameServers)) {
+        if (! $this->modules->enabled(Module::GameServers)) {
             return new Collection;
         }
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\File;
 uses(RefreshDatabase::class);
 
 /**
- * Security-only assertions about the public launcher page. The HTTP surface
+ * Security-only assertions about the launcher page. The HTTP surface
  * itself (list, checksum, 404s, rate limit, Preflight wiring) lives in
  * LauncherPageTest; this file adds the boundaries that test does not cover.
  *
@@ -69,6 +70,9 @@ beforeEach(function () {
     $this->launcherSecurityDirs = [];
     Config::set('app.version', 'v1');
     Config::set('app.name', 'LANoMAT');
+
+    // The inspected launcher routes require the Discord login.
+    $this->actingAs(User::factory()->create());
 });
 
 afterEach(function () {

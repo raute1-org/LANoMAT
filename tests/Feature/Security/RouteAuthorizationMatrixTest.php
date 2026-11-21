@@ -146,8 +146,6 @@ const PUBLIC_ROUTES = [
     'GET gallery/public/photos/{eventPhoto}/thumb' => 'approved photos of publicly visible events only',
     'POST internal/discord/gateway' => 'shared-secret middleware (VerifyGatewaySecret)',
     'POST internal/files/tusd-hook' => 'shared-secret middleware (VerifyTusHookSecret)',
-    'GET launcher' => 'public launcher download page: no user data, gated by the GameRecipes module (tests/Feature/GameRecipes/LauncherPageTest)',
-    'GET launcher/download/{filename}' => 'public launcher binaries; {filename} is no model, only a name looked up in the validated manifest (LauncherBuilds), 404 otherwise (tests/Feature/GameRecipes/LauncherPageTest)',
     'GET overlay/match/{match}/scoreboard' => 'OBS overlay, public data only',
     'GET overlay/tournament/{tournament}/bracket' => 'OBS overlay, public data only',
     'GET screen/{event}' => 'public beamer infoscreen, no PII',
@@ -169,6 +167,9 @@ const PUBLIC_ROUTES = [
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET chat', 'GET dashboard', 'GET events',
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/all', 'GET servers/permanent',
+    // The launcher page and its binaries sit behind the Discord login; {filename} is no
+    // bound model, it is only compared against the validated manifest (LauncherBuilds).
+    'GET launcher', 'GET launcher/download/{filename}',
     'GET voice/setup', 'GET app', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'GET mcp/connect', 'POST mcp/connect', 'GET games', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',

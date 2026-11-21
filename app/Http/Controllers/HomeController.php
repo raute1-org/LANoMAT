@@ -4,28 +4,24 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Modules\Events\Support\HomeChatData;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * `GET /`: the event-free landing for guests, the "Jetzt" page for signed-in users. It lives
- * outside the module graph (like NowController) so the core Events module does not reach up into
- * the app layer.
+ * `GET /`: a login gate for guests, the "Jetzt" page for signed-in users. Guests get neither
+ * chat nor game/launcher data, only the Discord login. It lives outside the module graph (like
+ * NowController) so the core Events module does not reach up into the app layer.
  */
 class HomeController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        // Guests get an event-free landing: no event data may leave the server
-        // for anyone who is not logged in.
+        // Guests get a login gate only: no event, chat, game or launcher data
+        // may leave the server for anyone who is not logged in.
         if ($request->user() === null) {
             return Inertia::render('Welcome', [
                 'labels' => trans('welcome'),
-                // The guest hero greets and explains, but carries no event or
-                // member data — only the public recipe catalogue.
-                'chat' => app(HomeChatData::class)->forEvent(null, guest: true),
             ]);
         }
 

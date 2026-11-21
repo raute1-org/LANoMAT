@@ -56,18 +56,18 @@ use Illuminate\Support\Facades\Route;
 $modules = app(Modules::class);
 
 if ($modules->routable(Module::GameRecipes)) {
-    // The LANoMAT Launcher download page: public on purpose, because a fresh PC installs
-    // the launcher before its owner logs in, and it carries no user data. The set of files
-    // is exactly what clients-dist/launcher/manifest.json lists (LauncherBuilds validates it).
-    Route::get('/launcher', [LauncherPageController::class, 'index'])->name('launcher.index');
-    Route::get('/launcher/download/{filename}', [LauncherPageController::class, 'download'])
-        ->where('filename', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
-        ->middleware('throttle:20,1')
-        ->name('launcher.download');
-
-    // The participant games library: install/launch, live servers, running
-    // tournaments and a one-click "Runde" into the event's voice chat.
+    // The LANoMAT Launcher stays behind the Discord login so no launcher content appears
+    // before login; the page carries no user data. The set of files is exactly what
+    // clients-dist/launcher/manifest.json lists (LauncherBuilds validates it).
     Route::middleware(['auth'])->group(function () {
+        Route::get('/launcher', [LauncherPageController::class, 'index'])->name('launcher.index');
+        Route::get('/launcher/download/{filename}', [LauncherPageController::class, 'download'])
+            ->where('filename', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
+            ->middleware('throttle:20,1')
+            ->name('launcher.download');
+
+        // The participant games library: install/launch, live servers, running
+        // tournaments and a one-click "Runde" into the event's voice chat.
         Route::get('/games', [GamePageController::class, 'index'])->name('games.index');
         Route::get('/games/{slug}', [GamePageController::class, 'show'])->name('games.show');
         Route::post('/games/{slug}/lfg', [GamePageController::class, 'createLfg'])

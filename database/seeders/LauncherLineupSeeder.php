@@ -73,6 +73,8 @@ final class LauncherLineupSeeder extends Seeder
             'permanent' => true,
         ]);
 
+        $nfsHost = (string) config('recipes.nfs.server_host', '10.23.3.220');
+
         $nativeLink->forceFill([
             'game_id' => $nativeGame->id,
             'status' => ServerLinkStatus::Ready,
@@ -81,9 +83,9 @@ final class LauncherLineupSeeder extends Seeder
             'source' => ServerSource::External,
             'query_protocol' => null,
             'join_info' => new JoinInfo(
-                address: env('NFS_SERVER_HOST', '10.23.3.220'),
+                address: $nfsHost,
                 port: 20922,
-                connectString: env('NFS_SERVER_HOST', '10.23.3.220'),
+                connectString: $nfsHost,
             ),
         ])->save();
     }
