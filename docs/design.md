@@ -102,6 +102,7 @@ Non-negotiable, unannounced:
 - `prefers-reduced-motion` respected by every animation;
 - images carry width/height (or `aspect-ratio`) + `loading="lazy"` off-screen → no layout shift;
 - "environmentally friendly" for software = lean: small bundles, few dependencies, fast loads, good a11y/contrast (AA), low data/energy use.
+- `CopyText` (copy button with a live-region announcement and a visible failure hint) is the one way to copy machine text such as payment references; show the text itself in `font-mono` next to it.
 
 ## Page anatomy & layout rules (binding)
 

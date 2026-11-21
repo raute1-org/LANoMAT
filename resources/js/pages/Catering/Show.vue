@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import FoodPaymentState from '@/components/catering/FoodPaymentState.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
@@ -8,18 +8,39 @@ import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatInstant } from '@/lib/datetime';
+import { formatEuro } from '@/lib/formatEuro';
 import {
     destroy as destroyItem,
     store as storeItem,
 } from '@/routes/catering/items';
 import type { FoodOrderDto } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     event: { name: string; slug: string };
     orders: FoodOrderDto[];
     labels: Record<string, string>;
     registration: { required: boolean; url: string };
 }>();
+
+// Only the first closed round with something to pay gets the amber button, and
+// never while the "register first" banner already offers its own call to action.
+const primaryPaymentId = computed<number | null>(() => {
+    if (props.registration.required) {
+        return null;
+    }
+
+    return (
+        props.orders.find((o) => !o.isOpen && (o.myPayment?.dueCents ?? 0) > 0)
+            ?.id ?? null
+    );
+});
+
+// Included items cost nothing, so they stay out of the sum.
+function payableTotal(foodOrder: FoodOrderDto): number {
+    return foodOrder.myItems
+        .filter((item) => !item.included)
+        .reduce((sum, item) => sum + item.priceCents, 0);
+}
 
 // Reactive, so clearing a note after a successful order also clears the input.
 const notes = reactive<Record<number, string>>({});
@@ -62,13 +83,6 @@ function cancel(item: { id: number }): void {
     form.delete(destroyItem.url({ foodOrderItem: item.id }), {
         preserveScroll: true,
     });
-}
-
-function formatEuro(cents: number): string {
-    return new Intl.NumberFormat('de-DE', {
-        style: 'currency',
-        currency: 'EUR',
-    }).format(cents / 100);
 }
 
 function formatDateTime(iso: string): string {
@@ -173,9 +187,7 @@ function menuOptionName(
                             </div>
                             <Button
                                 size="sm"
-                                :variant="
-                                    foodOrder.isOpen ? 'default' : 'outline'
-                                "
+                                variant="outline"
                                 :disabled="
                                     !foodOrder.isOpen || registration.required
                                 "
@@ -259,12 +271,12 @@ function menuOptionName(
                     </ul>
 
                     <p
-                        v-if="foodOrder.myItems.length > 0"
+                        v-if="foodOrder.myItems.some((item) => !item.included)"
                         class="border-t border-border px-4 py-2.5 text-sm font-medium"
                     >
                         {{ labels.my_total }}:
                         <span class="font-mono tabular-nums">{{
-                            formatEuro(foodOrder.myTotalCents)
+                            formatEuro(payableTotal(foodOrder))
                         }}</span>
                     </p>
 
@@ -274,7 +286,7 @@ function menuOptionName(
                     >
                         <FoodPaymentState
                             :payment="foodOrder.myPayment"
-                            :primary="!foodOrder.isOpen"
+                            :primary="foodOrder.id === primaryPaymentId"
                             :labels="labels"
                         />
                     </div>

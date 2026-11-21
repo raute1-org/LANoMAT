@@ -41,27 +41,43 @@ function fill(template: string): string {
         </p>
         <template v-else>
             <p class="text-sm font-medium">{{ fill(labels.pay_due) }}</p>
-            <Button
-                v-if="payment.url"
-                as-child
-                size="sm"
-                :variant="primary ? 'default' : 'outline'"
-            >
-                <a
-                    :href="payment.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    >{{ labels.pay_button }}</a
+            <template v-if="payment.url">
+                <Button
+                    as-child
+                    size="sm"
+                    :variant="primary ? 'default' : 'outline'"
                 >
-            </Button>
+                    <a
+                        :href="payment.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {{ labels.pay_with_paypal }}
+                        <span class="sr-only">{{ labels.new_tab }}</span>
+                    </a>
+                </Button>
+                <div v-if="payment.reference" class="w-full space-y-1">
+                    <p
+                        class="font-mono text-sm break-words text-foreground"
+                        data-test="food-pay-reference"
+                    >
+                        {{ payment.reference }}
+                    </p>
+                    <CopyText
+                        :text="payment.reference"
+                        :label="labels.copy"
+                        :aria-label="labels.copy_reference"
+                        :copied-label="labels.copied"
+                        :failed-label="labels.copy_failed"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        {{ labels.pay_reference_hint }}
+                    </p>
+                </div>
+            </template>
             <span v-else class="text-sm text-muted-foreground">{{
-                labels.pay_no_link
+                labels.pay_at_orga
             }}</span>
-            <CopyText
-                v-if="payment.reference"
-                :text="payment.reference"
-                :label="labels.pay_copy_reference"
-            />
         </template>
     </div>
 </template>

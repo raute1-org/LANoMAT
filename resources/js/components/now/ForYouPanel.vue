@@ -5,6 +5,7 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { formatClock } from '@/lib/datetime';
+import { formatEuro } from '@/lib/formatEuro';
 import type { NowCardDto } from '@/types/now';
 import JoinButton from './JoinButton.vue';
 import { useNowLabels } from './useNowLabels';
@@ -63,15 +64,12 @@ function dot(card: NowCardDto): 'live' | 'warn' | null {
         : null;
 }
 
-function euro(cents: unknown): string {
-    return new Intl.NumberFormat('de-DE', {
-        style: 'currency',
-        currency: 'EUR',
-    }).format(Number(cents) / 100);
-}
-
-// The body is "<amount> · <ticket name>"; only the name is read from it.
 function ticketName(card: NowCardDto): string {
+    if (typeof card.data.ticketName === 'string') {
+        return card.data.ticketName;
+    }
+
+    // Fallback for an older payload: the body is "<amount> · <ticket name>".
     return card.body?.split(' · ').slice(1).join(' · ') ?? '';
 }
 
@@ -112,7 +110,7 @@ function actionLabel(card: NowCardDto): string {
                     >
                         ·
                         <span class="font-mono tabular-nums">{{
-                            euro(card.data.amountCents)
+                            formatEuro(Number(card.data.amountCents))
                         }}</span>
                         <template v-if="ticketName(card)">
                             · {{ ticketName(card) }}

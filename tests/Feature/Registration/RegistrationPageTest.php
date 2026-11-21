@@ -231,3 +231,18 @@ it('never exposes another users payment', function () {
             ->missing('registration.payment')
         );
 });
+
+it('sends no payment block for a free ticket so the page shows "kostenlos"', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create(['ticket_type' => 'standard']);
+    EventRegistration::query()->where('user_id', $user->id)->update(['ticket_price_cents' => 0]);
+
+    $this->actingAs($user)
+        ->get("/events/{$event->slug}/register")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration.payment', null)
+            ->where('registration.status', fn ($s) => $s !== 'cancelled')
+            ->where('labels.free_price', 'kostenlos')
+        );
+});

@@ -12,6 +12,7 @@ return [
     ],
 
     'page' => [
+        ...(require __DIR__.'/payment.php'),
         'title' => 'Zum Event anmelden',
         'choose_ticket' => 'Ticket wählen',
         'desktop_app_lead' => 'Zeitplan, Essen und Abstimmungen gibt es auch als Desktop-App.',
@@ -23,6 +24,7 @@ return [
         'qr_hint' => 'Zeige diesen Code beim Check-in vor Ort.',
         'paid' => 'Bezahlt',
         'unpaid' => 'Zahlung offen',
+        'price' => 'Preis',
         'checked_in' => 'Eingecheckt',
         'cancel' => 'Anmeldung stornieren',
         'cancel_confirm' => 'Anmeldung wirklich stornieren?',
@@ -30,13 +32,6 @@ return [
         'full' => 'Ausgebucht — alle Plätze sind vergeben. Bitte wende dich an die Orga.',
         'free_spots' => 'Noch :count Plätze frei.',
         'free_price' => 'kostenlos',
-        'pay_with_paypal' => 'Mit PayPal zahlen',
-        'pay_at_orga' => 'Bitte bei der Orga bezahlen.',
-        'pay_reference' => 'Verwendungszweck',
-        'pay_reference_hint' => 'Bitte als Verwendungszweck angeben, damit die Orga die Zahlung zuordnen kann.',
-        'pay_amount' => 'Betrag',
-        'copy' => 'Kopieren',
-        'copied' => 'Kopiert',
     ],
 
     'cancel_blocked' => [
