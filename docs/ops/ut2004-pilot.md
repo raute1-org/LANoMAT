@@ -51,12 +51,12 @@ Eingriff `live-recipe.mjs show` laufen lassen.
 | --- | --- |
 | App | `https://lan.raute1.org`, Server-Header `m12-768-ge8de9dad` (kurz: m12-768) |
 | Rezept | `unreal-tournament-2004`, **Filament-ID 20**, Status `published`, Version `3374-rc3` |
-| Plattformen | `windows`, `linux`, `macos` (List-API, `updated_at` 2026-11-21T14:27:31Z) |
+| Plattformen | `windows`, `linux`, `macos` (List-API, `updated_at` 2026-11-21T14:29:51Z) |
 | ISO-Rolle | `role: iso`, required, **extern** auf das archive.org-Full-Game-ZIP; kein LAN-Treffer |
 | Patch live | **eine** Zeile, Label „Windows x64 zip / Linux x64 tar.bz2“, URL/SHA256 des **Linux**-Assets; in der Datei-/Plan-API steht `os: null` |
 | Base live | **keine** `base`-Zeile; die portablen Archive sind noch nicht veröffentlicht |
 | Dateihost | `https://files.lan.raute1.org:8443`, DNS `10.23.0.12` |
-| Rezept-Dateien live | IDs 170–174 (ändern sich bei Sync; nicht als Schlüssel verwenden) |
+| Rezept-Dateien live | Datei-IDs wechseln bei jedem Sync; nicht als Schlüssel verwenden |
 
 Die Live-ISO-Rolle zeigt auf:
 
@@ -198,9 +198,10 @@ Secrets als Argument; Cookies und Token werden aus Dateien gelesen.
 | --- | --- | --- | --- |
 | `fetch-base.sh` | archive.org-Base in 4 Ranges resumierbar laden, Mirrors rotieren, Größe prüfen | `scripts/ops/ut2004/fetch-base.sh --help` | `scripts/ops/ut2004/fetch-base.sh --dry-run` |
 | `extract-archive.sh` | ZIP/TAR/DMG/ISO/7z/RAR/SFX listen, Baum zeigen, extrahieren, Game-Daten prüfen | `scripts/ops/ut2004/extract-archive.sh --help` | `scripts/ops/ut2004/extract-archive.sh tree "ut2k4+keygen.zip" --depth 2` |
-| `build-portable.sh` | aus flachem Spielbaum + drei Patches die drei 3374-ZIPs bauen und verifizieren | `scripts/ops/ut2004/build-portable.sh --help` | `scripts/ops/ut2004/build-portable.sh --source <tree> --patches <dir> --out clients-dist/ut2004` |
+| `build-portable.sh` | aus flachem Spielbaum + drei Patches die drei 3374-ZIPs bauen und verifizieren | `scripts/ops/ut2004/build-portable.sh --help` | `scripts/ops/ut2004/build-portable.sh --source "$HOME/Downloads/Unreal Tournament 2004.zip" --patches "$HOME/Downloads/ut2004-build/patches" --out clients-dist/ut2004` |
 | `install-smoke.sh` | Live-Recipe auf lokalen HTTP-Server zeigen, echten Launcher-Install ausführen, restaurieren | `scripts/ops/ut2004/install-smoke.sh --help` | `LANOMAT_ADMIN_COOKIES_FILE=/tmp/opencode/cookies.txt scripts/ops/ut2004/install-smoke.sh --dry-run` |
 | `live-recipe.mjs` | Live-Panel (Filament-ID 20) lesen, Plan prüfen, Backup/Restore, URL/Patches setzen | `node scripts/ops/ut2004/live-recipe.mjs --help` | `node scripts/ops/ut2004/live-recipe.mjs show --json` |
+| `upload-file.sh` | große Datei resumierbar per tus auf den Live-Filehost laden | positionell: `<file> <name> [chunk-mib]` (kein `--help`) | `scripts/ops/ut2004/upload-file.sh clients-dist/ut2004/ut2004-portable-3374-linux.zip ut2004-portable-3374-linux.zip 64` |
 
 Details, die hier bewusst nicht wiederholt werden: Archiv-Layout,
 `System/`-Löschung, ZIP-vs-tar.bz2, Patch-Reihenfolge und Exit-Codes stehen im
@@ -365,9 +366,9 @@ cd lanomat-launcher-<version>-linux-x86_64
 ```
 
 Windows: portable `.exe` starten; SmartScreen → „Weitere Informationen“ →
-„Trotzdem ausführen“. macOS: `.dmg` öffnen, App nach `/Programme` ziehen;
-unsignierte Builds mit Rechtsklick → **Öffnen** oder
-`xattr -dr com.apple.quarantine "/Applications/LANoMAT Launcher.app"`.
+„Trotzdem ausführen“. macOS: sobald ein `.dmg` im Manifest steht, öffnen,
+App nach `/Programme` ziehen; unsignierte Builds mit Rechtsklick → **Öffnen**
+oder `xattr -dr com.apple.quarantine "/Applications/LANoMAT Launcher.app"`.
 
 Ohne veröffentlichten Build lokal bauen (Linux, Docker):
 
@@ -378,7 +379,9 @@ ls clients-dist/launcher/
 
 Danach im Launcher die Server-URL eintragen, **Verbinden** drücken und den
 Code unter `/mcp/connect` freigeben. Der Token landet in
-`~/.config/lanomat-launcher/config.json` (Linux), nicht im Repo.
+`~/.config/lanomat-launcher/config.json` (Linux), nicht im Repo. Ein
+Deep-Link `lanomat://install/unreal-tournament-2004` startet denselben
+Install-Pfad, sobald der Handler registriert ist.
 
 ### 5.5 Installation prüfen
 
@@ -484,12 +487,28 @@ OS-Binaries. Danach:
 sha256sum clients-dist/ut2004/ut2004-portable-3374-*.zip
 ```
 
-**Hochladen:** im LANoMAT-Files-Bereich des Events (Live: `/events/event-1/files`)
-unter exakt diesen Namen. Große Dateien laufen über den resumierbaren
-tus-Pfad; der Filehost signiert nur Downloads, er listet nicht. Die
-Rezept-`base`-Rollen haben `url: ''` und matchen den Namen auf dem Filehost;
-die gespeicherte SHA-256 des Filehosts wird beim Client geprüft. Einen
-Rezept-Pin nur setzen, wenn genau dieses Archiv gepinnt werden soll.
+**Hochladen:** im LANoMAT-Files-Bereich des Events (Live:
+`/events/raute1-lan-26/files`) unter exakt diesen Namen. Große Dateien laufen
+über den resumierbaren tus-Pfad; der Filehost signiert nur Downloads, er
+listet nicht. Die Rezept-`base`-Rollen haben `url: ''` und matchen den Namen
+auf dem Filehost; die gespeicherte SHA-256 des Filehosts wird beim Client
+geprüft. Einen Rezept-Pin nur setzen, wenn genau dieses Archiv gepinnt
+werden soll.
+
+Falls die Web-Oberfläche für 2,5-GB-Dateien zu unruhig ist, nutzt der
+Ops-Upload dasselbe tus-Ziel:
+
+```bash
+scripts/ops/ut2004/upload-file.sh \
+  'clients-dist/ut2004/ut2004-portable-3374-linux.zip' \
+  ut2004-portable-3374-linux.zip 64
+```
+
+Das Skript liest die Admin-Cookies aus `/tmp/opencode/cookies.txt`, schreibt
+seinen tus-Zustand nach `~/.cache/opencode-upload-test/` und setzt das Event
+`raute1-lan-26` fest. Bei einem anderen Event den `EVENT`-Wert im Skript
+anpassen oder die UI nehmen. Nach dem Upload im Admin prüfen, ob die Datei
+`approved` ist; den State erst danach löschen.
 
 **Reihenfolge:** Erst HEAD deployen (Abschnitt 7.3), dann die portablen
 Archive hochladen. Im heutigen Live-Rezept gibt es noch keine
@@ -504,9 +523,9 @@ ISO-Rolle auf den lokalen HTTP-Server zeigen (Abschnitt 5.3). Die
 ### 5.8 Live-Rezept dumpen und restaurieren
 
 `live-recipe.mjs` arbeitet über die echte Filament-Seite (Livewire), weil
-nur das Panel `metadata`, `launch_targets`, Tags und den Review-Stempel
-erhält. Das Bearer-Token wird nur für `plan` gelesen; Admin-Traffic nutzt
-Cookies aus `/tmp/opencode/cookies.txt` (Default) oder
+das Panel `metadata` (inkl. `launch_targets`), Tags und den Review-Stempel
+unangetastet lässt. Das Bearer-Token wird nur für `plan` gelesen;
+Admin-Traffic nutzt Cookies aus `/tmp/opencode/cookies.txt` (Default) oder
 `LANOMAT_ADMIN_COOKIES_FILE`.
 
 ```bash
@@ -529,9 +548,10 @@ node scripts/ops/ut2004/live-recipe.mjs restore \
   --file /tmp/opencode/ut2004-live-before.json --apply --yes
 ```
 
-`restore` spielt den kompletten Formzustand zurück, inklusive `metadata`.
-Wenn nur Requirements geändert werden sollen und die Live-`launch_targets`
-bleiben sollen: `--keep-metadata`. `--apply` legt vorher automatisch ein
+`restore` spielt die Formularfelder zurück; `metadata` kann das Panel nicht
+schreiben und bleibt live. Weicht das Backup darin ab, meldet das Tool
+`metadata_changed: true` und `metadata_restored: false`; nur der YAML-Sync
+kann `metadata` wiederherstellen. `--apply` legt vorher automatisch ein
 Backup in `/tmp/opencode` ab. Nach jedem Eingriff alle drei Pläne prüfen:
 
 ```bash
@@ -649,6 +669,9 @@ mindestens:
 ```text
 docs/ops/ut2004-pilot.md:^10\.23\.0\.12$
 scripts/ops/ut2004/install-smoke.sh:^10\.23\.0\.12$
+scripts/ops/ut2004/README.md:^10\.23\.0\.12$
+scripts/ops/ut2004/README.md:^10\.23\.0\.0$
+scripts/ops/ut2004/README.md:^10\.13\.69\.0$
 ```
 
 `10.13.69.x` ist bewusst kein voller Quad und matcht den Checker nicht.
@@ -662,12 +685,36 @@ Dokuments).
 | 7.1 | archive.org stallt Einzelstreams bei 45–180 MB | Base-Download dauert Stunden oder hängt | `fetch-base.sh` mit 4 Ranges, Mirror-Rotation, per-Range-Resume; zusätzlich lokaler HTTP-Server | Ops | Base liegt auf dem Filehost, nicht auf archive.org |
 | 7.2 | `files.lan.raute1.org:8443` (10.23.0.12) aus `10.13.69.x` nicht erreichbar | Client im WG-Netz bekommt keinen Download | vom 10.23-Netz laden/servieren oder Route/Firewall fixen; kein zweiter Upload | Infra | `curl -sSI https://files.lan.raute1.org:8443/` antwortet aus beiden Netzen |
 | 7.3 | Live m12-768 filtert `os` nicht: eine Patch-Zeile ohne `os`, Linux-URL | Windows/macOS bekommen den Linux-Patch; falsches `System/` | HEAD deployen (drei OS-Patches, drei OS-Basen) und YAML synchronisieren; bis dahin kein Windows-/macOS-Go | Backend | `plan --os windows/linux/macos` zeigt je den passenden Patch |
-| 7.4 | macOS-Launcher fehlt im Manifest; `.app`/`.dmg` braucht macOS + Sign/Notarization | Kein macOS-One-Click-Download | macOS-Installation über Rezept/Agent; Release auf `macos-14` mit Apple-Secrets | Release | `.dmg` im Manifest, `spctl` akzeptiert |
-| 7.5 | `metadata.launch_targets` geht nicht über `recipe_contribute` | Contribute ersetzt `metadata` und verliert Launch-Targets | Panel oder YAML-Sync; `live-recipe.mjs restore --keep-metadata` | Backend/Ops | `launch_targets` nach Contribution unverändert |
+| 7.4 | macOS-Launcher fehlt im Manifest; `.app`/`.dmg` braucht macOS + Sign/Notarization | Kein macOS-One-Click-Download | macOS-Installation über Rezept/Agent; Release auf `macos-15` (arm64) / `macos-15-intel` mit Apple-Secrets | Release | `.dmg` im Manifest, `spctl` akzeptiert |
+| 7.5 | `metadata.launch_targets` geht nicht über `recipe_contribute` (`RecipeContributeTool` hat kein `metadata`-Feld; `ContributeRecipe` setzt Default `{contributed_via: mcp}`) | Contribute ersetzt `metadata` und verliert Launch-Targets | YAML-Sync; das Panel lässt `metadata` unangetastet, `restore` schreibt sie nicht | Backend/Ops | `launch_targets` nach Contribution unverändert |
 | 7.6 | 04:15-Sync überschreibt Panel-Änderungen | Manueller Live-Fix ist nach einem Tag weg | YAML ist Quelle; `--only`-Sync nach Deploy; Dump vor Panel-Edit | Backend | Sync idempotent, Panel-Diff leer |
 | 7.7 | `ut2k4+keygen.zip` ist nosTEAM-Installer | Kein portabler Baum, Setup.exe/ISO statt Spiel | nicht als `base` matchen; `extract-archive.sh tree` zur Inspektion | Ops | Base kommt aus `ut2004-portable-3374-*` |
 | 7.8 | Keine `base`-Zeilen live, keine portablen Archive hochgeladen | Jeder Plan fällt auf ISO + Patch zurück | portables Archiv bauen/hochladen; danach Base-Match prüfen | Orga | `base` erscheint als `matched` im Plan |
 | 7.9 | Live-ISO-URL kann auf `127.0.0.1:8099` zeigen (Smoke-Rest) | Client kann die Base nicht laden | `live-recipe.mjs show`, dann `set --iso-url <richtig>` oder `restore` | Ops | `show` zeigt archive.org oder lokalen, erreichbaren Server |
+
+### HEAD deployen (für 7.3)
+
+Voraussetzung: der Fix (`8e9d4254` oder neuer) liegt auf `origin/main`.
+`deploy.sh` zieht fast-forward, baut die Core-Services und migriert; es fasst
+keine Volumes an.
+
+```bash
+cd /opt/lanomat
+git log --oneline -1                 # muss den UT2004-Fix enthalten
+scripts/deploy/deploy.sh
+docker compose --profile prod exec -T app \
+  php artisan lanomat:recipes:sync /app/resources/recipes \
+  --only=unreal-tournament-2004 --json
+
+# Danach: drei OS-Pläne und die Patch-Zeile prüfen
+for os in windows linux macos; do
+  node scripts/ops/ut2004/live-recipe.mjs plan --os "$os"
+done
+```
+
+Wenn `RECIPES_SOURCE` auf einer SMB-Freigabe steht, muss die neue
+`recipe.yaml` auch dort liegen; sonst holt der 04:15-Lauf die alte Fassung
+zurück (Abschnitt 5.8).
 
 **Reihenfolge bis zum Pilot-Go:**
 
@@ -685,7 +732,7 @@ Dokuments).
 
 | Rolle | Verantwortung | Artefakt / Ort |
 | --- | --- | --- |
-| Orga/Operator | Event-Dateien, Filehost-Upload, Rezept veröffentlichen, Go/No-Go | `/events/event-1/files`, `/admin/recipes/20/edit` |
+| Orga/Operator | Event-Dateien, Filehost-Upload, Rezept veröffentlichen, Go/No-Go | `/events/raute1-lan-26/files`, `/admin/recipes/20/edit` |
 | Backend/Deploy | HEAD auf `origin/main`, Deploy, YAML-Sync, Plan-Filter | App-Host, `scripts/deploy/deploy.sh` |
 | Launcher/Rust | Download/Archiv/Install/Verify, Manifest, Release | `clients/launcher/**`, `clients-dist/launcher` |
 | macOS-Release | `.app`/`.dmg`, Codesign, Notarization, Gatekeeper | macOS-Host, Apple-Secrets |

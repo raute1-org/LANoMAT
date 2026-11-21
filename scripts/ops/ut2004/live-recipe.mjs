@@ -70,7 +70,7 @@ const VALUE_FLAGS = new Set([
     'file',
     'backup-dir',
 ]);
-const BOOL_FLAGS = new Set(['help', 'apply', 'yes', 'keep-metadata', 'record', 'json']);
+const BOOL_FLAGS = new Set(['help', 'apply', 'yes', 'record', 'json']);
 
 function usageError(message) {
     const error = new Error(message);
@@ -171,8 +171,6 @@ Safety:
   --apply                     Write the change (a no-op apply still calls
                               Livewire save). Requires --yes.
   --yes                       Explicit confirmation for --apply.
-  --keep-metadata             restore: keep live metadata instead of the
-                              backup's metadata.
 
 Connection / files:
   --base-url URL              Default: launcher config url, else ${LIVE_BASE}
@@ -1061,82 +1059,6 @@ function restoreChanges(live, backup) {
     return changes;
 }
 
-function apiPayload(state) {
-    const requirements = Object.values(state.requirements || {}).map((requirement) => {
-        const copy = clone(requirement);
-        delete copy.shared_file_id;
-        return copy;
-    });
-
-    const steps = Object.values(state.steps || {}).map((step) => {
-        const copy = clone(step);
-        if (copy.commands && !Array.isArray(copy.commands)) {
-            copy.commands = Object.values(copy.commands);
-        }
-        if (!Array.isArray(copy.commands)) {
-            copy.commands = [];
-        }
-        return copy;
-    });
-
-    return {
-        slug: state.slug,
-        title: state.title,
-        aliases: state.aliases ?? [],
-        version: state.version ?? null,
-        platforms: state.platforms ?? [],
-        summary: state.summary ?? null,
-        description: state.description ?? null,
-        homepage: state.homepage ?? null,
-        license: state.license ?? null,
-        requirements,
-        steps,
-        metadata: state.metadata ?? {},
-        skill_markdown: state.skill_markdown || undefined,
-    };
-}
-
-async function contributeMetadata(state, options) {
-    const config = await readLauncherConfig(options);
-    const base = baseUrl(options, config);
-    const token = String(config.token || '').trim();
-
-    if (!token) {
-        throw fail(`metadata restore needs a bearer token in ${config.file}`);
-    }
-
-    const url = `${base}/api/v1/recipes`;
-    let response;
-    try {
-        response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(apiPayload(state)),
-        });
-    } catch (error) {
-        throw fail(`metadata restore request failed: ${error.message}`);
-    }
-
-    const text = await response.text();
-    let body;
-    try {
-        body = JSON.parse(text);
-    } catch {
-        body = { message: text.slice(0, 300) };
-    }
-
-    if (!response.ok) {
-        const message = body?.message || body?.error || `HTTP ${response.status}`;
-        throw fail(`metadata restore answered HTTP ${response.status}: ${String(message).slice(0, 800)}`);
-    }
-
-    return body;
-}
-
 async function commandRestore(options) {
     if (!options.file) {
         throw usageError('restore needs --file FILE (use - for stdin)');
@@ -1165,18 +1087,21 @@ async function commandRestore(options) {
             throw fail(`backup is for ${backup.slug}, but the editor shows ${live.slug}; refusing to cross recipes`);
         }
 
-        const changed = restoreChanges(live, backup);
+        const changedAll = restoreChanges(live, backup);
         const metadataDiffers = 'metadata' in backup && !semanticEqual(live.metadata, backup.metadata);
-        const metadataViaApi = metadataDiffers && !options['keep-metadata'];
+        // Filament has no metadata form field. The panel save never writes it,
+        // and ContributeRecipe drops it at the controller as well, so metadata
+        // is always kept as-is by this tool. Only the YAML sync can rewrite it.
+        const changed = changedAll.filter((key) => key !== 'metadata');
         const spec = {
             recipe: { id: live.id, slug: live.slug },
             status: live.status,
             changed,
             metadata_changed: metadataDiffers,
-            metadata_restore: options['keep-metadata'] ? 'keep-live' : metadataViaApi ? 'livewire+api-fallback' : 'not-needed',
+            metadata_restore: metadataDiffers ? 'live-kept (panel cannot write metadata)' : 'not-needed',
         };
 
-        if (changed.length === 0 && !options.apply) {
+        if (changed.length === 0 && !metadataDiffers && !options.apply) {
             console.log(JSON.stringify({ ...spec, applied: false, changed: false, message: 'backup already matches the live state' }, null, 2));
             return 0;
         }
@@ -1190,67 +1115,24 @@ async function commandRestore(options) {
         const backupFile = await writeBackup(before, base, undefined, options['backup-dir'] || '/tmp/opencode');
 
         for (const key of changed) {
-            if (key === 'metadata' && metadataViaApi) {
-                // Filament has no metadata field; writing it via the form is a no-op.
-                // It is handled by the API fallback below.
-                await setField(page, `data.${key}`, backup[key]);
-                continue;
-            }
             await setField(page, `data.${key}`, backup[key]);
         }
 
         await saveEditor(page);
         await reloadEditor(page, base, id);
-        let after = await readState(page);
-
-        const nonMetadataProblems = [];
-        for (const key of changed) {
-            if (key === 'metadata') {
-                continue;
-            }
-            if (!semanticEqual(after[key], backup[key])) {
-                nonMetadataProblems.push(key);
-            }
-        }
-        if (after.status !== (backup.status ?? before.status)) {
-            nonMetadataProblems.push(`status (expected ${backup.status ?? before.status}, got ${after.status})`);
-        }
-        if (nonMetadataProblems.length > 0) {
-            throw fail(`restore verification failed for: ${nonMetadataProblems.join(', ')}`);
-        }
-
-        let metadataRestoredVia = null;
-
-        if (metadataViaApi) {
-            await contributeMetadata(backup, options);
-            await reloadEditor(page, base, id);
-
-            // ContributeRecipe recreates the file rows, which drops the LAN
-            // pins. Re-apply the backup's requirements through Filament so the
-            // pins come back; Filament leaves metadata alone.
-            if (backup.requirements !== undefined) {
-                await setField(page, 'data.requirements', backup.requirements);
-                await saveEditor(page);
-            }
-            await reloadEditor(page, base, id);
-            after = await readState(page);
-            metadataRestoredVia = 'api';
-        }
+        const after = await readState(page);
 
         const problems = [];
-        for (const key of RESTORE_KEYS) {
-            if (!(key in backup)) {
-                continue;
-            }
-            if (key === 'metadata' && options['keep-metadata']) {
-                if (!semanticEqual(after.metadata, before.metadata)) {
-                    problems.push('metadata (keep-live violated)');
-                }
-                continue;
-            }
+        for (const key of changed) {
             if (!semanticEqual(after[key], backup[key])) {
                 problems.push(key);
             }
+        }
+        if (after.status !== (backup.status ?? before.status)) {
+            problems.push(`status (expected ${backup.status ?? before.status}, got ${after.status})`);
+        }
+        if (!semanticEqual(after.metadata, before.metadata)) {
+            problems.push('metadata (live metadata changed during restore)');
         }
 
         if (problems.length > 0) {
@@ -1265,7 +1147,8 @@ async function commandRestore(options) {
                     saved: true,
                     verified: true,
                     status_after: after.status,
-                    metadata_restored_via: metadataRestoredVia,
+                    metadata_restored: false,
+                    metadata_note: metadataDiffers ? 'panel has no metadata field; live metadata kept (the 04:15 YAML sync can restore it)' : 'metadata already matched',
                     updated_at: { before: before.updated_at, after: after.updated_at },
                     backup_file: backupFile.file,
                 },

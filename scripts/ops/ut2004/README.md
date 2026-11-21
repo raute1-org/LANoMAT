@@ -16,15 +16,20 @@ fetch-base.sh ──► extract-archive.sh ──► build-portable.sh ──►
                                       Plan, Backup/Restore
 ```
 
+`upload-file.sh` ist der optionale tus-Transport der gebauten ZIPs zum
+Live-Filehost; er sitzt zwischen `build-portable.sh` und `install-smoke.sh`
+bzw. dem echten Client-Download.
+
 ## Tool-Index
 
 | Tool | Zweck | `--help` | Beispiel |
 | --- | --- | --- | --- |
 | `fetch-base.sh` | archive.org-Base parallel/resumierbar laden, Mirrors rotieren, Größe prüfen | `scripts/ops/ut2004/fetch-base.sh --help` | `scripts/ops/ut2004/fetch-base.sh --dry-run` |
 | `extract-archive.sh` | ZIP/TAR/DMG/ISO/7z/RAR/SFX listen, Baum zeigen, extrahieren, Game-Daten prüfen | `scripts/ops/ut2004/extract-archive.sh --help` | `scripts/ops/ut2004/extract-archive.sh tree "ut2k4+keygen.zip" --depth 2` |
-| `build-portable.sh` | drei flache, bereits gepatchte 3374-Archive bauen und verifizieren | `scripts/ops/ut2004/build-portable.sh --help` | `scripts/ops/ut2004/build-portable.sh --source <tree> --patches <dir> --out clients-dist/ut2004` |
+| `build-portable.sh` | drei flache, bereits gepatchte 3374-Archive bauen und verifizieren | `scripts/ops/ut2004/build-portable.sh --help` | `scripts/ops/ut2004/build-portable.sh --source "$HOME/Downloads/Unreal Tournament 2004.zip" --patches "$HOME/Downloads/ut2004-build/patches" --out clients-dist/ut2004` |
 | `install-smoke.sh` | Live-Recipe auf lokalen HTTP-Server zeigen, echten Install ausführen, restaurieren | `scripts/ops/ut2004/install-smoke.sh --help` | `LANOMAT_ADMIN_COOKIES_FILE=/tmp/opencode/cookies.txt scripts/ops/ut2004/install-smoke.sh --dry-run` |
 | `live-recipe.mjs` | Live-Panel (Filament-ID 20) lesen, Plan prüfen, Backup/Restore, URL/Patches setzen | `node scripts/ops/ut2004/live-recipe.mjs --help` | `node scripts/ops/ut2004/live-recipe.mjs show --json` |
+| `upload-file.sh` | große Datei resumierbar per tus auf den Live-Filehost laden | positionell: `<file> <name> [chunk-mib]` (kein `--help`) | `scripts/ops/ut2004/upload-file.sh clients-dist/ut2004/ut2004-portable-3374-linux.zip ut2004-portable-3374-linux.zip 64` |
 
 ## Konventionen
 
@@ -350,11 +355,12 @@ scripts/ops/ut2004/fetch-base.sh --dry-run
 scripts/ops/ut2004/fetch-base.sh
 
 # Größe und SHA-256 erzwingen
-scripts/ops/ut2004/fetch-base.sh --expected-size 2550381122 --sha256 <64-hex>
+scripts/ops/ut2004/fetch-base.sh --expected-size 2550381122 --sha256 "$SHA256"
 
 # anderes Item/Ziel, mehr Verbindungen
 scripts/ops/ut2004/fetch-base.sh --parallel 6 \
-    --item <item> --file '<datei>' --output /data/<datei>
+    --item unreal-tournament-2004_202405 \
+    --file 'Unreal Tournament 2004.zip' --output /data/ut2004.zip
 ```
 
 **Mirror-Fallback.** Die Metadaten-API liefert `size`, optional `sha256` sowie
@@ -632,3 +638,51 @@ scripts/ops/ut2004/upload-file.sh \
 - `--` no automatic network switch; keep `LANoMAT` connected for the whole run.
 - Cleanup: the script leaves the tus state until complete; delete the state
   file after verifying the SharedFile in `/admin`.
+
+## Live-Rezept 20: Filament, CSRF und der 04:15-Sync
+
+`live-recipe.mjs` bearbeitet `unreal-tournament-2004` (Filament-ID 20) über die
+echte Admin-Seite und Livewire (`get`/`set`/`call('save')`), nicht über
+`POST /api/v1/recipes`.
+
+**Warum Filament statt `ContributeRecipe`.** `ContributeRecipe` hat kein
+`metadata`-Feld in der Controller-Validierung; ein Aufruf ohne `metadata`
+setzt `{"contributed_via":"mcp"}` und verliert `metadata.launch_targets`
+(Flat/VR), Tags, Genre, `players`, `live_url` und `lan_recommended`; außerdem
+werden Version, Homepage, Lizenz und die Datei-Zeilen/Pins neu aufgebaut. Das
+Filament-Formular speichert nur seine registrierten Felder — `metadata` bleibt
+unangetastet. Der Form-Save wendet zusätzlich `ReviewStamp` und den
+Requirement-Pin-Sync an, sodass eine veröffentlichte Version `published` und
+den ursprünglichen Reviewer behält.
+
+**Session und CSRF.** Kein Bearer für den Admin-Teil: `--cookie-file`
+(Default `/tmp/opencode/cookies.txt`, alternativ
+`LANOMAT_ADMIN_COOKIES_FILE`) liest einen `Cookie:`-Header, Netscape-Cookies
+oder einen Playwright-JSON-Export. Playwright setzt daraus den
+Browser-Kontext; das Laravel-`session`-Cookie authentifiziert, das
+`XSRF-TOKEN`-Cookie lässt Livewire automatisch `X-XSRF-TOKEN` an
+`/livewire/update` senden. Cookies und Token werden nie ausgegeben. Nur
+`plan` liest den Bearer aus `~/.config/lanomat-launcher/config.json` und sendet
+standardmäßig `dry_run: true` (kein Install-Audit-Eintrag).
+
+**04:15 überschreibt Panel-Änderungen.** `routes/console.php` startet
+`lanomat:recipes:sync` täglich um 04:15. Das Rezept hat `source: bundled`, die
+Live-Zeile wird also aus
+`resources/recipes/unreal-tournament-2004/recipe.yaml` upserted. Änderungen
+hier überleben nur bis zum nächsten Sync; danach gewinnt die YAML. Für eine
+dauerhafte Änderung muss die YAML mitgeändert werden.
+
+**Use-Cases.** Akute Korrektur für den Launcher, Prüfen des Panel-Stands vor
+dem Sync, Diff/Backup/Rollback um einen Sync oder eine manuelle Änderung,
+gezieltes Setzen von ISO-URL/-Match, Plattformen oder Patch-URL/SHA. `set`
+schreibt nur mit `--apply --yes`; danach wird per Reload geprüft, dass
+`status` und `metadata` unverändert sind und jedes geänderte Feld
+zurückgelesen wurde.
+
+**Restore-Grenze.** `restore` spielt die Formularfelder aus einer
+JSON-Sicherung zurück. `metadata` kann weder das Panel (kein Feld) noch
+`POST /api/v1/recipes` (Controller verwirft den Key) schreiben; deshalb bleibt
+das Live-Metadata erhalten. Weicht eine Sicherung darin ab, meldet das Tool
+`metadata_changed: true`, `metadata_restored: false`. Nur der 04:15-YAML-Sync
+kann Metadata wiederherstellen. Beispiele und alle Flags:
+`node scripts/ops/ut2004/live-recipe.mjs --help`.
