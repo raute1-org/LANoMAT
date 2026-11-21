@@ -147,6 +147,40 @@ it('offers the launcher download in both shells under the same label and URL', f
         ->and(route('launcher.index', absolute: false))->toBe('/launcher');
 });
 
+it('keeps the prominent launcher download in the top-right of both shells', function () {
+    // Participant app: the one shell action above the page content.
+    $header = ShellParity::read('resources/js/components/AppSidebarHeader.vue');
+    expect($header)
+        ->toContain('data-test="header-launcher"')
+        ->toContain('href="/launcher/download-latest"')
+        ->toContain('Launcher herunterladen')
+        ->toContain("has('game_recipes')");
+
+    // Admin panel: the same label and target in the topbar.
+    Filament::setCurrentPanel('admin');
+    Filament::bootCurrentPanel();
+    $this->actingAs(User::factory()->make());
+
+    $topbar = FilamentView::renderHook(PanelsRenderHook::TOPBAR_END)->toHtml();
+
+    expect($topbar)
+        ->toContain('data-shell="launcher-download"')
+        ->toContain('href="/launcher/download-latest"')
+        ->toContain('Launcher herunterladen')
+        ->and(route('launcher.download.latest', absolute: false))->toBe('/launcher/download-latest');
+});
+
+it('hides the Filament launcher download while the GameRecipes module is off', function () {
+    $this->app->instance(Modules::class, new Modules('core'));
+
+    Filament::setCurrentPanel('admin');
+    Filament::bootCurrentPanel();
+    $this->actingAs(User::factory()->make());
+
+    expect(FilamentView::renderHook(PanelsRenderHook::TOPBAR_END)->toHtml())
+        ->not->toContain('data-shell="launcher-download"');
+});
+
 it('hides the Filament launcher item while the GameRecipes module is off', function () {
     $this->app->instance(Modules::class, new Modules('core'));
 

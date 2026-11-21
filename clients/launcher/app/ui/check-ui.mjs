@@ -196,6 +196,17 @@ const requiredIds = [
     'chat-form',
     'chat-input',
     'chat-send',
+    'start-live-title',
+    'start-live-lead',
+    'start-live-loading',
+    'start-live-empty',
+    'start-live-error',
+    'start-live-error-text',
+    'start-live-retry',
+    'start-live-list',
+    'start-games',
+    'start-servers',
+    'start-chat',
     'screen-library',
     'library-title',
     'library-server',
@@ -343,6 +354,12 @@ check(/\\b\(server\|servers\|adresse\|ip\|beitreten/.test(chatJs), 'chat recogni
 check(/\\b\(spiel\|spiele\|game\|games/.test(chatJs), 'chat recognizes the games intent');
 check(/list_servers/.test(chatJs), 'chat loads the aggregated server list');
 check(/list_games/.test(chatJs), 'chat loads the games list');
+check(/start-live-list/.test(chatJs), 'the start page paints the live server list');
+check(/joinServer/.test(chatJs), 'a live server has a one-click join');
+check(
+    /install\.begin\(recipe, \{ join \}\)/.test(chatJs),
+    'the one-click join keeps the server through the install wizard',
+);
 check(/prefers-reduced-motion/.test(chatJs), 'chat demo respects reduced motion');
 check(/prefers-reduced-motion/.test(qrJs) || /prefers-reduced-motion/.test(chatJs), 'chat demo has a reduced-motion path');
 check(/demoType|demoClear/.test(chatJs), 'chat demo types and backs spaces out');
@@ -409,6 +426,7 @@ const requiredStrings = [
     'Chat',
     'Welche Spiele gibt es?',
     'Welche Server laufen?',
+    'Jetzt live',
     'Beitreten',
     'LANoMAT-Seite',
     'Mit Handy scannen',

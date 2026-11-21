@@ -738,6 +738,10 @@ paths:
                         id: { type: integer }
                         title: { type: string }
                         game: { type: string, nullable: true }
+                        gameSlug:
+                          type: string
+                          nullable: true
+                          description: Stable game slug, for mapping the server to its install recipe.
                         description: { type: string, nullable: true }
                         matchLabel: { type: string, nullable: true }
                         address: { type: string, nullable: true }

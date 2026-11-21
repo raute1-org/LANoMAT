@@ -17,7 +17,7 @@ the shell returns. It never fabricates progress, files, versions or server state
 | `js/state.js` | the one store and `showScreen()` |
 | `js/nav.js` | keyboard + gamepad navigation and the footer's gamepad indicator |
 | `js/connect.js` | device flow: URL, QR, code, poll states, reconnect/logout entry |
-| `js/chat.js` | the arcade front desk: greeting, deterministic `games`/`servers` intents, skippable demo, game/server cards |
+| `js/chat.js` | the Start page (main actions + the live-server list with one-click join) and the arcade front desk: greeting, deterministic `games`/`servers` intents, skippable demo, game/server cards |
 | `js/library.js` | `get_status` + `list_games`: „Meine Bibliothek" from the local install ledger, the shared catalogue with one primary action per card, `verify_install` record state and reinstall/repair |
 | `js/install.js` | `install-progress` listener, phases, bytes/speed/ETA, cancel, errors |
 | `js/ready.js` | launch, repair, target path, server browser |
@@ -48,7 +48,7 @@ Every call goes through `window.__TAURI__.core.invoke`; the progress event comes
 | progress | event `install-progress` | – | `{slug, phase, message, file?, bytes_done, bytes_total, percent?, bytes_per_second, eta_secs?}` |
 | Abbrechen | `cancel_install` | – | – |
 | record state / `Reparieren` | `verify_install` | `{slug}` | `{ok, exists, missing[]}` — a local check of the recorded target **ohne etwas herunterzuladen**; `exists: false` means the folder was moved or deleted, `missing[]` names requirement groups (alternatives joined by `or`) |
-| Starten | `launch` | `{slug}` | executable path |
+| Starten | `launch` | `{slug, join?}` | executable path; `join` is the `host:port` UT2004 starts on |
 | Browser öffnen / Serverbrowser / Spielseite | `open_url` | `{url}` | – |
 | header + footer (decoration) | `get_environment` | – | `{version, commit, host, arcade, kiosk}` — `host` is this terminal's name, `arcade`/`kiosk` the start flags |
 | footer (update watch) | `check_launcher_update` | – | `{available, latest, page}` or `null` |
@@ -71,15 +71,22 @@ no `start_device` command). The brief also calls cancel simply `cancel`; L4 expo
 - `cancel_install`, not `cancel`
 - `get_status` (the brief's "status"), `list_games`, `install`, `launch`, `open_url`, `logout`
 
-Deep links (`lanomat://install/<slug>`, `lanomat://launch/<slug>`) arrive as the `deep-link`
-event with `{action, slug}`. The UI routes them only while paired:
+Deep links (`lanomat://install/<slug>`, `lanomat://launch/<slug>`,
+`lanomat://join/<slug>?address=host:port` or `?url=<encoded join URL>`) arrive as
+the `deep-link` event with `{action, slug, address?, url?}`. The UI routes them
+only while paired:
 
-- `install`: refresh `list_games`, find the recipe, then `install.begin(recipe)`. A slug the
-  server does not publish gets a calm toast and the library.
+- `install`: refresh `list_games`, find the recipe, then `install.begin(recipe, {join})`. A slug
+  the server does not publish gets a calm toast and the library.
 - `launch`: check the install records (refreshing `get_status` once if needed), then
-  `ready.show(slug, {launch: true})`. Without a record the toast says so and the library opens.
-- while an install runs, both links keep the install screen (progress, file, cancel stay
-  visible) and answer with the `S.deepLink.busy` toast instead of switching screens.
+  `ready.show(slug, {launch: true, join})`. Without a record the toast says so and the library opens.
+- `join`: the website's one-click action. An installed recipe goes straight to
+  `ready.show(..., {launch: true, join})`; a missing installable recipe runs the install wizard and
+  auto-launches on the same server afterwards; a browser/an older launcher falls back to the
+  server's allowlisted join URL. The address is passed to UT2004's executable, the URL is opened
+  after a generic launch.
+- while an install runs, every link keeps the install screen (progress, file, cancel stay
+  visible) and answers with the `S.deepLink.busy` toast instead of switching screens.
 - unpaired: the UI stores nothing, shows a "zuerst verbinden" toast, and lets the shell replay
   its pending link after pairing (the shell emits `deep-link` again at that point).
 
@@ -90,8 +97,9 @@ The shell validates the slug (`[a-z0-9-]{1,120}`) before it ever reaches the UI.
 ## Screens and states
 
 One stage at a time: `boot → connect → chat → library → install → ready`. `chat` is the home
-once paired (the arcade front desk); `library` is one big game tile for the UT2004 pilot;
-`install` returns to `library` on error/cancel and to `ready` on success.
+once paired — the **Start** page with the main actions and the live-server list, plus the
+arcade chat below it; `library` is one big game tile for the UT2004 pilot; `install` returns
+to `library` on error/cancel and to `ready` on success.
 
 - **Connect**: editable server URL (default `https://lan.raute1.org`), `Verbinden` → a large,
   central QR of `verification_uri_complete` with the label `Mit Handy scannen`, plus the code,
@@ -103,15 +111,19 @@ once paired (the arcade front desk); `library` is one big game tile for the UT20
   it deletes the local pairing, while the bearer token stays valid on the server until it
   is revoked there on `/mcp/connect` (the button's tooltip and description say so). The next
   player starts on the same QR screen.
-- **Chat**: greeting with the player's name, a skippable demo (typing/backspacing a suggestion,
-  instant under `prefers-reduced-motion`), suggestion chips and a text input. Intents are
-  deterministic and local: `games` asks `list_games` + `get_status`, `servers` asks
-  `list_servers`. Answers are cards, not prose: the game tile with `Installieren`/`Starten`, and
-  one aggregated server grid across every active/recent event plus the permanent servers. A
-  server card carries one action: `Beitreten` (`open_url` with the server's steam/ut2004 join
-  link) or `LANoMAT-Seite` (`open_url` to the event/permanent server page). Loading, empty,
-  error and normal states are all explicit; `Neu starten` clears the transcript, `Zu den Spielen`
-  skips straight to the library.
+- **Start (the screen after pairing)**: the main actions `Spiele`, `Serverbrowser` and `Chat`,
+  then **Jetzt live** — every `ready`/`not_responding` server from `list_servers`, one row per
+  server. The row's primary action is `Beitreten`: a missing installable recipe runs the install
+  wizard and auto-launches on that server; an installed recipe launches on it immediately;
+  every other game opens its own allowlisted join URL (steam/ut2004/https) or the server page.
+  Loading, empty, error and normal states are explicit, and the list loads on the first show
+  instead of waiting for a chat question. Below it sits the chat: greeting with the player's
+  name, a skippable demo (typing/backspacing a suggestion, instant under `prefers-reduced-motion`),
+  suggestion chips and a text input. Intents are deterministic and local: `games` asks
+  `list_games` + `get_status`, `servers` asks `list_servers`. Answers are cards, not prose: the
+  game tile with `Installieren`/`Starten`, and one aggregated server grid across every
+  active/recent event plus the permanent servers. `Neu starten` clears the transcript,
+  `Zu den Spielen` skips straight to the library.
 - **Library**: two lists in one screen. „Meine Bibliothek" is the local install ledger from
   `get_status.installs` — one card per installed game with title, `Ordner` (folder, mono, quiet),
   verified file count and one big `Starten` that launches the local executable (no network, so it

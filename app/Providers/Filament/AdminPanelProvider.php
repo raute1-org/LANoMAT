@@ -78,6 +78,7 @@ class AdminPanelProvider extends PanelProvider
                     ->visible(fn (): bool => app(Modules::class)->routable(Module::GameRecipes)),
             ])
             ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.shell.admin-stripe'))
+            ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.launcher-download'))
             ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.back-to-app'))
             // Closure: resolved at render time, after AppServiceProvider::boot() has
             // forced https in production (asset() here would bake in http://).

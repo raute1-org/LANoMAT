@@ -17,6 +17,28 @@ export const S = {
     defaultUrl: DEFAULT_URL,
     httpError: (code) => `Der Server antwortet mit HTTP ${code}.`,
 
+    start: {
+        title: 'Start',
+        lead: 'Ein Klick: Das Spiel installieren, falls nötig, und direkt auf dem Server starten.',
+        games: 'Spiele',
+        servers: 'Serverbrowser',
+        chat: 'Chat',
+        liveTitle: 'Jetzt live',
+        liveLead:
+            'Jeder Server hier startet mit einem Klick — samt Installation, wenn das Spiel noch fehlt.',
+        liveEmptyTitle: 'Gerade läuft kein Server.',
+        liveEmptyText:
+            'Sobald ein Server bereit ist, erscheint er hier mit einem Klick zum Beitreten.',
+        liveErrorTitle: 'Server konnten nicht geladen werden.',
+        liveLoaded: (count) =>
+            count === 1 ? '1 Server live.' : `${count} Server live.`,
+        join: 'Beitreten',
+        joinInstalling: (title) =>
+            `Installation von ${title} gestartet — danach startet das Spiel auf dem Server.`,
+        joinError:
+            'Der Server konnte nicht geöffnet werden. Öffne den Serverbrowser.',
+    },
+
     phases: {
         planning: 'Planen',
         downloading: 'Herunterladen',
@@ -281,6 +303,9 @@ export const S = {
         notSupported: (slug) =>
             `Deep-Link: „${slug}“ ist noch nicht im Launcher installierbar. Die Webseite zeigt alle Infos.`,
         busy: 'Deep-Link: Es läuft bereits eine Installation.',
+        joinUnknown: (slug) =>
+            `Deep-Link: „${slug}“ ist auf diesem Server nicht freigegeben.`,
+        joinError: 'Deep-Link: Der Server konnte nicht geöffnet werden.',
     },
 
     boot: {

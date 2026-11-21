@@ -841,7 +841,8 @@ input:disabled {
     min-height: 44px;
     padding: 6px 20px;
 }
-.server-grid {
+.server-grid,
+.start-live-grid {
     display: flex;
     flex-direction: column;
     gap: 12px;

@@ -61,6 +61,11 @@ if ($modules->routable(Module::GameRecipes)) {
     // clients-dist/launcher/manifest.json lists (LauncherBuilds validates it).
     Route::middleware(['auth'])->group(function () {
         Route::get('/launcher', [LauncherPageController::class, 'index'])->name('launcher.index');
+        // The shell's prominent top-right button starts the best build for the
+        // visitor's system directly; the page stays the explanation and fallback.
+        Route::get('/launcher/download-latest', [LauncherPageController::class, 'latest'])
+            ->middleware('throttle:20,1')
+            ->name('launcher.download.latest');
         Route::get('/launcher/download/{filename}', [LauncherPageController::class, 'download'])
             ->where('filename', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
             ->middleware('throttle:20,1')

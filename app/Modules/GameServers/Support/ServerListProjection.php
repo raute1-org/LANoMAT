@@ -298,6 +298,9 @@ class ServerListProjection
         return [
             'id' => $link->id,
             'game' => $game?->name,
+            // The stable game/recipe slug, so a client can map a server to its
+            // install recipe (the launcher joins via the recipe's launch target).
+            'gameSlug' => $game?->slug,
             'title' => $link->title,
             'matchLabel' => self::matchLabel($link, $tournament),
             'address' => $link->join_info->address,

@@ -30,7 +30,10 @@ export function init({ library }) {
     });
 }
 
-export function show(slug, { launch = false, record = null, title: known = null } = {}) {
+export function show(
+    slug,
+    { launch = false, record = null, title: known = null, join = null } = {},
+) {
     const recipe = (state.games || []).find((game) => game.slug === slug);
     const installRecord = record || latestInstall(slug);
     // A terminal whose server is offline has no catalogue: the local library
@@ -42,7 +45,7 @@ export function show(slug, { launch = false, record = null, title: known = null 
         installRecord?.slug ||
         slug;
 
-    current = { slug, title, record: installRecord };
+    current = { slug, title, record: installRecord, join };
     state.ready = current;
 
     syncBrowserLink();
@@ -104,8 +107,11 @@ function repair() {
     );
 
     // The command only needs the slug; the title keeps the install screen's
-    // heading honest when the catalogue is not loaded.
-    install.begin(recipe || { slug: current.slug, title: current.title });
+    // heading honest when the catalogue is not loaded. A repair keeps the
+    // server the player came for, so the ready screen launches onto it again.
+    install.begin(recipe || { slug: current.slug, title: current.title }, {
+        join: current.join,
+    });
 }
 
 // A quiet repair action is always available on a recorded game. After a launch
@@ -145,7 +151,13 @@ async function launchGame() {
     setHidden('ready-error', true);
     setHidden('ready-launched', true);
 
-    const result = await call('launch', { slug: current.slug });
+    const join = current.join || null;
+    const address = typeof join?.address === 'string' ? join.address : null;
+    const joinUrl = typeof join?.url === 'string' ? join.url : null;
+
+    // UT2004 takes the server as its first argument. Other recipes launch the
+    // way their recipe says and then open their own join handler.
+    const result = await call('launch', { slug: current.slug, join: address });
 
     launching = false;
     button.disabled = false;
@@ -169,15 +181,29 @@ async function launchGame() {
         return;
     }
 
+    let joined = true;
+
+    if (!address && joinUrl !== null) {
+        const opened = await call('open_url', { url: joinUrl });
+
+        if (!opened.ok) {
+            joined = false;
+            showError(S.start.joinError);
+            announce(S.start.joinError);
+        }
+    }
+
     // The button was disabled while the command ran, so focus fell to <body>: bring it
     // back to the launch action, which is where the user was.
     if (state.stage === 'ready') {
         focusNode(button);
     }
 
-    setText('ready-launched', S.ready.launched(result.value || ''));
-    setHidden('ready-launched', false);
-    announce(S.ready.launched(result.value || ''));
+    if (joined) {
+        setText('ready-launched', S.ready.launched(result.value || ''));
+        setHidden('ready-launched', false);
+        announce(S.ready.launched(result.value || ''));
+    }
 }
 
 // The install command fixes all of these: the recorded folder was moved or
