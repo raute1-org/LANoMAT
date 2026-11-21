@@ -59,6 +59,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Changed
 
+- Docs: all-in-one client design and plan (`docs/superpowers/specs/2026-11-22-all-in-one-client-design.md`, `docs/superpowers/plans/2026-11-22-all-in-one-client.md`): merge the Rust launcher into the voice app, one pairing, one release
 - Games: the game page offers each server's join in an honest order (launcher, the game's own join options, a join link, else the address to copy) and has loading and error states; the game page's only amber action is "Installieren"
 - Install plans: every recipe gets its own folder on macOS (only the UT2004 pilot keeps Application Support), and the Windows folder is built from the title with letters, digits, space, dot, underscore and hyphen only
 - Prettier no longer checks `recipe.yaml` and `SKILL.md` under `resources/recipes`; the schema validator is their gate
@@ -70,6 +71,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 - Docs: built-output guard against doubled base paths (`/docs/docs/`) in `.md` raw anchors
 
 ### Fixed
+
 - Recipes: `lanomat:recipes:sync --only=<slug> --prune` deleted every other recipe of the source, and `--prune` on an empty or unreadable source deleted all of them; a recipe that still has a directory in the source is never pruned now
 - Recipes: a recipe title could reach a shell through the install folder, which is substituted into quoted command arguments; found in review, before any release
 - Recipes: editing a contributed draft no longer wipes its launch targets and pinned files; a base file is required by default, as in the YAML parser
