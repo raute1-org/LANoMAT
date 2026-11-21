@@ -27,8 +27,8 @@ its own card in section 5. Integration branch: `feat/game-sharing`.
 | D3 | The lineup is the configured `LAUNCHER_LINEUP` plus every recipe with `game_recipes.in_lineup = true` (`LauncherLineup::slugs()`). Publishing a contributed recipe in the panel sets the flag. An empty configured lineup stays "unrestricted". |
 | D4 | `GameServers` asks the `GameServers\Contracts\GameInstallLinks` contract how a player gets a server's game. `GameRecipes\Support\RecipeInstallLinks` answers; `NullGameInstallLinks` when the module is off. No new module edge. |
 | D5 | Recipe pull requests go through the `GameRecipes\Contracts\RecipeRepository` contract (`GitHubRecipeRepository`, `NullRecipeRepository`, `Testing\FakeRecipeRepository`). Off by default (`RECIPES_PR_ENABLED`). |
-| D6 | Trigger: `RECIPES_PR_TRIGGER=contribute` (default) opens the pull request when a participant shares; `publish` waits for the orga. Publishing a contributed or panel recipe always opens or updates it. |
-| D7 | Before anything is sent, the text passes a public-safety check (private and public IP addresses, e-mail addresses, key material, tokens). A refused recipe gets `pr_state = blocked` and is never sent. Attribution is off by default. |
+| D6 | Trigger: `RECIPES_PR_TRIGGER=publish` (default) opens the pull request when the orga publishes, so only reviewed text reaches the repository; `contribute` opens it when a participant shares. Publishing a contributed or panel recipe always opens or updates it. The automatic path is bounded per contributor and per installation. |
+| D7 | Before anything is sent, the text passes a public-safety check (addresses, e-mail addresses, key material, tokens) and a catalogue readiness check (what the repository's validator would refuse). A refused recipe gets `pr_state = blocked` with the reasons and is never sent. Attribution is off by default. |
 | D8 | One branch and one pull request per recipe: `recipes/<slug>`. A new proposal moves the branch; it never opens a second pull request. |
 | D9 | Uploads keep going through the Files module, bound to the current event. `/games/share` reuses the existing ticket and upload routes; it adds no upload endpoint. |
 | D10 | No new MCP tool. `recipe_contribute` and `POST /api/v1/recipes` forward the fields `ContributeRecipe` now understands. The tool count does not change. |
@@ -238,3 +238,26 @@ Wave 1 runs in parallel on the foundation commit. Wave 2 starts after wave 1 is 
 - The story test passes: share, approve and publish, visible on `/games` and in the launcher
   catalogue, install link on the matching server, pull request proposed and its state synced.
 - The admin handoff names every new switch and the order to turn them on.
+
+## 7. What the reviews changed
+
+Three independent reviews (security, architecture, frontend) ran on the merged result. What they
+changed, so the plan above is read with it:
+
+- **A shared title could reach a shell.** The install folder was built from the title and is
+  substituted into quoted command arguments. The folder now keeps letters, digits, space, dot,
+  underscore and hyphen only (`BuildInstallPlan`), and the share builder prints the same
+  literal-quoted commands it runs.
+- **The orga reviews what runs.** The panel shows launch commands, the play link and every step's
+  checks before publishing; they were stored but invisible.
+- **Pull requests are bounded and reviewed.** Default trigger `publish`; per-contributor and
+  per-installation limits; a readiness check instead of a red pull request; an existing open pull
+  request is never recorded as "not sent".
+- **One name per action.** "Im Launcher beitreten" comes first wherever a launcher join exists;
+  the game page has one amber action.
+- **A launcher link answers.** Every `lanomat://` action notices when nothing took over and says
+  what to do. This came from a production report, not from the plan.
+
+Not done, on purpose: quoting `{{target}}` at execution time in the installer (a player who picks
+an install path with a quote in it can break their own command), and anything that needs the real
+GitHub API or real hardware to verify.
