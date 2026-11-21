@@ -30,9 +30,9 @@ Auf der Event-Seite im Admin gibt es oben die Aktion **Zahlungseinstellungen**:
 | Feld | Bedeutung |
 | --- | --- |
 | Zahlungslink | `https://…`-Link, zum Beispiel `https://paypal.me/example-orga` oder ein PayPal-Pool-Link. Nur https ist erlaubt. |
-| Hinweis | Kurzer Text für Teilnehmer (höchstens 160 Zeichen), zum Beispiel „Bitte als Verwendungszweck deinen Namen angeben". |
-| Erinnerung nach (Tagen) | Wie viele Tage nach der Anmeldung eine Zahl-Erinnerung kommt (0 bis 60, Standard 3). |
-| Erinnerung vor dem Event (Tagen) | Wie viele Tage vor dem Event erinnert wird (0 bis 60, Standard 3). |
+| Hinweis | Kurzer Text für Teilnehmer (höchstens 160 Zeichen), zum Beispiel „Zahlung bitte bis Freitag". |
+| Erinnerung nach (Tagen) | Wie viele Tage nach der Anmeldung eine Zahl-Erinnerung kommt (0 bis 60, Standard 3; 0 schaltet diese Erinnerung aus). |
+| Erinnerung vor dem Event (Tagen) | Wie viele Tage vor dem Event erinnert wird (0 bis 60, Standard 3; 0 schaltet diese Erinnerung aus). |
 
 **paypal.me oder Pool-Link:** Bei einem `paypal.me`-Link hängt LANoMAT den Betrag automatisch an
 (`https://paypal.me/example-orga/35EUR`), der Teilnehmer landet also direkt beim richtigen Betrag. Ein
@@ -42,8 +42,8 @@ Pool-Link (oder jeder andere Link) wird unverändert angezeigt; dann steht der B
 
 - Auf **Meine Anmeldung** steht, was noch offen ist: Betrag, Ticket, der Zahlungslink als Button, ein
   Verwendungszweck (Referenz) zum Kopieren und dein Hinweis.
-- Auf der Startseite **Jetzt** erscheint eine Karte „Zahlung offen" mit dem Betrag, solange die Anmeldung
-  unbezahlt, nicht storniert und der Preis größer als 0 ist. Der Link selbst steht nur auf der Anmeldeseite.
+- Auf der Startseite **Jetzt** erscheint eine Karte „Ticket noch nicht bezahlt" mit dem Betrag, solange die Anmeldung
+  unbezahlt, nicht storniert und der Preis größer als 0 ist. Die Karte führt zum Zahlungsblock auf der Anmeldeseite; der Link selbst steht nur dort.
 - Sobald du die Anmeldung als bezahlt markierst, verschwinden Karte und Aufforderung.
 
 ## Bezahlt markieren und „bezahlt von"
@@ -54,7 +54,7 @@ In der Teilnehmerliste (Anmeldungen im Event) siehst du pro Anmeldung Ticket, Pr
 - **Bezahlt umschalten:** öffnet einen kleinen Dialog. Im optionalen Feld **Bezahlt von** trägst du ein, wer
   bezahlt hat oder für wen, zum Beispiel bei einer Sammelüberweisung („Max, für die ganze Gruppe"). Beim
   Zurücksetzen auf unbezahlt wird die Notiz gelöscht.
-- **Filter „Zahlung offen":** zeigt nur Anmeldungen, die noch nicht bezahlt sind (stornierte ausgenommen).
+- **Filter „Zahlung offen":** zeigt nur Anmeldungen, die noch nicht bezahlt sind (stornierte und kostenlose Anmeldungen ausgenommen).
 - **Ticket ändern:** wechselt das Ticket einer Anmeldung und übernimmt dabei den aktuellen Preis des neuen Tickets.
 - **CSV-Export:** enthält zusätzlich die Spalten `ticket_price_eur` (Punkt als Dezimaltrenner) und `paid_by`.
 
@@ -82,7 +82,7 @@ In der Positionsliste der Runde hakst du ab: Pro Position **Bezahlt umschalten**
 Positionen zählen nicht als offen). Die Summen und der CSV-Export weisen enthaltene Beträge separat aus
 (Spalte „Im Ticket enthalten").
 
-Ändert sich die Auswahl „Im Ticket enthalten", werden bestehende Positionen beim Speichern neu berechnet.
+Ändert sich die Auswahl „Im Ticket enthalten", werden beim Speichern nur noch unbezahlte Positionen neu berechnet, und nur solange die Runde nicht geschlossen ist.
 
 ## Erinnerungen
 
@@ -91,10 +91,10 @@ Der Befehl `registration:payment-reminders` läuft stündlich über den Schedule
 
 - **nach der Anmeldung:** nach den eingestellten Tagen („Erinnerung nach");
 - **vor dem Event:** so viele Tage vor Beginn wie eingestellt, solange das Event noch nicht begonnen hat.
-- **Ruhezeiten:** Erinnerungen werden nur zwischen **09:00 und 21:00 Uhr** (Europe/Berlin) verschickt.
+- **Sendefenster:** Erinnerungen werden nur zwischen **09:00 und 21:00 Uhr** (Europe/Berlin) verschickt; was nachts fällig wird, geht ab 09:00 raus.
 - Jede Erinnerung geht pro Person und Art **höchstens einmal** raus. Sind beide fällig, wird nur die Erinnerung
   „vor dem Event" verschickt. Bezahlte, stornierte und kostenlose Anmeldungen bekommen keine.
-- Die Kategorie **Zahlung** lässt sich in den Benachrichtigungs-Einstellungen der Teilnehmer für Discord abschalten.
+- Die Kategorie **Zahlungserinnerungen** ist standardmäßig an. Eine Einstellungsseite im Web gibt es dafür nicht; Teilnehmer können sie nur in der Desktop-App abschalten.
 
 ## Hinweis: „Freunde und Familie"
 

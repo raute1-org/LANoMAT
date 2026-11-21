@@ -23,9 +23,14 @@ const payLabels = (): Record<string, string> => ({
     pay_nothing_due: t('pay_nothing_due'),
     pay_cash: t('pay_cash'),
     pay_due: t('pay_due'),
-    pay_button: t('pay_button'),
-    pay_no_link: t('pay_no_link'),
-    pay_copy_reference: t('pay_copy_reference'),
+    pay_with_paypal: t('pay_with_paypal'),
+    pay_at_orga: t('pay_at_orga'),
+    pay_reference_hint: t('pay_reference_hint'),
+    copy: t('copy'),
+    copy_reference: t('copy_reference'),
+    copied: t('copied'),
+    copy_failed: t('copy_failed'),
+    new_tab: t('new_tab'),
 });
 </script>
 
@@ -68,7 +73,12 @@ const payLabels = (): Record<string, string> => ({
                                 : t('nothing_ordered')
                         }}
                     </span>
-                    <Button v-if="food.open.orderable" as-child size="sm">
+                    <Button
+                        v-if="food.open.orderable"
+                        as-child
+                        size="sm"
+                        variant="outline"
+                    >
                         <Link :href="food.open.href">{{
                             food.open.mine ? t('change_order') : t('order')
                         }}</Link>

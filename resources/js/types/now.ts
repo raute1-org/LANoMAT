@@ -1,3 +1,5 @@
+import type { MyFoodPayment } from '@/types/catering';
+
 export type NowState = 'live' | 'upcoming' | 'none';
 
 export interface NowCardDto {
@@ -51,12 +53,7 @@ export interface FoodNowDto {
         closesAt: string | null;
         orderCount: number;
         mine: string | null;
-        payment: null | {
-            method: 'cash' | 'paypal' | 'included';
-            dueCents: number;
-            url: string | null;
-            reference: string | null;
-        };
+        payment: MyFoodPayment | null;
         orderable: boolean;
         href: string;
     };

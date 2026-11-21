@@ -453,7 +453,7 @@ deliberately not built):
   and a note. Participants see the open amount, a copyable reference and a pay button on "Meine Anmeldung" and as
   a card on **Jetzt**; the orga marks payments with an optional "paid by" note and can re-price open
   registrations in bulk. Food rounds are paid in cash or via PayPal and can be included per ticket type;
-  `registration:payment-reminders` (hourly, quiet hours 09-21 Berlin) sends deduplicated reminders. Guide in
+  `registration:payment-reminders` (hourly, sent only 09:00-21:00 Berlin) sends deduplicated reminders. Guide in
   German: [`docs/anleitung-orga-bezahlung.md`](docs/anleitung-orga-bezahlung.md).
 - **Location:** "Wo ist wer" shows where people are (voice room, game, server) and lets you follow them.
   Everyone shares their location by default; the profile switch "Meinen Standort teilen" opts out.

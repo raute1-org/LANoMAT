@@ -40,6 +40,7 @@ return [
     ],
 
     'page' => [
+        ...(require __DIR__.'/payment.php'),
         'title' => 'Essensbestellung',
         'empty' => 'Für dieses Event gibt es aktuell keine Essensbestellung.',
         'window_open' => 'Bestellung geöffnet',
@@ -60,9 +61,6 @@ return [
         'pay_nothing_due' => 'Alles bezahlt.',
         'pay_cash' => 'Bar bei der Orga: :amount',
         'pay_due' => 'Offen: :amount',
-        'pay_button' => 'Mit PayPal bezahlen',
-        'pay_no_link' => 'Zahlungslink folgt, frag die Orga.',
-        'pay_copy_reference' => 'Verwendungszweck kopieren',
     ],
 
     'notifications' => [

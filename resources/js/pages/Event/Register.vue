@@ -151,16 +151,24 @@ function cancel() {
                 <dd class="text-foreground">
                     {{ registration.ticketLabel }}
                 </dd>
-                <dt class="text-muted-foreground">{{ labels.status }}</dt>
-                <dd class="text-foreground">
-                    {{ registration.paid ? labels.paid : labels.unpaid }}
-                </dd>
+                <template
+                    v-if="
+                        !registration.payment &&
+                        registration.status !== 'cancelled'
+                    "
+                >
+                    <dt class="text-muted-foreground">{{ labels.price }}</dt>
+                    <dd class="text-foreground" data-test="ticket-free">
+                        {{ labels.free_price }}
+                    </dd>
+                </template>
             </dl>
 
             <PaymentBlock
                 v-if="registration.payment"
                 :payment="registration.payment"
                 :labels="labels"
+                :primary="!editing"
             />
 
             <div
@@ -272,7 +280,8 @@ function cancel() {
             >
                 {{ labels.free_spots.replace(':count', String(freeSpots)) }}
             </p>
-            <div class="space-y-2">
+            <fieldset class="space-y-2">
+                <legend class="sr-only">{{ labels.choose_ticket }}</legend>
                 <label
                     v-for="ticket in tickets"
                     :key="ticket.key"
@@ -286,7 +295,7 @@ function cancel() {
                         name="ticket"
                         class="mt-1 accent-primary"
                     />
-                    <span class="flex-1">
+                    <span class="min-w-0 flex-1">
                         <span class="block text-foreground">{{
                             ticket.name
                         }}</span>
@@ -296,13 +305,16 @@ function cancel() {
                             >{{ ticket.description }}</span
                         >
                     </span>
-                    <span class="font-mono text-sm text-foreground">{{
-                        ticket.priceCents === 0
-                            ? labels.free_price
-                            : formatEuro(ticket.priceCents)
-                    }}</span>
+                    <span
+                        class="shrink-0 font-mono text-sm whitespace-nowrap text-foreground"
+                        >{{
+                            ticket.priceCents === 0
+                                ? labels.free_price
+                                : formatEuro(ticket.priceCents)
+                        }}</span
+                    >
                 </label>
-            </div>
+            </fieldset>
             <div v-if="hasDays" class="space-y-3" data-test="arrival-section">
                 <h3 class="text-lg font-semibold tracking-tight">
                     {{ arrivalLabels.heading }}
