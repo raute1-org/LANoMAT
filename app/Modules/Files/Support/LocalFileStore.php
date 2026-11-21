@@ -58,6 +58,21 @@ final class LocalFileStore implements FileStore
         return Storage::disk($this->disk)->exists($path);
     }
 
+    public function readStream(string $path)
+    {
+        try {
+            $stream = Storage::disk($this->disk)->readStream($path);
+        } catch (Throwable) {
+            throw FileException::storeUnavailable();
+        }
+
+        if (! is_resource($stream)) {
+            throw FileException::unreadable();
+        }
+
+        return $stream;
+    }
+
     public function download(string $path, string $name): Response
     {
         // A row whose file is gone from the disk is a missing resource, not a server error.

@@ -63,6 +63,20 @@ validator enforces the parts that are visible in the YAML.
 - A required entry blocks until one match exists; an optional entry is a
   multi-select over all matches and may stay empty.
 
+**Platform-specific files (`requires[].os`)**
+
+- `os` narrows one file to `windows`, `linux` or `macos`. Omit it (or write
+  `any`) when the same file serves every platform, as a DVD image does.
+- When a project ships one archive per platform, they are two requirements
+  that differ only in `os` — for example the OldUnreal 3374 Windows zip and its
+  Linux tarball — each with its own label and globs. Never put both assets in
+  one entry's `match`: the plan could not tell them apart.
+- A plan for one OS leaves the other platform's entries out completely: they
+  are not offered as downloads and never reported as missing. The file entries
+  in the plan carry `os`, so a client can re-check.
+- Labels must differ even across `os` values, because the LAN pin is keyed by
+  `role|label`.
+
 **Commands and steps**
 
 - `os` filters whole steps: `windows` steps run only on Windows, `linux` only

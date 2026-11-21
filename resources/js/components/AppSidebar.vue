@@ -4,6 +4,7 @@ import {
     Gamepad2,
     CalendarClock,
     CalendarDays,
+    Download,
     FolderOpen,
     HandHelping,
     MonitorPlay,
@@ -15,6 +16,7 @@ import {
     Mic,
     MonitorDown,
     PartyPopper,
+    Radar,
     Swords,
     Trophy,
     UserCheck,
@@ -100,6 +102,11 @@ const generalItems = computed<NavItem[]>(() => [
     ...(has('game_recipes')
         ? [{ title: 'Spiele', href: '/games', icon: Gamepad2 }]
         : []),
+    // The launcher page is public (a fresh PC installs it before login); the entry
+    // stays gated because the route itself belongs to the GameRecipes module.
+    ...(has('game_recipes')
+        ? [{ title: 'Launcher', href: '/launcher', icon: Download }]
+        : []),
     { title: 'Teams', href: teamsIndex(), icon: Users, prefix: true },
     ...(has('stats')
         ? [{ title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy }]
@@ -108,7 +115,10 @@ const generalItems = computed<NavItem[]>(() => [
         ? [{ title: 'Freunde', href: friendsIndex(), icon: UserPlus }]
         : []),
     ...(has('game_servers')
-        ? [{ title: 'Dauerserver', href: serversPermanent(), icon: Server }]
+        ? [
+              { title: 'Serverbrowser', href: '/servers', icon: Radar },
+              { title: 'Dauerserver', href: serversPermanent(), icon: Server },
+          ]
         : []),
     ...(has('voice')
         ? [{ title: 'Voice einrichten', href: voiceSetup(), icon: Mic }]

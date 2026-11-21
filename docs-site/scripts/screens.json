@@ -1052,6 +1052,62 @@
       "pages/system/modules/roomaudio.md"
     ]
   },
+  "launcher-connect-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 11478,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-install-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 14707,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-install-error-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 19489,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-library-dark.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 12846,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-page-dark.png": {
+    "width": 1440,
+    "height": 1164,
+    "bytes": 49593,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-page-light.png": {
+    "width": 1440,
+    "height": 1164,
+    "bytes": 49939,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
+  "launcher-ready-light.png": {
+    "width": 960,
+    "height": 720,
+    "bytes": 16765,
+    "referencedBy": [
+      "pages/guides/launcher.mdx"
+    ]
+  },
   "leaderboard-dark.png": {
     "width": 1440,
     "height": 900,

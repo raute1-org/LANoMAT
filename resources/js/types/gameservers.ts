@@ -94,3 +94,17 @@ export interface GameServerDto {
         running: boolean;
     };
 }
+
+/**
+ * One row of the global server browser (`Servers/Global`, `ServerListProjection::forGlobalBrowser()`):
+ * the event lists of all publicly visible, non-archived events plus the permanent
+ * servers, each tagged with the event it belongs to (`null` for permanent servers).
+ */
+export interface GlobalServerRowDto extends GameServerDto {
+    /** The event whose page links back here; null for a permanent server. */
+    event: { name: string; slug: string } | null;
+    /** True for a permanent server (runs all year, independent of an event). */
+    permanent: boolean;
+    /** Permanent servers only: Pelican, Docker or external (`ServerSource`). */
+    source?: string;
+}

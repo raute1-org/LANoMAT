@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import HomeChat from '@/components/home/HomeChat.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
@@ -20,13 +21,14 @@ import { index as pollsIndex, show as pollShow } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import { show as recapShow } from '@/routes/recap';
 import { index as serversIndex } from '@/routes/servers';
-import type { EventSummary, NewsPostDto } from '@/types';
+import type { EventSummary, HomeChatData, NewsPostDto } from '@/types';
 
 const props = defineProps<{
     event: EventSummary;
     labels: Record<string, string>;
     statusLabels: Record<string, string>;
     news: NewsPostDto[];
+    chat: HomeChatData;
     registration: {
         ticketType: string;
         ticketLabel: string;
@@ -210,6 +212,37 @@ function pad(value: number): string {
         >
             {{ event.name }}
         </h1>
+
+        <!-- Arcade start hero: the first thing a visitor can talk to. -->
+        <div class="mt-8">
+            <HomeChat :chat="chat" />
+        </div>
+
+        <!-- Launcher above the fold: the one app that installs and starts the LAN games. -->
+        <section
+            v-if="has('game_recipes')"
+            class="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-border bg-card p-5"
+            data-test="event-launcher"
+        >
+            <div class="min-w-0">
+                <h2
+                    class="text-lg font-semibold tracking-tight text-foreground"
+                >
+                    LANoMAT Launcher
+                </h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Unreal Tournament 2004 installieren, starten und mit dem
+                    Server verbinden — für Windows und Linux.
+                </p>
+            </div>
+            <Button
+                :variant="canRegister ? 'outline' : 'default'"
+                as-child
+                size="lg"
+            >
+                <Link href="/launcher">Launcher herunterladen</Link>
+            </Button>
+        </section>
 
         <dl class="mt-8 grid gap-6 sm:grid-cols-2">
             <div>

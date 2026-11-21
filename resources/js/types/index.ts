@@ -6,6 +6,7 @@ export * from './files';
 export * from './friends';
 export * from './gallery';
 export * from './gameservers';
+export * from './home';
 export * from './infoscreen';
 export * from './jukebox';
 export * from './lfg';

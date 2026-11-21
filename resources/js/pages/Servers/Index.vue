@@ -114,219 +114,243 @@ async function copyHint(serverId: number, text: string) {
             </div>
 
             <!-- normal -->
-            <div v-else class="mt-8 space-y-4">
-                <Card v-for="server in servers" :key="server.id">
-                    <CardHeader>
-                        <div class="flex items-center justify-between gap-4">
-                            <CardTitle>{{
-                                server.title ?? server.game ?? labels.title
-                            }}</CardTitle>
-                            <LiveIndicator
-                                :variant="liveVariant[server.status]"
-                                :pulse="server.status === 'provisioning'"
-                                :label="statusLabel(server.status)"
-                            />
-                        </div>
-                        <CardDescription
-                            v-if="
-                                server.matchLabel ||
-                                (server.title && server.game)
-                            "
-                        >
-                            {{ server.matchLabel ?? server.game }}
-                        </CardDescription>
-                    </CardHeader>
+            <section
+                v-else
+                class="mt-8"
+                aria-labelledby="event-servers-heading"
+            >
+                <!-- The page title is the only h1; this keeps the card titles
+                     (h3) from skipping a level. -->
+                <h2 id="event-servers-heading" class="sr-only">
+                    {{ labels.title }}
+                </h2>
 
-                    <CardContent class="space-y-3">
-                        <dl
-                            class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4"
-                        >
-                            <div v-if="server.address">
-                                <dt class="text-muted-foreground">
-                                    {{ labels.address_label }}
-                                </dt>
-                                <dd class="font-mono tabular-nums">
-                                    {{ server.address }}
-                                </dd>
-                            </div>
-                            <div v-if="server.port">
-                                <dt class="text-muted-foreground">
-                                    {{ labels.port_label }}
-                                </dt>
-                                <dd class="font-mono tabular-nums">
-                                    {{ server.port }}
-                                </dd>
-                            </div>
-                            <div v-if="server.query">
-                                <dt class="text-muted-foreground">
-                                    {{ labels.players_label }}
-                                </dt>
-                                <dd class="font-mono tabular-nums">
-                                    {{ server.query.players }}/{{
-                                        server.query.maxPlayers
-                                    }}
-                                </dd>
-                            </div>
-                            <div v-if="server.query?.map">
-                                <dt class="text-muted-foreground">
-                                    {{ labels.map_label }}
-                                </dt>
-                                <dd class="font-mono">
-                                    {{ server.query.map }}
-                                </dd>
-                            </div>
+                <div class="space-y-4">
+                    <Card v-for="server in servers" :key="server.id">
+                        <CardHeader>
                             <div
+                                class="flex items-center justify-between gap-4"
+                            >
+                                <CardTitle>{{
+                                    server.title ?? server.game ?? labels.title
+                                }}</CardTitle>
+                                <LiveIndicator
+                                    :variant="liveVariant[server.status]"
+                                    :pulse="server.status === 'provisioning'"
+                                    :label="statusLabel(server.status)"
+                                />
+                            </div>
+                            <CardDescription
                                 v-if="
-                                    server.slotsMax !== undefined &&
-                                    server.slotsUsed !== undefined
+                                    server.matchLabel ||
+                                    (server.title && server.game)
                                 "
                             >
-                                <dt class="text-muted-foreground">
-                                    {{ labels.slots_label }}
-                                </dt>
-                                <dd class="font-mono tabular-nums">
-                                    {{ server.slotsUsed }}/{{ server.slotsMax }}
-                                </dd>
-                            </div>
-                            <div v-if="server.estimate">
-                                <dt class="text-muted-foreground">
-                                    {{ labels.estimate_label }}
-                                </dt>
-                                <dd
-                                    class="font-mono tabular-nums"
-                                    :class="
-                                        server.estimate.overCap
-                                            ? 'text-warn'
-                                            : ''
+                                {{ server.matchLabel ?? server.game }}
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent class="space-y-3">
+                            <dl
+                                class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4"
+                            >
+                                <div v-if="server.address">
+                                    <dt class="text-muted-foreground">
+                                        {{ labels.address_label }}
+                                    </dt>
+                                    <dd class="font-mono tabular-nums">
+                                        {{ server.address }}
+                                    </dd>
+                                </div>
+                                <div v-if="server.port">
+                                    <dt class="text-muted-foreground">
+                                        {{ labels.port_label }}
+                                    </dt>
+                                    <dd class="font-mono tabular-nums">
+                                        {{ server.port }}
+                                    </dd>
+                                </div>
+                                <div v-if="server.query">
+                                    <dt class="text-muted-foreground">
+                                        {{ labels.players_label }}
+                                    </dt>
+                                    <dd class="font-mono tabular-nums">
+                                        {{ server.query.players }}/{{
+                                            server.query.maxPlayers
+                                        }}
+                                    </dd>
+                                </div>
+                                <div v-if="server.query?.map">
+                                    <dt class="text-muted-foreground">
+                                        {{ labels.map_label }}
+                                    </dt>
+                                    <dd class="font-mono">
+                                        {{ server.query.map }}
+                                    </dd>
+                                </div>
+                                <div
+                                    v-if="
+                                        server.slotsMax !== undefined &&
+                                        server.slotsUsed !== undefined
                                     "
                                 >
-                                    ~{{ server.estimate.ramMb }} MB
-                                    <span v-if="server.estimate.overCap">
-                                        · {{ labels.estimate_over_cap }}</span
+                                    <dt class="text-muted-foreground">
+                                        {{ labels.slots_label }}
+                                    </dt>
+                                    <dd class="font-mono tabular-nums">
+                                        {{ server.slotsUsed }}/{{
+                                            server.slotsMax
+                                        }}
+                                    </dd>
+                                </div>
+                                <div v-if="server.estimate">
+                                    <dt class="text-muted-foreground">
+                                        {{ labels.estimate_label }}
+                                    </dt>
+                                    <dd
+                                        class="font-mono tabular-nums"
+                                        :class="
+                                            server.estimate.overCap
+                                                ? 'text-warn'
+                                                : ''
+                                        "
                                     >
-                                </dd>
-                            </div>
-                        </dl>
+                                        ~{{ server.estimate.ramMb }} MB
+                                        <span v-if="server.estimate.overCap">
+                                            ·
+                                            {{ labels.estimate_over_cap }}</span
+                                        >
+                                    </dd>
+                                </div>
+                            </dl>
 
-                        <PlayerListDisclosure
-                            :query="server.query ?? null"
-                            :labels="labels"
-                        />
+                            <PlayerListDisclosure
+                                :query="server.query ?? null"
+                                :labels="labels"
+                            />
 
-                        <p
-                            v-if="server.status === 'not_responding'"
-                            class="rounded-md border border-warn/40 bg-warn/10 p-3 text-sm text-foreground"
-                        >
-                            {{ labels.not_responding_hint }}
-                        </p>
-                        <p
-                            v-else-if="server.status === 'provisioning'"
-                            class="text-sm text-muted-foreground"
-                        >
-                            {{ labels.starting_hint }}
-                        </p>
-
-                        <JoinOptions
-                            v-if="server.joinOptions?.length && server.address"
-                            :options="server.joinOptions"
-                            :address="
-                                server.port
-                                    ? `${server.address}:${server.port}`
-                                    : server.address
-                            "
-                            :labels="labels"
-                            handler-help
-                        />
-                        <div
-                            v-else-if="server.connectString"
-                            class="flex flex-wrap items-center gap-2"
-                        >
-                            <Button
-                                v-if="server.connectIsLink"
-                                as-child
-                                size="sm"
+                            <p
+                                v-if="server.status === 'not_responding'"
+                                class="rounded-md border border-warn/40 bg-warn/10 p-3 text-sm text-foreground"
                             >
-                                <a :href="server.connectString">{{
-                                    labels.connect
-                                }}</a>
-                            </Button>
-                            <code
-                                v-else
-                                class="rounded-md bg-muted px-2 py-1 font-mono text-sm"
-                                >{{ server.connectString }}</code
+                                {{ labels.not_responding_hint }}
+                            </p>
+                            <p
+                                v-else-if="server.status === 'provisioning'"
+                                class="text-sm text-muted-foreground"
                             >
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                @click="copy(server.connectString)"
-                            >
-                                {{ labels.copy }}
-                            </Button>
-                        </div>
-
-                        <!-- install hint ("So kommst du ran"): rendered only
-                             when the game has one configured — nothing shown
-                             otherwise, a calm, unobtrusive readout rather than
-                             an empty placeholder. -->
-                        <div
-                            v-if="server.installHint"
-                            class="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm"
-                        >
-                            <p class="font-medium text-foreground">
-                                {{ labels.install_hint_label }}
+                                {{ labels.starting_hint }}
                             </p>
 
+                            <JoinOptions
+                                v-if="
+                                    server.joinOptions?.length && server.address
+                                "
+                                :options="server.joinOptions"
+                                :address="
+                                    server.port
+                                        ? `${server.address}:${server.port}`
+                                        : server.address
+                                "
+                                :labels="labels"
+                                handler-help
+                            />
                             <div
-                                v-if="server.installHint.steamUrl"
+                                v-else-if="server.connectString"
                                 class="flex flex-wrap items-center gap-2"
                             >
-                                <Button as-child size="sm" variant="outline">
-                                    <a :href="server.installHint.steamUrl">{{
-                                        labels.install_hint_steam
+                                <Button
+                                    v-if="server.connectIsLink"
+                                    as-child
+                                    size="sm"
+                                >
+                                    <a :href="server.connectString">{{
+                                        labels.connect
                                     }}</a>
                                 </Button>
                                 <code
-                                    class="truncate font-mono text-xs text-muted-foreground"
-                                    >{{ server.installHint.steamUrl }}</code
+                                    v-else
+                                    class="rounded-md bg-muted px-2 py-1 font-mono text-sm"
+                                    >{{ server.connectString }}</code
                                 >
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant="ghost"
-                                    @click="
-                                        copyHint(
-                                            server.id,
-                                            server.installHint.steamUrl,
-                                        )
-                                    "
+                                    variant="outline"
+                                    @click="copy(server.connectString)"
                                 >
-                                    {{
-                                        copiedHintFor === server.id
-                                            ? labels.install_hint_copied
-                                            : labels.install_hint_copy
-                                    }}
+                                    {{ labels.copy }}
                                 </Button>
                             </div>
 
-                            <div v-if="server.installHint.shareUrl">
-                                <a
-                                    :href="server.installHint.shareUrl"
-                                    class="text-xs text-primary underline-offset-4 hover:underline"
-                                    >{{ labels.install_hint_download }}</a
-                                >
-                            </div>
-
-                            <p
-                                v-if="server.installHint.versionNote"
-                                class="text-muted-foreground"
+                            <!-- install hint ("So kommst du ran"): rendered only
+                             when the game has one configured — nothing shown
+                             otherwise, a calm, unobtrusive readout rather than
+                             an empty placeholder. -->
+                            <div
+                                v-if="server.installHint"
+                                class="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm"
                             >
-                                {{ server.installHint.versionNote }}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                                <p class="font-medium text-foreground">
+                                    {{ labels.install_hint_label }}
+                                </p>
+
+                                <div
+                                    v-if="server.installHint.steamUrl"
+                                    class="flex flex-wrap items-center gap-2"
+                                >
+                                    <Button
+                                        as-child
+                                        size="sm"
+                                        variant="outline"
+                                    >
+                                        <a
+                                            :href="server.installHint.steamUrl"
+                                            >{{ labels.install_hint_steam }}</a
+                                        >
+                                    </Button>
+                                    <code
+                                        class="truncate font-mono text-xs text-muted-foreground"
+                                        >{{ server.installHint.steamUrl }}</code
+                                    >
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        @click="
+                                            copyHint(
+                                                server.id,
+                                                server.installHint.steamUrl,
+                                            )
+                                        "
+                                    >
+                                        {{
+                                            copiedHintFor === server.id
+                                                ? labels.install_hint_copied
+                                                : labels.install_hint_copy
+                                        }}
+                                    </Button>
+                                </div>
+
+                                <div v-if="server.installHint.shareUrl">
+                                    <a
+                                        :href="server.installHint.shareUrl"
+                                        class="text-xs text-primary underline-offset-4 hover:underline"
+                                        >{{ labels.install_hint_download }}</a
+                                    >
+                                </div>
+
+                                <p
+                                    v-if="server.installHint.versionNote"
+                                    class="text-muted-foreground"
+                                >
+                                    {{ server.installHint.versionNote }}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </section>
         </template>
     </PageContainer>
 </template>

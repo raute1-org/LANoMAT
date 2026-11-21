@@ -24,7 +24,7 @@ it('lets every logged-in user see the permanent servers, whatever their source',
         'join_info' => new JoinInfo(address: '203.0.113.20', port: 25565, connectString: '203.0.113.20:25565'),
     ]);
 
-    $this->actingAs(User::factory()->create())->get('/servers')
+    $this->actingAs(User::factory()->create())->get('/servers/permanent')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Servers/Permanent')
@@ -48,7 +48,7 @@ it('shows offline and silent servers but hides failed and still-pending ones', f
     ServerLink::factory()->permanent()->create(['title' => 'D failed', 'status' => ServerLinkStatus::Failed]);
     ServerLink::factory()->permanent()->create(['title' => 'E install', 'status' => ServerLinkStatus::InstallFailed]);
 
-    $this->actingAs(User::factory()->create())->get('/servers')
+    $this->actingAs(User::factory()->create())->get('/servers/permanent')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 3)
@@ -62,7 +62,7 @@ it('shows offline and silent servers but hides failed and still-pending ones', f
 });
 
 it('renders an empty list', function () {
-    $this->actingAs(User::factory()->create())->get('/servers')
+    $this->actingAs(User::factory()->create())->get('/servers/permanent')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->has('servers', 0)->where('labels.empty', 'Es sind noch keine Dauerserver eingerichtet.'));
 });
@@ -70,7 +70,7 @@ it('renders an empty list', function () {
 it('does not expose secrets or internals of a server', function () {
     ServerLink::factory()->permanent()->create(['pelican_server_id' => '12', 'pelican_node_id' => '2', 'telemetry_token' => 'tok-secret']);
 
-    $this->actingAs(User::factory()->create())->get('/servers')
+    $this->actingAs(User::factory()->create())->get('/servers/permanent')
         ->assertOk()
         ->assertDontSee('tok-secret')
         ->assertDontSee('pelican_node_id')
@@ -80,7 +80,7 @@ it('does not expose secrets or internals of a server', function () {
 it('redirects guests to login, there is no public page', function () {
     ServerLink::factory()->permanent()->create();
 
-    $this->get('/servers')->assertRedirect(route('login'));
+    $this->get('/servers/permanent')->assertRedirect(route('login'));
 });
 
 it('has the policy matrix: everyone sees, only admins manage', function (?Role $role, bool $view, bool $manage) {
@@ -131,7 +131,7 @@ it('shows the UT2004 players as 2/16 and the who-is-on list to logged-in users o
         'join_info' => new JoinInfo(address: '203.0.113.20', port: 7777),
     ]);
 
-    $this->actingAs(User::factory()->create())->get('/servers')
+    $this->actingAs(User::factory()->create())->get('/servers/permanent')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('servers.0.query.players', 2)
             ->where('servers.0.query.maxPlayers', 16)
@@ -140,7 +140,7 @@ it('shows the UT2004 players as 2/16 and the who-is-on list to logged-in users o
         );
 
     auth()->logout();
-    $this->get('/servers')->assertRedirect(route('login'));
+    $this->get('/servers/permanent')->assertRedirect(route('login'));
 });
 
 it('keeps the player list out of every projection that is not an authenticated page', function () {

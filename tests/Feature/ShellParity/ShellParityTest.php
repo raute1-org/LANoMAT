@@ -130,6 +130,48 @@ it('offers the desktop app in both shells under the same label and URL', functio
         ->and(route('client.download.short', absolute: false))->toBe('/app');
 });
 
+it('offers the launcher download in both shells under the same label and URL', function () {
+    // Participant sidebar (Vue) ...
+    $sidebar = ShellParity::read('resources/js/components/AppSidebar.vue');
+    expect($sidebar)->toContain("title: 'Launcher'")->toContain("href: '/launcher'");
+
+    // ... and the Filament navigation item, visible while GameRecipes has routes.
+    Filament::setCurrentPanel('admin');
+    $this->actingAs(User::factory()->make());
+    $items = collect(Filament::getPanel('admin')->getNavigationItems())
+        ->filter(fn ($item) => $item->getLabel() === 'Launcher');
+
+    expect($items)->toHaveCount(1)
+        ->and($items->first()->getUrl())->toBe('/launcher')
+        ->and($items->first()->isVisible())->toBeTrue()
+        ->and(route('launcher.index', absolute: false))->toBe('/launcher');
+});
+
+it('hides the Filament launcher item while the GameRecipes module is off', function () {
+    $this->app->instance(Modules::class, new Modules('core'));
+
+    Filament::setCurrentPanel('admin');
+    $this->actingAs(User::factory()->make());
+    $item = collect(Filament::getPanel('admin')->getNavigationItems())
+        ->first(fn ($item) => $item->getLabel() === 'Launcher');
+
+    // Navigation items are registered at boot; visibility is resolved at render time.
+    expect($item)->not->toBeNull()->and($item->isVisible())->toBeFalse();
+});
+
+it('labels the mcp entry the same in both shells, device-neutral', function () {
+    $menu = ShellParity::read('resources/js/components/UserMenuContent.vue');
+    expect($menu)->toContain('Geräte &amp; MCP')
+        ->not->toContain('Agent &amp; MCP');
+
+    Filament::setCurrentPanel('admin');
+    $this->actingAs(User::factory()->make());
+    $action = Filament::getPanel('admin')->getUserMenuItems()['agent'];
+
+    expect($action->getLabel())->toBe('Geräte & MCP')
+        ->and($action->getUrl())->toBe('/mcp/connect');
+});
+
 it('hides the Filament desktop-app item while the WebVoice module is off', function () {
     $this->app->instance(Modules::class, new Modules('full', ['web_voice' => false]));
 

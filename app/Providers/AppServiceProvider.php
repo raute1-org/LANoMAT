@@ -32,7 +32,9 @@ use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Policies\EventPhotoPolicy;
 use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Modules\GameRecipes\Models\LauncherTerminal;
 use App\Modules\GameRecipes\Policies\GameRecipePolicy;
+use App\Modules\GameRecipes\Policies\LauncherTerminalPolicy;
 use App\Modules\Games\Contracts\EggCatalog;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
@@ -98,6 +100,7 @@ use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
 use App\Modules\Preflight\Checks\FileHostCheck;
+use App\Modules\Preflight\Checks\LauncherBuildCheck;
 use App\Modules\Preflight\Checks\LiveKitCheck;
 use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
@@ -361,6 +364,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::Voice) ? [MumbleSidecarCheck::class, TeamSpeakSidecarCheck::class] : []),
             ...($modules->enabled(Module::Files) ? [FileHostCheck::class] : []),
             ...($modules->enabled(Module::WebVoice) ? [LiveKitCheck::class, ClientBuildCheck::class] : []),
+            ...($modules->enabled(Module::GameRecipes) ? [LauncherBuildCheck::class] : []),
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
             ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
@@ -513,6 +517,9 @@ class AppServiceProvider extends ServiceProvider
         ]);
         RateLimiter::for('mcp-approve', fn (Request $request) => Limit::perMinute(10)->by('mcp-approve|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('mcp-api', fn (Request $request) => Limit::perMinute(240)->by('mcp-api|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
+        // The launcher fleet heartbeat: one call per terminal every 30 s in the
+        // contract, so 30/min per token leaves room for a reconnect burst.
+        RateLimiter::for('terminal-heartbeat', fn (Request $request) => Limit::perMinute(30)->by('terminal-heartbeat|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
 
         // Avatars: a page loads dozens at once, and every one is immutable and cacheable afterwards.
         RateLimiter::for('avatars', fn (Request $request) => Limit::perMinute(600)->by('avatars|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
@@ -549,6 +556,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::GameRecipes)) {
             Gate::policy(GameRecipe::class, GameRecipePolicy::class);
+            Gate::policy(LauncherTerminal::class, LauncherTerminalPolicy::class);
         }
 
         if ($this->on(Module::Lfg)) {

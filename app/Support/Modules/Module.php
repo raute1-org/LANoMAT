@@ -72,7 +72,11 @@ enum Module: string
             self::Provisioning => [self::Hosts, self::Lancache],
             // Recipes match uploaded ISOs/avatars through the Files module. Off Files,
             // a recipe still lists and plans, but its LAN files can never be found.
-            self::GameRecipes => [self::Files],
+            // The launcher pairing is the MCP device flow (api/mcp/device|token), and
+            // install plans hand out mcp.files.download URLs: off Mcp, /launcher would
+            // render but no launcher could ever connect. Mcp tolerates GameRecipes
+            // being off (its recipe tools are gated), so this is not a cycle.
+            self::GameRecipes => [self::Files, self::Mcp],
             self::Recap => [self::Gallery, self::Jukebox, self::Voting, self::Presence],
             self::News => [self::Gallery],
             self::Gallery => [self::Files],

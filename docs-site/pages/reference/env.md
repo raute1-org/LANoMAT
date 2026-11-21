@@ -168,7 +168,7 @@ result. A module whose `requires()` is off fails boot.
 | `MCP_DEFAULT_MODEL` | `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` | Advertised by `lanomat_me` for the agent |
 
 The code lifetime and poll interval govern the pairing page below; the token TTL governs the entries
-under "Verbundene Agenten" until they are disconnected.
+under "Verbundene Geräte" until they are disconnected.
 
 | Dark | Light |
 |---|---|
@@ -179,7 +179,7 @@ under "Verbundene Agenten" until they are disconnected.
 
 | Variable | Default | Note |
 |---|---|---|
-| `MODULE_GAME_RECIPES` | profile | Enable the module (`GameRecipes` requires `Files`) |
+| `MODULE_GAME_RECIPES` | profile | Enable the module (`GameRecipes` requires `Files` and `Mcp`) |
 | `RECIPES_SOURCE` | `resources/recipes` | Directory, `smb://host/share[/path]` or `git+https://…`; used by the daily sync |
 | `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
 | `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |

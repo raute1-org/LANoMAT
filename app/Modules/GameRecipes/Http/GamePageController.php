@@ -11,16 +11,21 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
+use App\Modules\GameRecipes\Support\LauncherBuilds;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\ServerListProjection;
 use App\Modules\Lfg\Actions\CreateLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
+use App\Modules\Mcp\Http\Api\RecipeController;
+use App\Modules\Tournaments\Enums\MatchStatus;
 use App\Modules\Tournaments\Enums\TournamentStatus;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
 use App\Support\SafeText;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -43,12 +48,15 @@ class GamePageController extends Controller
 {
     use ResolvesAuthenticatedUser;
 
-    public function index(Request $request, Modules $modules, RecipeFileMatcher $matcher): Response
+    public function index(Request $request, Modules $modules, RecipeFileMatcher $matcher, LauncherBuilds $launcher): Response
     {
         $this->authUser($request);
         $event = $this->activeEvent();
         $recipes = $this->publishedRecipes();
         $matches = $this->matchedFiles($recipes, $matcher);
+        // One manifest read per request; false when nothing is published, so the
+        // card never offers a download the /launcher page cannot deliver.
+        $launcherAvailable = $launcher->builds() !== [];
         /** @var Collection<int, ServerLink> $servers */
         $servers = $modules->enabled(Module::GameServers) ? $this->serverLinks() : new Collection;
         /** @var Collection<int, Tournament> $tournaments */
@@ -57,11 +65,54 @@ class GamePageController extends Controller
         $lfg = $event === null || ! $modules->enabled(Module::Lfg) ? new Collection : $this->lfgForEvent($event);
 
         $onlyLan = $request->boolean('only_lan');
+        // Real server activity, computed from the servers already loaded above
+        // (no extra query): the default order is "what ran last", so the
+        // library opens on the games people were just playing instead of the
+        // alphabet. `lastActivityByRecipe()` also feeds the compact
+        // "Zuletzt gespielt" cards at the top of the page.
+        $activity = $this->lastActivityByRecipe($recipes, $servers);
 
+        // The sort runs on the wrapper so the timestamp never reaches the page;
+        // the bundled `game` array stays exactly the card shape.
         $games = $recipes
-            ->map(function (GameRecipe $recipe) use ($matches, $servers, $tournaments, $lfg): array {
-                return $this->card($recipe, $matches[$recipe->id] ?? [], $this->serversForRecipe($recipe, $servers), $tournaments, $lfg);
+            ->map(function (GameRecipe $recipe) use ($matches, $servers, $tournaments, $lfg, $launcherAvailable, $activity): array {
+                $played = $activity[$recipe->id] ?? null;
+
+                return [
+                    'played_ts' => $played['ts'] ?? null,
+                    'game' => $this->card(
+                        $recipe,
+                        $matches[$recipe->id] ?? [],
+                        $this->serversForRecipe($recipe, $servers),
+                        $tournaments,
+                        $lfg,
+                        $launcherAvailable,
+                    ) + [
+                        'last_played_at' => $played['at'] ?? null,
+                        'last_played_server' => $played['server'] ?? null,
+                    ],
+                ];
             })
+            ->sort(static function (array $a, array $b): int {
+                $aTs = $a['played_ts'];
+                $bTs = $b['played_ts'];
+
+                if ($aTs !== $bTs) {
+                    // Never-played games sort after every played one.
+                    if ($aTs === null) {
+                        return 1;
+                    }
+
+                    if ($bTs === null) {
+                        return -1;
+                    }
+
+                    return $bTs <=> $aTs;
+                }
+
+                return strcasecmp((string) $a['game']['title'], (string) $b['game']['title']);
+            })
+            ->map(static fn (array $row): array => $row['game'])
             ->values();
 
         if ($onlyLan) {
@@ -85,11 +136,12 @@ class GamePageController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $slug, Modules $modules, RecipeFileMatcher $matcher): Response
+    public function show(Request $request, string $slug, Modules $modules, RecipeFileMatcher $matcher, LauncherBuilds $launcher): Response
     {
         $this->authUser($request);
         $event = $this->activeEvent();
         $recipes = $this->publishedRecipes();
+        $launcherAvailable = $launcher->builds() !== [];
         $needle = mb_strtolower($slug);
         $recipe = $recipes->first(fn (GameRecipe $candidate): bool => $candidate->slug === $needle
             || in_array($needle, $candidate->searchTerms(), true));
@@ -107,7 +159,7 @@ class GamePageController extends Controller
         $lfg = $event === null || ! $modules->enabled(Module::Lfg) ? new Collection : $this->lfgForEvent($event);
 
         return Inertia::render('Games/Show', [
-            'game' => $this->card($recipe, $matches, $recipeServers, $tournaments, $lfg) + [
+            'game' => $this->card($recipe, $matches, $recipeServers, $tournaments, $lfg, $launcherAvailable) + [
                 'description' => $recipe->description,
                 'license' => $recipe->license,
                 'requirements' => collect($this->requirementRows($recipe))->map(function (array $pair, int $index) use ($matches): array {
@@ -272,12 +324,23 @@ class GamePageController extends Controller
     /** @return Collection<int, ServerLink> */
     private function serverLinks(): Collection
     {
+        $notDraft = fn ($query) => $query->where('status', '!=', EventStatus::Draft->value);
+
         return ServerLink::query()
             ->with(['game', 'match.tournament.game', 'tournament.game', 'event'])
-            ->where(fn ($query) => $query->where('permanent', true)->orWhereHas(
-                'event',
-                fn ($event) => $event->where('status', '!=', 'draft'),
-            ))
+            // Permanent servers, plus everything prepared for a published
+            // event: an event-level preset server, a tournament server, a
+            // match server. A tournament/match server has no `event_id` of its
+            // own, and it is exactly what "recently played" is made of — the
+            // games page used to skip it. A draft event's servers say nothing
+            // about the LAN and stay out.
+            ->where(fn ($query) => $query->where('permanent', true)
+                ->orWhereHas('event', $notDraft)
+                ->orWhereHas('tournament', fn ($tournament) => $tournament->whereHas('event', $notDraft))
+                ->orWhereHas('match', fn ($match) => $match->whereHas(
+                    'tournament',
+                    fn ($tournament) => $tournament->whereHas('event', $notDraft),
+                )))
             ->orderBy('id')
             ->get();
     }
@@ -310,19 +373,14 @@ class GamePageController extends Controller
     }
 
     /**
+     * The servers of one recipe, already projected to the wire shape.
+     *
      * @param  Collection<int, ServerLink>  $links
      * @return list<array<string, mixed>>
      */
     private function serversForRecipe(GameRecipe $recipe, Collection $links): array
     {
-        $terms = $recipe->searchTerms();
-
-        return array_values($links
-            ->filter(function (ServerLink $link) use ($terms): bool {
-                $game = $link->match?->tournament->game ?? $link->game;
-
-                return $game !== null && $this->matchesTerms($terms, $game->name, $game->slug);
-            })
+        return array_values($this->matchedLinks($recipe, $links)
             ->map(static function (ServerLink $link): array {
                 $dto = ServerListProjection::dto($link);
 
@@ -342,6 +400,141 @@ class GamePageController extends Controller
             })
             ->values()
             ->all());
+    }
+
+    /**
+     * The servers that belong to a recipe (same "same game" test the server
+     * list and the LFG matcher use).
+     *
+     * @param  Collection<int, ServerLink>  $links
+     * @return Collection<int, ServerLink>
+     */
+    private function matchedLinks(GameRecipe $recipe, Collection $links): Collection
+    {
+        $terms = $recipe->searchTerms();
+
+        return $links
+            ->filter(function (ServerLink $link) use ($terms): bool {
+                $game = $link->match?->tournament->game ?? $link->game;
+
+                return $game !== null && $this->matchesTerms($terms, $game->name, $game->slug);
+            })
+            ->values();
+    }
+
+    /**
+     * The last real server activity per recipe — the source of both the
+     * library's "recently played" order and its compact cards.
+     *
+     * Runs over the {@see serverLinks()} collection that is loaded anyway
+     * (which already drops servers of draft events), so it adds no query per
+     * recipe. A link counts as activity when the server is up (Ready, still
+     * starting, or a match in warmup/live) or answered its query within the
+     * last day: a server that has been stopped and silent for weeks is not
+     * "played", one that answered five minutes ago is.
+     *
+     * @param  Collection<int, GameRecipe>  $recipes
+     * @param  Collection<int, ServerLink>  $links
+     * @return array<int, array{ts: int, at: string, server: array<string, mixed>|null}> keyed by recipe id
+     */
+    private function lastActivityByRecipe(Collection $recipes, Collection $links): array
+    {
+        $candidates = $links
+            ->filter(fn (ServerLink $link): bool => $this->activityAt($link) !== null)
+            ->values();
+
+        if ($candidates->isEmpty()) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($recipes as $recipe) {
+            $playedAt = null;
+            $live = null;
+
+            foreach ($this->matchedLinks($recipe, $candidates) as $link) {
+                $at = $this->activityAt($link);
+
+                if ($at === null) {
+                    continue;
+                }
+
+                if ($playedAt === null || $at->gt($playedAt)) {
+                    $playedAt = $at;
+                }
+
+                // The newest timestamp may belong to a server that just went
+                // silent, so the live readout looks at the whole group.
+                $live ??= $this->liveServer($link);
+            }
+
+            if ($playedAt === null) {
+                continue;
+            }
+
+            $result[$recipe->id] = [
+                'ts' => $playedAt->getTimestamp(),
+                'at' => $playedAt->toIso8601String(),
+                'server' => $live,
+            ];
+        }
+
+        return $result;
+    }
+
+    /** When a server last looked alive for its game, or null when it never did. */
+    private function activityAt(ServerLink $link): ?CarbonInterface
+    {
+        // A server prepared for an unpublished event says nothing about the LAN.
+        if ($link->event !== null && $link->event->status === EventStatus::Draft) {
+            return null;
+        }
+
+        $up = in_array($link->status, [
+            ServerLinkStatus::Ready,
+            ServerLinkStatus::Provisioning,
+        ], true);
+
+        // A warmup/live match server counts too, even when the link's own
+        // status still reads NotResponding while the query catches up.
+        $match = $link->match;
+        $up = $up || ($match !== null && in_array($match->status, [MatchStatus::Warmup, MatchStatus::Live], true));
+
+        if (! $up && ! ($link->queried_at !== null && $link->queried_at->gte(now()->subDay()))) {
+            return null;
+        }
+
+        return $link->queried_at ?? $link->updated_at;
+    }
+
+    /**
+     * The compact live readout for the "Zuletzt gespielt" card: only a Ready
+     * server that answered its query has a map and a player count.
+     *
+     * @return array{title: string, map: string, players: int, max_players: int, checked_at: string|null}|null
+     */
+    private function liveServer(ServerLink $link): ?array
+    {
+        if ($link->status !== ServerLinkStatus::Ready) {
+            return null;
+        }
+
+        $query = ServerListProjection::dto($link)['query'];
+
+        if (! is_array($query)) {
+            return null;
+        }
+
+        $name = (string) ($query['serverName'] ?? '');
+
+        return [
+            'title' => $link->title ?? $name,
+            'map' => (string) ($query['map'] ?? ''),
+            'players' => (int) ($query['players'] ?? 0),
+            'max_players' => (int) ($query['maxPlayers'] ?? 0),
+            'checked_at' => is_string($query['checkedAt'] ?? null) ? $query['checkedAt'] : null,
+        ];
     }
 
     /**
@@ -549,6 +742,7 @@ class GamePageController extends Controller
         array $servers,
         Collection $tournaments,
         Collection $lfg,
+        bool $launcherAvailable,
     ): array {
         $running = $this->tournamentsForRecipe($recipe, $tournaments);
 
@@ -567,6 +761,16 @@ class GamePageController extends Controller
             'launch_command' => $recipe->launchCommand(),
             'install_deeplink' => $recipe->installDeepLink(),
             'launch_deeplink' => $recipe->launchDeepLink(),
+            // The deep link only opens when the agent/launcher is already installed;
+            // this is the fallback the card offers when it is not. `null` means no
+            // build is published, so the page must not link to an empty download page.
+            'launcher_available' => $launcherAvailable,
+            'launcher_url' => $launcherAvailable ? route('launcher.index', absolute: false) : null,
+            // The shipped launcher build only installs the pilot engine (see
+            // {@see RecipeController::LAUNCHER_PILOT_SLUG}), so the download is
+            // the card's first-user path only for that recipe; the rest keep
+            // their agent deep link instead of a catalogue-only detour.
+            'launcher_supported' => $recipe->slug === RecipeController::LAUNCHER_PILOT_SLUG,
             // {{host}} is the LAN address that serves the web game; substitute the
             // request host so a recipe never hardcodes localhost.
             'play_url' => $this->absoluteHttpUrl($recipe->playUrlFor(request()->getHost())),

@@ -5,6 +5,7 @@ namespace App\Modules\Events\Http;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
 use App\Modules\Events\Support\CurrentEvent;
+use App\Modules\Events\Support\HomeChatData;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Support\NewsQuery;
 use App\Modules\Registration\Enums\RegistrationAvailability;
@@ -28,6 +29,9 @@ class EventPageController
         if ($request->user() === null) {
             return Inertia::render('Welcome', [
                 'labels' => trans('welcome'),
+                // The guest hero greets and explains, but carries no event or
+                // member data — only the public recipe catalogue.
+                'chat' => app(HomeChatData::class)->forEvent(null, guest: true),
             ]);
         }
 
@@ -72,6 +76,7 @@ class EventPageController
         return Inertia::render('Event/Index', [
             'current' => $current,
             'events' => $events,
+            'chat' => app(HomeChatData::class)->forEvent(null),
             'labels' => trans('events.page'),
         ]);
     }
@@ -86,6 +91,8 @@ class EventPageController
             'statusLabels' => trans('events.status'),
             // The viewer's own active registration (no QR payload), or null.
             'registration' => $user === null ? null : MyRegistration::summary($event, $user),
+            // Start-page chat hero: two deterministic answers, bounded in size.
+            'chat' => app(HomeChatData::class)->forEvent($event),
             // Kept as [] (not absent) when News is off: Event/Show reads news.length unconditionally.
             'news' => ! app(Modules::class)->enabled(Module::News) ? [] : app(NewsQuery::class)->published(3)
                 ->map(fn (NewsPost $post) => [

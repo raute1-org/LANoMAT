@@ -40,7 +40,7 @@ const platformLabel = (platforms: string[] | null): string =>
                 :key="game.slug"
                 :href="`/games/${game.slug}`"
                 :aria-current="game.slug === active ? 'page' : undefined"
-                class="group flex items-start gap-2 rounded-sm border border-transparent px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                class="group flex min-w-0 items-start gap-2 rounded-sm border border-transparent px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 :class="
                     game.slug === active
                         ? 'border-border bg-card text-foreground'

@@ -52,7 +52,7 @@ class AdminPanelProvider extends PanelProvider
                     ->url('/'),
                 // Same two entries as the participant user menu (shell parity).
                 Action::make('agent')
-                    ->label('Agent & MCP')
+                    ->label(ShellParity::DEVICES_MCP_LABEL)
                     ->icon('heroicon-o-cpu-chip')
                     ->url('/mcp/connect')
                     ->visible(fn (): bool => app(Modules::class)->routable(Module::Mcp)),
@@ -69,6 +69,12 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(1000)
                     ->visible(fn (): bool => app(Modules::class)->routable(Module::WebVoice)),
+                // The public launcher download page, same label as the participant sidebar.
+                NavigationItem::make(ShellParity::LAUNCHER_LABEL)
+                    ->url(ShellParity::LAUNCHER_URL)
+                    ->icon('heroicon-o-rocket-launch')
+                    ->sort(1001)
+                    ->visible(fn (): bool => app(Modules::class)->routable(Module::GameRecipes)),
             ])
             ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.shell.admin-stripe'))
             ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.back-to-app'))

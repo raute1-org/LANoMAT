@@ -114,10 +114,12 @@ The layout of every Inertia page is decided in **one table**: `resources/js/lib/
 | `app` | `AppLayout` (sidebar, user menu, bell, `<Toaster/>`) | every authenticated page: `Dashboard`, `Checkin/*` (phone self check-in, `narrow`, see docs/self-checkin.md), `Event/*`, `Teams/*`, `Tournaments/*`, `Orga/*`, `Jukebox/*`, `Recap/*`, `Gallery/*`, `Schedule/*`, … |
 | `settings` | `AppLayout` + `layouts/settings/Layout.vue` | `settings/*` |
 | `auth` | `AuthLayout` | `auth/*` |
-| `profile` | `AppLayout` if logged in, bare for guests | `Profile/Show` (`/users/{user}` stays publicly reachable) |
+| `profile` | `AppLayout` if logged in, bare for guests | `Profile/Show` (`/users/{user}` stays publicly reachable), `Launcher/Index` (`/launcher` is public: guests get the bare chrome, logged-in viewers the app shell) |
 | `bare` | none | `Welcome` (guest landing, no event data), `Screen/*` (beamer), `Overlay/*` (OBS) |
 
 Choosing for a new page: behind `auth` middleware → `app` (default answer). Reachable by guests → it must be guest-safe and `bare`/`profile`. Unattended or transparent surfaces → `bare`. There is no `PublicShell`; the `<Toaster/>` is mounted once, inside `AppSidebarLayout`, so flash toasts only work on `app`/`settings` pages.
+
+**`Launcher/Index` (`/launcher`)** is a public download page on the `profile` tier: a guest lands on bare chrome (no sidebar, no bell) because a fresh PC installs the launcher before its owner logs in; a logged-in viewer sees it inside `AppLayout`, with the sidebar entry "Launcher". It carries no user data, only the builds and SHA-256 values from `clients-dist/launcher/manifest.json`; the empty state says that no build has been published yet.
 
 ### 2. Page anatomy (`app` pages)
 
@@ -149,6 +151,8 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 | normal | the content | — |
 
 **Spielserver page (`Servers/Index`).** One card per server; the `LiveIndicator` maps `ready` to ok, `provisioning` and `not_responding` to warn (a calm hint sentence under the title explains what is going on, no alarm styling), `failed`/`install_failed` to down (never listed to participants). Players and map come from the last server query and are mono data; a connect string without a URL scheme (a plain `address:port`) is shown as a copyable mono value instead of a dead button. The list reloads partially every 20 s while the tab is visible.
+
+**Serverbrowser (`Servers/Global`, `/servers`).** The cross-game answer to "which servers are running?": the event lists of every public, non-archived event plus the permanent servers, grouped under an `<h2>` per game (`Servers/ServerCard.vue`, same `JoinOptions` and install-hint vocabulary as the event page). The game filter (`<select>`) and the search are server-side URL state (`?game=`, `?q=`) and visit partially (`only`), so the controls keep focus, scroll and state while filtering; an unknown game means "all games". The result count is mono data, and the empty state distinguishes "nothing is running" from "nothing matches the filter" (the latter offers a filter reset). Login required, like the event server list; the permanent servers keep their own page at `/servers/permanent`.
 
 ### 4. Navigation
 
@@ -222,6 +226,181 @@ Team tournaments (`team_size > 1`) replace the one-click "Anmelden" with a team 
 - [ ] Visible focus, `motion-reduce`, usable at 375px, AA contrast.
 - [ ] German copy, consistent action names, no English leftovers.
 - [ ] Pest feature test for new props/controller; `composer check` + `types:check`/`lint:check`/`format:check`/`build` green.
+
+## Start-page chat (the front door) — pilot
+
+Since the one-click launcher pilot the guest landing page (`Welcome`, `/`) has one job: get a
+first-time visitor from "what is this?" to a running game without reading a manual. It is laid out
+in two bands, and the order is binding.
+
+**Above the fold, in this order:**
+
+- the **chat** — greeting plus input, the first interactive thing on the page;
+- the **three large primary tiles**, left to right: **Spiele verwalten** → `/games`,
+  **Serverbrowser** → `/servers`, **Voice-Chats** → `/talk` while voice is live, otherwise the
+  native voice client or its download entry;
+- a fourth, smaller **`?` Handbuch** button beside them, which opens the user-facing handbook
+  (usage around the three activities, food ordering, chat integration, and a preloaded example
+  conversation that shows the launcher install).
+
+Everything that used to be the landing page (tagline, Discord login, feature list) moves **below
+the fold**; the Discord login stays reachable there and in the sidebar. A huge **Launcher** button
+sits at the very top of the sidebar, above the nav, not only in the hero. `Welcome` keeps the
+`bare` tier and stays guest-safe: no sidebar, no bell, no user data, no modal on load, no cookie
+banner.
+
+The page must render with no active event, no recipes and no optional modules: a module that is
+off hides its tile (and its chat cards) instead of showing an empty one, and the Handbuch stays.
+The chat never takes focus on load; `Tab` reaches it.
+
+### Chat anatomy
+
+| Part | Rule |
+|---|---|
+| Header row | the node-L mark + wordmark `LANoMAT`, one `LiveIndicator` for the chat's reachability (`ok` "verbunden", `warn` "nur Lesen", `down` "offline") and one quiet ghost link to the Handbuch. No second navigation. |
+| Transcript | one `role="log"`/`aria-live="polite"` region, `max-h-[60svh]`, scrolls internally only; assistant prose is plain and left-aligned (`text-sm`, no bubble), the visitor's own lines sit right in a `bg-muted` bubble. Streaming appends to the same paragraph (`aria-busy` while running) and is announced once when it settles, never per character. |
+| Greeting | instant, not animated, no skeleton: what LANoMAT is, what is playable on this LAN right now, and the three tiles named in one sentence. It is deterministic copy (from `lang/de`), not model output, so the front door is never empty when the model is unavailable. |
+| Suggestions | up to three question buttons above the input ("Was kann ich hier tun?", "Installier mir UT2004.", "Wer ist auf dem Server?"); they fill the input and send on the second press, they do not send on the first. |
+| Input | one real `<form>`: Enter sends, Shift+Enter is a newline, send is a `Button` with an accessible name ("Fragen"). The input stays enabled while an answer streams and during every error state. |
+| Cards | rendered inline in the transcript from tool/API data only — never invented, never a screenshot. See below. |
+| Offline | calm banner inside the chat: "Der Chat ist offline. Spiele und Server funktionieren weiter." The tiles stay live; the input stays usable and the deterministic fallback still answers from the catalogue. |
+
+The chat is the third door to the same data, not a second store: every card is the same read model
+as the page it links to (`/games/<slug>`, `/servers`, the launcher's install record). A card is
+only rendered when its data exists; the answer text alone is the fallback.
+
+### Typewriter and backspace (the suggestion line)
+
+While the input is **empty and unfocused**, its placeholder cycles through the three suggestions
+as a typewriter. The rules are deliberately boring — this is the only ambient motion on the page:
+
+- **Type** at about 35 characters per second (one character every ~28 ms), including the trailing
+  punctuation; no per-character random jitter.
+- **Hold** the finished phrase for 2.4 s so it can be read.
+- **Delete** at about 70 characters per second (~14 ms per character) — visibly faster than typing,
+  which reads as "backspace", not as a second animation.
+- **Pause** empty for 0.4 s, then type the next phrase. No fade, no slide, no bounce.
+- **Stop permanently** on the first of: focus into the input, the first keystroke, a sent message,
+  `visibilitychange` to hidden (a background tab does not burn frames) — and after one full cycle
+  through the three phrases the first one is left standing. Motion that never ends is noise.
+- **Layout stability:** the line owns a fixed single-line height (`min-h-11`) and truncates; the
+  typed text never wraps and never pushes the tiles. The caret is a 1 px `--primary` bar that
+  blinks at ~1.1 s only while characters are being typed or deleted.
+- **Screen readers:** the cycling text is `aria-hidden="true"`; the input keeps one stable
+  placeholder/label (the first phrase), so nothing re-announces per keystroke. The typed string is
+  decoration, not content.
+- **`prefers-reduced-motion: reduce`:** no typing, no deleting, no caret blink — the first
+  suggestion appears instantly and stays. The same switch removes card entry fades and the
+  streaming caret; text still streams, it just does not animate.
+
+### Inline cards
+
+All three card types use the app card (`rounded-md border border-border bg-card p-5`), one heading,
+one line of prose, mono for machine data, and **at most one** amber action. They fold to full width
+at 375 px and keep their action order.
+
+| Card | Content | Actions |
+|---|---|---|
+| **Game** | title, one-line summary, platform/version in mono, `LAN` badge when the content or a server is on the LAN | `Installieren`; without a launcher build `Launcher herunterladen`; with an install record `Starten`; always one quiet "Seite öffnen" → `/games/<slug>` |
+| **Server** | server name, map and `players/max` in mono, the join string as a copyable mono value (a plain `address:port` is never a dead button) | `Beitreten` when a join template exists, quiet "Serverbrowser" → `/servers` |
+| **Install** | the launcher's real state: phase (Planen, Herunterladen, Entpacken, Patchen, Prüfen, Fertig), current file, `bytes_done / bytes_total`, speed, ETA and a determinate or indeterminate bar; a percent that is unknown stays indeterminate | `Abbrechen`, then `Erneut versuchen` or `Starten`; without launcher data the card only offers the download |
+
+No fake progress anywhere: the browser shows the launcher's last reported state and never
+simulates a bar; a percent the launcher does not know is `—`, not `0 %`.
+
+### States (chat and cards)
+
+| State | Pattern |
+|---|---|
+| empty | no transcript history: greeting + suggestions only, no empty frame with "keine Nachrichten" |
+| loading | skeletons only for restored history; greeting and tiles are already there |
+| error | "Der Chat antwortet gerade nicht." in the transcript, input stays usable, one `Erneut fragen` |
+| normal | answers stream, cards appear as their data arrives |
+
+### Why this stays Signalpult
+
+The chat is a quiet desk, not a mascot: Space Grotesk prose, mono only for numbers/addresses,
+one rationed amber action per card, no avatar animation, no sound. The launcher windows use the
+same anatomy and the same German action words (`Installieren`, `Starten`, `Abbrechen`,
+`Erneut versuchen`) and the same six phase names; only their chrome follows the launcher's own
+UT2004/Epic brand world (see the one-click launcher spec). A change to the card anatomy, the phase
+names or the action wording touches both surfaces in the same PR.
+
+## Multi-terminal LAN (one launcher per machine)
+
+A LAN party is not one computer. The model is deliberately boring, and the UI must not contradict
+it:
+
+- **The server owns the catalogue.** `/games`, the start-page chat and every launcher read the same
+  published recipes and server read models; a recipe the Orga publishes appears on every terminal
+  without per-machine configuration.
+- **Every terminal is its own device.** Each launcher pairs separately through the device flow and
+  stores its own bearer token (0600); there is no "the" machine and no shared credential. The
+  launcher appears as its own entry under **Verbundene Geräte** on `/mcp/connect`, and revoking it
+  there disconnects exactly that terminal.
+- **Installs are local.** Download, extract, patch and verify happen on the terminal into its own
+  target folder (`~/Games/...`, `C:\Games\...`). Two machines installing the same game are two
+  installs, and the second one still downloads from the LAN file host — never from the internet.
+- **The local library is the truth for "installed".** It survives a restart and an offline server;
+  a terminal without a reachable LANoMAT shows its verified installs and can still start them,
+  while the catalogue area says the server is offline.
+- **One setting per machine: the LAN URL.** No ports, no paths, no per-game configuration — the
+  address typed once in **Verbinden**, and the recipe carries everything else.
+- **LAN-first, always.** The pilot's files come from the LAN file host (portable archive first, ISO
+  as fallback); an internet download is a fallback the recipe pins, not the default path.
+
+UI consequences: copy says "auf diesem PC" (not "dein Account"), every install/percent/`Starten`
+state is per terminal, and the browser never guesses another machine's installs. The web `/games`
+page may show what a paired launcher reported for *this* device; it must not invent a global
+"installed" flag.
+
+### Terminals in the room (checklist)
+
+- [ ] Each machine runs its own launcher and its own pairing — no copied config file between PCs.
+- [ ] The LAN URL is the same everywhere; the display name of the device is recognisable in
+      `/mcp/connect` (rename it there before the LAN, not during it).
+- [ ] The catalogue is published once on the server; no terminal needs recipes copied locally.
+- [ ] The LAN file host serves the install files; check one fresh terminal with no internet.
+- [ ] A terminal that installed a game keeps **Starten** while the server is offline.
+- [ ] Departed or re-imaged machines are revoked under **Verbundene Geräte** on `/mcp/connect`.
+- [ ] Only UT2004 is installable in the launcher today; every other published recipe is
+      catalog-only until the recipe engine is generic.
+
+### Arcade terminals: sign in by QR
+
+An arcade terminal is a shared machine in the room, not a personal PC. Nobody types an account
+there — the terminal shows the device flow as a **QR code** and the player signs in with the phone
+they already have in their pocket.
+
+| Step | What the screen shows | What the phone does |
+|---|---|---|
+| 1 | **Verbinden** → a QR of `/mcp/connect?code=…` and the same code as large mono text, plus the server address | scan the QR (or open the URL) |
+| 2 | "Warte auf Bestätigung" with a mono countdown; the code is `aria-hidden`, the wait text is the live region | Discord login, then approve the device name shown on the page |
+| 3 | "Angemeldet als <Name>" and the library | — |
+| 4 | expired / denied / network error with **Neuen Code erzeugen** or **Serveradresse ändern** | — |
+
+Rules:
+
+- **One terminal, one device, one token.** The terminal stores its own bearer token exactly like a
+  personal launcher; the account can be the same on ten machines, the devices are ten entries.
+  Approving on `/mcp/connect` is the only write; `/mcp/connect` lists every terminal under
+  **Verbundene Geräte** with its state (online, current game, last seen) and revokes one at a time.
+- **The QR contains no secret.** It is the same `verification_uri_complete` the personal pairing
+  already uses; the code is also printed as text so a screen reader and a broken camera both work.
+  A QR is never a login by itself: approval happens in the signed-in browser session.
+- **Arcade mode is kiosk.** Fullscreen, no OS chrome beyond the window frame, large targets,
+  complete keyboard operation and gamepad operation for the same actions (focus order: QR →
+  **Verbinden** → library → **Installieren**/**Starten** → **Abmelden**). No hover-only affordances,
+  no drag, no text selection on the kiosk surface.
+- **Handover is explicit.** **Abmelden** (labelled "Abmelden / Reset" in arcade mode) clears the
+  local session and the pairing so the next player scans their own code; it does **not** delete
+  installed files, so the terminal's local library stays usable and the next player sees the same
+  verified games. One confirmation, no second dialog chain.
+- **Monitoring is per terminal.** The device row in `/mcp/connect` (and the Preflight view that
+  reads it) shows **online**, **aktuelles Spiel** and **zuletzt gesehen** for each terminal; a
+  terminal that goes dark is visible there, not by walking the room.
+- **No personal data on the kiosk surface.** Display name only; no e-mail, no Discord id, no token;
+  the library and the install progress are terminal state and stay on screen for whoever sits down.
 
 ## Two apps, one shell (parity rules)
 

@@ -13,9 +13,17 @@ use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Tournaments\Models\Tournament;
 use App\Support\Modules\Modules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 uses(RefreshDatabase::class);
+
+afterEach(function () {
+    // LauncherPageTest may have pointed the dist dir at a temp folder; reset it
+    // so this file never sees a deleted build directory.
+    Config::set('launcher.dist_path', base_path('clients-dist/launcher'));
+});
 
 function gamePageRecipe(string $status = 'published'): GameRecipe
 {
@@ -79,6 +87,40 @@ function gamePageLfg(Event $event, User $user, string $gameTitle): LfgPost
     $post->save();
 
     return $post;
+}
+
+/**
+ * Publish the smallest launcher dist directory `/launcher` accepts (one Linux
+ * app tarball plus its manifest), the way `scripts/ops/build-launcher.sh` writes
+ * it. Returns the directory so the caller can delete it again.
+ */
+function gamesPageLauncherDist(): string
+{
+    $dir = sys_get_temp_dir().'/lanomat-games-launcher-'.bin2hex(random_bytes(6));
+    mkdir($dir);
+
+    $name = 'lanomat-launcher-v1-linux-x86_64.tar.gz';
+    $content = 'launcher-binary';
+    file_put_contents($dir.'/'.$name, $content);
+    file_put_contents($dir.'/manifest.json', json_encode([
+        'app_version' => 'v1',
+        'commit' => 'abc123def456',
+        'built_at' => '2026-11-20T10:00:00Z',
+        'files' => [[
+            'name' => $name,
+            'os' => 'linux',
+            'arch' => 'x86_64',
+            'kind' => 'app',
+            'variant' => 'archive',
+            'size' => strlen($content),
+            'sha256' => hash('sha256', $content),
+            'signed' => null,
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    Config::set('launcher.dist_path', $dir);
+
+    return $dir;
 }
 
 it('lists published games with LAN state, counts and hides drafts', function () {
@@ -714,4 +756,341 @@ it('only exposes absolute http(s) play, homepage and converter URLs', function (
             ->where('game.play_url', 'https://play.example.test/ut2004')
             ->where('game.homepage', 'http://www.oldunreal.com')
             ->where('game.avatar_converter_url', 'https://ut.raute1.org/'));
+});
+
+it('offers the launcher download as the fallback beside the deep link', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+    gamePageRecipe();
+
+    // Nothing published: no link to an empty /launcher page.
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            // The pilot is launcher-supported even before a build is published.
+            ->where('games.0.launcher_supported', true)
+            ->where('games.0.launcher_available', false)
+            ->where('games.0.launcher_url', null));
+
+    // Without a build the detail page keeps the deep link as its install
+    // action, exactly as before.
+    $this->actingAs($user)
+        ->get('/games/unreal-tournament-2004')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('game.installable', true)
+            ->where('game.install_deeplink', 'lanomat://install/unreal-tournament-2004')
+            ->where('game.launcher_supported', true)
+            ->where('game.launcher_available', false)
+            ->where('game.launcher_url', null));
+
+    $dir = gamesPageLauncherDist();
+
+    try {
+        $this->actingAs($user)
+            ->get('/games')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // The install action stays the card's own; the launcher is only
+                // the fallback for a PC that has no agent yet.
+                ->where('games.0.installable', true)
+                ->where('games.0.launcher_supported', true)
+                ->where('games.0.launcher_available', true)
+                ->where('games.0.launcher_url', '/launcher'));
+
+        $this->actingAs($user)
+            ->get('/games/unreal-tournament-2004')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // The page's primary install action points at `launcher_url`;
+                // the deep link stays exposed for the quiet "Im Launcher
+                // öffnen" action beside it.
+                ->where('game.installable', true)
+                ->where('game.install_deeplink', 'lanomat://install/unreal-tournament-2004')
+                ->where('game.launcher_supported', true)
+                ->where('game.launcher_available', true)
+                ->where('game.launcher_url', '/launcher'));
+    } finally {
+        File::deleteDirectory($dir);
+    }
+});
+
+/** A minimal published recipe, for the "recently played" tests. */
+function gamesPageSimpleRecipe(string $slug, string $title): GameRecipe
+{
+    return GameRecipe::query()->create([
+        'slug' => $slug,
+        'title' => $title,
+        'status' => 'published',
+        'source' => 'bundled',
+        'platforms' => ['windows'],
+        'summary' => 'Seeded for the activity order.',
+        'requirements' => [],
+        'steps' => [],
+        'metadata' => ['multiplayer' => true],
+    ]);
+}
+
+it('orders the library by the last server activity and exposes its timestamp', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+
+    gamesPageSimpleRecipe('alpha-shooter', 'Alpha Shooter');
+    gamesPageSimpleRecipe('mike-puzzle', 'Mike Puzzle');
+    gamesPageSimpleRecipe('zulu-racer', 'Zulu Racer');
+
+    $alphaGame = Game::factory()->create(['name' => 'Alpha Shooter', 'slug' => 'alpha-shooter']);
+    $zuluGame = Game::factory()->create(['name' => 'Zulu Racer', 'slug' => 'zulu-racer']);
+
+    ServerLink::factory()->permanent()->create([
+        'game_id' => $alphaGame->id,
+        'title' => 'Alpha Server',
+        'queried_at' => now()->subHours(2)->startOfSecond(),
+    ]);
+
+    $zuluLink = ServerLink::factory()->permanent()->create([
+        'game_id' => $zuluGame->id,
+        'title' => 'Zulu Server',
+        'queried_at' => now()->subMinutes(10)->startOfSecond(),
+    ]);
+    $zuluLink->refresh();
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('games', 3)
+            // Recently played first (not the alphabet), then the played one
+            // that ran longer ago, then the catalogue without any activity.
+            ->where('games.0.slug', 'zulu-racer')
+            ->where('games.1.slug', 'alpha-shooter')
+            ->where('games.2.slug', 'mike-puzzle')
+            // The card carries an ISO-8601 instant (the client renders the
+            // Europe/Berlin relative text from it) and the deep link stays.
+            ->where('games.0.last_played_at', $zuluLink->queried_at->toIso8601String())
+            ->where('games.0.install_deeplink', 'lanomat://install/zulu-racer')
+            ->whereNotNull('games.1.last_played_at')
+            ->whereNull('games.2.last_played_at')
+            ->whereNull('games.2.last_played_server'));
+});
+
+it('keeps the plain catalogue when no server has any activity', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+
+    gamesPageSimpleRecipe('alpha-shooter', 'Alpha Shooter');
+    gamesPageSimpleRecipe('mike-puzzle', 'Mike Puzzle');
+    gamesPageSimpleRecipe('zulu-racer', 'Zulu Racer');
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('games', 3)
+            ->where('games.0.slug', 'alpha-shooter')
+            ->where('games.1.slug', 'mike-puzzle')
+            ->where('games.2.slug', 'zulu-racer')
+            ->whereNull('games.0.last_played_at')
+            ->whereNull('games.1.last_played_at')
+            ->whereNull('games.2.last_played_at'));
+});
+
+it('does not count a server that only exists for a draft event', function () {
+    $user = User::factory()->create();
+    $draft = Event::factory()->draft()->create();
+
+    gamesPageSimpleRecipe('alpha-shooter', 'Alpha Shooter');
+    gamesPageSimpleRecipe('zulu-racer', 'Zulu Racer');
+
+    $game = Game::factory()->create(['name' => 'Zulu Racer', 'slug' => 'zulu-racer']);
+
+    // Event-level server of an unpublished event, and the same for a
+    // permanent server that happens to point at the draft.
+    ServerLink::factory()->create([
+        'event_id' => $draft->id,
+        'game_id' => $game->id,
+        'status' => 'ready',
+        'queried_at' => now()->startOfSecond(),
+    ]);
+    ServerLink::factory()->permanent()->create([
+        'event_id' => $draft->id,
+        'game_id' => $game->id,
+        'queried_at' => now()->startOfSecond(),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            // No activity: the alphabet stays, and no recent card is fed.
+            ->where('games.0.slug', 'alpha-shooter')
+            ->where('games.1.slug', 'zulu-racer')
+            ->whereNull('games.0.last_played_at')
+            ->whereNull('games.1.last_played_at'));
+});
+
+it('carries the live server name, map and player count for the recent card', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+
+    gamesPageSimpleRecipe('unreal-tournament-2004', 'Unreal Tournament 2004');
+    $game = Game::factory()->create(['name' => 'Unreal Tournament 2004', 'slug' => 'unreal-tournament-2004']);
+
+    $link = ServerLink::factory()->permanent()->create([
+        'game_id' => $game->id,
+        'title' => 'UT2004 Dauerserver',
+        'queried_at' => now()->subMinutes(5)->startOfSecond(),
+    ]);
+    $link->query_info = [
+        'name' => 'Raute1 UT2004',
+        'map' => 'DM-Rankin',
+        'players' => 6,
+        'max_players' => 16,
+    ];
+    $link->save();
+    $link->refresh();
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('games.0.slug', 'unreal-tournament-2004')
+            ->where('games.0.last_played_server.title', 'UT2004 Dauerserver')
+            ->where('games.0.last_played_server.map', 'DM-Rankin')
+            ->where('games.0.last_played_server.players', 6)
+            ->where('games.0.last_played_server.max_players', 16)
+            ->where('games.0.last_played_server.checked_at', $link->queried_at->toIso8601String()));
+});
+
+it('keeps a stopped server out of the recent order once its last answer is old', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+
+    gamesPageSimpleRecipe('alpha-shooter', 'Alpha Shooter');
+    gamesPageSimpleRecipe('zulu-racer', 'Zulu Racer');
+
+    $game = Game::factory()->create(['name' => 'Zulu Racer', 'slug' => 'zulu-racer']);
+
+    ServerLink::factory()->create([
+        'game_id' => $game->id,
+        'status' => 'stopped',
+        'permanent' => true,
+        'queried_at' => now()->subDays(3)->startOfSecond(),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            // A server that answered three days ago and has been stopped
+            // since is not "the last game played".
+            ->where('games.0.slug', 'alpha-shooter')
+            ->where('games.1.slug', 'zulu-racer')
+            ->whereNull('games.1.last_played_at'));
+
+    // But one that answered five minutes ago (just stopped) is.
+    ServerLink::query()->update(['queried_at' => now()->subMinutes(5)->startOfSecond()]);
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('games.0.slug', 'zulu-racer')
+            ->whereNotNull('games.0.last_played_at'));
+});
+
+it('keeps the LAN filter working on the recently played order', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+
+    gamesPageSimpleRecipe('alpha-shooter', 'Alpha Shooter');
+    gamesPageSimpleRecipe('mike-puzzle', 'Mike Puzzle');
+    gamesPageSimpleRecipe('zulu-racer', 'Zulu Racer');
+
+    // Mike is on the LAN (a matched install image) but was never played;
+    // Alpha is neither; Zulu ran five minutes ago.
+    SharedFile::factory()->approved()->create([
+        'event_id' => $event->id,
+        'original_name' => 'mike-puzzle.iso',
+    ]);
+    $mike = GameRecipe::query()->where('slug', 'mike-puzzle')->firstOrFail();
+    $mike->files()->create([
+        'role' => 'iso',
+        'label' => 'Mike disc',
+        'match_patterns' => ['mike-puzzle.iso'],
+        'required' => true,
+    ]);
+
+    $game = Game::factory()->create(['name' => 'Zulu Racer', 'slug' => 'zulu-racer']);
+    ServerLink::factory()->create([
+        'game_id' => $game->id,
+        'permanent' => true,
+        'status' => 'ready',
+        'queried_at' => now()->subMinutes(5)->startOfSecond(),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('games', 3)
+            ->where('games.0.slug', 'zulu-racer')
+            ->where('games.1.slug', 'alpha-shooter')
+            ->where('games.2.slug', 'mike-puzzle'));
+
+    $this->actingAs($user)
+        ->get('/games?only_lan=1')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            // Alpha drops out, but the LAN-ready games keep the activity order:
+            // the played server before the LAN image that was never played.
+            ->has('games', 2)
+            ->where('games.0.slug', 'zulu-racer')
+            ->whereNotNull('games.0.last_played_at')
+            ->where('games.1.slug', 'mike-puzzle')
+            ->whereNull('games.1.last_played_at')
+            ->where('games.1.lan_ready', true)
+            ->where('filters.only_lan', true));
+});
+
+it('marks only the launcher pilot recipe as launcher-supported', function () {
+    $user = User::factory()->create();
+    Event::factory()->live()->create();
+    gamePageRecipe();
+    gamesPageSimpleRecipe('zulu-racer', 'Zulu Racer');
+
+    // The flag is static: the launcher knows the pilot engine whether or not a
+    // build is published right now.
+    $this->actingAs($user)
+        ->get('/games')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('games.0.slug', 'unreal-tournament-2004')
+            ->where('games.0.launcher_supported', true)
+            ->whereNull('games.0.launcher_url')
+            ->where('games.1.slug', 'zulu-racer')
+            ->where('games.1.launcher_supported', false));
+
+    $dir = gamesPageLauncherDist();
+
+    try {
+        $this->actingAs($user)
+            ->get('/games')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // Only the pilot turns the published build into the primary
+                // install action; the rest keep their agent path.
+                ->where('games.0.slug', 'unreal-tournament-2004')
+                ->where('games.0.launcher_supported', true)
+                ->where('games.0.launcher_available', true)
+                ->where('games.0.launcher_url', '/launcher')
+                ->where('games.1.slug', 'zulu-racer')
+                ->where('games.1.launcher_supported', false)
+                // `launcher_url` stays the download page for the shell even
+                // when this game is not installable by it.
+                ->where('games.1.launcher_url', '/launcher'));
+    } finally {
+        File::deleteDirectory($dir);
+    }
 });

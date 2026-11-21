@@ -253,6 +253,10 @@
                     "minLength": 1,
                     "maxLength": 160
                 },
+                "os": {
+                    "enum": ["windows", "linux", "macos", "any"],
+                    "description": "Platform this file is for. Omit (or use any) for a file that fits every plan, such as the DVD image. A Windows-only zip and its Linux tarball are two requirements that differ only in os."
+                },
                 "match": {
                     "type": "array",
                     "items": {

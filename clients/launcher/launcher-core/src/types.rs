@@ -4,6 +4,12 @@
 //! `POST /api/mcp/token`, `GET /api/v1/me`, `GET /api/v1/recipes`,
 //! `POST /api/v1/recipes/{slug}/plan`). Unknown fields are ignored so a newer
 //! server never breaks an older launcher.
+//!
+//! `Debug` is hand-written for the two structs that carry a credential, so a
+//! `tracing::debug!("{device:?}")` can never put a device code or a bearer token
+//! into the log file.
+
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -31,25 +37,73 @@ impl Os {
             Self::Macos => "macos",
         }
     }
+
+    /// Parse a wire value (`windows`, `linux`, `macos`) the way the server
+    /// spells it; the short forms match [`Os::current`]'s environment names.
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "windows" | "win" | "win32" | "win64" => Some(Self::Windows),
+            "linux" => Some(Self::Linux),
+            "macos" | "mac" | "darwin" => Some(Self::Macos),
+            _ => None,
+        }
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// RFC 8628's `interval` is optional in the wild; five seconds is the spec's
+/// recommended default.
+fn default_interval() -> u64 {
+    5
+}
+
+/// Ten minutes, the server's own code TTL.
+fn default_expires_in() -> u64 {
+    600
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DeviceStart {
     pub device_code: String,
     pub user_code: String,
     pub verification_uri: String,
     #[serde(default)]
     pub verification_uri_complete: Option<String>,
+    #[serde(default = "default_expires_in")]
     pub expires_in: u64,
+    #[serde(default = "default_interval")]
     pub interval: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl fmt::Debug for DeviceStart {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeviceStart")
+            // The device code is a credential: never print it.
+            .field("device_code", &"<redacted>")
+            .field("user_code", &self.user_code)
+            .field("verification_uri", &self.verification_uri)
+            .field("expires_in", &self.expires_in)
+            .field("interval", &self.interval)
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TokenGrant {
     pub access_token: String,
     #[serde(default)]
     pub token_type: String,
+    #[serde(default)]
     pub expires_in: u64,
+}
+
+impl fmt::Debug for TokenGrant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TokenGrant")
+            .field("access_token", &"<redacted>")
+            .field("token_type", &self.token_type)
+            .field("expires_in", &self.expires_in)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,10 +117,13 @@ pub struct MeResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeUser {
+    /// Number or string, depending on the server's id column: keep it opaque.
     pub id: serde_json::Value,
     pub name: String,
     #[serde(default)]
     pub role: Option<String>,
+    #[serde(default)]
+    pub is_orga: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -91,6 +148,19 @@ pub struct RecipeSummary {
     pub status: Option<String>,
     #[serde(default)]
     pub platforms: Vec<String>,
+    /// The server says the recipe carries everything an install needs
+    /// (requirements, steps and a launch target). `None` means an older server
+    /// that never sent the field: unknown, which is not "no".
+    #[serde(default)]
+    pub installable: Option<bool>,
+    /// The shell's verdict, not the server's: whether *this launcher build*
+    /// can install the recipe. [`crate::api`] copies the server flag through,
+    /// `list_games` overwrites it with what its install engine really drives.
+    /// A recipe that is `installable` but not `launcher_supported` belongs on
+    /// the game's `/games/{slug}` web page ("Bald im Launcher"), not behind an
+    /// Install button that would fail.
+    #[serde(default)]
+    pub launcher_supported: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,6 +229,12 @@ pub struct PlanFile {
     pub status: String,
     #[serde(default)]
     pub label: Option<String>,
+    /// The platform this file is for (`windows`, `linux`, `macos`); absent or
+    /// `any` means it fits every plan. The server already leaves files for the
+    /// other OS out of the plan; the engine checks again so a stale or
+    /// hand-written plan can never install the wrong platform's archive.
+    #[serde(default)]
+    pub os: Option<String>,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
@@ -189,7 +265,30 @@ pub struct PlanAvatar {
     pub available_on_lan: bool,
 }
 
+impl PlanFile {
+    /// Whether this file may be installed on `os`. Only an explicit `os` that
+    /// names another known platform excludes it; absent, empty, `any` and an
+    /// unknown spelling all fit, so a typo never hides a required file.
+    pub fn fits_os(&self, os: Os) -> bool {
+        match self.os.as_deref() {
+            None | Some("") => true,
+            Some(value) => match Os::from_wire(value) {
+                Some(named) => named == os,
+                None => true,
+            },
+        }
+    }
+}
+
 impl RecipePlan {
+    /// The OS the plan was built for. A plan from an older server has no `os`;
+    /// fall back to this machine, which is what that plan was intended for.
+    pub fn target_os(&self) -> Os {
+        Os::from_wire(&self.os).unwrap_or_else(Os::current)
+    }
+
+    /// The documented status values are `matched` (a file on the LAN host),
+    /// `external` (the recipe only lists a public URL), `missing` and `manual`.
     pub fn matched(&self, requirement: &str) -> Option<&PlanFile> {
         self.files.iter().find(|file| {
             file.requirement == requirement
@@ -198,10 +297,34 @@ impl RecipePlan {
         })
     }
 
+    /// Anything the launcher can fetch itself: a LAN file (`matched`) or an
+    /// external URL (`external`). The ISO fallback path can be an external-only
+    /// recipe, so installations must not depend on [`Self::matched`] alone.
+    pub fn downloadable(&self, requirement: &str) -> Option<&PlanFile> {
+        self.files.iter().find(|file| {
+            file.requirement == requirement
+                && matches!(file.status.as_str(), "matched" | "external")
+                && (file.download_url.is_some() || file.fallback_url.is_some())
+        })
+    }
+
+    /// [`Self::downloadable`] for one platform. The same role may appear twice
+    /// (a Windows and a Linux patch); the `os` field selects the right one.
+    pub fn downloadable_for(&self, requirement: &str, os: Os) -> Option<&PlanFile> {
+        self.files.iter().find(|file| {
+            file.requirement == requirement
+                && matches!(file.status.as_str(), "matched" | "external")
+                && (file.download_url.is_some() || file.fallback_url.is_some())
+                && file.fits_os(os)
+        })
+    }
+
     pub fn missing_required(&self) -> Vec<String> {
+        let os = self.target_os();
+
         self.files
             .iter()
-            .filter(|file| file.required && file.status == "missing")
+            .filter(|file| file.required && file.status == "missing" && file.fits_os(os))
             .map(|file| {
                 file.label
                     .clone()
@@ -212,9 +335,165 @@ impl RecipePlan {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ServerList {
+    #[serde(default)]
+    pub events: Vec<ServerEvent>,
+    #[serde(default)]
+    pub servers: Vec<GameServer>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ServerEvent {
+    pub slug: String,
+    pub name: String,
+    #[serde(default)]
+    pub status: String,
+}
+
+/// One game server of the aggregated browser. The camelCase fields mirror the
+/// server's `ServerListProjection`; unknown fields are ignored, so a newer
+/// server never breaks an older launcher.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameServer {
+    #[serde(default)]
+    pub id: serde_json::Value,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub game: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub match_label: Option<String>,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub connect_string: Option<String>,
+    #[serde(default)]
+    pub connect_is_link: bool,
+    #[serde(default)]
+    pub permanent: bool,
+    #[serde(default)]
+    pub event: Option<ServerEvent>,
+    #[serde(default)]
+    pub query: Option<ServerQuery>,
+    #[serde(default)]
+    pub join_options: Vec<ServerJoinOption>,
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+impl GameServer {
+    /// The one URL a "Beitreten" action may open: the first per-game join
+    /// option with an allowlisted scheme, else a connect string that is itself
+    /// a deep link. A plain `address:port` is copy data, not a URL.
+    pub fn join_url(&self) -> Option<&str> {
+        if !self.joinable() {
+            return None;
+        }
+
+        self.join_options
+            .iter()
+            .map(|option| option.url.as_str())
+            .find(|url| is_allowed_join_url(url))
+            .or_else(|| {
+                self.connect_string
+                    .as_deref()
+                    .filter(|url| self.connect_is_link && is_allowed_join_url(url))
+            })
+    }
+
+    /// Whether the server answers (or at least is worth offering) right now.
+    pub fn joinable(&self) -> bool {
+        matches!(self.status.as_str(), "ready" | "not_responding")
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerQuery {
+    #[serde(default)]
+    pub server_name: String,
+    #[serde(default)]
+    pub map: String,
+    #[serde(default)]
+    pub players: u32,
+    #[serde(default)]
+    pub max_players: u32,
+    #[serde(default)]
+    pub checked_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ServerJoinOption {
+    #[serde(default)]
+    pub key: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub hint: String,
+}
+
+/// The launcher may open these schemes itself; the shell enforces the same
+/// allowlist in `open_url`.
+pub fn is_allowed_join_url(url: &str) -> bool {
+    let lower = url.trim().to_ascii_lowercase();
+
+    ["https://", "http://", "steam://", "ut2004://"]
+        .iter()
+        .any(|scheme| lower.starts_with(scheme))
+        && !url.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn join_url_uses_only_the_allowlisted_deep_links() {
+        let mut server = GameServer {
+            status: "ready".into(),
+            connect_string: Some("203.0.113.5:27015".into()),
+            connect_is_link: false,
+            ..Default::default()
+        };
+
+        assert!(server.join_url().is_none());
+
+        server.join_options = vec![ServerJoinOption {
+            url: "steam://run/13230//203.0.113.5:27015".into(),
+            ..Default::default()
+        }];
+        assert_eq!(
+            server.join_url(),
+            Some("steam://run/13230//203.0.113.5:27015")
+        );
+
+        server.join_options = vec![ServerJoinOption {
+            url: "javascript:alert(1)".into(),
+            ..Default::default()
+        }];
+        assert!(server.join_url().is_none());
+
+        server.connect_string = Some("steam://connect/203.0.113.5:27015".into());
+        server.connect_is_link = true;
+        assert_eq!(server.join_url(), Some("steam://connect/203.0.113.5:27015"));
+
+        server.connect_string = Some("steam://connect/203.0.113.5:27015 with space".into());
+        assert!(server.join_url().is_none());
+
+        server.connect_string = Some("steam://connect/203.0.113.5:27015".into());
+        server.status = "offline".into();
+        assert!(server.join_url().is_none());
+    }
 
     #[test]
     fn matched_requires_a_downloadable_lan_or_external_file() {
@@ -236,5 +515,91 @@ mod tests {
         plan.files[0].download_url = None;
         plan.files[0].fallback_url = Some("https://example.test/ut2004.iso".into());
         assert!(plan.matched("iso").is_some());
+    }
+
+    #[test]
+    fn missing_required_ignores_a_file_for_another_os() {
+        let plan: RecipePlan = serde_json::from_value(serde_json::json!({
+            "recipe": {"slug": "ut2004", "title": "UT2004"},
+            "os": "linux",
+            "target_dir": "~/Games/ut2004",
+            "files": [
+                {"requirement": "patch", "os": "windows", "status": "missing", "required": true, "label": "Windows patch"},
+                {"requirement": "patch", "os": "linux", "status": "missing", "required": true, "label": "Linux patch"},
+                {"requirement": "iso", "status": "missing", "required": true, "label": "UT2004 DVD"},
+                {"requirement": "mod", "os": "amiga", "status": "matched", "label": "Typo mod"}
+            ]
+        }))
+        .unwrap();
+
+        assert_eq!(
+            plan.missing_required(),
+            vec!["Linux patch".to_string(), "UT2004 DVD".to_string()]
+        );
+        assert!(plan.files[0].fits_os(Os::Windows));
+        assert!(!plan.files[0].fits_os(Os::Linux));
+        // An OS-less file belongs to every plan.
+        assert!(plan.files[2].fits_os(Os::Windows));
+        assert!(plan.files[2].fits_os(Os::Linux));
+        // An unknown spelling is a typo, not a platform: it never hides a file.
+        assert!(plan.files[3].fits_os(Os::Windows));
+        assert!(plan.files[3].fits_os(Os::Linux));
+    }
+
+    #[test]
+    fn opaque_downloadable_files_are_matched_or_external_with_a_url() {
+        let plan: RecipePlan = serde_json::from_value(serde_json::json!({
+            "recipe": {"slug": "ut2004", "title": "UT2004"},
+            "os": "linux",
+            "target_dir": "~/Games/ut2004",
+            "files": [
+                {"requirement": "iso", "status": "external", "download_url": "https://example.test/ut2004.iso"},
+                {"requirement": "patch", "os": "windows", "status": "external", "download_url": "https://example.test/win.zip"},
+                {"requirement": "patch", "os": "linux", "status": "external", "download_url": "https://example.test/linux.tar.bz2"},
+                {"requirement": "mod", "status": "manual", "url": "https://example.test/mod"}
+            ]
+        }))
+        .unwrap();
+
+        assert_eq!(plan.downloadable("iso").unwrap().status, "external");
+        assert_eq!(
+            plan.downloadable_for("patch", Os::Linux)
+                .unwrap()
+                .download_url
+                .as_deref(),
+            Some("https://example.test/linux.tar.bz2")
+        );
+        assert_eq!(
+            plan.downloadable_for("patch", Os::Windows)
+                .unwrap()
+                .download_url
+                .as_deref(),
+            Some("https://example.test/win.zip")
+        );
+        assert!(plan.downloadable("mod").is_none());
+    }
+
+    #[test]
+    fn a_summary_without_the_capability_flags_is_unknown_not_unsupported() {
+        let summary: RecipeSummary = serde_json::from_value(serde_json::json!({
+            "slug": "ut2004",
+            "title": "UT2004"
+        }))
+        .unwrap();
+
+        // An old server sends neither flag; "unknown" must not read as "no".
+        assert_eq!(summary.installable, None);
+        assert!(!summary.launcher_supported);
+
+        let flagged: RecipeSummary = serde_json::from_value(serde_json::json!({
+            "slug": "ut2004",
+            "title": "UT2004",
+            "installable": true,
+            "launcher_supported": true
+        }))
+        .unwrap();
+
+        assert_eq!(flagged.installable, Some(true));
+        assert!(flagged.launcher_supported);
     }
 }

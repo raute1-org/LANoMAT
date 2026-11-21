@@ -8,6 +8,7 @@ use App\Modules\Files\Contracts\FileStore;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
+use App\Modules\Files\Support\SharedFileHasher;
 use App\Modules\Files\Support\UploadQuota;
 use App\Modules\Files\Support\UploadReview;
 use App\Modules\Files\Support\UploadTypeGuard;
@@ -19,7 +20,10 @@ use Throwable;
 
 class UploadSharedFile
 {
-    public function __construct(private readonly FileStores $stores) {}
+    public function __construct(
+        private readonly FileStores $stores,
+        private readonly SharedFileHasher $hasher,
+    ) {}
 
     /**
      * Hands an uploaded file to the configured {@see FileStore} (the local
@@ -32,6 +36,11 @@ class UploadSharedFile
      * The event and actor are always taken from the trusted arguments, never
      * from request input — a client-supplied `user_id` cannot make the
      * upload appear as belonging to another user.
+     *
+     * The row also carries the SHA-256 of the stored bytes (computed from the
+     * upload's temp file, streamed). Hashing never fails an upload: an
+     * unreadable file leaves `sha256` null and `lanomat:files:hash` can fill it
+     * in later.
      *
      * The per-event per-user quota is enforced inside a `DB::transaction`
      * that first takes a Postgres transaction-scoped advisory lock keyed on
@@ -119,6 +128,9 @@ class UploadSharedFile
                 'disk' => $store->key(),
                 'path' => $path,
                 'size_bytes' => $sizeBytes,
+                // The bytes the store just received, streamed from the upload's
+                // temp file. Null (never a failed upload) when unreadable.
+                'sha256' => $this->hasher->digestOfPath($localPath),
                 // The sniffed type, not the client's claim.
                 'mime' => UploadTypeGuard::fromConfig()->sniffMime($file) ?? 'application/octet-stream',
                 ...UploadReview::initialFor($actor),

@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import HomeChat from '@/components/home/HomeChat.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
+import { useModules } from '@/composables/useModules';
 import { formatInstant } from '@/lib/datetime';
 import {
     register as eventsRegister,
     show as eventsShow,
 } from '@/routes/events';
-import type { EventSummary } from '@/types';
+import type { EventSummary, HomeChatData } from '@/types';
 
 defineProps<{
     /** Announced, registration and live events (not drafts, not over). */
     current: EventSummary[];
     /** Finished and archived events, newest first. */
     events: EventSummary[];
+    chat: HomeChatData;
     labels: Record<string, string>;
 }>();
+
+const { has } = useModules();
 
 function year(iso: string | null): string {
     return iso ? new Date(iso).getFullYear().toString() : '';
@@ -38,6 +43,33 @@ function when(iso: string | null): string {
     <Head :title="labels.index_title" />
 
     <PageContainer width="default" :title="labels.index_title">
+        <!-- Arcade start hero: the first thing a visitor can talk to. -->
+        <div class="mt-8">
+            <HomeChat :chat="chat" />
+        </div>
+
+        <!-- The launcher is the way onto the LAN: keep it above the event lists. -->
+        <section
+            v-if="has('game_recipes')"
+            class="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-border bg-card p-5"
+            data-test="events-launcher"
+        >
+            <div class="min-w-0">
+                <h2
+                    class="text-lg font-semibold tracking-tight text-foreground"
+                >
+                    LANoMAT Launcher
+                </h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Unreal Tournament 2004 installieren, starten und mit dem
+                    Server verbinden — für Windows und Linux.
+                </p>
+            </div>
+            <Button as-child size="lg">
+                <Link href="/launcher">Launcher herunterladen</Link>
+            </Button>
+        </section>
+
         <section aria-labelledby="events-current" class="mt-8">
             <h2
                 id="events-current"

@@ -6,7 +6,8 @@ it('registers no optional-module route under the core profile', function () {
     $routes = modulesReport('core')['routes'];
 
     $optionalPrefixes = ['jukebox.', 'gallery.', 'voice.', 'friends.', 'schedule.', 'catering.', 'polls.',
-        'lfg.', 'servers.', 'files.', 'presence.', 'recap.', 'screen.', 'overlay.', 'discord.', 'telemetry.', 'stats.'];
+        'lfg.', 'servers.', 'files.', 'presence.', 'recap.', 'screen.', 'overlay.', 'discord.', 'telemetry.', 'stats.',
+        'launcher.', 'mcp.'];
 
     foreach ($optionalPrefixes as $prefix) {
         expect(collect($routes)->contains(fn ($n) => str_starts_with($n, $prefix)))->toBeFalse("$prefix* should be absent");

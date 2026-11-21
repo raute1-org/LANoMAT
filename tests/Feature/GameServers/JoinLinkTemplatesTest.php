@@ -83,7 +83,7 @@ it('exposes join options on /servers only for the UT2004 permanent server', func
         'join_info' => new JoinInfo(address: '203.0.113.8', port: 25565),
     ]);
 
-    $this->actingAs(User::factory()->create())->get('/servers')
+    $this->actingAs(User::factory()->create())->get('/servers/permanent')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Servers/Permanent')
@@ -98,7 +98,7 @@ it('exposes join options on /servers only for the UT2004 permanent server', func
 });
 
 it('does not expose join options to guests', function () {
-    $this->get('/servers')->assertRedirect(route('login'));
+    $this->get('/servers/permanent')->assertRedirect(route('login'));
 });
 
 it('exposes join options on the event server list only for visible (listed) servers', function () {

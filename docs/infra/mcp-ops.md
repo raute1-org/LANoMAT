@@ -46,9 +46,10 @@ MODULE_MCP=true
 MODULE_GAME_RECIPES=true
 ```
 
-- `GameRecipes` **requires** `Files` (`Module::requires()`): recipes list and plan without it, but
-  their LAN files can never be matched. `lanomat:modules` fails the boot when a hard requirement is
-  off.
+- `GameRecipes` **requires** `Files` and `Mcp` (`Module::requires()`): recipes list and plan without
+  `Files`, but their LAN files can never be matched; and the `/launcher` page pairs through the MCP
+  device flow (`api/mcp/device|token`) and hands out `mcp.files.download` URLs. `lanomat:modules`
+  fails the boot when a hard requirement is off.
 - `Mcp` has no hard requirement, but the tool catalogue silently shrinks when modules are off — for
   example `files_*` tools disappear without `Files`, `recipes_*` without `GameRecipes`.
 - After changing the profile, **recreate** the containers (`docker compose --profile prod up -d`), do

@@ -115,6 +115,16 @@ approve it on `/mcp/connect` while signed in.
 | ![MCP device pairing page with the agent code waiting for approval, dark](/screens/mcp-connect-pending-dark.png) | ![MCP device pairing page with the agent code waiting for approval, light](/screens/mcp-connect-pending-light.png) |
 | `MCP · DARK` — device code approved in the browser | `MCP · LIGHT` — same code, same scopes |
 
+## 8. Optional: the desktop launcher
+
+The LANoMAT Launcher is the no-terminal path: one download, one pairing code, one button for
+**Unreal Tournament 2004**. The server offers the Linux and Windows builds on `/launcher` (sidebar
+entry **Launcher**), with size and SHA-256; the token it stores is 0600. Read
+[One-click launcher](/docs/guides/launcher) for the download, the pairing and what happens when a
+disc image or patch is missing on the LAN. On the server, `scripts/ops/build-launcher.sh` builds and
+publishes the Linux build into `clients-dist/launcher`; the Windows exe comes from the
+`release-launcher.yml` workflow.
+
 ## Where to go next
 
 | If you want to… | Read |

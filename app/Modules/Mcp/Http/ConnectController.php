@@ -17,8 +17,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Browser end of the pairing flow: a logged-in user types the code the agent
- * printed, approves it, and sees every connected agent afterwards.
+ * Browser end of the pairing flow: a logged-in user types the code the launcher
+ * (or the agent) printed, approves it, and sees every connected device afterwards.
  */
 class ConnectController extends Controller
 {

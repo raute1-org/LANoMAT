@@ -1,0 +1,51 @@
+LANoMAT Launcher, Version @VERSION@, Linux x86_64
+Gebaut aus Commit @COMMIT@.
+
+Starten:
+  1. Entpacken:      tar -xzf @ARCHIVE@
+  2. Starten:        ./@PKG@/lanomat-launcher
+
+Ins Startmenü (empfohlen, ohne Root):
+  ./@PKG@/install-desktop.sh
+  Danach steht der Launcher im Startmenü und ist der Handler für
+  lanomat://install/<slug> und lanomat://launch/<slug>: Links von der LANoMAT-Seite öffnen
+  ihn direkt. Das Skript kopiert die Dateien nach ~/.local und lässt sich beliebig oft
+  wiederholen.
+  Entfernen: ./@PKG@/install-desktop.sh --uninstall
+
+Als Gaming-Terminal oder Arcade-Automat (startet beim Login):
+  ./@PKG@/install-terminal.sh                            # Fenstermodus, Autostart
+  ./@PKG@/install-terminal.sh --arcade --name "Arcade 3" # Vollbild, Name für die Orga
+  ./@PKG@/install-terminal.sh --kiosk                    # Vollbild, Escape gesperrt
+  Entfernen: ./@PKG@/install-terminal.sh --uninstall
+  (nutzt install-desktop.sh daneben, kein Root, kein Netz; --no-autostart und
+  --autostart=systemd gibt es auch)
+
+Dasselbe von Hand:
+  mkdir -p ~/.local/bin ~/.local/share/applications \
+    ~/.local/share/icons/hicolor/256x256/apps
+  cp @PKG@/lanomat-launcher ~/.local/bin/
+  cp @PKG@/lanomat-launcher.png ~/.local/share/icons/hicolor/256x256/apps/
+  cp @PKG@/lanomat-launcher.desktop ~/.local/share/applications/
+  sed -i "s|^Exec=.*|Exec=$HOME/.local/bin/lanomat-launcher %u|" \
+    ~/.local/share/applications/lanomat-launcher.desktop
+  xdg-mime default lanomat-launcher.desktop x-scheme-handler/lanomat
+  update-desktop-database ~/.local/share/applications
+  (~/.local/bin muss im PATH liegen.)
+
+Beim ersten Start: Serveradresse eingeben, den angezeigten Code im Browser bestätigen.
+Danach das Spiel auswählen, installieren lassen und "Starten" drücken; installiert wird nach
+~/Games/unreal-tournament-2004.
+
+Fehlt eine Datei, nennt der Launcher sie beim Namen ("UT2004 DVD 1"); die Orga lädt sie im
+aktiven Event unter "Dateien" hoch. Der Launcher braucht kein Internet und keine
+Administratorrechte. Voraussetzungen: GTK 3 und WebKitGTK 4.1.
+Prüfsumme (SHA-256) steht auf der Download-Seite /launcher.
+
+Windows: lanomat-launcher.exe starten; beim ersten Start trägt sie sich selbst als
+lanomat://-Handler ein (nur im eigenen Benutzerprofil, ohne Administratorrechte). Neben der exe
+liegen install-desktop.ps1 (meldet den Handler neu an, wenn die exe verschoben wurde) und
+install-terminal.ps1 (Arcade-/Gaming-Terminal, Autostart beim Login):
+  powershell -ExecutionPolicy Bypass -File .\install-desktop.ps1 -Exe <pfad>\lanomat-launcher.exe
+  powershell -ExecutionPolicy Bypass -File .\install-terminal.ps1 -Arcade -Name "Arcade 3"
+-Uninstall meldet den Handler wieder ab. Administratorrechte sind nie nötig.

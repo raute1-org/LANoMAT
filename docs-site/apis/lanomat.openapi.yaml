@@ -42,6 +42,8 @@ tags:
     description: The game recipe catalogue, skills, plans, files and avatars.
   - name: Files
     description: The LAN file host.
+  - name: Servers
+    description: The aggregated game servers of the active and recent events, plus permanent servers.
 
 x-tagGroups:
   - name: Agents
@@ -57,6 +59,9 @@ x-tagGroups:
   - name: Files
     tags:
       - Files
+  - name: Game servers
+    tags:
+      - Servers
 
 paths:
   /api/mcp/device:
@@ -688,6 +693,109 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/servers:
+    get:
+      tags: [Servers]
+      operationId: listServers
+      summary: Aggregated game servers
+      description: |
+        The launcher's server browser: the servers of every active event, the most recently
+        finished event and the permanent servers, in one list. The shape is the public web
+        page's projection with no per-viewer narrowing and no player names, so a launcher can
+        show the whole LAN without exposing user data. A server still starting appears with
+        `status: provisioning` but no join link.
+      responses:
+        "200":
+          description: The aggregated server browser.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, servers]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      required: [slug, name, status]
+                      properties:
+                        slug: { type: string }
+                        name: { type: string }
+                        status:
+                          type: string
+                          enum: [announced, registration, live, finished]
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, status, permanent]
+                      properties:
+                        id: { type: integer }
+                        title: { type: string }
+                        game: { type: string, nullable: true }
+                        description: { type: string, nullable: true }
+                        matchLabel: { type: string, nullable: true }
+                        address: { type: string, nullable: true }
+                        port: { type: integer, nullable: true }
+                        connectString: { type: string, nullable: true }
+                        connectIsLink: { type: boolean }
+                        status:
+                          type: string
+                          enum: [ready, not_responding, offline, provisioning, pending, failed, stopped]
+                        permanent: { type: boolean }
+                        event:
+                          type: object
+                          nullable: true
+                          properties:
+                            slug: { type: string }
+                            name: { type: string }
+                            status: { type: string }
+                        query:
+                          type: object
+                          nullable: true
+                          properties:
+                            serverName: { type: string }
+                            map: { type: string }
+                            players: { type: integer }
+                            maxPlayers: { type: integer }
+                            checkedAt: { type: string, nullable: true }
+                        joinOptions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string }
+                              label: { type: string }
+                              url: { type: string }
+                              hint: { type: string }
+              example:
+                events:
+                  - slug: lan-raute-1
+                    name: Lan Raute 1
+                    status: live
+                servers:
+                  - id: 11
+                    title: Survival
+                    game: Minecraft
+                    status: ready
+                    address: 203.0.113.9
+                    port: 25565
+                    connectString: 203.0.113.9:25565
+                    connectIsLink: false
+                    permanent: false
+                    event: { slug: lan-raute-1, name: Lan Raute 1, status: live }
+                    query: { serverName: Survival, map: world, players: 3, maxPlayers: 20 }
+                    joinOptions: []
+                  - id: 12
+                    title: UT2004 Dauerwelt
+                    game: Unreal Tournament 2004
+                    status: offline
+                    permanent: true
+                    event: null
+                    joinOptions: []
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/v1/files:
     get:
       tags: [Files]
@@ -1192,7 +1300,7 @@ components:
                 type: boolean
         files:
           type: array
-          description: Every recipe requirement, matched or not.
+          description: Every recipe requirement for the plan's `os`, matched or not. Files authored for the other platform are omitted.
           items:
             $ref: "#/components/schemas/PlanFile"
         downloads:
@@ -1225,6 +1333,11 @@ components:
           description: Role such as `base`, `iso`, `patch`, `mod`, `tool`, `avatar`.
         label:
           type: string
+        os:
+          type: string
+          enum: [windows, linux, macos, any]
+          nullable: true
+          description: The platform this file is for; absent means any. Matched files for another OS never appear in the plan.
         status:
           type: string
           enum: [matched, missing, external, manual]
@@ -1289,6 +1402,11 @@ components:
           type: string
         label:
           type: string
+        os:
+          type: string
+          enum: [windows, linux, macos, any]
+          nullable: true
+          description: The platform this file is for; absent means any. Two patches that differ only in os are two entries.
         file:
           type: string
         size_bytes:

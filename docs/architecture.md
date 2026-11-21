@@ -75,6 +75,7 @@ Hard dependencies between optional modules (`Module::requires()`, enforced at bo
 |---|---|
 | CustomServers, Lancache | Hosts |
 | Provisioning | Hosts, Lancache |
+| GameRecipes | Files, Mcp |
 | Recap | Gallery, Jukebox, Voting, Presence |
 | News | Gallery |
 | Gallery | Files |

@@ -77,8 +77,8 @@ the approving user and carries their role; revoking the device in the browser in
 
 | Dark | Light |
 |---|---|
-| ![Code entry and the list of paired agents, dark](/screens/mcp-connect-dark.png) | ![Code entry and the list of paired agents, light](/screens/mcp-connect-light.png) |
-| `AGENT & MCP · CODE EINGEBEN · VERBUNDENE AGENTEN` | `AGENT & MCP · LIGHT` |
+| ![Code entry and the list of paired devices, dark](/screens/mcp-connect-dark.png) | ![Code entry and the list of paired devices, light](/screens/mcp-connect-light.png) |
+| `GERÄTE & MCP · CODE EINGEBEN · VERBUNDENE GERÄTE` | `GERÄTE & MCP · LIGHT` |
 
 <div class="callout-live">
   <strong>No password in a file.</strong> The token is the credential. Store it in an environment

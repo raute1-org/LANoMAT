@@ -269,6 +269,64 @@ tells users how to click through the SmartScreen warning. The Preflight check `c
 ("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
 repeat the fetch (or the build) after every deploy that changes the version.
 
+**LANoMAT Launcher download (Linux and Windows).** `/launcher` is the public download page for the
+desktop launcher that installs UT2004 from the LAN with one button (guide:
+<https://lan.raute1.org/docs/guides/launcher>). It needs `MODULE_GAME_RECIPES=true` — and
+`MODULE_FILES=true` (recipes find their ISO/patch uploads through Files) and `MODULE_MCP=true` (the
+launcher pairs and plans through the bearer API; GameRecipes declares both as hard dependencies, so
+enabling it without them fails at boot). None of the three is part of the `core` profile, so set all
+explicitly. The page reads `./clients-dist/launcher/manifest.json`,
+which is the same read-only bind mount as the native client (`./clients-dist:/app/clients-dist:ro` in
+`app` and `scheduler`) — a missing manifest means "no build published", the page still renders.
+
+```bash
+scripts/ops/build-launcher.sh          # Linux x86_64; refuses a dirty tree, publishes atomically
+scripts/ops/build-launcher.sh --help   # --allow-dirty, --version, --out, --rebuild-image, --keep-old
+```
+
+The script compiles `cargo build --locked --release` in `clients/launcher/Dockerfile.dev` (there is no
+Rust toolchain on the host) and packages; it does **not** run fmt/clippy/tests — that gate is
+`clients/launcher/ci/build.sh` (fmt, clippy, `cargo test --workspace`), which CI uses. It refuses a
+working tree that is not clean: a tracked change anywhere, or an untracked file outside
+`clients-dist/`, `clients/launcher/{target,dist}/`, `.ci-cache/`, `node_modules/`, `vendor/`.
+`--allow-dirty` accepts both and marks the version `-dirty`. The toolchain image is labelled with the
+SHA-256 of `Dockerfile.dev` and rebuilt when that file changes (an image built before the label is
+reused; `--rebuild-image` forces the rebuild). It writes the tarball first and `manifest.json` last,
+derives `SHA256SUMS` from exactly the manifest's files, and prunes older Linux tarballs in the folder
+unless `--keep-old` is given. The compile runs as a named container
+(`docker create`/`start`/`wait`/`logs`) with a bounded wait
+(`LANOMAT_LAUNCHER_BUILD_TIMEOUT`, default 3600 s): if the docker client hangs after the container
+finished, a staged, executable binary is packaged with a warning instead of being thrown away.
+
+Only Linux is built here. The Windows portable exe comes from the GitHub workflow
+`.github/workflows/release-launcher.yml` (`workflow_dispatch` or a `launcher-v*` tag); its `package`
+job merges both per-OS builds into one `launcher-release` artifact — tarball, exe of the same
+version, one `manifest.json` listing both, `SHA256SUMS` for exactly those files, and the two
+PowerShell installers (`install-desktop.ps1`, `install-terminal.ps1`). Download it and copy the
+contents into `clients-dist/launcher/`; that is the whole publish step. The Linux tarball ships
+`install-desktop.sh` and `install-terminal.sh` (arcade/gaming terminal: autostart at login,
+`--arcade`/`--kiosk`, `--name` for the orga monitor, `--uninstall`); on Windows the matching
+`install-terminal.ps1 -Arcade -Name "Arcade 3"` does the same. A `launcher-v*` tag
+only starts the run: with a clean tree the version is the commit's own `git describe` string from
+`scripts/ops/lib/version.sh` (a leading `launcher-v` is stripped, so the tag never becomes the app
+version). Locally, the same merge happens when a same-version exe sits next to the tarball and
+`build-launcher.sh` runs; an exe of another version is ignored and left in place for its own
+release. Publishing is safe to repeat. Preflight's `launcher_build` check reads the manifest and the
+files themselves: it warns when nothing is published, when a file no longer matches its size or
+SHA-256, when only one OS is present, or when the build is older than 30 days.
+Like `clients-dist` itself, publish before the first `up`, otherwise Docker creates the directory as
+root. The page is public on purpose (a fresh PC installs the launcher before its owner logs in) and
+carries no user data.
+
+Every terminal pairs its own device: the catalogue is shared, the installs are local, and the same
+account can run the launcher on any number of machines without copying a config file. Arcade
+terminals (kiosk/fullscreen, keyboard or gamepad) sign in by scanning a QR of
+`/mcp/connect?code=…` and hand the machine over with **Abmelden / Reset**; the token, the install
+library and the progress stay on that machine. **Verbundene Geräte** on `/mcp/connect` is the room's
+device list — one row per terminal with **online**, **aktuelles Spiel** and **zuletzt gesehen**, and
+the place to revoke a retired or re-imaged machine. The real-infra checks for all of this are in
+[`pre-lan-acceptance-checklist.md`](pre-lan-acceptance-checklist.md) §11.
+
 **One-time after the deploy that introduces local avatars.** LANoMAT now keeps its own copy of every Discord
 avatar (nothing is loaded from the Discord CDN by browsers or the desktop client any more). New logins fetch
 theirs in the background, and the scheduler refreshes active users daily, but the people who are already in

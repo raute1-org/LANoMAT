@@ -15,7 +15,9 @@ use App\Modules\Friends\Http\FriendsController;
 use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameRecipes\Http\GamePageController;
+use App\Modules\GameRecipes\Http\LauncherPageController;
 use App\Modules\GameServers\Http\GameServerPageController;
+use App\Modules\GameServers\Http\GlobalServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerAdminController;
 use App\Modules\GameServers\Http\PermanentServerPageController;
@@ -52,6 +54,15 @@ use Illuminate\Support\Facades\Route;
 $modules = app(Modules::class);
 
 if ($modules->routable(Module::GameRecipes)) {
+    // The LANoMAT Launcher download page: public on purpose, because a fresh PC installs
+    // the launcher before its owner logs in, and it carries no user data. The set of files
+    // is exactly what clients-dist/launcher/manifest.json lists (LauncherBuilds validates it).
+    Route::get('/launcher', [LauncherPageController::class, 'index'])->name('launcher.index');
+    Route::get('/launcher/download/{filename}', [LauncherPageController::class, 'download'])
+        ->where('filename', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
+        ->middleware('throttle:20,1')
+        ->name('launcher.download');
+
     // The participant games library: install/launch, live servers, running
     // tournaments and a one-click "Runde" into the event's voice chat.
     Route::middleware(['auth'])->group(function () {
@@ -230,8 +241,11 @@ if ($modules->routable(Module::GameServers)) {
     // Ready game servers only (see ServerListProjection).
     Route::middleware(['auth'])->group(function () {
         Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+        // The global server browser: one answer to "which servers are running?" across
+        // all public events plus the permanent servers (see GlobalServerPageController).
+        Route::get('/servers', [GlobalServerPageController::class, 'index'])->name('servers.browser');
         // Permanent servers: all year, independent of events, every logged-in user.
-        Route::get('/servers', [PermanentServerPageController::class, 'index'])->name('servers.permanent');
+        Route::get('/servers/permanent', [PermanentServerPageController::class, 'index'])->name('servers.permanent');
         // Admin shortcuts on that page; the Actions authorize `configure` on the server.
         Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');
         Route::post('/servers/{serverLink}/reload-map', [PermanentServerAdminController::class, 'reloadMap'])->name('servers.reload-map');

@@ -4,6 +4,8 @@ use App\Modules\Mcp\Http\Api\AvatarController;
 use App\Modules\Mcp\Http\Api\FileController;
 use App\Modules\Mcp\Http\Api\MeController;
 use App\Modules\Mcp\Http\Api\RecipeController;
+use App\Modules\Mcp\Http\Api\ServerController;
+use App\Modules\Mcp\Http\Api\TerminalController;
 use App\Modules\Mcp\Http\AuthenticateMcpToken;
 use App\Modules\Mcp\Http\DeviceFlowController;
 use App\Modules\Mcp\Http\ForceJsonAccept;
@@ -50,6 +52,20 @@ Route::prefix('api/v1')
 
         if ($modules->enabled(Module::Files)) {
             Route::get('files', [FileController::class, 'index'])->name('files.index');
+        }
+
+        if ($modules->enabled(Module::GameServers)) {
+            Route::get('servers', ServerController::class)->name('servers.index');
+        }
+
+        if ($modules->enabled(Module::GameRecipes)) {
+            // The launcher fleet: the heartbeat is the only writer (its own
+            // token = its own row), the list is orga-only (LauncherTerminalPolicy).
+            // Contract: docs/infra/arcade-terminals.md.
+            Route::post('terminals/heartbeat', [TerminalController::class, 'heartbeat'])
+                ->middleware('throttle:terminal-heartbeat')
+                ->name('terminals.heartbeat');
+            Route::get('terminals', [TerminalController::class, 'index'])->name('terminals.index');
         }
     });
 

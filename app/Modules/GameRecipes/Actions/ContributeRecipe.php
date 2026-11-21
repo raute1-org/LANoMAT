@@ -126,6 +126,11 @@ final class ContributeRecipe
                 'required' => (bool) ($requirement['required'] ?? false),
                 'sort' => $index,
                 'metadata' => array_filter([
+                    // Same contract as the YAML parser: `os` narrows the file
+                    // to one platform, absent means every plan sees it.
+                    'os' => isset($requirement['os']) && (string) $requirement['os'] !== ''
+                        ? mb_strtolower((string) $requirement['os'])
+                        : null,
                     'author' => $requirement['author'] ?? null,
                     'license' => $requirement['license'] ?? null,
                     'notes' => $requirement['notes'] ?? null,

@@ -42,6 +42,15 @@ final class ShellParity
     /** Short stable URL both shells link to (redirects to the download page for logged-in users). */
     public const DESKTOP_APP_URL = '/app';
 
+    /** German label of the launcher download entry; sidebar item in the Vue app AND navigation item in Filament. */
+    public const LAUNCHER_LABEL = 'Launcher';
+
+    /** The public launcher download page (no login needed). */
+    public const LAUNCHER_URL = '/launcher';
+
+    /** German label of the `mcp/connect` user-menu entry, shared by both shells; the copy stays device-neutral. */
+    public const DEVICES_MCP_LABEL = 'Geräte & MCP';
+
     /** German labels of the Vue user menu (UserMenuContent.vue): admin link, settings, logout. */
     public const VUE_MENU_LABELS = ['Admin-Bereich', 'Einstellungen', 'Abmelden'];
 

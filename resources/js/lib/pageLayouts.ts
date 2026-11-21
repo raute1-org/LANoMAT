@@ -8,7 +8,7 @@
  *   app      sidebar shell (AppLayout) — every authenticated participant page
  *   settings AppLayout + settings sub-navigation
  *   auth     AuthLayout (login / confirm / 2FA)
- *   profile  AppLayout for logged-in viewers, bare for guests (public profile)
+ *   profile  AppLayout for logged-in viewers, bare for guests (public profile, launcher)
  *   bare     no chrome: guest landing, beamer screens, OBS overlays
  *
  * tests/Architecture/PageLayoutsTest.php fails when a page under
@@ -33,6 +33,7 @@ export const pageLayouts: Record<string, PageLayoutKind> = {
     'Gallery/': 'app',
     'Games/': 'app',
     'Jukebox/': 'app',
+    'Launcher/': 'profile',
     'Lfg/': 'app',
     'Mcp/': 'app',
     'Orga/': 'app',

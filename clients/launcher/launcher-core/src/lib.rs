@@ -10,5 +10,8 @@ pub mod install;
 pub mod state;
 pub mod types;
 
-pub use install::{InstallEngine, InstallOptions, InstallProgress, InstallPhase, InstallOutcome};
-pub use types::{PlanFile, RecipePlan, RecipeSummary, Os};
+pub use install::{InstallEngine, InstallOptions, InstallOutcome, InstallPhase, InstallProgress};
+pub use types::{
+    GameServer, Os, PlanFile, RecipePlan, RecipeSummary, ServerEvent, ServerJoinOption, ServerList,
+    ServerQuery,
+};

@@ -1,0 +1,318 @@
+# Builds the LANoMAT Launcher (clients/launcher) for Linux and Windows and uploads the
+# opaque-ready files as workflow artifacts. Nothing is published: the operator copies the
+# `launcher-release` artifact (tarball, exe, manifest.json, SHA256SUMS) into
+# `clients-dist/launcher/` on the server, which is what `/launcher` and Preflight's `launcher_build`
+# check read. The `package` job is what makes that folder complete: a manifest that lists both OSes.
+#
+# Triggers: a tag `launcher-v*` or a manual run. Never on push: the Tauri build is heavy.
+# The version is the server's own (`scripts/ops/lib/version.sh`, same as
+# scripts/ops/build-launcher.sh) unless the `version` input overrides it.
+#
+# A `launcher-v*` tag is a TRIGGER ONLY: `git describe` would return the tag (e.g. `launcher-v1.2`),
+# so a leading `launcher-v` is stripped and the version falls back to the commit's own describe
+# string. The tag never becomes the app version — that would label the download, the manifest and
+# the launcher's update check with a string the server does not report.
+#
+# Linux is built and tested in the `app` stage of Dockerfile.dev via clients/launcher/ci/build.sh
+# (fmt, clippy, `cargo test --workspace`, release build); Windows is cross-compiled with cargo-xwin in
+# the `windows` stage of the same pinned image (no Windows runner needed). The artifacts are only
+# offered by /launcher after an operator copies the `launcher-release` artifact into
+# clients-dist/launcher/ — it carries the Linux tarball, the Windows exe of the same version and one
+# manifest listing both. Rebuilding that folder from a checkout must happen on a clean tree
+# (scripts/ops/build-launcher.sh refuses otherwise).
+name: Release launcher
+
+on:
+  push:
+    tags: ['launcher-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string; empty = the one this commit reports (git describe)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-launcher-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      commit: ${{ steps.v.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the version string comes from the tags
+      - name: Decide version
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          source scripts/ops/lib/version.sh
+          version=${INPUT_VERSION:-$(lanomat_version .)}
+          # `launcher-v*` tags only start this run, they do not name the build: strip the prefix so
+          # the version stays the commit's own describe string (scripts/ops/lib/version.sh stays the
+          # one source of what "the LANoMAT version" is).
+          case "$version" in
+            launcher-v*) version=${version#launcher-v} ;;
+          esac
+          if ! lanomat_version_ok "$version"; then
+            echo "::error::'$version' is not a usable version string (letters, digits, . _ - ; at most 64)"
+            exit 1
+          fi
+          commit=$(lanomat_commit .)
+          {
+            echo "version=$version"
+            echo "commit=$commit"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::launcher $version at $commit"
+
+  linux:
+    needs: meta
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      COMMIT: ${{ needs.meta.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Build the Linux toolchain image (Tauri deps)
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: clients/launcher
+          file: clients/launcher/Dockerfile.dev
+          target: app
+          load: true
+          tags: lanomat-launcher-dev:ci
+          cache-from: type=gha,scope=launcher-image
+          cache-to: type=gha,scope=launcher-image,mode=max
+
+      - name: Cache the cargo registry and target
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ci-cache/registry
+            .ci-cache/target
+          key: launcher-build-${{ hashFiles('clients/launcher/Cargo.lock') }}
+          restore-keys: launcher-build-
+
+      - name: Format, lint, test and build in the image
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-cache/registry .ci-cache/target clients/launcher/dist
+          docker run --rm \
+            -e LANOMAT_BUILD_VERSION="$VERSION" \
+            -e LANOMAT_BUILD_COMMIT="$COMMIT" \
+            -e LANOMAT_LAUNCHER_COMMIT="$COMMIT" \
+            -v "$PWD/clients/launcher:/work" \
+            -v "$PWD/.ci-cache/registry:/usr/local/cargo/registry" \
+            -v "$PWD/.ci-cache/target:/work/target" \
+            lanomat-launcher-dev:ci sh ci/build.sh
+
+      - name: Write the manifest and checksums
+        run: |
+          set -euo pipefail
+          sudo chown -R "$USER" clients/launcher/dist
+          mkdir -p clients-dist/launcher
+          cp clients/launcher/dist/linux/*.tar.gz clients-dist/launcher/
+          archive="lanomat-launcher-${VERSION}-linux-x86_64.tar.gz"
+          test -f "clients-dist/launcher/$archive"
+          cd clients-dist/launcher
+          size=$(stat -c %s "$archive")
+          sha=$(sha256sum "$archive" | cut -d' ' -f1)
+          cat > manifest.json <<JSON
+          {
+            "app_version": "$VERSION",
+            "commit": "$COMMIT",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "files": [
+              {
+                "name": "$archive",
+                "os": "linux",
+                "arch": "x86_64",
+                "kind": "app",
+                "variant": "archive",
+                "size": $size,
+                "sha256": "$sha",
+                "signed": false
+              }
+            ]
+          }
+          JSON
+          sha256sum -- "$archive" > SHA256SUMS
+          cat manifest.json SHA256SUMS
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: launcher-linux
+          path: clients-dist/launcher/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    needs: meta
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      COMMIT: ${{ needs.meta.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Build the Windows toolchain image (cargo-xwin, LLVM)
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: clients/launcher
+          file: clients/launcher/Dockerfile.dev
+          target: windows
+          load: true
+          tags: lanomat-launcher-win:ci
+          cache-from: type=gha,scope=launcher-windows-image
+          cache-to: type=gha,scope=launcher-windows-image,mode=max
+
+      - name: Cache the cargo registry, target and Windows SDK
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ci-cache/registry
+            .ci-cache/target
+            .ci-cache/xwin
+          key: launcher-windows-${{ hashFiles('clients/launcher/Cargo.lock') }}
+          restore-keys: launcher-windows-
+
+      - name: Cross-build the portable exe
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-cache/registry .ci-cache/target .ci-cache/xwin
+          docker run --rm \
+            -e LANOMAT_BUILD_COMMIT="$COMMIT" \
+            -e LANOMAT_LAUNCHER_COMMIT="$COMMIT" \
+            -v "$PWD/clients/launcher:/work" \
+            -v "$PWD/.ci-cache/registry:/usr/local/cargo/registry" \
+            -v "$PWD/.ci-cache/target:/work/target" \
+            -v "$PWD/.ci-cache/xwin:/xwin-cache" \
+            -w /work lanomat-launcher-win:ci \
+            cargo xwin build --locked --release --target x86_64-pc-windows-msvc -p lanomat-launcher-app
+
+      - name: Stage the portable exe
+        run: |
+          set -euo pipefail
+          sudo chown -R "$USER" .ci-cache/target
+          src=".ci-cache/target/x86_64-pc-windows-msvc/release/lanomat-launcher.exe"
+          test -s "$src"
+          # PE sanity check before an unsigned binary is offered for download: "MZ" at offset 0,
+          # then the Machine field of the PE header (e_lfanew at 60, signature at e_lfanew,
+          # machine right after it) must be 0x8664 = x86-64. A cross-build that silently produced
+          # a different target must not reach /launcher.
+          test "$(head -c 2 "$src")" = "MZ" || { echo "::error::$src has no MZ header"; exit 1; }
+          pe_offset="$(od -An -tu4 -j 60 -N4 "$src" | tr -d ' \n')"
+          test -n "$pe_offset" || { echo "::error::$src has no PE header offset"; exit 1; }
+          pe_machine="$(od -An -tx1 -j "$((pe_offset + 4))" -N2 "$src" | tr -d ' \n')"
+          test "$pe_machine" = "6486" || {
+            echo "::error::$src is not an x86-64 PE (machine 0x$pe_machine, expected 0x8664)"
+            exit 1
+          }
+          echo "PE ok: $src ($(stat -c %s "$src") bytes)"
+          mkdir -p clients-dist/launcher
+          name="lanomat-launcher-${VERSION}-windows-x86_64-portable.exe"
+          install -m 0644 "$src" "clients-dist/launcher/$name"
+          # The arcade/gaming-terminal installer and the URL-scheme installer travel with the exe:
+          # install-terminal.ps1 registers lanomat:// through its sibling install-desktop.ps1, so the
+          # two must stay next to each other (and next to the exe).
+          install -m 0644 clients/launcher/scripts/install-desktop.ps1 clients-dist/launcher/install-desktop.ps1
+          install -m 0644 clients/launcher/scripts/install-terminal.ps1 clients-dist/launcher/install-terminal.ps1
+          cd clients-dist/launcher
+          sha256sum -- "$name" > SHA256SUMS.windows
+          cat SHA256SUMS.windows
+          ls -l
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: launcher-windows
+          path: clients-dist/launcher/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Both per-OS jobs build and upload on their own runners, so neither sees the other's files. This
+  # job is the one publishable folder: Linux tarball + manifest from `launcher-linux`, the exe from
+  # `launcher-windows`, and a manifest that lists BOTH. Without it /launcher would offer Linux only
+  # even though a Windows exe exists (the page renders exactly the manifest's entries).
+  package:
+    needs: [meta, linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: launcher-linux
+          path: release
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: launcher-windows
+          path: release
+
+      - name: Merge the Windows entry into the manifest
+        run: |
+          set -euo pipefail
+          cd release
+          archive="lanomat-launcher-${VERSION}-linux-x86_64.tar.gz"
+          exe="lanomat-launcher-${VERSION}-windows-x86_64-portable.exe"
+          test -f "$archive" || { echo "::error::missing $archive from the linux job"; exit 1; }
+          test -f "$exe" || { echo "::error::missing $exe from the windows job"; exit 1; }
+          # The Windows installers ride along unversioned; they are not manifest entries (the page
+          # offers builds, not helper scripts), so only their presence is checked here.
+          test -f install-desktop.ps1 || { echo "::error::missing install-desktop.ps1 from the windows job"; exit 1; }
+          test -f install-terminal.ps1 || { echo "::error::missing install-terminal.ps1 from the windows job"; exit 1; }
+          test "$(jq -r '.app_version' manifest.json)" = "$VERSION" || {
+            echo "::error::the linux manifest names another version than $VERSION"
+            exit 1
+          }
+
+          # Same entry shape and key order as scripts/ops/build-launcher.sh writes: replace an entry
+          # of the same name, keep app_version/commit/built_at from the Linux job.
+          size="$(stat -c %s "$exe")"
+          sha="$(sha256sum -- "$exe" | cut -d' ' -f1)"
+          jq --arg name "$exe" --argjson size "$size" --arg sha "$sha" '
+            .files = ((.files | map(select(.name != $name))) + [{
+              name: $name, os: "windows", arch: "x86_64", kind: "app",
+              variant: "portable", size: $size, sha256: $sha, signed: false
+            }])
+          ' manifest.json > manifest.next
+          mv manifest.next manifest.json
+
+          # SHA256SUMS from exactly the manifest's files (the Linux job's line is regenerated with
+          # the second line added; the page and Preflight compare both).
+          : > SHA256SUMS
+          jq -r '.files[].name' manifest.json | while IFS= read -r name; do
+            sha256sum -- "$name" >> SHA256SUMS
+          done
+          rm -f SHA256SUMS.windows
+
+          jq -e '.files | map(.os) | sort == ["linux", "windows"]' manifest.json >/dev/null \
+            || { echo "::error::the manifest does not list one file per OS"; exit 1; }
+          cat manifest.json SHA256SUMS
+          ls -l
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: launcher-release
+          path: release/
+          if-no-files-found: error
+          retention-days: 7

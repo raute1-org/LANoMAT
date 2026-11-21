@@ -39,6 +39,20 @@ the browser and in the launcher.
 
 ## Product flow
 
+> **UX status (2026-11-21, implemented — pilot).** The flow below is implemented for the UT2004
+> pilot: the start-page chat with its typewriter suggestions and inline game/server/install cards,
+> the `/games` rows with install/launch and recently played, the launcher download and one-time
+> pairing, and the launcher's own library/install/ready windows with real percentages. The chat,
+> `/games` and the launcher render the same read models; the deterministic fallback answers every
+> intent when no model is reachable. Normative UI rules live in `docs/design.md`
+> ("Start-page chat (the front door) — pilot"); the guide is
+> `docs-site/pages/guides/launcher.mdx`. The multi-terminal model and the arcade QR sign-in are
+> specified there too: one pairing, token and local install library per terminal, a shared
+> catalogue, offline-startable installs, and a per-terminal device list with **online**,
+> **aktuelles Spiel** and **zuletzt gesehen** under **Verbundene Geräte** on `/mcp/connect`.
+> Still deferred (see *Pilot scope*): every other recipe,
+> VR, the deeper browser↔launcher handoff, and the sponsorship slices.
+
 0. **Homepage (`/`) above the fold:** the agent chat and the three very large primary
    tiles — **1) Spiele verwalten** → `/games`, **2) Serverbrowser** → `/servers`,
    **3) Voice-Chats** → `/talk` when live, otherwise the native voice client / download entry.
@@ -106,8 +120,8 @@ the browser and in the launcher.
 
 ## Workstreams (32 slots)
 
-1. Product flow and screen map
-2. UT2004/Epic brand and UX
+1. Product flow and screen map — **implemented (pilot)**
+2. UT2004/Epic brand and UX — **implemented (pilot)**
 3. Tauri shell architecture
 4. Recipe engine decision
 5. Progress event contract
@@ -123,13 +137,13 @@ the browser and in the launcher.
 15. Security threat model
 16. E2E acceptance and rollout
 17. Blizzard→Epic brand transfer (wow-forever reference)
-18. Browser chat surface on lan.raute1.org
+18. Browser chat surface on lan.raute1.org — **implemented (pilot)**: greeting, suggestion typewriter, inline cards
 19. Agent-installer skill
 20. Venice model/key validation + ds41f config
 21. Launcher static prototype (Epic UI)
 22. Chat backend/proxy (OpenCode/pi, SSE, tools)
-23. Chat UX (greeting, game/server cards, install buttons)
-24. Games list rows with install/server actions
+23. Chat UX (greeting, game/server cards, install buttons) — **implemented (pilot)**, see `docs/design.md`
+24. Games list rows with install/server actions — **implemented (pilot)**, shared by `/games` and the launcher
 25. OpenCode bootstrap script (PowerShell/bash)
 26. Install-ticket implementation slice
 27. Venice sponsorship implementation slice

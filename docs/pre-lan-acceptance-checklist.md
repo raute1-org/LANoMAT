@@ -199,6 +199,40 @@ Klick folgen kann. Alles ist gegen Fakes getestet; echt prüfen:
 - [ ] **Folgen:** Mumble-/TeamSpeak-Link öffnet den Client im richtigen Raum mit dem eigenen Namen; Discord-Link öffnet den
       Kanal; Webvoice verbindet über den Raumtoken; ein Match-Raum eines fremden Teams ist nicht beitretbar.
 
+## 11. Launcher — one-click UT2004 install (fresh PC)
+
+The LANoMAT Launcher is the no-terminal path for participants: one download from `/launcher`, one
+pairing code, one **Installieren** button for Unreal Tournament 2004. Verify it on hardware that has
+never seen this LAN. Requires `MODULE_GAME_RECIPES=true`, `MODULE_FILES=true` and `MODULE_MCP=true`
+(the launcher pairs and plans through the bearer API); the page reads
+`clients-dist/launcher/manifest.json` (see the deploy runbook's launcher section and
+[`docs-site/pages/guides/launcher.mdx`](../docs-site/pages/guides/launcher.mdx)).
+
+- [ ] `/launcher` lists **both builds** — Linux x86_64 tarball and Windows x86_64 portable exe — each
+      with size and SHA-256; the same page opens without a login (guest gets bare chrome, no sidebar).
+- [ ] **Fresh-PC run:** on a PC with no LANoMAT login, start the launcher, pair with the code shown in
+      the browser, install UT2004 from the LAN and press **Starten** — the game reaches the main menu
+      without internet and without administrator rights.
+- [ ] **Manifest SHA256 matches:** in `clients-dist/launcher`, `sha256sum -c SHA256SUMS` passes and each
+      value equals the hash printed by the script and shown on `/launcher`; a missing requirement makes
+      the launcher name the file (e.g. "UT2004 DVD 1") instead of failing silently.
+- [ ] **Two terminals, two devices:** pair a second machine at the same time; both appear under
+      **Verbundene Geräte** on `/mcp/connect` as separate rows, each with its own token, and revoking
+      one leaves the other connected. The shared catalogue is identical on both, while an install
+      exists only on the machine that ran it.
+- [ ] **Arcade terminal by QR:** in kiosk/fullscreen mode the launcher shows a QR of
+      `/mcp/connect?code=…` plus the code as text; scan it with a phone, sign in and approve — the
+      terminal stores its own device token and shows **Angemeldet als <Name>**. The QR alone does not
+      sign anyone in.
+- [ ] **Handover:** **Abmelden / Reset** on the arcade terminal clears the session and pairing for the
+      next player; the installed files stay, so the next scan reaches the library without a second
+      download. The same account works on every terminal.
+- [ ] **Per-terminal monitoring:** `/mcp/connect` shows **online**, **aktuelles Spiel** and **zuletzt
+      gesehen** for each terminal; a powered-off machine goes dark there without any manual refresh.
+- [ ] **Offline library:** stop the LANoMAT app (leave the file host reachable or not) — a terminal with
+      a verified UT2004 install still offers **Starten**, and the catalogue area says the server is
+      offline instead of pretending to be empty.
+
 ---
 
 *Source notes distilled from: the per-phase "Vertagt auf reale Infra" sections

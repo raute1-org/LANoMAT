@@ -39,19 +39,38 @@ requires:
       sha256: ''
       url: ''
       notes: "Disc 1 is enough for the full install; Disc 2 only has extra maps. An already-installed GOG/Steam copy is fine too, but a folder cannot match a glob: treat it as a manual target, skip this requirement and start at the patch step with {{target}} set to the existing install. The disc's own Setup.exe is optional; this recipe copies the asset folders instead."
-    - role: patch
-      label: 'OldUnreal UT2004 patch 3374 (Windows x64 zip / Linux x64 tar.bz2)'
+    - role: base
+      label: 'UT2004 portable 3374 (Windows x64, no install)'
+      os: windows
       match:
           [
-              'OldUnreal-UT2004Patch3374-Windows-*.zip',
-              'OldUnreal-UT2004Patch3374-Linux-*.tar.bz2',
+              'ut2004-portable-3374.zip',
+              'UT2004-portable-3374.zip',
+              '*UT2004*portable*.zip',
           ]
-      required: true
+      required: false
       sha256: ''
-      url: https://github.com/OldUnreal/UT2004Patches/releases
-      notes: 'Latest release 3374-rc3 (2026-11-03; patch 3374 is feature-complete). Windows asset OldUnreal-UT2004Patch3374-Windows-d906d39a.zip, 47,460,147 B, sha256 16bd65fcf736163e1f00fbb9404a492489bea6869d87496dcd15c2fed4d96dd2. Linux asset OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2, 59,191,321 B, sha256 d79eb45fda3ace2b7a68e6a0b9730b7d6602004b111e0b16f3f7cc28f3111572. The hash suffix changes per release; keep sha256 empty unless the exact asset is pinned. Contains Help/, Sounds/, System/, SystemARM64/, SystemLocalized/, Textures/ and Web/, including a 64-bit System/UT2004.exe, System/D3D11Drv.dll and System/Build.ini with Label=v3374.'
+      url: ''
+      notes: 'Optional LAN file, preferred when the Orga provides it: a ready-to-copy patched game folder (OldUnreal 3374, Windows x64) zipped on the file host. It already carries System/, Maps/, Textures/ and Build.ini patched, so it wins over the ISO: unpack the archive into {{target}}, verify System/UT2004.exe and System/Build.ini, and skip the disc copy and the patch step. Without it the recipe installs from the ISO plus patch 3374 as before; the launcher prefers a matched base archive over a matched ISO. Windows only: the folder holds UT2004.exe and the D3D11 renderer, so a Linux plan uses the ISO plus the Linux patch instead.'
+    - role: patch
+      label: 'OldUnreal UT2004 patch 3374 (Windows x64 zip)'
+      os: windows
+      match: ['OldUnreal-UT2004Patch3374-Windows-*.zip']
+      required: true
+      sha256: '16bd65fcf736163e1f00fbb9404a492489bea6869d87496dcd15c2fed4d96dd2'
+      url: https://github.com/OldUnreal/UT2004Patches/releases/download/3374-rc3/OldUnreal-UT2004Patch3374-Windows-d906d39a.zip
+      notes: 'Latest release 3374-rc3 (2026-11-03; patch 3374 is feature-complete). Windows asset OldUnreal-UT2004Patch3374-Windows-d906d39a.zip, 47,460,147 B, sha256 16bd65fcf736163e1f00fbb9404a492489bea6869d87496dcd15c2fed4d96dd2. The url and sha256 pin that exact asset, so the launcher can download it without a LAN copy. Contains Help/, Sounds/, System/, SystemARM64/, SystemLocalized/, Textures/ and Web/, including a 64-bit System/UT2004.exe, System/D3D11Drv.dll and System/Build.ini with Label=v3374.'
+    - role: patch
+      label: 'OldUnreal UT2004 patch 3374 (Linux x64 tar.bz2)'
+      os: linux
+      match: ['OldUnreal-UT2004Patch3374-Linux-*.tar.bz2']
+      required: true
+      sha256: 'd79eb45fda3ace2b7a68e6a0b9730b7d6602004b111e0b16f3f7cc28f3111572'
+      url: https://github.com/OldUnreal/UT2004Patches/releases/download/3374-rc3/OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2
+      notes: 'Latest release 3374-rc3 (2026-11-03). Linux asset OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2, 59,191,321 B, sha256 d79eb45fda3ace2b7a68e6a0b9730b7d6602004b111e0b16f3f7cc28f3111572. The url and sha256 pin that exact asset, so the launcher can download it without a LAN copy. Carries the whole System tree with the 64-bit System/UT2004 binary (ut2004-bin-amd64 symlink), OpenAL/SDL libraries and the patched UnrealScript packages, plus SystemARM64 for ARM64 hosts. Never use the Windows zip on Linux: a Linux launcher would unpack UT2004.exe and the D3D11 renderer.'
     - role: mod
       label: 'UT2004VR (optional SteamVR mod, Windows only)'
+      os: windows
       match: ['UT2004VR-*.zip']
       required: false
       sha256: ''

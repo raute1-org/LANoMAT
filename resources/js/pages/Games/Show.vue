@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ClipboardCopy,
     Download,
@@ -81,6 +81,9 @@ type Game = {
     launch_command: string;
     install_deeplink: string;
     launch_deeplink: string;
+    launcher_available: boolean;
+    launcher_supported: boolean;
+    launcher_url: string | null;
 };
 
 const props = defineProps<{
@@ -119,6 +122,13 @@ const readyServers = computed(() =>
     props.servers.filter((server) =>
         ['ready', 'live', 'warmup'].includes(server.status),
     ),
+);
+
+/** "1 Avatar zur Auswahl" / "3 Avatare zur Auswahl" — never "1 Avatare". */
+const avatarLabel = computed<string>(() =>
+    props.game.avatars === 1
+        ? '1 Avatar zur Auswahl'
+        : `${props.game.avatars} Avatare zur Auswahl`,
 );
 
 const platformLabel = (platforms: string[] | null): string =>
@@ -229,14 +239,48 @@ function announceRound(): void {
                     </div>
 
                     <div class="flex flex-wrap gap-2">
+                        <!-- A fresh PC has no `lanomat://` handler; for the one
+                             recipe the pilot build installs, the primary action
+                             opens the launcher download. Every other recipe
+                             keeps the agent deep link. -->
                         <Button
                             v-if="game.installable"
                             as-child
                             data-test="install"
                         >
-                            <a :href="game.install_deeplink">
+                            <Link
+                                v-if="
+                                    game.launcher_supported &&
+                                    game.launcher_available &&
+                                    game.launcher_url
+                                "
+                                :href="game.launcher_url"
+                            >
                                 <Download class="size-4" aria-hidden="true" />
                                 Installieren
+                            </Link>
+                            <a v-else :href="game.install_deeplink">
+                                <Download class="size-4" aria-hidden="true" />
+                                Installieren
+                            </a>
+                        </Button>
+                        <Button
+                            v-if="
+                                game.installable &&
+                                game.launcher_supported &&
+                                game.launcher_available &&
+                                game.launcher_url
+                            "
+                            as-child
+                            variant="ghost"
+                            data-test="install-launcher"
+                        >
+                            <a :href="game.install_deeplink">
+                                <ExternalLink
+                                    class="size-4"
+                                    aria-hidden="true"
+                                />
+                                Im Launcher öffnen
                             </a>
                         </Button>
                         <Button
@@ -313,6 +357,31 @@ function announceRound(): void {
                 >
                     Kein Installer nötig — {{ game.title }} läuft direkt im
                     Browser. Der Agent ist optional.
+                </p>
+
+                <!-- The deep link only fires once the launcher is installed;
+                     this explains why the primary action leads to the download
+                     on a fresh PC (pilot recipe plus a published build). -->
+                <p
+                    v-if="
+                        game.requires_agent &&
+                        game.launcher_supported &&
+                        game.launcher_available &&
+                        game.launcher_url
+                    "
+                    class="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
+                    data-test="launcher-download"
+                >
+                    Noch kein Launcher auf diesem PC? „Installieren“ führt zum
+                    <Link
+                        :href="game.launcher_url"
+                        class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                        Launcher-Download</Link
+                    >
+                    — der Ein-Klick-App, die {{ game.title }} holt, entpackt und
+                    startet. Ist der Launcher schon da, geht es über „Im
+                    Launcher öffnen“ direkt weiter.
                 </p>
 
                 <Separator class="my-8" />
@@ -680,8 +749,7 @@ function announceRound(): void {
                                             v-if="game.avatars > 0"
                                             class="font-mono text-xs text-live"
                                         >
-                                            {{ game.avatars }} Avatare zur
-                                            Auswahl
+                                            {{ avatarLabel }}
                                         </p>
                                         <Button
                                             v-if="game.avatar_converter_url"

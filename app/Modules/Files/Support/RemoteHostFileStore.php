@@ -9,9 +9,11 @@ use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Hosts\Contracts\RemoteExecutor;
 use App\Modules\Hosts\Exceptions\RemoteExecutionException;
 use App\Modules\Hosts\Models\RemoteHost;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Files live only on the LanCache host: uploads go over SFTP through a managed
@@ -49,6 +51,44 @@ final class RemoteHostFileStore implements FileStore
     public function exists(string $path): bool
     {
         return $this->guarded(fn (): bool => $this->remote->fileExists($this->host(), $this->remotePath($path)));
+    }
+
+    /**
+     * The file host serves the bytes over HTTPS; the app streams that response
+     * (never buffering it) through the same short-lived signed URL a download
+     * uses. Hashing is the only caller in normal operation.
+     */
+    public function readStream(string $path)
+    {
+        $url = $this->signer->url($path, basename($path));
+
+        try {
+            $response = Http::withOptions([
+                'stream' => true,
+                // A 50 GB file may take a while: bound the connect, not the transfer.
+                'connect_timeout' => 15,
+                'timeout' => 0,
+            ])->get($url);
+        } catch (Throwable $exception) {
+            // The signed URL is a credential; never log the exception message (it contains it).
+            Log::warning('files: the file host could not be reached for reading.', ['reason' => $exception::class]);
+
+            throw FileException::storeUnavailable();
+        }
+
+        if (! $response->successful()) {
+            Log::warning('files: the file host answered a read with an error.', ['status' => $response->status()]);
+
+            throw FileException::storeUnavailable();
+        }
+
+        $stream = $response->toPsrResponse()->getBody()->detach();
+
+        if (! is_resource($stream)) {
+            throw FileException::unreadable();
+        }
+
+        return $stream;
     }
 
     public function download(string $path, string $name): Response
