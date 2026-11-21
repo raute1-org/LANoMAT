@@ -44,6 +44,11 @@ if ($modules->enabled(Module::Files)) {
 if ($modules->enabled(Module::WebVoice)) {
     Schedule::command('webvoice:prune')->daily();
 }
+if ($modules->enabled(Module::GameRecipes)) {
+    // Keeps the catalogue and the Preflight sync-age probe honest; the
+    // command is idempotent and updates recipe files in place.
+    Schedule::command('lanomat:recipes:sync')->dailyAt('04:15')->withoutOverlapping();
+}
 if ($modules->enabled(Module::Presence)) {
     // "Who is where" (voice rooms, games) for the participants: one fan-out to the voice sidecars,
     // LiveKit and Steam, cached for the requests. Only while an event is live.

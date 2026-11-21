@@ -84,6 +84,12 @@ export default defineConfigWithVueTs(
             'resources/js/components/ui/*',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
+            // Sub-projects with their own toolchains/configs; the root config
+            // must not re-lint them (and must not walk the test storage tree).
+            'clients/agent/**',
+            'docs-site/**',
+            'resources/recipes/schema/**',
+            'storage/**',
         ],
     },
     prettier,

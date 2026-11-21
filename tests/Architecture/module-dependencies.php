@@ -49,6 +49,13 @@ return [
         3 => 'Presence',
         4 => 'Registration',
     ],
+    'GameRecipes' => [
+        0 => 'Events',
+        1 => 'Files',
+        2 => 'GameServers',
+        3 => 'Lfg',
+        4 => 'Tournaments',
+    ],
     'GameServers' => [
         0 => 'CustomServers',
         1 => 'Discord',
@@ -105,6 +112,20 @@ return [
         0 => 'Discord',
         1 => 'Events',
     ],
+    'Mcp' => [
+        0 => 'Catering',
+        1 => 'Events',
+        2 => 'Files',
+        3 => 'GameRecipes',
+        4 => 'GameServers',
+        5 => 'Games',
+        6 => 'Lfg',
+        7 => 'Registration',
+        8 => 'Schedule',
+        9 => 'Teams',
+        10 => 'Tournaments',
+        11 => 'Voting',
+    ],
     'News' => [
         0 => 'Gallery',
     ],
@@ -145,6 +166,8 @@ return [
         3 => 'Notifications',
         4 => 'Presence',
         5 => 'Seating',
+    ],
+    'RoomAudio' => [
     ],
     'Schedule' => [
         0 => 'Discord',

@@ -50,6 +50,17 @@ class AdminPanelProvider extends PanelProvider
                     ->label(ShellParity::FILAMENT_BACK_LABEL)
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->url('/'),
+                // Same two entries as the participant user menu (shell parity).
+                Action::make('agent')
+                    ->label('Agent & MCP')
+                    ->icon('heroicon-o-cpu-chip')
+                    ->url('/mcp/connect')
+                    ->visible(fn (): bool => app(Modules::class)->routable(Module::Mcp)),
+                Action::make('docs')
+                    ->label('Docs')
+                    ->icon('heroicon-o-book-open')
+                    ->url('/docs')
+                    ->openUrlInNewTab(),
             ])
             // Same entry as the participant sidebar ("Desktop-App"), shown while WebVoice has routes.
             ->navigationItems([

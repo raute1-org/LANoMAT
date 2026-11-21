@@ -24,6 +24,13 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ## 2026-11-20
 
+### Added
+
+- MCP server (`/mcp`, bearer tokens + device pairing at `/mcp/connect`) with tools for events, teams, tournaments, matches, files, servers, schedule, polls, catering, LFG and game recipes, plus the `lanomat://recipes/{slug}/skill` resource
+- `lanomat-agent` (pi SDK) in `clients/agent/`: device login, MCP/skill setup, Venice AI model setup, LAN-first installer with a VRM avatar multi-select and parallel downloads
+- Game recipes module: YAML + `SKILL.md` import (bundled/SMB/git), LAN file matching, install plans, contributor drafts and an admin review resource — the UT2004 + optional UT2004VR recipe, Ridge Racer Type 4 and 19 prepared drafts
+- Zudoku docs site (`docs-site/`) with the Signalpult brand, screenshots, MCP/agent/recipe guides and an OpenAPI reference, deployable at `/docs`
+
 ### Fixed
 
 - `gameservers:import-eggs` works in the production image: `symfony/yaml` is now a runtime dependency (#150)

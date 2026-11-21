@@ -16,6 +16,7 @@ enum Module: string
     case Files = 'files';
     case Friends = 'friends';
     case Gallery = 'gallery';
+    case GameRecipes = 'game_recipes';
     case GameServers = 'game_servers';
     case Games = 'games';
     case Hosts = 'hosts';
@@ -24,6 +25,7 @@ enum Module: string
     case Jukebox = 'jukebox';
     case Lancache = 'lancache';
     case Lfg = 'lfg';
+    case Mcp = 'mcp';
     case News = 'news';
     case Notifications = 'notifications';
     case Preflight = 'preflight';
@@ -68,6 +70,9 @@ enum Module: string
         return match ($this) {
             self::CustomServers, self::Lancache => [self::Hosts],
             self::Provisioning => [self::Hosts, self::Lancache],
+            // Recipes match uploaded ISOs/avatars through the Files module. Off Files,
+            // a recipe still lists and plans, but its LAN files can never be found.
+            self::GameRecipes => [self::Files],
             self::Recap => [self::Gallery, self::Jukebox, self::Voting, self::Presence],
             self::News => [self::Gallery],
             self::Gallery => [self::Files],

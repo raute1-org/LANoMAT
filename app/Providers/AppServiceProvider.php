@@ -31,6 +31,8 @@ use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\Gallery\Policies\EventPhotoPolicy;
+use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Modules\GameRecipes\Policies\GameRecipePolicy;
 use App\Modules\Games\Contracts\EggCatalog;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
@@ -498,6 +500,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('voice-client-approve', fn (Request $request) => Limit::perMinute(10)->by('voice-client-approve|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('voice-client-api', fn (Request $request) => Limit::perMinute(120)->by('voice-client-api|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
 
+        // MCP / agent API: the device endpoints are unauthenticated, so they are
+        // limited per IP (and per device code) like the native voice client; the
+        // bearer API keys on the token digest, never the plain token.
+        RateLimiter::for('mcp-device', fn (Request $request) => Limit::perMinute(10)->by('mcp-device|'.$request->ip()));
+        RateLimiter::for('mcp-token', fn (Request $request) => [
+            Limit::perMinute(30)->by('mcp-token|'.$request->ip()),
+            Limit::perMinute(30)->by('mcp-token-code|'.hash('sha256', is_string($request->input('device_code')) ? $request->input('device_code') : '')),
+        ]);
+        RateLimiter::for('mcp-approve', fn (Request $request) => Limit::perMinute(10)->by('mcp-approve|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('mcp-api', fn (Request $request) => Limit::perMinute(240)->by('mcp-api|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
+
         // Avatars: a page loads dozens at once, and every one is immutable and cacheable afterwards.
         RateLimiter::for('avatars', fn (Request $request) => Limit::perMinute(600)->by('avatars|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('voice-client-avatars', fn (Request $request) => Limit::perMinute(600)->by('voice-client-avatars|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
@@ -529,6 +542,10 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::Voting)) {
             Gate::policy(Poll::class, PollPolicy::class);
+        }
+
+        if ($this->on(Module::GameRecipes)) {
+            Gate::policy(GameRecipe::class, GameRecipePolicy::class);
         }
 
         if ($this->on(Module::Lfg)) {
