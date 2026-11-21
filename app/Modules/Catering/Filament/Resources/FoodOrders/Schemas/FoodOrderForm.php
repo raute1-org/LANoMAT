@@ -4,27 +4,23 @@ namespace App\Modules\Catering\Filament\Resources\FoodOrders\Schemas;
 
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodPaymentMethod;
-use App\Modules\Catering\Support\DishImageStore;
+use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\PaymentLink;
-use App\Support\Images\InvalidImageException;
 use App\Support\Money\Euro;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Illuminate\Validation\ValidationException;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Illuminate\Support\Str;
 
 class FoodOrderForm
 {
@@ -41,6 +37,26 @@ class FoodOrderForm
                             ->relationship('event', 'name')
                             ->required()
                             ->searchable(),
+                        Select::make('restaurant_id')
+                            ->label(__('catering.restaurant.fields.select'))
+                            ->helperText(fn (?FoodOrder $record): string => self::restaurantHelp($record))
+                            ->relationship('restaurant', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->required(fn (?FoodOrder $record): bool => $record === null || $record->restaurant_id !== null)
+                            // Switching restaurants would orphan the ordered dishes of the round.
+                            ->disabled(fn (?FoodOrder $record): bool => $record?->items()->exists() === true)
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label(__('catering.restaurant.fields.name'))
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->rules([self::noNulBytes()]),
+                            ])
+                            ->createOptionUsing(fn (array $data): int => self::createRestaurant((string) $data['name']))
+                            ->afterStateUpdated(fn (mixed $state, Get $get, Set $set, string $operation) => $operation === 'create' ? self::applyRestaurantDefaults($state, $get, $set) : null)
+                            ->columnSpanFull(),
                         TextInput::make('title')
                             ->label(__('catering.fields.title'))
                             ->required()
@@ -108,70 +124,55 @@ class FoodOrderForm
                                     ->action(fn (Set $set) => $set('included_ticket_types', [])),
                             ]),
                     ]),
-                // A typed Repeater, deliberately not a KeyValue field: each
-                // row maps 1:1 onto the MenuCast/MenuOption array shape
-                // {key,name,price_cents} (see roadmap insight #9). The price is
-                // typed in EUR ("8,50") and converted to integer cents on the
-                // way in and back for display, so the stored value stays an int.
-                Repeater::make('menu')
-                    ->label(__('catering.fields.menu'))
-                    ->schema([
-                        TextInput::make('key')
-                            ->label(__('catering.fields.menu_key'))
-                            ->required()
-                            // Matches the option_key limit of the order request (max 64).
-                            ->maxLength(64)
-                            ->rules([self::noNulBytes()]),
-                        TextInput::make('name')
-                            ->label(__('catering.fields.menu_name'))
-                            ->required()
-                            ->maxLength(255)
-                            ->rules([self::noNulBytes()]),
-                        TextInput::make('price_cents')
-                            ->label(__('catering.fields.menu_price'))
-                            ->required()
-                            ->inputMode('decimal')
-                            ->placeholder('8,50')
-                            ->suffix('€')
-                            ->formatStateUsing(fn (mixed $state): ?string => is_numeric($state)
-                                ? number_format((int) $state / 100, 2, ',', '')
-                                : null)
-                            ->dehydrateStateUsing(fn (?string $state): ?int => self::euroToCents($state))
-                            ->rules([self::priceRule()]),
-                        Textarea::make('description')
-                            ->label(__('catering.fields.menu_description'))
-                            ->helperText(__('catering.fields.menu_description_help'))
-                            ->rows(2)
-                            ->maxLength(MenuOption::MAX_DESCRIPTION_LENGTH)
-                            ->rules([self::noNulBytes()])
-                            ->columnSpan(2),
-                        // The upload is re-encoded to a small WebP by DishImageStore and filed under
-                        // its content hash on the private disk. Files are shared between dishes and
-                        // rounds, so removing one here only clears the reference.
-                        FileUpload::make('image')
-                            ->label(__('catering.fields.menu_image'))
-                            ->helperText(__('catering.fields.menu_image_help'))
-                            ->disk(DishImageStore::DISK)
-                            ->image()
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                            ->maxSize(3072)
-                            ->imagePreviewHeight('96')
-                            ->saveUploadedFileUsing(function (TemporaryUploadedFile $file): string {
-                                try {
-                                    return app(DishImageStore::class)->store((string) $file->getRealPath());
-                                } catch (InvalidImageException) {
-                                    throw ValidationException::withMessages(['image' => __('catering.validation.image_unreadable')]);
-                                }
-                            })
-                            ->deleteUploadedFileUsing(fn (): null => null),
-                    ])
-                    ->columns(3)
-                    ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
-                    ->addActionLabel(__('catering.fields.menu_add'))
-                    ->reorderable(false)
-                    ->defaultItems(0)
-                    ->rules([self::uniqueMenuKeysRule()]),
             ]);
+    }
+
+    private static function restaurantHelp(?FoodOrder $record): string
+    {
+        if ($record !== null && $record->exists && $record->items()->exists()) {
+            return __('catering.restaurant.fields.select_locked');
+        }
+
+        if ($record !== null && $record->exists && $record->restaurant_id === null) {
+            return __('catering.restaurant.fields.select_legacy');
+        }
+
+        return __('catering.restaurant.fields.select_help');
+    }
+
+    /** A quick inline restaurant: name only, the rest is filled in on its own page. */
+    private static function createRestaurant(string $name): int
+    {
+        $base = Str::slug(Str::limit($name, 120, '')) ?: 'restaurant';
+        $slug = $base;
+
+        for ($n = 2; Restaurant::query()->where('slug', $slug)->exists(); $n++) {
+            $slug = $base.'-'.$n;
+        }
+
+        return (int) Restaurant::query()->create(['name' => $name, 'slug' => $slug])->getKey();
+    }
+
+    /**
+     * Chosen restaurant prefills the title (when still empty) and the payment: both stay editable
+     * per round. Only meant for new rounds, so an existing round never changes under the editor.
+     */
+    private static function applyRestaurantDefaults(mixed $restaurantId, Get $get, Set $set): void
+    {
+        $restaurant = is_numeric($restaurantId) ? Restaurant::query()->find((int) $restaurantId) : null;
+
+        if ($restaurant === null) {
+            return;
+        }
+
+        if (blank($get('title'))) {
+            $set('title', $restaurant->name);
+        }
+
+        if ($restaurant->default_payment_method !== null) {
+            $set('payment_method', $restaurant->default_payment_method->value);
+            $set('payment_link', $restaurant->default_payment_link);
+        }
     }
 
     /**
@@ -232,7 +233,7 @@ class FoodOrderForm
         return Euro::toCents($value);
     }
 
-    private static function priceRule(): Closure
+    public static function priceRule(): Closure
     {
         return fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
             $cents = self::euroToCents(is_string($value) ? $value : null);
@@ -250,27 +251,9 @@ class FoodOrderForm
     }
 
     /**
-     * Two options of one menu may not share a key: the first one used to win
-     * silently and the counts merged (F-R2B-14).
-     */
-    private static function uniqueMenuKeysRule(): Closure
-    {
-        return fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
-            $keys = collect(is_array($value) ? $value : [])
-                ->map(fn (mixed $row): mixed => is_array($row) ? ($row['key'] ?? null) : null)
-                ->filter(fn (mixed $key): bool => is_string($key) && $key !== '')
-                ->values();
-
-            if ($keys->count() !== $keys->unique()->count()) {
-                $fail(__('catering.validation.menu_key_duplicate'));
-            }
-        };
-    }
-
-    /**
      * PostgreSQL rejects NUL bytes in varchar and jsonb (F-R2B-12).
      */
-    private static function noNulBytes(): Closure
+    public static function noNulBytes(): Closure
     {
         return fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
             if (is_string($value) && str_contains($value, "\0")) {

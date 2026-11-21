@@ -33,8 +33,8 @@ class Restaurant extends Model
     /** Pattern of a stored logo path: the same content-addressed WebP files as dish photos. */
     public const LOGO_PATH_PATTERN = MenuOption::IMAGE_PATH_PATTERN;
 
-    // menu and logo are NOT fillable: the menu goes through the menu-write action (ordered-dish
-    // protection) and the logo through the image store.
+    // menu is NOT fillable: it goes through the menu-write action (ordered-dish protection). The
+    // logo path is validated by its mutator (image store paths only).
     protected $fillable = [
         'name',
         'slug',
@@ -46,6 +46,7 @@ class Restaurant extends Model
         'default_payment_method',
         'default_payment_link',
         'notes',
+        'logo',
     ];
 
     protected function casts(): array

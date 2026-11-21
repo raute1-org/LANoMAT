@@ -5,7 +5,6 @@ namespace App\Modules\Catering\Filament\Resources\FoodOrders\Pages;
 use App\Modules\Catering\Actions\CloseFoodOrder;
 use App\Modules\Catering\Actions\OpenFoodOrder;
 use App\Modules\Catering\Actions\RecomputeIncludedItems;
-use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Filament\Resources\FoodOrders\FoodOrderResource;
@@ -25,47 +24,22 @@ class EditFoodOrder extends EditRecord
     protected static string $resource = FoodOrderResource::class;
 
     /**
-     * The `menu` cast reads back as `list<MenuOption>` (typed value objects,
-     * not plain arrays — see MenuCast), but Filament's Repeater fills/writes
-     * its state via `data_set()` on plain associative arrays. Converting at
-     * this Filament-only boundary keeps MenuCast/MenuOption fully typed
-     * (no weakening) while still letting the Repeater round-trip the data.
+     * The menu lives with the restaurant (or, for rounds that predate restaurants, in the legacy
+     * column that is no longer edited here), so it never enters the form state.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        if (isset($data['menu']) && is_array($data['menu'])) {
-            $data['menu'] = collect($data['menu'])
-                ->map(fn (mixed $option): array => $option instanceof MenuOption ? $option->toArray() : $option)
-                ->all();
-        }
+        unset($data['menu']);
 
         return $data;
     }
 
-    /**
-     * `menu` is deliberately not in FoodOrder::$fillable (see the model's
-     * comment: it must never be reachable via uncontrolled raw mass
-     * assignment, e.g. a future public endpoint). The admin Filament layer
-     * is already gated by FoodOrderPolicy::update, so it is the one place
-     * allowed to set it explicitly, going through MenuCast exactly as any
-     * other write would.
-     *
-     * @param  array<string, mixed>  $data
-     */
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
-        $menu = $data['menu'] ?? null;
-        unset($data['menu']);
-
         $record->update($data);
-
-        if ($menu !== null && $record instanceof FoodOrder) {
-            $record->menu = $menu;
-            $record->save();
-        }
 
         if ($record instanceof FoodOrder && $record->status !== FoodOrderStatus::Closed) {
             app(RecomputeIncludedItems::class)->handle($record);

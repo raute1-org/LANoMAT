@@ -211,7 +211,7 @@ final class GroupOrder
     }
 
     /** @return array{0: string, 1: string} */
-    private static function split(string $name): array
+    public static function split(string $name): array
     {
         $index = strpos($name, self::SEPARATOR);
 
