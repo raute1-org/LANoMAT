@@ -19,7 +19,7 @@ description: |
     timing; only enable it when the user asks for it and verify it on the LAN.
     Needs verification on the LAN before this recipe leaves draft status.
 
-homepage: https://dolphin-emu.org/
+homepage: https://github.com/dolphin-emu/dolphin
 license: 'Nintendo; disc image user-supplied'
 cover: ''
 skill:
@@ -44,9 +44,9 @@ requires:
       label: 'Dolphin emulator'
       match: ['Dolphin*.zip', 'dolphin-*.tar.xz', 'dolphin*.AppImage']
       required: true
-      url: https://dolphin-emu.org/download/
+      url: https://github.com/dolphin-emu/dolphin/releases
       notes: 'Use the current stable or beta release. A portable zip keeps the LAN install self-contained.'
-    - role: content
+    - role: base
       label: 'GameCube BIOS (optional IPL.bin)'
       match: ['IPL.bin', 'gc-*.bin']
       required: false
@@ -131,5 +131,10 @@ steps:
 metadata:
     genre: platformer
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [platformer, gamecube, nintendo, dolphin]
+    launch:
+        kind: exe
+        target: '{{target}}/Dolphin.exe'
+        notes: "Start Super Mario Sunshine from Dolphin's game list; the disc is already registered."

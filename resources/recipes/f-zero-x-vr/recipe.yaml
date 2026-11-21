@@ -12,8 +12,9 @@ description: |
     GX, while F-Zero X needs either the native VR port or an N64 emulator.
 
     This recipe uses the community PCVR port by Virtua VR Port (Windows, OpenXR)
-    with the user's own USA Rev 0 ROM. A separate Quest 3 standalone build by
-    heurazy exists and is sideloaded as an APK; it is not a PC install.
+    with the user's own USA Rev 0 ROM. The same project also ships a Quest 3
+    standalone build, installed from a Windows PC over USB (or sideloaded as an
+    APK); it is not a PC install and not part of this recipe.
 
     The LAN folder holds `FZeroXVR-Public-PCVR-20261018-R12.zip`. Verify the
     headset, runtime and controller mapping on the LAN before promising a race.
@@ -42,11 +43,21 @@ requires:
       notes: 'USA Rev 0 only. The launcher checks SHA-1 5f658e88ffa9de23cba6986a8fd3d3a90d7b4340 and refuses other regions or hacks. 16 MiB.'
     - role: tool
       label: 'F-Zero X VR PCVR build'
-      match:
-          ['FZeroXVR-PCVR-*.zip', 'FZeroXVR-*.zip', 'FzeroVR-Standalone*.apk']
+      match: ['FZeroXVR-Public-PCVR-*.zip', 'FZeroXVR-PCVR-*.zip']
       required: true
       url: https://virtuavrport.itch.io/f-zero-x-vr
-      notes: 'PCVR installer for Windows. The APK is the separate Quest 3 standalone build by heurazy and needs adb/SideQuest, not this PC recipe.'
+      notes: 'PCVR installer for Windows (R12 or newer). It contains Setup.exe and registers an uninstaller; no game data is included.'
+    - role: tool
+      label: 'F-Zero X VR Quest 3 standalone build (optional)'
+      match:
+          [
+              'FZeroXVR*Standalone*.zip',
+              '*Standalone*Quest*.zip',
+              '*Standalone*.apk',
+          ]
+      required: false
+      url: https://virtuavrport.itch.io/f-zero-x-vr
+      notes: 'Same Virtua VR Port project, a separate standalone build. Install it from a Windows PC with the headset connected by USB and developer mode enabled, or sideload the APK with adb/SideQuest. It needs its own USA Rev 0 ROM.'
     - role: tool
       label: 'OpenXR runtime (SteamVR)'
       match: []
@@ -68,7 +79,7 @@ steps:
           streaming path, connect it before launching.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/FZeroXVR-Public-PCVR-20261018-R12.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/FZeroXVR-Public-PCVR-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
       verify:
           - type: dir_exists
             path: '{{target}}'
@@ -128,5 +139,6 @@ steps:
 metadata:
     genre: racing
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [racing, vr, n64, community-port]

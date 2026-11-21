@@ -37,10 +37,44 @@ SHA-256 or a download URL to make a draft look finished.
    (`{{downloads}}`). `{{os}}` is the detected platform.
 3. Steps run in order for the matching `os` (`windows`, `linux`, or `any`).
    Optional steps (`optional: true`) are offered, never forced.
-4. `verify` entries check the result (`file_exists`, `dir_exists`, `command`);
-   an entry with `os` runs only on that platform.
+4. `verify` entries check the result (`file_exists`, `dir_exists`, `command`).
 5. The matching `SKILL.md` tells an assistant how to ask the questions, run the
    steps and troubleshoot.
+
+## Matching and execution contract
+
+This is the contract the backend and the agent must implement, and the
+validator enforces the parts that are visible in the YAML.
+
+**Globs (`requires[].match`)**
+
+- Match against the **base name** of each file or folder found on the share
+  (subfolders are scanned; the path itself is not part of the matched string).
+- **Case-insensitive** (simple case folding, as `fnmatch`-style matching does
+  on Windows/SMB). `*Crash Bandicoot (USA).cue` matches
+  `crash bandicoot (usa).cue`.
+- `*` matches any run of characters, including none, but **not** a path
+  separator. There is no `**`, `?` or character-class syntax; a glob is
+  anchored end-to-end, so `*dust2*` is the substring form.
+- Globs contain no `/` or `\`; matching a folder dump is a glob against the
+  folder name, not its contents.
+- `match: []` is a user-supplied requirement: the installer never matches it
+  on the share and asks for the file (or an already-installed copy) instead.
+- A required entry blocks until one match exists; an optional entry is a
+  multi-select over all matches and may stay empty.
+
+**Commands and steps**
+
+- `os` filters whole steps: `windows` steps run only on Windows, `linux` only
+  on Linux, `any` on both.
+- Inside a step, commands are filtered by `shell`: a Windows host runs
+  `powershell` and `cmd` entries, a Linux host runs `bash` entries. An
+  `os: any` step may therefore carry both sets; each host executes only its
+  own shell's commands, in file order.
+- Commands are one per entry and contain no `&&`; a failing command stops the
+  step. `verify` runs after the commands and every entry must pass.
+- `verify` paths are relative to `{{target}}`; template variables are resolved
+  before comparison.
 
 ## Avatars are requirements, not a separate system
 
@@ -72,7 +106,8 @@ registry and no upload path of their own:
 3. Write `SKILL.md` (60–150 lines) with `name` equal to `skill.name` and a
    `description` that says what the skill does and when to use it.
 4. Add the row to `_catalog.md`.
-5. Run `node resources/recipes/schema/validate.mjs` and fix every error.
+5. Run `node resources/recipes/schema/validate.mjs` (or `npm test` in
+   `schema/`) and fix every error.
 
 Slugs, skill names and aliases must be unique. Aliases are how the chat command
 finds the recipe ("ut2k4", "ut 2k4", "unreal tournament" all point at
@@ -81,30 +116,9 @@ finds the recipe ("ut2k4", "ut 2k4", "unreal tournament" all point at
 ## Template variables and commands
 
 The installer resolves `{{target}}` (install dir), `{{downloads}}` (download
-dir), `{{os}}` (platform) and `{{host}}` (the LAN address of the machine that
-hosts the game; `localhost` only works on that machine). A browser-based recipe
-points at it with `play_url`; a game with more than one way to start lists them
-under `launch_targets`. Both belong in `metadata` (the top-level form is a
-deprecated alias the importer still accepts); a single command may also be
-`metadata.launch` as a string or `{kind: steam|uri|exe, target, args?}`. See
-`schema/README.md` § Play URL and launch targets for the shapes and the
-`--variant <id>` client switch.
-
-Commands are one per entry, with no `&&` chains; use `powershell` on Windows,
-`bash` on Linux, `cmd` only when a tool requires it. The installer runs only
-the commands whose `shell` matches the machine, so an `os: any` step may carry
-a `powershell` set and a `bash` set side by side. Keep commands idempotent and
-safe to re-run.
-
-## Globs
-
-`match` patterns are matched literally, not case-folded. A pattern is
-case-sensitive on Linux, so list the spellings a file host may use: `*.vrm`
-and `*.VRM`, `r4.chd` and `R4.chd`, `ut2004*.iso` and `UT2004*.iso`. Keep
-patterns narrow (a sequel must not match), and use `notes` to say which title
-or disc a pattern belongs to. A required entry blocks the install when nothing
-matches, so a folder-based install (an existing GOG/Steam copy) is documented
-as a manual `{{target}}`, not as a glob.
+dir) and `{{os}}`. Commands are one per entry, with no `&&` chains; use
+`powershell` on Windows, `bash` on Linux, `cmd` only when a tool requires it.
+Keep commands idempotent and safe to re-run.
 
 ## Licensing
 

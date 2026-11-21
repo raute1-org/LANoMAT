@@ -44,6 +44,7 @@ requires:
       label: 'A UE4/UE5 game to inject into'
       match: []
       required: true
+      # The user points at an existing install; there is no file to match.
       manual: true
       url: ''
       notes: 'User-supplied. Anti-cheat titles (EAC/BattlEye) are unsupported and unsafe to inject into. Verify the game is UE4/UE5 before promising VR.'
@@ -125,5 +126,10 @@ steps:
 metadata:
     genre: tool
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [vr, tool, unreal-engine, injector]
+    launch:
+        kind: exe
+        target: '{{target}}/UEVRInjector.exe'
+        notes: 'Start the game first, then inject; the runtime must be running before the game.'

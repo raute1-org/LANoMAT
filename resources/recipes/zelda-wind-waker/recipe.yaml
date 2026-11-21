@@ -19,7 +19,7 @@ description: |
     Draft: the widescreen and 60 fps codes need a per-version check on the LAN.
     Needs verification on the LAN before this recipe leaves draft status.
 
-homepage: https://dolphin-emu.org/
+homepage: https://github.com/dolphin-emu/dolphin
 license: 'Nintendo; disc image user-supplied'
 cover: ''
 skill:
@@ -44,14 +44,14 @@ requires:
       label: 'Dolphin emulator'
       match: ['Dolphin*.zip', 'dolphin-*.tar.xz', 'dolphin*.AppImage']
       required: true
-      url: https://dolphin-emu.org/download/
+      url: https://github.com/dolphin-emu/dolphin/releases
       notes: 'Use the current stable/beta; the LAN collection has Dolphin 2609a as a reference build.'
     - role: mod
       label: 'Hypatia WWHD texture pack (optional)'
       match: ['*Hypatia*WWHD*.7z', '*Hypatia*WWHD*.zip']
       required: false
       url: ''
-      notes: 'Optional HD texture pack from the LAN collection, made for the Wii U HD version but loadable as a Dolphin texture pack when its folder layout matches the GameCube texture path.'
+      notes: 'Optional HD texture pack made for the Wii U HD version. It only loads in Dolphin when it was converted to the GameCube texture-hash layout; treat it as unverified and easy to remove.'
 steps:
     - id: install-dolphin
       title: 'Install Dolphin'
@@ -136,5 +136,10 @@ steps:
 metadata:
     genre: action-adventure
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [adventure, gamecube, nintendo, dolphin, zelda]
+    launch:
+        kind: exe
+        target: '{{target}}/Dolphin.exe'
+        notes: "Start The Wind Waker from Dolphin's game list; the disc is already registered."

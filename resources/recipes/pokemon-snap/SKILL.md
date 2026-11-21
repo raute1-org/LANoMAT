@@ -28,8 +28,9 @@ Not for New Pokémon Snap (Switch) or an N64 emulator setup.
 
 ## Steps
 
-1. **Install the port.** Unzip `Snap64Recomp-<version>-win64.zip` into
-   `{{target}}`; it is portable. No installer, no account.
+1. **Install the port.** Unpack the win64 zip, the Linux `linux-x86_64`
+   tarball or the `macos-universal` zip into `{{target}}`; it is portable. No
+   installer, no account.
 2. **Add the ROM.** Put it beside the executable as `pokemonsnap.z64`, or
    start the program and pick it once. The port validates and copies it.
 3. **Open Options.** Press Esc (or Select on a pad). There is no launcher:

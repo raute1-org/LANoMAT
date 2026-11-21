@@ -79,19 +79,6 @@
         "cover": {
             "type": "string"
         },
-        "play_url": {
-            "description": "Deprecated alias of metadata.play_url; metadata wins.",
-            "type": "string",
-            "minLength": 1
-        },
-        "launch_targets": {
-            "description": "Deprecated alias of metadata.launch_targets; metadata wins.",
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "$ref": "#/$defs/launchTarget"
-            }
-        },
         "skill": {
             "type": "object",
             "additionalProperties": false,
@@ -138,13 +125,14 @@
                     "type": "string",
                     "minLength": 1
                 },
+                "players_max": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024,
+                    "description": "Highest simultaneous player count the recipe's mode supports, for filtering and sorting. Use 1 for a single-player-only recipe."
+                },
                 "lan_recommended": {
                     "type": "boolean"
-                },
-                "live_url": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "A live deployment of this recipe, when one exists (for example a LAN event's public UT2004VR server)."
                 },
                 "tags": {
                     "type": "array",
@@ -155,7 +143,7 @@
                     "uniqueItems": true
                 },
                 "launch": {
-                    "description": "How to start the installed game. A string is a flat command or executable path. An object separates the kind from the target: {kind: steam, target: '<appid>'}, {kind: uri, target: 'steam://…'}, {kind: exe, target: 'C:\\\\Games\\\\…\\\\UT2004.exe', args: ['-nosplash']}. For several ways to start the same install use metadata.launch_targets.",
+                    "description": "How to start the installed game: a flat command string, or {kind: steam|uri|exe, target, args?}. For several ways use launch_targets.",
                     "oneOf": [
                         {
                             "type": "string",
@@ -167,7 +155,7 @@
                     ]
                 },
                 "launch_targets": {
-                    "description": "Named ways to start the installed game, most useful first (flat, VR). Supersedes metadata.launch when present; {{target}} and {{avatars}} are substituted per install.",
+                    "description": "Named ways to start the installed game, most useful first (flat, VR). Wins over launch.",
                     "type": "array",
                     "minItems": 1,
                     "items": {
@@ -175,21 +163,18 @@
                     }
                 },
                 "launch_vr": {
-                    "description": "Legacy shortcut for a second (VR) start command; equivalent to a launch_targets entry with id 'vr'.",
+                    "description": "Legacy shortcut for a second (VR) command; equivalent to a launch_targets entry with id vr.",
                     "type": "string",
                     "minLength": 1
+                },
+                "live_url": {
+                    "type": "string",
+                    "description": "A live deployment of this recipe, when one exists (an event's public server)."
                 },
                 "play_url": {
-                    "description": "Browser game or web front end. Use {{host}} for the LAN address of the host that serves it; the app substitutes the request host.",
                     "type": "string",
-                    "minLength": 1
-                },
-                "multiplayer": {
-                    "type": "boolean"
-                },
-                "players_max": {
-                    "type": "integer",
-                    "minimum": 1
+                    "minLength": 1,
+                    "description": "Browser game or web front end; use {{host}} for the LAN address that serves it."
                 },
                 "install_size": {
                     "type": "string",
@@ -200,8 +185,20 @@
                 }
             }
         },
+        "play_url": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Deprecated alias of metadata.play_url; metadata wins."
+        },
+        "launch_targets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/launchTarget"
+            },
+            "description": "Deprecated alias of metadata.launch_targets; metadata wins."
+        },
         "launch": {
-            "description": "Deprecated alias of metadata.launch; metadata wins.",
             "oneOf": [
                 {
                     "type": "string",
@@ -210,7 +207,8 @@
                 {
                     "$ref": "#/$defs/launchSpec"
                 }
-            ]
+            ],
+            "description": "Deprecated alias of metadata.launch; metadata wins."
         }
     },
     "$defs": {
@@ -222,36 +220,6 @@
         "glob": {
             "type": "string",
             "minLength": 1
-        },
-        "launchTarget": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id", "label", "os", "command"],
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-                    "maxLength": 64
-                },
-                "label": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 160
-                },
-                "os": {
-                    "enum": ["windows", "linux", "any"]
-                },
-                "command": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "shell": {
-                    "enum": ["powershell", "cmd", "bash"]
-                },
-                "notes": {
-                    "type": "string"
-                }
-            }
         },
         "requirement": {
             "type": "object",
@@ -307,10 +275,6 @@
                         "minLength": 1
                     },
                     "uniqueItems": true
-                },
-                "manual": {
-                    "type": "boolean",
-                    "description": "True when the user supplies the files by hand (an existing install); no match/url is required then."
                 }
             }
         },
@@ -345,8 +309,8 @@
                     "minLength": 1
                 },
                 "os": {
-                    "enum": ["windows", "linux", "any"],
-                    "description": "Run this check only on the given platform; omit for any platform the step runs on."
+                    "enum": ["windows", "linux", "macos", "any"],
+                    "description": "Only check this entry on that OS; default any."
                 }
             },
             "allOf": [
@@ -435,8 +399,7 @@
             "required": ["kind", "target"],
             "properties": {
                 "kind": {
-                    "enum": ["steam", "uri", "exe"],
-                    "description": "steam: target is the Steam app id; uri: a full URI; exe: an executable path."
+                    "enum": ["steam", "uri", "exe"]
                 },
                 "target": {
                     "type": "string",
@@ -453,8 +416,35 @@
                                 "type": "string"
                             }
                         }
-                    ],
-                    "description": "Arguments appended to the exe/steam target; ignored for uri."
+                    ]
+                },
+                "shell": {
+                    "enum": ["powershell", "cmd", "bash"]
+                },
+                "notes": {
+                    "type": "string"
+                }
+            }
+        },
+        "launchTarget": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "os", "command"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "os": {
+                    "enum": ["windows", "linux", "macos", "any"]
+                },
+                "command": {
+                    "type": "string",
+                    "minLength": 1
                 },
                 "shell": {
                     "enum": ["powershell", "cmd", "bash"]

@@ -55,21 +55,29 @@ requires:
 steps:
     - id: install-port
       title: 'Install Snap64Recomp'
-      os: windows
+      os: any
       optional: false
       detail: |
-          Download `Snap64Recomp-<version>-win64.zip` and unpack it anywhere; it
-          holds one folder with `Snap64Recomp.exe`. Nothing is installed and no
-          account or network connection is needed.
+          Download the archive for the OS and unpack it anywhere; everything lives
+          in one folder. Nothing is installed and no account or network connection
+          is needed.
 
-          The executable is unsigned, so SmartScreen may ask once. "More info" →
-          "Run anyway" is expected.
+          Windows: `Snap64Recomp-<version>-win64.zip`, binary
+          `Snap64Recomp.exe`. Linux: the `linux-x86_64` tarball, binary
+          `Snap64Recomp`; the Flatpak is an alternative. macOS: the
+          `macos-universal.zip`, binary `Snap64Recomp` (macOS 14 or newer).
+
+          The binaries are unsigned, so SmartScreen or Gatekeeper may ask once.
+          "More info" → "Run anyway" (Windows) or the usual Open-anyway step
+          (macOS) is expected.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/Snap64Recomp-1.1.8-win64.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/Snap64Recomp-*-win64.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}" -Force'
+          - shell: bash
+            run: 'tar -xzf "$(ls "{{downloads}}"/Snap64Recomp-*-linux-x86_64.tar.gz | head -n 1)" -C "{{target}}"'
       verify:
-          - type: file_exists
-            path: '{{target}}/Snap64Recomp.exe'
+          - type: dir_exists
+            path: '{{target}}'
     - id: import-rom
       title: 'Add the USA ROM'
       os: any
@@ -124,5 +132,10 @@ steps:
 metadata:
     genre: photography
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [photography, n64, nintendo, recomp]
+    launch:
+        kind: exe
+        target: '{{target}}/Snap64Recomp.exe'
+        notes: 'On Linux or macOS start the extracted binary from the same folder.'

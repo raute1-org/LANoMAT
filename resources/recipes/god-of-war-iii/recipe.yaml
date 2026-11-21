@@ -1,7 +1,14 @@
 schema: lanomat.recipe/v1
-slug: god-of-war-iii-remastered
-title: 'God of War III Remastered'
-aliases: ['gow3', 'god of war 3', 'god of war iii']
+slug: god-of-war-iii
+title: 'God of War III'
+aliases:
+    [
+        'gow3',
+        'god of war 3',
+        'god of war iii',
+        'god of war iii remastered',
+        'gow3 remastered',
+    ]
 version: '1.0.0'
 status: draft
 platforms: [windows, linux]
@@ -11,18 +18,19 @@ description: |
     Blade of Olympus and the climb to Zeus. RPCS3 runs the PS3 game from the
     user's own disc or a dumped game folder, with PS3 firmware installed.
 
-    "Remastered" is the PS4 release. RPCS3 cannot run it; this recipe uses the
-    PS3 disc. The PS4 remaster would need shadPS4 and is not verified here.
+    "Remastered" is the 2015 PS4 release, a different build: RPCS3 cannot run
+    it. This recipe is the **PS3** game (BCUS98111 / BCES00510). The PS4
+    remaster would need shadPS4 and is not covered here.
 
     The LAN collection's "God of War III Remastered" folder is the PS4-era
     install. Confirm which dump the user actually has before promising 60 fps.
     Needs verification on the LAN before this recipe leaves draft status.
 
-homepage: https://rpcs3.net/
+homepage: https://github.com/RPCS3/rpcs3
 license: 'Sony Santa Monica; game and firmware user-supplied'
 cover: ''
 skill:
-    name: god-of-war-iii-remastered
+    name: god-of-war-iii
     description: "Install God of War III with RPCS3, install PS3 firmware, add the user's PS3 disc, configure Vulkan and a controller, and verify the game boots. Use when the user says install God of War 3, GOW3 or God of War III for the LAN."
     compatibility: 'Windows 10/11 or Linux; RPCS3; ~40 GB disk; PS3 firmware; gamepad'
 requires:
@@ -30,15 +38,18 @@ requires:
       label: 'God of War III PS3 disc or game folder'
       match:
           [
-              '*God*of*War*III*.iso',
-              '*God*of*War*3*.iso',
-              '*God*of*War*III*',
-              '*God*of*War*3*',
+              '*God of War III (USA)*',
+              '*God of War III (Europe)*',
+              '*God of War III (*.iso',
+              '*BCUS98111*',
+              '*BCES00510*',
+              '*God of War 3 (*.iso',
+              'God of War III',
           ]
       required: true
       sha256: ''
       url: ''
-      notes: "PS3 version only. A folder dump (PS3_GAME) or an ISO from the user's disc both work. The PS4 Remastered build is not an RPCS3 title."
+      notes: "PS3 version only: the folder containing PS3_GAME, or an ISO from the user's disc. USA BCUS98111, Europe BCES00510. The PS4 Remastered build is named 'God of War III Remastered' and is not an RPCS3 title."
     - role: base
       label: 'PS3 firmware (PS3UPDAT.PUP)'
       match: ['PS3UPDAT.PUP', 'PS3UPDAT*.PUP']
@@ -48,22 +59,22 @@ requires:
       notes: "From the user's own PS3 (or Sony's official update file). RPCS3 installs it once per emulator profile."
     - role: tool
       label: 'RPCS3 emulator'
-      match: ['rpcs3-*.zip', 'RPCS3*.zip', 'rpcs3*.AppImage']
+      match: ['rpcs3*.7z', 'rpcs3*.AppImage']
       required: true
       url: https://rpcs3.net/download
-      notes: 'Current release; the Qt build is the supported one.'
+      notes: 'RPCS3 has rolling builds: Windows is a `rpcs3-v0.0.43-<build>_win64_msvc.7z`, Linux a `rpcs3-*_linux64.AppImage`, both from rpcs3.net/download (mirrored in the RPCS3/rpcs3-binaries-win and -linux repos). The main RPCS3/rpcs3 repo tags carry no assets. Extract the 7z to `{{target}}`; `rpcs3.exe` sits at its root.'
 steps:
     - id: install-rpcs3
       title: 'Install RPCS3'
       os: windows
       optional: false
       detail: |
-          Extract the RPCS3 release to `{{target}}`, or install the Linux
-          AppImage/package. Launch once and let the first-run wizard create the
-          config and `dev_flash` folders.
+          Extract the RPCS3 7z to `{{target}}` (Windows `tar -xf`, or 7-Zip), or
+          use the Linux AppImage. Launch once and let the first-run wizard
+          create the config and `dev_flash` folders.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/rpcs3-*.zip" -DestinationPath "{{target}}" -Force'
+            run: 'tar -xf (Get-ChildItem "{{downloads}}/rpcs3-*_win64*.7z" | Select-Object -First 1).FullName -C "{{target}}"'
       verify:
           - type: file_exists
             path: '{{target}}/rpcs3.exe'
@@ -121,5 +132,10 @@ steps:
 metadata:
     genre: action-adventure
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [action, ps3, playstation, rpcs3]
+    launch:
+        kind: exe
+        target: '{{target}}/rpcs3.exe'
+        notes: "Start the game from RPCS3's game list; the ISO or PS3_GAME folder is already registered."

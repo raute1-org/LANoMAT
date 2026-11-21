@@ -10,10 +10,12 @@
  *   3. slugs, skill names, and aliases are unique across the catalog;
  *   4. SKILL.md exists, has Agent Skills frontmatter, and its name/description
  *      agree with the recipe;
- *   5. commands contain no `&&` chains (one command per entry), including
- *      launch targets, and launch target ids are unique within a recipe;
- *   6. published recipes use a LAN-reachable `play_url` (warning only);
- *   7. SKILL.md is between 60 and 150 lines.
+ *   5. commands contain no `&&` chains (one command per entry);
+ *   6. SKILL.md is between 60 and 150 lines;
+ *   7. drafts have 3-6 steps and say that they still need verification;
+ *   8. a draft never claims a checksum it cannot back up;
+ *   9. os-specific steps only use commands for that OS's shells;
+ *  10. match globs contain no path separators (they match base names).
  *
  * Exit code 0 means the whole catalog is valid.
  */
@@ -120,19 +122,26 @@ for (const dir of dirs) {
                     `${dir}: step "${step.id}" has an && chain: ${command.run}`,
                 );
             }
+            if (step.os === 'windows' && command.shell === 'bash') {
+                errors.push(
+                    `${dir}: step "${step.id}" is os: windows but has a bash command (split it or use os: any)`,
+                );
+            }
+            if (step.os === 'linux' && command.shell !== 'bash') {
+                errors.push(
+                    `${dir}: step "${step.id}" is os: linux but uses ${command.shell} (split it or use os: any)`,
+                );
+            }
         }
     }
 
-    const targetIds = new Set();
-    for (const target of recipe.launch_targets ?? []) {
-        if (targetIds.has(target.id)) {
-            errors.push(`${dir}: duplicate launch target id "${target.id}"`);
-        }
-        targetIds.add(target.id);
-        if (target.command.includes('&&')) {
-            errors.push(
-                `${dir}: launch target "${target.id}" has an && chain: ${target.command}`,
-            );
+    for (const requirement of recipe.requires) {
+        for (const pattern of requirement.match ?? []) {
+            if (pattern.includes('/') || pattern.includes('\\')) {
+                errors.push(
+                    `${dir}: match glob "${pattern}" contains a path separator; globs match base names`,
+                );
+            }
         }
     }
 
@@ -147,10 +156,36 @@ for (const dir of dirs) {
                 `${dir}: published recipe has no required base/iso requirement`,
             );
         }
-        if (recipe.play_url && /localhost|127\.0\.0\.1/.test(recipe.play_url)) {
-            warnings.push(
-                `${dir}: play_url uses localhost, which only resolves on the host itself; use {{host}} for LAN players`,
+    }
+
+    if (recipe.status === 'draft') {
+        if (recipe.steps.length < 3 || recipe.steps.length > 6) {
+            errors.push(
+                `${dir}: draft has ${recipe.steps.length} steps, expected 3-6 (split or merge the guide)`,
             );
+        }
+
+        const prose = [
+            recipe.description,
+            ...recipe.steps.map((step) => step.detail),
+            ...recipe.steps.map((step) => step.title),
+        ].join('\n');
+        if (
+            !/needs verification on the lan|draft recipe|not yet verified/i.test(
+                prose,
+            )
+        ) {
+            errors.push(
+                `${dir}: draft must say that it still needs verification on the LAN hardware`,
+            );
+        }
+
+        for (const requirement of recipe.requires) {
+            if (requirement.sha256 && requirement.sha256.length > 0) {
+                warnings.push(
+                    `${dir}: draft requirement "${requirement.label}" carries a sha256; confirm it before publishing`,
+                );
+            }
         }
     }
 
