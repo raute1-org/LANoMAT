@@ -5,6 +5,8 @@ import type { GameServerQueryDto } from '@/types';
 const props = defineProps<{
     query: GameServerQueryDto | null;
     labels: Record<string, string>;
+    /** Render the list expanded (the server rows open it by default). */
+    defaultOpen?: boolean;
 }>();
 
 // Shown only when the server sent the list (logged-in viewers, a server that
@@ -27,6 +29,7 @@ function playTime(seconds: number | null): string {
 <template>
     <details
         v-if="players !== null"
+        :open="defaultOpen"
         class="group rounded-md border border-border text-sm"
     >
         <summary

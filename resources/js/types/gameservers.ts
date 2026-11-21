@@ -85,6 +85,8 @@ export interface GameServerDto {
     installHint: GameInstallHintDto | null;
     /** Per-game join options; empty for games without templates. */
     joinOptions?: JoinOptionDto[];
+    /** Event servers on the overview: the viewer plays the match this server belongs to. */
+    isMine?: boolean;
     /** Permanent servers page only: set server-side by the policy, never derived in the client. */
     canManage?: boolean;
     /** Only present when `canManage` is true. */
