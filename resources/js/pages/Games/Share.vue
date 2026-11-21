@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
 import ArchiveFileList from '@/components/games/share/ArchiveFileList.vue';
 import ArchiveUploader from '@/components/games/share/ArchiveUploader.vue';
@@ -18,14 +18,13 @@ import type {
     GameShareForm,
     GameSharePageProps,
 } from '@/types/gameShare';
-import type { FlashToast } from '@/types/ui';
 
 /**
  * "Spiel teilen": upload a ready-to-run archive, describe the game, and see
  * what happens to the shared games afterwards. Three numbered sections on one
  * page — no modal wizard — in the order of the work: archive, description,
  * own shares. The backend validates everything again; this page only keeps
- * the obvious mistakes out (no file, no title).
+ * the obvious mistakes out (no file, no title, no start file).
  */
 const props = defineProps<GameSharePageProps>();
 
@@ -33,14 +32,9 @@ const props = defineProps<GameSharePageProps>();
 // reload after an upload and the form POST never swap the page for skeletons.
 const { isNavigating, hasError } = usePageLoadState();
 
-const page = usePage();
-
-/** The server's success flash, shown inline and announced after the redirect. */
-const successFlash = computed<string | null>(() => {
-    const toast = page.flash?.toast as FlashToast | undefined;
-
-    return toast?.type === 'success' ? toast.message : null;
-});
+function retry(): void {
+    router.reload();
+}
 
 const form = useForm<GameShareForm>({
     title: '',
@@ -58,47 +52,31 @@ const form = useForm<GameShareForm>({
 
 // --- file selection --------------------------------------------------------
 
-const selectedFileId = ref<number | null>(null);
-let selectionInitialised = false;
+const linuxSelected = computed<boolean>(() => form.platforms.includes('linux'));
 
 /**
- * Keeps the chosen file valid across prop refreshes. The first run honours
- * `?file=<id>` (or falls back to the newest usable archive); a later run
- * selects a freshly uploaded file and never leaves a vanished file selected.
+ * The selected archive. Only a usable file is ever preselected: `?file=<id>`
+ * of a `.iso` or other non-archive selects nothing, and a file that vanishes
+ * from the list clears the selection — the hint under the submit names what is
+ * missing instead.
  */
+const preselected = props.files.find(
+    (file) => file.id === props.selectedFileId && file.usable,
+);
+
+const selectedFileId = ref<number | null>(preselected?.id ?? null);
+
 watch(
     () => props.files,
-    (files, previous) => {
-        const knownBefore = new Set((previous ?? []).map((file) => file.id));
-        const newestUsable = files.find((file) => file.usable) ?? null;
-        const stillThere = files.some(
-            (file) => file.id === selectedFileId.value,
-        );
+    (files) => {
+        const current = files.find((file) => file.id === selectedFileId.value);
 
-        if (!selectionInitialised) {
-            selectionInitialised = true;
-            const fromUrl =
-                files.find((file) => file.id === props.selectedFileId) ?? null;
-            selectedFileId.value = fromUrl?.id ?? newestUsable?.id ?? null;
-
+        if (current !== undefined && current.usable) {
             return;
         }
 
-        const fresh =
-            files.find((file) => file.usable && !knownBefore.has(file.id)) ??
-            null;
-
-        if (fresh !== null) {
-            selectedFileId.value = fresh.id;
-
-            return;
-        }
-
-        if (!stillThere) {
-            selectedFileId.value = newestUsable?.id ?? null;
-        }
+        selectedFileId.value = null;
     },
-    { immediate: true },
 );
 
 watch(
@@ -119,11 +97,62 @@ const selectedUsable = computed<boolean>(
 
 const titleReady = computed<boolean>(() => form.title.trim().length >= 2);
 
-const canSubmit = computed<boolean>(
-    () => selectedUsable.value && titleReady.value,
+const executableReady = computed<boolean>(() => form.executable.trim() !== '');
+
+/** A native Linux build needs its own start file; Wine uses the Windows one. */
+const linuxExecutableReady = computed<boolean>(
+    () =>
+        !linuxSelected.value ||
+        form.linux_runner !== 'native' ||
+        form.linux_executable.trim() !== '',
 );
 
-const linuxSelected = computed<boolean>(() => form.platforms.includes('linux'));
+const canSubmit = computed<boolean>(
+    () =>
+        selectedUsable.value &&
+        titleReady.value &&
+        executableReady.value &&
+        linuxExecutableReady.value,
+);
+
+/** What still blocks the submit, in the page's reading order. */
+const missing = computed<string[]>(() => {
+    const items: string[] = [];
+
+    if (!selectedUsable.value) {
+        items.push('ein Archiv');
+    }
+
+    if (!titleReady.value) {
+        items.push('ein Titel');
+    }
+
+    if (!executableReady.value) {
+        items.push('die Startdatei');
+    }
+
+    if (!linuxExecutableReady.value) {
+        items.push('die Linux-Startdatei');
+    }
+
+    return items;
+});
+
+/** One short line for the `aria-live` hint under the button. */
+const missingMessage = computed<string>(() => {
+    const items = missing.value;
+
+    if (items.length === 0) {
+        return '';
+    }
+
+    const list =
+        items.length === 1
+            ? items[0]
+            : `${items.slice(0, -1).join(', ')} und ${items[items.length - 1]}`;
+
+    return `Es fehlt noch: ${list}.`;
+});
 
 // Linux needs a runner; Wine is the common case and the honest default here.
 watch(linuxSelected, (linux) => {
@@ -232,7 +261,12 @@ function submit(): void {
         :back="{ href: '/games', label: 'Spiele' }"
     >
         <!-- loading: only a full visit; partial reloads keep the content -->
-        <div v-if="isNavigating" class="mt-8 space-y-4">
+        <div
+            v-if="isNavigating"
+            class="mt-8 space-y-4"
+            role="status"
+            aria-label="Spiel teilen wird geladen"
+        >
             <Skeleton class="h-64 w-full rounded-md" />
             <Skeleton class="h-96 w-full rounded-md" />
             <Skeleton class="h-32 w-full rounded-md" />
@@ -242,23 +276,24 @@ function submit(): void {
         <div
             v-else-if="hasError"
             class="mt-8 rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center"
+            role="alert"
         >
             <p class="text-sm text-destructive">
-                Das Formular konnte nicht geladen werden. Lade die Seite neu und
-                versuche es noch einmal.
+                Das Formular konnte nicht geladen werden. Prüfe deine Verbindung
+                und versuch es noch einmal.
             </p>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="mt-3"
+                @click="retry"
+            >
+                Erneut versuchen
+            </Button>
         </div>
 
         <template v-else>
-            <!-- The server's flash after a successful share, announced politely. -->
-            <p
-                v-if="successFlash"
-                role="status"
-                class="mt-6 rounded-md border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-foreground"
-            >
-                {{ successFlash }}
-            </p>
-
             <!-- 01 — the archive -->
             <section class="mt-8" aria-labelledby="share-archive-heading">
                 <h2
@@ -294,12 +329,7 @@ function submit(): void {
                         v-else
                         class="space-y-3 border-t border-border p-4 text-sm text-muted-foreground"
                     >
-                        <p v-if="event">
-                            Der Upload ist gerade nicht verfügbar. Ein Archiv,
-                            das schon auf dem Dateiserver liegt, kannst du
-                            trotzdem auswählen.
-                        </p>
-                        <p v-else-if="files.length > 0">
+                        <p v-if="files.length > 0">
                             Der Upload öffnet mit der nächsten LAN. Ein Archiv,
                             das schon auf dem Dateiserver liegt, kannst du
                             trotzdem auswählen — die Liste zeigt es unten.
@@ -310,7 +340,6 @@ function submit(): void {
                             trotzdem auswählen; in deiner Liste liegt noch
                             keins.
                         </p>
-                        <QuotaGauge v-if="quota" :quota="quota" />
                     </div>
 
                     <ArchiveFileList
@@ -390,7 +419,6 @@ function submit(): void {
 
                         <fieldset
                             class="grid gap-2"
-                            aria-required="true"
                             :aria-describedby="
                                 form.errors.platforms
                                     ? 'share-platforms-error'
@@ -398,12 +426,7 @@ function submit(): void {
                             "
                         >
                             <legend class="text-sm font-medium">
-                                Plattformen
-                                <span
-                                    class="text-destructive"
-                                    aria-hidden="true"
-                                    >*</span
-                                >
+                                Plattformen (mindestens eine)
                             </legend>
                             <div class="flex flex-wrap gap-2">
                                 <label
@@ -682,6 +705,7 @@ function submit(): void {
                                     v-model="form.multiplayer"
                                     type="checkbox"
                                     class="size-4 accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                    aria-describedby="share-multiplayer-hint"
                                 />
                                 Mehrspieler
                             </label>
@@ -743,16 +767,11 @@ function submit(): void {
                                 }}
                             </Button>
                             <p
-                                v-if="!selectedUsable"
                                 class="text-xs text-muted-foreground sm:text-right"
+                                aria-live="polite"
+                                data-test="share-missing"
                             >
-                                Wähle oben ein Archiv als {{ archiveList }}.
-                            </p>
-                            <p
-                                v-else-if="!titleReady"
-                                class="text-xs text-muted-foreground sm:text-right"
-                            >
-                                Gib dem Spiel einen Titel.
+                                {{ missingMessage }}
                             </p>
                         </div>
                     </form>
@@ -772,9 +791,10 @@ function submit(): void {
                     Deine geteilten Spiele
                 </h2>
                 <p class="mt-1 max-w-prose text-sm text-muted-foreground">
-                    Nach dem Absenden prüft die Orga Datei und Angaben. Sobald
-                    beides passt, steht dein Spiel unter Spiele und im Launcher;
-                    der Katalog-Eintrag entsteht danach automatisch.
+                    Die Orga prüft zuerst die Datei und deine Angaben. Danach
+                    steht das Spiel unter Spiele; der Launcher installiert es,
+                    wenn das Archiv sofort läuft, und in den öffentlichen
+                    Spielkatalog kommt es nur, wenn die Orga das einschaltet.
                 </p>
 
                 <Panel :level="3" title="Deine Spiele" class="mt-3">
