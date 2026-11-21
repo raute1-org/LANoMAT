@@ -74,8 +74,7 @@ export interface PermanentShortDto {
 }
 
 export interface NowEvent {
-    /** Not in the original contract; used for the realtime channel when present. */
-    id?: number;
+    id: number;
     name: string;
     slug: string;
     status: string;

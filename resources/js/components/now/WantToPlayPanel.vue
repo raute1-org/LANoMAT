@@ -34,6 +34,14 @@ watch(
     { immediate: true, deep: true },
 );
 
+function resync() {
+    games.value = (props.data?.games ?? []).map((g) => ({
+        ...g,
+        names: [...g.names],
+    }));
+    router.reload({ only: ['wantToPlay'] });
+}
+
 const adding = ref(false);
 const custom = ref('');
 
@@ -62,6 +70,8 @@ function toggle(name: string) {
         games.value.push({ game: label, count: 1, names: [], mine: true });
     }
 
+    let succeeded = false;
+
     router.post(
         url,
         { game: label },
@@ -69,6 +79,16 @@ function toggle(name: string) {
             preserveScroll: true,
             preserveState: true,
             only: ['wantToPlay', 'navSignals'],
+            // Roll the optimistic flip back to the server state on failure.
+            // (onError only covers validation errors; 5xx/network need onFinish.)
+            onSuccess: () => {
+                succeeded = true;
+            },
+            onFinish: () => {
+                if (!succeeded) {
+                    resync();
+                }
+            },
         },
     );
 }

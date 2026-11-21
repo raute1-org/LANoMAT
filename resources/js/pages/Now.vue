@@ -51,7 +51,7 @@ onUnmounted(() => {
 });
 
 // Presence changes: refresh just the two blocks that depend on it.
-if (props.event?.id !== undefined) {
+if (props.event) {
     useEventChannel(props.event.id, ['.presence.updated'], () => {
         router.reload({ only: ['nowPlaying', 'forYou'] });
     });
