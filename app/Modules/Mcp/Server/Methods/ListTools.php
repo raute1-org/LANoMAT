@@ -20,8 +20,9 @@ use Laravel\Mcp\Transport\JsonRpcResponse;
  * (`==`) therefore silently receives page 1 again and never sees the rest of
  * the catalogue. This handler normalises base64url/unpadded cursors, rejects a
  * genuinely malformed cursor with -32602 instead of replaying page 1, accepts
- * `per_page` as a number or a numeric string, and returns `nextCursor: null`
- * on the last page.
+ * `per_page` as a number or a numeric string, and omits `nextCursor` on the last page (the MCP
+ * schema allows a string or no field, a `null` makes strict clients such as Claude Code reject
+ * the whole `tools/list` result).
  */
 final class ListTools implements Method
 {
@@ -41,10 +42,10 @@ final class ListTools implements Method
             ? $this->cursorFor($offset + $perPage)
             : null;
 
-        return JsonRpcResponse::result($request->id, [
+        return JsonRpcResponse::result($request->id, array_filter([
             'tools' => $page,
             'nextCursor' => $nextCursor,
-        ]);
+        ], static fn (mixed $value): bool => $value !== null));
     }
 
     private function requestedPerPage(mixed $requested): ?int
