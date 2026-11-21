@@ -82,6 +82,14 @@ Reverb refuses a handshake without an `Origin`. A native client must send its se
 | `LIVEKIT_NODE_IP` / `LIVEKIT_DOMAIN` | Used by the render script / compose |
 | `VOICE_CLIENT_MIN_VERSION` | Refuse older native clients (empty = no minimum) |
 
+These values surface as the Sprachchat page and the desktop-client handshake; a missing `wss://` or a
+key mismatch shows up as an empty channel list, not as a server error.
+
+| Dark | Light |
+|---|---|
+| ![Sprachchat web voice page with no channels before a match, dark](/screens/talk-dark.png) | ![Sprachchat web voice page with no channels before a match, light](/screens/talk-light.png) |
+| `SPRACHCHAT · EMPTY · LIVEKIT` | `SPRACHCHAT · LIGHT` |
+
 ## Pelican and game servers
 
 | Variable | Note |
@@ -110,6 +118,14 @@ Reverb refuses a handshake without an `Origin`. A native client must send its se
 | `FILES_URL_TTL_SECONDS` | Signed download lifetime, default 300 |
 | `GALLERY_MAX_UPLOAD_MB` / `_MAX_EDGE` / `_THUMB_WIDTH` / `_JPEG_QUALITY` | Upload pipeline |
 | `IMAGE_DRIVER` | Leave empty for GD; GD's re-encode strips EXIF/GPS |
+
+The admin file table is where the quota, store and signed-download settings become visible: every row
+shows size, approval status and the storage target.
+
+| Dark | Light |
+|---|---|
+| ![Filament file table with approved ISOs, patches and avatars per event, dark](/screens/admin-shared-files-dark.png) | ![Filament file table with approved ISOs, patches and avatars per event, light](/screens/admin-shared-files-light.png) |
+| `ADMIN · DATEIEN · FREIGEGEBEN · STORE` | `ADMIN · LIGHT` |
 
 ## Music, room audio, provisioning
 
@@ -150,6 +166,14 @@ result. A module whose `requires()` is off fails boot.
 | `MCP_POLL_INTERVAL` | `5` | Minimum seconds between token exchanges |
 | `MCP_TOKEN_TTL_DAYS` | `90` | Bearer token lifetime; slid on use |
 | `MCP_DEFAULT_MODEL` | `venice/e2ee-deepseek-v4-1-flash-1017-abliterated` | Advertised by `lanomat_me` for the agent |
+
+The code lifetime and poll interval govern the pairing page below; the token TTL governs the entries
+under "Verbundene Agenten" until they are disconnected.
+
+| Dark | Light |
+|---|---|
+| ![Agent and MCP pairing page with a code field and two connected agents, dark](/screens/mcp-connect-dark.png) | ![Agent and MCP pairing page with a code field and two connected agents, light](/screens/mcp-connect-light.png) |
+| `AGENT & MCP · CODE · CONNECTED AGENTS` | `AGENT & MCP · LIGHT` |
 
 ## Game recipes
 
