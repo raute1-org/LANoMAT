@@ -323,6 +323,22 @@ Like `clients-dist` itself, publish before the first `up`, otherwise Docker crea
 root. The page requires login like the rest of the participant UI and carries no user data beyond the
 session.
 
+**Without a published build, "Installieren" is only the `lanomat://` link.** The game page offers the
+launcher download as its primary action only when a build manifest exists and the recipe is
+launcher-supported; otherwise `Installieren` is the `lanomat://install/<slug>` agent deep link, and a PC
+without a registered handler installs nothing — the page says so under the actions, and the click ends
+in the launcher-link notice. Publishing `clients-dist/launcher/manifest.json` (and the files it lists)
+is what turns the button into a download and adds "Im Launcher öffnen" next to it.
+
+**Recipe pull requests (optional, off by default).** A recipe a participant shares can be proposed to
+the repository as a pull request (`recipes/<slug>` with `recipe.yaml`, `SKILL.md` and a `_catalog.md`
+row). It needs `RECIPES_PR_ENABLED=true`, `RECIPES_PR_REPOSITORY=<owner>/<name>` and a fine-grained
+`RECIPES_PR_TOKEN` (*Contents* and *Pull requests*, read and write, on that one repository) in the
+server's `.env`, plus a running `queue` service — the proposal is queued. The token never enters the
+repository and the game files never leave the LAN file host. Step by step, including the token menu,
+triggers, states, the Preflight check **Rezept-Katalog (Pull Requests)** and troubleshooting:
+[`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md).
+
 Every terminal pairs its own device: the catalogue is shared, the installs are local, and the same
 account can run the launcher on any number of machines without copying a config file. Arcade
 terminals (kiosk/fullscreen, keyboard or gamepad) sign in by scanning a QR of

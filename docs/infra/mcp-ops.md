@@ -30,6 +30,7 @@ The repository is public: every host, address and secret below is a placeholder.
 | Agent REST API   | `app` container, `/api/v1/*`           | same database; reads recipes/files                         |
 | Recipe catalogue | `app` container + Postgres             | `game_recipes`, `game_recipe_files`, `game_recipe_installs` |
 | Recipe source    | bundled in the image, or the NAS share | YAML + `SKILL.md` folders, no database of its own          |
+| Recipe catalogue (git) | `app`/`queue` call the GitHub REST API, only with `RECIPES_PR_ENABLED` | `game_recipes.pr_*` (Postgres); the branch and pull request live in the repository |
 | Docs site        | `docs` container (compose profile)     | none — static build, rebuilt from the repository           |
 | Agent            | participant/orga PC                    | token + Venice key under the user's config dir             |
 
@@ -65,6 +66,23 @@ docker compose exec -T app php artisan lanomat:modules
 `MCP_DEFAULT_MODEL` is only **advertised** to the agent (`lanomat-agent doctor` compares it against
 its config); the server never calls a model. Leave it at the Venice default unless the bundled
 installer should point at a different provider out of the box.
+
+### Recipe pull requests (off by default)
+
+A recipe a participant shares can travel into the git catalogue as a pull request. The switch block
+lives in `config/recipes.php` (`pull_requests`) and is off with any of the three keys missing:
+
+```dotenv
+RECIPES_PR_ENABLED=true
+RECIPES_PR_REPOSITORY=<GITHUB_OWNER>/<REPOSITORY>
+RECIPES_PR_TOKEN=<fine-grained token: Contents + Pull requests, read and write>
+# optional: RECIPES_PR_TRIGGER=contribute|publish, RECIPES_PR_BASE=main, RECIPES_PR_PATH=resources/recipes,
+#           RECIPES_PR_BRANCH_PREFIX=recipes/, RECIPES_PR_ATTRIBUTION=false, RECIPES_PR_API_URL=https://api.github.com
+```
+
+The proposal is queued, so the **queue worker must run**; without it a recipe keeps `pr_state = null`.
+The full path — token menu, triggers, branch/pull-request contents, public-safety gate, states,
+commands, troubleshooting — is [`recipe-pull-requests.md`](recipe-pull-requests.md).
 
 ## Endpoints
 
@@ -160,15 +178,20 @@ docker compose exec -T app php artisan lanomat:recipes:sync --json
 | Option        | Effect                                                                 |
 | ------------- | ---------------------------------------------------------------------- |
 | `source`      | override the configured source for this run (directory, `smb://…`, `git+https://…`) |
-| `--prune`     | delete recipes that exist in the source but no longer in the catalogue |
-| `--only=slug` | sync one recipe (fast check after editing a folder)                    |
+| `--prune`     | delete rows of this source kind whose slug has no recipe directory any more (never a recipe that still exists, and nothing at all when the source yields no directories) |
+| `--only=slug` | update only this recipe; the others still count as present, so `--prune` keeps them |
 | `--json`      | machine-readable `{source, created, updated, pruned, skipped[]}`       |
 
 The default source is `RECIPES_SOURCE`. The bundled directory (`resources/recipes` in the image) is
 the fallback. `--prune` is only safe when the source is complete — never prune a half-mounted share
-or a partial checkout.
+or a partial checkout. `--only` narrows what is **updated**, never what counts as present: a recipe
+that still has a directory in the source is kept even when it was not selected or its file failed
+validation, and an empty source prunes nothing.
 
 ### Suggested cron entry
+
+The scheduler already runs the sync at 04:15. The host cron entry is only for an instance whose
+`scheduler` service is not running (or to have a second, logged run):
 
 ```cron
 # Daily at 04:30, after the SMB share is available and before the morning check.
@@ -281,6 +304,7 @@ dedicated MCP or recipe-sync probe** yet:
 | `failed_jobs`          | warn when jobs failed — check after a token/recipe change                |
 | `backup_freshness`     | the backup marker is fresh (see below)                                   |
 | `dependency_updates`   | pinned images trail upstream (docs site: `nginx` only, no lookup)        |
+| `recipe_repository`    | **only while `GameRecipes` is on**: the recipe pull request link (token, repository, `permissions.push`). `skipped` when `RECIPES_PR_ENABLED=false`, `warn` for every failure — never `down` |
 
 `lanomat:health-watch` (scheduled every five minutes) turns a `down` into a one-time in-app
 notification for orga/admin accounts (edge-triggered; it does not re-notify for the same outage).
@@ -355,11 +379,17 @@ Notes:
 
 | Job                          | Where                     | Frequency            | Command / source                                    |
 | ---------------------------- | ------------------------- | -------------------- | --------------------------------------------------- |
-| Recipe sync                  | host cron                 | daily (recommended)  | `php artisan lanomat:recipes:sync --prune --json`   |
+| Recipe sync                  | scheduler (app)           | daily at 04:15       | `lanomat:recipes:sync` in `routes/console.php`      |
+| Recipe pull request status   | scheduler (app)           | hourly               | `lanomat:recipes:pr-status` (quiet while not configured) |
+| File hash backfill           | scheduler (app)           | daily at 04:45       | `lanomat:files:hash --limit=20`                     |
 | Health watch                 | scheduler (app)           | every 5 minutes      | `lanomat:health-watch` in `routes/console.php`      |
 | Dependency update watch      | scheduler (app)           | every 6 hours        | `lanomat:check-updates`                             |
 | MCP/docs smoke               | host cron or monitoring   | every 15 minutes     | `scripts/ops/mcp-smoke.sh`                          |
 | Docs rebuild                 | deploy step               | per merge to `main`  | `docker compose --profile docs up -d --build docs`  |
+
+The scheduler service must be running for all of the `routes/console.php` entries. `php artisan
+schedule:list` prints what the current profile schedules; a `lanomat:recipes:pr-status` runs on an
+instance without a catalogue link (it exits `0` immediately).
 
 ## Acceptance checklist
 
@@ -371,6 +401,9 @@ Notes:
 - [ ] Revoking that device makes the next `/api/v1/me` answer `401` within one request.
 - [ ] `lanomat:recipes:sync --json` imports the NAS catalogue; `--only=<slug>` updates one recipe;
       the log has no `skipped[]` entries that point at a real problem.
+- [ ] With recipe pull requests on: Preflight **Rezept-Katalog (Pull Requests)** is `ok`;
+      `lanomat:recipes:pr-status` prints `N offene Pull Requests geprüft.`; a test proposal appears in
+      the repository ([`recipe-pull-requests.md`](recipe-pull-requests.md)).
 - [ ] `/docs/` and `/docs/recipes/ut2004` answer `200`; `/docs` answers `301`; `/` answers `302`.
 - [ ] `lanomat:preflight` has no `down`; `failed_jobs` and `backup_freshness` are not `warn`.
 - [ ] `gitleaks detect` (full history) is clean after the deploy commit.
