@@ -21,13 +21,16 @@ import {
     UserPlus,
     Users,
     Armchair,
-    LayoutDashboard,
+    Activity,
+    Ellipsis,
+    ShieldCheck,
     Ticket,
     Radio,
     Music,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
+import NavCollapsibleGroup from '@/components/NavCollapsibleGroup.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
@@ -41,8 +44,8 @@ import {
 } from '@/components/ui/sidebar';
 import { useDesktopClient } from '@/composables/useDesktopClient';
 import { useModules } from '@/composables/useModules';
-import { homeHref } from '@/lib/home';
-import { dashboard } from '@/routes';
+import { formatInstant } from '@/lib/datetime';
+import { home } from '@/routes';
 import { show as cateringShow } from '@/routes/catering';
 import {
     index as eventsIndex,
@@ -71,6 +74,7 @@ import {
 } from '@/routes/webvoice';
 import type { NavItem } from '@/types';
 import type { EventSummary } from '@/types/events';
+import type { NavBadge, NavSignals } from '@/types/navigation';
 
 const page = usePage();
 const currentEvent = computed<EventSummary | null>(
@@ -79,39 +83,227 @@ const currentEvent = computed<EventSummary | null>(
 const isStaff = computed<boolean>(
     () => page.props.auth?.user?.is_staff === true,
 );
+// Absent or null (guests, backend not providing it): no badges at all.
+const signals = computed<NavSignals | null>(
+    () => page.props.navSignals ?? null,
+);
 
 const { has } = useModules();
 const { client: desktopClient } = useDesktopClient();
 
-const generalItems = computed<NavItem[]>(() => [
-    { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
-    {
-        title: 'Aktuelle LAN',
-        href: homeHref(currentEvent.value),
-        icon: PartyPopper,
-        // With an active LAN the event group's "Übersicht" owns the highlight
-        // for the same URL, so it is not marked twice.
-        ...(currentEvent.value ? { isActive: false } : {}),
-    },
-    { title: 'Events', href: eventsIndex(), icon: CalendarDays },
-    ...(has('game_recipes')
-        ? [{ title: 'Spiele', href: '/games', icon: Gamepad2 }]
-        : []),
-    { title: 'Teams', href: teamsIndex(), icon: Users, prefix: true },
-    ...(has('stats')
-        ? [{ title: 'Bestenliste', href: statsLeaderboard(), icon: Trophy }]
-        : []),
-    ...(has('friends')
-        ? [{ title: 'Freunde', href: friendsIndex(), icon: UserPlus }]
-        : []),
-    ...(has('game_servers')
-        ? [{ title: 'Server', href: serversIndex(), icon: Server }]
+function foodBadge(closesAt: string | null | undefined): NavBadge | undefined {
+    if (!closesAt) {
+        return undefined;
+    }
+
+    const time = formatInstant(closesAt, {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    return { text: `bis ${time}`, variant: 'warn' };
+}
+
+function tournamentBadge(
+    state: NavSignals['tournament'] | undefined,
+): NavBadge | undefined {
+    if (state === 'ready') {
+        return { text: 'Match bereit', variant: 'live' };
+    }
+
+    return state === 'checkin'
+        ? { text: 'Check-in offen', variant: 'warn' }
+        : undefined;
+}
+
+function mutedBadge(text: string | null): NavBadge | undefined {
+    return text ? { text, variant: 'muted' } : undefined;
+}
+
+function withBadge(item: NavItem, badge: NavBadge | undefined): NavItem {
+    return badge ? { ...item, badge } : item;
+}
+
+// First group: "Jetzt" and the live signals. Without a current event it has
+// no label and holds only Jetzt and Server.
+const nowItems = computed<NavItem[]>(() => {
+    const ev = currentEvent.value;
+    const sig = signals.value;
+    const items: NavItem[] = [{ title: 'Jetzt', href: home(), icon: Activity }];
+
+    if (has('game_servers')) {
+        const online = sig?.serversOnline ?? 0;
+
+        items.push(
+            withBadge(
+                { title: 'Server', href: serversIndex(), icon: Server },
+                online > 0
+                    ? { text: `${online} online`, variant: 'ok' }
+                    : undefined,
+            ),
+        );
+    }
+
+    if (!ev) {
+        return items;
+    }
+
+    items.push(
+        withBadge(
+            {
+                title: 'Turniere',
+                href: tournamentsIndex(ev.slug),
+                icon: Swords,
+            },
+            tournamentBadge(sig?.tournament),
+        ),
+    );
+
+    if (has('catering')) {
+        items.push(
+            withBadge(
+                {
+                    title: 'Essen',
+                    href: cateringShow(ev.slug),
+                    icon: UtensilsCrossed,
+                },
+                foodBadge(sig?.foodClosesAt),
+            ),
+        );
+    }
+
+    if (has('schedule')) {
+        items.push({
+            title: 'Zeitplan',
+            href: scheduleIndex(ev.slug),
+            icon: CalendarClock,
+        });
+    }
+
+    items.push(
+        withBadge(
+            { title: 'Sitzplan', href: eventsSeating(ev.slug), icon: Armchair },
+            mutedBadge(sig?.seat ?? null),
+        ),
+    );
+
+    if (has('presence')) {
+        const present = sig?.present;
+
+        items.push(
+            withBadge(
+                { title: 'Leute', href: presenceShow(ev.slug), icon: Radio },
+                mutedBadge(
+                    typeof present === 'number' ? `${present} da` : null,
+                ),
+            ),
+        );
+    }
+
+    // Only the availability is shared with the sidebar, not the viewer's own
+    // registration, so a registered viewer still sees this while spots remain.
+    if (ev.availability === 'open') {
+        items.push({
+            title: 'Anmeldung',
+            href: eventsRegister(ev.slug),
+            icon: Ticket,
+        });
+    }
+
+    return items;
+});
+
+const moreItems = computed<NavItem[]>(() => {
+    const ev = currentEvent.value;
+    const items: NavItem[] = [];
+
+    if (ev) {
+        if (has('voting')) {
+            items.push({
+                title: 'Abstimmungen',
+                href: pollsIndex(ev.slug),
+                icon: Vote,
+                prefix: true,
+            });
+        }
+
+        if (has('lfg')) {
+            items.push({
+                title: 'Mitspieler finden',
+                href: lfgIndex(ev.slug),
+                icon: HandHelping,
+            });
+        }
+
+        if (has('jukebox')) {
+            items.push({
+                title: 'Jukebox',
+                href: jukeboxIndex(ev.slug),
+                icon: Music,
+            });
+        }
+
+        if (has('gallery')) {
+            items.push({
+                title: 'Galerie',
+                href: galleryIndex(ev.slug),
+                icon: Image,
+            });
+        }
+
+        if (has('files')) {
+            items.push({
+                title: 'Dateien',
+                href: filesIndex(ev.slug),
+                icon: FolderOpen,
+            });
+        }
+
+        items.push({
+            title: 'LAN-Info & Anreise',
+            href: eventsShow(ev.slug),
+            icon: PartyPopper,
+        });
+    }
+
+    if (has('game_recipes')) {
+        items.push({ title: 'Spiele', href: '/games', icon: Gamepad2 });
+    }
+
+    items.push({
+        title: 'Teams',
+        href: teamsIndex(),
+        icon: Users,
+        prefix: true,
+    });
+
+    if (has('friends')) {
+        items.push({ title: 'Freunde', href: friendsIndex(), icon: UserPlus });
+    }
+
+    if (has('stats')) {
+        items.push({
+            title: 'Bestenliste',
+            href: statsLeaderboard(),
+            icon: Trophy,
+        });
+    }
+
+    items.push({
+        title: 'Alle Events',
+        href: eventsIndex(),
+        icon: CalendarDays,
+    });
+
+    return items;
+});
+
+const voiceItems = computed<NavItem[]>(() => [
+    ...(has('web_voice')
+        ? [{ title: 'Sprachchat', href: webVoiceIndex(), icon: Headphones }]
         : []),
     ...(has('voice')
         ? [{ title: 'Voice einrichten', href: voiceSetup(), icon: Mic }]
-        : []),
-    ...(has('web_voice')
-        ? [{ title: 'Sprachchat', href: webVoiceIndex(), icon: Headphones }]
         : []),
     // The shared prop is null for guests and when the WebVoice module is not routable.
     ...(has('web_voice') && desktopClient.value
@@ -128,118 +320,29 @@ const generalItems = computed<NavItem[]>(() => [
         : []),
 ]);
 
-const eventItems = computed<NavItem[]>(() => {
+const orgaItems = computed<NavItem[]>(() => {
     const ev = currentEvent.value;
 
-    if (!ev) {
-        return [];
-    }
-
-    const items: NavItem[] = [
-        { title: 'Übersicht', href: eventsShow(ev.slug), icon: PartyPopper },
-        ...(has('schedule')
-            ? [
-                  {
-                      title: 'Zeitplan',
-                      href: scheduleIndex(ev.slug),
-                      icon: CalendarClock,
-                  },
-              ]
-            : []),
-        ...(ev.availability === 'open'
-            ? [
-                  {
-                      title: 'Anmeldung',
-                      href: eventsRegister(ev.slug),
-                      icon: Ticket,
-                  },
-              ]
-            : []),
-        { title: 'Turniere', href: tournamentsIndex(ev.slug), icon: Swords },
-        { title: 'Sitzplan', href: eventsSeating(ev.slug), icon: Armchair },
-        ...(has('presence')
-            ? [{ title: 'Präsenz', href: presenceShow(ev.slug), icon: Radio }]
-            : []),
-        ...(has('jukebox')
-            ? [{ title: 'Jukebox', href: jukeboxIndex(ev.slug), icon: Music }]
-            : []),
-        ...(has('gallery')
-            ? [{ title: 'Galerie', href: galleryIndex(ev.slug), icon: Image }]
-            : []),
-    ];
-
-    if (isStaff.value) {
-        items.push({
-            title: 'Check-in',
-            href: orgaCheckin(ev.slug),
-            icon: UserCheck,
-        });
-
-        if (has('infoscreen')) {
-            items.push({
-                title: 'Infoscreen-Steuerung',
-                href: screenControl(ev.slug),
-                icon: MonitorPlay,
-            });
-        }
-    }
-
-    return items;
-});
-
-// Secondary event modules: every one of them is gated by its module toggle,
-// so the "Mehr" group disappears entirely on a core profile.
-const moreItems = computed<NavItem[]>(() => {
-    const ev = currentEvent.value;
-
-    if (!ev) {
+    if (!ev || !isStaff.value) {
         return [];
     }
 
     return [
-        ...(has('catering')
+        { title: 'Check-in', href: orgaCheckin(ev.slug), icon: UserCheck },
+        ...(has('infoscreen')
             ? [
                   {
-                      title: 'Essensbestellung',
-                      href: cateringShow(ev.slug),
-                      icon: UtensilsCrossed,
-                  },
-              ]
-            : []),
-        ...(has('voting')
-            ? [
-                  {
-                      title: 'Abstimmungen',
-                      href: pollsIndex(ev.slug),
-                      icon: Vote,
-                      prefix: true,
-                  },
-              ]
-            : []),
-        ...(has('lfg')
-            ? [
-                  {
-                      title: 'Mitspieler finden',
-                      href: lfgIndex(ev.slug),
-                      icon: HandHelping,
-                  },
-              ]
-            : []),
-        ...(has('files')
-            ? [
-                  {
-                      title: 'Dateien',
-                      href: filesIndex(ev.slug),
-                      icon: FolderOpen,
+                      title: 'Infoscreen-Steuerung',
+                      href: screenControl(ev.slug),
+                      icon: MonitorPlay,
                   },
               ]
             : []),
     ];
 });
 
-const eventGroupLabel = computed(() =>
-    currentEvent.value ? `Aktuelle LAN: ${currentEvent.value.name}` : '',
-);
+const nowGroupLabel = computed(() => currentEvent.value?.name ?? '');
+const eventIsLive = computed(() => currentEvent.value?.status === 'live');
 </script>
 
 <template>
@@ -248,7 +351,7 @@ const eventGroupLabel = computed(() =>
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="homeHref(currentEvent)">
+                        <Link :href="home()">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
@@ -258,16 +361,28 @@ const eventGroupLabel = computed(() =>
 
         <SidebarContent>
             <nav aria-label="Hauptnavigation" class="contents">
-                <NavMain :items="generalItems" label="Allgemein" />
                 <NavMain
-                    v-if="eventItems.length > 0"
-                    :items="eventItems"
-                    :label="eventGroupLabel"
+                    :items="nowItems"
+                    :label="nowGroupLabel"
+                    :live="eventIsLive"
                 />
-                <NavMain
-                    v-if="moreItems.length > 0"
-                    :items="moreItems"
+                <NavCollapsibleGroup
                     label="Mehr"
+                    :icon="Ellipsis"
+                    :items="moreItems"
+                    storage-key="more"
+                />
+                <NavCollapsibleGroup
+                    label="Voice"
+                    :icon="Headphones"
+                    :items="voiceItems"
+                    storage-key="voice"
+                />
+                <NavCollapsibleGroup
+                    label="Orga"
+                    :icon="ShieldCheck"
+                    :items="orgaItems"
+                    storage-key="orga"
                 />
             </nav>
         </SidebarContent>
