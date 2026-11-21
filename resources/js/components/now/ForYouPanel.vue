@@ -56,7 +56,9 @@ function dot(card: NowCardDto): 'live' | 'warn' | null {
         return 'live';
     }
 
-    return card.state === 'closing_soon' || card.state === 'checkin_open'
+    return card.state === 'closing_soon' ||
+        card.state === 'checkin_open' ||
+        card.kind === 'payment'
         ? 'warn'
         : null;
 }
@@ -92,7 +94,19 @@ function actionLabel(card: NowCardDto): string {
                     <span class="font-semibold text-foreground">{{
                         card.title
                     }}</span>
-                    <span v-if="card.body" class="text-muted-foreground">
+                    <span
+                        v-if="card.body && card.kind === 'payment'"
+                        class="text-muted-foreground"
+                    >
+                        ·
+                        <span class="font-mono tabular-nums">{{
+                            card.body.split(' · ')[0]
+                        }}</span>
+                        <template v-if="card.body.includes(' · ')">
+                            · {{ card.body.split(' · ').slice(1).join(' · ') }}
+                        </template>
+                    </span>
+                    <span v-else-if="card.body" class="text-muted-foreground">
                         · {{ card.body }}
                     </span>
                 </span>
