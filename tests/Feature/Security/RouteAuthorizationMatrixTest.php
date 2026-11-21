@@ -10,6 +10,7 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Friends\Models\Friendship;
 use App\Modules\Gallery\Models\EventPhoto;
+use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Jukebox\Models\JukeboxItem;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Registration\Models\EventRegistration;
@@ -635,6 +636,14 @@ function idorScenarios(): array
                 $i = FoodOrderItem::factory()->create(['user_id' => $a->id, 'food_order_id' => FoodOrder::factory()->open()->create()->id]);
 
                 return [['DELETE', "/food-order-items/{$i->id}"]];
+            },
+        ],
+        'permanent server admin actions by a participant' => [
+            'covers' => ['POST servers/{serverLink}/restart-round', 'POST servers/{serverLink}/reload-map', 'POST servers/{serverLink}/map'],
+            'build' => function (User $a, User $b) {
+                $s = ServerLink::factory()->permanent()->create(['pelican_server_id' => '7', 'pelican_server_identifier' => 'abcd1234']);
+
+                return [['POST', "/servers/{$s->id}/restart-round"], ['POST', "/servers/{$s->id}/reload-map"], ['POST', "/servers/{$s->id}/map", ['map' => 'de_dust2']]];
             },
         ],
         'team management by a non-owner' => [

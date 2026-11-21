@@ -9,6 +9,8 @@ use App\Modules\GameServers\Actions\ChangeServerMap;
 use App\Modules\GameServers\Actions\GunGameSettings;
 use App\Modules\GameServers\Actions\LinkPelicanServer;
 use App\Modules\GameServers\Actions\PowerConfiguredServer;
+use App\Modules\GameServers\Actions\ReloadMap;
+use App\Modules\GameServers\Actions\RestartRound;
 use App\Modules\GameServers\Actions\UpdateServerSettings;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Domain\PowerAction;
@@ -268,6 +270,24 @@ class ServerSettings extends Page
         });
     }
 
+    public function restartRound(): void
+    {
+        $this->guarded(function (User $user, ServerLink $link): void {
+            app(RestartRound::class)->handle($user, $link);
+
+            Notification::make()->success()->title(__('gameservers.settings.restart_round.sent'))->send();
+        });
+    }
+
+    public function reloadMap(): void
+    {
+        $this->guarded(function (User $user, ServerLink $link): void {
+            app(ReloadMap::class)->handle($user, $link);
+
+            Notification::make()->success()->title(__('gameservers.settings.reload.sent'))->send();
+        });
+    }
+
     public function saveGunGame(): void
     {
         $this->guarded(function (User $user, ServerLink $link): void {
@@ -336,6 +356,7 @@ class ServerSettings extends Page
             'linked' => $link?->hasPelicanLink() ?? false,
             'isGunGame' => $link?->preset_key === GunGameConfig::PRESET_KEY,
             'state' => $this->runtimeState($link),
+            'canReloadMap' => $link !== null && ReloadMap::currentMap($link) !== null,
             'canPower' => $link !== null && (auth()->user()?->can('configure', $link) ?? false),
         ];
     }

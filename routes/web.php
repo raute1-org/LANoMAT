@@ -16,6 +16,7 @@ use App\Modules\Gallery\Http\GalleryPageController;
 use App\Modules\Gallery\Http\PhotoController;
 use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
+use App\Modules\GameServers\Http\PermanentServerAdminController;
 use App\Modules\GameServers\Http\PermanentServerPageController;
 use App\Modules\Identity\Http\AvatarController;
 use App\Modules\Identity\Http\DiscordAuthController;
@@ -205,6 +206,10 @@ if ($modules->routable(Module::GameServers)) {
         Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
         // Permanent servers: all year, independent of events, every logged-in user.
         Route::get('/servers', [PermanentServerPageController::class, 'index'])->name('servers.permanent');
+        // Admin shortcuts on that page; the Actions authorize `configure` on the server.
+        Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');
+        Route::post('/servers/{serverLink}/reload-map', [PermanentServerAdminController::class, 'reloadMap'])->name('servers.reload-map');
+        Route::post('/servers/{serverLink}/map', [PermanentServerAdminController::class, 'changeMap'])->name('servers.change-map');
     });
 
     // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs

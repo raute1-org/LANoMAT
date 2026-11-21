@@ -66,4 +66,12 @@ export interface GameServerDto {
     description?: string | null;
     estimate: GameServerResourceEstimate | null;
     installHint: GameInstallHintDto | null;
+    /** Permanent servers page only: set server-side by the policy, never derived in the client. */
+    canManage?: boolean;
+    /** Only present when `canManage` is true. */
+    admin?: {
+        gunGame: boolean;
+        canReloadMap: boolean;
+        running: boolean;
+    };
 }
