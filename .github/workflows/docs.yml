@@ -1,0 +1,92 @@
+# Docs site CI: build the Zudoku site, fail on broken internal links, and build
+# the nginx image that serves /docs.
+#
+# GitHub Actions is currently DISABLED for this repository by hand
+# (Settings -> Actions -> Disable). Prepared and validated locally, not enabled.
+#
+# Runs only for docs changes. The workflow has no `paths-ignore`, because a
+# docs-only PR is exactly where a broken link or a missing screenshot lands.
+name: Docs
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build + links
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      # `zudoku build` prerenders every page with basePath /docs and writes the
+      # static site to dist/docs/ (plus the 404/500 status pages next to it).
+      - run: npm run build
+
+      # Internal links, nav entries and /screens/ images. External URLs are
+      # skipped on purpose (no network in CI for the link checker).
+      - run: npm run check:links
+
+  image:
+    name: nginx image
+    # Only build the image once the site itself builds and links cleanly.
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build docs image
+        run: docker build -t lanomat-docs:ci docs-site
+
+      - name: Serve /docs and a deep link
+        run: |
+          set -euo pipefail
+          docker run -d --name docs-ci -p 8080:80 lanomat-docs:ci
+          trap 'docker logs docs-ci || true; docker rm -f docs-ci' EXIT
+
+          # nginx answers as soon as the container is up; retry anyway for a
+          # cold docker host.
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8080/docs/; then break; fi
+            sleep 2
+          done
+
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/docs/)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/docs/recipes/ut2004)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/docs/mcp/overview)" = 200
+
+          # `/` and `/docs` are redirects, not 404s.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/)" = 302
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/docs)" = 301
+
+          curl -fsS http://127.0.0.1:8080/docs/ | grep -qi '<html'
+          echo "docs image serves /docs/ and deep links."

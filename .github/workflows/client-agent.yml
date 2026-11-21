@@ -19,7 +19,6 @@
 # `contents: write`, so a moved tag must not be able to change what gets released).
 
 name: Client agent
-
 on:
   push:
     branches: [main]
