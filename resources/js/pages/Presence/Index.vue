@@ -2,8 +2,8 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
-import Panel from '@/components/now/Panel.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -12,6 +12,7 @@ import { usePageLoadState } from '@/composables/usePageLoadState';
 import { useResync } from '@/composables/useResync';
 import { show as tournamentsShow } from '@/routes/tournaments';
 import type { PresenceBoardDto } from '@/types';
+import type { LiveMatchPresenceDto } from '@/types/presence';
 
 interface PresenceLabels {
     title: string;
@@ -106,6 +107,20 @@ const visibleParticipants = computed(() => {
 
     return participants;
 });
+
+function knownGame(game: string | null): string | null {
+    return game !== null && game !== '' && game !== '?' ? game : null;
+}
+
+// Muted subline of a live match: the game (when known) and the players, but
+// never a repeat of the row title.
+function matchSubline(match: LiveMatchPresenceDto): string {
+    const players = match.players.join(' vs ');
+
+    return [knownGame(match.game), players !== match.label ? players : null]
+        .filter((part): part is string => !!part)
+        .join(' · ');
+}
 
 function openSpotsLabel(openSpots: number | null): string {
     return openSpots === null
@@ -280,10 +295,10 @@ function openSpotsLabel(openSpots: number | null): string {
                                     {{ slot.name }}
                                 </p>
                                 <p
-                                    v-if="slot.game"
+                                    v-if="knownGame(slot.game)"
                                     class="truncate text-sm text-muted-foreground"
                                 >
-                                    {{ slot.game }}
+                                    {{ knownGame(slot.game) }}
                                 </p>
                             </div>
                             <div class="flex shrink-0 items-center gap-3">
@@ -332,11 +347,10 @@ function openSpotsLabel(openSpots: number | null): string {
                                     {{ match.label }}
                                 </p>
                                 <p
+                                    v-if="matchSubline(match)"
                                     class="truncate text-sm text-muted-foreground"
                                 >
-                                    <span v-if="match.game"
-                                        >{{ match.game }} · </span
-                                    >{{ match.players.join(' vs ') }}
+                                    {{ matchSubline(match) }}
                                 </p>
                             </div>
                             <LiveIndicator

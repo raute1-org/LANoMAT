@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { Check, Plus } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { index as lfgIndex } from '@/routes/lfg';
-import type { NowPlayingRow, WantToPlayDto, WantToPlayGame } from '@/types/now';
+import type {
+    NowPlayingRow,
+    NowProps,
+    WantToPlayDto,
+    WantToPlayGame,
+} from '@/types/now';
 import JoinButton from './JoinButton.vue';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 const props = defineProps<{
@@ -18,32 +23,17 @@ const props = defineProps<{
     /** Pre-LAN: explain what the signal is for. */
     intro?: boolean;
     loading?: boolean;
+    /** The deferred prop failed to load. */
+    failed?: boolean;
 }>();
 
 const t = useNowLabels();
 
-const games = ref<WantToPlayGame[]>([]);
-watch(
-    () => props.data,
-    (value) => {
-        games.value = (value?.games ?? []).map((g) => ({
-            ...g,
-            names: [...g.names],
-        }));
-    },
-    { immediate: true, deep: true },
-);
-
-function resync() {
-    games.value = (props.data?.games ?? []).map((g) => ({
-        ...g,
-        names: [...g.names],
-    }));
-    router.reload({ only: ['wantToPlay'] });
-}
+const games = computed<WantToPlayGame[]>(() => props.data?.games ?? []);
 
 const adding = ref(false);
 const custom = ref('');
+const error = ref<string | null>(null);
 
 const suggestions = computed(() =>
     (props.data?.suggestions ?? []).filter(
@@ -60,37 +50,50 @@ function toggle(name: string) {
         return;
     }
 
-    // Optimistic: flip locally, the partial reload reconciles with the server.
-    const existing = games.value.find((g) => g.game === label);
+    error.value = null;
 
-    if (existing) {
-        existing.mine = !existing.mine;
-        existing.count += existing.mine ? 1 : -1;
-    } else {
-        games.value.push({ game: label, count: 1, names: [], mine: true });
-    }
+    // First-party optimistic visit: the page prop flips at once and is rolled
+    // back automatically if the request fails; the response reconciles it.
+    router
+        .optimistic<NowProps>((page) => {
+            const current = page.wantToPlay;
 
-    let succeeded = false;
+            if (!current) {
+                return;
+            }
 
-    router.post(
-        url,
-        { game: label },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['wantToPlay', 'navSignals'],
-            // Roll the optimistic flip back to the server state on failure.
-            // (onError only covers validation errors; 5xx/network need onFinish.)
-            onSuccess: () => {
-                succeeded = true;
+            const existing = current.games.find((g) => g.game === label);
+            const next = existing
+                ? current.games
+                      .map((g) =>
+                          g.game === label
+                              ? {
+                                    ...g,
+                                    mine: !g.mine,
+                                    count: g.count + (g.mine ? -1 : 1),
+                                }
+                              : g,
+                      )
+                      .filter((g) => g.count > 0)
+                : [
+                      ...current.games,
+                      { game: label, count: 1, names: [], mine: true },
+                  ];
+
+            return { wantToPlay: { ...current, games: next } };
+        })
+        .post(
+            url,
+            { game: label },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['wantToPlay', 'navSignals'],
+                onError: (errors) => {
+                    error.value = errors.game ?? t('load_failed');
+                },
             },
-            onFinish: () => {
-                if (!succeeded) {
-                    resync();
-                }
-            },
-        },
-    );
+        );
 }
 
 function addGame(name: string) {
@@ -146,6 +149,13 @@ function joinFor(game: string) {
         >
             <Skeleton v-for="n in 4" :key="n" class="h-8 w-28 rounded-full" />
         </div>
+        <p
+            v-else-if="failed"
+            class="border-t border-border px-4 py-3 text-sm text-destructive"
+            role="alert"
+        >
+            {{ t('load_failed') }}
+        </p>
         <template v-else>
             <div class="border-t border-border px-4 py-3">
                 <p v-if="intro" class="mb-3 text-sm text-muted-foreground">
@@ -156,7 +166,7 @@ function joinFor(game: string) {
                         v-for="g in games"
                         :key="g.game"
                         type="button"
-                        class="inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                        class="inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:min-h-8"
                         :class="
                             g.mine
                                 ? 'border-foreground bg-foreground text-background'
@@ -177,7 +187,7 @@ function joinFor(game: string) {
                     </button>
                     <button
                         type="button"
-                        class="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-dashed border-input px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        class="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-dashed border-input px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-h-8"
                         :aria-expanded="adding"
                         @click="adding = !adding"
                     >
@@ -210,7 +220,7 @@ function joinFor(game: string) {
                             v-model="custom"
                             :aria-label="t('other_game')"
                             :placeholder="t('other_game')"
-                            maxlength="100"
+                            maxlength="80"
                             class="h-8"
                         />
                         <Button
@@ -223,6 +233,13 @@ function joinFor(game: string) {
                         </Button>
                     </form>
                 </div>
+                <p
+                    v-if="error"
+                    class="mt-2 text-sm text-destructive"
+                    role="alert"
+                >
+                    {{ error }}
+                </p>
             </div>
 
             <div
@@ -233,7 +250,7 @@ function joinFor(game: string) {
                     v-if="mine.length === 0"
                     class="text-sm text-muted-foreground"
                 >
-                    {{ t('want_to_play_hint') }}
+                    {{ t('want_to_play_hint', { hours: data?.hours ?? 3 }) }}
                 </p>
                 <div
                     v-for="g in mine"
@@ -248,6 +265,13 @@ function joinFor(game: string) {
                             · {{ who(g) }}</span
                         >
                     </span>
+                    <Link
+                        v-if="eventSlug"
+                        :href="lfgIndex.url(eventSlug)"
+                        class="rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                        {{ t('group_open') }}
+                    </Link>
                     <template v-if="joinFor(g.game)">
                         <span
                             class="font-mono text-xs text-muted-foreground tabular-nums"

@@ -109,6 +109,7 @@ export interface NowProps {
         registration: { checkedIn?: boolean } | null;
         seat: string | null;
         team: string | null;
+        steamLinked: boolean;
     };
     news: NowNewsItem[];
     permanent: PermanentShortDto[] | null;

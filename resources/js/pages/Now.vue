@@ -10,21 +10,26 @@ import MeStrip from '@/components/now/MeStrip.vue';
 import NewsPanel from '@/components/now/NewsPanel.vue';
 import NextPanel from '@/components/now/NextPanel.vue';
 import NowPlayingPanel from '@/components/now/NowPlayingPanel.vue';
-import Panel from '@/components/now/Panel.vue';
 import PermanentShortPanel from '@/components/now/PermanentShortPanel.vue';
-import { provideNowLabels, useNowLabels } from '@/components/now/useNowLabels';
+import { provideNowLabels } from '@/components/now/useNowLabels';
 import WantToPlayPanel from '@/components/now/WantToPlayPanel.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
 import { useEventChannel } from '@/composables/useEventChannel';
+import { useModules } from '@/composables/useModules';
 import { dayKey, formatInstant } from '@/lib/datetime';
-import { index as eventsIndex, show as eventShow } from '@/routes/events';
+import {
+    index as eventsIndex,
+    register as eventsRegister,
+    show as eventShow,
+} from '@/routes/events';
 import type { NowProps } from '@/types/now';
 
 const props = defineProps<NowProps>();
 
-provideNowLabels(() => props.labels);
-const t = useNowLabels();
+const t = provideNowLabels(() => props.labels);
+const { has } = useModules();
 
 const now = ref(Date.now());
 let handle: ReturnType<typeof setInterval> | undefined;
@@ -36,7 +41,7 @@ function refresh() {
 
     now.value = Date.now();
     router.reload({
-        only: ['forYou', 'nowPlaying', 'food', 'schedule'],
+        only: ['event', 'forYou', 'nowPlaying', 'food', 'schedule'],
     });
 }
 
@@ -54,7 +59,11 @@ onUnmounted(() => {
 // Presence changes: refresh just the two blocks that depend on it.
 if (props.event) {
     useEventChannel(props.event.id, ['.presence.updated'], () => {
-        router.reload({ only: ['nowPlaying', 'forYou'] });
+        // nowPlaying is only computed (and shown) while the event is live.
+        router.reload({
+            only:
+                props.state === 'live' ? ['nowPlaying', 'forYou'] : ['forYou'],
+        });
     });
 }
 
@@ -179,6 +188,9 @@ const dateRange = computed(() => {
                             <template #fallback>
                                 <NowPlayingPanel loading />
                             </template>
+                            <template #rescue>
+                                <NowPlayingPanel failed />
+                            </template>
                             <NowPlayingPanel :rows="nowPlaying" />
                         </Deferred>
                     </div>
@@ -189,6 +201,9 @@ const dateRange = computed(() => {
                         <Deferred data="wantToPlay">
                             <template #fallback>
                                 <WantToPlayPanel loading />
+                            </template>
+                            <template #rescue>
+                                <WantToPlayPanel failed />
                             </template>
                             <WantToPlayPanel
                                 :data="wantToPlay"
@@ -223,6 +238,27 @@ const dateRange = computed(() => {
 
             <!-- Upcoming -->
             <template v-else-if="state === 'upcoming' && event">
+                <div
+                    v-if="event.availability === 'open' && !me?.registration"
+                    class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border border-border bg-card px-4 py-3"
+                >
+                    <p class="text-sm text-foreground">
+                        {{ t('register_open') }}
+                        <span
+                            v-if="event.freeSpots !== null"
+                            class="text-muted-foreground"
+                        >
+                            {{
+                                t('register_spots', { count: event.freeSpots })
+                            }}
+                        </span>
+                    </p>
+                    <Button as-child size="sm">
+                        <Link :href="eventsRegister.url(event.slug)">{{
+                            t('register_cta')
+                        }}</Link>
+                    </Button>
+                </div>
                 <ForYouPanel
                     :title="t('for_you_pre')"
                     :cards="forYou.cards"
@@ -236,6 +272,9 @@ const dateRange = computed(() => {
                         <Deferred data="wantToPlay">
                             <template #fallback>
                                 <WantToPlayPanel loading />
+                            </template>
+                            <template #rescue>
+                                <WantToPlayPanel failed />
                             </template>
                             <WantToPlayPanel
                                 intro
@@ -273,7 +312,10 @@ const dateRange = computed(() => {
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-4">
-                    <div class="min-w-[min(100%,20rem)] flex-1">
+                    <div
+                        v-if="has('news')"
+                        class="min-w-[min(100%,20rem)] flex-1"
+                    >
                         <NewsPanel :news="news" :event-slug="event.slug" />
                     </div>
                     <div
@@ -308,22 +350,15 @@ const dateRange = computed(() => {
                                 label: t('all_events'),
                             }"
                         >
-                            <div
-                                class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm"
+                            <p
+                                class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
                             >
-                                <span class="text-muted-foreground">{{
-                                    t('next_event_hint')
-                                }}</span>
-                                <Button as-child size="sm" variant="outline">
-                                    <Link :href="eventsIndex.url()">{{
-                                        t('all_events')
-                                    }}</Link>
-                                </Button>
-                            </div>
+                                {{ t('next_event_hint') }}
+                            </p>
                         </Panel>
                     </div>
                 </div>
-                <NewsPanel :news="news" />
+                <NewsPanel v-if="has('news')" :news="news" />
             </template>
         </div>
     </PageContainer>

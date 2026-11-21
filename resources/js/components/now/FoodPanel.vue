@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
-import { formatInstant } from '@/lib/datetime';
+import { formatClock } from '@/lib/datetime';
 import { show as cateringShow } from '@/routes/catering';
 import { register as eventsRegister } from '@/routes/events';
 import type { FoodNowDto } from '@/types/now';
-import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
 defineProps<{
@@ -16,10 +16,6 @@ defineProps<{
 }>();
 
 const t = useNowLabels();
-
-function hm(iso: string): string {
-    return formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
-}
 </script>
 
 <template>
@@ -35,9 +31,13 @@ function hm(iso: string): string {
                     }}</span>
                     <span
                         v-if="food.open.closesAt"
-                        class="font-mono text-xs text-muted-foreground tabular-nums"
+                        class="font-mono text-xs text-warn tabular-nums"
                     >
-                        {{ t('closes_at', { time: hm(food.open.closesAt) }) }}
+                        {{
+                            t('closes_at', {
+                                time: formatClock(food.open.closesAt),
+                            })
+                        }}
                     </span>
                     <span
                         class="font-mono text-xs text-muted-foreground tabular-nums"
@@ -47,7 +47,9 @@ function hm(iso: string): string {
                         }}
                     </span>
                 </div>
-                <div class="flex flex-wrap items-center justify-between gap-2">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-muted px-3 py-2"
+                >
                     <span class="text-muted-foreground">
                         {{
                             food.open.mine
@@ -87,11 +89,11 @@ function hm(iso: string): string {
                 v-if="food.next"
                 class="flex items-center gap-2 text-muted-foreground"
             >
-                <LiveIndicator variant="warn" :pulse="false" />
+                <LiveIndicator variant="ok" :pulse="false" />
                 {{
                     t('food_next', {
                         title: food.next.title,
-                        time: hm(food.next.opensAt),
+                        time: formatClock(food.next.opensAt),
                     })
                 }}
             </p>

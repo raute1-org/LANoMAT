@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import { edit as connectionsEdit } from '@/routes/connections';
 import { show as eventShow } from '@/routes/events';
 import { useNowLabels } from './useNowLabels';
 
@@ -9,6 +10,7 @@ defineProps<{
         registration: { checkedIn?: boolean } | null;
         seat: string | null;
         team: string | null;
+        steamLinked: boolean;
     };
     eventSlug: string;
     newsCount: number;
@@ -46,6 +48,13 @@ const linkClass =
             :class="linkClass"
         >
             {{ t('news_count', { count: newsCount }) }}
+        </Link>
+        <Link
+            v-if="me.steamLinked === false"
+            :href="connectionsEdit.url()"
+            :class="linkClass"
+        >
+            {{ t('steam_link') }}
         </Link>
         <Link :href="eventShow.url(eventSlug)" :class="linkClass">{{
             t('event_info')

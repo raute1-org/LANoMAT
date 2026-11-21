@@ -8,7 +8,7 @@ import {
     HandHelping,
     MonitorPlay,
     Server,
-    UtensilsCrossed,
+    Pizza,
     Vote,
     Image,
     Headphones,
@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useDesktopClient } from '@/composables/useDesktopClient';
 import { useModules } from '@/composables/useModules';
-import { formatInstant } from '@/lib/datetime';
+import { formatClock } from '@/lib/datetime';
 import { home } from '@/routes';
 import { show as cateringShow } from '@/routes/catering';
 import {
@@ -96,12 +96,7 @@ function foodBadge(closesAt: string | null | undefined): NavBadge | undefined {
         return undefined;
     }
 
-    const time = formatInstant(closesAt, {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-
-    return { text: `bis ${time}`, variant: 'warn' };
+    return { text: `bis ${formatClock(closesAt)}`, variant: 'warn' };
 }
 
 function tournamentBadge(
@@ -165,7 +160,7 @@ const nowItems = computed<NavItem[]>(() => {
                 {
                     title: 'Essen',
                     href: cateringShow(ev.slug),
-                    icon: UtensilsCrossed,
+                    icon: Pizza,
                 },
                 foodBadge(sig?.foodClosesAt),
             ),
