@@ -6,6 +6,9 @@ use App\Models\User;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Actions\ExportRecipes;
 use App\Modules\GameRecipes\Actions\SyncRecipes;
+use App\Modules\GameRecipes\Enums\PullRequestState;
+use App\Modules\GameRecipes\Enums\RecipeFileRole;
+use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -271,6 +274,73 @@ it('warns when --only names a slug the source does not have', function () {
         ->and(array_keys($decoded))->toBe(['created', 'updated', 'pruned', 'skipped', 'source'])
         ->and($decoded['skipped'][0])->toContain('missing-game')
         ->and(GameRecipe::query()->count())->toBe(0);
+
+    File::deleteDirectory($dir);
+});
+
+it('keeps the local state of a contribution the bundled catalogue adopts', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    writeRecipe($dir, 'shared-game', ['title' => 'Catalogue Title']);
+
+    $contributor = User::factory()->create();
+    $reviewer = User::factory()->orga()->create();
+    $reviewedAt = now()->subDay()->startOfSecond();
+
+    $recipe = GameRecipe::factory()
+        ->contributedBy($contributor)
+        ->inLineup()
+        ->create([
+            'slug' => 'shared-game',
+            'title' => 'My shared game',
+            'source_ref' => 'web',
+            'reviewed_by' => $reviewer->getKey(),
+            'reviewed_at' => $reviewedAt,
+        ]);
+
+    $recipe->forceFill([
+        'pr_number' => 4711,
+        'pr_url' => 'https://github.test/lanomat/recipes/pull/4711',
+        'pr_branch' => 'recipes/shared-game',
+        'pr_state' => PullRequestState::Open,
+        'pr_synced_at' => now()->subHour()->startOfSecond(),
+    ])->save();
+
+    $shared = SharedFile::factory()->approved()->create();
+    $pinned = $recipe->files()->create([
+        'role' => RecipeFileRole::Iso,
+        'label' => 'Disc',
+        'match_patterns' => ['test*.iso'],
+        'required' => true,
+        'sort' => 0,
+    ]);
+    $pinned->forceFill(['shared_file_id' => $shared->getKey()])->save();
+
+    app(SyncRecipes::class)->handle($dir);
+
+    $fresh = $recipe->fresh();
+
+    expect($fresh->source)->toBe('bundled')
+        ->and($fresh->title)->toBe('Catalogue Title')
+        // The moderation decision survives the adoption.
+        ->and($fresh->status)->toBe(RecipeStatus::Draft)
+        ->and($fresh->contributor_user_id)->toBe($contributor->getKey())
+        ->and($fresh->isContribution())->toBeTrue()
+        ->and($fresh->reviewed_by)->toBe($reviewer->getKey())
+        ->and($fresh->reviewed_at?->equalTo($reviewedAt))->toBeTrue()
+        ->and($fresh->in_lineup)->toBeTrue()
+        ->and($fresh->pr_number)->toBe(4711)
+        ->and($fresh->pr_url)->toBe('https://github.test/lanomat/recipes/pull/4711')
+        ->and($fresh->pr_branch)->toBe('recipes/shared-game')
+        ->and($fresh->pr_state)->toBe(PullRequestState::Open)
+        ->and($fresh->pr_synced_at)->not->toBeNull();
+
+    $iso = $fresh->files->first(
+        static fn ($file): bool => $file->role === RecipeFileRole::Iso && $file->label === 'Disc',
+    );
+
+    expect($iso)->not->toBeNull()
+        ->and($iso->getKey())->toBe($pinned->getKey())
+        ->and($iso->shared_file_id)->toBe($shared->getKey());
 
     File::deleteDirectory($dir);
 });
