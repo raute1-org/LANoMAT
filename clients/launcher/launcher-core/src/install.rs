@@ -1,10 +1,11 @@
-//! The UT2004 pilot installer: plan -> downloads -> ISO/archive -> patch ->
-//! verify. The result is a launchable flat install, nothing else.
+//! The UT2004 pilot installer: plan -> downloads -> ISO/archive/DMG -> patch ->
+//! verify. The result is a launchable install, nothing else.
 //!
-//! The retail path is deliberately explicit: the DVD ISO supplies the payload
-//! folders, the OldUnreal 3374 patch supplies the complete `System/` tree. A
-//! portable `archive` requirement short-circuits the ISO path with no further
-//! launcher change.
+//! The retail path is deliberately explicit: the DVD ISO (or a macOS DMG)
+//! supplies the payload folders, the OldUnreal 3374 patch supplies the complete
+//! `System/` tree. A portable `archive`/`base` requirement short-circuits the
+//! ISO path: it is extracted as a flat game tree, with one wrapper folder
+//! stripped, and must still carry real game data outside `System/`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -12,7 +13,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::archive::{
-    detect_iso, detect_tar_bz2, detect_zip, extract_iso, extract_tar_bz2, extract_zip,
+    detect_dmg, detect_iso, detect_tar_bz2, detect_zip, extract_dmg, extract_iso, extract_tar_bz2,
+    extract_tar_bz2_base, extract_zip, extract_zip_base, extract_zip_entry, zip_single_iso_entry,
 };
 use crate::download::{download_many, CancelToken, DownloadProgress, DownloadTask};
 use crate::types::{Os, PlanFile, RecipePlan};
@@ -156,6 +158,7 @@ enum ArchiveKind {
     Zip,
     TarBz2,
     Iso,
+    Dmg,
 }
 
 pub struct InstallEngine;
@@ -255,8 +258,13 @@ impl InstallEngine {
         let base_kind = archive_kind(base_path).ok_or_else(|| {
             InstallError::Verification(format!("unknown base archive {}", base_path.display()))
         })?;
-        let used_archive = base_kind != ArchiveKind::Iso;
-        let mut files_extracted = extract_base(base_path, base_kind, &target)?;
+        let used_archive = matches!(base_kind, ArchiveKind::Zip | ArchiveKind::TarBz2);
+        let mut files_extracted = extract_base(base_path, base_kind, &target, &downloads_dir)?;
+
+        // A base that is only an installer (`setup.exe`) is not a game, even
+        // when a patch supplies `System/`. Check the extracted base before the
+        // patch so the patch can never make an installer look complete.
+        ensure_game_payload(&target)?;
 
         if let Some(patch_path) = patch_path {
             progress(InstallProgress::phase(
@@ -280,7 +288,10 @@ impl InstallEngine {
             InstallPhase::Verifying,
             "Installation wird geprüft",
         ));
-        let verified = verify_install(&target)?;
+        // Verify the layout for the platform the plan was built for, not the
+        // machine running the test suite: a Windows base must stay checkable
+        // on Linux CI and a macOS base must not fall back to the Linux layout.
+        let verified = verify_install_for(&target, plan.target_os())?;
         mark_executable(&target)?;
 
         progress(InstallProgress::phase(
@@ -296,44 +307,127 @@ impl InstallEngine {
         })
     }
 
-    /// Start the flat game from `System/`. Returns the executable that was
-    /// started. Nothing is started during verification.
+    /// Start the game for the current platform. Returns the executable (or the
+    /// macOS app bundle) that was started. Nothing is started during
+    /// verification.
     pub fn launch(target_dir: &Path) -> Result<PathBuf, InstallError> {
-        let system = target_dir.join("System");
-        let candidates = launch_candidates(&system);
+        Self::launch_for(target_dir, Os::current())
+    }
 
-        let exe = candidates
-            .into_iter()
-            .find(|path| path.is_file())
-            .ok_or_else(|| InstallError::Verification(format!("{} fehlt", launch_name())))?;
-
-        let mut command = std::process::Command::new(&exe);
-        command.current_dir(&system);
-        command
-            .spawn()
-            .map_err(|error| InstallError::Launch(error.to_string()))?;
-
-        Ok(exe)
+    /// [`Self::launch`] for an explicit platform, so the macOS bundle path is
+    /// testable without running on macOS.
+    pub fn launch_for(target_dir: &Path, os: Os) -> Result<PathBuf, InstallError> {
+        match os {
+            Os::Macos => launch_macos(target_dir),
+            Os::Windows | Os::Linux => launch_system_binary(target_dir, os),
+        }
     }
 }
 
-fn launch_candidates(system: &Path) -> Vec<PathBuf> {
-    if cfg!(windows) {
-        vec![system.join("UT2004.exe")]
-    } else {
-        vec![
+fn launch_system_binary(target_dir: &Path, os: Os) -> Result<PathBuf, InstallError> {
+    let system = target_dir.join("System");
+    let candidates = launch_candidates(&system, os);
+
+    let exe = candidates
+        .into_iter()
+        .find(|path| path.is_file())
+        .ok_or_else(|| InstallError::Verification(format!("{} fehlt", launch_name(os))))?;
+
+    spawn_game(&exe)?;
+
+    Ok(exe)
+}
+
+/// Start a macOS install through LaunchServices (`open <app>`), which gives the
+/// bundle its own working directory and resources. If `open` is unavailable or
+/// fails, the bundle's own executable is started directly.
+fn launch_macos(target_dir: &Path) -> Result<PathBuf, InstallError> {
+    if let Some(app) = macos_app_bundle(target_dir) {
+        let open_error = match std::process::Command::new("open").arg(&app).status() {
+            Ok(status) if status.success() => return Ok(app),
+            Ok(status) => format!("open exited with {status}"),
+            Err(error) => format!("open: {error}"),
+        };
+
+        let binary = app.join("Contents/MacOS/UT2004");
+
+        if binary.is_file() {
+            spawn_game(&binary)?;
+            return Ok(binary);
+        }
+
+        return Err(InstallError::Launch(format!(
+            "could not start {}: {open_error}",
+            app.display()
+        )));
+    }
+
+    // A portable mac base may keep only the bundle's executable tree.
+    let binary = target_dir.join("Contents/MacOS/UT2004");
+
+    if binary.is_file() {
+        spawn_game(&binary)?;
+        return Ok(binary);
+    }
+
+    Err(InstallError::Verification(format!(
+        "{} fehlt",
+        launch_name(Os::Macos)
+    )))
+}
+
+fn spawn_game(exe: &Path) -> Result<(), InstallError> {
+    let mut command = std::process::Command::new(exe);
+
+    if let Some(directory) = exe.parent() {
+        command.current_dir(directory);
+    }
+
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| InstallError::Launch(error.to_string()))
+}
+
+fn macos_app_bundle(target_dir: &Path) -> Option<PathBuf> {
+    let named = target_dir.join("UT2004.app");
+
+    if named.is_dir() {
+        return Some(named);
+    }
+
+    let mut bundles = std::fs::read_dir(target_dir)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_dir()
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("app"))
+        })
+        .collect::<Vec<_>>();
+    bundles.sort();
+
+    bundles.into_iter().next()
+}
+
+fn launch_candidates(system: &Path, os: Os) -> Vec<PathBuf> {
+    match os {
+        Os::Windows => vec![system.join("UT2004.exe")],
+        Os::Linux | Os::Macos => vec![
             system.join("ut2004-bin-amd64"),
             system.join("UT2004"),
             system.join("ut2004"),
-        ]
+        ],
     }
 }
 
-fn launch_name() -> &'static str {
-    if cfg!(windows) {
-        "System/UT2004.exe"
-    } else {
-        "System/ut2004-bin-amd64 or System/UT2004"
+fn launch_name(os: Os) -> &'static str {
+    match os {
+        Os::Windows => "System/UT2004.exe",
+        Os::Linux => "System/ut2004-bin-amd64 or System/UT2004",
+        Os::Macos => "UT2004.app (Contents/MacOS/UT2004)",
     }
 }
 
@@ -496,6 +590,8 @@ pub fn download_task(
 fn archive_kind(path: &Path) -> Option<ArchiveKind> {
     if detect_iso(path) {
         Some(ArchiveKind::Iso)
+    } else if detect_dmg(path) {
+        Some(ArchiveKind::Dmg)
     } else if detect_zip(path) {
         Some(ArchiveKind::Zip)
     } else if detect_tar_bz2(path) {
@@ -505,12 +601,115 @@ fn archive_kind(path: &Path) -> Option<ArchiveKind> {
     }
 }
 
-fn extract_base(path: &Path, kind: ArchiveKind, target: &Path) -> Result<usize, InstallError> {
+fn extract_base(
+    path: &Path,
+    kind: ArchiveKind,
+    target: &Path,
+    scratch: &Path,
+) -> Result<usize, InstallError> {
     Ok(match kind {
-        ArchiveKind::Zip => extract_zip(path, target)?,
-        ArchiveKind::TarBz2 => extract_tar_bz2(path, target)?,
+        ArchiveKind::Zip => {
+            if let Some(entry) = zip_single_iso_entry(path)? {
+                // An installer wrapper (`setup.exe` + one ISO): extract the
+                // image to a temporary file and use the retail path on it.
+                let nested = nested_iso_path(scratch);
+                let result: Result<usize, InstallError> = (|| {
+                    extract_zip_entry(path, &entry, &nested)?;
+                    Ok(extract_iso(&nested, target)?)
+                })();
+                let _ = std::fs::remove_file(&nested);
+                result?
+            } else {
+                extract_zip_base(path, target)?
+            }
+        }
+        ArchiveKind::TarBz2 => extract_tar_bz2_base(path, target)?,
         ArchiveKind::Iso => extract_iso(path, target)?,
+        ArchiveKind::Dmg => extract_dmg(path, target)?,
     })
+}
+
+fn nested_iso_path(scratch: &Path) -> PathBuf {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+
+    scratch.join(format!(
+        ".lanomat-nested-{}-{nanos}.iso",
+        std::process::id()
+    ))
+}
+
+/// Whether the extracted base carries at least one real game file outside
+/// `System/` (a map or texture). The check is recursive because a macOS base
+/// keeps `Maps/` inside `UT2004.app/Contents/Resources/`.
+fn ensure_game_payload(target: &Path) -> Result<(), InstallError> {
+    if has_game_payload(target) {
+        return Ok(());
+    }
+
+    Err(InstallError::Verification(
+        "Basis-Archiv enthält keine Spieldaten (Maps/Textures)".into(),
+    ))
+}
+
+fn has_game_payload(directory: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return false;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+
+        if metadata.is_dir() {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .eq_ignore_ascii_case("System")
+            {
+                continue;
+            }
+
+            if has_game_payload(&path) {
+                return true;
+            }
+        } else if metadata.is_file() && is_payload_file(&path) {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn is_payload_file(path: &Path) -> bool {
+    let extension = path
+        .extension()
+        .map(|extension| extension.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    let folder = path
+        .parent()
+        .and_then(Path::file_name)
+        .map(|name| name.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+
+    match folder.as_str() {
+        "maps" => matches!(extension.as_str(), "ut2" | "ut3"),
+        "textures" => extension == "utx",
+        "sounds" => matches!(extension.as_str(), "uax" | "ogg"),
+        "animations" => extension == "ukx",
+        "staticmeshes" => extension == "usx",
+        _ => false,
+    }
 }
 
 fn expand_home(value: &str) -> PathBuf {
@@ -536,9 +735,21 @@ pub fn required_file_groups(os: Os) -> &'static [&'static [&'static str]] {
             &["System/Build.ini"],
             &["System/D3D11Drv.dll"],
         ],
-        Os::Linux | Os::Macos => &[
+        Os::Linux => &[
             &["System/ut2004-bin-amd64", "System/UT2004"],
             &["System/Build.ini"],
+        ],
+        // A macOS install is an app bundle: the executable lives in
+        // `Contents/MacOS`, the system data in `Contents/Resources/System`.
+        // `System/Build.ini` is accepted as the fallback for a flat portable
+        // tree, but the Linux binary never satisfies the mac branch.
+        Os::Macos => &[
+            &["UT2004.app/Contents/MacOS/UT2004"],
+            &[
+                "UT2004.app/Contents/Resources/System/Packages.md5",
+                "System/Packages.md5",
+                "System/Build.ini",
+            ],
         ],
     }
 }
@@ -553,10 +764,16 @@ pub fn required_files(os: Os) -> &'static [&'static str] {
             "System/Build.ini",
             "System/D3D11Drv.dll",
         ],
-        Os::Linux | Os::Macos => &[
+        Os::Linux => &[
             "System/Build.ini",
             "System/ut2004-bin-amd64",
             "System/UT2004",
+        ],
+        Os::Macos => &[
+            "UT2004.app/Contents/MacOS/UT2004",
+            "UT2004.app/Contents/Resources/System/Packages.md5",
+            "System/Packages.md5",
+            "System/Build.ini",
         ],
     }
 }
@@ -591,6 +808,8 @@ fn mark_executable(target: &Path) -> Result<(), InstallError> {
             "System/ut2004-bin",
             "System/UT2004",
             "System/ut2004",
+            "UT2004.app/Contents/MacOS/UT2004",
+            "Contents/MacOS/UT2004",
         ] {
             let path = target.join(name);
             if path.is_file() {

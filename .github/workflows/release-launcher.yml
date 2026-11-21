@@ -1,8 +1,8 @@
-# Builds the LANoMAT Launcher (clients/launcher) for Linux and Windows and uploads the
+# Builds the LANoMAT Launcher (clients/launcher) for Linux, Windows and macOS and uploads the
 # opaque-ready files as workflow artifacts. Nothing is published: the operator copies the
-# `launcher-release` artifact (tarball, exe, manifest.json, SHA256SUMS) into
+# `launcher-release` artifact (tarball, exe, .dmg, zipped .app, manifest.json, SHA256SUMS) into
 # `clients-dist/launcher/` on the server, which is what `/launcher` and Preflight's `launcher_build`
-# check read. The `package` job is what makes that folder complete: a manifest that lists both OSes.
+# check read. The `package` job is what makes that folder complete: a manifest that lists every OS.
 #
 # Triggers: a tag `launcher-v*` or a manual run. Never on push: the Tauri build is heavy.
 # The version is the server's own (`scripts/ops/lib/version.sh`, same as
@@ -15,11 +15,14 @@
 #
 # Linux is built and tested in the `app` stage of Dockerfile.dev via clients/launcher/ci/build.sh
 # (fmt, clippy, `cargo test --workspace`, release build); Windows is cross-compiled with cargo-xwin in
-# the `windows` stage of the same pinned image (no Windows runner needed). The artifacts are only
-# offered by /launcher after an operator copies the `launcher-release` artifact into
-# clients-dist/launcher/ — it carries the Linux tarball, the Windows exe of the same version and one
-# manifest listing both. Rebuilding that folder from a checkout must happen on a clean tree
-# (scripts/ops/build-launcher.sh refuses otherwise).
+# the `windows` stage of the same pinned image (no Windows runner needed). macOS is the exception: a
+# `.app`/`.dmg` needs Apple's `hdiutil`, `codesign` and a real macOS host, so the `macos` job runs on
+# GitHub's macOS runners. Its arm64 leg (macos-14) is required; the Intel leg is best-effort, because
+# the arm64 build is the one every current Mac can run (and the runner labels get retired).
+# The artifacts are only offered by /launcher after an operator copies the `launcher-release` artifact
+# into clients-dist/launcher/ — it carries the Linux tarball, the Windows exe, the macOS `.dmg` and
+# zipped `.app` of the same version and one manifest listing all of them. Rebuilding that folder from a
+# checkout must happen on a clean tree (scripts/ops/build-launcher.sh refuses otherwise).
 name: Release launcher
 
 on:
@@ -247,12 +250,146 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Both per-OS jobs build and upload on their own runners, so neither sees the other's files. This
+  # macOS cannot be cross-built from Linux: `.app`/`.dmg` need Apple's toolchain (codesign,
+  # hdiutil) and a macOS host. The `.dmg` and the zipped `.app` are both produced so /launcher can
+  # offer the drag-to-Applications image and keep a plain archive as fallback.
+  #
+  # The arm64 leg (macos-14) is required: every current Mac runs it. The Intel leg (macos-15-intel)
+  # is best-effort — a retired runner label or a failed Intel build must not lose the arm64 release,
+  # so its failure is neutralised (`continue-on-error`). `package` merges whichever legs uploaded.
+  macos:
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            target: aarch64-apple-darwin
+            arch: aarch64
+            experimental: false
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            arch: x86_64
+            experimental: true
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.experimental }}
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      COMMIT: ${{ needs.meta.outputs.commit }}
+      TARGET: ${{ matrix.target }}
+      ARCH: ${{ matrix.arch }}
+      # Code signing and notarization stay off until the Apple Developer ID secrets exist. Tauri
+      # picks them up automatically when set; empty values keep the build unsigned (`signed: false`).
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache the Tauri CLI
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-tauri
+          key: tauri-cli-v2-${{ matrix.arch }}
+
+      - name: Install the Rust target and the Tauri CLI
+        run: |
+          set -euo pipefail
+          rustup target add "$TARGET"
+          command -v cargo-tauri >/dev/null 2>&1 \
+            || cargo install tauri-cli --version "^2" --locked
+
+      - name: Cache the cargo registry and target
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            clients/launcher/target
+          key: launcher-macos-${{ matrix.arch }}-${{ hashFiles('clients/launcher/Cargo.lock') }}
+          restore-keys: launcher-macos-${{ matrix.arch }}-
+
+      - name: Build the .app and .dmg
+        working-directory: clients/launcher/app
+        env:
+          LANOMAT_LAUNCHER_COMMIT: ${{ needs.meta.outputs.commit }}
+          CI: true
+        run: |
+          set -euo pipefail
+          # bundle.active=true plus per-OS `--bundles`: macOS builds exactly the app and the dmg;
+          # Windows keeps its NSIS/portable path (`cargo tauri build --bundles nsis`).
+          cargo tauri build --target "$TARGET" --bundles app,dmg --ci
+
+      - name: Stage the bundles and the manifest entries
+        run: |
+          set -euo pipefail
+          bundle="clients/launcher/target/$TARGET/release/bundle"
+          app="$bundle/macos/LANoMAT Launcher.app"
+          dmg="$(ls -1 "$bundle"/dmg/*.dmg 2>/dev/null | head -n 1 || true)"
+          test -d "$app" || { echo "::error::missing $app"; exit 1; }
+          test -n "$dmg" || { echo "::error::$bundle/dmg holds no .dmg"; exit 1; }
+          hdiutil imageinfo "$dmg" >/dev/null || { echo "::error::$dmg is not a disk image"; exit 1; }
+
+          # Mach-O sanity check: the bundle must carry the executable of the matrix arch, so an
+          # accidentally native build cannot be published under the other arch's name.
+          main="$app/Contents/MacOS/lanomat-launcher"
+          test -x "$main" || { echo "::error::missing $main"; exit 1; }
+          info="$(file -b "$main")"
+          case "$ARCH" in
+            aarch64) echo "$info" | grep -q 'arm64' || { echo "::error::$main is not arm64: $info"; exit 1; } ;;
+            x86_64) echo "$info" | grep -q 'x86_64' || { echo "::error::$main is not x86_64: $info"; exit 1; } ;;
+            *) echo "::error::unsupported arch $ARCH"; exit 1 ;;
+          esac
+
+          mkdir -p clients-dist/launcher
+          dmg_name="lanomat-launcher-${VERSION}-macos-${ARCH}.dmg"
+          app_name="lanomat-launcher-${VERSION}-macos-${ARCH}.zip"
+          cp "$dmg" "clients-dist/launcher/$dmg_name"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "clients-dist/launcher/$app_name"
+
+          # Unsigned until the Apple secrets exist: only claim `signed: true` when codesign really
+          # verifies the bundle (an ad-hoc signature also passes, which is the honest answer).
+          signed=false
+          if codesign --verify --deep --strict "$app" >/dev/null 2>&1; then
+            signed=true
+          fi
+
+          cd clients-dist/launcher
+          dmg_size="$(stat -f %z "$dmg_name")"
+          dmg_sha="$(shasum -a 256 "$dmg_name" | cut -d' ' -f1)"
+          app_size="$(stat -f %z "$app_name")"
+          app_sha="$(shasum -a 256 "$app_name" | cut -d' ' -f1)"
+          # variant stays `archive`: the server's LauncherBuilds accepts installer|portable|archive
+          # and reserves installer/portable for Windows. `format` names the actual payload.
+          jq -n --arg arch "$ARCH" --argjson signed "$signed" \
+            --arg dmg "$dmg_name" --argjson dmg_size "$dmg_size" --arg dmg_sha "$dmg_sha" \
+            --arg app "$app_name" --argjson app_size "$app_size" --arg app_sha "$app_sha" \
+            '[{name: $dmg, os: "macos", arch: $arch, kind: "app", variant: "archive",
+               format: "dmg", size: $dmg_size, sha256: $dmg_sha, signed: $signed},
+              {name: $app, os: "macos", arch: $arch, kind: "app", variant: "archive",
+               format: "app", size: $app_size, sha256: $app_sha, signed: $signed}]' \
+            > "entries-macos-$ARCH.json"
+          shasum -a 256 "$dmg_name" "$app_name" > "SHA256SUMS.macos-$ARCH"
+          cat "entries-macos-$ARCH.json" "SHA256SUMS.macos-$ARCH"
+          ls -l
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: launcher-macos-${{ matrix.arch }}
+          path: clients-dist/launcher/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Every per-OS job builds and uploads on its own runner, so none sees the other's files. This
   # job is the one publishable folder: Linux tarball + manifest from `launcher-linux`, the exe from
-  # `launcher-windows`, and a manifest that lists BOTH. Without it /launcher would offer Linux only
-  # even though a Windows exe exists (the page renders exactly the manifest's entries).
+  # `launcher-windows`, the `.dmg`/`.zip` from `launcher-macos-*`, and a manifest that lists
+  # ALL of them. Without it /launcher would offer only the OSes that happened to be downloaded
+  # (the page renders exactly the manifest's entries).
   package:
-    needs: [meta, linux, windows]
+    needs: [meta, linux, windows, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -268,7 +405,15 @@ jobs:
           name: launcher-windows
           path: release
 
-      - name: Merge the Windows entry into the manifest
+      # The arm64 leg always exists; the Intel leg only when its runner was available. Both have
+      # distinct file names, so merging the artifacts into one directory is safe.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: launcher-macos-*
+          path: release
+          merge-multiple: true
+
+      - name: Merge the Windows and macOS entries into the manifest
         run: |
           set -euo pipefail
           cd release
@@ -292,21 +437,57 @@ jobs:
           jq --arg name "$exe" --argjson size "$size" --arg sha "$sha" '
             .files = ((.files | map(select(.name != $name))) + [{
               name: $name, os: "windows", arch: "x86_64", kind: "app",
-              variant: "portable", size: $size, sha256: $sha, signed: false
+              variant: "portable", format: "exe", size: $size, sha256: $sha, signed: false
             }])
           ' manifest.json > manifest.next
           mv manifest.next manifest.json
 
+          # One entries-macos-<arch>.json per macOS leg. A missing arm64 leg means the macos job
+          # uploaded nothing and the release would silently lose macOS.
+          shopt -s nullglob
+          mac_entries=(entries-macos-*.json)
+          if [ ${#mac_entries[@]} -eq 0 ]; then
+            echo "::error::no entries-macos-*.json from the macos job"
+            exit 1
+          fi
+          jq -s 'add' "${mac_entries[@]}" > macos-entries.json
+          if ! jq -e 'length > 0 and all(.[]; .os == "macos" and .kind == "app" and .variant == "archive" and (.arch == "aarch64" or .arch == "x86_64") and (.format == "dmg" or .format == "app"))' macos-entries.json >/dev/null; then
+            echo "::error::the macOS entries are malformed"
+            cat macos-entries.json
+            exit 1
+          fi
+          # The files the entries claim must be in this folder, byte for byte.
+          while IFS=$'\t' read -r name expected_size expected_sha; do
+            test -f "$name" || { echo "::error::missing $name from the macos job"; exit 1; }
+            test "$(stat -c %s "$name")" = "$expected_size" || { echo "::error::size mismatch for $name"; exit 1; }
+            test "$(sha256sum -- "$name" | cut -d' ' -f1)" = "$expected_sha" || { echo "::error::sha256 mismatch for $name"; exit 1; }
+          done < <(jq -r '.[] | [.name, .size, .sha256] | @tsv' macos-entries.json)
+
+          jq --slurpfile macos macos-entries.json '
+            .files = ((.files | map(select(.os != "macos"))) + $macos[0])
+          ' manifest.json > manifest.next
+          mv manifest.next manifest.json
+
           # SHA256SUMS from exactly the manifest's files (the Linux job's line is regenerated with
-          # the second line added; the page and Preflight compare both).
+          # the other lines added; the page and Preflight compare both).
           : > SHA256SUMS
           jq -r '.files[].name' manifest.json | while IFS= read -r name; do
             sha256sum -- "$name" >> SHA256SUMS
           done
-          rm -f SHA256SUMS.windows
+          sha256sum --check --quiet SHA256SUMS
+          rm -f SHA256SUMS.windows SHA256SUMS.macos-* entries-macos-*.json macos-entries.json
 
-          jq -e '.files | map(.os) | sort == ["linux", "windows"]' manifest.json >/dev/null \
-            || { echo "::error::the manifest does not list one file per OS"; exit 1; }
+          # Exactly one app build per OS, macOS at least arm64 (Intel may be missing when its
+          # runner label was retired). The old assertion only allowed linux/windows.
+          jq -e '.files | map(.os) | unique | sort == ["linux", "macos", "windows"]' manifest.json >/dev/null \
+            || { echo "::error::the manifest does not list one file per OS (linux, macos, windows)"; exit 1; }
+          mac_arches="$(jq -r '[.files[] | select(.os == "macos") | .arch] | unique | sort | join(",")' manifest.json)"
+          case "$mac_arches" in
+            aarch64|x86_64|aarch64,x86_64) ;;
+            *) echo "::error::macOS entries carry unexpected arches: $mac_arches"; exit 1 ;;
+          esac
+          jq -e '[.files[] | select(.os == "macos") | .format] | unique | sort == ["app", "dmg"]' manifest.json >/dev/null \
+            || { echo "::error::macOS entries must offer both the dmg and the app archive"; exit 1; }
           cat manifest.json SHA256SUMS
           ls -l
 

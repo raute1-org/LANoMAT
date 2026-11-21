@@ -35,7 +35,7 @@ import { createAskService, buildAskArgv, resolvePiBinary, SpawnPiAdapter } from 
 import * as models from './models.js';
 import { formatDoctorReport, runDoctor } from './doctor.js';
 import type { AgentConfig, Os } from './types.js';
-import { normalizeBaseUrl } from './util.js';
+import { normalizeBaseUrl, osForPlatform } from './util.js';
 
 const DEFAULT_URL = 'http://lanomat.local';
 
@@ -78,11 +78,11 @@ async function loadOrNull(paths: PathEnvironment): Promise<AgentConfig | null> {
 function parseOs(value: string): Os {
     const os = value.toLowerCase();
 
-    if (os === 'windows' || os === 'linux') {
+    if (os === 'windows' || os === 'linux' || os === 'macos') {
         return os;
     }
 
-    fail(`Unsupported OS "${value}" (use windows or linux)`);
+    fail(`Unsupported OS "${value}" (use windows, linux or macos)`);
 }
 
 function collect(value: string, previous: string[] = []): string[] {
@@ -328,7 +328,7 @@ export function buildProgram(): Command {
         .command('plan')
         .argument('<slug>', 'recipe slug')
         .description('Show an install plan')
-        .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
+        .option('--os <os>', 'windows, linux or macos', osForPlatform())
         .option('--event <slug>', 'event context')
         .option('--json', 'print the raw plan JSON')
         .option('--allow-external', 'announce external downloads as allowed')
@@ -365,7 +365,7 @@ export function buildProgram(): Command {
         .command('install')
         .argument('<slug>', 'recipe slug')
         .description('Install a LAN game from a LANoMAT recipe')
-        .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
+        .option('--os <os>', 'windows, linux or macos', osForPlatform())
         .option('--event <slug>', 'event context')
         .option('-y, --yes', 'no prompts; run optional steps and select no avatars')
         .option('--avatar <id>', 'avatar id (repeatable, or "all")', collect)
@@ -454,7 +454,7 @@ export function buildProgram(): Command {
         .command('launch')
         .argument('<slug>', 'recipe slug')
         .description('Launch an installed game, or open its web play_url')
-        .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
+        .option('--os <os>', 'windows, linux or macos', osForPlatform())
         .option('--target <dir>', 'install dir substituted for {{target}}')
         .option('--avatars <dir>', 'avatar dir substituted for {{avatars}}')
         .option('--variant <id>', 'launch target id from the recipe (flat, vr, …)')
@@ -486,7 +486,7 @@ export function buildProgram(): Command {
         .command('open')
         .argument('<url>', 'lanomat://install/<slug>, lanomat://launch/<slug> or lanomat://play/<slug>')
         .description('Handle a LANoMAT deep link (install or launch)')
-        .option('--os <os>', 'windows or linux', process.platform === 'win32' ? 'windows' : 'linux')
+        .option('--os <os>', 'windows, linux or macos', osForPlatform())
         .option('-y, --yes', 'no prompts for install')
         .option('--avatar <id>', 'avatar id for install (repeatable, or "all")', collect)
         .option('--allow-external', 'allow internet fallbacks for install')

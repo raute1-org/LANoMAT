@@ -74,6 +74,7 @@ fn linux_tar() -> Vec<u8> {
             0o755,
         );
         tar_file(builder, "System/Build.ini", b"Label=v3374\n", 0o644);
+        tar_file(builder, "Maps/DM-Rankin.ut2", b"rank in", 0o644);
     })
 }
 

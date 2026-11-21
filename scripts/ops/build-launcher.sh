@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build the LANoMAT Launcher for Linux and publish it under clients-dist/launcher.
+# Build the LANoMAT Launcher for Linux (or, on macOS, its .app/.dmg) and publish it under
+# clients-dist/launcher.
 #
 #   scripts/ops/build-launcher.sh                  # release build of the committed tree
 #   scripts/ops/build-launcher.sh --allow-dirty    # also with uncommitted changes (testing only;
@@ -9,16 +10,28 @@
 #   scripts/ops/build-launcher.sh --out DIR        # publish elsewhere (default: clients-dist/launcher)
 #   scripts/ops/build-launcher.sh --rebuild-image  # rebuild the toolchain image even when
 #                                                  # Dockerfile.dev is unchanged
-#   scripts/ops/build-launcher.sh --keep-old       # keep older Linux tarballs in the output folder
+#   scripts/ops/build-launcher.sh --keep-old       # keep older artifacts in the output folder
+#
+# The target follows the host: Linux builds the x86_64 tarball in Docker, macOS builds the native
+# .app and .dmg with `cargo tauri build --bundles app,dmg` (run it on macOS; there is no cross-build).
+# Set LANOMAT_LAUNCHER_MACOS_TARGET=aarch64-apple-darwin|x86_64-apple-darwin to pick the other
+# macOS architecture on a universal host.
 #
 # This script only COMPILES (`cargo build --locked --release`). The format/clippy/test gate is
 # clients/launcher/ci/build.sh, the CI entry point; run that first when the Rust code changed.
-# The launcher is a Tauri v2 app; its build runs in the reproducible
-# clients/launcher/Dockerfile.dev image (there is no Rust toolchain on the host). The script writes
-# manifest.json in the shape `App\Modules\GameRecipes\Support\LauncherBuilds` validates, the
-# /launcher page renders and the Preflight `launcher_build` check reads. Only Linux x86_64 is built
-# here; the Windows portable exe comes from .github/workflows/release-launcher.yml and is picked up
-# by the manifest when it sits next to the tarball with the same version.
+# The launcher is a Tauri v2 app. On Linux its build runs in the reproducible
+# clients/launcher/Dockerfile.dev image (there is no Rust toolchain on the host). On macOS it builds
+# natively with `cargo tauri build --bundles app,dmg`, because the .app/.dmg need Apple's hdiutil and
+# codesign and cannot be cross-built in the Linux image. The script writes manifest.json in the shape
+# `App\Modules\GameRecipes\Support\LauncherBuilds` validates, the /launcher page renders and the
+# Preflight `launcher_build` check reads. Linux x86_64 and macOS (arm64 or x86_64) are built here; the
+# Windows portable exe comes from .github/workflows/release-launcher.yml and is picked up by the
+# manifest when it sits next to the other files with the same version.
+#
+# macOS artifacts use `variant: archive` (LauncherBuilds only accepts installer|portable|archive and
+# reserves the other two for Windows) plus a `format` field: `dmg` for the disk image, `app` for the
+# zipped .app. The release workflow builds both architectures; this helper builds the host's arch
+# unless LANOMAT_LAUNCHER_MACOS_TARGET names aarch64-apple-darwin or x86_64-apple-darwin.
 #
 # The version in the file names and in the manifest is the one this script resolves (git describe,
 # scripts/ops/lib/version.sh). The binary itself reports Cargo's package version (0.1.0) plus the
@@ -47,10 +60,43 @@ KEEP_OLD=0
 VERSION_OVERRIDE=""
 OUT="$ROOT/clients-dist/launcher"
 IMAGE="lanomat-launcher-dev"
-OS="linux"
-ARCH="x86_64"
 
 die() { echo "build-launcher: $*" >&2; exit 1; }
+
+# BSD (macOS) and GNU userland disagree about stat/sha256sum; both are only thin wrappers so the
+# packaging code below reads the same on either host.
+file_size() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
+sha256_of() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum -- "$1" | cut -d' ' -f1
+    else
+        shasum -a 256 "$1" | cut -d' ' -f1
+    fi
+}
+
+# One manifest entry in the shape LauncherBuilds validates. `format` is an extra, server-ignored
+# label that names the payload (tar.gz, exe, dmg, app) where `variant` alone is ambiguous.
+entry() { # entry <name> <os> <arch> <kind> <variant> <signed> [format]
+    local file="$OUT/$1"
+    local format="${7:-}"
+    jq -c -n --arg name "$1" --arg os "$2" --arg arch "$3" --arg kind "$4" --arg variant "$5" \
+        --arg format "$format" \
+        --argjson size "$(file_size "$file")" \
+        --arg sha "$(sha256_of "$file")" \
+        --argjson signed "$6" \
+        '{name: $name, os: $os, arch: $arch, kind: $kind, variant: $variant,
+          size: $size, sha256: $sha, signed: $signed}
+         + (if $format == "" then {} else {format: $format} end)'
+}
+
+# A Windows portable exe / setup next to the other files with the SAME version belongs in the
+# release; another version's file is left for its own manifest.
+add_windows() { # add_windows <variant> <suffix> [format]
+    local name="lanomat-launcher-$VERSION-windows-x86_64-$2.exe"
+    if [ -f "$OUT/$name" ]; then
+        entry "$name" windows x86_64 app "$1" false "${3:-exe}" >> "$ENTRIES"
+    fi
+}
 
 usage() {
     # Everything between the shebang and `set -euo pipefail`, without the comment markers.
@@ -70,10 +116,65 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-for tool in docker jq tar gzip sha256sum stat flock; do
-    command -v "$tool" >/dev/null 2>&1 || die "missing tool: $tool"
-done
-timeout 60 docker info >/dev/null 2>&1 || die "docker is not reachable"
+# ---- host and target -------------------------------------------------------------------------
+# The target follows the host: a macOS .app/.dmg needs hdiutil/codesign, so it cannot be produced
+# in the Linux image. Windows is not built here at all (see the release workflow).
+case "$(uname -s)" in
+    Darwin)
+        HOST_OS=macos
+        case "$(uname -m)" in
+            arm64) HOST_ARCH=aarch64 ;;
+            x86_64) HOST_ARCH=x86_64 ;;
+            *) die "unsupported macOS architecture: $(uname -m) (arm64 or x86_64)" ;;
+        esac
+        ;;
+    Linux)
+        HOST_OS=linux
+        HOST_ARCH=x86_64
+        ;;
+    *)
+        die "unsupported host: $(uname -s) (build on Linux or macOS; Windows comes from the release workflow)"
+        ;;
+esac
+
+OS="${LANOMAT_LAUNCHER_OS:-$HOST_OS}"
+ARCH="${LANOMAT_LAUNCHER_ARCH:-$HOST_ARCH}"
+case "$OS" in linux|macos) ;; *) die "unsupported target OS: '$OS' (linux or macos)" ;; esac
+case "$ARCH" in x86_64|aarch64) ;; *) die "unsupported target arch: '$ARCH' (x86_64 or aarch64)" ;; esac
+
+# A macOS target triple names the arch the manifest has to carry; derive it instead of letting an
+# x86_64 build be published under an arm64 file name.
+if [ "$OS" = macos ] && [ -n "${LANOMAT_LAUNCHER_MACOS_TARGET:-}" ]; then
+    case "$LANOMAT_LAUNCHER_MACOS_TARGET" in
+        aarch64-apple-darwin) TARGET_ARCH=aarch64 ;;
+        x86_64-apple-darwin) TARGET_ARCH=x86_64 ;;
+        universal-apple-darwin) TARGET_ARCH="" ;;
+        *) die "unsupported LANOMAT_LAUNCHER_MACOS_TARGET: '$LANOMAT_LAUNCHER_MACOS_TARGET'" ;;
+    esac
+    if [ -n "$TARGET_ARCH" ]; then
+        if [ -n "${LANOMAT_LAUNCHER_ARCH:-}" ] && [ "$LANOMAT_LAUNCHER_ARCH" != "$TARGET_ARCH" ]; then
+            die "LANOMAT_LAUNCHER_ARCH=$LANOMAT_LAUNCHER_ARCH contradicts LANOMAT_LAUNCHER_MACOS_TARGET=$LANOMAT_LAUNCHER_MACOS_TARGET"
+        fi
+        ARCH="$TARGET_ARCH"
+    fi
+fi
+if [ "$OS" != "$HOST_OS" ]; then
+    if [ "$OS" = macos ]; then
+        die "macOS must be built on a macOS host (this is a $HOST_OS host; .app/.dmg need hdiutil/codesign)"
+    fi
+    die "$OS must be built on a $OS host (this is a $HOST_OS host)"
+fi
+
+if [ "$OS" = macos ]; then
+    for tool in cargo jq ditto shasum stat git; do
+        command -v "$tool" >/dev/null 2>&1 || die "missing tool: $tool"
+    done
+else
+    for tool in docker jq tar gzip sha256sum stat flock; do
+        command -v "$tool" >/dev/null 2>&1 || die "missing tool: $tool"
+    done
+    timeout 60 docker info >/dev/null 2>&1 || die "docker is not reachable"
+fi
 
 # ---- version and tree state ---------------------------------------------------------------
 cd "$ROOT"
@@ -123,15 +224,110 @@ echo "==> LANoMAT Launcher $VERSION (commit $COMMIT) for $OS/$ARCH"
 mkdir -p "$OUT"
 [ -w "$OUT" ] || die "$OUT is not writable (if Docker created it as root: sudo chown -R \"\$(id -u):\$(id -g)\" '$OUT')"
 OUT="$(cd "$OUT" && pwd)"
-exec 9>"$OUT/.lock"
-flock -n 9 || die "another build is publishing into $OUT"
+if [ "$OS" = macos ]; then
+    # macOS has no flock(1); a directory is the portable lock.
+    LOCK_DIR="$OUT/.lock.d"
+    mkdir "$LOCK_DIR" 2>/dev/null || die "another build is publishing into $OUT"
+else
+    exec 9>"$OUT/.lock"
+    flock -n 9 || die "another build is publishing into $OUT"
+fi
 
 STAGE="$OUT/.staging-$$"
 CONTAINER="lanomat-launcher-build-$$"
-# Docker calls in the exit path get their own timeout: a hanging client must not hang the cleanup.
-trap 'rm -rf "$STAGE"; timeout 15 docker rm -f "$CONTAINER" >/dev/null 2>&1 || true' EXIT
+cleanup() {
+    rm -rf "$STAGE"
+    if [ -n "${LOCK_DIR:-}" ]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
+    # Docker calls in the exit path get their own timeout: a hanging client must not hang cleanup.
+    if [ "$OS" != macos ] && command -v docker >/dev/null 2>&1; then
+        if command -v timeout >/dev/null 2>&1; then
+            timeout 15 docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+        else
+            docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+        fi
+    fi
+}
+trap cleanup EXIT
 rm -rf "$STAGE"
 mkdir -p "$STAGE/bin"
+
+# ---- macOS: native .app/.dmg via the Tauri bundler ------------------------------------------
+if [ "$OS" = macos ]; then
+    cargo tauri --version >/dev/null 2>&1 \
+        || die "the Tauri CLI is missing: cargo install tauri-cli --version '^2' --locked"
+    TARGET="${LANOMAT_LAUNCHER_MACOS_TARGET:-$ARCH-apple-darwin}"
+    case "$TARGET" in
+        aarch64-apple-darwin|x86_64-apple-darwin) ;;
+        universal-apple-darwin)
+            die "universal-apple-darwin has no single arch for the manifest; build aarch64-apple-darwin and x86_64-apple-darwin separately (a local universal app is shown in clients/launcher/README.md)"
+            ;;
+        *) die "unsupported macOS target: '$TARGET' (aarch64-apple-darwin or x86_64-apple-darwin)" ;;
+    esac
+
+    echo "==> Compiling the macOS bundle in clients/launcher/app ($TARGET)"
+    ( cd "$ROOT/clients/launcher/app" \
+        && LANOMAT_LAUNCHER_COMMIT="$COMMIT" cargo tauri build --target "$TARGET" --bundles app,dmg --ci )
+
+    PRODUCT="$(jq -r '.productName' "$ROOT/clients/launcher/app/tauri.conf.json")"
+    BUNDLE_DIR="$ROOT/clients/launcher/target/$TARGET/release/bundle"
+    APP_BUNDLE="$BUNDLE_DIR/macos/$PRODUCT.app"
+    DMG_SRC="$(ls -1 "$BUNDLE_DIR"/dmg/*.dmg 2>/dev/null | head -n 1 || true)"
+    [ -d "$APP_BUNDLE" ] || die "the build produced no app bundle at $APP_BUNDLE"
+    [ -n "$DMG_SRC" ] || die "the build produced no .dmg under $BUNDLE_DIR/dmg"
+    MAIN_BIN="$APP_BUNDLE/Contents/MacOS/lanomat-launcher"
+    [ -x "$MAIN_BIN" ] || die "the app bundle has no executable at $MAIN_BIN"
+
+    # The manifest must not claim a signature the bundle does not carry.
+    SIGNED=false
+    if codesign --verify --deep --strict "$APP_BUNDLE" >/dev/null 2>&1; then SIGNED=true; fi
+
+    DMG_NAME="lanomat-launcher-$VERSION-macos-$ARCH.dmg"
+    APP_NAME="lanomat-launcher-$VERSION-macos-$ARCH.zip"
+    install -m 0644 "$DMG_SRC" "$STAGE/$DMG_NAME"
+    # A zipped .app is the fallback for download tools that refuse disk images; ditto preserves
+    # the bundle's resource forks and permissions.
+    ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$STAGE/$APP_NAME"
+    # Files first, manifest last: a reader sees either the old or the new release.
+    mv "$STAGE/$DMG_NAME" "$OUT/$DMG_NAME"
+    mv "$STAGE/$APP_NAME" "$OUT/$APP_NAME"
+    chmod 0644 "$OUT/$DMG_NAME" "$OUT/$APP_NAME"
+
+    # ---- manifest and checksums --------------------------------------------------------------
+    ENTRIES="$STAGE/files.jsonl"
+    : > "$ENTRIES"
+    entry "$DMG_NAME" macos "$ARCH" app archive "$SIGNED" dmg >> "$ENTRIES"
+    entry "$APP_NAME" macos "$ARCH" app archive "$SIGNED" app >> "$ENTRIES"
+    add_windows portable portable exe
+    add_windows installer setup exe
+
+    jq -n --arg version "$VERSION" --arg commit "$COMMIT" --arg built_at "$BUILT_AT" \
+        --slurpfile files "$ENTRIES" \
+        '{app_version: $version, commit: $commit, built_at: $built_at, files: $files}' \
+        > "$STAGE/manifest.json"
+
+    ( cd "$OUT" && jq -r '.name' "$ENTRIES" | while IFS= read -r name; do
+        printf '%s  %s\n' "$(sha256_of "$name")" "$name"
+    done > "$STAGE/SHA256SUMS" )
+    mv "$STAGE/SHA256SUMS" "$OUT/SHA256SUMS"
+    mv "$STAGE/manifest.json" "$OUT/manifest.json"
+    chmod 0644 "$OUT/SHA256SUMS" "$OUT/manifest.json"
+
+    # Older macOS files of another version are build output, not history.
+    if [ "$KEEP_OLD" != 1 ]; then
+        for old in "$OUT"/lanomat-launcher-*-macos-*.dmg "$OUT"/lanomat-launcher-*-macos-*.zip; do
+            [ -e "$old" ] || continue
+            case "$(basename "$old")" in
+                "$DMG_NAME"|"$APP_NAME") ;;
+                *) rm -f -- "$old" && echo "pruned $old" ;;
+            esac
+        done
+    fi
+
+    echo "published $OUT/$DMG_NAME ($(file_size "$OUT/$DMG_NAME") bytes)"
+    echo "published $OUT/$APP_NAME ($(file_size "$OUT/$APP_NAME") bytes)"
+    echo "manifest  $OUT/manifest.json"
+    exit 0
+fi
 
 # ---- image and compile ----------------------------------------------------------------------
 DOCKERFILE="clients/launcher/Dockerfile.dev"
@@ -261,30 +457,11 @@ mv "$STAGE/$ARCHIVE" "$OUT/$ARCHIVE"
 chmod 0644 "$OUT/$ARCHIVE"
 
 # ---- manifest and checksums -------------------------------------------------------------------
-entry() { # entry <name> <os> <arch> <kind> <variant> <signed>
-    local file="$OUT/$1"
-    jq -c -n --arg name "$1" --arg os "$2" --arg arch "$3" --arg kind "$4" --arg variant "$5" \
-        --argjson size "$(stat -c %s "$file")" \
-        --arg sha "$(sha256sum "$file" | cut -d' ' -f1)" \
-        --argjson signed "$6" \
-        '{name: $name, os: $os, arch: $arch, kind: $kind, variant: $variant,
-          size: $size, sha256: $sha, signed: $signed}'
-}
-
 ENTRIES="$STAGE/files.jsonl"
 : > "$ENTRIES"
-entry "$ARCHIVE" "$OS" "$ARCH" app archive false >> "$ENTRIES"
-
-# A Windows portable exe / setup next to the tarball with the SAME version belongs in the
-# release; another version's file is left for its own manifest.
-add_windows() { # add_windows <variant> <suffix>
-    local name="lanomat-launcher-$VERSION-windows-x86_64-$2.exe"
-    if [ -f "$OUT/$name" ]; then
-        entry "$name" windows x86_64 app "$1" false >> "$ENTRIES"
-    fi
-}
-add_windows portable portable
-add_windows installer setup
+entry "$ARCHIVE" "$OS" "$ARCH" app archive false tar.gz >> "$ENTRIES"
+add_windows portable portable exe
+add_windows installer setup exe
 
 jq -n --arg version "$VERSION" --arg commit "$COMMIT" --arg built_at "$BUILT_AT" \
     --slurpfile files "$ENTRIES" \
@@ -292,8 +469,9 @@ jq -n --arg version "$VERSION" --arg commit "$COMMIT" --arg built_at "$BUILT_AT"
     > "$STAGE/manifest.json"
 
 # Exactly the files the manifest lists, so SHA256SUMS and /launcher never disagree.
-( cd "$OUT" && jq -r '.name' "$ENTRIES" | while IFS= read -r name; do sha256sum -- "$name"; done \
-    > "$STAGE/SHA256SUMS" )
+( cd "$OUT" && jq -r '.name' "$ENTRIES" | while IFS= read -r name; do
+    printf '%s  %s\n' "$(sha256_of "$name")" "$name"
+done > "$STAGE/SHA256SUMS" )
 
 mv "$STAGE/SHA256SUMS" "$OUT/SHA256SUMS"
 # manifest.json LAST: until it is renamed, readers keep seeing the previous release.
@@ -313,8 +491,8 @@ if [ "$KEEP_OLD" != 1 ]; then
     done
 fi
 
-SIZE="$(stat -c %s "$OUT/$ARCHIVE")"
-SHA="$(sha256sum "$OUT/$ARCHIVE" | cut -d' ' -f1)"
+SIZE="$(file_size "$OUT/$ARCHIVE")"
+SHA="$(sha256_of "$OUT/$ARCHIVE")"
 echo "published $OUT/$ARCHIVE ($SIZE bytes)"
 echo "sha256   $SHA"
 echo "manifest $OUT/manifest.json"

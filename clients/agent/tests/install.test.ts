@@ -165,6 +165,57 @@ describe('install', () => {
         expect(await readFile(join(target, 'game.iso'), 'utf8')).toBe('ISO');
     });
 
+    it('installs the macOS steps and downloads, skipping other platforms', async () => {
+        const target = join(dir, 'game');
+        const executed: string[] = [];
+        const result = await runInstall({
+            api: apiFor(
+                plan({
+                    target_dir: target,
+                    steps: [
+                        {
+                            id: 'win',
+                            title: 'Windows only',
+                            os: 'windows',
+                            commands: [{ shell: 'powershell', run: 'Write-Host win' }],
+                            downloads: [
+                                { url: 'http://lan.local/api/v1/files/win/download', filename: 'win.zip', source: 'lan' },
+                            ],
+                        },
+                        {
+                            id: 'mac',
+                            title: 'macOS only',
+                            os: 'macos',
+                            commands: [
+                                { shell: 'powershell', run: 'Write-Host wrong' },
+                                { shell: 'bash', run: 'echo mac' },
+                            ],
+                            downloads: [
+                                { url: 'http://lan.local/api/v1/files/mac/download', filename: 'mac.dmg', source: 'lan' },
+                            ],
+                        },
+                    ],
+                }),
+            ),
+            slug: 'ut2004',
+            os: 'macos',
+            yes: true,
+            interactive: false,
+            executor: async (command, args) => {
+                executed.push(args.at(-1) ?? command);
+
+                return { code: 0, stdout: '', stderr: '' };
+            },
+            fetchImpl: async () => new Response('MAC', { headers: { 'content-length': '3' } }),
+            log: () => undefined,
+            warn: () => undefined,
+        });
+
+        expect(result.code).toBe(0);
+        expect(result.downloadedFiles).toEqual([join(target, 'mac.dmg')]);
+        expect(executed).toEqual(['echo mac']);
+    });
+
     it('does not prompt for avatars in a dry run, even on a TTY', async () => {
         const lines: string[] = [];
         const result = await runInstall({

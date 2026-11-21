@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeName, sanitizeSlug, validateRecipeSlug } from '../src/util.js';
+import { osForPlatform, sanitizeName, sanitizeSlug, validateRecipeSlug } from '../src/util.js';
 
 describe('validateRecipeSlug', () => {
     it('accepts normal recipe slugs', () => {
@@ -31,5 +31,14 @@ describe('validateRecipeSlug', () => {
         expect(sanitizeSlug(' UT 2004 ')).toBe('ut-2004');
         expect(sanitizeSlug('ut2004')).toBe('ut2004');
         expect(sanitizeName('a/b')).toBe('a-b');
+    });
+});
+
+describe('osForPlatform', () => {
+    it('maps Node platforms to the recipe OS identifiers', () => {
+        expect(osForPlatform('darwin')).toBe('macos');
+        expect(osForPlatform('win32')).toBe('windows');
+        expect(osForPlatform('linux')).toBe('linux');
+        expect(osForPlatform('freebsd')).toBe('linux');
     });
 });

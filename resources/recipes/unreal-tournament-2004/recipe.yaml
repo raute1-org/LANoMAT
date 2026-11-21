@@ -4,19 +4,28 @@ title: Unreal Tournament 2004
 aliases: ['ut2004', 'ut2k4', 'ut 2k4', 'unreal tournament', 'ut 2004']
 version: '3374-rc3'
 status: published
-platforms: [windows, linux]
-summary: Install Unreal Tournament 2004 from the LAN disc image, apply OldUnreal patch 3374 64-bit, then play flat or optionally in VR with UT2004VR and VRM avatars.
+platforms: [windows, linux, macos]
+summary: Install Unreal Tournament 2004 from a portable 3374 archive or the LAN disc, patch it on Windows, Linux or macOS, then play flat or optionally in VR.
 description: |
     Unreal Tournament 2004 is the arena shooter the LAN still measures every
     other deathmatch against: Onslaught, Assault, Bombing Run, CTF and plain DM,
     all playable against bots or over the LAN.
 
-    The base game is user-supplied. On the LAN file host it is the UT2004 DVD
-    (Disc 1 carries the full game; Disc 2 only adds maps and bonus content), or
-    an existing GOG/Steam install. This recipe copies the disc's asset folders
-    and lets OldUnreal patch 3374 supply the whole System folder, which is the
-    patch project's documented manual install: no retail Setup.exe, no Wine, no
-    disc check. The patch is 64-bit only and needs Windows 7+ or a 64-bit Linux.
+    The base game is user-supplied. The preferred one-click LAN file is a
+    portable 3374 archive for the player's OS (Windows, Linux or macOS): a
+    ready-to-copy game tree that already carries OldUnreal's patched System
+    folder, so no disc and no patch step are needed. Without it the recipe
+    falls back to the UT2004 DVD (Disc 1 carries the full game; Disc 2 only adds
+    maps and bonus content), an installer ZIP, or an existing GOG/Steam install,
+    and applies the matching OldUnreal patch 3374.
+
+    On Windows and Linux the fallback copies the disc's asset folders and lets
+    the patch supply the whole System folder, which is the patch project's
+    documented manual install: no retail Setup.exe, no Wine, no disc check. On
+    macOS the OldUnreal 3374 macOS universal DMG supplies `UT2004.app` plus the
+    native engine, and the disc's assets are copied next to it. The patch is
+    64-bit only and needs Windows 7+, a 64-bit Linux or macOS on Apple Silicon
+    or Intel.
 
     Optional extras, both LAN files: UT2004VR by jmkokko (MIT) turns the game
     into a SteamVR shooter with the gun in your hand (Windows only, offline bots
@@ -28,17 +37,29 @@ license: 'Epic Games; game files are user-supplied (OldUnreal patch: free, Epic-
 cover: ''
 skill:
     name: ut2004
-    description: 'Install Unreal Tournament 2004 on a LAN PC from the UT2004 DVD image or an existing GOG/Steam copy, apply OldUnreal patch 3374 64-bit, then start it flat or optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Always ask flat or VR before installing. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN.'
-    compatibility: 'Windows 7+ or 64-bit Linux (no Wine needed); ~5 GB disk; VR needs Windows 10/11 + SteamVR'
+    description: 'Install Unreal Tournament 2004 on a LAN PC from a portable 3374 archive, the UT2004 DVD image, an installer ZIP or an existing GOG/Steam copy, apply OldUnreal patch 3374 on Windows, Linux or macOS, then start it flat or optionally install UT2004VR with SteamVR and vrm2ut2004 avatars. Always ask flat or VR before installing. Use when the user says install ut2004, ut2k4, ut 2k4, unreal tournament, or asks to set up UT2004 for the LAN.'
+    compatibility: 'Windows 7+, 64-bit Linux or macOS (OldUnreal 3374; no Wine needed); ~5 GB disk; VR needs Windows 10/11 + SteamVR'
 requires:
     - role: iso
       label: 'UT2004 DVD 1 (or an existing GOG/Steam install)'
       match:
-          ['ut2004*.iso', 'UT2004*.iso', '*ut2004*dvd*.iso', '*UT2004*DVD*.iso']
+          [
+              'ut2004*.iso',
+              'UT2004*.iso',
+              '*ut2004*dvd*.iso',
+              '*UT2004*DVD*.iso',
+              '*ut2004*base*.zip',
+              'ut2004-portable*.zip',
+          ]
       required: true
       sha256: ''
-      url: ''
-      notes: "Disc 1 is enough for the full install; Disc 2 only has extra maps. An already-installed GOG/Steam copy is fine too, but a folder cannot match a glob: treat it as a manual target, skip this requirement and start at the patch step with {{target}} set to the existing install. The disc's own Setup.exe is optional; this recipe copies the asset folders instead."
+      # External fallback when the LAN has no base archive: the archive.org
+      # item is a flat, already-installed 3369 tree (Maps/, Textures/, System/,
+      # ...), so the OS patch below is still applied. The direct ia* host is
+      # used instead of archive.org/download because the redirect currently
+      # lands on a mirror that is ~25x slower from the LAN.
+      url: 'https://ia800800.us.archive.org/25/items/unreal-tournament-2004_202405/Unreal%20Tournament%202004.zip'
+      notes: "Disc 1 is enough for the full install; Disc 2 only has extra maps. A flat full-game ZIP is accepted as the same base source and the matching OS patch is still mandatory. The nosTEAM `ut2k4+keygen.zip` is an installer EXE, not a flat tree; it is deliberately NOT matched here because the native engine would extract only the installer wrapper. A portable 3374 base wins over this ISO role. An already-installed GOG/Steam copy is fine too, but a folder cannot match a glob: treat it as a manual target, skip this requirement and start at the patch step with {{target}} set to the existing install. The disc's own Setup.exe is optional; this recipe copies the asset folders instead."
     - role: base
       label: 'UT2004 portable 3374 (Windows x64, no install)'
       os: windows
@@ -51,7 +72,25 @@ requires:
       required: false
       sha256: ''
       url: ''
-      notes: 'Optional LAN file, preferred when the Orga provides it: a ready-to-copy patched game folder (OldUnreal 3374, Windows x64) zipped on the file host. It already carries System/, Maps/, Textures/ and Build.ini patched, so it wins over the ISO: unpack the archive into {{target}}, verify System/UT2004.exe and System/Build.ini, and skip the disc copy and the patch step. Without it the recipe installs from the ISO plus patch 3374 as before; the launcher prefers a matched base archive over a matched ISO. Windows only: the folder holds UT2004.exe and the D3D11 renderer, so a Linux plan uses the ISO plus the Linux patch instead.'
+      notes: 'Optional LAN file, preferred when the Orga provides it: a ready-to-copy patched game folder (OldUnreal 3374, Windows x64) zipped on the file host. It already carries System/, Maps/, Textures/ and Build.ini patched, so it wins over the ISO: unpack the archive into {{target}}, verify System/UT2004.exe and System/Build.ini, and skip the disc copy and the patch step. Without it the recipe installs from the ISO plus patch 3374 as before; the launcher prefers a matched base archive over a matched ISO. Windows only: the folder holds UT2004.exe and the D3D11 renderer, so a Linux plan uses the Linux base (or the ISO plus the Linux patch) instead.'
+    - role: base
+      label: 'UT2004 portable 3374 (Linux x64, no install)'
+      os: linux
+      match:
+          ['ut2004-portable-3374-linux*', 'UT2004-portable-3374-linux*']
+      required: false
+      sha256: ''
+      url: ''
+      notes: 'Optional LAN file, preferred for a Linux plan: a ready-to-copy patched game tree (OldUnreal 3374, Linux x64) as .zip or .tar.bz2, already carrying System/ with the 64-bit UT2004 binary, the OpenAL/SDL libraries and a Build.ini reporting v3374. Unpack it into {{target}}, verify System/ut2004-bin-amd64 and System/Build.ini, make System/UT2004 executable and skip the ISO copy and the Linux patch step. The archive name carries the OS, so a Windows launcher never picks it up; without it a Linux plan falls back to the ISO plus the Linux patch.'
+    - role: base
+      label: 'UT2004 portable 3374 (macOS universal, no install)'
+      os: macos
+      match:
+          ['ut2004-portable-3374-macos*', 'UT2004-portable-3374-macos*']
+      required: false
+      sha256: ''
+      url: ''
+      notes: 'Optional LAN file, preferred for a macOS plan: a ready-to-copy archive (OldUnreal 3374, macOS universal) as .zip or .tar.bz2. It contains UT2004.app plus the asset folders (Maps, Textures, Sounds, StaticMeshes, Animations and the rest of the game tree), so no ISO and no DMG patch step are needed. Unpack it, put UT2004.app in ~/Applications (or {{target}}) and the asset folders in ~/Library/Application Support/UT2004, then clear the quarantine flag if Gatekeeper complains. Without it a macOS plan falls back to the ISO plus the macOS 3374 DMG.'
     - role: patch
       label: 'OldUnreal UT2004 patch 3374 (Windows x64 zip)'
       os: windows
@@ -68,6 +107,15 @@ requires:
       sha256: 'd79eb45fda3ace2b7a68e6a0b9730b7d6602004b111e0b16f3f7cc28f3111572'
       url: https://github.com/OldUnreal/UT2004Patches/releases/download/3374-rc3/OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2
       notes: 'Latest release 3374-rc3 (2026-11-03). Linux asset OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2, 59,191,321 B, sha256 d79eb45fda3ace2b7a68e6a0b9730b7d6602004b111e0b16f3f7cc28f3111572. The url and sha256 pin that exact asset, so the launcher can download it without a LAN copy. Carries the whole System tree with the 64-bit System/UT2004 binary (ut2004-bin-amd64 symlink), OpenAL/SDL libraries and the patched UnrealScript packages, plus SystemARM64 for ARM64 hosts. Never use the Windows zip on Linux: a Linux launcher would unpack UT2004.exe and the D3D11 renderer.'
+    - role: patch
+      label: 'OldUnreal UT2004 patch 3374 (macOS universal dmg)'
+      os: macos
+      match: ['OldUnreal-UT2004Patch3374-macOS*.dmg']
+      required: true
+      sha256: '8c9bd030127c2fd37c2565aad59cb5f4dbb696909e01c1cb975aecf7e38b8e7c'
+      url: https://github.com/OldUnreal/UT2004Patches/releases/download/3374-rc3/OldUnreal-UT2004Patch3374-macOS.dmg
+      size_bytes: 61235839
+      notes: 'Latest release 3374-rc3 (2026-11-03). macOS asset OldUnreal-UT2004Patch3374-macOS.dmg, 61,235,839 B, sha256 8c9bd030127c2fd37c2565aad59cb5f4dbb696909e01c1cb975aecf7e38b8e7c. The url and sha256 pin that exact asset, so the launcher can download it without a LAN copy. The DMG carries the universal UT2004.app with the native 64-bit engine and the patched System tree (Build.ini v3374); the disc or installer ZIP only supplies the asset folders. Never use the Windows zip or the Linux tarball on macOS.'
     - role: mod
       label: 'UT2004VR (optional SteamVR mod, Windows only)'
       os: windows
@@ -99,11 +147,16 @@ steps:
           Do not assume VR because a headset is plugged in.
 
           - **Flat** (default): the base game plus patch 3374 is complete. Works on
-            Windows and Linux, no extra files.
+            Windows, Linux and macOS, no extra files.
           - **VR**: Windows 10/11 only, plus SteamVR, motion controllers and the
             `UT2004VR-*.zip` release. VR is offline bots only; online servers drop
             back to a flat screen. The VR mod is an optional step and can be added
             later without reinstalling the game.
+
+          Before the disc path, look for the portable 3374 base archive of the
+          player's OS on the LAN file host. It is already patched, so the base
+          copy and the patch step are both skipped; the disc/ISO and patch remain
+          the fallback.
 
           Record the answer, then run the matching steps. The install itself is the
           same either way.
@@ -164,6 +217,36 @@ steps:
       verify:
           - type: file_exists
             path: '{{target}}/Maps/DM-Rankin.ut2'
+    - id: install-base-macos
+      title: 'Copy the base game assets from Disc 1 (macOS)'
+      os: macos
+      optional: false
+      detail: |
+          Only for the ISO fallback; when a `ut2004-portable-3374-macos*` archive
+          is on the LAN, unpack it and skip this step and `patch-3374-macos`.
+
+          Mount the DVD image read-only with `hdiutil`, copy every disc folder
+          except `System` into `~/Library/Application Support/UT2004`, then
+          unmount. The macOS patch supplies `UT2004.app` with the patched
+          `System` tree; a retail `System` copied next to it keeps the game from
+          starting.
+
+          If the LAN file is an installer ZIP instead (`ut2k4*.zip`), unpack it
+          with `ditto -x -k` and copy the same asset folders. An existing
+          GOG/Steam copy is a manual target: use its asset folder and skip the
+          base requirement.
+      commands:
+          - shell: bash
+            run: 'mkdir -p "$HOME/Library/Application Support/UT2004" "{{downloads}}/ut2004-iso"'
+          - shell: bash
+            run: 'iso=$(find "{{downloads}}" -maxdepth 1 -iname "ut2004*.iso" ! -iname "*dvd*2*" ! -iname "*disc*2*" -print -quit); hdiutil attach "$iso" -mountpoint "{{downloads}}/ut2004-iso" -nobrowse -readonly'
+          - shell: bash
+            run: 'for d in "{{downloads}}/ut2004-iso"/*/; do case "$d" in */System/) ;; *) cp -R "$d" "$HOME/Library/Application Support/UT2004/" ;; esac; done'
+          - shell: bash
+            run: 'hdiutil detach "{{downloads}}/ut2004-iso"'
+      verify:
+          - type: file_exists
+            path: '~/Library/Application Support/UT2004/Maps/DM-Rankin.ut2'
     - id: patch-3374
       title: 'Apply OldUnreal patch 3374 (Windows x64)'
       os: windows
@@ -226,6 +309,37 @@ steps:
             path: '{{target}}/System/ut2004-bin-amd64'
           - type: file_exists
             path: '{{target}}/System/Build.ini'
+    - id: patch-3374-macos
+      title: 'Apply OldUnreal patch 3374 (macOS universal)'
+      os: macos
+      optional: false
+      detail: |
+          Download `OldUnreal-UT2004Patch3374-macOS.dmg` (or take it from the LAN
+          file host), mount it with `hdiutil` and copy `UT2004.app` either into
+          `~/Applications` or into `{{target}}`. If the DMG carries additional
+          asset folders, merge them into `~/Library/Application Support/UT2004`;
+          the app reads the game data there.
+
+          The app is not notarised by Apple, so Gatekeeper may refuse the first
+          start. `xattr -dr com.apple.quarantine` on the app is the optional
+          one-time fix (or System Settings → Privacy & Security → Open Anyway).
+          Detach the DMG afterwards; the patched app does not ask for the DVD.
+
+          On Apple Silicon the universal app runs natively; no Rosetta and no
+          Wine are needed. Build.ini inside the app bundle reports v3374. When a
+          portable macOS archive was used as the base, skip this step.
+      commands:
+          - shell: bash
+            run: 'dmg=$(find "{{downloads}}" -maxdepth 1 -iname "OldUnreal-UT2004Patch3374-macOS*.dmg" -print -quit); mkdir -p "{{downloads}}/ut2004-dmg"; hdiutil attach "$dmg" -mountpoint "{{downloads}}/ut2004-dmg" -nobrowse -readonly'
+          - shell: bash
+            run: 'mkdir -p "$HOME/Applications" "$HOME/Library/Application Support/UT2004"; app=$(find "{{downloads}}/ut2004-dmg" -maxdepth 2 -name "UT2004.app" -print -quit); cp -R "$app" "$HOME/Applications/"'
+          - shell: bash
+            run: 'for d in "{{downloads}}/ut2004-dmg"/*/; do case "$d" in */System/|*/UT2004.app/) ;; *) cp -R "$d" "$HOME/Library/Application Support/UT2004/" ;; esac; done'
+          - shell: bash
+            run: 'xattr -dr com.apple.quarantine "$HOME/Applications/UT2004.app" 2>/dev/null || true; hdiutil detach "{{downloads}}/ut2004-dmg"'
+      verify:
+          - type: dir_exists
+            path: '~/Applications/UT2004.app'
     - id: register-link-handler
       title: 'Register the ut2004:// link handler (optional, Windows)'
       os: windows
@@ -355,14 +469,19 @@ steps:
           DM-Rankin → 4 bots. This proves the renderer, audio and input work before
           the LAN night.
 
-          Start flat with `System\UT2004.exe` on Windows or `System/UT2004` on
-          Linux (see the launch targets). If the game asks for the DVD, the patch
-          did not land in the folder that contains `System`. If the main menu still
+          Start flat with `System\UT2004.exe` on Windows, `System/UT2004` on
+          Linux, or `UT2004.app` (in `~/Applications` or `{{target}}`) on macOS
+          (see the launch targets). If the game asks for the DVD, the patch did
+          not land in the folder that contains `System`. If the main menu still
           uses the old layout, the patch's `System` tree was merged with a retail
           `System`; recopy the patch over `{{target}}`.
       verify:
           - type: file_exists
             path: '{{target}}/System/Build.ini'
+            os: windows
+          - type: file_exists
+            path: '{{target}}/System/Build.ini'
+            os: linux
           - type: file_exists
             path: '{{target}}/System/UT2004.exe'
             os: windows
@@ -372,6 +491,9 @@ steps:
           - type: file_exists
             path: '{{target}}/System/ut2004-bin-amd64'
             os: linux
+          - type: command
+            command: 'test -d "$HOME/Applications/UT2004.app" || test -d "{{target}}/UT2004.app"'
+            os: macos
 launch_targets:
     - id: flat-windows
       label: 'Flat on a monitor (Windows)'
@@ -385,6 +507,12 @@ launch_targets:
       shell: bash
       command: '"{{target}}/System/ut2004-bin-amd64"'
       notes: 'Run it from {{target}}/System if the game cannot find its packages; there is no launcher script.'
+    - id: flat-macos
+      label: 'Flat on a monitor (macOS)'
+      os: macos
+      shell: bash
+      command: 'open "$HOME/Applications/UT2004.app"'
+      notes: 'Default on macOS. If the install left the app in the target instead, run `open "{{target}}/UT2004.app"`; the game data lives in ~/Library/Application Support/UT2004.'
     - id: vr-windows
       label: 'VR in a SteamVR headset (Windows)'
       os: windows

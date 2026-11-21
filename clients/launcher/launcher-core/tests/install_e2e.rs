@@ -137,6 +137,7 @@ async fn installs_an_external_only_archive_and_patch_without_the_bearer() {
     let archive = zip_bytes(&[
         ("System/ut2004-bin-amd64", b"#!/bin/sh\nexit 0\n"),
         ("System/Build.ini", b"Label=3369\n"),
+        ("Maps/DM-Rankin.ut2", b"rank in"),
     ]);
     let patch = zip_bytes(&[
         ("System/UT2004", b"#!/bin/sh\nexit 0\n"),

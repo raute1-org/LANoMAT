@@ -1,10 +1,16 @@
 //! Archive extraction for the UT2004 pilot.
 //!
-//! Two shapes matter:
-//! - the retail DVD is an ISO9660/Joliet image; only the payload folders are
-//!   copied, `System/` comes from the OldUnreal patch,
+//! Three shapes matter:
+//! - the retail DVD is an ISO9660/Joliet image or a macOS DMG; only the payload
+//!   folders are copied, `System/` comes from the OldUnreal patch,
+//! - a portable base is a zip/tar.bz2 copy of an already patched game; one
+//!   wrapper folder is stripped before extraction,
 //! - the patch is a zip (Windows) or tar.bz2 (Linux); its `System/` tree is
 //!   extracted over the target.
+//!
+//! A base zip can also be an installer wrapper around a single ISO
+//! (`ut2k4+keygen.zip`); [`zip_single_iso_entry`] finds that image and
+//! [`extract_zip_entry`] writes it to a temporary file for [`extract_iso`].
 //!
 //! Every entry is validated by [`safe_relative`] before it is joined to the
 //! target, so a crafted archive cannot write outside the install folder.
@@ -72,6 +78,10 @@ pub enum ArchiveError {
     EmptyIso,
     #[error("the ISO has an unsupported layout: {0}")]
     IsoLayout(String),
+    #[error("DMG extraction requires macOS (hdiutil)")]
+    DmgUnsupported,
+    #[error("could not extract the DMG: {0}")]
+    Dmg(String),
 }
 
 /// Validate one archive entry name.
@@ -556,12 +566,43 @@ pub fn extract_zip_with_limits(
     target: &Path,
     limits: ArchiveLimits,
 ) -> Result<usize, ArchiveError> {
+    extract_zip_inner(zip_path, target, limits, false)
+}
+
+/// Extract a portable base zip. Like [`extract_zip`], but one wrapper folder
+/// around the game tree (`UT2004/System/...`) is stripped so the install stays
+/// flat. `System/` is kept: a portable base may carry its own Windows
+/// `System/UT2004.exe`, and a later patch simply overwrites the same names.
+pub fn extract_zip_base(zip_path: &Path, target: &Path) -> Result<usize, ArchiveError> {
+    extract_zip_base_with_limits(zip_path, target, ArchiveLimits::default())
+}
+
+pub fn extract_zip_base_with_limits(
+    zip_path: &Path,
+    target: &Path,
+    limits: ArchiveLimits,
+) -> Result<usize, ArchiveError> {
+    extract_zip_inner(zip_path, target, limits, true)
+}
+
+fn extract_zip_inner(
+    zip_path: &Path,
+    target: &Path,
+    limits: ArchiveLimits,
+    strip_wrapper: bool,
+) -> Result<usize, ArchiveError> {
     let file = File::open(zip_path).map_err(|source| ArchiveError::Open {
         path: zip_path.to_path_buf(),
         source,
     })?;
     let mut zip =
         zip::ZipArchive::new(file).map_err(|error| ArchiveError::Read(error.to_string()))?;
+    let wrapper = if strip_wrapper {
+        let names = zip_names(&mut zip)?;
+        wrapper_prefix_names(&names)
+    } else {
+        None
+    };
     let target = SafeTarget::open(target)?;
     let mut written = 0;
     let mut seen = 0usize;
@@ -577,7 +618,10 @@ pub fn extract_zip_with_limits(
         let relative = safe_relative(&name)?;
 
         if entry.is_dir() {
-            target.ensure_dir(relative.as_deref().unwrap_or(""), &name)?;
+            let relative = relative
+                .map(|relative| strip_prefix(&relative, wrapper.as_deref()))
+                .unwrap_or_default();
+            target.ensure_dir(&relative, &name)?;
             continue;
         }
 
@@ -588,6 +632,12 @@ pub fn extract_zip_with_limits(
         let relative = relative.ok_or_else(|| ArchiveError::UnsafeEntry {
             entry: name.clone(),
         })?;
+        let relative = strip_prefix(&relative, wrapper.as_deref());
+
+        if relative.is_empty() {
+            continue;
+        }
+
         account_size(
             &mut declared_total,
             entry.size(),
@@ -607,6 +657,145 @@ pub fn extract_zip_with_limits(
     }
 
     Ok(written)
+}
+
+fn zip_names(zip: &mut zip::ZipArchive<File>) -> Result<Vec<String>, ArchiveError> {
+    let mut names = Vec::with_capacity(zip.len());
+
+    for index in 0..zip.len() {
+        let entry = zip
+            .by_index(index)
+            .map_err(|error| ArchiveError::Read(error.to_string()))?;
+
+        if let Some(name) = safe_relative(entry.name())? {
+            names.push(name);
+        }
+    }
+
+    Ok(names)
+}
+
+/// File suffixes that mark a real game tree rather than an installer wrapper.
+const GAME_DATA_EXTENSIONS: &[&str] =
+    &["ut2", "ut3", "utx", "uax", "usx", "ukx", "u", "ucl", "upl"];
+
+/// Game folders whose presence means an archive already carries the payload.
+const GAME_DATA_FOLDERS: &[&str] = &[
+    "system",
+    "maps",
+    "textures",
+    "sounds",
+    "animations",
+    "staticmeshes",
+    "karmadata",
+];
+
+fn looks_like_game_data(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    let extension = lower.rsplit_once('.').map(|(_, extension)| extension);
+    let in_game_folder = lower
+        .split('/')
+        .any(|part| GAME_DATA_FOLDERS.contains(&part));
+
+    extension.is_some_and(|extension| GAME_DATA_EXTENSIONS.contains(&extension)) || in_game_folder
+}
+
+/// The single `.iso` entry of an installer-style base zip, if the zip wraps
+/// exactly one image and carries no game tree of its own.
+///
+/// `ut2k4+keygen.zip` is the motivating shape: `setup.exe`, a keygen and one
+/// ISO. Extracting it naively would only leave an installer in the target; the
+/// caller extracts the image and runs [`extract_iso`] instead.
+pub fn zip_single_iso_entry(path: &Path) -> Result<Option<String>, ArchiveError> {
+    let file = File::open(path).map_err(|source| ArchiveError::Open {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let mut zip =
+        zip::ZipArchive::new(file).map_err(|error| ArchiveError::Read(error.to_string()))?;
+    let mut images = Vec::new();
+    let mut has_game_tree = false;
+
+    for index in 0..zip.len() {
+        let entry = zip
+            .by_index(index)
+            .map_err(|error| ArchiveError::Read(error.to_string()))?;
+
+        if entry.is_dir() {
+            continue;
+        }
+
+        let Some(name) = safe_relative(entry.name())? else {
+            continue;
+        };
+
+        if name.to_ascii_lowercase().ends_with(".iso") {
+            images.push(name.clone());
+        }
+
+        if looks_like_game_data(&name) {
+            has_game_tree = true;
+        }
+    }
+
+    if images.len() == 1 && !has_game_tree {
+        Ok(images.pop())
+    } else {
+        Ok(None)
+    }
+}
+
+/// Write one zip entry to `dest` (used for an ISO nested inside a base zip).
+pub fn extract_zip_entry(
+    zip_path: &Path,
+    entry_name: &str,
+    dest: &Path,
+) -> Result<u64, ArchiveError> {
+    let file = File::open(zip_path).map_err(|source| ArchiveError::Open {
+        path: zip_path.to_path_buf(),
+        source,
+    })?;
+    let mut zip =
+        zip::ZipArchive::new(file).map_err(|error| ArchiveError::Read(error.to_string()))?;
+
+    for index in 0..zip.len() {
+        let mut entry = zip
+            .by_index(index)
+            .map_err(|error| ArchiveError::Read(error.to_string()))?;
+
+        if entry.is_dir() {
+            continue;
+        }
+
+        let Some(name) = safe_relative(entry.name())? else {
+            continue;
+        };
+
+        if name != entry_name {
+            continue;
+        }
+
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent).map_err(|source| ArchiveError::Write {
+                path: parent.to_path_buf(),
+                source,
+            })?;
+        }
+
+        let mut out = File::create(dest).map_err(|source| ArchiveError::Write {
+            path: dest.to_path_buf(),
+            source,
+        })?;
+        let copied = std::io::copy(&mut entry, &mut out)
+            .map_err(|error| ArchiveError::Read(error.to_string()))?;
+
+        return Ok(copied);
+    }
+
+    Err(ArchiveError::Read(format!(
+        "{entry_name} is not part of {}",
+        zip_path.display()
+    )))
 }
 
 /// Preserve the executable bit a tar entry declares. The OldUnreal Linux
@@ -642,6 +831,37 @@ pub fn extract_tar_bz2_with_limits(
     target: &Path,
     limits: ArchiveLimits,
 ) -> Result<usize, ArchiveError> {
+    extract_tar_bz2_inner(path, target, limits, false)
+}
+
+/// Extract a portable base tar.bz2. One wrapper folder around the game tree is
+/// stripped; `System/` is kept so a portable Windows/Linux base stays intact
+/// and a later patch only overwrites what it ships.
+pub fn extract_tar_bz2_base(path: &Path, target: &Path) -> Result<usize, ArchiveError> {
+    extract_tar_bz2_base_with_limits(path, target, ArchiveLimits::default())
+}
+
+pub fn extract_tar_bz2_base_with_limits(
+    path: &Path,
+    target: &Path,
+    limits: ArchiveLimits,
+) -> Result<usize, ArchiveError> {
+    extract_tar_bz2_inner(path, target, limits, true)
+}
+
+fn extract_tar_bz2_inner(
+    path: &Path,
+    target: &Path,
+    limits: ArchiveLimits,
+    strip_wrapper: bool,
+) -> Result<usize, ArchiveError> {
+    let wrapper = if strip_wrapper {
+        let names = tar_bz2_names(path)?;
+        wrapper_prefix_names(&names)
+    } else {
+        None
+    };
+
     let file = File::open(path).map_err(|source| ArchiveError::Open {
         path: path.to_path_buf(),
         source,
@@ -674,7 +894,10 @@ pub fn extract_tar_bz2_with_limits(
 
         if kind.is_dir() {
             // `./` from `tar -cjf patch.tar.bz2 .` is the target itself.
-            target.ensure_dir(relative.as_deref().unwrap_or(""), &path_in_archive)?;
+            let relative = relative
+                .map(|relative| strip_prefix(&relative, wrapper.as_deref()))
+                .unwrap_or_default();
+            target.ensure_dir(&relative, &path_in_archive)?;
             continue;
         }
 
@@ -688,7 +911,12 @@ pub fn extract_tar_bz2_with_limits(
             let relative = relative.ok_or_else(|| ArchiveError::UnsafeEntry {
                 entry: path_in_archive.clone(),
             })?;
-            links.push((relative, link_target, path_in_archive));
+            let relative = strip_prefix(&relative, wrapper.as_deref());
+
+            if !relative.is_empty() {
+                links.push((relative, link_target, path_in_archive));
+            }
+
             continue;
         }
 
@@ -701,6 +929,12 @@ pub fn extract_tar_bz2_with_limits(
         let relative = relative.ok_or_else(|| ArchiveError::UnsafeEntry {
             entry: path_in_archive.clone(),
         })?;
+        let relative = strip_prefix(&relative, wrapper.as_deref());
+
+        if relative.is_empty() {
+            continue;
+        }
+
         let declared = entry
             .header()
             .size()
@@ -728,6 +962,34 @@ pub fn extract_tar_bz2_with_limits(
     }
 
     Ok(written)
+}
+
+fn tar_bz2_names(path: &Path) -> Result<Vec<String>, ArchiveError> {
+    let file = File::open(path).map_err(|source| ArchiveError::Open {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let decoder = bzip2::read::BzDecoder::new(BufReader::new(file));
+    let mut archive = tar::Archive::new(decoder);
+    let mut names = Vec::new();
+
+    for entry in archive
+        .entries()
+        .map_err(|error| ArchiveError::Read(error.to_string()))?
+    {
+        let entry = entry.map_err(|error| ArchiveError::Read(error.to_string()))?;
+        let path_in_archive = entry
+            .path()
+            .map_err(|error| ArchiveError::Read(error.to_string()))?
+            .to_string_lossy()
+            .to_string();
+
+        if let Some(name) = safe_relative(&path_in_archive)? {
+            names.push(name);
+        }
+    }
+
+    Ok(names)
 }
 
 /// One ISO directory entry, decoupled from the libmkiso reader so the
@@ -913,6 +1175,114 @@ pub fn extract_iso_with_limits(
     Ok(written)
 }
 
+/// Attach a DMG read-only, copy its contents with `ditto`, and detach it again.
+///
+/// The image is a retail-style fallback, so the payload is copied as-is; the
+/// OldUnreal patch then overwrites `System/`. On every non-macOS host the
+/// flavour is recognised but extraction fails with a clear platform error
+/// instead of being mistaken for a patch archive.
+#[cfg(target_os = "macos")]
+pub fn extract_dmg(dmg_path: &Path, target: &Path) -> Result<usize, ArchiveError> {
+    let attach = std::process::Command::new("hdiutil")
+        .args(["attach", "-nobrowse", "-readonly", "-plist"])
+        .arg(dmg_path)
+        .output()
+        .map_err(|error| ArchiveError::Dmg(format!("hdiutil attach: {error}")))?;
+
+    if !attach.status.success() {
+        return Err(ArchiveError::Dmg(format!(
+            "hdiutil attach failed: {}",
+            String::from_utf8_lossy(&attach.stderr).trim()
+        )));
+    }
+
+    let plist = String::from_utf8_lossy(&attach.stdout);
+    let mount_point = plist_string_value(&plist, "mount-point")
+        .ok_or_else(|| ArchiveError::Dmg("hdiutil reported no mount point".into()))?;
+    let mount = PathBuf::from(mount_point);
+    let copied = copy_dmg_payload(&mount, target);
+    // Detach even when the copy failed: a mounted volume must not stay behind.
+    let _ = std::process::Command::new("hdiutil")
+        .arg("detach")
+        .arg(&mount)
+        .arg("-quiet")
+        .status();
+
+    copied
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn extract_dmg(_dmg_path: &Path, _target: &Path) -> Result<usize, ArchiveError> {
+    Err(ArchiveError::DmgUnsupported)
+}
+
+#[cfg(target_os = "macos")]
+fn copy_dmg_payload(mount: &Path, target: &Path) -> Result<usize, ArchiveError> {
+    std::fs::create_dir_all(target).map_err(|source| ArchiveError::Write {
+        path: target.to_path_buf(),
+        source,
+    })?;
+
+    let status = std::process::Command::new("ditto")
+        .arg(mount)
+        .arg(target)
+        .status()
+        .map_err(|error| ArchiveError::Dmg(format!("ditto: {error}")))?;
+
+    if !status.success() {
+        return Err(ArchiveError::Dmg(format!("ditto exited with {status}")));
+    }
+
+    Ok(count_files(mount))
+}
+
+#[cfg(target_os = "macos")]
+fn count_files(root: &Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return 0;
+    };
+    let mut total = 0;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+
+        if metadata.is_dir() {
+            total += count_files(&path);
+        } else {
+            total += 1;
+        }
+    }
+
+    total
+}
+
+#[cfg(target_os = "macos")]
+fn plist_string_value(plist: &str, key: &str) -> Option<String> {
+    let needle = format!("<key>{key}</key>");
+    let after_key = &plist[plist.find(&needle)? + needle.len()..];
+    let start = after_key.find("<string>")? + "<string>".len();
+    let end = after_key[start..].find("</string>")? + start;
+
+    Some(unescape_xml(&after_key[start..end]))
+}
+
+#[cfg(target_os = "macos")]
+fn unescape_xml(value: &str) -> String {
+    value
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&")
+}
+
 fn first_component(name: &str) -> Option<&str> {
     name.split('/')
         .find(|part| !part.is_empty() && *part != ".")
@@ -921,17 +1291,35 @@ fn first_component(name: &str) -> Option<&str> {
 /// Detect a single wrapper folder around a `System/` tree. `UT2004/System/...`
 /// is the common authoring shape; a disc with top-level `System/` has none.
 fn wrapper_prefix(entries: &[IsoEntryDesc]) -> Option<String> {
-    let has_root_system = entries.iter().any(|entry| {
-        first_component(&entry.name).is_some_and(|part| part.eq_ignore_ascii_case("System"))
-    });
+    let names = entries
+        .iter()
+        .map(|entry| entry.name.clone())
+        .collect::<Vec<_>>();
 
-    if has_root_system {
+    wrapper_prefix_names(&names)
+}
+
+/// Detect the one wrapper folder of a base archive or image without touching
+/// the filesystem.
+///
+/// The archive must have exactly one top-level folder, must not itself start
+/// with a game folder (`System/`, `Maps/`, …), and that folder must contain a
+/// game tree (`System`, `Maps`, `Textures`, … or a `.app` bundle). A macOS
+/// bundle at the root is kept: `UT2004.app/Contents/...` is the install layout,
+/// not a wrapper.
+fn wrapper_prefix_names(names: &[String]) -> Option<String> {
+    let has_root_game_folder = names
+        .iter()
+        .filter_map(|name| first_component(name))
+        .any(|part| is_game_folder(part) || part.to_ascii_lowercase().ends_with(".app"));
+
+    if has_root_game_folder {
         return None;
     }
 
-    let mut roots = entries
+    let mut roots = names
         .iter()
-        .filter_map(|entry| first_component(&entry.name))
+        .filter_map(|name| first_component(name))
         .collect::<Vec<_>>();
     roots.sort_unstable();
     roots.dedup();
@@ -941,16 +1329,20 @@ fn wrapper_prefix(entries: &[IsoEntryDesc]) -> Option<String> {
     }
 
     let root = roots[0];
-    let has_wrapped_system = entries.iter().any(|entry| {
-        entry
-            .name
-            .strip_prefix(root)
+    let has_wrapped_game_tree = names.iter().any(|name| {
+        name.strip_prefix(root)
             .and_then(|rest| rest.strip_prefix('/'))
             .and_then(first_component)
-            .is_some_and(|part| part.eq_ignore_ascii_case("System"))
+            .is_some_and(|part| is_game_folder(part) || part.to_ascii_lowercase().ends_with(".app"))
     });
 
-    has_wrapped_system.then(|| root.to_string())
+    has_wrapped_game_tree.then(|| root.to_string())
+}
+
+fn is_game_folder(part: &str) -> bool {
+    GAME_DATA_FOLDERS
+        .iter()
+        .any(|folder| part.eq_ignore_ascii_case(folder))
 }
 
 fn strip_prefix(name: &str, prefix: Option<&str>) -> String {
@@ -1018,6 +1410,32 @@ pub fn detect_tar_bz2(path: &Path) -> bool {
     }
 
     magic(path, b"BZh")
+}
+
+/// A macOS disk image. The extension is enough for a plan file; a renamed
+/// image is recognised by the UDIF trailer signature (`koly`) in its last 512
+/// bytes, the same way `hdiutil` identifies one.
+pub fn detect_dmg(path: &Path) -> bool {
+    if path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("dmg"))
+    {
+        return true;
+    }
+
+    let Ok(mut file) = File::open(path) else {
+        return false;
+    };
+    let Ok(length) = file.seek(SeekFrom::End(0)) else {
+        return false;
+    };
+
+    if length < 512 || file.seek(SeekFrom::End(-512)).is_err() {
+        return false;
+    }
+
+    let mut signature = [0u8; 4];
+    file.read_exact(&mut signature).is_ok() && &signature == b"koly"
 }
 
 fn magic(path: &Path, expected: &[u8]) -> bool {

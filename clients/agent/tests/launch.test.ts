@@ -189,6 +189,58 @@ describe('launch', () => {
         });
     });
 
+    it('opens macOS .app bundles and URI targets through LaunchServices', () => {
+        expect(buildLaunchCommand('macos', '/Applications/UT2004.app')).toEqual({
+            shell: 'bash',
+            run: "open '/Applications/UT2004.app'",
+        });
+        expect(buildLaunchCommand('macos', '/games/UT 2004.app/')).toEqual({
+            shell: 'bash',
+            run: "open '/games/UT 2004.app/'",
+        });
+        expect(buildLaunchCommand('macos', 'steam://rungameid/10')).toEqual({
+            shell: 'bash',
+            run: "open 'steam://rungameid/10'",
+        });
+    });
+
+    it('runs a plain macOS binary outside a bundle directly', () => {
+        expect(buildLaunchCommand('macos', '/opt/ut2004/System/ut2004-bin')).toEqual({
+            shell: 'bash',
+            run: "'/opt/ut2004/System/ut2004-bin'",
+        });
+        expect(buildLaunchCommand('macos', 'wine UT2004.exe')).toEqual({
+            shell: 'bash',
+            run: 'wine UT2004.exe',
+        });
+    });
+
+    it('launches the macOS launch target selected by os: macos', async () => {
+        const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+        const result = await launchRecipe({
+            api: apiFor(
+                {
+                    slug: 'ut2004',
+                    title: 'UT2004',
+                    launch_targets: [
+                        { id: 'flat-windows', os: 'windows', shell: 'powershell', command: 'Start-Process "{{target}}/System/UT2004.exe"' },
+                        { id: 'flat-macos', os: 'macos', command: '{{target}}/UT2004.app' },
+                    ],
+                },
+                plan({ os: 'macos', target_dir: '/tmp/ut2004' }),
+            ),
+            slug: 'ut2004',
+            os: 'macos',
+            targetDir: '/tmp/ut2004',
+            executor: captureExecutor(calls) as unknown as CommandExecutor,
+        });
+
+        expect(result.code).toBe(0);
+        expect(calls).toHaveLength(1);
+        expect(calls[0].command).toBe('bash');
+        expect(calls[0].args).toEqual(['-c', "open '/tmp/ut2004/UT2004.app'"]);
+    });
+
     it('runs the launch target for the requested OS with its shell', async () => {
         const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
         const result = await launchRecipe({

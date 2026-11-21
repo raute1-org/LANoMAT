@@ -217,7 +217,7 @@
                     "maxLength": 160
                 },
                 "os": {
-                    "enum": ["windows", "linux", "any"]
+                    "enum": ["windows", "linux", "macos", "any"]
                 },
                 "command": {
                     "type": "string",
@@ -323,7 +323,7 @@
                     "minLength": 1
                 },
                 "os": {
-                    "enum": ["windows", "linux", "any"],
+                    "enum": ["windows", "linux", "macos", "any"],
                     "description": "Run this check only on the given platform; omit for any platform the step runs on."
                 }
             },
@@ -384,7 +384,7 @@
                     "maxLength": 160
                 },
                 "os": {
-                    "enum": ["windows", "linux", "any"]
+                    "enum": ["windows", "linux", "macos", "any"]
                 },
                 "optional": {
                     "type": "boolean"

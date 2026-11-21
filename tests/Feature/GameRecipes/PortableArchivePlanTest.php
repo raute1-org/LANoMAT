@@ -10,6 +10,7 @@ use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
+use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -103,6 +104,39 @@ it('keeps the ISO plan when only the disc is on the LAN', function () {
         ->and($iso['status'])->toBe('matched')
         ->and($iso['shared_file_id'])->toBe($shared->id)
         ->and($base['status'])->not->toBe('matched')
+        ->and(ut2004LauncherBaseRequirement($plan))->toBe('iso');
+});
+
+it('matches a flat full-game base zip as the iso fallback, never as a portable base', function () {
+    $recipe = ut2004PortableRecipe();
+
+    $iso = $recipe->files->first(static fn (GameRecipeFile $file): bool => $file->role === RecipeFileRole::Iso);
+    $base = $recipe->files->first(
+        static fn (GameRecipeFile $file): bool => $file->role === RecipeFileRole::Base && $file->os() === 'windows',
+    );
+
+    expect($iso)->not->toBeNull()
+        ->and($base)->not->toBeNull();
+
+    $matcher = app(RecipeFileMatcher::class);
+
+    expect($matcher->nameMatches('ut2004-base.zip', $iso->patterns()))->toBeTrue()
+        ->and($matcher->nameMatches('ut2004-base.zip', $base->patterns()))->toBeFalse()
+        // The nosTEAM `ut2k4+keygen.zip` is an installer EXE, not a flat tree,
+        // so it must not win the base slot just because it is the largest file.
+        ->and($matcher->nameMatches('ut2k4+keygen.zip', $iso->patterns()))->toBeFalse();
+
+    $event = Event::factory()->registration()->create();
+    $shared = SharedFile::factory()->approved()->create([
+        'event_id' => $event->id,
+        'original_name' => 'ut2004-base.zip',
+    ]);
+
+    $plan = app(BuildInstallPlan::class)->handle($recipe->load('files'), User::factory()->create(), 'windows');
+
+    expect(collect($plan['files'])->firstWhere('requirement', 'iso')['status'])->toBe('matched')
+        ->and(collect($plan['files'])->firstWhere('requirement', 'iso')['shared_file_id'])->toBe($shared->id)
+        ->and(collect($plan['files'])->firstWhere('requirement', 'base')['status'])->not->toBe('matched')
         ->and(ut2004LauncherBaseRequirement($plan))->toBe('iso');
 });
 

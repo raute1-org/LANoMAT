@@ -161,9 +161,17 @@ final class BuildInstallPlan
             $name = $recipe->slug;
         }
 
-        return $os === 'windows'
-            ? 'C:\\Games\\'.$name
-            : '~/Games/'.Str::slug($name);
+        if ($os === 'windows') {
+            return 'C:\\Games\\'.$name;
+        }
+
+        // The OldUnreal macOS bundle reads its assets from Application Support,
+        // not from a ~/Games folder. UT2004 is the only macOS recipe today.
+        if ($os === 'macos') {
+            return '~/Library/Application Support/UT2004';
+        }
+
+        return '~/Games/'.Str::slug($name);
     }
 
     /** @param array<string, mixed> $step

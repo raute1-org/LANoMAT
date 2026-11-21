@@ -23,12 +23,15 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": ["nsis"],
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
     "icon": ["icons/icon.png", "icons/icon.ico"],
     "publisher": "LANoMAT",
     "shortDescription": "LANoMAT Launcher",
     "longDescription": "LANoMAT one-click game launcher for the LAN party.",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper" },
       "nsis": {

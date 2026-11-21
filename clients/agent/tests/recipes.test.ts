@@ -112,5 +112,8 @@ describe('recipes and plan rendering', () => {
         expect(stepAppliesToOs({ id: 'a', title: 'A' }, 'linux')).toBe(true);
         expect(stepAppliesToOs({ id: 'b', title: 'B', os: 'windows' }, 'linux')).toBe(false);
         expect(stepAppliesToOs({ id: 'c', title: 'C', os: ['windows', 'linux'] }, 'linux')).toBe(true);
+        expect(stepAppliesToOs({ id: 'd', title: 'D', os: 'macos' }, 'macos')).toBe(true);
+        expect(stepAppliesToOs({ id: 'e', title: 'E', os: ['windows', 'macos'] }, 'macos')).toBe(true);
+        expect(stepAppliesToOs({ id: 'f', title: 'F', os: 'windows' }, 'macos')).toBe(false);
     });
 });
