@@ -253,9 +253,9 @@ if (!existsSync(catalogFile)) {
     );
 } else {
     const catalogStatuses = [
-        ['published', /published/i],
-        ['draft', /draft/i],
-        ['archived', /archived/i],
+        ['archived', /\barchived\b/i],
+        ['published', /\bpublished\b/i],
+        ['draft', /\bdrafts?\b/i],
     ];
     const rows = new Map();
     let section = { heading: null, status: null };
