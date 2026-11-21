@@ -1416,6 +1416,17 @@ components:
           type: string
         notes:
           type: string
+        author:
+          type: string
+          maxLength: 120
+          description: Author of an avatar/content file.
+        license:
+          type: string
+          maxLength: 200
+          description: License of an avatar/content file.
+        manual:
+          type: boolean
+          description: The requirement is satisfied by hand; it needs no matching file or URL.
         tags:
           type: array
           items:
@@ -1841,7 +1852,7 @@ components:
             players_max:
               type: integer
               minimum: 1
-              maximum: 1000
+              maximum: 1024
             lan_recommended:
               type: boolean
             multiplayer:

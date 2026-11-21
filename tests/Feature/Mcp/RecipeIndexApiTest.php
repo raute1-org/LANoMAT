@@ -446,3 +446,73 @@ it('filters the avatar catalogue by the current query parameter and by the old q
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.label', 'Barney');
 });
+
+it('keeps requirement tags, author, license, notes and os on the REST contribution', function () {
+    $user = User::factory()->create();
+
+    $this->withToken(recipeIndexToken($user))
+        ->postJson('/api/v1/recipes', [
+            'slug' => 'avatar-pack',
+            'title' => 'Avatar Pack',
+            'platforms' => ['windows'],
+            'requires' => [[
+                'role' => 'avatar',
+                'label' => 'VRM avatars',
+                'match' => ['*.vrm'],
+                'required' => false,
+                'os' => 'windows',
+                'notes' => 'Copy the chosen avatars into the avatars folder.',
+                'author' => 'Alyx Vance',
+                'license' => 'CC-BY',
+                'tags' => ['avatar', 'vrm'],
+            ]],
+            'steps' => [[
+                'id' => 'copy-avatars',
+                'title' => 'Copy the avatars',
+                'os' => 'windows',
+                'optional' => false,
+                'detail' => 'Copy the chosen avatars into the avatars folder.',
+            ]],
+        ])
+        ->assertCreated();
+
+    $file = GameRecipe::query()->where('slug', 'avatar-pack')->firstOrFail()->files()->firstOrFail();
+
+    expect($file->metadata)->toMatchArray([
+        'os' => 'windows',
+        'notes' => 'Copy the chosen avatars into the avatars folder.',
+        'author' => 'Alyx Vance',
+        'license' => 'CC-BY',
+        'tags' => ['avatar', 'vrm'],
+    ]);
+});
+
+it('keeps the manual flag on a requirement that needs no matching file', function () {
+    $user = User::factory()->create();
+
+    $this->withToken(recipeIndexToken($user))
+        ->postJson('/api/v1/recipes', [
+            'slug' => 'manual-requirement',
+            'title' => 'Manual Requirement',
+            'platforms' => ['windows'],
+            'requires' => [[
+                'role' => 'tool',
+                'label' => 'Mumble',
+                'required' => true,
+                'manual' => true,
+                'notes' => 'Every player installs Mumble from the download page.',
+            ]],
+            'steps' => [[
+                'id' => 'install',
+                'title' => 'Install the game',
+                'os' => 'windows',
+                'optional' => false,
+                'detail' => 'Install the game from the LAN archive.',
+            ]],
+        ])
+        ->assertCreated();
+
+    $file = GameRecipe::query()->where('slug', 'manual-requirement')->firstOrFail()->files()->firstOrFail();
+
+    expect($file->metadata['notes'])->toBe('Every player installs Mumble from the download page.');
+});
