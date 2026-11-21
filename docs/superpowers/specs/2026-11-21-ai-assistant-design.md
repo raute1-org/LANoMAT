@@ -17,8 +17,8 @@ The first version is orga-only. Participants follow later, with no rebuild: thei
 - Chat page for orgas that streams answers and shows tool activity.
 - Read tools run immediately.
 - Every write tool pauses with a **preview card**. Nothing changes until the orga clicks "Ausführen"; "Ablehnen" changes nothing.
-- Every proposed, approved, rejected, executed or failed write action is logged.
-- The model provider is configurable: Claude (Anthropic API) by default, Ollama (local) as the offline alternative.
+- Every proposed, approved, rejected, superseded, executed or failed write action is logged.
+- The model provider is configurable: Claude (Anthropic API) by default, Ollama (local) as the offline alternative. **Ollama runs with the full tool set, write tools included** (owner decision: the venue provides a local model with reliable tool calling).
 
 ## Non-goals (v1)
 
@@ -105,7 +105,11 @@ app/Modules/Assistant/
 4. **Conversation ownership.** It is checked before every `continue`/`continueOrStart` and before every decision (Policy backed by `ConversationStore::conversationBelongsTo`). A foreign conversation gives 403.
 5. **Preview from server data only.** The card is built from the pending approval's stored arguments through the tool's `preview()`, never from model text. Console commands are shown verbatim in mono. The client sends only `approve`/`reject` per call id, never arguments.
 6. **Untrusted text is clamped.** Logs, console output, team/server/event names are untrusted. They are clamped before entering the model context with the shared `App\Support\SafeText` (the Mcp module's `SafeText` already extends it), so no Assistant→Mcp edge appears.
-7. **Secrets masked.** `password` values are masked in the audit log and the card.
+7. **Secrets never reach the model.** Tool schemas have no password field. The model can only propose "set a new password" or "clear the password" (`password_action: set|clear|keep`). For `set`, the orga types the password **on the approval card**. The decision request carries it once. It is held encrypted on the `assistant_actions` row only until the tool runs, then nulled. It never appears in tool arguments, tool results, conversation storage or provider requests.
+   - `server_console` rejects commands that set secret cvars (`sv_password`, `rcon_password`, and similar) with a message pointing to `server_settings_update`.
+   - Read tools never return passwords (`Cs2Settings` already omits them).
+   - `server_logs` output is filtered for secret patterns (`rcon_password`, `sv_password`, tokens/keys) before clamping.
+   - The system prompt tells the model never to repeat a password the user typed. The composer shows a hint that passwords belong on the card.
 8. **Rate limits.** A named `assistant` throttle limiter per user, and `MaxSteps` on the agent.
 
 ### Tools v1
@@ -136,13 +140,16 @@ Filament's "create tournament" page switches to `CreateTournament`, so there is 
 - New table `assistant_actions`:
   - `user_id`, `conversation_id`, `tool_call_id`, `tool`
   - `arguments` (jsonb, masked)
-  - `status` (`proposed`, `approved`, `rejected`, `executed`, `failed`)
+  - `status` (`proposed`, `approved`, `rejected`, `superseded`, `executed`, `failed`)
+  - `secret` (encrypted cast, hidden, nullable; set by the decision endpoint for `password_action=set`, nulled after execution)
   - `result_summary`, `error`, timestamps
 - Who writes which status:
   - `proposed` on the SDK's `ToolApprovalRequested` event.
+  - `superseded` when the orga sends a new chat message while cards are still open. An open card can never be approved later against changed data. Several cards from one turn can be approved or rejected individually; a rejection does not cancel its siblings.
   - `approved`/`rejected` by the decision endpoint.
   - `executed`/`failed` by the tool base class after running.
 - A read-only Filament `AssistantActionResource` in the "System" group.
+- **Retention (owner decision):** conversations are kept until the orga deletes them (`DELETE /orga/assistant/{conversation}`, ownership-checked). There is no automatic expiry. `assistant_actions` rows survive a deleted conversation (`conversation_id` without cascade).
 
 ### HTTP and UI
 
@@ -150,7 +157,8 @@ Routes (registered only when `routable(Module::Assistant)`; middleware `auth`, `
 
 - `GET /orga/assistant`, `GET /orga/assistant/{conversation}`: Inertia page with history (`Vercel::toUiMessages`) and pending approvals.
 - `POST /orga/assistant/chat`: ownership-checked `continueOrStart`, `->stream()->usingVercelDataProtocol()`.
-- `POST /orga/assistant/{conversation}/decisions`: body `{call_id: approve|reject}`, resumes as a stream.
+- `POST /orga/assistant/{conversation}/decisions`: body `{call_id: approve|reject}` plus an optional `{call_id: secret}` for `password_action=set`; resumes as a stream.
+- `DELETE /orga/assistant/{conversation}`: deletes the conversation.
 
 Page `resources/js/pages/Orga/Assistant.vue`:
 
@@ -189,7 +197,10 @@ The current time is added per turn, not into the cached prompt.
 
 ### Privacy ruling
 
-With a cloud provider, names and data from tool results (participants, teams) are sent to Anthropic. Ollama is the on-prem/offline option. Record this in `docs/qa/rulings.md`.
+Record in `docs/qa/rulings.md`:
+- With a cloud provider, names and data from tool results (participants, teams) are sent to Anthropic. Ollama is the on-prem/offline option.
+- Passwords never reach the provider (rule 7).
+- Conversations are kept until their owner deletes them.
 
 ## Execution order
 
@@ -198,6 +209,9 @@ With a cloud provider, names and data from tool results (participants, teams) ar
    - Resuming with `Decisions` works with `RemembersConversations`.
    - The stored arguments are what executes.
    - Opus 5.5 works through the SDK (thinking on, no forced `tool_choice`).
+   - The same approval round trip works with an Ollama model.
+   - Inside `handle()`, a tool can identify its own call (call id, or another stable key) so it can pick up the card-entered secret from `assistant_actions`.
+   - Sending a new prompt while approvals are pending is possible, so open cards can be marked `superseded`. Otherwise find out what the SDK requires, e.g. auto-rejecting through `rejectRemaining()`.
    - `useChat` handles the approval parts.
 
    **Fallback** if any of this fails: an own two-step flow. The write tool records a `proposed` row in `assistant_actions` and returns "awaiting confirmation". A plain authenticated `POST .../actions/{id}/approve` re-checks the Policy and executes. `assistant_actions` is the source of truth either way.
@@ -243,5 +257,6 @@ With a cloud provider, names and data from tool results (participants, teams) ar
   2. Open enrollment with missing fields → readable setup-check message.
   3. Start a preset server against the test environment.
   4. Console command → verbatim card → reject → nothing happens, log says `rejected`.
-  5. One read run with `ASSISTANT_PROVIDER=ollama`.
+  5. A read run and one approved write run with `ASSISTANT_PROVIDER=ollama`.
+  6. Set a server password through the card. Check that the password is absent from `agent_conversation_messages` and from the logged provider request.
 - `scripts/ops/check-public-safe.sh` and gitleaks before the PR.
