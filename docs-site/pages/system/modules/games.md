@@ -18,6 +18,30 @@ and team-size range stay stable across LANs, so stats and history accumulate.
 - Filament **Games** — name, slug, icon, team sizes, egg, presets, install hint, spectate hint.
 - Tournament create/edit — game picker; the tournament inherits team-size defaults.
 
+Participants meet the catalogue through the games library at `/games`: one card per published
+recipe, with a LAN badge when the content is already on the file host.
+
+| Dark | Light |
+|---|---|
+| ![Games library in dark theme with published recipe cards, LAN badges and install buttons](/screens/games-dark.png) | ![Games library in light theme with published recipe cards, LAN badges and install buttons](/screens/games-light.png) |
+| `GAMES · DARK` — published catalogue, LAN badges, install per title | `GAMES · LIGHT` |
+
+**Nur LAN-Spiele** narrows the grid to games that are actually playable tonight — content on the
+LAN or a server running.
+
+| Dark | Light |
+|---|---|
+| ![Games library in dark theme with the Nur LAN-Spiele filter active and two playable titles](/screens/games-filter-dark.png) | ![Games library in light theme with the Nur LAN-Spiele filter active and two playable titles](/screens/games-filter-light.png) |
+| `GAMES · FILTER · DARK` — Nur LAN-Spiele on, two playable titles | `GAMES · FILTER · LIGHT` |
+
+A single game page is where the catalogue entry, the recipe, the live server and the tournaments
+meet.
+
+| Dark | Light |
+|---|---|
+| ![UT2004 game page in dark theme with install, start, agent commands, a live server and install steps](/screens/game-ut2004-dark.png) | ![UT2004 game page in light theme with install, start, agent commands, a live server and install steps](/screens/game-ut2004-light.png) |
+| `GAME · DARK` — install, start, join string, install steps | `GAME · LIGHT` |
+
 ## Guards and rules
 
 - `min_team_size`/`max_team_size` define solo vs team tournaments; a tournament's `team_size` must
