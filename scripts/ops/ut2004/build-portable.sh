@@ -13,11 +13,12 @@
 #
 # The source may be the flat tree itself or a ZIP of it. One wrapper folder
 # (`UT2004/`) is stripped, so the archives always start at Maps/, Textures/,
-# System/ and so on. The source `System/` is deleted before the patch is applied:
-# a retail 3369 System mixes 32-bit binaries and old packages with the 3374
-# tree, and OldUnreal's manual install explicitly says not to copy it. The patch
-# carries the complete replacement System; merging the two is what makes the
-# game (especially on Linux) refuse to start or fall back to old menus.
+# System/ and so on. The source `System/` (and any SystemLocalized/SystemARM64/
+# SystemPPC64LE left by an earlier patch) is deleted before the OS patch is
+# applied: a retail 3369 System mixes 32-bit binaries and old packages with the
+# 3374 tree, and OldUnreal's manual install explicitly says not to copy it. The
+# patch carries the complete replacement System; merging the two is what makes
+# the game (especially on Linux) refuse to start or fall back to old menus.
 #
 # Why these patches must never be mixed:
 #   Windows: OldUnreal-UT2004Patch3374-Windows-*.zip -> System/UT2004.exe (PE64),
@@ -424,17 +425,23 @@ ensure_seven_zip() {
         [ -x "$dl/7zz" ] || die "$EXIT_DEP" "the 7zz tarball has no 7zz binary"
         # Install atomically: a concurrent build may share the cache and must
         # never see a half-written binary.
-        cp "$dl/7zz" "$cache.tmp.$$" && chmod 0755 "$cache.tmp.$$" &&
+        if cp "$dl/7zz" "$cache.tmp.$$" && chmod 0755 "$cache.tmp.$$"; then
             mv -f "$cache.tmp.$$" "$cache" ||
+                die "$EXIT_DEP" "could not install 7zz at $cache"
+        else
+            rm -f -- "$cache.tmp.$$"
             die "$EXIT_DEP" "could not install 7zz at $cache"
+        fi
         rm -rf -- "$dl"
         source=$cache
     fi
 
     # Work on a private copy. Another process (or a sibling build) may prune
     # the shared cache while this build is running; the work copy stays put.
-    cp "$source" "$WORK/7zz" && chmod 0755 "$WORK/7zz" ||
+    cp "$source" "$WORK/7zz" ||
         die "$EXIT_DEP" "could not copy 7zz into $WORK"
+    chmod 0755 "$WORK/7zz" ||
+        die "$EXIT_DEP" "could not make the private 7zz executable"
     SEVEN_ZIP="$WORK/7zz"
     log "7zz: $SEVEN_ZIP (from $source)"
 }
@@ -702,9 +709,12 @@ build_os() {
         die "$EXIT_BUILD" "could not copy the source tree"
 
     [ -d "$tree/Maps" ] || die "$EXIT_BUILD" "copied tree has no Maps/"
-    [ ! -e "$tree/System" ] || rm -rf -- "$tree/System"
-    [ ! -e "$tree/System" ] ||
-        die "$EXIT_BUILD" "could not remove the source System/ before patching"
+    local stale
+    for stale in System SystemLocalized SystemARM64 SystemPPC64LE; do
+        rm -rf -- "${tree:?}/${stale:?}"
+        [ ! -e "$tree/$stale" ] ||
+            die "$EXIT_BUILD" "could not remove the source $stale/ before patching"
+    done
     if [ "$os" = "macos" ] && [ -e "$tree/UT2004.app" ]; then
         rm -rf -- "$tree/UT2004.app"
     fi
@@ -735,7 +745,9 @@ build_all() {
             pids+=("$!")
         done
         for pid in "${pids[@]}"; do
-            if ! wait "$pid"; then
+            if wait "$pid"; then
+                :
+            else
                 rc=$?
             fi
         done

@@ -392,33 +392,17 @@ PY
 # Plan helpers. The token travels through the environment, never argv.
 # ---------------------------------------------------------------------------
 fetch_plan() {
-    local out="$1"
-    LANOMAT_TOKEN="$TOKEN" LANOMAT_BASE="$SERVER_URL" LANOMAT_SLUG="$SLUG" \
-        python3 - "$out" <<'PY'
-import json, os, sys, urllib.error, urllib.request
-base = os.environ["LANOMAT_BASE"].rstrip("/")
-request = urllib.request.Request(
-    f'{base}/api/v1/recipes/{os.environ["LANOMAT_SLUG"]}/plan',
-    data=b'{"os":"linux"}',
-    headers={
-        "Authorization": "Bearer " + os.environ["LANOMAT_TOKEN"],
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    },
-)
-try:
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.load(response)
-except urllib.error.HTTPError as error:
-    body = error.read().decode("utf-8", "replace")[:400]
-    print(f"plan request failed: HTTP {error.code}: {body}", file=sys.stderr)
-    sys.exit(1)
-except Exception as error:
-    print(f"plan request failed: {error}", file=sys.stderr)
-    sys.exit(1)
-with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump(payload, handle)
-PY
+    local out="$1" rc=0
+    # The token goes through a mode-600 header file, never argv; curl's
+    # Happy Eyeballs avoids the IPv6-only "network unreachable" hiccup.
+    printf 'Authorization: Bearer %s\n' "$TOKEN" >"$TMP/auth-header"
+    chmod 600 "$TMP/auth-header"
+    curl -fsS --max-time 30 -H @"$TMP/auth-header" \
+        -H 'Accept: application/json' -H 'Content-Type: application/json' \
+        -X POST -d '{"os":"linux"}' \
+        "$SERVER_URL/api/v1/recipes/$SLUG/plan" -o "$out" || rc=$?
+    rm -f "$TMP/auth-header"
+    return "$rc"
 }
 
 plan_base_url() {
@@ -586,6 +570,7 @@ admin_recipe() {
     LANOMAT_PLAYWRIGHT_ENTRY="$PW_ENTRY" \
     LANOMAT_ADMIN_COOKIES="$ADMIN_COOKIES" \
     LANOMAT_ADMIN_COOKIES_FILE="$ADMIN_COOKIES_FILE" \
+    TMPDIR="$PW_TMP" \
         node "$TMP/recipe-url.mjs" "$action" "$value"
 }
 
@@ -691,6 +676,10 @@ cleanup() {
         RECIPE_SWITCHED=0
     fi
     if [ -n "$TMP" ] && [ -d "$TMP" ]; then
+        # Browser profiles and the auth header are short-lived secrets; they
+        # never survive, not even with --keep.
+        rm -rf "$TMP/pw" "$TMP/serve"
+        rm -f "$TMP/auth-header"
         if [ "$KEEP" = "1" ] || [ "$NO_RESTORE" = "1" ] || [ "$CLEANUP_FAILED" = "1" ]; then
             note "kept temp dir: $TMP"
             note "recipe backup: $BACKUP_FILE"
@@ -702,7 +691,23 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-TMP="$(mktemp -d "${TMPDIR:-/tmp}/lanomat-ut2004-smoke.XXXXXX")"
+make_tmp() {
+    local parent="${TMPDIR:-/tmp}" free_kb=0
+    if [ -d "$parent" ] && [ -w "$parent" ]; then
+        free_kb="$(df -Pk "$parent" 2>/dev/null | awk 'NR==2 {print $4}')"
+        if [ "${free_kb:-0}" -gt 20480 ]; then
+            mktemp -d "$parent/lanomat-ut2004-smoke.XXXXXX"
+            return
+        fi
+    fi
+    mkdir -p "$HOME/.cache/lanomat-ut2004-smoke"
+    printf '    temp on %s has no room; using %s\n' "$parent" "$HOME/.cache/lanomat-ut2004-smoke" >&2
+    mktemp -d "$HOME/.cache/lanomat-ut2004-smoke/run.XXXXXX"
+}
+
+TMP="$(make_tmp)"
+PW_TMP="$TMP/pw"
+mkdir -p "$PW_TMP"
 INSTALL_LOG="$TMP/install.log"
 HTTP_LOG="$TMP/http.log"
 PLAN_JSON="$TMP/plan.json"
@@ -855,7 +860,8 @@ note "target state: $(target_state "$TARGET")"
 FREE_KB="$(df -Pk "$(dirname "$TARGET")" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [ -n "$FREE_KB" ]; then
     NEED_KB=$(( (BASE_SIZE * 2) / 1024 + 524288 ))
-    note "disk: $((FREE_KB / 1024 / 1024)) GiB free, ~$((NEED_KB / 1024 / 1024)) GiB needed"
+    human() { numfmt --to=iec-i --suffix=B "$1" 2>/dev/null || printf '%sB' "$1"; }
+    note "disk: $(human "$((FREE_KB * 1024))") free, ~$(human "$((NEED_KB * 1024))") needed"
     if [ "$FREE_KB" -lt "$NEED_KB" ]; then
         [ "$DRY_RUN" = "1" ] && { step "NOT READY"; note "not enough free disk space"; exit 2; }
         die2 "not enough free disk space"
@@ -896,7 +902,7 @@ import sys
 from urllib.parse import quote
 print(quote(sys.argv[1], safe=""))
 PY
-)"; then
+)" 2>/dev/null; then
                 break
             fi
             kill -0 "$HTTP_PID" 2>/dev/null || die "local HTTP server exited (log: $HTTP_LOG)"

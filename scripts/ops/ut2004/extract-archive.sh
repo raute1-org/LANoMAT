@@ -44,6 +44,7 @@ SEVEN_ZIP="${LANOMAT_UT2004_7ZZ:-$TOOLS_DIR/7zz}"
 SEVEN_ZIP_2501_URL="https://www.7-zip.org/a/7z2501-linux-x64.tar.xz"
 SEVEN_ZIP_2501_SHA="4ca3b7c6f2f67866b92622818b58233dc70367be2f36b498eb0bdeaaa44b53f4"
 SEVEN_ZIP_2501_VER="25.01"
+# 7-zip.org no longer keeps the 24.09 asset; the official GitHub mirror does.
 SEVEN_ZIP_2409_URL="https://github.com/ip7z/7zip/releases/download/24.09/7z2409-linux-x64.tar.xz"
 SEVEN_ZIP_2409_SHA="914c7e20ad5ef8e4d3cf08620ff8894b28fe11b7eb99809d6930870fbe48a281"
 SEVEN_ZIP_2409_VER="24.09"
@@ -176,8 +177,10 @@ seven_zip_version() {
 }
 
 seven_zip_works() {
-  local binary=$1
-  [ -x "$binary" ] && seven_zip_version "$binary" | grep -q '^7-Zip'
+  local binary=$1 version
+  [ -x "$binary" ] || return 1
+  version="$(seven_zip_version "$binary")"
+  [[ $version == 7-Zip* ]]
 }
 
 extract_tar_xz() {
@@ -241,6 +244,7 @@ ensure_7zz() {
       continue
     fi
 
+    command -v sha256sum >/dev/null 2>&1 || die 3 "need sha256sum to verify 7-Zip"
     local got
     got="$(sha256sum -- "$tar" | awk '{print $1}')"
     if [ "$got" != "$sha" ]; then
@@ -261,7 +265,7 @@ ensure_7zz() {
     fi
 
     install -m 0755 -- "$name/7zz" "$SEVEN_ZIP" || die 3 "cannot install $SEVEN_ZIP"
-    if ! seven_zip_version "$SEVEN_ZIP" | grep -Fq "$label"; then
+    if [[ "$(seven_zip_version "$SEVEN_ZIP")" != *"$label"* ]]; then
       warn "installed 7zz did not report version $label"
       rm -f -- "$SEVEN_ZIP"
       rm -f -- "$tar"
@@ -289,15 +293,17 @@ magic_hex() {
 }
 
 is_iso() {
-  local file=$1
-  [ "$(dd if="$file" bs=1 skip=32769 count=5 status=none 2>/dev/null || true)" = "CD001" ]
+  local file=$1 magic
+  magic="$(dd if="$file" bs=1 skip=32769 count=5 status=none 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+  [ "$magic" = "4344303031" ]   # "CD001"
 }
 
 is_dmg() {
-  local file=$1 size
+  local file=$1 size magic
   size="$(file_size "$file")"
   [ "$size" -ge 512 ] || return 1
-  [ "$(dd if="$file" bs=1 skip=$((size - 512)) count=4 status=none 2>/dev/null || true)" = "koly" ]
+  magic="$(dd if="$file" bs=1 skip=$((size - 512)) count=4 status=none 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+  [ "$magic" = "6b6f6c79" ]     # "koly"
 }
 
 # Echo one of: zip tarbz2 targz tarxz sevenzip rar sfx pe dmg iso unknown
@@ -315,8 +321,12 @@ detect_format() {
     4d5a*)
       # PE. WinRAR SFX prefixes a real RAR stream with a Windows stub; the
       # signature sits within the first few MiB. 7zz opens both RAR4/RAR5 SFX
-      # directly, with or without the stub.
-      if head -c 8388608 -- "$file" | LC_ALL=C grep -aq 'Rar!'; then
+      # directly, with or without the stub. Read a bounded prefix to a file:
+      # a pipe into `grep -q` would SIGPIPE `head` and trip `pipefail`.
+      local probe
+      probe="$(new_tmp_file)"
+      head -c 8388608 -- "$file" >"$probe"
+      if LC_ALL=C grep -aq 'Rar!' "$probe"; then
         printf 'sfx\n'
       else
         printf 'pe\n'
@@ -478,7 +488,8 @@ extract_with_7zz() {
     includes+=("-i!$pattern")
   done
   ensure_7zz
-  "$SEVEN_ZIP" x -y -o"$dest" "${includes[@]}" -- "$archive"
+  # -p (empty password) makes encrypted archives fail instead of prompting.
+  "$SEVEN_ZIP" x -y -p -o"$dest" "${includes[@]}" -- "$archive"
 }
 
 bsdtar_include_args() {
@@ -501,7 +512,9 @@ extract_with_bsdtar() {
   while IFS= read -r -d '' pattern; do
     patterns+=("$pattern")
   done < <(bsdtar_include_args "$@")
-  bsdtar -x -f "$archive" -C "$dest" -- "${patterns[@]}"
+  # A dummy non-empty passphrase stops libarchive prompting; unencrypted
+  # archives ignore it, encrypted ones fail immediately (no password option).
+  bsdtar --passphrase lanomat -x -f "$archive" -C "$dest" -- "${patterns[@]}"
 }
 
 extract_with_unzip() {
@@ -512,7 +525,8 @@ extract_with_unzip() {
   while IFS= read -r -d '' pattern; do
     patterns+=("$pattern")
   done < <(bsdtar_include_args "$@")
-  unzip -q -o "$archive" -d "$dest" "${patterns[@]}"
+  # Same idea for Info-ZIP: -P with a dummy password avoids a prompt.
+  unzip -q -o -P lanomat "$archive" -d "$dest" "${patterns[@]}"
 }
 
 extract_with_tar() {
@@ -545,7 +559,7 @@ strip_wrapper() {
     name="$(basename -- "$entry")"
     case "$name" in
       .DS_Store|.background|.VolumeIcon.icns|.fseventsd|.Trashes|\
-      '[HFS+ Private Data]'|'.HFS+ Private Directory Data')
+      "[HFS+ Private Data]"*|".HFS+ Private Directory Data"*)
         rm -rf -- "$entry"
         ;;
       *) real+=("$entry") ;;
@@ -556,17 +570,26 @@ strip_wrapper() {
     warn "--strip-wrapper: destination is empty"
     return 0
   fi
-  if [ "${#real[@]}" -ne 1 ]; then
-    warn "--strip-wrapper: expected one top-level entry, found ${#real[@]}; leaving it alone"
+
+  # Strip the one wrapper directory even when the archive also drops loose
+  # files next to it (nosTEAM's SFX has "Unreal Tournament 2004/" plus two
+  # .bat/.html files). Multiple directories are ambiguous: leave them alone.
+  local -a dirs=()
+  for entry in "${real[@]}"; do
+    if [ -d "$entry" ] && [ ! -L "$entry" ]; then
+      dirs+=("$entry")
+    fi
+  done
+  if [ "${#dirs[@]}" -eq 0 ]; then
+    warn "--strip-wrapper: no wrapper directory found; leaving it alone"
+    return 0
+  fi
+  if [ "${#dirs[@]}" -gt 1 ]; then
+    warn "--strip-wrapper: found ${#dirs[@]} top-level directories; leaving them alone"
     return 0
   fi
 
-  local wrapper="${real[0]}"
-  if [ -L "$wrapper" ] || [ ! -d "$wrapper" ]; then
-    warn "--strip-wrapper: the only top-level entry is not a directory; leaving it alone"
-    return 0
-  fi
-
+  local wrapper="${dirs[0]}"
   name="$(basename -- "$wrapper")"
   case "${name,,}" in
     maps|textures|system|sounds|animations|staticmeshes|karmadata|help|music|prefabs|speech|web|ut2004.app)
@@ -588,12 +611,32 @@ strip_wrapper() {
   rmdir -- "$wrapper"
   log "--strip-wrapper: moved payload out of $name/"
 
-  # macOS volume junk that is useless after extraction.
-  rm -rf -- "$dest/[HFS+ Private Data]" "$dest/.HFS+ Private Directory Data"
-  rm -f -- "$dest/.DS_Store" "$dest/.VolumeIcon.icns"
-  rm -rf -- "$dest/.background"
-  if [ -L "$dest/Applications" ] && [ "$(readlink -- "$dest/Applications")" = "/Applications" ]; then
-    rm -f -- "$dest/Applications"
+  remove_apple_junk "$dest"
+}
+
+# 7zz's HFS reader can leave Apple bookkeeping entries, sometimes with a
+# trailing CR in the name, plus a self-referential "Applications" symlink.
+remove_apple_junk() {
+  local dest=$1 item name target
+  shopt -s nullglob
+  local -a items=("$dest"/* "$dest"/.*)
+  shopt -u nullglob
+
+  for item in "${items[@]}"; do
+    name="$(basename -- "$item")"
+    case "$name" in
+      ".HFS+ Private Directory Data"*|"[HFS+ Private Data]"*|\
+      .DS_Store|.VolumeIcon.icns|.background|.fseventsd|.Trashes)
+        rm -rf -- "$item"
+        ;;
+    esac
+  done
+
+  if [ -L "$dest/Applications" ]; then
+    target="$(readlink -- "$dest/Applications" || true)"
+    if [ "$target" = "/Applications" ] || [ "$target" = "$dest/Applications" ] || [ ! -e "$dest/Applications" ]; then
+      rm -f -- "$dest/Applications"
+    fi
   fi
 }
 
@@ -624,6 +667,7 @@ sanity_check() {
   report_check "$dest" "textures (*.utx)" -name '*.utx' -type f
   report_check "$dest" "System/Build.ini" -name 'Build.ini' -type f
   report_check "$dest" "UT2004.app binary" -path '*/UT2004.app/Contents/MacOS/UT2004' -type f
+  report_check "$dest" "Unix binary (System/UT2004)" -path '*/System/UT2004' -type f
   report_check "$dest" "Linux binary" -name 'ut2004-bin*' -type f
   report_check "$dest" "Windows binary" -name 'UT2004.exe' -type f
 
@@ -638,10 +682,10 @@ sanity_check() {
 
   local installers iso first_iso top
   installers="$(find "$dest" -maxdepth 3 -type f \
-    \( -iname 'setup.exe' -o -iname 'install.exe' -o -iname '*.msi' \) \
+    \( -iname '*.exe' -o -iname '*.msi' \) \
     -print -quit 2>/dev/null || true)"
   iso="$(find "$dest" -type f -iname '*.iso' -print -quit 2>/dev/null || true)"
-  top="$(find "$dest" -mindepth 1 -maxdepth 1 -printf '  %f\n' 2>/dev/null | head -n 10)"
+  top="$(find "$dest" -mindepth 1 -maxdepth 1 -printf '  %f\n' 2>/dev/null | sed -n '1,10p')"
 
   if [ "$partial" -eq 1 ]; then
     warn "no UT2004 markers in the partial extraction (expected with --only)"
@@ -652,7 +696,7 @@ sanity_check() {
   printf '%s\n' "${top:-  (none)}" >&2
 
   if [ -n "$installers" ] && [ -n "$iso" ]; then
-    first_iso="$(find "$dest" -type f -iname '*.iso' -printf '%p\n' 2>/dev/null | head -n 1)"
+    first_iso="$(find "$dest" -type f -iname '*.iso' -printf '%p\n' 2>/dev/null | sed -n '1p')"
     printf '%s\n' \
       "error: this archive is an installer wrapper, not a game tree." \
       "       It contains a Windows installer and a nested ISO image:" \
@@ -664,6 +708,26 @@ sanity_check() {
   fi
 
   if [ -n "$installers" ]; then
+    # A ZIP repack often contains a WinRAR SFX as its only payload
+    # (ut2k4+keygen.zip). Point at the two-step extraction rather than
+    # calling that SFX an unopenable installer.
+    local exe sfx=""
+    while IFS= read -r -d '' exe; do
+      if [ "$(detect_format "$exe")" = "sfx" ]; then
+        sfx="$exe"
+        break
+      fi
+    done < <(find "$dest" -maxdepth 3 -type f -iname '*.exe' -print0 2>/dev/null)
+
+    if [ -n "$sfx" ]; then
+      printf '%s\n' \
+        "error: the archive is a wrapper, not a game tree." \
+        "       It contains a WinRAR SFX: ${sfx#"$dest"/}" \
+        "       Extract that file instead:" \
+        "         $PROG extract \"$sfx\" \"$dest/game\" --strip-wrapper" >&2
+      exit 5
+    fi
+
     printf '%s\n' \
       "error: only a Windows installer was extracted (${installers#"$dest"/})." \
       "       This is a setup.exe/Inno/NSIS wrapper, not a UT2004 tree." \

@@ -203,7 +203,6 @@ done
 
 OUTPUT=$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$OUTPUT")
 [ -d "$OUTPUT" ] && die 2 "--output is a directory: $OUTPUT"
-OUT_BASE=$(basename "$OUTPUT")
 OUT_DIR=$(dirname "$OUTPUT")
 [ -d "$OUT_DIR" ] || die 2 "output directory does not exist: $OUT_DIR"
 [ -w "$OUT_DIR" ] || die 2 "output directory is not writable: $OUT_DIR"
@@ -230,17 +229,13 @@ if ! curl -fsSL --http1.1 --retry 3 --retry-delay 2 --connect-timeout 15 --max-t
     die 6 "metadata request failed: $METADATA_URL"
 fi
 
-META_SIZE=""; META_SHA=""; META_MD5=""; META_NAME=""; META_DIR=""; META_SERVER=""; META_D1=""; META_D2=""
+META_SIZE=""; META_SHA=""; META_MD5=""; META_NAME=""
 while IFS=$'\t' read -r key value; do
     case "$key" in
         size)   META_SIZE=$value ;;
         sha256) META_SHA=$value ;;
         md5)    META_MD5=$value ;;
         name)   META_NAME=$value ;;
-        dir)    META_DIR=$value ;;
-        server) META_SERVER=$value ;;
-        d1)     META_D1=$value ;;
-        d2)     META_D2=$value ;;
         error)  META_ERROR=$value ;;
     esac
 done < <(python3 - "$META_FILE" "$FILE_NAME" <<'PY'
@@ -277,6 +272,7 @@ if [ -n "$EXPECTED_SIZE" ] && [ "$EXPECTED_SIZE" != "$TOTAL" ]; then
 fi
 if [ -n "$EXPECTED_SIZE" ]; then TOTAL=$EXPECTED_SIZE; fi
 [ -n "$TOTAL" ] || TOTAL=$META_SIZE
+[[ "$TOTAL" =~ ^[0-9]+$ ]] && [ "$TOTAL" -gt 0 ] || die 6 "no usable positive file size (got '$TOTAL')"
 if [ -z "$EXPECTED_SHA" ] && [[ "$META_SHA" =~ ^[0-9A-Fa-f]{64}$ ]]; then
     EXPECTED_SHA=${META_SHA,,}
 fi
@@ -537,16 +533,18 @@ PY
 }
 
 write_manifest() {
-    python3 - "$MANIFEST_FILE" "$ITEM" "$META_NAME" "$TOTAL" "$1" "$EXPECTED_SHA" <<'PY'
+    # $1 = prefix, $2 = TSV file with the RANGE lines (stdin is the Python heredoc)
+    python3 - "$MANIFEST_FILE" "$ITEM" "$META_NAME" "$TOTAL" "$1" "$EXPECTED_SHA" "$2" <<'PY'
 import json, os, sys, time
-dest, item, name, total, prefix, sha = sys.argv[1:7]
+dest, item, name, total, prefix, sha, tsv = sys.argv[1:8]
 ranges = []
-for line in sys.stdin:
-    parts = line.rstrip("\n").split("\t")
-    if len(parts) != 5 or parts[0] != "RANGE":
-        continue
-    ranges.append({"path": parts[1], "start": int(parts[2]), "end": int(parts[3]),
-                   "length": int(parts[4])})
+with open(tsv, encoding="utf-8") as fh:
+    for line in fh:
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) != 5 or parts[0] != "RANGE":
+            continue
+        ranges.append({"path": parts[1], "start": int(parts[2]), "end": int(parts[3]),
+                       "length": int(parts[4])})
 out = {"version": 1, "item": item, "file": name, "total": int(total),
        "prefix": int(prefix), "sha256": sha, "created": int(time.time()),
        "ranges": ranges}
@@ -562,6 +560,8 @@ RANGES=""
 LAYOUT=""
 if [ "$PREFIX" -eq "$TOTAL" ]; then
     LAYOUT="complete output"
+elif [ "$FRESH_PARTS" -eq 1 ]; then
+    LAYOUT="fresh plan"
 elif [ -f "$MANIFEST_FILE" ]; then
     RANGES=$(load_manifest)
     LAYOUT="manifest"
@@ -580,17 +580,21 @@ if printf '%s\n' "$RANGES" | grep -q '^ERR'; then
     die 2 "$(printf '%s\n' "$RANGES" | sed -n 's/^ERR\t//p' | head -1)"
 fi
 
-if [ -z "$RANGES" ]; then
+if [ -z "$RANGES" ] && [ "$PREFIX" -ne "$TOTAL" ]; then
     if [ -d "$PARTS_DIR" ]; then
         UNKNOWN=$(find "$PARTS_DIR" -maxdepth 1 -type f ! -name 'manifest.json' ! -name '.stop' \
                     ! -name '.lock' ! -name '.*.tmp' -print -quit)
         if [ -n "$UNKNOWN" ]; then
             if [ "$FRESH_PARTS" -eq 1 ]; then
                 LEGACY="$PARTS_DIR/legacy-$(date +%Y%m%d-%H%M%S)"
-                mkdir -p "$LEGACY" || die 2 "cannot create $LEGACY"
-                find "$PARTS_DIR" -maxdepth 1 -type f ! -name 'manifest.json' ! -name '.stop' \
-                    ! -name '.lock' -exec mv -t "$LEGACY" -- {} + || die 2 "cannot move old parts to $LEGACY"
-                warn "moved unrecognised part files to $LEGACY"
+                if [ "$DRY_RUN" -eq 1 ]; then
+                    warn "dry run: would move unrecognised part files to $LEGACY"
+                else
+                    mkdir -p "$LEGACY" || die 2 "cannot create $LEGACY"
+                    find "$PARTS_DIR" -maxdepth 1 -type f ! -name 'manifest.json' ! -name '.stop' \
+                        ! -name '.lock' -exec mv -t "$LEGACY" -- {} + || die 2 "cannot move old parts to $LEGACY"
+                    warn "moved unrecognised part files to $LEGACY"
+                fi
             else
                 die 2 "unrecognised files in $PARTS_DIR (sizes alone cannot identify their ranges); use --adopt, --adopt-running or --fresh-parts"
             fi
@@ -698,12 +702,13 @@ if [ ${#WRITER_PIDS[@]} -gt 0 ]; then
     fi
 fi
 
-if [ "$DRY_RUN" -eq 0 ]; then
+if [ "$DRY_RUN" -eq 0 ] && [ "$PREFIX" -ne "$TOTAL" ]; then
     mkdir -p "$PARTS_DIR" || die 2 "cannot create $PARTS_DIR"
     exec 9>"$PARTS_DIR/.lock" || die 2 "cannot open lock file"
     flock -n 9 || die 7 "another $PROG is already using $PARTS_DIR"
     if [ -n "$RANGES" ]; then
-        printf '%s\n' "$RANGES" | write_manifest "$PREFIX" || die 2 "cannot write $MANIFEST_FILE"
+        printf '%s\n' "$RANGES" > "$TMP/ranges.tsv" || die 2 "cannot write $TMP/ranges.tsv"
+        write_manifest "$PREFIX" "$TMP/ranges.tsv" || die 2 "cannot write $MANIFEST_FILE"
     fi
 fi
 
@@ -773,6 +778,7 @@ if [ "$PREFIX" -eq "$TOTAL" ] && [ ${#P_NAME[@]} -eq 0 ]; then
         [ "$got" = "$EXPECTED_SHA" ] || die 5 "sha256 mismatch: got $got, expected $EXPECTED_SHA"
     fi
     say "already complete: $OUTPUT"
+    rmdir "$PARTS_DIR" 2>/dev/null || true
     exit 0
 fi
 
@@ -780,8 +786,6 @@ fi
 # downloader
 # ---------------------------------------------------------------------------
 PART_PID=()
-STOP=0
-CURL_PIDS=()
 
 part_log() {
     printf '%s %s\n' "$(date +%H:%M:%S)" "$*" >&2
@@ -869,9 +873,6 @@ download_part() {
         fi
         rm -f "$tail_file" "$hdr_file"
         if [ -e "$STOP_FILE" ] || [ "$part_stop" -eq 1 ]; then break; fi
-        if [ "$cur" -lt "$len" ] && [ "$rc" -eq 0 ] && [ "$got" -eq 0 ]; then
-            : # rotate mirror on the next attempt
-        fi
         if [ "$cur" -lt "$len" ]; then
             sleep_for=$(( attempt < 5 ? attempt * 2 : 10 ))
             sleep "$sleep_for" & wait $! 2>/dev/null || true
@@ -903,24 +904,24 @@ stop_children() {
 }
 
 on_signal() {
+    local code=${1:-130}
     trap - INT TERM
-    STOP=1
     printf '\n' >&2
     warn "interrupted; stopping curl and keeping parts"
     stop_children
     wait 2>/dev/null || true
     rm -f "$STOP_FILE"
     printf '%s: stopped; parts are in %s\n' "$PROG" "$PARTS_DIR" >&2
-    exit 130
+    exit "$code"
 }
-trap on_signal INT TERM
+trap 'on_signal 130' INT
+trap 'on_signal 143' TERM
 
 if [ ${#P_NAME[@]} -eq 0 ]; then
     # nothing to download, but prefix may already be the whole file
     if [ "$PREFIX" -ne "$TOTAL" ]; then die 4 "no ranges and prefix $PREFIX != total $TOTAL"; fi
 else
     info "$PROG: downloading $((TOTAL - DONE_BYTES)) bytes in ${#P_NAME[@]} range(s), parallel $PARALLEL"
-    : > "$STOP_FILE"
     rm -f "$STOP_FILE"
     for ((i=0; i<${#P_NAME[@]}; i++)); do
         if [ "${P_SIZE[$i]}" -eq "${P_LEN[$i]}" ]; then
