@@ -52,8 +52,8 @@ polls:
 
 | Dark | Light |
 |---|---|
-| ![Pairing approval, dark](/screens/mcp-connect-pending-dark.png) | ![Pairing approval, light](/screens/mcp-connect-pending-light.png) |
-| `Agent & MCP verbinden · DARK` — agent name, code, approve/deny, connected agents | `Agent & MCP verbinden · LIGHT` |
+| ![Pairing approval with the agent name and code, dark](/screens/mcp-connect-pending-dark.png) | ![Pairing approval with the agent name and code, light](/screens/mcp-connect-pending-light.png) |
+| `MCP CONNECT · CODE · DEVICE · APPROVE` | `MCP CONNECT · LIGHT` |
 
 ```bash
 # 2. Exchange the approved code for a token
@@ -74,6 +74,11 @@ curl -s https://lan.example/api/mcp/token \
 While the human has not approved yet, the exchange answers `400` with
 `{"error":"authorization_pending"}`. An expired code answers `expired_token`. The token belongs to
 the approving user and carries their role; revoking the device in the browser invalidates it.
+
+| Dark | Light |
+|---|---|
+| ![Code entry and the list of paired agents, dark](/screens/mcp-connect-dark.png) | ![Code entry and the list of paired agents, light](/screens/mcp-connect-light.png) |
+| `AGENT & MCP · CODE EINGEBEN · VERBUNDENE AGENTEN` | `AGENT & MCP · LIGHT` |
 
 <div class="callout-live">
   <strong>No password in a file.</strong> The token is the credential. Store it in an environment
@@ -148,6 +153,11 @@ themselves. The server answers with `application/json` or an SSE stream, as requ
 }
 ```
 
+| Dark | Light |
+|---|---|
+| ![Agent terminal printing a recipe install plan, dark](/screens/agent-install-terminal-dark.png) | ![Agent terminal printing a recipe install plan, light](/screens/agent-install-terminal-light.png) |
+| `AGENT · RECIPE INSTALL PLAN · FILES · STEPS · AVATARS` | `AGENT · LIGHT` |
+
 ## What is exposed
 
 | Surface | Count | Examples |
@@ -164,6 +174,11 @@ The full catalogue, argument schemas and examples are on [Tools & resources](/do
 - Writes are limited to your own registration, match result, vote, LFG post and a draft recipe. No seat, event or tournament edits, no publish.
 - No other user's private data: every call is scoped to the token's user and their role.
 - No publish action: a contributed recipe is a **draft** for orga review.
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight check, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight check, light](/screens/admin-light.png) |
+| `ADMIN · PREFLIGHT · RECIPE DRAFTS` | `ADMIN · LIGHT` |
 
 ## Errors you will see
 
