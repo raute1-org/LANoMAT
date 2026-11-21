@@ -78,9 +78,13 @@ docker run --rm -it -v "$HOME/.config/lanomat:/root/.config/lanomat" lanomat-age
 Mount the config directory if the pairing should survive the container. The image is also the way to
 run the agent on a machine without Node.
 
-![Agent install in a terminal](/docs/screens/agent-install-terminal.png)
+| Dark | Light |
+|---|---|
+| ![Terminal showing an agent dry-run plan with files, steps and target folders, dark](/docs/screens/agent-install-terminal-dark.png) | ![Terminal showing an agent dry-run plan with files, steps and target folders, light](/docs/screens/agent-install-terminal-light.png) |
+| `AGENT · PLAN · FILES · STEPS · DRY RUN` | `AGENT · LIGHT` |
 
-*`AGENT INSTALL · CLONE · BUILD · LINK`*
+The dry run lists the files, the numbered steps and the target folder without downloading anything;
+`--os windows` asks for the Windows plan instead of the Linux one.
 
 ## 2. Pair the device (`login`)
 
@@ -123,6 +127,14 @@ On `/mcp/connect` (German UI):
 The token is valid for **90 days** and slides on use, so a LAN weekend is fine. It is never printed,
 except in the `export LANOMAT_TOKEN=…` line that `mcp install` prints. Revoke a device with
 **„Trennen“** under **„Verbundene Agenten“**; the next command from that device answers `401`.
+
+| Dark | Light |
+|---|---|
+| ![Agent and MCP connect page with the code field and two connected devices, dark](/docs/screens/mcp-connect-dark.png) | ![Agent and MCP connect page with the code field and two connected devices, light](/docs/screens/mcp-connect-light.png) |
+| `MCP CONNECT · CODE · VERBUNDENE AGENTEN · TRENNEN` | `MCP CONNECT · LIGHT` |
+
+Every row under „Verbundene Agenten“ names the device, its pairing date and its last use, and carries
+the „Trennen“ button that revokes exactly that device.
 
 ### Where the files live
 
@@ -235,9 +247,13 @@ required checks are **Config** and **Server**; everything else is advisory.
 Exit code is `0` when every required check passes and `1` otherwise — usable in a helper script.
 `--json` is the same report for machines.
 
-![Doctor output in a terminal](/docs/screens/agent-doctor-terminal.png)
+| Dark | Light |
+|---|---|
+| ![Doctor report with config, server, MCP, skills, Venice key and model checks, dark](/docs/screens/agent-doctor-terminal-dark.png) | ![Doctor report with config, server, MCP, skills, Venice key and model checks, light](/docs/screens/agent-doctor-terminal-light.png) |
+| `DOCTOR · CONFIG · SERVER · MCP · SKILLS · MODEL` | `DOCTOR · LIGHT` |
 
-*`DOCTOR · CONFIG · SERVER · MCP · SKILLS · MODEL`*
+`!` lines are advisory hints with the command that fixes them; only the checks marked `✖` turn
+`Doctor: OK` into `Doctor: attention needed`.
 
 ## 5. First commands
 
@@ -262,6 +278,14 @@ lanomat-agent register              # Linux writes the handler; Windows prints t
 lanomat-agent register --yes        # execute the Windows registry command
 lanomat-agent open "lanomat://install/ut2004"
 ```
+
+| Dark | Light |
+|---|---|
+| ![Participant dashboard with current LAN, ticket, seat and teams, dark](/docs/screens/dashboard-dark.png) | ![Participant dashboard with current LAN, ticket, seat and teams, light](/docs/screens/dashboard-light.png) |
+| `DASHBOARD · EVENT · TICKET · SEAT · TEAMS` | `DASHBOARD · LIGHT` |
+
+The dashboard is the web end of that hand-off: **„Zur Event-Seite“** → **Spiele** → the Starten
+button, which calls `lanomat://play/<slug>` and expects `register` to have run.
 
 ## 6. Day-to-day paths
 
