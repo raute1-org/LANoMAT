@@ -7,18 +7,20 @@ import type { GameShareShare } from '@/types/gameShare';
 /**
  * The viewer's own shared games, each as a three-step status a participant
  * reads without knowing the words "recipe" or "pull request": datei (the
- * archive), prüfung (the orga's review), katalog (the automated catalogue
- * entry). The catalogue step is the only one that links away.
+ * pinned archive, by name), prüfung (the orga's review), katalog (the public
+ * catalogue entry). Colour never carries a state alone: the word stays in
+ * `text-foreground`, a small dot adds the tone. The GitHub link is worded for
+ * participants, not for developers.
  */
 defineProps<{ shares: GameShareShare[] }>();
 
 type Tone = 'muted' | 'warn' | 'ok' | 'down';
 
-const toneClass: Record<Tone, string> = {
-    muted: 'text-muted-foreground',
-    warn: 'text-warn',
-    ok: 'text-ok',
-    down: 'text-destructive',
+const toneDot: Record<Tone, string> = {
+    muted: 'bg-muted-foreground',
+    warn: 'bg-warn',
+    ok: 'bg-ok',
+    down: 'bg-destructive',
 };
 
 function fileStep(share: GameShareShare): { label: string; tone: Tone } {
@@ -39,14 +41,28 @@ function fileStep(share: GameShareShare): { label: string; tone: Tone } {
 function reviewStep(share: GameShareShare): { label: string; tone: Tone } {
     switch (share.status) {
         case 'draft':
-            return { label: 'Die Orga prüft dein Spiel', tone: 'warn' };
+            return { label: 'Die Orga prüft gerade', tone: 'warn' };
         case 'published':
-            return {
-                label: share.statusLabel || 'Veröffentlicht',
-                tone: 'ok',
-            };
+            return { label: 'Freigegeben', tone: 'ok' };
         case 'archived':
-            return { label: share.statusLabel || 'Archiviert', tone: 'muted' };
+            return { label: 'Nicht mehr in der Liste', tone: 'muted' };
+    }
+}
+
+function catalogueStep(share: GameShareShare): { label: string; tone: Tone } {
+    switch (share.pullRequest?.state) {
+        case 'open':
+            return { label: 'Wird in den Katalog eingetragen', tone: 'warn' };
+        case 'merged':
+            return { label: 'Im Katalog', tone: 'ok' };
+        case 'closed':
+            return { label: 'Nicht übernommen', tone: 'muted' };
+        case 'blocked':
+            return { label: 'Wartet auf die Orga', tone: 'warn' };
+        case 'failed':
+            return { label: 'Eintrag fehlgeschlagen', tone: 'down' };
+        default:
+            return { label: 'Wartet auf die Orga', tone: 'muted' };
     }
 }
 
@@ -74,9 +90,9 @@ function formatDateTime(iso: string): string {
                 <div class="flex shrink-0 flex-wrap items-center gap-2">
                     <span
                         v-if="share.inLineup"
-                        class="font-mono text-[10px] text-muted-foreground"
+                        class="text-xs text-muted-foreground"
                     >
-                        Im Launcher
+                        In der Spieleliste
                     </span>
                     <Link
                         v-if="share.gameUrl"
@@ -91,39 +107,63 @@ function formatDateTime(iso: string): string {
             <dl class="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
                 <div>
                     <dt class="text-muted-foreground">Datei</dt>
-                    <dd class="mt-0.5" :class="toneClass[fileStep(share).tone]">
-                        {{ fileStep(share).label }}
+                    <dd class="mt-0.5 space-y-1">
+                        <p
+                            v-if="share.file"
+                            class="font-mono break-all text-foreground"
+                        >
+                            {{ share.file.name }}
+                        </p>
+                        <span class="flex items-center gap-1.5 text-foreground">
+                            <span
+                                class="size-1.5 shrink-0 rounded-full"
+                                :class="toneDot[fileStep(share).tone]"
+                                aria-hidden="true"
+                            />
+                            {{ fileStep(share).label }}
+                        </span>
                     </dd>
                 </div>
                 <div>
                     <dt class="text-muted-foreground">Prüfung</dt>
-                    <dd
-                        class="mt-0.5"
-                        :class="toneClass[reviewStep(share).tone]"
-                    >
-                        {{ reviewStep(share).label }}
+                    <dd class="mt-0.5">
+                        <span class="flex items-center gap-1.5 text-foreground">
+                            <span
+                                class="size-1.5 shrink-0 rounded-full"
+                                :class="toneDot[reviewStep(share).tone]"
+                                aria-hidden="true"
+                            />
+                            {{ reviewStep(share).label }}
+                        </span>
                     </dd>
                 </div>
                 <div>
                     <dt class="text-muted-foreground">Katalog</dt>
-                    <dd class="mt-0.5">
+                    <dd class="mt-0.5 space-y-1">
                         <template v-if="share.pullRequest">
+                            <span
+                                class="flex items-center gap-1.5 text-foreground"
+                            >
+                                <span
+                                    class="size-1.5 shrink-0 rounded-full"
+                                    :class="toneDot[catalogueStep(share).tone]"
+                                    aria-hidden="true"
+                                />
+                                {{ catalogueStep(share).label }}
+                            </span>
                             <a
                                 v-if="share.pullRequest.url"
                                 :href="share.pullRequest.url"
                                 target="_blank"
                                 rel="noreferrer"
-                                class="inline-flex items-center gap-1 rounded-sm text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
+                                class="inline-flex min-h-11 items-center gap-1 rounded-sm text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none sm:min-h-0"
                             >
-                                {{ share.pullRequest.label }}
+                                Auf GitHub ansehen
                                 <ExternalLink
                                     class="size-3"
                                     aria-hidden="true"
                                 />
                             </a>
-                            <span v-else class="text-foreground">{{
-                                share.pullRequest.label
-                            }}</span>
                         </template>
                         <template v-else>
                             <span

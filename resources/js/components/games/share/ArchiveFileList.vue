@@ -7,6 +7,8 @@ import type { GameShareFile } from '@/types/gameShare';
  * exactly the order the server sends. A file the server marked `usable: false`
  * (its name is not an allowed archive extension) stays visible but disabled,
  * with the reason, so a mistyped upload is explainable instead of missing.
+ * The row is not dimmed: the name carries the "not usable" strike-through and
+ * the reason keeps full muted contrast (AA in light mode).
  */
 defineProps<{
     files: GameShareFile[];
@@ -57,7 +59,7 @@ function visibilityLabel(file: GameShareFile): string {
                 :class="
                     file.usable
                         ? 'cursor-pointer hover:bg-accent/40 has-[:checked]:bg-accent/60'
-                        : 'cursor-not-allowed opacity-60'
+                        : 'cursor-not-allowed'
                 "
             >
                 <input
@@ -70,9 +72,15 @@ function visibilityLabel(file: GameShareFile): string {
                     @change="emit('update:selected', file.id)"
                 />
                 <span class="min-w-0 flex-1">
-                    <span class="block font-mono text-sm break-all">{{
-                        file.name
-                    }}</span>
+                    <span
+                        class="block font-mono text-sm break-all"
+                        :class="
+                            file.usable
+                                ? 'text-foreground'
+                                : 'text-muted-foreground line-through'
+                        "
+                        >{{ file.name }}</span
+                    >
                     <span
                         class="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs"
                     >
@@ -85,12 +93,17 @@ function visibilityLabel(file: GameShareFile): string {
                             >·</span
                         >
                         <span
-                            :class="
-                                file.visibility === 'pending'
-                                    ? 'text-warn'
-                                    : 'text-ok'
-                            "
+                            class="inline-flex items-center gap-1.5 text-foreground"
                         >
+                            <span
+                                class="size-1.5 shrink-0 rounded-full"
+                                :class="
+                                    file.visibility === 'pending'
+                                        ? 'bg-warn'
+                                        : 'bg-ok'
+                                "
+                                aria-hidden="true"
+                            />
                             {{ visibilityLabel(file) }}
                         </span>
                     </span>
@@ -108,6 +121,7 @@ function visibilityLabel(file: GameShareFile): string {
         <p
             v-if="error"
             id="share-file-error"
+            role="alert"
             class="px-4 pt-2 pb-3 text-sm text-destructive"
         >
             {{ error }}
