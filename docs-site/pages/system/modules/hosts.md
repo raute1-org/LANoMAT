@@ -19,6 +19,22 @@ pinned host-key fingerprint.
 - Filament **Remote hosts** — create, probe, pin fingerprint, set role.
 - Preflight — host reachability and key status.
 
+The registry shows the columns that matter for trust: hostname, SSH port and user, private key,
+role, status and last probe.
+
+| Dark | Light |
+|---|---|
+| ![Remote hosts admin table in dark theme with hostname, SSH port and user, role, status and last probe columns](/screens/admin-remote-hosts-dark.png) | ![Remote hosts admin table in light theme with hostname, SSH port and user, role, status and last probe columns](/screens/admin-remote-hosts-light.png) |
+| `REMOTE HOSTS · DARK` — hostname, SSH port and user, role, last probe | `REMOTE HOSTS · LIGHT` |
+
+Modules consume the registry instead of storing their own addresses — a custom server definition
+points at a host row.
+
+| Dark | Light |
+|---|---|
+| ![Custom servers admin table in dark theme with one remote host per definition](/screens/admin-custom-servers-dark.png) | ![Custom servers admin table in light theme with one remote host per definition](/screens/admin-custom-servers-light.png) |
+| `CUSTOM SERVERS · DARK` — a host consumer, one remote host per definition | `CUSTOM SERVERS · LIGHT` |
+
 ## Guards and rules
 
 - The SSH private key is stored with an `encrypted` cast and is write-only in the form.

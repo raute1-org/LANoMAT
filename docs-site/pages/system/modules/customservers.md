@@ -18,6 +18,22 @@ sidebar_icon: container
 - Filament **Custom servers** — create, start, stop, probe, inspect logs.
 - Match/event page — connect string when linked to a match.
 
+Filament **Custom servers** lists one row per definition: name, remote host, event, Docker image,
+container name and status.
+
+| Dark | Light |
+|---|---|
+| ![Custom servers admin table in dark theme with name, remote host, Docker image, container name and status columns](/screens/admin-custom-servers-dark.png) | ![Custom servers admin table in light theme with name, remote host, Docker image, container name and status columns](/screens/admin-custom-servers-light.png) |
+| `CUSTOM SERVERS · DARK` — name, remote host, image, container, status | `CUSTOM SERVERS · LIGHT` |
+
+The remote host comes from the host registry; a definition may only target a host that carries the
+`custom_servers` role.
+
+| Dark | Light |
+|---|---|
+| ![Remote hosts admin table in dark theme with the role column a custom server checks](/screens/admin-remote-hosts-dark.png) | ![Remote hosts admin table in light theme with the role column a custom server checks](/screens/admin-remote-hosts-light.png) |
+| `REMOTE HOSTS · DARK` — the role column a custom server checks | `REMOTE HOSTS · LIGHT` |
+
 ## Guards and rules
 
 - The host must have the `custom_servers` role; the action rejects any other role.
