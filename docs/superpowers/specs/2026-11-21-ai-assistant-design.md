@@ -260,3 +260,19 @@ Record in `docs/qa/rulings.md`:
   5. A read run and one approved write run with `ASSISTANT_PROVIDER=ollama`.
   6. Set a server password through the card. Check that the password is absent from `agent_conversation_messages` and from the logged provider request.
 - `scripts/ops/check-public-safe.sh` and gitleaks before the PR.
+
+## Spike result
+
+Verified against `laravel/ai` 1.4.x source and a faked-gateway run (no provider reached; 2026-11-21). **Path A (SDK approvals) holds.**
+
+- (a) A paused run stores the pending call with `approval_reason` in `agent_conversation_messages`; `ConversationStore::pendingApprovalsFor($conversationId)` returns `PendingApproval{id, tool, arguments, reason}`. The Vercel stream carries `tool-input-available` and `tool-approval-request` parts. The `ToolApprovalRequested` event fires only after the stream drains, so the stored pause (not the event) is the authoritative source of "what is pending".
+- (b) `continue($id, as: $user)->stream(Decisions::from([...]))` resumes and executes the **stored** arguments (an `edit` decision could override them, so the app never passes one).
+- (c) A reject without a result stops the loop (`hasBareRejection`).
+- (d) A new plain prompt while approvals are pending is allowed. The SDK settles the abandoned call with a "not executed" result, so it can never run later.
+- (e) `Request::toolCallId()` is available inside `handle()`. The secret and the approval row therefore bind by call id, with the arguments hash kept as the "card equals execution" check.
+- `validateApproval` throws a 409 `ApprovalMismatchException` unless every gated call of the paused turn has a decision. There is no partial resume: decisions are recorded per card and the run resumes once the last card of the turn is decided. `'*'` is never used.
+- `needsApproval()` is called outside the tool's own error mapping (at pause, in `validateApproval` and in `pausedForApproval`), so it must be pure and must never throw. Invalid input returns `false` and `handle()` answers with the readable error; an approvable `handle()` executes only against an `Approved` audit row (fail closed).
+- Tool names come from an instance `name()` method (`ToolNameResolver`), falling back to the class basename.
+- `Vercel::chat($request)` would parse client-supplied messages into decisions; it is not used. The chat endpoint takes a plain string and the decision endpoint builds `Decisions::from()` server-side from approve/reject only.
+- Ollama: tool-call ids fall back to a uuid7 when the server sends none; lookups are therefore always scoped to conversation and actor. No Ollama server was reachable, so the live round trip is unverified. Claude (`claude-opus-5-5` through the SDK) is likewise unverified without a key.
+- Transport: `@ai-sdk/vue` `useChat` could not be verified without a browser and its request shape does not fit the string/decisions endpoints, so the page uses a small own reader for the Vercel UI message stream (the spec's fallback).
