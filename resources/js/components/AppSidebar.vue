@@ -200,9 +200,9 @@ const nowItems = computed<NavItem[]>(() => {
         );
     }
 
-    // Only the availability is shared with the sidebar, not the viewer's own
-    // registration, so a registered viewer still sees this while spots remain.
-    if (ev.availability === 'open') {
+    // Hidden once the backend reports an own registration; without that
+    // signal only the availability decides.
+    if (ev.availability === 'open' && sig?.registered !== true) {
         items.push({
             title: 'Anmeldung',
             href: eventsRegister(ev.slug),

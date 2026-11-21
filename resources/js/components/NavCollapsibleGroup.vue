@@ -60,8 +60,13 @@ function store(value: boolean): void {
     }
 }
 
+const indicatorText = computed<string | null>(
+    () => props.items.find((item) => item.indicator)?.indicator ?? null,
+);
 const hasActive = computed(() => props.items.some(isActive));
 const open = ref<boolean>(hasActive.value || readStored());
+
+const showDot = computed(() => !open.value && indicatorText.value !== null);
 
 // Navigating to an item inside a closed group reveals it.
 watch(hasActive, (active) => {
@@ -97,8 +102,16 @@ function onUpdate(value: boolean): void {
                         <SidebarMenuButton :tooltip="label">
                             <component :is="icon" />
                             <span>{{ label }}</span>
+                            <span
+                                v-if="showDot"
+                                class="ml-auto size-2 shrink-0 rounded-full bg-ok group-data-[collapsible=icon]:hidden"
+                                data-test="nav-indicator"
+                            >
+                                <span class="sr-only">{{ indicatorText }}</span>
+                            </span>
                             <ChevronRight
-                                class="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90 motion-reduce:transition-none"
+                                :class="showDot ? '' : 'ml-auto'"
+                                class="transition-transform group-data-[state=open]/collapsible:rotate-90 motion-reduce:transition-none"
                                 aria-hidden="true"
                             />
                         </SidebarMenuButton>

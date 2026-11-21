@@ -14,6 +14,8 @@ export type NavSignals = {
     foodClosesAt: string | null;
     seat: string | null;
     present: number | null;
+    /** True when the viewer already has a registration for the current event. */
+    registered?: boolean;
 };
 
 export type NavBadge = {
