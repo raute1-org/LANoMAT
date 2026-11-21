@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { reactive } from 'vue';
+import FoodPaymentState from '@/components/catering/FoodPaymentState.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import Panel from '@/components/Panel.vue';
@@ -172,7 +173,9 @@ function menuOptionName(
                             </div>
                             <Button
                                 size="sm"
-                                variant="outline"
+                                :variant="
+                                    foodOrder.isOpen ? 'default' : 'outline'
+                                "
                                 :disabled="
                                     !foodOrder.isOpen || registration.required
                                 "
@@ -232,6 +235,13 @@ function menuOptionName(
                                     {{ item.note }}
                                 </p>
                                 <p
+                                    v-if="item.included"
+                                    class="text-sm text-muted-foreground"
+                                >
+                                    {{ labels.item_included }}
+                                </p>
+                                <p
+                                    v-else
                                     class="font-mono text-sm text-muted-foreground tabular-nums"
                                 >
                                     {{ formatEuro(item.priceCents) }}
@@ -257,6 +267,17 @@ function menuOptionName(
                             formatEuro(foodOrder.myTotalCents)
                         }}</span>
                     </p>
+
+                    <div
+                        v-if="foodOrder.myPayment"
+                        class="border-t border-border px-4 py-3"
+                    >
+                        <FoodPaymentState
+                            :payment="foodOrder.myPayment"
+                            :primary="!foodOrder.isOpen"
+                            :labels="labels"
+                        />
+                    </div>
                 </Panel>
             </div>
         </div>

@@ -13,13 +13,14 @@ use Illuminate\Support\Carbon;
  * @property array{option_key: string, note?: string} $selection
  * @property int $price_cents
  * @property Carbon|null $paid_at
+ * @property bool $included
  */
 class FoodOrderItem extends Model
 {
     /** @use HasFactory<FoodOrderItemFactory> */
     use HasFactory;
 
-    // paid_at deliberately NOT fillable — a privilege/state field set only
+    // paid_at and included deliberately NOT fillable — a privilege/state field set only
     // via an Action (payment confirmation), never client-supplied.
     protected $fillable = [
         'food_order_id',
@@ -34,6 +35,7 @@ class FoodOrderItem extends Model
             'selection' => 'array',
             'price_cents' => 'integer',
             'paid_at' => 'datetime',
+            'included' => 'boolean',
         ];
     }
 

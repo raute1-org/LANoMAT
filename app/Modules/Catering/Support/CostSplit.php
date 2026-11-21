@@ -8,7 +8,7 @@ class CostSplit
 {
     /**
      * @return array{
-     *     perUser: array<int, array{name: string, totalCents: int, paidCents: int}>,
+     *     perUser: array<int, array{name: string, totalCents: int, includedCents: int, dueCents: int, paidCents: int}>,
      *     grandTotalCents: int,
      *     byOption: array<string, array{name: string, count: int, totalCents: int}>,
      * }
@@ -29,9 +29,16 @@ class CostSplit
             $perUser[$userId] ??= [
                 'name' => $item->user->name ?? '',
                 'totalCents' => 0,
+                'includedCents' => 0,
+                'dueCents' => 0,
                 'paidCents' => 0,
             ];
             $perUser[$userId]['totalCents'] += $item->price_cents;
+            if ($item->included) {
+                $perUser[$userId]['includedCents'] += $item->price_cents;
+            } elseif ($item->paid_at === null) {
+                $perUser[$userId]['dueCents'] += $item->price_cents;
+            }
             if ($item->paid_at !== null) {
                 $perUser[$userId]['paidCents'] += $item->price_cents;
             }

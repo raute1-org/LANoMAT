@@ -29,6 +29,14 @@ return [
         'closed' => 'Die Anmeldung ist derzeit nicht geöffnet.',
         'full' => 'Ausgebucht — alle Plätze sind vergeben. Bitte wende dich an die Orga.',
         'free_spots' => 'Noch :count Plätze frei.',
+        'free_price' => 'kostenlos',
+        'pay_with_paypal' => 'Mit PayPal zahlen',
+        'pay_at_orga' => 'Bitte bei der Orga bezahlen.',
+        'pay_reference' => 'Verwendungszweck',
+        'pay_reference_hint' => 'Bitte als Verwendungszweck angeben, damit die Orga die Zahlung zuordnen kann.',
+        'pay_amount' => 'Betrag',
+        'copy' => 'Kopieren',
+        'copied' => 'Kopiert',
     ],
 
     'cancel_blocked' => [

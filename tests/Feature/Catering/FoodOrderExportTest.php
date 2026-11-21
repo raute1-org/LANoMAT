@@ -82,9 +82,9 @@ it('exports the order items as UTF-8 CSV with BOM, semicolons and decimal commas
 
     $rows = csvRows($csv);
 
-    expect($rows[0])->toBe(['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt'])
-        ->and($rows[1])->toBe(['Anna Muster', 'Pizza Salami', 'ohne Zwiebeln', '9,50', 'ja'])
-        ->and($rows[2])->toBe(['Anna Muster', 'Pizza Salami', '', '9,50', 'nein']);
+    expect($rows[0])->toBe(['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt', 'Im Ticket enthalten'])
+        ->and($rows[1])->toBe(['Anna Muster', 'Pizza Salami', 'ohne Zwiebeln', '9,50', 'ja', 'nein'])
+        ->and($rows[2])->toBe(['Anna Muster', 'Pizza Salami', '', '9,50', 'nein', 'nein']);
 });
 
 it('neutralises spreadsheet formulas in participant-written cells', function () {

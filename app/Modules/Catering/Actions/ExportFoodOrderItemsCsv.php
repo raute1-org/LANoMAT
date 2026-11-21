@@ -27,7 +27,7 @@ class ExportFoodOrderItemsCsv
             throw new \RuntimeException('Could not open a temporary stream for the food order export.');
         }
 
-        fputcsv($handle, ['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt'], ';', '"', '', "\r\n");
+        fputcsv($handle, ['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt', 'Im Ticket enthalten'], ';', '"', '', "\r\n");
 
         $items = $order->items()->with('user')->orderBy('id')->get();
 
@@ -41,6 +41,7 @@ class ExportFoodOrderItemsCsv
                 $this->safe((string) ($item->selection['note'] ?? '')),
                 number_format($item->price_cents / 100, 2, ',', ''),
                 $item->paid_at !== null ? 'ja' : 'nein',
+                $item->included ? 'ja' : 'nein',
             ], ';', '"', '', "\r\n");
         }
 

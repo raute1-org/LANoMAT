@@ -180,3 +180,15 @@ it('breaks a closes_at tie by the lower order id', function () {
     expect(FoodNow::for($event, User::factory()->create())['open']['title'])->toBe('Erste');
     expect($first->id)->toBeLessThan(FoodOrder::query()->where('title', 'Zweite')->value('id'));
 });
+
+it('adds the viewers payment state to the open round', function () {
+    $event = Event::factory()->registration()->create();
+    $viewer = User::factory()->create();
+    $order = FoodOrder::factory()->for($event)->open()->create([
+        'menu' => foodNowMenu(), 'payment_method' => 'cash',
+    ]);
+    FoodOrderItem::factory()->for($order, 'foodOrder')->for($viewer)->create(['selection' => ['option_key' => 'cola'], 'price_cents' => 200]);
+
+    expect(FoodNow::for($event, $viewer)['open']['payment'])->toMatchArray(['method' => 'cash', 'dueCents' => 200]);
+    expect(FoodNow::for($event, User::factory()->create())['open']['payment'])->toBeNull();
+});

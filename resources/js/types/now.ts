@@ -51,6 +51,12 @@ export interface FoodNowDto {
         closesAt: string | null;
         orderCount: number;
         mine: string | null;
+        payment: null | {
+            method: 'cash' | 'paypal' | 'included';
+            dueCents: number;
+            url: string | null;
+            reference: string | null;
+        };
         orderable: boolean;
         href: string;
     };

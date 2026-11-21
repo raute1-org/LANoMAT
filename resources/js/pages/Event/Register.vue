@@ -5,21 +5,26 @@ import ArrivalPlanFields from '@/components/ArrivalPlanFields.vue';
 import DesktopClientLink from '@/components/DesktopClientLink.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import PaymentBlock from '@/components/registration/PaymentBlock.vue';
 import { Button } from '@/components/ui/button';
+import { formatEuro } from '@/lib/formatEuro';
 import { show as eventsShow } from '@/routes/events';
 import { arrival as arrivalRoute } from '@/routes/events/register';
 import {
     destroy as destroyRegistration,
     store as storeRegistration,
 } from '@/routes/events/register';
-import type { ArrivalOptions, RegistrationDetails } from '@/types';
+import type {
+    ArrivalOptions,
+    RegistrationDetails,
+    TicketOption,
+} from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string; status: string };
     availability: 'upcoming' | 'open' | 'full' | 'closed';
     freeSpots: number | null;
-    tickets: string[];
-    ticketLabels: Record<string, string>;
+    tickets: TicketOption[];
     registration: RegistrationDetails | null;
     arrivalOptions: ArrivalOptions;
     arrivalLabels: Record<string, any>;
@@ -28,7 +33,7 @@ const props = defineProps<{
     statusLabels: Record<string, string>;
 }>();
 
-const selected = ref(props.tickets[0] ?? 'standard');
+const selected = ref(props.tickets[0]?.key ?? 'standard');
 
 const registerForm = useForm({
     ticket_type: selected.value,
@@ -152,6 +157,12 @@ function cancel() {
                 </dd>
             </dl>
 
+            <PaymentBlock
+                v-if="registration.payment"
+                :payment="registration.payment"
+                :labels="labels"
+            />
+
             <div
                 v-if="hasDays"
                 id="arrival"
@@ -264,18 +275,31 @@ function cancel() {
             <div class="space-y-2">
                 <label
                     v-for="ticket in tickets"
-                    :key="ticket"
-                    class="flex items-center gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
+                    :key="ticket.key"
+                    class="flex items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
+                    data-test="ticket-option"
                 >
                     <input
                         v-model="selected"
                         type="radio"
-                        :value="ticket"
+                        :value="ticket.key"
                         name="ticket"
-                        class="accent-primary"
+                        class="mt-1 accent-primary"
                     />
-                    <span class="text-foreground">{{
-                        ticketLabels[ticket] ?? ticket
+                    <span class="flex-1">
+                        <span class="block text-foreground">{{
+                            ticket.name
+                        }}</span>
+                        <span
+                            v-if="ticket.description"
+                            class="block text-sm text-muted-foreground"
+                            >{{ ticket.description }}</span
+                        >
+                    </span>
+                    <span class="font-mono text-sm text-foreground">{{
+                        ticket.priceCents === 0
+                            ? labels.free_price
+                            : formatEuro(ticket.priceCents)
                     }}</span>
                 </label>
             </div>

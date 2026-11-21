@@ -7,7 +7,9 @@ use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\FoodIncluded;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
+use App\Modules\Registration\Support\MyRegistration;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
@@ -69,6 +71,7 @@ class PlaceFoodOrderItem
                     'note' => $note,
                 ],
             ]);
+            $item->included = FoodIncluded::for($order, MyRegistration::find($event, $user)?->ticket_type);
             $item->save();
 
             return $item;
