@@ -601,7 +601,16 @@ check_target() {
         note "missing System/ut2004-bin-amd64 (or System/UT2004)"
         ok=1
     fi
-    [ -f "$dir/Maps/DM-Rankin.ut2" ] || { note "missing Maps/DM-Rankin.ut2"; ok=1; }
+    if [ ! -f "$dir/Maps/DM-Rankin.ut2" ]; then
+        note "missing Maps/DM-Rankin.ut2"
+        local wrapped
+        wrapped="$(find "$dir" -mindepth 2 -maxdepth 2 -path '*/Maps/DM-Rankin.ut2' -print -quit 2>/dev/null || true)"
+        if [ -n "$wrapped" ]; then
+            note "found only under a wrapper folder: ${wrapped#"$dir"/}"
+            note "(a stale example binary or a regression left the base archive wrapped)"
+        fi
+        ok=1
+    fi
     return "$ok"
 }
 
@@ -626,6 +635,23 @@ find_example() {
         [ -x "$candidate" ] && { printf '%s' "$candidate"; return 0; }
     done
     return 1
+}
+
+example_is_stale() {
+    local binary="$1" newer
+    newer="$(find \
+        "$ROOT/clients/launcher/launcher-core/src" \
+        "$ROOT/clients/launcher/launcher-core/Cargo.toml" \
+        "$ROOT/clients/launcher/Cargo.lock" \
+        -newer "$binary" -print -quit 2>/dev/null || true)"
+    [ -n "$newer" ]
+}
+
+example_rebuild_hint() {
+    note "rebuild it: docker run --rm -v \"$ROOT/clients/launcher:/work\" -w /work \\"
+    note "  -e CARGO_TARGET_DIR=/work/target lanomat-launcher-dev \\"
+    note "  cargo build -p launcher-core --example install_local"
+    note "(or set LANOMAT_ALLOW_STALE_ENGINE=1 to accept the old binary)"
 }
 
 deeplink_available() {
@@ -845,6 +871,12 @@ case "$RESOLVED_ENGINE" in
     example)
         EXAMPLE_BIN="$(find_example)"
         note "engine: launcher-core example ($EXAMPLE_BIN)"
+        if example_is_stale "$EXAMPLE_BIN" && [ "${LANOMAT_ALLOW_STALE_ENGINE:-0}" != "1" ]; then
+            warn "the example binary is older than the launcher-core sources"
+            example_rebuild_hint
+            if [ "$DRY_RUN" = "1" ]; then step "NOT READY"; note "stale install engine"; exit 2; fi
+            die2 "stale install engine (rebuild or set LANOMAT_ALLOW_STALE_ENGINE=1)"
+        fi
         ;;
     deeplink)
         note "engine: lanomat://install/$SLUG deep link"

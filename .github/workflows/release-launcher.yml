@@ -17,7 +17,7 @@
 # (fmt, clippy, `cargo test --workspace`, release build); Windows is cross-compiled with cargo-xwin in
 # the `windows` stage of the same pinned image (no Windows runner needed). macOS is the exception: a
 # `.app`/`.dmg` needs Apple's `hdiutil`, `codesign` and a real macOS host, so the `macos` job runs on
-# GitHub's macOS runners. Its arm64 leg (macos-14) is required; the Intel leg is best-effort, because
+# GitHub's macOS runners. Its arm64 leg (macos-15) is required; the Intel leg is best-effort, because
 # the arm64 build is the one every current Mac can run (and the runner labels get retired).
 # The artifacts are only offered by /launcher after an operator copies the `launcher-release` artifact
 # into clients-dist/launcher/ — it carries the Linux tarball, the Windows exe, the macOS `.dmg` and
@@ -254,7 +254,7 @@ jobs:
   # hdiutil) and a macOS host. The `.dmg` and the zipped `.app` are both produced so /launcher can
   # offer the drag-to-Applications image and keep a plain archive as fallback.
   #
-  # The arm64 leg (macos-14) is required: every current Mac runs it. The Intel leg (macos-15-intel)
+  # The arm64 leg (macos-15) is required: every current Mac runs it. The Intel leg (macos-15-intel)
   # is best-effort — a retired runner label or a failed Intel build must not lose the arm64 release,
   # so its failure is neutralised (`continue-on-error`). `package` merges whichever legs uploaded.
   macos:
@@ -263,7 +263,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             arch: aarch64
             experimental: false
@@ -319,6 +319,14 @@ jobs:
           CI: true
         run: |
           set -euo pipefail
+          # Empty GitHub secrets still arrive as empty env vars; Tauri treats
+          # their presence as "sign me" and tries to import an empty .p12.
+          # Unset them so an unsigned build stays unsigned (and the same
+          # workflow signs automatically once real Developer-ID secrets exist).
+          for var in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD \
+                     APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!var:-}" ]; then unset "$var"; fi
+          done
           # bundle.active=true plus per-OS `--bundles`: macOS builds exactly the app and the dmg;
           # Windows keeps its NSIS/portable path (`cargo tauri build --bundles nsis`).
           cargo tauri build --target "$TARGET" --bundles app,dmg --ci

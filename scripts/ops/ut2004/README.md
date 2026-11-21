@@ -1,4 +1,6 @@
-# UT2004 archive extraction (Linux, no root)
+# UT2004 ops
+
+## Archive extraction (Linux, no root)
 
 `extract-archive.sh` unpacks the UT2004 sources the launcher meets in the wild on a
 normal Linux account: ZIP repacks, the OldUnreal patches, the WinRAR SFX inside
@@ -9,7 +11,7 @@ Wine, `hdiutil`, or a package manager.
 scripts/ops/ut2004/extract-archive.sh --help
 ```
 
-## Requirements
+### Requirements
 
 - Bash 4.3+ (namerefs, arrays).
 - `bsdtar` (libarchive) or `unzip` for ZIP/ISO; `bsdtar`, `tar` or `7zz` for tarballs.
@@ -21,7 +23,7 @@ scripts/ops/ut2004/extract-archive.sh --help
 - Free space for the extracted tree: the macOS patch DMG is ~1 GiB apparent,
   the nosTEAM SFX is ~6.3 GiB extracted.
 
-## 7-Zip (`7zz`) acquisition
+### 7-Zip (`7zz`) acquisition
 
 The script keeps its own binary at:
 
@@ -56,7 +58,7 @@ without a download.
 If both downloads fail, a system `7zz` in `PATH` is used with a warning. If none is
 available, the script exits 3.
 
-## Commands
+### Commands
 
 ```text
 list <archive> [--only <glob>]
@@ -99,7 +101,7 @@ scripts/ops/ut2004/extract-archive.sh extract scripts/ops/fixtures/ut2004-fixtur
 `... list archive | grep Maps` works. `tree` prints two spaces per path component;
 `--depth 3` is the default, `0` means unlimited.
 
-## Formats
+### Formats
 
 | Input | Opened with | Notes |
 | --- | --- | --- |
@@ -115,7 +117,7 @@ Encrypted archives are attempted with an empty/dummy password (`7zz -p`,
 `bsdtar --passphrase lanomat`, `unzip -P lanomat`) so they fail immediately
 instead of prompting and hanging a script.
 
-## WinRAR SFX detection and the nosTEAM shape
+### WinRAR SFX detection and the nosTEAM shape
 
 A WinRAR SFX is a normal Windows PE executable (`MZ` header) with a real RAR stream
 appended. The script:
@@ -152,7 +154,7 @@ runnable without Wine. The script says so instead of pretending it extracted a g
 If the ZIP contains `setup.exe` plus one nested `.iso`, the error names the ISO and
 prints the command that extracts it.
 
-## DMG extraction
+### DMG extraction
 
 `7zz` understands the Apple DMG container and its HFS+ payload. The script does not
 need `hdiutil`, `ditto`, a mount point, or root:
@@ -175,7 +177,7 @@ HFS bookkeeping entries `[HFS+ Private Data]` and `.HFS+ Private Directory Data`
 (7zz may spell the latter with a trailing CR), `.DS_Store`, `.VolumeIcon.icns`,
 `.background`, and the volume's self-referential `Applications` symlink.
 
-## `--strip-wrapper`
+### `--strip-wrapper`
 
 Many sources put the game in one directory. After extraction:
 
@@ -188,7 +190,7 @@ Many sources put the game in one directory. After extraction:
 - `--strip-wrapper` requires an empty destination so a merge cannot clobber
   unrelated files.
 
-## `--only`
+### `--only`
 
 `--only` is repeatable and uses archive-relative patterns:
 
@@ -202,7 +204,7 @@ it is matched by the script. Quote globs so the shell does not expand them. With
 `--only`, a missing sanity marker is a warning, not an error, because a partial
 tree is expected.
 
-## Sanity checks
+### Sanity checks
 
 After extraction (and after wrapper stripping) the script counts files and checks
 for:
@@ -220,7 +222,7 @@ At least one marker must be found. If there is a Windows `.exe` and no game data
 the script explains that it is an installer/SFX wrapper. A nested ISO is named with
 a ready-to-run extraction command.
 
-## Exit codes
+### Exit codes
 
 | Code | Meaning |
 | --- | --- |
@@ -231,7 +233,7 @@ a ready-to-run extraction command.
 | 4 | Unsupported format, or a PE installer with no embedded archive. |
 | 5 | Extraction worked but no UT2004 data was found. |
 
-## Limits
+### Limits
 
 - No Wine. `setup.exe`, Inno Setup, and NSIS installers are not executed. Only
   payloads that are real archives (RAR SFX, ZIP/7z SFX) can be opened.
@@ -244,7 +246,7 @@ a ready-to-run extraction command.
   as long as 7zz needs to read the metadata.
 - Extraction is not atomic: a failed extraction can leave partial files in `<dest>`.
 
-## Typical errors
+### Typical errors
 
 | Symptom | Cause / fix |
 | --- | --- |
@@ -258,7 +260,7 @@ a ready-to-run extraction command.
 | `ERROR: Wrong password` | Encrypted archive; the script tries an empty password. |
 | Extraction fills `/tmp` | Choose a `<dest>` on a large filesystem. The 7zz download already uses the tools dir. |
 
-## Verified inputs
+### Verified inputs
 
 Tested on this checkout with:
 
