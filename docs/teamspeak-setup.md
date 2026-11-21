@@ -131,6 +131,27 @@ TeamSpeak's admin token and ServerQuery password are two independently
 generated secrets — there is no equivalent "same secret gates both layers"
 shortcut for ServerQuery.
 
+## 4a. ServerQuery allowlist (required, or the queue worker stalls)
+
+The sidecar opens a new ServerQuery session for every REST call. From an IP that is not on
+`query_ip_allowlist.txt` (inside the `teamspeak_data` volume, default `127.0.0.1` and `::1`) TeamSpeak
+treats that as flooding and closes the connection for a few minutes: the TCP connect works but the
+banner stays empty. Symptoms: `curl .../channels` against the sidecar hangs about 30 s then answers 502,
+the presence refresh job runs into its timeout and blocks the queue worker, Preflight shows
+"Queue-Worker DOWN" and the failed-jobs count climbs.
+
+Fix: put the sidecar's container IP on the allowlist and restart TeamSpeak once (it reads the file only
+at start; clients reconnect within seconds):
+
+```bash
+scripts/ops/teamspeak-allow-sidecar.sh          # adds the IP, says if a restart is needed
+docker compose --profile prod restart teamspeak
+```
+
+`scripts/deploy/deploy.sh` runs the script at the end of every deploy. When the sidecar container is
+recreated it may get a new IP: the script adds it, and the one-time restart is needed again. Without the
+allowlist the ban also lifts on its own after a few minutes, but it returns under load.
+
 ## 5. Real-verify checklist (before production use)
 
 This phase (M8, mode A) stops at code + config + docs. Before relying on
