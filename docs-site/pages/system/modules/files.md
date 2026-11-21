@@ -27,6 +27,22 @@ LanCache file host (nginx + tusd), where bytes never pass through the app.
 | ![Files, dark](/screens/files-dark.png) | ![Files, light](/screens/files-light.png) |
 | `FILES · DARK` — quota, moderation, downloads | `FILES · LIGHT` |
 
+The upload card is the participant's side of the flow: a quiet quota bar, a file picker and one
+button. A newly uploaded row waits for moderation before anyone else sees it.
+
+| Dark | Light |
+|---|---|
+| ![Files upload card with quota bar and pending rows, dark](/screens/files-upload-dark.png) | ![Files upload card with quota bar and pending rows, light](/screens/files-upload-light.png) |
+| `FILES · UPLOAD · DARK` — quota, picker, pending uploads | `FILES · UPLOAD · LIGHT` |
+
+The other end is the Filament **Shared files** table: every row with its owner, size, status and
+store, so moderation can approve, hide or delete without opening the file.
+
+| Dark | Light |
+|---|---|
+| ![Admin shared files table with status and store per file, dark](/screens/admin-shared-files-dark.png) | ![Admin shared files table with status and store per file, light](/screens/admin-shared-files-light.png) |
+| `FILES · ADMIN · DARK` — moderation table, status, store | `FILES · ADMIN · LIGHT` |
+
 ## Guards and rules
 
 - Any file type except browser-executable ones (HTML, SVG, JS) — an uploaded page must not run on
