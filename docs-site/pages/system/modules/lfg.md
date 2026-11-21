@@ -22,8 +22,13 @@ to Discord.
 
 | Dark | Light |
 |---|---|
-| ![LFG, dark](/screens/lfg-dark.png) | ![LFG, light](/screens/lfg-light.png) |
-| `LFG · DARK` — open posts | `LFG · LIGHT` |
+| ![LFG page with the new-post form above an empty board, dark](/screens/lfg-dark.png) | ![LFG page with the new-post form above an empty board, light](/screens/lfg-light.png) |
+| `LFG · DARK` — new post, empty board | `LFG · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Filament event list showing the lifecycle status of each event, dark](/screens/admin-events-dark.png) | ![Filament event list showing the lifecycle status of each event, light](/screens/admin-events-light.png) |
+| `ADMIN · EVENTS · LIVE` — the board opens with the live event | `ADMIN · EVENTS · LIGHT` |
 
 ## Guards and rules
 

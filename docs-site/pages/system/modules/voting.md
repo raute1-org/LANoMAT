@@ -21,8 +21,13 @@ state.
 
 | Dark | Light |
 |---|---|
-| ![Voting, dark](/screens/voting-dark.png) | ![Voting, light](/screens/voting-light.png) |
-| `VOTING · DARK` — open poll | `VOTING · LIGHT` |
+| ![Voting page listing an open poll with its total vote count, dark](/screens/voting-dark.png) | ![Voting page listing an open poll with its total vote count, light](/screens/voting-light.png) |
+| `VOTING · DARK` — open poll, one vote per user | `VOTING · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight status list, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight status list, light](/screens/admin-light.png) |
+| `ADMIN · DARK` — Filament panel, polls are created here | `ADMIN · LIGHT` |
 
 ## Guards and rules
 
