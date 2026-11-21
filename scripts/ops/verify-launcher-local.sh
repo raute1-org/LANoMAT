@@ -152,6 +152,8 @@ mkdir -p "$STORAGE/app/private" \
 
 ISO_BYTES="$(stat -c %s "$ISO_FIXTURE")"
 PATCH_BYTES="$(stat -c %s "$PATCH_FIXTURE")"
+ISO_SHA="$(sha256sum "$ISO_FIXTURE" | cut -d' ' -f1)"
+PATCH_SHA="$(sha256sum "$PATCH_FIXTURE" | cut -d' ' -f1)"
 note "temp dir: $WORK"
 note "fixtures:  $(basename "$ISO_FIXTURE") $ISO_BYTES B, $(basename "$PATCH_FIXTURE") $PATCH_BYTES B"
 
@@ -337,11 +339,24 @@ while IFS=$'\t' read -r name path; do
     note "$name -> $path ($(stat -c %s "$dest") bytes)"
 done <<<"$rows"
 
-step "aligning shared_files.size_bytes with the fixtures"
+step "aligning shared_files and recipe pins with the fixture bytes"
+# The fixtures stand in for the retail ISO and the upstream patch: their size
+# AND digest must match, and the recipe's real upstream pin has to step aside
+# so the plan verifies the stored bytes of these fixtures.
 docker exec -i "$PG" psql -U "$PG_USER" -d "$DB" -v ON_ERROR_STOP=1 \
-    -v iso="$ISO_BYTES" -v patch="$PATCH_BYTES" >/dev/null <<'SQL'
-UPDATE shared_files SET size_bytes = :iso   WHERE original_name = 'UT2004-DVD1.iso';
-UPDATE shared_files SET size_bytes = :patch WHERE original_name = 'OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2';
+    -v iso="$ISO_BYTES" -v patch="$PATCH_BYTES" \
+    -v iso_sha="$ISO_SHA" -v patch_sha="$PATCH_SHA" >/dev/null <<'SQL'
+UPDATE shared_files
+SET size_bytes = :iso, sha256 = :'iso_sha'
+WHERE original_name = 'UT2004-DVD1.iso';
+UPDATE shared_files
+SET size_bytes = :patch, sha256 = :'patch_sha'
+WHERE original_name = 'OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2';
+-- The demo installs fixtures, so every upstream pin steps aside and the plan
+-- verifies the digests stored with the fixture rows. (Empty pins are a blank
+-- char(64), which pads to 64 spaces and would win over the stored digest;
+-- NULL means "no pin".)
+UPDATE game_recipe_files SET sha256 = NULL;
 SQL
 iso_row="$(docker exec "$PG" psql -U "$PG_USER" -d "$DB" -tAc "SELECT size_bytes FROM shared_files WHERE original_name = 'UT2004-DVD1.iso'")"
 patch_row="$(docker exec "$PG" psql -U "$PG_USER" -d "$DB" -tAc "SELECT size_bytes FROM shared_files WHERE original_name = 'OldUnreal-UT2004Patch3374-Linux-fc0484d6.tar.bz2'")"

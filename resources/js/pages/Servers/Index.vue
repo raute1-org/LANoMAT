@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
 import ServerRow from '@/components/servers/ServerRow.vue';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { index as serversIndex } from '@/routes/servers';
@@ -122,6 +123,9 @@ function emptyText(kind: 'event' | 'permanent'): string {
             >
                 {{ summary }}
             </p>
+            <Button as-child variant="outline" size="sm">
+                <Link href="/servers/all">{{ overviewLabels.browse_all }}</Link>
+            </Button>
         </template>
 
         <!-- loading: only mid-navigation, e.g. a partial reload -->

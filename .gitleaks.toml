@@ -110,7 +110,7 @@ description = "screenshot pipeline: fake MCP agent token lmcp_screenshotAgentTok
 targetRules = ["lanomat-mcp-token"]
 condition = "AND"
 regexTarget = "match"
-paths = ['''^database/seeders/ScreenshotSeeder\.php$''', '''^scripts/screenshots/capture\.mjs$''']
+paths = ['''^database/seeders/ScreenshotSeeder\.php$''', '''^scripts/screenshots/capture\.mjs$''', '''^scripts/ops/verify-launcher-local\.sh$''']
 regexes = ['''^lmcp_screenshotAgentToken0{27}$''']
 
 # (f) docs-site/apis/lanomat.openapi.yaml, history only: an earlier revision
@@ -124,3 +124,14 @@ condition = "AND"
 regexTarget = "secret"
 paths = ['''^docs-site/apis/lanomat\.openapi\.yaml$''']
 regexes = ['''^lmcp_9b2f4c1d7e6a8f3c5d0b9a7e5f3c1d2b4a6e8f0c$''']
+
+# (g) tests/Feature/Mcp/TerminalApiTest.php (history only): the canonical fake
+# Discord snowflake in the placeholder used before the suite's 1000… convention.
+# It is not a real account; the test asserts it is never returned.
+[[allowlists]]
+description = "TerminalApiTest (history): fake Discord snowflake 123456789012345678"
+targetRules = ["discord-client-id"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^tests/Feature/Mcp/TerminalApiTest\.php$''']
+regexes = ['''^123456789012345678$''']

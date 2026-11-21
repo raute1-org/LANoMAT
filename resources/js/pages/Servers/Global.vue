@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
 import ServerCard from '@/components/servers/ServerCard.vue';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
-import { permanent as serversPermanent } from '@/routes/servers';
+import { browser as serversBrowser } from '@/routes/servers';
 import type { GlobalServerRowDto } from '@/types';
 
 /**
@@ -42,7 +42,7 @@ function applyFilters() {
     clearTimeout(debounceHandle);
 
     router.get(
-        '/servers',
+        serversBrowser.url(),
         {
             ...(game.value !== '' ? { game: game.value } : {}),
             ...(q.value.trim() !== '' ? { q: q.value.trim() } : {}),
@@ -127,9 +127,9 @@ const resultCount = computed(() =>
     >
         <template #actions>
             <Button as-child variant="outline" size="sm">
-                <a :href="serversPermanent().url">{{
+                <Link href="/servers#servers-permanent">{{
                     labels.permanent_badge
-                }}</a>
+                }}</Link>
             </Button>
         </template>
 

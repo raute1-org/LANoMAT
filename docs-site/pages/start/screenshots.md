@@ -61,7 +61,7 @@ Game servers stay available between events, the event page lists the ones runnin
 | Dark | Light |
 |---|---|
 | ![Permanent servers page with the empty state before the first server, dark](/screens/servers-dark.png) | ![Permanent servers page with the empty state before the first server, light](/screens/servers-light.png) |
-| `PERMANENT SERVERS · DARK` — `/servers`, year-round game servers | `PERMANENT SERVERS · LIGHT` |
+| `SERVER OVERVIEW · DARK` — `/servers`, the LAN's servers and the permanent ones | `SERVER OVERVIEW · LIGHT` |
 | ![Event game server card with address, port, memory estimate, ready status and connect button, dark](/screens/event-servers-dark.png) | ![Event game server card with address, port, memory estimate, ready status and connect button, light](/screens/event-servers-light.png) |
 | `EVENT SERVERS · DARK` — UT2004 DM-Antalus, ready, connect | `EVENT SERVERS · LIGHT` |
 | ![Account connections for Steam and Twitch plus the desktop-app download, dark](/screens/connections-dark.png) | ![Account connections for Steam and Twitch plus the desktop-app download, light](/screens/connections-light.png) |

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import Panel from '@/components/Panel.vue';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useModules } from '@/composables/useModules';
 import { index as serversIndex } from '@/routes/servers';
 import type { NowPlayingRow } from '@/types/now';
 import JoinButton from './JoinButton.vue';
@@ -14,7 +16,16 @@ defineProps<{
 }>();
 
 const t = useNowLabels();
+const { has } = useModules();
 const SEGMENTS = 12;
+
+// Presence can fill this panel without the GameServers module; the link to
+// /servers would 404 in that profile, so it is only offered when routable.
+const allServersLink = computed(() =>
+    has('game_servers')
+        ? { href: serversIndex.url(), label: t('all_servers') }
+        : undefined,
+);
 
 function where(row: NowPlayingRow): string {
     if (row.servers === 0) {
@@ -30,10 +41,7 @@ function where(row: NowPlayingRow): string {
 </script>
 
 <template>
-    <Panel
-        :title="t('now_playing')"
-        :link="{ href: serversIndex.url(), label: t('all_servers') }"
-    >
+    <Panel :title="t('now_playing')" :link="allServersLink">
         <ul
             v-if="loading"
             class="space-y-3 border-t border-border px-4 py-3"

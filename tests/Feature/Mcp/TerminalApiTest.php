@@ -274,7 +274,7 @@ it('does not leak user data beyond the paired user', function () {
     $orga = User::factory()->orga()->create([
         'name' => 'Orga Ada',
         'email' => 'ada@example.test',
-        'discord_id' => '123456789012345678',
+        'discord_id' => '100000000000000001',
     ]);
     [$plain, $token] = launcherTerminalToken($orga, 'Kabinett-Token');
 
@@ -284,6 +284,6 @@ it('does not leak user data beyond the paired user', function () {
 
     expect($body)->toContain('Orga Ada')
         ->not->toContain('ada@example.test')
-        ->not->toContain('123456789012345678')
+        ->not->toContain('100000000000000001')
         ->not->toContain('participant');
 });

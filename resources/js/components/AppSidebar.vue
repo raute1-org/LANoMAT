@@ -65,7 +65,10 @@ import { index as pollsIndex } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import { index as scheduleIndex } from '@/routes/schedule';
 import { control as screenControl } from '@/routes/screen';
-import { index as serversIndex } from '@/routes/servers';
+import {
+    browser as serversBrowser,
+    index as serversIndex,
+} from '@/routes/servers';
 import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
@@ -273,7 +276,11 @@ const moreItems = computed<NavItem[]>(() => {
     }
 
     if (has('game_servers')) {
-        items.push({ title: 'Alle Server', href: '/servers/all', icon: Radar });
+        items.push({
+            title: 'Alle Server',
+            href: serversBrowser.url(),
+            icon: Radar,
+        });
     }
 
     items.push({

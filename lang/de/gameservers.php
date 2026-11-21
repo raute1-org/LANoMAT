@@ -474,5 +474,6 @@ return [
         'other_event_hint' => 'Du siehst die Server von :event.',
         'back_to_current' => 'Zur aktuellen LAN',
         'connect_other' => 'Anders verbinden',
+        'browse_all' => 'Serverbrowser',
     ],
 ];

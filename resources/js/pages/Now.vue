@@ -134,9 +134,6 @@ const dateRange = computed(() => {
             <!-- desktop app hint: only with a matching build, dismissible per version -->
             <DesktopClientHint :labels="clientHint" />
 
-            <!-- The start-page chat: the same front door as the guest landing. -->
-            <HomeChat :chat="chat" />
-
             <!-- Header -->
             <div
                 class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2"
@@ -175,6 +172,9 @@ const dateRange = computed(() => {
                     </p>
                 </div>
             </div>
+
+            <!-- The start-page chat: the same front door as the guest landing. -->
+            <HomeChat :chat="chat" />
 
             <!-- Live -->
             <template v-if="state === 'live' && event">

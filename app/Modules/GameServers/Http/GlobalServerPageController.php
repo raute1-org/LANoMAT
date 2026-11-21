@@ -14,7 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The global server browser at `/servers`: one place that answers "which servers are
+ * The global server browser at `/servers/all`: one place that answers "which servers are
  * running?" across every game, instead of one page per event. It aggregates the event
  * server lists of all publicly visible, non-archived events and the permanent servers
  * (see {@see ServerListProjection::forGlobalBrowser()}); the event server page and the

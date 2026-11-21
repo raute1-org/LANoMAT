@@ -7,12 +7,18 @@ import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { useModules } from '@/composables/useModules';
 import { formatInstant } from '@/lib/datetime';
+import { show as cateringShow } from '@/routes/catering';
 import {
     index as eventsIndex,
     register as eventsRegister,
     seating as eventsSeating,
 } from '@/routes/events';
-import { show as pollShow } from '@/routes/polls';
+import { index as filesIndex } from '@/routes/files';
+import { index as galleryIndex } from '@/routes/gallery';
+import { index as jukeboxIndex } from '@/routes/jukebox';
+import { index as lfgIndex } from '@/routes/lfg';
+import { index as pollsIndex, show as pollShow } from '@/routes/polls';
+import { show as presenceShow } from '@/routes/presence';
 import { show as recapShow } from '@/routes/recap';
 import type { EventSummary, HomeChatData, NewsPostDto } from '@/types';
 
@@ -304,6 +310,47 @@ function pad(value: number): string {
             >
                 {{ freeSpotsHint }}
             </p>
+            <Button v-if="has('presence')" as-child variant="outline">
+                <Link :href="presenceShow.url(event.slug)">{{
+                    labels.to_presence
+                }}</Link>
+            </Button>
+            <Button v-if="has('jukebox')" as-child variant="outline">
+                <Link :href="jukeboxIndex.url(event.slug)">{{
+                    labels.to_jukebox
+                }}</Link>
+            </Button>
+            <Button v-if="has('gallery')" as-child variant="outline">
+                <Link :href="galleryIndex.url(event.slug)">{{
+                    labels.to_gallery
+                }}</Link>
+            </Button>
+            <Button v-if="has('catering')" as-child variant="outline">
+                <Link :href="cateringShow.url(event.slug)">{{
+                    labels.to_catering
+                }}</Link>
+            </Button>
+            <Button v-if="has('voting')" as-child variant="outline">
+                <Link :href="pollsIndex.url(event.slug)">{{
+                    labels.to_polls
+                }}</Link>
+            </Button>
+            <Button v-if="has('lfg')" as-child variant="outline">
+                <Link :href="lfgIndex.url(event.slug)">{{
+                    labels.to_lfg
+                }}</Link>
+            </Button>
+            <Button v-if="has('files')" as-child variant="outline">
+                <Link :href="filesIndex.url(event.slug)">{{
+                    labels.to_files
+                }}</Link>
+            </Button>
+            <Button v-if="has('game_servers')" as-child variant="outline">
+                <Link
+                    :href="`/servers?event=${encodeURIComponent(event.slug)}`"
+                    >{{ labels.to_servers }}</Link
+                >
+            </Button>
             <Button as-child variant="outline">
                 <Link :href="eventsIndex()">{{ labels.to_archive }}</Link>
             </Button>

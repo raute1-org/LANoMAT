@@ -247,7 +247,7 @@ if ($modules->routable(Module::GameServers)) {
         // The cross-event browser: every public event's servers in one answer.
         Route::get('/servers/all', [GlobalServerPageController::class, 'index'])->name('servers.browser');
         // The permanent servers live in the same overview; keep the old URL alive.
-        Route::redirect('/servers/permanent', '/servers')->name('servers.permanent');
+        Route::get('/servers/permanent', fn () => redirect('/servers', 301))->name('servers.permanent');
         Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'legacy'])->name('servers.event');
         // Admin shortcuts on that page; the Actions authorize `configure` on the server.
         Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');
