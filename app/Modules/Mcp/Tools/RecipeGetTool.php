@@ -64,6 +64,12 @@ class RecipeGetTool extends LanomatTool
                 'license' => $recipe->license,
                 'play_url' => $recipe->playUrl(),
                 'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => collect($recipe->launchTargets())->map(function (array $target): array {
+                    $target['label'] = SafeText::line((string) ($target['label'] ?? '')) ?? '';
+                    $target['notes'] = SafeText::line((string) ($target['notes'] ?? '')) ?: null;
+
+                    return $target;
+                })->all(),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),

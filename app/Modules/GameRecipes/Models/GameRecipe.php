@@ -127,20 +127,72 @@ class GameRecipe extends Model
         ))));
     }
 
-    /** A local launch command from the recipe (e.g. the UT2004.exe path). */
-    public function launchTarget(): ?string
+    /**
+     * A local launch command from the recipe. Precedence: an explicitly
+     * requested launch target, then a target for the requested OS, then the
+     * recipe default, then the first declared target.
+     */
+    public function launchTarget(?string $id = null, ?string $os = null): ?string
     {
-        $command = $this->metadata['launch'] ?? null;
+        $targets = $this->launchTargets();
+
+        if ($id !== null) {
+            foreach ($targets as $target) {
+                if (($target['id'] ?? null) === $id && $this->targetCommand($target) !== null) {
+                    return $this->targetCommand($target);
+                }
+            }
+        }
+
+        if ($os !== null) {
+            foreach ($targets as $target) {
+                $targetOs = $target['os'] ?? 'any';
+
+                if ($targetOs === $os && $this->targetCommand($target) !== null) {
+                    return $this->targetCommand($target);
+                }
+            }
+        }
+
+        $launch = $this->metadata['launch'] ?? null;
+
+        if (is_string($launch) && $launch !== '') {
+            return $launch;
+        }
+
+        if (is_array($launch) && $this->targetCommand($launch) !== null) {
+            return $this->targetCommand($launch);
+        }
+
+        return $this->targetCommand($targets[0] ?? []);
+    }
+
+    /** @param array<string, mixed> $target */
+    private function targetCommand(array $target): ?string
+    {
+        $command = $target['target'] ?? $target['command'] ?? null;
 
         return is_string($command) && $command !== '' ? $command : null;
     }
 
+    /** @return list<array<string, mixed>> */
+    public function launchTargets(): array
+    {
+        $targets = $this->metadata['launch_targets'] ?? [];
+
+        return is_array($targets) ? array_values(array_filter($targets, 'is_array')) : [];
+    }
+
     /** Optional web-playable URL (e.g. the Ridge Racer cabinet). */
-    public function playUrl(): ?string
+    public function playUrl(?string $host = null): ?string
     {
         $url = $this->metadata['play_url'] ?? null;
 
-        return is_string($url) && $url !== '' ? $url : null;
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+
+        return $host !== null && $host !== '' ? str_replace('{{host}}', $host, $url) : $url;
     }
 
     /** Whether the recipe has a multiplayer mode (default true; a singleplayer recipe says so). */

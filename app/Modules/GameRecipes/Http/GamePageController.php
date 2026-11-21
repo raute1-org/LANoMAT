@@ -77,7 +77,7 @@ class GamePageController extends Controller
         $user = $this->authUser($request);
         $matches = $matcher->matchesFor($recipe, $user);
         $servers = $modules->enabled(Module::GameServers) ? $this->serversFor($recipe) : [];
-        $playUrl = $recipe->playUrl();
+        $playUrl = $recipe->playUrl($request->getHost());
         $event = $this->activeEvent();
         $tournaments = $modules->enabled(Module::Tournaments) && $event !== null
             ? $this->tournamentsFor($recipe, $event)

@@ -24,7 +24,7 @@ final class BuildInstallPlan
     public function __construct(private readonly RecipeFileMatcher $matcher) {}
 
     /** @return array<string, mixed> */
-    public function handle(GameRecipe $recipe, User $viewer, string $os, ?Event $event = null): array
+    public function handle(GameRecipe $recipe, User $viewer, string $os, ?Event $event = null, bool $record = true): array
     {
         $os = $this->normalizeOs($os);
         $matches = $this->matcher->matchesFor($recipe, $viewer, $event);
@@ -83,6 +83,7 @@ final class BuildInstallPlan
                 'version' => $recipe->version,
                 'skill' => $this->skillName($recipe),
                 'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => $recipe->launchTargets(),
                 'launch_command' => $recipe->launchCommand(),
                 'play_url' => $recipe->playUrl(),
             ],
@@ -97,13 +98,15 @@ final class BuildInstallPlan
             'generated_at' => now()->toIso8601String(),
         ];
 
-        GameRecipeInstall::query()->create([
-            'game_recipe_id' => $recipe->id,
-            'user_id' => $viewer->getKey(),
-            'os' => $os,
-            'status' => InstallStatus::Planned,
-            'plan' => $plan,
-        ]);
+        if ($record) {
+            GameRecipeInstall::query()->create([
+                'game_recipe_id' => $recipe->id,
+                'user_id' => $viewer->getKey(),
+                'os' => $os,
+                'status' => InstallStatus::Planned,
+                'plan' => $plan,
+            ]);
+        }
 
         return $plan;
     }

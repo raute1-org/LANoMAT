@@ -9,7 +9,7 @@ it('schedules only core commands under the core profile', function () {
 
     expect($scheduled)->toContain('lanomat:tournament-tick')->toContain('lanomat:heartbeat');
 
-    foreach (['lanomat:jukebox-tick', 'lanomat:sweep-discord-outbox', 'lanomat:send-schedule-reminders'] as $command) {
+    foreach (['lanomat:jukebox-tick', 'lanomat:sweep-discord-outbox', 'lanomat:send-schedule-reminders', 'lanomat:recipes:sync'] as $command) {
         expect($scheduled)->not->toContain($command);
     }
 });
@@ -28,6 +28,7 @@ it('keeps all probes and schedule entries under full', function () {
     $report = modulesReport('full');
 
     expect(implode("\n", $report['scheduled']))->toContain('lanomat:jukebox-tick');
+    expect(implode("\n", $report['scheduled']))->toContain('lanomat:recipes:sync');
     expect(count($report['preflight']))->toBe(19);
 });
 

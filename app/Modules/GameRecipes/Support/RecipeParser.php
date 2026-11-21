@@ -74,7 +74,7 @@ final class RecipeParser
             'skill_markdown' => $skill,
             'requirements' => array_values((array) ($data['requires'] ?? $data['requirements'] ?? [])),
             'steps' => array_values((array) ($data['steps'] ?? [])),
-            'metadata' => is_array($data['metadata'] ?? null) ? $data['metadata'] : [],
+            'metadata' => $this->metadata($data),
         ];
 
         $files = [];
@@ -100,5 +100,25 @@ final class RecipeParser
         }
 
         return ['recipe' => $recipe, 'files' => $files];
+    }
+
+    /**
+     * Older recipes kept play_url/launch_targets at the top level; the
+     * canonical place is metadata, so lift them once at import time.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function metadata(array $data): array
+    {
+        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
+
+        foreach (['play_url', 'live_url', 'launch', 'launch_targets', 'avatar_converter_url'] as $key) {
+            if (! array_key_exists($key, $metadata) && array_key_exists($key, $data)) {
+                $metadata[$key] = $data[$key];
+            }
+        }
+
+        return $metadata;
     }
 }

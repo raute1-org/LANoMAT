@@ -70,8 +70,9 @@ class RecipeController extends Controller
                 'aliases' => $recipe->aliases,
                 'homepage' => $recipe->homepage,
                 'license' => $recipe->license,
-                'play_url' => $recipe->playUrl(),
+                'play_url' => $recipe->playUrl($request->getHost()),
                 'launch_target' => $recipe->launchTarget(),
+                'launch_targets' => $this->launchTargets($recipe),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),
@@ -110,6 +111,7 @@ class RecipeController extends Controller
         $data = $request->validate([
             'os' => ['nullable', 'in:windows,linux,macos,win,mac'],
             'event_slug' => ['nullable', 'string', 'max:120'],
+            'dry_run' => ['nullable', 'boolean'],
         ]);
 
         $recipe = $this->findRecipe($request, $slug);
@@ -118,7 +120,13 @@ class RecipeController extends Controller
             : null;
 
         return response()->json(
-            $plan->handle($recipe, $this->authUser($request), (string) ($data['os'] ?? 'windows'), $event),
+            $plan->handle(
+                $recipe,
+                $this->authUser($request),
+                (string) ($data['os'] ?? 'windows'),
+                $event,
+                record: ! (bool) ($data['dry_run'] ?? false),
+            ),
             200,
             ['Cache-Control' => 'no-store, private'],
         );
@@ -184,6 +192,17 @@ class RecipeController extends Controller
                 'status' => $recipe->status->value,
             ],
         ], 201, ['Cache-Control' => 'no-store, private']);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function launchTargets(GameRecipe $recipe): array
+    {
+        return array_map(static function (array $target): array {
+            $target['label'] = SafeText::line((string) ($target['label'] ?? '')) ?? '';
+            $target['notes'] = SafeText::line((string) ($target['notes'] ?? '')) ?: null;
+
+            return $target;
+        }, $recipe->launchTargets());
     }
 
     private function findRecipe(Request $request, string $slug): GameRecipe
