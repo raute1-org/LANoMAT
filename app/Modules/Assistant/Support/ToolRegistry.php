@@ -13,6 +13,9 @@ use App\Modules\Assistant\Tools\Read\ServerSettingsGetTool;
 use App\Modules\Assistant\Tools\Read\ServersListTool;
 use App\Modules\Assistant\Tools\Read\TournamentGetTool;
 use App\Modules\Assistant\Tools\Read\TournamentsListTool;
+use App\Modules\Assistant\Tools\Write\TournamentAdvanceTool;
+use App\Modules\Assistant\Tools\Write\TournamentCreateTool;
+use App\Modules\Assistant\Tools\Write\TournamentUpdateTool;
 use App\Support\Modules\Modules;
 
 /**
@@ -34,7 +37,11 @@ final class ToolRegistry
     ];
 
     /** @var list<class-string<AssistantTool>> */
-    public const array WRITE_TOOLS = [];
+    public const array WRITE_TOOLS = [
+        TournamentCreateTool::class,
+        TournamentUpdateTool::class,
+        TournamentAdvanceTool::class,
+    ];
 
     /** @return list<class-string<AssistantTool>> */
     public static function classes(): array
