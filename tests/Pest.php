@@ -40,6 +40,7 @@ pest()->extend(TestCase::class)
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in(
+        'Unit/Assistant',
         'Unit/Catering',
         'Unit/CustomServers',
         'Unit/Events',
@@ -78,7 +79,7 @@ pest()->use(RefreshDatabase::class)->in('Feature/Provisioning');
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments', 'Feature/Provisioning', 'Unit/Provisioning');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments', 'Feature/Provisioning', 'Unit/Provisioning', 'Feature/Assistant', 'Unit/Assistant');
 
 /*
 |--------------------------------------------------------------------------

@@ -27,6 +27,7 @@ export * from './webVoice';
 export * from './voting';
 
 export type ModuleKey =
+    | 'assistant'
     | 'casting'
     | 'catering'
     | 'custom_servers'
