@@ -40,8 +40,8 @@ final class Ut2004Protocol
     }
 
     /**
-     * Player list answer (type 2): header, type, a count byte, then per player an
-     * int32 id, a length-prefixed name, int32 ping, int32 score and int32 stats id.
+     * Player list answer (type 2): header, type, then per player (no count byte, until
+     * the packet ends) an int32 id, a length-prefixed name, int32 ping, int32 score and int32 stats id.
      * The server does not report the connected time. A malformed or truncated entry
      * ends the list (what was read before stays); never throws. Null when it is no
      * player answer.
@@ -50,15 +50,16 @@ final class Ut2004Protocol
      */
     public static function parsePlayers(string $packet): ?array
     {
-        if (strlen($packet) < 6 || ! str_starts_with($packet, self::HEADER) || $packet[4] !== "\x02") {
+        if (strlen($packet) < 5 || ! str_starts_with($packet, self::HEADER) || $packet[4] !== "\x02") {
             return null;
         }
 
-        $count = ord($packet[5]);
-        $offset = 6;
+        // No count byte: the entries follow the type byte one after the other until the packet ends
+        // (verified against a real UT2004 server).
+        $offset = 5;
         $rows = [];
 
-        for ($i = 0; $i < $count; $i++) {
+        while (count($rows) < self::MAX_PLAYERS) {
             if (strlen($packet) < $offset + 4) {
                 break;
             }
@@ -86,12 +87,20 @@ final class Ut2004Protocol
 
     public static function parseInfo(string $packet): ?ServerInfo
     {
-        // header(4) + type(1) + id(4) + port(4) + ip(4)
-        if (strlen($packet) < 17 || ! str_starts_with($packet, self::HEADER) || $packet[4] !== "\x00") {
+        // header(4) + type(1) + server id(4) + ip (a length-prefixed string, empty here) + game port(4)
+        // + query port(4), then name, map and game type as length-prefixed strings (verified against a
+        // real UT2004 server).
+        if (strlen($packet) < 18 || ! str_starts_with($packet, self::HEADER) || $packet[4] !== "\x00") {
             return null;
         }
 
-        $offset = 17;
+        $offset = 9;
+
+        if (self::readString($packet, $offset) === null || strlen($packet) < $offset + 8) {
+            return null;
+        }
+
+        $offset += 8; // game port and query port
         $strings = [];
 
         foreach (range(1, 3) as $ignored) {
