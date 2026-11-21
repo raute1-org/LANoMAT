@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import Panel from '@/components/now/Panel.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -53,11 +47,8 @@ function formatDateTime(iso: string): string {
     <Head :title="`${labels.title} — ${event.name}`" />
 
     <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
-        <Card class="mt-8">
-            <CardHeader>
-                <CardTitle>{{ labels.create_title }}</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Panel class="mt-6" :title="labels.create_title">
+            <div class="border-t border-border p-4">
                 <form class="space-y-4" @submit.prevent="submit">
                     <div class="grid gap-2">
                         <Label for="lfg-title">{{ labels.title_field }}</Label>
@@ -151,36 +142,39 @@ function formatDateTime(iso: string): string {
                         {{ labels.submit }}
                     </Button>
                 </form>
-            </CardContent>
-        </Card>
+            </div>
+        </Panel>
 
         <div
             v-if="posts.length === 0"
-            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+            class="mt-6 rounded-md border border-dashed border-border p-6 text-center"
         >
             <p class="text-sm text-muted-foreground">
                 {{ labels.empty }}
             </p>
         </div>
 
-        <div v-else class="mt-8 space-y-4">
-            <Card v-for="post in posts" :key="post.id">
-                <CardHeader>
-                    <div class="flex items-center justify-between gap-4">
-                        <CardTitle>{{ post.title }}</CardTitle>
+        <ul
+            v-else
+            class="mt-4 divide-y divide-border rounded-md border border-border bg-card"
+        >
+            <li
+                v-for="post in posts"
+                :key="post.id"
+                class="flex items-start justify-between gap-4 px-4 py-2.5"
+            >
+                <div class="min-w-0 space-y-0.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="font-medium">{{ post.title }}</p>
                         <Badge v-if="post.mine" variant="outline">
                             {{ labels.mine_badge }}
                         </Badge>
                     </div>
-                    <CardDescription>
+                    <p class="text-sm text-muted-foreground">
                         <span v-if="post.game">{{ post.game }} · </span>
                         <span>{{ post.userName }}</span>
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent class="space-y-3">
+                    </p>
                     <p v-if="post.body" class="text-sm">{{ post.body }}</p>
-
                     <p
                         v-if="post.slotsNeeded"
                         class="text-sm text-muted-foreground"
@@ -190,24 +184,24 @@ function formatDateTime(iso: string): string {
                             post.slotsNeeded
                         }}</span>
                     </p>
-
                     <p class="text-sm text-muted-foreground">
                         {{ labels.expires_at }}:
                         <span class="font-mono tabular-nums">{{
                             formatDateTime(post.expiresAt)
                         }}</span>
                     </p>
+                </div>
 
-                    <Button
-                        v-if="post.mine"
-                        size="sm"
-                        variant="destructive"
-                        @click="remove(post)"
-                    >
-                        {{ labels.delete }}
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
+                <Button
+                    v-if="post.mine"
+                    size="sm"
+                    variant="destructive"
+                    class="shrink-0"
+                    @click="remove(post)"
+                >
+                    {{ labels.delete }}
+                </Button>
+            </li>
+        </ul>
     </PageContainer>
 </template>
