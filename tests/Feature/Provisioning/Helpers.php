@@ -29,7 +29,7 @@ class ScriptedRemote extends FakeRemoteExecutor
 
     public bool $composeUploaded = false;
 
-    public function run(RemoteHost $host, string $command): CommandResult
+    public function run(RemoteHost $host, string $command, ?int $timeoutSeconds = null): CommandResult
     {
         $this->commands[] = ['host_id' => $host->id, 'command' => $command];
 

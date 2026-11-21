@@ -10,9 +10,12 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Casts\JoinInfoCast;
 use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Enums\ConsoleKind;
+use App\Modules\GameServers\Enums\ControlDriver;
 use App\Modules\GameServers\Enums\QueryProtocol;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;
+use App\Modules\Hosts\Models\RemoteHost;
 use App\Modules\Tournaments\Models\GameMatch;
 use App\Modules\Tournaments\Models\Tournament;
 use Carbon\CarbonInterface;
@@ -42,6 +45,9 @@ use Illuminate\Support\Str;
  * @property ServerSource $source
  * @property string|null $pelican_node_id
  * @property int|null $custom_server_id
+ * @property int|null $remote_host_id
+ * @property string|null $remote_container
+ * @property ConsoleKind|null $console_kind
  * @property QueryProtocol|null $query_protocol
  * @property string|null $preset_key
  * @property array<string, mixed>|null $readiness Preset readiness/verification snapshot.
@@ -63,7 +69,8 @@ class ServerLink extends Model
     // generated in booted() below, the bearer credential a CS2 game server
     // presents to MatchTelemetryController (Task 12).
     // permanent/source/pelican_node_id/custom_server_id/query_protocol are written
-    // only by CreatePermanentServer, never client-fillable.
+    // only by CreatePermanentServer, remote_host_id/remote_container/console_kind only by
+    // LinkRemoteDockerServer; none of them is client-fillable.
     protected $fillable = [
         'match_id',
         'tournament_id',
@@ -92,6 +99,7 @@ class ServerLink extends Model
             'permanent' => 'boolean',
             'source' => ServerSource::class,
             'query_protocol' => QueryProtocol::class,
+            'console_kind' => ConsoleKind::class,
             'readiness' => 'array',
             'query_info' => 'array',
             'queried_at' => 'datetime',
@@ -113,10 +121,33 @@ class ServerLink extends Model
         return $this->pelican_server_id !== null && $this->pelican_server_identifier !== null;
     }
 
+    /** Whether the link points at a container on a managed remote host (both columns set, host not deleted). */
+    public function hasRemoteDockerLink(): bool
+    {
+        return $this->remote_host_id !== null && $this->remote_container !== null && $this->remote_container !== '';
+    }
+
+    /**
+     * How this server is controlled. A Pelican link wins over a remote container link, so an
+     * adopted server keeps behaving exactly as before.
+     */
+    public function controlDriver(): ControlDriver
+    {
+        if ($this->hasPelicanLink() || $this->source === ServerSource::Pelican) {
+            return ControlDriver::Pelican;
+        }
+
+        if ($this->source === ServerSource::Docker) {
+            return ControlDriver::Docker;
+        }
+
+        return $this->hasRemoteDockerLink() ? ControlDriver::RemoteDocker : ControlDriver::None;
+    }
+
     /** Whether an admin can start/stop/restart it from LANoMAT. */
     public function canBeControlled(): bool
     {
-        return $this->source->canControl() || $this->hasPelicanLink();
+        return $this->controlDriver() !== ControlDriver::None;
     }
 
     /**
@@ -145,6 +176,12 @@ class ServerLink extends Model
     public function customServer(): BelongsTo
     {
         return $this->belongsTo(CustomServer::class);
+    }
+
+    /** @return BelongsTo<RemoteHost, $this> */
+    public function remoteHost(): BelongsTo
+    {
+        return $this->belongsTo(RemoteHost::class);
     }
 
     /** @return BelongsTo<GameMatch, $this> */

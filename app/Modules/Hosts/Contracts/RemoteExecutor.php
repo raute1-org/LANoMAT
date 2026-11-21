@@ -20,7 +20,14 @@ use App\Modules\Hosts\Testing\FakeRemoteExecutor;
  */
 interface RemoteExecutor
 {
-    public function run(RemoteHost $host, string $command): CommandResult;
+    /**
+     * @param  int|null  $timeoutSeconds  Per-read wait for output, null keeps the configured connect timeout.
+     *                                    A long-running command (docker stop) needs a larger budget. A timeout
+     *                                    surfaces as {@see RemoteExecutionException}.
+     *
+     * @throws RemoteExecutionException
+     */
+    public function run(RemoteHost $host, string $command, ?int $timeoutSeconds = null): CommandResult;
 
     public function upload(RemoteHost $host, string $contents, string $remotePath): void;
 

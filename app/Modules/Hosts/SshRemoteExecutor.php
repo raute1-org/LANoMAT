@@ -45,9 +45,13 @@ class SshRemoteExecutor implements RemoteExecutor
         private readonly bool $strictHostKey,
     ) {}
 
-    public function run(RemoteHost $host, string $command): CommandResult
+    public function run(RemoteHost $host, string $command, ?int $timeoutSeconds = null): CommandResult
     {
         $ssh = $this->connect($host);
+
+        if ($timeoutSeconds !== null && $timeoutSeconds > 0) {
+            $ssh->setTimeout($timeoutSeconds);
+        }
 
         try {
             $stdout = $ssh->exec($command);

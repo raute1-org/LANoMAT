@@ -4,6 +4,7 @@ import { computed, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
+import RemoteDockerControls from '@/components/servers/RemoteDockerControls.vue';
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import { Button } from '@/components/ui/button';
 import { useJoinOption } from '@/composables/useJoinOption';
@@ -368,8 +369,13 @@ onUnmounted(() => clearTimeout(hintTimer));
                 >
             </p>
 
+            <RemoteDockerControls
+                v-if="server.canManage && server.admin?.remote"
+                :server="server"
+                :remote="server.admin.remote"
+            />
             <ServerAdminControls
-                v-if="server.canManage && server.admin && adminMaps"
+                v-else-if="server.canManage && server.admin && adminMaps"
                 :server="server"
                 :admin="server.admin"
                 :maps="adminMaps"

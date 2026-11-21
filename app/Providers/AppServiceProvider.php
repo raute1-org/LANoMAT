@@ -39,6 +39,7 @@ use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\Games\Support\NullEggCatalog;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Contracts\RemoteDockerControl;
 use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
@@ -51,6 +52,7 @@ use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
 use App\Modules\GameServers\Support\PelicanEggCatalog;
+use App\Modules\GameServers\Support\SshRemoteDockerControl;
 use App\Modules\GameServers\Support\TcpMinecraftQuery;
 use App\Modules\GameServers\Support\UdpServerQuery;
 use App\Modules\GameServers\Support\UdpUt2004Query;
@@ -308,6 +310,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ServerQuery::class, UdpServerQuery::class);
         $this->app->bind(MinecraftQuery::class, TcpMinecraftQuery::class);
         $this->app->bind(Ut2004Query::class, UdpUt2004Query::class);
+        $this->app->bind(RemoteDockerControl::class, SshRemoteDockerControl::class);
 
         $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(
             (int) config('services.hosts.connect_timeout'),
@@ -537,6 +540,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Avatars: a page loads dozens at once, and every one is immutable and cacheable afterwards.
         RateLimiter::for('avatars', fn (Request $request) => Limit::perMinute(600)->by('avatars|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        // Remote game server consoles: 30 commands per minute and user, the same budget for log reads.
+        RateLimiter::for('remote-console', fn (Request $request) => Limit::perMinute(30)->by('remote-console|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('voice-client-avatars', fn (Request $request) => Limit::perMinute(600)->by('voice-client-avatars|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
 
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
