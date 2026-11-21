@@ -17,6 +17,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Added
 
+- Game servers: one overview at `/servers` for match, tournament, event and permanent servers of the current LAN (`?event=` for another LAN) with compact rows, game filter chips, inline details and connect/copy in the row; `/events/{slug}/servers` redirects there (#164)
 - Native client download: a published client build is offered when it speaks the server's native-client API version; the server version and commit no longer have to match exactly (Preflight and the download page say "compatible" instead of warning)
 - Game servers: new query protocol `ut2004` (UDP, query port = game port + 1, info and player list) so the UT2004 server shows `players/max`; permanent servers list "Wer ist drauf" (in-game nicknames, score, play time where the server reports it) for logged-in users on `/servers` and the event server page, also for Source servers (A2S_PLAYER) and Minecraft's status sample. See `docs/infra/game-server-queries.md`
 - Game servers: join options with a "Beitreten" button for UT2004 servers, choosing Steam (`steam://run/13230//<address>:<port>`) or a native install (`ut2004://<address>:<port>`); options come from a per-game template registry (`JoinLinkTemplates`), the choice is remembered in the browser, and a client-side dialog builds a `.reg`/`.desktop` file for the `ut2004://` handler. New optional UT2004 recipe steps register the handler. Untested against a real UT2004 installation; see `docs/infra/game-server-join-options.md`
