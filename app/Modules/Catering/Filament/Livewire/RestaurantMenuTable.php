@@ -137,6 +137,14 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
         return view('filament.restaurants.menu-table');
     }
 
+    /** @param  array<string, int|string>  $replace */
+    private static function t(string $key, array $replace = []): string
+    {
+        $text = trans($key, $replace);
+
+        return is_string($text) ? $text : $key;
+    }
+
     private function restaurant(): Restaurant
     {
         return Restaurant::query()->findOrFail($this->restaurantId);
@@ -301,7 +309,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
             ->requiresConfirmation()
             ->disabled(fn (array $record): bool => $record['ordered'] > 0)
             ->tooltip(fn (array $record): ?string => $record['ordered'] > 0
-                ? __('catering.restaurant.menu.protected', ['count' => $record['ordered']])
+                ? self::t('catering.restaurant.menu.protected', ['count' => $record['ordered']])
                 : null)
             ->action(function (array $record): void {
                 $restaurant = $this->restaurant();
@@ -334,8 +342,8 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
         }
 
         $note = $reprice
-            ? __('catering.restaurant.menu.repriced', ['count' => $result['repriced']])
-            : ($result['open_affected'] > 0 ? __('catering.restaurant.menu.open_affected', ['count' => $result['open_affected']]) : null);
+            ? self::t('catering.restaurant.menu.repriced', ['count' => $result['repriced']])
+            : ($result['open_affected'] > 0 ? self::t('catering.restaurant.menu.open_affected', ['count' => $result['open_affected']]) : null);
 
         Notification::make()
             ->title(__("catering.restaurant.menu.{$done}"))

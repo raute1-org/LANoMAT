@@ -14,7 +14,7 @@ lanomat-agent doctor
 ```text
 ✓ config        ~/.config/lanomat-agent/config.json (0600)
 ✓ login         lan.example, user rene, expires in 29 days
-✓ mcp           connected, 27 tools, protocol 2025-06-18
+✓ mcp           connected, 29 tools, protocol 2025-06-18
 ✓ model         venice/e2ee-deepseek-v4-1-flash-1017-abliterated
 ✓ tool calls    lanomat_me → ok (412 ms)
 ✓ disk          84 GB free in ~/.cache/lanomat-agent

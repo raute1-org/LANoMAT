@@ -121,7 +121,7 @@ final class FoodNow
 
         return $items
             ->groupBy(fn (FoodOrderItem $item): string => (string) ($item->selection['option_key'] ?? ''))
-            ->map(fn (Collection $group, string $key): string => $group->count().'× '.DishNames::forItem($group->first(), $names->all()))
+            ->map(fn (Collection $group, string $key): string => $group->count().'× '.DishNames::forItem($group->firstOrFail(), $names->all()))
             ->implode(', ');
     }
 }

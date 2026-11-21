@@ -76,7 +76,8 @@ class ImportRestaurantMenu
             }
 
             if ($locked === null) {
-                $target = new Restaurant(['name' => (string) $plan->restaurant['name'], 'slug' => $this->uniqueSlug((string) $plan->restaurant['name'])]);
+                $newName = (string) ($plan->restaurant['name'] ?? '');
+                $target = new Restaurant(['name' => $newName, 'slug' => $this->uniqueSlug($newName)]);
                 $target->menu = $plan->menu;
                 $target->save();
             } else {

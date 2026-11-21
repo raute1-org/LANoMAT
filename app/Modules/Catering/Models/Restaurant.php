@@ -6,6 +6,7 @@ use App\Modules\Catering\Casts\MenuCast;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Enums\FoodPaymentMethod;
+use App\Modules\Events\Models\Event;
 use Database\Factories\RestaurantFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -71,7 +72,10 @@ class Restaurant extends Model
     {
         return $this->foodOrders()
             ->where('status', '!=', FoodOrderStatus::Draft->value)
-            ->whereHas('event', fn (Builder $events) => $events->publiclyVisible())
+            ->whereHas('event', function (Builder $events): void {
+                /** @var Builder<Event> $events */
+                $events->publiclyVisible();
+            })
             ->exists();
     }
 
