@@ -21,6 +21,8 @@ class ServerGameSummary
     private const LIVE = [ServerLinkStatus::Ready, ServerLinkStatus::NotResponding];
 
     /**
+     * Groups come out in first-appearance order, unsorted; the consumer sorts them.
+     *
      * @return list<array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int}|null}>
      */
     public static function forEvent(?Event $event): array
@@ -111,18 +113,24 @@ class ServerGameSummary
     }
 
     /**
-     * A server is joinable when it has a connect string and at least one free slot.
+     * A server is joinable when it has a connect string and is not known to be full. Unknown
+     * capacity (no query data) is not full, so such a server stays joinable.
      *
      * @param  array<string, mixed>  $dto
      */
     private static function joinable(array $dto): bool
     {
-        return $dto['connectString'] !== ''
-            && self::queryCount($dto, 'maxPlayers') > self::queryCount($dto, 'players');
+        if ($dto['connectString'] === '') {
+            return false;
+        }
+
+        return $dto['query'] === null
+            || self::queryCount($dto, 'maxPlayers') > self::queryCount($dto, 'players');
     }
 
     /**
-     * The joinable server with the most players, lowest id on a tie.
+     * The best joinable server: Ready before NotResponding, servers with query data before
+     * those without, then the most players, lowest id last.
      *
      * @param  list<array<string, mixed>>  $candidates
      * @return array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int}|null
@@ -132,9 +140,7 @@ class ServerGameSummary
         $best = null;
 
         foreach ($candidates as $dto) {
-            if ($best === null
-                || self::queryCount($dto, 'players') > self::queryCount($best, 'players')
-                || (self::queryCount($dto, 'players') === self::queryCount($best, 'players') && $dto['id'] < $best['id'])) {
+            if ($best === null || self::ranksAbove($dto, $best)) {
                 $best = $dto;
             }
         }
@@ -153,6 +159,36 @@ class ServerGameSummary
             'players' => self::queryCount($best, 'players'),
             'maxPlayers' => self::queryCount($best, 'maxPlayers'),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $candidate
+     * @param  array<string, mixed>  $current
+     */
+    private static function ranksAbove(array $candidate, array $current): bool
+    {
+        $candidateReady = $candidate['status'] === ServerLinkStatus::Ready->value;
+        $currentReady = $current['status'] === ServerLinkStatus::Ready->value;
+
+        if ($candidateReady !== $currentReady) {
+            return $candidateReady;
+        }
+
+        $candidateKnown = $candidate['query'] !== null;
+        $currentKnown = $current['query'] !== null;
+
+        if ($candidateKnown !== $currentKnown) {
+            return $candidateKnown;
+        }
+
+        $candidatePlayers = self::queryCount($candidate, 'players');
+        $currentPlayers = self::queryCount($current, 'players');
+
+        if ($candidatePlayers !== $currentPlayers) {
+            return $candidatePlayers > $currentPlayers;
+        }
+
+        return (int) $candidate['id'] < (int) $current['id'];
     }
 
     /** @param array<string, mixed> $dto */

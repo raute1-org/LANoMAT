@@ -165,13 +165,59 @@ it('groups a server without a game under its title and skips servers with neithe
         ->and($summary[0])->toMatchArray(['game' => 'Freie Runde', 'servers' => 1, 'players' => 2]);
 });
 
-it('counts zero players and slots for a server without query data', function () {
+it('counts zero players and slots for a server without query data and still offers it to join', function () {
     $event = Event::factory()->live()->create();
     $game = Game::factory()->create(['name' => 'CS2']);
 
     summaryLink($event, $game, [], []);
 
-    expect(ServerGameSummary::forEvent($event)[0])->toMatchArray(['servers' => 1, 'players' => 0, 'maxPlayers' => 0, 'join' => null]);
+    expect(ServerGameSummary::forEvent($event)[0])->toMatchArray(['servers' => 1, 'players' => 0, 'maxPlayers' => 0])
+        ->and(ServerGameSummary::forEvent($event)[0]['join'])->toMatchArray([
+            'connectString' => 'steam://connect/198.51.100.1:27015',
+            'players' => 0,
+            'maxPlayers' => 0,
+        ]);
+});
+
+it('never picks a server whose query is known to be full, even when no other server is joinable', function () {
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'CS2']);
+
+    summaryLink($event, $game, ['title' => 'Voll'], queryInfo(16, 16));
+    summaryLink($event, $game, ['title' => 'Unbekannt'], []);
+
+    expect(ServerGameSummary::forEvent($event)[0]['join'])->toMatchArray(['title' => 'Unbekannt']);
+});
+
+it('ranks a server with query data above one without it at equal players', function () {
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'CS2']);
+
+    $unknown = summaryLink($event, $game, ['title' => 'Unbekannt'], []);
+    $known = summaryLink($event, $game, ['title' => 'Bekannt'], queryInfo(0, 10));
+
+    expect(ServerGameSummary::forEvent($event)[0]['join'])->toMatchArray(['serverId' => $known->id])
+        ->and($unknown->id)->toBeInt();
+});
+
+it('prefers a ready server over a not-responding one even when the latter has more players', function () {
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'CS2']);
+
+    summaryLink($event, $game, ['status' => ServerLinkStatus::NotResponding, 'title' => 'Wartet'], queryInfo(9, 10));
+    $ready = summaryLink($event, $game, ['status' => ServerLinkStatus::Ready, 'title' => 'Bereit'], queryInfo(2, 10));
+
+    expect(ServerGameSummary::forEvent($event)[0]['join'])->toMatchArray(['serverId' => $ready->id, 'title' => 'Bereit']);
+});
+
+it('falls back to a not-responding server when no ready server is joinable', function () {
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'CS2']);
+
+    summaryLink($event, $game, ['status' => ServerLinkStatus::Ready, 'title' => 'Voll'], queryInfo(10, 10));
+    $waiting = summaryLink($event, $game, ['status' => ServerLinkStatus::NotResponding, 'title' => 'Wartet'], queryInfo(3, 10));
+
+    expect(ServerGameSummary::forEvent($event)[0]['join'])->toMatchArray(['serverId' => $waiting->id]);
 });
 
 it('ignores event servers when no event is given', function () {
