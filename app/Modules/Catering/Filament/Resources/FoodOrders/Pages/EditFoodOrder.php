@@ -10,11 +10,15 @@ use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Filament\Resources\FoodOrders\FoodOrderResource;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Support\GroupOrder;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 class EditFoodOrder extends EditRecord
 {
@@ -70,9 +74,32 @@ class EditFoodOrder extends EditRecord
         return $record;
     }
 
+    /**
+     * Status badge plus a one-line summary (dishes, orders, sum, paid, open)
+     * under the title, so the numbers are there before the form.
+     */
+    public function getSubheading(): string|Htmlable|null
+    {
+        /** @var FoodOrder $record */
+        $record = $this->getRecord();
+        $group = GroupOrder::for($record->refresh());
+
+        return new HtmlString(view('filament.food-orders.summary', [
+            'status' => $record->status,
+            'dishes' => count($record->menu),
+            'group' => $group,
+        ])->render());
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('group_order')
+                ->label(__('catering.group_order.action'))
+                ->icon(Heroicon::OutlinedClipboardDocumentList)
+                ->color('gray')
+                ->authorize('update')
+                ->url(fn (FoodOrder $record): string => FoodOrderResource::getUrl('group-order', ['record' => $record])),
             Action::make('open')
                 ->label(__('catering.admin.actions.open'))
                 ->authorize('open')
