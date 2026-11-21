@@ -17,21 +17,23 @@ uses(RefreshDatabase::class);
 
 const NATIVE_V1 = '/api/voice-client/v1';
 
-/** @return array<string, string> */
-function nativeBearer(User $user): array
-{
-    $plain = 'lvc_'.Str::random(48);
-    $token = new VoiceClientToken;
-    $token->forceFill([
-        'user_id' => $user->id,
-        'device_name' => 'Test PC',
-        'token_hash' => hash('sha256', $plain),
-        'expires_at' => now()->addDays(90),
-    ])->save();
+if (! function_exists('nativeBearer')) {
+    /** @return array<string, string> */
+    function nativeBearer(User $user): array
+    {
+        $plain = 'lvc_'.Str::random(48);
+        $token = new VoiceClientToken;
+        $token->forceFill([
+            'user_id' => $user->id,
+            'device_name' => 'Test PC',
+            'token_hash' => hash('sha256', $plain),
+            'expires_at' => now()->addDays(90),
+        ])->save();
 
-    test()->nativeToken = $token;
+        test()->nativeToken = $token;
 
-    return ['Authorization' => 'Bearer '.$plain];
+        return ['Authorization' => 'Bearer '.$plain];
+    }
 }
 
 beforeEach(function () {
