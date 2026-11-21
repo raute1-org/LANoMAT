@@ -1210,6 +1210,70 @@
       "pages/system/modules/mcp.md"
     ]
   },
+  "nfsu2/browser-intro-chrome.png": {
+    "width": 1200,
+    "height": 800,
+    "bytes": 118697,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/browser-profile-create-brave.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 90204,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/browser-start-page-brave.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 58733,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/launcher-library.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 49973,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfs-online-server-status.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 33770,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfsu2-archive-facts.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 28228,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfsu2-native-quickrace.png": {
+    "width": 1280,
+    "height": 800,
+    "bytes": 245774,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
+  "nfsu2/nfsu2-native-title.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 248324,
+    "referencedBy": [
+      "pages/recipes/nfsu2.md"
+    ]
+  },
   "notifications-dark.png": {
     "width": 1440,
     "height": 900,

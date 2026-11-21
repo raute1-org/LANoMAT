@@ -4,7 +4,7 @@ Date: 2026-11-21 · Branch: `main` · Commit: the commit that contains this file
 
 This is the short runbook for the admin. Detailed evidence lives in
 `docs/ops/ut2004-pilot.md`, `docs/ops/nfsu2.md`, `docs/ops/nfsu2-server.md`,
-`docs/ops/nfsu2-browser.md`, `docs/ops/discord-announcement.md`,
+`docs/ops/nfsu2-browser.md`, `docs/ops/nfsu2-package.md`, `docs/ops/discord-announcement.md`,
 `docs/ops/discord-agent.md`, `docs/ops/launcher-lineup.md` and
 `docs/launcher-agent-integration.md`.
 
@@ -120,7 +120,7 @@ text.
 | `ut2004-base.zip` | 2.5 GB flat base, complete, upload paused (resume) |
 | `ut2k4+keygen.zip` | nosTEAM **installer**, not a portable base |
 | `ut2004-portable-3374-{windows,linux,macos}.zip` | built, verified, not uploaded |
-| `nfsu2-portable.zip` | 2.59 GB, ready to upload |
+| `nfsu2-portable.zip` | **2,602,084,719 B**, sha256 `0d7028987ba4fdb5dfbd92e3c5a77fd2d6e98992b85b14ef0268fba040767219`, flat, net_u2.asi/ini + dinput8 + start-nfsu2-linux.sh; upload pending |
 | `net_u2.asi` / `net_u2.ini` | built, 112,640 B / 606 B |
 
 Upload only works on the **LANoMAT** WLAN (`10.23.0.0/22`), not on `qc`

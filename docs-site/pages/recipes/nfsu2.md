@@ -8,7 +8,7 @@ Need for Speed: Underground 2 is the LAN's open-city street racer: career garage
 free roam. EA's online service is gone, so the recipe adds the community **NFS-Online** client and
 points it at the LAN server. The base game is user-supplied; no game files ship with LANoMAT.
 
-<div class="live">LIVE 16:10 · NFSU2 · recipe draft · NFS-Online 1.1.3 · browser fallback nfsu2.xyz</div>
+<div class="live">LIVE 16:18 · NFSU2 · recipe draft · NFS-Online 1.1.3 · browser fallback nfsu2.xyz</div>
 
 There are two paths, and they are not the same service:
 
@@ -40,6 +40,14 @@ the recipe is published, `installable` stays false.
 |---|---|
 | ![NFSU2 title screen over Proton Experimental](/screens/nfsu2/nfsu2-native-title.png) | ![Terminal with NFS-Online status, ports and HTTP checks](/screens/nfsu2/nfs-online-server-status.png) |
 
+| Launcher library (NFSU2 card still missing) | Downloaded archive and hashes |
+|---|---|
+| ![Launcher library with UT2004 and Apocalypse, no NFSU2 card](/screens/nfsu2/launcher-library.png) | ![Terminal with SHA-256, 1,393 files and SPEED2.EXE hash](/screens/nfsu2/nfsu2-archive-facts.png) |
+
+| Quick Race Car Select (native) | Browser intro |
+|---|---|
+| ![NFSU2 Quick Race Car Select over Proton](/screens/nfsu2/nfsu2-native-quickrace.png) | ![nfsu2.xyz intro cutscene in Chrome](/screens/nfsu2/browser-intro-chrome.png) |
+
 ## Install and launch
 
 1. Unpack the portable ZIP and remove the single wrapper folder, so `SPEED2.EXE`, `CARS/`,
@@ -47,7 +55,7 @@ the recipe is published, `installable` stays false.
 2. Put `dinput8.dll` (x86 Ultimate ASI Loader) in the game root.
 3. Put `net_u2.asi` and `net_u2.ini` in `scripts/`.
 4. Set the same `host` in `[network]` and `[lan]` of `net_u2.ini`. On the event LAN that is
-   `10.23.0.12`; the server must advertise the same address.
+   `<LAN_SERVER_IP>`; the server must advertise the same address.
 5. Windows: start `SPEED2.EXE`. Linux: start it through Wine with the loader override:
 
 ```bash
@@ -88,9 +96,10 @@ The upstream repository is archived since 2026-11-09; the public server continue
 - The downloaded `NFSU2-portable.zip` is still the raw archive (wrapper folder, no
   `scripts/net_u2.asi`/`net_u2.ini`, older bundled `dinput8.dll`); the flat LAN package is pending.
 - No LAN file match yet, so the installer has nothing to download.
-- The running test server was started before the host changed to `10.23.0.12`; restart it so the
+- The running test server was started before the host changed to `<LAN_SERVER_IP>`; restart it so the
   advertised address matches the client INI.
 - `python nfs_online.py status` reports `Stopped` for a foreground/container start because
   `runtime/services.json` is missing; check ports and `/news` instead.
 - A full login/lobby/race handshake with two real clients is still untested.
-- Split-screen and the NFS-Online ASI both patch the game; do not combine them untested.
+- Split-screen and the NFS-Online ASI both patch the game. They load together in one process, but a
+  2-player race with both is untested.
