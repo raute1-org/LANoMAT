@@ -77,6 +77,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 - Recipe catalogue: the validator is green again (`uevr`, `god-of-war-iii-remastered`)
 - Docs: the OpenAPI file had a duplicated schema key that broke the docs build
 - Onboarding: the public team pages keep the guest-safe shell, so no Spiele/Launcher/Server navigation appears before the Discord login; the guest landing and `/launcher` are covered by regression tests.
+- Light control page: the "last checked" time no longer crashes the page (500) when the bridge is online; it now uses `DisplayTimezone::local()` instead of calling `setTimezone()` with a string on a raw `DateTimeImmutable`
 - MCP: `tools/list` omits `nextCursor` on the last page instead of sending `null` (invalid per the MCP schema; Claude Code rejected the whole tool list).
 - Presence: a voice server that does not answer is skipped for two minutes (circuit breaker) instead of blocking the presence refresh and the queue worker for the sidecar timeout.
 - Voice: the TeamSpeak sidecar stays on the ServerQuery allowlist (`scripts/ops/teamspeak-allow-sidecar.sh`, run by `deploy.sh`); a flood ban made every presence refresh time out and stalled the queue worker (docs/teamspeak-setup.md 4a).
