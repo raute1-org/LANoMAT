@@ -25,10 +25,13 @@ the browser and in the launcher.
 
 ## Product flow
 
-1. Website `/games` lists every recipe as a row with **Installieren**, server browser/join, and
-   **Fragen** (chat). No agent installed → the button downloads the launcher.
-2. One launcher download (`LANoMAT-Setup.exe`) → first run provisions via a one-time install
-   ticket (website session/donation cookie) or one-click browser approval.
+0. **Homepage (`/`)** carries the agent chat directly, above/beside a large **Install Launcher**
+   hero. OS buttons: Windows, Linux, macOS. The chat greets the visitor, explains LANoMAT, and can
+   already answer "what can I do?" / "install UT2004" with inline game, server and install cards.
+1. Website `/games` lists every live recipe as a row with **Installieren**, server browser/join, and
+   **Fragen** (chat). No launcher installed → the button downloads the launcher.
+2. One launcher download (`LANoMAT-Setup.exe` / `.AppImage` / `.dmg`) → first run provisions via a
+   one-time install ticket (website session/donation cookie) or one-click browser approval.
 3. Launcher asks flat vs VR, shows collected avatars, then a Sims-like install window:
    ISO download → mount/extract → base assets → OldUnreal 3374 → UT2004VR (optional) → avatars →
    verify. Per-file/per-step progress, speed/ETA, resume, cancel.
@@ -36,6 +39,30 @@ the browser and in the launcher.
    and LANoMAT MCP, syncs recipe skills, then opens the default LANoMAT chat: greeting, "you can
    install UT2004", links to game pages and server browsers, inline install buttons.
 5. Play. Launch targets: flat, VR. Deep links `lanomat://install|launch|play/<slug>`.
+
+### Live vs. experimental catalogue
+
+- **Live build:** only `unreal-tournament-2004` is named on `/`, `/games` and the launcher library.
+  Every other recipe stays **WIP**: present in the stack and docs (unnamed/undisclosed under the
+  live build), never shown as a broken or coming-soon tile.
+- **Experimental mode (dev only):** a toggle (`LAUNCHER_GAME_SCOPE=experimental`, query/env or
+  settings) shows the complete recipe state, including unpublished/SMB recipes, missing files,
+  validation errors and the real source `smb://192.168.68.55/games-recipes/`. It is off by default
+  and can be turned off again. Docs weave the WIP catalogue without naming it on the live surface.
+- Recipes are the bridge. For ISO-based games there is no update treadmill: download, verify the
+  SHA-256 manifest, install, done. Re-verify on repair/launch, not on every start.
+
+### Intent and state
+
+- **Install state per game:** `not_installed → planning → downloading → verifying → installing →
+  ready`; side states `paused`, `repair_needed`, `broken`, `offline`. Persisted locally with the
+  manifest/hash and target path.
+- **Launcher state:** `unpaired → provisioned → library → installing → playing`; `offline` and
+  `sponsor_exhausted` are first-class.
+- **Chat intents:** `install_game`, `launch_game`, `join_server`, `browse_games`, `show_inventory`,
+  `hug_avatar`, `status`, `help`, `smalltalk`. The LLM returns a structured intent + entities;
+  deterministic fallback handles every intent when the model/key is unavailable. Cards are rendered
+  from tool/API data, never invented.
 
 ## Architecture decisions to confirm in the 32-agent wave
 
