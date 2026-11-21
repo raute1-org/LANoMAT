@@ -55,7 +55,7 @@ Eingriff `live-recipe.mjs show` laufen lassen.
 | ISO-Rolle | `role: iso`, required, **extern** auf das archive.org-Full-Game-ZIP; kein LAN-Treffer |
 | Patch live | **eine** Zeile, Label „Windows x64 zip / Linux x64 tar.bz2“, URL/SHA256 des **Linux**-Assets; in der Datei-/Plan-API steht `os: null` |
 | Base live | **keine** `base`-Zeile; die portablen Archive sind noch nicht veröffentlicht |
-| Dateihost | `https://files.lan.raute1.org:8443`, DNS `10.23.0.12` |
+| Dateihost | `https://files.lan.raute1.org:8443`, DNS `<LAN_FILEHOST_IP>` |
 | Rezept-Dateien live | Datei-IDs wechseln bei jedem Sync; nicht als Schlüssel verwenden |
 
 Die Live-ISO-Rolle zeigt auf:
@@ -661,29 +661,14 @@ rm -rf /tmp/opencode/ut2004-serve /tmp/opencode/utparts
 unset TOKEN LANOMAT_ADMIN_COOKIES
 ```
 
-**Public-Safety-Gate:** Das Repo ist öffentlich;
-`scripts/ops/check-public-safe.sh` flaggt private IPs. Dieses Dokument nennt
-`10.23.0.12` und `10.13.69.x` bewusst. Beim Commit braucht die Allowlist
-mindestens:
-
-```text
-docs/ops/ut2004-pilot.md:^10\.23\.0\.12$
-scripts/ops/ut2004/install-smoke.sh:^10\.23\.0\.12$
-scripts/ops/ut2004/README.md:^10\.23\.0\.12$
-scripts/ops/ut2004/README.md:^10\.23\.0\.0$
-scripts/ops/ut2004/README.md:^10\.13\.69\.0$
-```
-
-`10.13.69.x` ist bewusst kein voller Quad und matcht den Checker nicht.
-Die Allowlist selbst ist ein separater Ops-Schritt (nicht Teil dieses
-Dokuments).
+**Public-Safety-Gate:** Das Repo ist öffentlich. Dieses Dokument nennt deshalb keine echten Adressen: `<LAN_SUBNET>` ist das Venue-Netz, `<OFFICE_SUBNET>` das Büronetz, `<LAN_FILEHOST_IP>` der Dateihost. Die echten Werte stehen in den privaten Ops-Notizen.
 
 ## 7. Bekannte Blocker und Entscheidungen
 
 | # | Blocker | Wirkung | Entscheidung / Workaround | Owner | Exit-Kriterium |
 | --- | --- | --- | --- | --- | --- |
 | 7.1 | archive.org stallt Einzelstreams bei 45–180 MB | Base-Download dauert Stunden oder hängt | `fetch-base.sh` mit 4 Ranges, Mirror-Rotation, per-Range-Resume; zusätzlich lokaler HTTP-Server | Ops | Base liegt auf dem Filehost, nicht auf archive.org |
-| 7.2 | `files.lan.raute1.org:8443` (10.23.0.12) aus `10.13.69.x` nicht erreichbar | Client im WG-Netz bekommt keinen Download | vom 10.23-Netz laden/servieren oder Route/Firewall fixen; kein zweiter Upload | Infra | `curl -sSI https://files.lan.raute1.org:8443/` antwortet aus beiden Netzen |
+| 7.2 | `files.lan.raute1.org:8443` (<LAN_FILEHOST_IP>) aus `<OFFICE_SUBNET>` nicht erreichbar | Client im WG-Netz bekommt keinen Download | vom 10.23-Netz laden/servieren oder Route/Firewall fixen; kein zweiter Upload | Infra | `curl -sSI https://files.lan.raute1.org:8443/` antwortet aus beiden Netzen |
 | 7.3 | Live m12-768 filtert `os` nicht: eine Patch-Zeile ohne `os`, Linux-URL | Windows/macOS bekommen den Linux-Patch; falsches `System/` | HEAD deployen (drei OS-Patches, drei OS-Basen) und YAML synchronisieren; bis dahin kein Windows-/macOS-Go | Backend | `plan --os windows/linux/macos` zeigt je den passenden Patch |
 | 7.4 | macOS-Launcher fehlt im Manifest; `.app`/`.dmg` braucht macOS + Sign/Notarization | Kein macOS-One-Click-Download | macOS-Installation über Rezept/Agent; Release auf `macos-15` (arm64) / `macos-15-intel` mit Apple-Secrets | Release | `.dmg` im Manifest, `spctl` akzeptiert |
 | 7.5 | `metadata.launch_targets` geht nicht über `recipe_contribute` (`RecipeContributeTool` hat kein `metadata`-Feld; `ContributeRecipe` setzt Default `{contributed_via: mcp}`) | Contribute ersetzt `metadata` und verliert Launch-Targets | YAML-Sync; das Panel lässt `metadata` unangetastet, `restore` schreibt sie nicht | Backend/Ops | `launch_targets` nach Contribution unverändert |

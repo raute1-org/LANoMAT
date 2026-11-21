@@ -442,7 +442,7 @@ Umgebung nicht installiert.
 
 `install-smoke.sh` exercises the whole native UT2004 install path — plan, base
 download, extraction, OldUnreal 3374 patch, verification — against a **local
-full-game archive**, without the real LAN file host (`10.23.0.12`).
+full-game archive**, without the real LAN file host (`<LAN_FILEHOST_IP>`).
 
 The live recipe `20` (`unreal-tournament-2004`) normally names a file on the
 LAN host. For the duration of a run the script points that recipe at a
@@ -621,7 +621,7 @@ Uploads a large file (the 2.55 GB `ut2004-base.zip` is the pilot case) to the
 event file host through the resumable tus endpoint. The bytes go **directly**
 to `https://files.lan.raute1.org:8443/upload/`; `lan.raute1.org` only issues the
 ticket and hook. The laptop must be on the venue WLAN `LANoMAT`
-(`10.23.0.0/22`), not on `qc` (`10.13.69.0/24`).
+(`<LAN_SUBNET>`), not on `qc` (`<OFFICE_SUBNET>`).
 
 ```bash
 # admin session cookie in Header format, e.g. /tmp/opencode/cookies.txt
