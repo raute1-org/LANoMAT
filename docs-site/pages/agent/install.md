@@ -55,6 +55,11 @@ Open:        https://lan.example/mcp/connect
 Waiting for approval… done. Token stored for lan.example.
 ```
 
+| Dark | Light |
+|---|---|
+| ![MCP code entry with the agents already paired, dark](/screens/mcp-connect-dark.png) | ![MCP code entry with the agents already paired, light](/screens/mcp-connect-light.png) |
+| `PAIRING · CODE ENTRY · CONNECTED AGENTS` | `PAIRING · LIGHT` |
+
 The token lives in:
 
 | OS | Path |
@@ -67,8 +72,8 @@ and you pair again.
 
 | Dark | Light |
 |---|---|
-| ![MCP code entry, dark](/screens/mcp-connect-dark.png) | ![MCP code entry, light](/screens/mcp-connect-light.png) |
-| `Agent & MCP verbinden · DARK` — code entry and the agents already paired | `Agent & MCP verbinden · LIGHT` |
+| ![Account connections page with Steam, Twitch and the desktop app download, dark](/screens/connections-dark.png) | ![Account connections page with Steam, Twitch and the desktop app download, light](/screens/connections-light.png) |
+| `CONNECTIONS · STEAM · TWITCH · DESKTOP APP` | `CONNECTIONS · LIGHT` |
 
 ## 3. Choose a model
 
@@ -87,6 +92,14 @@ lanomat-agent doctor             # token, MCP, model, tool-calling probe
 
 The default model is `venice/e2ee-deepseek-v4-1-flash-1017-abliterated`. Details, precedence and
 alternatives: [Models & fuel](/docs/agent/venice).
+
+| Dark | Light |
+|---|---|
+| ![Doctor output: config, server, MCP tools, model catalog and Doctor: OK, dark](/screens/agent-doctor-terminal-dark.png) | ![Doctor output: config, server, MCP tools, model catalog and Doctor: OK, light](/screens/agent-doctor-terminal-light.png) |
+| `DOCTOR · CONFIG · SERVER · MCP · MODEL` | `DOCTOR · LIGHT` |
+
+`doctor` is the check before the LAN: the required **Config** and **Server** lines plus the advisory
+ones (skills, `smbclient`, Venice key, `models.json`, model catalog, tool-calling probe).
 
 ## 4. Sync the recipe skills
 
@@ -117,6 +130,14 @@ What happens:
    estimated bytes.
 4. On confirmation it downloads from the LAN file host, verifies, runs the steps and reports the
    verification checks.
+
+| Dark | Light |
+|---|---|
+| ![Dry-run install plan for unreal-tournament-2004 with files, byte sizes, steps and avatars, dark](/screens/agent-install-terminal-dark.png) | ![Dry-run install plan for unreal-tournament-2004 with files, byte sizes, steps and avatars, light](/screens/agent-install-terminal-light.png) |
+| `INSTALL PLAN · DRY RUN · FILES · STEPS` | `INSTALL PLAN · LIGHT` |
+
+The plan names every file with its LAN size, the steps with their verification checks, and the
+avatars as a multi-select. `--dry-run` prints the same output without downloading a byte.
 
 ### Avatar multi-select
 
