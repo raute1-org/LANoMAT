@@ -10,6 +10,7 @@ use App\Modules\Events\Filament\Resources\Events\Tables\EventsTable;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Filament\Pages\ArrivalOverview;
 use App\Modules\Registration\Filament\RelationManagers\RegistrationsRelationManager;
+use App\Modules\Registration\Filament\RelationManagers\TicketTypesRelationManager;
 use App\Providers\Filament\AdminNavigationGroup;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -52,6 +53,7 @@ class EventResource extends Resource
     {
         return [
             RegistrationsRelationManager::class,
+            TicketTypesRelationManager::class,
         ];
     }
 
