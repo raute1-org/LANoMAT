@@ -5,6 +5,7 @@ namespace App\Modules\Catering\Models;
 use App\Modules\Catering\Casts\MenuCast;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
+use App\Modules\Catering\Enums\FoodPaymentMethod;
 use App\Modules\Events\Models\Event;
 use Database\Factories\FoodOrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +17,9 @@ use Illuminate\Support\Carbon;
 /**
  * @property list<MenuOption> $menu
  * @property FoodOrderStatus $status
+ * @property FoodPaymentMethod $payment_method
+ * @property string|null $payment_link
+ * @property list<string> $included_ticket_types
  * @property Carbon|null $opens_at
  * @property Carbon|null $closes_at
  */
@@ -33,6 +37,9 @@ class FoodOrder extends Model
         'title',
         'opens_at',
         'closes_at',
+        'payment_method',
+        'payment_link',
+        'included_ticket_types',
     ];
 
     protected function casts(): array
@@ -40,6 +47,8 @@ class FoodOrder extends Model
         return [
             'menu' => MenuCast::class,
             'status' => FoodOrderStatus::class,
+            'payment_method' => FoodPaymentMethod::class,
+            'included_ticket_types' => 'array',
             'opens_at' => 'datetime',
             'closes_at' => 'datetime',
         ];

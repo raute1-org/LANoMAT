@@ -4,6 +4,7 @@ namespace App\Modules\Catering\Filament\Resources\FoodOrders\Pages;
 
 use App\Modules\Catering\Actions\CloseFoodOrder;
 use App\Modules\Catering\Actions\OpenFoodOrder;
+use App\Modules\Catering\Actions\RecomputeIncludedItems;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
@@ -60,6 +61,10 @@ class EditFoodOrder extends EditRecord
         if ($menu !== null && $record instanceof FoodOrder) {
             $record->menu = $menu;
             $record->save();
+        }
+
+        if ($record instanceof FoodOrder && $record->status !== FoodOrderStatus::Closed) {
+            app(RecomputeIncludedItems::class)->handle($record);
         }
 
         return $record;

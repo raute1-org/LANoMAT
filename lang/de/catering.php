@@ -31,6 +31,12 @@ return [
         'menu_name' => 'Bezeichnung',
         'menu_price' => 'Preis (EUR)',
         'menu_add' => 'Option hinzufügen',
+        'payment_method' => 'Bezahlart',
+        'payment_link' => 'Zahlungslink',
+        'included_ticket_types' => 'Im Ticket enthalten für',
+        'included_ticket_types_help' => 'Wer eines dieser Tickets hat, zahlt für diese Runde nichts.',
+        'include_all' => 'Alle',
+        'include_none' => 'Keine',
     ],
 
     'page' => [
@@ -58,7 +64,13 @@ return [
         ],
     ],
 
+    'payment_method' => [
+        'cash' => 'Bar',
+        'paypal' => 'PayPal',
+    ],
+
     'validation' => [
+        'payment_link' => 'Der Zahlungslink muss mit https:// beginnen.',
         'price_format' => 'Bitte einen Preis in Euro eingeben, z. B. 8,50.',
         'price_max' => 'Der Preis darf höchstens :max € betragen.',
         'menu_key_duplicate' => 'Zwei Menü-Positionen haben denselben Schlüssel.',
@@ -80,6 +92,9 @@ return [
         'option' => 'Option',
         'price' => 'Preis',
         'paid' => 'Bezahlt',
+        'included' => 'Im Ticket',
+        'due' => 'Offen',
+        'mark_user_paid' => 'Alles von :name bezahlt',
         'toggle_paid' => 'Bezahlt umschalten',
         'totals' => 'Summen',
         'grand_total' => 'Gesamtsumme',
