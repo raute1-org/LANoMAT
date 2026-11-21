@@ -61,10 +61,19 @@ return [
     | Off by default. It needs a repository ("owner/name") and a fine-grained
     | token with "Contents" and "Pull requests" read and write on exactly that
     | repository. `trigger` decides when the pull request is opened:
-    | "contribute" (as soon as a participant shares) or "publish" (only after
-    | the orga published the recipe). `attribution` adds the contributor's
-    | display name to the pull request; it is off because the repository may
-    | be public.
+    | "publish" (the default: only after the orga published the recipe, so the
+    | repository only sees reviewed text) or "contribute" (as soon as a
+    | participant shares or edits a draft — the documented opt-in for an
+    | installation that wants the pull request immediately). `attribution` adds
+    | the contributor's display name to the pull request; it is off because the
+    | repository may be public.
+    |
+    | Two bounds keep one participant and this installation from flooding the
+    | repository: `per_user_hourly` caps automatic proposals per contributor
+    | per hour, `max_open` caps this installation's open pull requests (an
+    | update of a recipe that already has one does not count). The orga's
+    | manual `lanomat:recipes:propose` and the panel's "propose now" are not
+    | limited.
     |
     */
 
@@ -75,7 +84,9 @@ return [
         'base' => env('RECIPES_PR_BASE', 'main'),
         'branch_prefix' => env('RECIPES_PR_BRANCH_PREFIX', 'recipes/'),
         'path' => env('RECIPES_PR_PATH', 'resources/recipes'),
-        'trigger' => env('RECIPES_PR_TRIGGER', 'contribute'),
+        'trigger' => env('RECIPES_PR_TRIGGER', 'publish'),
+        'per_user_hourly' => (int) env('RECIPES_PR_PER_USER_HOURLY', 6),
+        'max_open' => (int) env('RECIPES_PR_MAX_OPEN', 30),
         'attribution' => (bool) env('RECIPES_PR_ATTRIBUTION', false),
         'api_url' => env('RECIPES_PR_API_URL', 'https://api.github.com'),
     ],

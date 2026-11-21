@@ -15,7 +15,7 @@ use Illuminate\Console\Command;
  * Runs one proposal in the foreground: the orga's "propose now" from the
  * panel or a shell, and the way to see why a shared recipe was refused.
  */
-class ProposeRecipeCommand extends Command
+final class ProposeRecipeCommand extends Command
 {
     protected $signature = 'lanomat:recipes:propose {slug : The recipe slug}';
 
@@ -70,6 +70,15 @@ class ProposeRecipeCommand extends Command
             'number' => (string) $recipe->pr_number,
             'url' => (string) $recipe->pr_url,
         ]));
+
+        // The pull request exists, but this run did not update it: the text
+        // was refused (or the repository failed) while the old one stays open.
+        if (trim((string) $recipe->pr_error) !== '') {
+            $this->warn(__('recipe_pull_requests.commands.kept', [
+                'state' => $state->label(),
+                'reason' => (string) $recipe->pr_error,
+            ]));
+        }
 
         return self::SUCCESS;
     }

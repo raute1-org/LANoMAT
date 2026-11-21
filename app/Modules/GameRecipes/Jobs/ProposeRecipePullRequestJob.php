@@ -9,21 +9,32 @@ use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\InteractsWithQueue;
 use Throwable;
 
 /**
  * Queues one recipe's pull request, so a participant's share never waits for
  * GitHub. Unique per recipe for a minute: sharing twice in a row proposes once.
- * A transient repository failure is retried twice with a growing pause; when
- * the job gives up, the recipe says so (unless a pull request already exists).
+ * Dispatched after the database transaction commits (the publish event fires
+ * inside Filament's save), so the worker never reads a row the transaction has
+ * not written yet. A transient repository failure is retried twice with a
+ * growing pause; when the job gives up, the recipe says so (unless a pull
+ * request already exists).
+ *
+ * A recipe that is not found yet — a contribution racing its own commit on an
+ * installation that dispatches without the after-commit boundary — is released
+ * for a short retry instead of being dropped; only the last attempt gives up
+ * quietly.
  */
-class ProposeRecipePullRequestJob implements ShouldBeUnique, ShouldQueue
+final class ProposeRecipePullRequestJob implements ShouldBeUnique, ShouldQueue, ShouldQueueAfterCommit
 {
+    use InteractsWithQueue;
     use Queueable;
 
-    /** A blocked or failed proposal keeps `pr_error`; the column is capped. */
-    private const int ERROR_MAX = 2000;
+    /** Seconds a missing recipe is retried before the next attempt. */
+    private const int MISSING_RECIPE_DELAY = 15;
 
     public int $tries = 3;
 
@@ -45,7 +56,15 @@ class ProposeRecipePullRequestJob implements ShouldBeUnique, ShouldQueue
     {
         $recipe = GameRecipe::query()->find($this->recipeId);
 
-        if ($recipe === null) {
+        if (! $recipe instanceof GameRecipe) {
+            if ($this->attempts() < $this->tries) {
+                $this->release(self::MISSING_RECIPE_DELAY);
+            }
+
+            return;
+        }
+
+        if (! $action->isProposable($recipe)) {
             return;
         }
 
@@ -66,7 +85,7 @@ class ProposeRecipePullRequestJob implements ShouldBeUnique, ShouldQueue
             'pr_error' => mb_substr(
                 $exception?->getMessage() ?? 'The proposal job failed.',
                 0,
-                self::ERROR_MAX,
+                ProposeRecipe::ERROR_MAX,
             ),
             'pr_synced_at' => now(),
         ])->save();

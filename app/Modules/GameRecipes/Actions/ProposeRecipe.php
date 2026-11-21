@@ -7,14 +7,17 @@ namespace App\Modules\GameRecipes\Actions;
 use App\Modules\GameRecipes\Contracts\RecipeRepository;
 use App\Modules\GameRecipes\Domain\RecipeProposal;
 use App\Modules\GameRecipes\Enums\PullRequestState;
+use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Exceptions\RecipeRepositoryException;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\CatalogFile;
+use App\Modules\GameRecipes\Support\CatalogReadiness;
 use App\Modules\GameRecipes\Support\LauncherSupport;
 use App\Modules\GameRecipes\Support\PublicSafeText;
 use App\Modules\GameRecipes\Support\RecipeYamlExporter;
 use DomainException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Send one recipe into the git catalogue: export its text, refuse it when the
@@ -28,8 +31,8 @@ use Illuminate\Support\Facades\Log;
  */
 final class ProposeRecipe
 {
-    /** A blocked reason lands in `pr_error`; keep it readable in a page or a log. */
-    private const int ERROR_MAX = 2000;
+    /** A blocked or failed reason lands in `pr_error`; keep it readable in a page or a log. */
+    public const int ERROR_MAX = 2000;
 
     public function __construct(
         private readonly RecipeRepository $repository,
@@ -48,17 +51,22 @@ final class ProposeRecipe
         }
 
         $export = $this->exporter->export($recipe);
-        $body = $this->body($recipe);
         $title = $this->titleText($recipe);
+        $rawTitle = $this->rawTitle($recipe);
+        $body = $this->body($recipe, neutralise: true);
+        $rawBody = $this->body($recipe, neutralise: false);
 
         // Check both commit titles before the first request: the verb depends
-        // on the base branch, the sensitive part is the recipe title.
+        // on the base branch, the sensitive part is the recipe title. The raw
+        // text is checked, not the escaped Markdown: escaping must not hide an
+        // address from the gate.
         $problems = [
+            ...(new CatalogReadiness)->problems($export, $recipe->slug),
             ...$this->problems('recipe.yaml', $export['yaml']),
             ...$this->problems('SKILL.md', $export['skill']),
-            ...$this->problems('the pull request title', 'feat(recipes): add '.$title),
-            ...$this->problems('the pull request title', 'feat(recipes): update '.$title),
-            ...$this->problems('the pull request body', $body),
+            ...$this->problems('the pull request title', 'feat(recipes): add '.$rawTitle),
+            ...$this->problems('the pull request title', 'feat(recipes): update '.$rawTitle),
+            ...$this->problems('the pull request body', $rawBody),
         ];
 
         if ($problems !== []) {
@@ -135,18 +143,77 @@ final class ProposeRecipe
         return $recipe;
     }
 
-    /** Contributed and panel recipes, plus anything a sync adopted that already carries a pull request. */
-    private function isProposable(GameRecipe $recipe): bool
+    /**
+     * Contributed and panel recipes, plus anything a sync adopted that already
+     * carries a pull request. An archived recipe is never proposed again: the
+     * catalogue has no row for it, and its pull request is left as it is.
+     */
+    public function isProposable(GameRecipe $recipe): bool
     {
+        if ($recipe->status === RecipeStatus::Archived) {
+            return false;
+        }
+
         return in_array($recipe->source, [GameRecipe::SOURCE_CONTRIBUTION, GameRecipe::SOURCE_PANEL], true)
             || $recipe->pr_number !== null;
     }
 
     /**
-     * The pull request body. English Markdown, for the repository's reviewers.
+     * Why the automatic path (a share, an edit, a publish) must skip this
+     * proposal, or null when it may go. Bounds the branches one participant
+     * and the whole installation can open; the orga's manual command and the
+     * panel's "propose now" do not call this.
+     *
+     * One cache/rate-limiter call for the per-contributor budget and one count
+     * query for the ceiling; a skipped attempt writes no state.
      */
-    private function body(GameRecipe $recipe): string
+    public function limitReason(GameRecipe $recipe, ?int $contributorId): ?string
     {
+        $key = null;
+
+        if ($contributorId !== null) {
+            $perHour = max(1, (int) config('recipes.pull_requests.per_user_hourly', 6));
+            $key = 'recipes:pull-requests:user:'.$contributorId;
+
+            if (RateLimiter::tooManyAttempts($key, $perHour)) {
+                return 'per_user_hourly';
+            }
+        }
+
+        // An update of a recipe whose pull request is still open moves that
+        // branch; a new one counts against the ceiling.
+        $hasOpenPullRequest = $recipe->pr_number !== null
+            && $recipe->pr_state === PullRequestState::Open;
+
+        if (! $hasOpenPullRequest) {
+            $ceiling = max(1, (int) config('recipes.pull_requests.max_open', 30));
+            $open = GameRecipe::query()
+                ->where('pr_state', PullRequestState::Open->value)
+                ->count();
+
+            if ($open >= $ceiling) {
+                return 'max_open';
+            }
+        }
+
+        if ($key !== null) {
+            RateLimiter::hit($key, 3600);
+        }
+
+        return null;
+    }
+
+    /**
+     * The pull request body. English Markdown, for the repository's reviewers.
+     *
+     * Participant-authored values are escaped and shortened when
+     * `$neutralise` is set; the raw form is only used for the safety gate.
+     */
+    private function body(GameRecipe $recipe, bool $neutralise): string
+    {
+        $text = new PublicSafeText;
+        $clean = fn (string $value, int $limit = 200): string => $neutralise ? $text->markdown($value, $limit) : $value;
+
         $platforms = array_values(array_filter(
             array_map(static fn (mixed $platform): string => trim((string) $platform), (array) ($recipe->platforms ?? [])),
             static fn (string $platform): bool => $platform !== '',
@@ -157,15 +224,17 @@ final class ProposeRecipe
             ? 'the LANoMAT launcher installs it (unpack the base archive, start a target)'
             : 'manual install (the launcher does not take this recipe from archive to running game)';
 
-        $license = trim((string) ($recipe->license ?? ''));
-        $summary = trim((string) ($recipe->summary ?? ''));
-        $labels = $this->requirementLabels($recipe);
+        $license = $clean(trim((string) ($recipe->license ?? '')));
+        $summary = $clean(trim((string) ($recipe->summary ?? '')));
+        $labels = array_map(static fn (string $label): string => $clean($label, 160), $this->requirementLabels($recipe));
+
+        $heading = $neutralise ? $this->titleText($recipe) : $this->rawTitle($recipe);
 
         $lines = [
-            '## '.$this->titleText($recipe),
+            '## '.$heading,
             '',
             '**Slug:** `'.$recipe->slug.'`  ',
-            '**Platforms:** '.$platforms.'  ',
+            '**Platforms:** '.$clean($platforms, 80).'  ',
             '**Status at the LAN:** '.$recipe->status->value.'  ',
             '**Launcher:** '.$launcher,
             '',
@@ -191,12 +260,12 @@ final class ProposeRecipe
         $lines[] = '### Review';
         $lines[] = '';
         $lines[] = '- [ ] `node resources/recipes/schema/validate.mjs` is green';
-        $lines[] = '- [ ] Tested on: '.$platforms;
+        $lines[] = '- [ ] Tested on: '.$clean($platforms, 80);
         $lines[] = '- [ ] Licence checked: '.($license !== '' ? $license : 'game files are user-supplied');
         $lines[] = '';
 
         if ((bool) config('recipes.pull_requests.attribution')) {
-            $name = trim((string) $recipe->contributor?->name);
+            $name = $clean(trim((string) $recipe->contributor?->name), 80);
 
             if ($name !== '') {
                 $lines[] = 'Shared by '.$name.' at the LAN.';
@@ -239,7 +308,15 @@ final class ProposeRecipe
         return array_values(array_unique($labels));
     }
 
+    /** The title as it goes into Markdown: escaped, one line, capped. */
     private function titleText(GameRecipe $recipe): string
+    {
+        $title = $this->rawTitle($recipe);
+
+        return (new PublicSafeText)->markdown($title, 120);
+    }
+
+    private function rawTitle(GameRecipe $recipe): string
     {
         $title = trim((string) $recipe->title);
 
@@ -285,8 +362,13 @@ final class ProposeRecipe
      */
     private function block(GameRecipe $recipe, array $problems): GameRecipe
     {
+        // A pull request that already exists keeps its state: the recipe was
+        // sent once, and "Nicht gesendet" would hide the branch and drop the
+        // recipe out of the status sync.
+        $keepRemote = $recipe->pr_state?->existsRemotely() === true;
+
         $recipe->forceFill([
-            'pr_state' => PullRequestState::Blocked,
+            'pr_state' => $keepRemote ? $recipe->pr_state : PullRequestState::Blocked,
             'pr_error' => mb_substr(implode("\n", $problems), 0, self::ERROR_MAX),
             'pr_synced_at' => now(),
         ])->save();
@@ -294,6 +376,7 @@ final class ProposeRecipe
         Log::info('recipes.pull_request_blocked', [
             'slug' => $recipe->slug,
             'findings' => count($problems),
+            'kept_state' => $keepRemote ? $recipe->pr_state?->value : null,
         ]);
 
         return $recipe;

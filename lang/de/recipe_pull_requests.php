@@ -22,8 +22,10 @@ return [
         'not_sent' => ':state: :reason',
         'failed' => 'Der Pull Request konnte nicht angelegt werden: :reason',
         'proposed' => ':state (#:number): :url',
+        'kept' => 'Der Pull Request bleibt :state, wurde aber nicht neu gesendet: :reason',
         'synced' => ':count offene Pull Requests geprüft.',
         'sync_failed' => 'Nicht abgefragt: :slug (:reason)',
+        'sync_replaced' => 'Übersprungen: der Pull Request von :slug wurde inzwischen ersetzt.',
     ],
 
     'never_synced' => 'Noch nicht mit dem Repository abgeglichen',
