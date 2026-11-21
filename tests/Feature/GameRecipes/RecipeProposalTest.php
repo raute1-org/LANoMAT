@@ -801,13 +801,21 @@ it('neutralises participant markdown in the title and body', function () {
     $title = $proposal->title;
     $body = $proposal->body;
 
-    expect($title)->toContain('\!\[x\]')
-        ->and($title)->not->toContain('](https')
-        ->and($title)->toContain('\@org/team')
-        ->and($title)->toContain('Fixes \#12')
-        ->and($title)->toContain('\<b\>')
-        ->and($title)->toContain('\`code\`')
-        ->and($title)->toContain('a\|b')
+    // The title and the commit message are plain text: nothing that links or
+    // pings survives, and no backslash is left behind.
+    expect($title)->toStartWith('feat(recipes): add Tiny ')
+        ->and($title)->not->toContain('@')
+        ->and($title)->not->toContain('#')
+        ->and($title)->not->toContain('`')
+        ->and($title)->not->toContain('<')
+        ->and($title)->not->toContain('\\')
+        ->and($title)->toContain('org/team Fixes 12')
+        ->and($proposal->commitMessage)->toBe($title)
+        // The body is Markdown: the same text is escaped there.
+        ->and($body)->toContain('\!\[x\]')
+        ->and($body)->not->toContain('](https')
+        ->and($body)->toContain('Fixes \#12')
+        ->and($body)->toContain('\<b\>')
         ->and($body)->toContain('\!\[y\]')
         ->and($body)->toContain('\|')
         ->and($body)->toContain('\@org/team');

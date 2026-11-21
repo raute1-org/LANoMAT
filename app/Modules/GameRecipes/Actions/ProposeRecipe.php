@@ -228,7 +228,7 @@ final class ProposeRecipe
         $summary = $clean(trim((string) ($recipe->summary ?? '')));
         $labels = array_map(static fn (string $label): string => $clean($label, 160), $this->requirementLabels($recipe));
 
-        $heading = $neutralise ? $this->titleText($recipe) : $this->rawTitle($recipe);
+        $heading = $neutralise ? $text->markdown($this->rawTitle($recipe), 120) : $this->rawTitle($recipe);
 
         $lines = [
             '## '.$heading,
@@ -308,12 +308,15 @@ final class ProposeRecipe
         return array_values(array_unique($labels));
     }
 
-    /** The title as it goes into Markdown: escaped, one line, capped. */
+    /**
+     * The title as it goes into the pull request title and the commit
+     * message. Neither is Markdown, so the text is cleaned, not escaped.
+     */
     private function titleText(GameRecipe $recipe): string
     {
-        $title = $this->rawTitle($recipe);
+        $title = (new PublicSafeText)->plain($this->rawTitle($recipe), 120);
 
-        return (new PublicSafeText)->markdown($title, 120);
+        return $title !== '' ? $title : $recipe->slug;
     }
 
     private function rawTitle(GameRecipe $recipe): string

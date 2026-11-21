@@ -181,3 +181,12 @@ it('keeps neutralised text on one line and caps it', function () {
     expect($safe)->toBe('a b c')
         ->and(publicSafeText()->markdown(str_repeat('a', 500), 20))->toHaveLength(20);
 });
+
+it('cleans participant text for a title instead of escaping it', function () {
+    $text = new PublicSafeText;
+
+    expect($text->plain('Counter-Strike 1.6 (EU)'))->toBe('Counter-Strike 1.6 (EU)')
+        ->and($text->plain('Tiny @org/team Fixes #12 <b>x</b> `code` a\\b'))->toBe('Tiny org/team Fixes 12 b x /b code a b')
+        ->and($text->plain("Line one\nLine two\ttabbed"))->toBe('Line one Line two tabbed')
+        ->and(mb_strlen($text->plain(str_repeat('a', 300), 120)))->toBe(120);
+});

@@ -3,6 +3,7 @@
 namespace App\Modules\GameRecipes\Filament\Resources\Recipes\Pages;
 
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Actions\ProposeRecipe;
 use App\Modules\GameRecipes\Actions\PublishRecipe;
 use App\Modules\GameRecipes\Actions\SyncRecipeFilesFromRequirements;
 use App\Modules\GameRecipes\Contracts\RecipeRepository;
@@ -181,7 +182,10 @@ class EditRecipe extends EditRecord
             Action::make('proposePullRequest')
                 ->label(__('game_recipes.actions.propose_pull_request'))
                 ->icon('heroicon-o-arrow-up-tray')
+                // Only for a recipe the pipeline would actually take: offering the
+                // button for a synced recipe would queue a job that does nothing.
                 ->visible(fn (GameRecipe $record): bool => app(RecipeRepository::class)->isConfigured()
+                    && app(ProposeRecipe::class)->isProposable($record)
                     && $this->reviewer()->can('review', $record))
                 ->authorize('review')
                 ->requiresConfirmation()

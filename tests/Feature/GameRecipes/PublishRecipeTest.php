@@ -323,7 +323,7 @@ it('keeps the page orga-only and the review ability on the policy', function () 
 });
 
 it('shows the pull request action only while the repository is configured', function () {
-    $recipe = GameRecipe::factory()->draft()->create();
+    $recipe = GameRecipe::factory()->draft()->contributedBy(User::factory()->create())->create();
     $this->actingAs($this->orga);
 
     // The default binding is the null repository: nothing can be proposed.
@@ -338,10 +338,19 @@ it('shows the pull request action only while the repository is configured', func
         ->assertActionVisible('proposePullRequest');
 });
 
+it('does not offer a pull request for a recipe that came from a synced source', function () {
+    fakeRecipeRepository();
+    $synced = GameRecipe::factory()->syncedFromBundle()->create();
+    $this->actingAs($this->orga);
+
+    Livewire::test(EditRecipe::class, ['record' => $synced->getRouteKey()])
+        ->assertActionHidden('proposePullRequest');
+});
+
 it('queues the pull request for the recipe the orga asked for', function () {
     Bus::fake([ProposeRecipePullRequestJob::class]);
     fakeRecipeRepository();
-    $recipe = GameRecipe::factory()->draft()->create();
+    $recipe = GameRecipe::factory()->draft()->contributedBy(User::factory()->create())->create();
     $this->actingAs($this->orga);
 
     Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])

@@ -282,6 +282,22 @@ final class PublicSafeText
     }
 
     /**
+     * Participant text for a place that is not Markdown: a pull request title
+     * and a commit message. Backslash escapes would show up literally there,
+     * so the characters that still do something are removed instead: `@`
+     * (mentions), `#` (issue references, and with them "Fixes #12"), the
+     * backtick and angle brackets. One line, capped.
+     */
+    public function plain(string $text, int $limit = 120): string
+    {
+        $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $text) ?? $text;
+        $text = str_replace(['@', '#', '`', '<', '>', '\\'], ' ', $text);
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+
+        return mb_strlen($text) <= $limit ? $text : rtrim(mb_substr($text, 0, $limit));
+    }
+
+    /**
      * Participant-authored text as inert Markdown: one line, no control
      * characters, every Markdown/HTML metacharacter escaped (so an image link
      * cannot phone home, `@team` cannot ping and `Fixes #12` cannot close an
