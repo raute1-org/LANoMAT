@@ -58,3 +58,36 @@ it('is registered with the preflight run only while the module is on', function 
 
     expect($keys)->toContain(AssistantProviderCheck::class);
 });
+
+it('skips openai without a key', function () {
+    config(['assistant.provider' => 'openai', 'ai.providers.openai.key' => null]);
+
+    expect(app(AssistantProviderCheck::class)->run()->status->value)->toBe('skipped');
+});
+
+it('is ok when openai lists the configured model and sends the bearer key', function () {
+    config(['assistant.provider' => 'openai', 'assistant.model' => 'gpt-test-model', 'ai.providers.openai.key' => 'sk-test-placeholder']);
+    Http::fake(['api.openai.com/*' => Http::response(['data' => [['id' => 'other'], ['id' => 'gpt-test-model']]], 200)]);
+
+    expect(app(AssistantProviderCheck::class)->run()->status->value)->toBe('ok');
+    Http::assertSent(fn ($r) => $r->url() === 'https://api.openai.com/v1/models' && $r->hasHeader('Authorization', 'Bearer sk-test-placeholder') && $r->method() === 'GET');
+});
+
+it('is down on a rejected openai key and only warns when openai is unreachable', function () {
+    config(['assistant.provider' => 'openai', 'assistant.model' => 'gpt-test-model', 'ai.providers.openai.key' => 'sk-test-placeholder']);
+
+    Http::fake(['api.openai.com/*' => Http::response('', 401)]);
+    expect(app(AssistantProviderCheck::class)->run()->status->value)->toBe('down');
+
+    Http::fake(['api.openai.com/*' => fn () => throw new ConnectionException('offline')]);
+    expect(app(AssistantProviderCheck::class)->run()->status->value)->toBe('warn');
+});
+
+it('only warns when the configured model is not in the openai account', function () {
+    config(['assistant.provider' => 'openai', 'assistant.model' => 'gpt-test-model', 'ai.providers.openai.key' => 'sk-test-placeholder']);
+    Http::fake(['api.openai.com/*' => Http::response(['data' => [['id' => 'other']]], 200)]);
+
+    $result = app(AssistantProviderCheck::class)->run();
+
+    expect($result->status->value)->toBe('warn')->and($result->message)->toContain('gpt-test-model');
+});

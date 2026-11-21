@@ -117,9 +117,10 @@ approve it on `/mcp/connect` while signed in.
 
 ## 8. Optional: the desktop launcher
 
-The LANoMAT Launcher is the no-terminal path: one download, one pairing code, one button for
-**Unreal Tournament 2004**. The server offers the Linux and Windows builds on `/launcher` (sidebar
-entry **Launcher**), with size and SHA-256; the token it stores is 0600. Read
+The LANoMAT Launcher is the no-terminal path: one download, one pairing code, one button for every
+game the launcher can install — the UT2004 pilot, the hand-verified NFSU2 recipe, browser games and
+portable archives that participants share. The server offers the Linux and Windows builds on
+`/launcher` (sidebar entry **Launcher**), with size and SHA-256; the token it stores is 0600. Read
 [One-click launcher](/docs/guides/launcher) for the download, the pairing and what happens when a
 disc image or patch is missing on the LAN. On the server, `scripts/ops/build-launcher.sh` builds and
 publishes the Linux build into `clients-dist/launcher`; the Windows exe comes from the
@@ -136,14 +137,16 @@ publishes the Linux build into `clients-dist/launcher`; the Windows exe comes fr
 | Let an agent drive LANoMAT | [MCP server](/docs/mcp/overview) and [pi agent](/docs/agent/overview) |
 | Look up a command or env var | [Reference](/docs/reference/commands) |
 
-The games library is what people open first at the venue: every published recipe, what is on the
-LAN, and the one-click round. Opening a game lands on the detail page with install, launch, the live
-server and the files from the LAN file host.
+The games library is what people open first at the venue: every published recipe the lineup allows,
+what is on the LAN, and the one-click round. Opening a game lands on the detail page with install,
+launch, the live server and the files from the LAN file host. **Spiel teilen** in the page header
+opens [`/games/share`](/docs/guides/share-a-game); the server browser at `/servers` lists the servers
+of the LAN with their game and the way onto them.
 
 | Dark | Light |
 |---|---|
-| ![Games library with published recipes and the LAN filter, dark](/screens/games-dark.png) | ![Games library with published recipes and the LAN filter, light](/screens/games-light.png) |
-| `GAMES · DARK` — every recipe, LAN dot, running tournaments | `GAMES · LIGHT` |
+| ![Games library with lineup recipes and the LAN filter, dark](/screens/games-dark.png) | ![Games library with lineup recipes and the LAN filter, light](/screens/games-light.png) |
+| `GAMES · DARK` — lineup recipes, LAN dot, running tournaments | `GAMES · LIGHT` |
 
 | Dark | Light |
 |---|---|

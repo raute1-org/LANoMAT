@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\GameRecipes\Support;
 
+use App\Modules\GameRecipes\Models\GameRecipe;
 use Illuminate\Support\Collection;
 
 /**
@@ -27,6 +28,34 @@ final class LauncherLineup
         'need-for-speed-underground-2-browser',
     ];
 
+    /** @var list<string>|null recipes the orga put on the lineup in the panel, read once per instance */
+    private ?array $flagged = null;
+
+    /**
+     * The lineup the players see: the configured allowlist plus every recipe
+     * the orga switched on in the panel (`game_recipes.in_lineup`), which is
+     * how a shared game appears without a config change. An empty configured
+     * list still means "unrestricted": the flag only ever adds to a curated
+     * lineup.
+     *
+     * @return list<string>
+     */
+    public function slugs(): array
+    {
+        $configured = $this->configuredSlugs();
+
+        if ($configured === []) {
+            return [];
+        }
+
+        $this->flagged ??= array_values(array_map(
+            static fn (mixed $slug): string => mb_strtolower((string) $slug),
+            GameRecipe::query()->where('in_lineup', true)->orderBy('slug')->pluck('slug')->all(),
+        ));
+
+        return array_values(array_unique([...$configured, ...$this->flagged]));
+    }
+
     /**
      * The configured allowlist, lowercased and de-duplicated. Unknown or
      * malformed entries are ignored: a typo in the env value must not hide
@@ -34,7 +63,7 @@ final class LauncherLineup
      *
      * @return list<string>
      */
-    public function slugs(): array
+    public function configuredSlugs(): array
     {
         $configured = config('launcher.lineup');
 

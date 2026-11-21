@@ -9,7 +9,7 @@ it('schedules only core commands under the core profile', function () {
 
     expect($scheduled)->toContain('lanomat:tournament-tick')->toContain('lanomat:heartbeat');
 
-    foreach (['lanomat:jukebox-tick', 'lanomat:sweep-discord-outbox', 'lanomat:send-schedule-reminders', 'lanomat:recipes:sync'] as $command) {
+    foreach (['lanomat:jukebox-tick', 'lanomat:sweep-discord-outbox', 'lanomat:send-schedule-reminders', 'lanomat:recipes:sync', 'lanomat:recipes:pr-status', 'lanomat:files:hash'] as $command) {
         expect($scheduled)->not->toContain($command);
     }
 });
@@ -29,7 +29,8 @@ it('keeps all probes and schedule entries under full', function () {
 
     expect(implode("\n", $report['scheduled']))->toContain('lanomat:jukebox-tick');
     expect(implode("\n", $report['scheduled']))->toContain('lanomat:recipes:sync');
-    expect(count($report['preflight']))->toBe(22);
+    expect(implode("\n", $report['scheduled']))->toContain('lanomat:recipes:pr-status');
+    expect(count($report['preflight']))->toBe(23);
 });
 
 it('registers no optional listener under the core profile', function () {
@@ -39,7 +40,9 @@ it('registers no optional listener under the core profile', function () {
 
     expect($list->getOutput())->toContain('NotifyRosterOnMatchReady')
         ->not->toContain('CreateMatchChannelOnReady')
-        ->not->toContain('ProvisionMatchVoiceOnReady');
+        ->not->toContain('ProvisionMatchVoiceOnReady')
+        ->not->toContain('ProposeContributedRecipe')
+        ->not->toContain('ProposePublishedRecipe');
 });
 
 it('does not schedule optional commands such as reminders and LFG pruning under core', function () {

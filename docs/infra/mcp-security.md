@@ -21,6 +21,7 @@ pattern this API copies), [`file-host.md`](file-host.md) (storage, signed URLs, 
 | Recipe content (`steps`, `commands`, `skill_markdown`) | `game_recipes` | **code that runs on a player's machine** |
 | Shared files (ISOs, avatars, mods) | file host, `shared_files` | bytes served to the LAN; uploads are the injection surface for file names |
 | Session (browser) | cookies | must never authenticate `/api/v1` or `/mcp` |
+| Recipe token (`RECIPES_PR_TOKEN`) | server `.env`, app/queue/scheduler environment | write access to the one recipe repository (branches, pull requests) |
 
 Trust boundaries:
 
@@ -52,14 +53,26 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
 | T7 | A poll of a draft event is votable by id through `poll_vote` | **Low–Medium** | `PollVoteTool` resolves the poll through a non-draft event (404 otherwise) | fixed |
 | T8 | A `git+` source is parsed by git as an **option** (`--upload-pack=…` runs a command) or as a local read | **Low** (operator-only input) | `RecipeSourceLocator::gitUrl` allowlists `https/ssh/git/scp-style/absolute path`, rejects a leading `-` and whitespace; `git clone … -- <url> <dir>`; `GIT_TERMINAL_PROMPT=0` | fixed |
 | T9 | `smbclient` invocation depends on `sprintf` + escaping; a hostile host/share/sub/password | **Low** | `RecipeSourceLocator::smbCommand` builds the command from literals and `escapeshellarg()` for every variable part; unit-tested as an exact contract | fixed |
-| T10 | A recipe title like `..` becomes the install target dir and escapes it | **Low** | `BuildInstallPlan::targetDir` strips separators and dot runs, falls back to the slug | fixed |
-| T11 | Unbounded contribution payloads (megabytes of markdown) → DB/memory growth | **Low** | Request validation caps (description 10 000, skill markdown 65 535, ≤50 requirements/steps, ≤20 aliases/patterns) plus length caps in `RecipeValidator` | fixed |
+| T10 | A recipe title like `..` becomes the install target dir and escapes it | **Low** | `BuildInstallPlan::targetDir` keeps only `Str::ascii(title)` characters in `A-Za-z0-9 ._-`, collapses dot runs, trims leading/trailing dots and spaces, falls back to the slug (the folder is substituted into the quoted arguments of step and launch commands) | fixed |
+| T11 | Unbounded contribution payloads (megabytes of markdown) → DB/memory growth | **Low** | Request validation caps (description 10 000, skill markdown 65 535, ≤50 requirements/steps, ≤20 aliases/patterns) plus length caps in `RecipeValidator`; one participant holds at most `RECIPES_MAX_DRAFTS_PER_USER` drafts (`ContributeRecipe::ensureDraftBudget()`, orga exempt) | fixed |
 | T12 | Token in a URL/query string or a log line | **Low** | The bearer is read from `Authorization` only (proven by test); no query-string fallback; device/token responses are `no-store`; 401s are `no-store` | verified/fixed |
 | T13 | DNS rebinding / cross-site call against `/mcp` | **Low** | `laravel/mcp`'s `ValidateOrigin` middleware runs before our auth middleware and only allows `app.url` (+ `mcp.allowed_origins`, localhost) | verified |
 | T14 | Session/CSRF confusion: a browser session authenticating the API | **Low** | `/api/v1` and `/mcp` are registered outside the `web` group (no session, no cookies, no CSRF); `/mcp/connect` is inside `web` | verified |
 | T15 | Device-code brute force | **Low** | 8 chars from a 31-symbol alphabet, only SHA-256 digests stored, 600 s TTL, approval 10/min per user, polling 60/min per client hop, `slow_down` backoff | verified |
 | T16 | IDOR on downloads, plans, avatars, contributions, revocation | **Low** | every path goes through a Policy or an explicit visibility query; foreign ids are 403/404; `DELETE /mcp/devices/{id}` owner-or-admin | verified |
 | T17 | Published/draft leakage (recipes, events, files, polls) | **Low** | `GameRecipe::visibleTo/published`, `Event::publiclyVisible`, `VisibleFiles`, matcher filters, tool tests | verified |
+| T18 | The share form is a second write path for recipe text and a file pin: a foreign or rejected file id, a traversal in the launcher path, a title that becomes the slug, two sharers taking each other's draft | **Medium** | `ShareGameRequest` (bounds, one-line rule, path rules), `ShareGame` (`SharedFilePolicy::download` on the file — the same ability an install uses, so never a rejected file or one of a non-public event; archive extension; unsafe-name and match-pattern checks; reserved slug `share`; existing-slug collisions), `ContributeRecipe` (one writer per slug via `pg_advisory_xact_lock`, the row read under it, `GameRecipePolicy::update` for an edit), `PortableRecipeBuilder` (relative paths only), `throttle:20,60` on `POST /games/share` | fixed |
+| T19 | A `shared_file_id` pin used to reach a file the caller may not see, through `recipe_contribute` or `POST /api/v1/recipes` | **Medium** | `ContributeRecipe::requestedPins()` authorizes every pin with `SharedFilePolicy::download` (approved, or the caller's own pending upload — never rejected, never a non-public event) before it is stored; a pin is dropped from the requirement text and lives on the file row; `RecipeFileMatcher` re-checks visibility when a plan resolves it | fixed |
+| T20 | Recipe text escaping into the **public** git repository: a private IP, an e-mail address, a token, a file-host URL or id, the contributor's name | **Medium** | `ProposeRecipe` runs `CatalogReadiness` (the repository validator's own rules) and `PublicSafeText` over the YAML, `SKILL.md`, both titles and the raw body **before** the first request; the body carries requirement labels only (never URLs or ids) and is escaped Markdown; attribution is off unless `RECIPES_PR_ATTRIBUTION=true` | mitigated |
+| T21 | A `lanomat://join/<slug>?url=…` link weaponised to make a launcher open an arbitrary URL | **Low–Medium** | `LauncherJoinLink` builds the link server-side, only when `LauncherSupport::supports()`; `?url=` is `rawurlencode`d and accepted only through `JoinLinkTemplates::isAllowedUrl` (`steam`, `ut2004`, `http`, `https`; no control characters, quotes, `<>` or `\`); UT2004's `?address=` is a validated `host:port`; the Vue components render only a value starting with `lanomat://join/` | mitigated |
+| T22 | The GitHub token leaking through an error message, a log line or the panel | **Low** | `GitHubRecipeRepository::oneLine()` replaces the token with `***` and caps the message before it becomes a `RecipeRepositoryException` message, a `pr_error` value or a log line; the bearer never appears in a URL | fixed |
+| T23 | A shared **title** reaches a shell: the install folder is built from the title and substituted into the quoted arguments of step and launch commands (`Tiny Racers $(calc.exe)`) | **High** | `BuildInstallPlan::targetDir` keeps only `A-Za-z0-9 ._-` after `Str::ascii()` (Windows), `Str::slug()` of that on Linux/macOS; collapses dot runs, trims dots/spaces. Nothing that means anything to PowerShell, cmd or a POSIX shell survives | fixed |
+| T24 | The **archive file name** reaches printed commands and Markdown: a backtick ends a code span, a control character a line, `*`/`?` turn the pinned glob into another archive's pattern | **Medium** | `PortableRecipeBuilder::hasUnsafeArchiveName()` (backtick, `*`, `?`, control characters) refuses the file with a German "rename it" message; commands are single-quoted literals (`powershellLiteral()`, `bashLiteral()`), `SKILL.md` prints the same strings the steps run, prose escapes backticks (`markdownText()`/`markdownCode()`) | fixed |
+| T25 | Launch commands invisible at review: `metadata.launch_targets`, `play_url`, `portable` and each step's `verify` had no form field, so an orga released commands nobody saw | **Medium** | The edit page's read-only **Start und Launcher** section (`LauncherReview`) names the `LauncherSupport` rule, the portable flag with its missing conditions, `play_url` as plain text and every launch command verbatim (including commands derived from `metadata.launch`); the step's `verify` entries are listed; both publish confirmations print the launch commands and say they run on players' PCs | fixed |
+| T26 | Flooding the repository with branches and pull requests from one participant or device | **Medium** | The automatic path calls `ProposeRecipe::limitReason()`: a rate limiter per contributor (`RECIPES_PR_PER_USER_HOURLY`, default 6/h) and a ceiling of open pull requests (`RECIPES_PR_MAX_OPEN`, default 30, an update of an open one exempt). Over a budget the job is skipped with `recipes.pull_request_skipped` and no state is written. Drafts are bounded separately (`RECIPES_MAX_DRAFTS_PER_USER`). The orga's manual propose is not limited | mitigated |
+| T27 | Markdown in the public pull request: an image that phones home, `@team` mentions, `Fixes #12` | **Low** | The title and commit message are cleaned plain text (`PublicSafeText::plain()`); the body is escaped Markdown (`::markdown()`, every metacharacter escaped, one line, capped); the safety gate checks the **raw** text, so escaping cannot hide an address | fixed |
+| T28 | Front-matter injection through participant text in the generated `SKILL.md` (a line break ends the front matter, a colon or a leading dash breaks the YAML) | **Medium** | `PortableRecipeBuilder::yamlFrontMatter()` writes it with `Yaml::dump`; title, summary, version, players and aliases must be one line (`ShareGameRequest`, `ContributeRecipe`); `SKILL.md` prose has backticks escaped | fixed |
+| T29 | A too-broad `match` pattern claims another participant's archive once the pin is gone (`[a].zip` → `*.zip`) | **Medium** | `PortableRecipeBuilder::hasReliableMatchPattern()` requires at least three literal letters or digits after the extension and turns brackets into `*`; `CatalogReadiness` refuses a glob with a path separator | fixed |
 
 ---
 
@@ -134,6 +147,14 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
   sentence (and are `report()`ed); `RecipeException` problems and domain exceptions are
   flattened to one line.
 
+**Resolved (2026-11-21): the lossy contribution.** A contribution used to lose a recipe's launch
+data: `recipe_contribute` had no `metadata` field and `ContributeRecipe` wrote
+`metadata = {contributed_via: mcp}`, so a contributor's edit dropped `metadata.launch_targets`.
+`ContributeRecipe` now accepts top-level `launch_targets` and `play_url`, keeps the existing metadata
+when the payload carries none, caps the document at 20 000 bytes, refuses a non-http(s)
+`play_url`/`live_url`/`avatar_converter_url`, and only lets an orga set `metadata.launcher_supported`.
+The MCP tool and the REST controller forward those fields.
+
 ### 3.6 Recipe supply chain (SMB, git, SMB credentials)
 
 - Source URLs come from the operator (`GAME_RECIPES_SOURCE`, `lanomat:recipes:sync`), never from
@@ -153,6 +174,35 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
   `Referrer-Policy: no-referrer`.
 - The agent sends the bearer token only to the LANoMAT origin (`ApiClient::headersFor`), so the
   signed file-host URL never receives it.
+
+### 3.8 Sharing a game, file pins and the public pull request
+
+- **The share form** (`/games/share`, `POST /games/share`) is an authenticated, throttled
+  (`throttle:20,60`) write path: `ShareGameRequest` bounds every string, keeps title, summary, version
+  and players on one line and validates the launcher path (relative, no leading separator, no drive
+  letter, no `.`/`..` segment, no trailing separator, no control or shell characters). `ShareGame`
+  authorizes the pinned file with `SharedFilePolicy::download` (the same ability an install uses),
+  refuses an unsafe archive name and an unreliable match pattern, reserves the slug `share` and rejects
+  a slug that is not the caller's own draft. The form's own file list is the viewer's own non-rejected
+  files of the current event, the 50 most recent; `?file=<id>` only preselects one of them, and only
+  when the name is a shareable archive.
+- **A pin is not recipe text.** `ContributeRecipe` strips `shared_file_id` from the stored
+  requirement and keeps it on the `game_recipe_files` row, keyed by role and label; a sync never
+  overwrites it. One writer per slug (a Postgres advisory lock held until commit) makes two people
+  sharing the same title take turns instead of each other's draft.
+- **The share page's generated text is quoted, not concatenated.** `PortableRecipeBuilder` prints the
+  archive path as a PowerShell or POSIX single-quoted literal, writes the `SKILL.md` front matter with
+  `Yaml::dump`, and escapes backticks in participant prose.
+- **The catalogue readiness check** (`CatalogReadiness`) refuses text the repository's validator would
+  reject — before the branch exists — and **the public-safety gate** (`GameRecipes\Support\PublicSafeText`)
+  refuses addresses, e-mails and tokens, context-aware: a dotted quad after `://`, `@`, a port or a host
+  word always counts, while a version label (after `version`, `patch`, `build` …) or a name ending in a
+  file extension does not. A finding stores a redacted reason (`line 12: a private IPv4 address
+  10[REDACTED len=10].`) and `pr_state = blocked` (unless a pull request already exists, which keeps its
+  state); nothing is sent. Requirements are listed as labels; file-host URLs and ids never leave.
+- **The pull request workflow gets no secrets.** `.github/workflows/recipes.yml` runs on plain
+  `pull_request` (not `pull_request_target`) with `permissions: contents: read` and only validates
+  `resources/recipes`; the token lives in LANoMAT's environment, not in the repository.
 
 ---
 
@@ -202,6 +252,42 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
 12. **`config('mcp.allowed_origins')` is unset.** Only `APP_URL` and localhost are accepted. If
     the same installation is reachable under several host names (LAN IP + DNS name), add them —
     see the checklist.
+13. **A shared game is a hostile archive until the orga looked at it.** The launcher unpacks the
+    approved base archive; the recipe's checks prove a file exists, not that unpacking it is safe.
+    The controls are file approval (`ApproveSharedFile`) and recipe review; a zip-slip inside the
+    archive is still residual risk 2.
+14. **What the public-safety gate cannot see.** `PublicSafeText` catches **accidents** — a pasted IP,
+    an e-mail, a token — not someone determined to disguise one (an address split into separate YAML
+    keys, an image link, base64), and not a person's name, a room number or an internal host name in
+    prose. With `RECIPES_PR_ATTRIBUTION=true` the contributor's display name is added on purpose. Once
+    pushed, a commit stays in the public repository's history even if the pull request is edited or
+    closed.
+15. **The `lanomat://` scheme is registered OS-wide.** A link pasted from anywhere reaches the
+    launcher without a LANoMAT page. LANoMAT only builds links it considers safe (a published,
+    supported recipe; a validated `host:port` or an allowlisted join URL); the launcher's own
+    validation is the boundary. The link carries a slug and a join URL — no filesystem path and no
+    command.
+16. **The GitHub token can write to one repository.** A compromised app host can commit and open pull
+    requests there. LANoMAT itself never merges, but a token with *Contents* write can merge through
+    the API, so the token is scoped to that one repository, has an expiry and is revoked after the
+    event.
+17. **`{{target}}` and `{{downloads}}` are substituted as text into the command.** `clients/agent/src/install.ts`
+    and `runner.ts` replace the placeholders in the already-written command string
+    (`substituteVariables()`), then hand it to the shell; the quotes around the value are part of the
+    recipe, not applied afterwards. The folder the **server** proposes is sanitised
+    (`BuildInstallPlan::targetDir`), but `--target` on the agent is free: a player who picks an
+    install path containing a `"` (or a `$(`) breaks their own command. It breaks that player's own
+    install (their own choice of path), not anyone else's; the fix belongs in the agent (quote after
+    substitution).
+18. **A form upload keeps the browser's file name unsanitised.** `app/Modules/Files/Actions/UploadSharedFile.php`
+    stores `getClientOriginalName()` as-is (the tus path cleans it). That is why the share action
+    refuses a backtick, `*`, `?` or a control character in an archive name instead of "fixing" it: the
+    name is printed into commands and Markdown. A file shared under such a name can still be
+    downloaded from the files page; it just cannot become a recipe.
+19. **Nothing here ran against the real GitHub API or on real hardware.** The client, the readiness
+    gate and the public-safety check are tested with `Http::fake`/`fakeRecipeRepository()` and unit
+    tests. The first real branch, the first real review and the first real merge are the pre-LAN
+    checks in [`../pre-lan-acceptance-checklist.md`](../pre-lan-acceptance-checklist.md) §12.
 
 ---
 
@@ -221,6 +307,17 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
       installed only on hosts that sync; `GAME_RECIPES_SMB_PASSWORD` comes from the environment
       (never a shell argument that lands in history).
 - [ ] Audit `/mcp/connect` after the LAN: revoke tokens for devices that should not keep access.
+- [ ] Recipe pull requests, if wanted: `RECIPES_PR_ENABLED=true` with a fine-grained token for exactly
+      one repository (*Contents* and *Pull requests* read and write); Preflight **Rezept-Katalog
+      (Pull Requests)** shows `ok` ([`recipe-pull-requests.md`](recipe-pull-requests.md)).
+- [ ] `RECIPES_PR_TRIGGER=publish` (the default) unless unreviewed text may reach the repository; the
+      budgets `RECIPES_PR_PER_USER_HOURLY` and `RECIPES_PR_MAX_OPEN` are the ones you want.
+- [ ] Read every recipe pull request before merging it: the repository is public, the history is
+      permanent, and `steps[].commands` run on players' machines. In the panel, **Start und Launcher**
+      and the publish confirmation show the step and launch commands verbatim.
+- [ ] A blocked proposal shows a **redacted** reason in the panel (`line …, an e-mail address
+      jo[REDACTED len=…]`), never the value; a proposal over a budget is visible only as
+      `recipes.pull_request_skipped` in the queue log.
 - [ ] Keep the file host's signed-URL secret (`FILES_HOST_SECRET`, ≥ 32 chars) and the file host
       firewall LAN-only; the MCP token is not what protects the file host.
 - [ ] `php artisan lanomat:doctor` (or the Preflight panel) green for files, voice, Discord.
@@ -248,6 +345,13 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
 | SMB escaping (T9) | same file — *quotes every variable part of the smbclient command* |
 | Target-dir traversal (T10) | same file — *keeps a recipe title from becoming a path outside the games folder* |
 | Draft/pending file never matched by a recipe | same file + `tests/Feature/Mcp/McpToolsTest.php` |
+| Share form refusals, pinned-file authorization (T18/T19) | `tests/Feature/GameRecipes/GameShareTest.php`, `tests/Unit/GameRecipes/PortableRecipeBuilderTest.php` |
+| Public-safety gate, context rules (T20) | `tests/Unit/GameRecipes/PublicSafeTextTest.php`, `tests/Feature/GameRecipes/RecipeProposalTest.php` |
+| Catalogue readiness, budgets, kept pull request, after-commit job (T20/T26) | `tests/Unit/GameRecipes/CatalogReadinessTest.php`, `tests/Feature/GameRecipes/RecipeProposalTest.php`, `tests/Feature/GameRecipes/RecipePullRequestCommandsTest.php` |
+| Title→shell folder, hostile archive names, one-line rule, draft budget (T18/T23/T24/T28/T29) | `tests/Feature/GameRecipes/GameShareTest.php`, `tests/Feature/GameRecipes/GameSharingFoundationTest.php`, `tests/Unit/GameRecipes/PortableRecipeBuilderTest.php` |
+| Launch commands visible at review (T25) | `tests/Feature/GameRecipes/RecipeResourceTest.php` |
+| Git client: branch/path validation, one open pull request, token redaction (T20/T22) | `tests/Feature/GameRecipes/GitHubRecipeRepositoryTest.php` |
+| `lanomat://join` link rules (T21) | `tests/Feature/GameServers/ServerInstallLinksTest.php` |
 
 Run them with:
 
@@ -262,6 +366,7 @@ docker compose run --rm app php vendor/bin/pest tests/Feature/Mcp tests/Feature/
 | Item | Owner |
 |---|---|
 | Normalize `original_name` in `UploadSharedFile` (multipart path) with `cleanName()` | `Files` module |
+| Quote `{{target}}`/`{{downloads}}` after substitution instead of relying on the quotes inside the command (residual risk 17) | `clients/agent` |
 | Agent-side safe archive extraction (zip-slip) and private-IP block for external URLs | agent cards 6/8 |
 | Absolute token lifetime / rotation policy | MCP follow-up |
 | `config/mcp.php` `allowed_origins` for multi-host installs | ops/deployment |

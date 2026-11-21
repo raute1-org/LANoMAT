@@ -11,6 +11,12 @@ const props = defineProps<{
     maxFileBytes: number;
     labels: Record<string, string>;
     onFinished: () => void;
+    /**
+     * Style of the file-pick button. The default keeps the amber primary
+     * action of the files page; a page that already owns the screen's one
+     * primary action passes `outline`.
+     */
+    pickVariant?: 'default' | 'outline';
 }>();
 
 const { items, add, pause, resume, cancel, retry, dismiss } =
@@ -91,7 +97,7 @@ const isRunning = (item: UploadItem): boolean =>
                 <label
                     for="file-upload"
                     :class="[
-                        buttonVariants({ variant: 'default' }),
+                        buttonVariants({ variant: pickVariant ?? 'default' }),
                         'cursor-pointer peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50',
                     ]"
                 >

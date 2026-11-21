@@ -40,6 +40,8 @@ if ($modules->enabled(Module::Jukebox)) {
 if ($modules->enabled(Module::Files)) {
     // Releases the quota and deletes leftovers of resumable uploads nobody finished.
     Schedule::command('lanomat:sweep-file-uploads')->everyTenMinutes()->withoutOverlapping();
+    // Resumable uploads arrive without a digest; this fills it in overnight.
+    Schedule::command('lanomat:files:hash --limit=20')->dailyAt('04:45')->withoutOverlapping();
 }
 if ($modules->enabled(Module::WebVoice)) {
     Schedule::command('webvoice:prune')->daily();
@@ -48,6 +50,9 @@ if ($modules->enabled(Module::GameRecipes)) {
     // Keeps the catalogue and the Preflight sync-age probe honest; the
     // command is idempotent and updates recipe files in place.
     Schedule::command('lanomat:recipes:sync')->dailyAt('04:15')->withoutOverlapping();
+    // Pull requests move slowly; an hourly look keeps "Im Katalog" honest
+    // without touching recipes that are not open in the repository.
+    Schedule::command('lanomat:recipes:pr-status')->hourly()->withoutOverlapping();
 }
 if ($modules->enabled(Module::Presence)) {
     // "Who is where" (voice rooms, games) for the participants: one fan-out to the voice sidecars,

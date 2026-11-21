@@ -36,6 +36,7 @@ return [
     'now_playing' => 'Läuft gerade',
     'all_servers' => 'Alle Server',
     'join' => 'Beitreten',
+    'to_game' => 'Zum Spiel',
     'copied' => 'Kopiert',
     'copy_address' => 'Adresse kopieren',
     'copy_failed' => 'Kopieren nicht möglich. Adresse: :address',

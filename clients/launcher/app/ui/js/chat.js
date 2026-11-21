@@ -1,8 +1,9 @@
 // Chat: the launcher's arcade front desk. Deterministic intents only (games,
 // servers), a quick demo type-in that a click can skip, and cards with one
-// primary action. Nothing here invents data; every card comes from the shell.
+// clear action. Nothing here invents data; every card comes from the shell.
 import * as install from './install.js';
 import * as ready from './ready.js';
+import * as share from './share.js';
 import { gameCard } from './library.js';
 import { state } from './state.js';
 import { SERVERS_PATH, S } from './strings.js';
@@ -419,6 +420,24 @@ async function askGames(body) {
             el('p', { class: 'strong', text: S.chat.gamesEmptyTitle }),
             el('p', { class: 'small muted', text: S.chat.gamesEmptyText }),
         );
+
+        // An empty catalogue is not a dead end: the same "Spiel teilen" entry
+        // as on the start page opens the server's share page in the browser.
+        if (share.isOffered()) {
+            body.append(
+                el(
+                    'div',
+                    { class: 'row wrap' },
+                    el('button', {
+                        class: 'btn',
+                        type: 'button',
+                        text: S.library.share,
+                        title: S.library.shareHint,
+                        onclick: () => share.openShare(),
+                    }),
+                ),
+            );
+        }
 
         return S.chat.gamesEmptyTitle;
     }

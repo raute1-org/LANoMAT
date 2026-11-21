@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Modules\Events\Models\Event;
+use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
-use App\Modules\Mcp\Http\Api\RecipeController;
+use App\Modules\GameRecipes\Support\LauncherSupport;
 use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Support\McpCodes;
 use Dotenv\Dotenv;
@@ -114,7 +117,7 @@ function recipeIndexToken(User $user): string
 
 it('flags every published recipe as installable and launcher supported without hiding the rest', function () {
     recipeIndexComplete([
-        'slug' => RecipeController::LAUNCHER_PILOT_SLUG,
+        'slug' => LauncherSupport::PILOT_SLUG,
         'title' => 'Unreal Tournament 2004',
     ]);
     // Complete, but the install engine is still the UT2004 pilot.
@@ -132,8 +135,8 @@ it('flags every published recipe as installable and launcher supported without h
     $recipes = collect($response->json('data'))->keyBy('slug');
 
     expect($recipes)->toHaveCount(3)
-        ->and($recipes[RecipeController::LAUNCHER_PILOT_SLUG]['installable'])->toBeTrue()
-        ->and($recipes[RecipeController::LAUNCHER_PILOT_SLUG]['launcher_supported'])->toBeTrue()
+        ->and($recipes[LauncherSupport::PILOT_SLUG]['installable'])->toBeTrue()
+        ->and($recipes[LauncherSupport::PILOT_SLUG]['launcher_supported'])->toBeTrue()
         ->and($recipes['openra']['installable'])->toBeTrue()
         ->and($recipes['openra']['launcher_supported'])->toBeFalse()
         ->and($recipes['stub-game']['installable'])->toBeFalse()
@@ -202,4 +205,313 @@ it('shows every draft to an orga bearer token', function () {
         ->assertOk();
 
     expect(collect($response->json('data'))->pluck('slug')->all())->toContain('foreign-draft');
+});
+
+it('decides launcher support with LauncherSupport for the pilot, a browser recipe, a portable and a plain recipe', function () {
+    recipeIndexComplete([
+        'slug' => LauncherSupport::PILOT_SLUG,
+        'title' => 'Unreal Tournament 2004',
+    ]);
+    recipeIndexComplete([
+        'slug' => 'arcade-racer',
+        'title' => 'Arcade Racer',
+        'metadata' => ['play_url' => 'https://arcade.lan.example/play'],
+    ]);
+    GameRecipe::factory()->published()->portable()->create([
+        'slug' => 'tiny-racer',
+        'title' => 'Tiny Racer',
+    ]);
+    GameRecipe::factory()->published()->create([
+        'slug' => 'plain-game',
+        'title' => 'Plain Game',
+    ]);
+
+    $response = $this->withToken(recipeIndexToken(User::factory()->create()))
+        ->getJson('/api/v1/recipes')
+        ->assertOk()
+        ->assertJsonStructure([
+            'data' => [['slug', 'launcher_supported', 'in_lineup', 'pull_request']],
+        ]);
+
+    $recipes = collect($response->json('data'))->keyBy('slug');
+
+    expect($recipes[LauncherSupport::PILOT_SLUG]['launcher_supported'])->toBeTrue()
+        ->and($recipes['arcade-racer']['launcher_supported'])->toBeTrue()
+        ->and($recipes['tiny-racer']['launcher_supported'])->toBeTrue()
+        ->and($recipes['plain-game']['launcher_supported'])->toBeFalse()
+        ->and($recipes['tiny-racer']['in_lineup'])->toBeFalse();
+});
+
+it('reports the lineup flag and shows the pull request only to its contributor', function () {
+    $author = User::factory()->create();
+    $stranger = User::factory()->create();
+
+    $recipe = recipeIndexComplete([
+        'slug' => 'own-contribution',
+        'title' => 'Own Contribution',
+        'status' => RecipeStatus::Published,
+        'source' => GameRecipe::SOURCE_CONTRIBUTION,
+        'contributor_user_id' => $author->id,
+        'in_lineup' => true,
+    ]);
+    $recipe->forceFill([
+        'pr_number' => 42,
+        'pr_url' => 'https://github.com/lanomat/recipes/pull/42',
+        'pr_branch' => 'recipes/own-contribution',
+        'pr_state' => PullRequestState::Open,
+    ])->save();
+
+    $own = $this->withToken(recipeIndexToken($author))->getJson('/api/v1/recipes')->assertOk();
+    $other = $this->withToken(recipeIndexToken($stranger))->getJson('/api/v1/recipes')->assertOk();
+
+    $ownRow = collect($own->json('data'))->firstWhere('slug', 'own-contribution');
+    $otherRow = collect($other->json('data'))->firstWhere('slug', 'own-contribution');
+
+    expect($ownRow['in_lineup'])->toBeTrue()
+        ->and($ownRow['pull_request'])->toMatchArray([
+            'number' => 42,
+            'state' => 'open',
+        ])
+        ->and($otherRow['in_lineup'])->toBeTrue()
+        ->and($otherRow['pull_request'])->toBeNull();
+});
+
+it('shows the pull request on the recipe detail only to its contributor', function () {
+    $author = User::factory()->create();
+    $stranger = User::factory()->create();
+
+    $recipe = recipeIndexComplete([
+        'slug' => 'detail-contribution',
+        'title' => 'Detail Contribution',
+        'status' => RecipeStatus::Published,
+        'source' => GameRecipe::SOURCE_CONTRIBUTION,
+        'contributor_user_id' => $author->id,
+    ]);
+    $recipe->forceFill([
+        'pr_number' => 7,
+        'pr_url' => 'https://github.com/lanomat/recipes/pull/7',
+        'pr_branch' => 'recipes/detail-contribution',
+        'pr_state' => PullRequestState::Open,
+    ])->save();
+
+    $this->withToken(recipeIndexToken($author))
+        ->getJson('/api/v1/recipes/detail-contribution')
+        ->assertOk()
+        ->assertJsonPath('recipe.pull_request.number', 7)
+        ->assertJsonPath('recipe.launcher_supported', false)
+        ->assertJsonPath('recipe.portable', false);
+
+    $this->withToken(recipeIndexToken($stranger))
+        ->getJson('/api/v1/recipes/detail-contribution')
+        ->assertOk()
+        ->assertJsonPath('recipe.pull_request', null);
+});
+
+it('forwards launch targets, portable metadata and a pinned own file from the REST contribution', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->registration()->create();
+    $file = SharedFile::factory()->create([
+        'event_id' => $event->id,
+        'user_id' => $user->id,
+        'original_name' => 'tiny-racer.zip',
+    ]);
+
+    $response = $this->withToken(recipeIndexToken($user))
+        ->postJson('/api/v1/recipes', [
+            'slug' => 'tiny-racer',
+            'title' => 'Tiny Racer',
+            'summary' => 'Kleine Rennen auf der LAN.',
+            'version' => '1.2.3',
+            'homepage' => 'https://tiny-racer.lan.example/',
+            'license' => 'Freeware; the archive is user-supplied',
+            'platforms' => ['windows'],
+            'requires' => [[
+                'role' => 'base',
+                'label' => 'Tiny Racer archive',
+                'match' => ['tiny-racer.zip'],
+                'required' => true,
+                'shared_file_id' => $file->id,
+                'os' => 'windows',
+                'notes' => 'Unpack the archive into the target folder.',
+            ]],
+            'steps' => [[
+                'id' => 'check-install',
+                'title' => 'Unpack and check',
+                'os' => 'windows',
+                'optional' => false,
+                'detail' => 'Unpack the archive into the target folder.',
+                'verify' => [['type' => 'file_exists', 'path' => '{{target}}/TinyRacer.exe']],
+            ]],
+            'launch_targets' => [[
+                'id' => 'windows',
+                'label' => 'Windows',
+                'os' => 'windows',
+                'command' => '{{target}}/TinyRacer.exe',
+                'shell' => 'cmd',
+                'notes' => 'Starts the game directly.',
+            ]],
+            'metadata' => [
+                'portable' => true,
+                'genre' => 'racing',
+                'players' => '2-8',
+                // Not on the contribution allowlist: must never reach the row.
+                'launcher_supported' => true,
+            ],
+        ])
+        ->assertCreated()
+        ->assertJsonStructure([
+            'recipe' => ['slug', 'title', 'status', 'launcher_supported', 'pull_request'],
+        ])
+        ->assertJsonPath('recipe.slug', 'tiny-racer')
+        ->assertJsonPath('recipe.status', 'draft')
+        ->assertJsonPath('recipe.launcher_supported', true)
+        ->assertJsonPath('recipe.pull_request', null);
+
+    $recipe = GameRecipe::query()->where('slug', 'tiny-racer')->firstOrFail();
+
+    expect($recipe->contributor_user_id)->toBe($user->id)
+        ->and($recipe->source_ref)->toBe('api')
+        ->and($recipe->version)->toBe('1.2.3')
+        ->and($recipe->homepage)->toBe('https://tiny-racer.lan.example/')
+        ->and($recipe->metadata['portable'])->toBeTrue()
+        ->and($recipe->metadata['genre'])->toBe('racing')
+        ->and($recipe->metadata)->not->toHaveKey('launcher_supported')
+        ->and($recipe->files()->first()->shared_file_id)->toBe($file->id)
+        ->and(app(LauncherSupport::class)->supports($recipe))->toBeTrue()
+        ->and(app(LauncherSupport::class)->isPortable($recipe))->toBeTrue();
+
+    expect($response->json('recipe.launcher_supported'))->toBeTrue();
+});
+
+it('refuses a shared file from another participant with a validation error', function () {
+    $user = User::factory()->create();
+    $foreign = SharedFile::factory()->create(['original_name' => 'not-mine.zip']);
+
+    $this->withToken(recipeIndexToken($user))
+        ->postJson('/api/v1/recipes', [
+            'slug' => 'pinned-foreign',
+            'title' => 'Pinned Foreign',
+            'platforms' => ['windows'],
+            'requires' => [[
+                'role' => 'base',
+                'label' => 'Archive',
+                'match' => ['not-mine.zip'],
+                'required' => true,
+                'shared_file_id' => $foreign->id,
+            ]],
+            'steps' => [[
+                'id' => 'check-install',
+                'title' => 'Unpack',
+                'os' => 'windows',
+                'verify' => [['type' => 'file_exists', 'path' => '{{target}}/game.exe']],
+            ]],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('requirements.0.shared_file_id');
+
+    expect(GameRecipe::query()->where('slug', 'pinned-foreign')->exists())->toBeFalse();
+});
+
+it('filters the avatar catalogue by the current query parameter and by the old q parameter', function () {
+    $user = User::factory()->create();
+    $recipe = recipeIndexComplete(['slug' => 'avatar-game', 'title' => 'Avatar Game']);
+
+    $recipe->files()->create([
+        'role' => 'avatar',
+        'label' => 'Alyx',
+        'match_patterns' => ['alyx*.vrm'],
+        'required' => false,
+        'sort' => 0,
+    ]);
+    $recipe->files()->create([
+        'role' => 'avatar',
+        'label' => 'Barney',
+        'match_patterns' => ['barney*.vrm'],
+        'required' => false,
+        'sort' => 1,
+    ]);
+
+    $token = recipeIndexToken($user);
+
+    $this->withToken($token)
+        ->getJson('/api/v1/recipes/avatar-game/avatars?query=alyx')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.label', 'Alyx');
+
+    $this->withToken($token)
+        ->getJson('/api/v1/recipes/avatar-game/avatars?q=barney')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.label', 'Barney');
+});
+
+it('keeps requirement tags, author, license, notes and os on the REST contribution', function () {
+    $user = User::factory()->create();
+
+    $this->withToken(recipeIndexToken($user))
+        ->postJson('/api/v1/recipes', [
+            'slug' => 'avatar-pack',
+            'title' => 'Avatar Pack',
+            'platforms' => ['windows'],
+            'requires' => [[
+                'role' => 'avatar',
+                'label' => 'VRM avatars',
+                'match' => ['*.vrm'],
+                'required' => false,
+                'os' => 'windows',
+                'notes' => 'Copy the chosen avatars into the avatars folder.',
+                'author' => 'Alyx Vance',
+                'license' => 'CC-BY',
+                'tags' => ['avatar', 'vrm'],
+            ]],
+            'steps' => [[
+                'id' => 'copy-avatars',
+                'title' => 'Copy the avatars',
+                'os' => 'windows',
+                'optional' => false,
+                'detail' => 'Copy the chosen avatars into the avatars folder.',
+            ]],
+        ])
+        ->assertCreated();
+
+    $file = GameRecipe::query()->where('slug', 'avatar-pack')->firstOrFail()->files()->firstOrFail();
+
+    expect($file->metadata)->toMatchArray([
+        'os' => 'windows',
+        'notes' => 'Copy the chosen avatars into the avatars folder.',
+        'author' => 'Alyx Vance',
+        'license' => 'CC-BY',
+        'tags' => ['avatar', 'vrm'],
+    ]);
+});
+
+it('keeps the manual flag on a requirement that needs no matching file', function () {
+    $user = User::factory()->create();
+
+    $this->withToken(recipeIndexToken($user))
+        ->postJson('/api/v1/recipes', [
+            'slug' => 'manual-requirement',
+            'title' => 'Manual Requirement',
+            'platforms' => ['windows'],
+            'requires' => [[
+                'role' => 'tool',
+                'label' => 'Mumble',
+                'required' => true,
+                'manual' => true,
+                'notes' => 'Every player installs Mumble from the download page.',
+            ]],
+            'steps' => [[
+                'id' => 'install',
+                'title' => 'Install the game',
+                'os' => 'windows',
+                'optional' => false,
+                'detail' => 'Install the game from the LAN archive.',
+            ]],
+        ])
+        ->assertCreated();
+
+    $file = GameRecipe::query()->where('slug', 'manual-requirement')->firstOrFail()->files()->firstOrFail();
+
+    expect($file->metadata['notes'])->toBe('Every player installs Mumble from the download page.');
 });

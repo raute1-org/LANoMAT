@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import FilePicker from '@/components/FilePicker.vue';
 import ResumableUploader from '@/components/files/ResumableUploader.vue';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useModules } from '@/composables/useModules';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatBytes } from '@/lib/bytes';
 import { formatInstant } from '@/lib/datetime';
@@ -46,6 +47,8 @@ const quotaIsNearCap = computed(() => quotaRatio.value >= 0.9);
 
 const { isNavigating, hasError } = usePageLoadState();
 
+const modules = useModules();
+
 const form = useForm<{ file: File | null }>({
     file: null,
 });
@@ -76,6 +79,21 @@ function remove(file: SharedFileDto) {
 
 function formatDateTime(iso: string): string {
     return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+/**
+ * A ready-to-run archive is the only file that can back a shared game, so the
+ * quiet "Als Spiel teilen" link only appears on the viewer's own `.zip` and
+ * `.tar.bz2` uploads (and only while the game recipes module is on).
+ */
+function isGameArchive(file: SharedFileDto): boolean {
+    if (!file.mine) {
+        return false;
+    }
+
+    const name = file.originalName.toLowerCase();
+
+    return name.endsWith('.zip') || name.endsWith('.tar.bz2');
 }
 </script>
 
@@ -218,7 +236,17 @@ function formatDateTime(iso: string): string {
                             {{ formatBytes(file.sizeBytes) }}
                         </span>
 
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Link
+                                v-if="
+                                    modules.has('game_recipes') &&
+                                    isGameArchive(file)
+                                "
+                                :href="`/games/share?file=${file.id}`"
+                                class="inline-flex min-h-11 items-center rounded-sm text-sm text-muted-foreground underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none sm:min-h-0"
+                            >
+                                {{ labels.share_as_game }}
+                            </Link>
                             <Button as-child size="sm" variant="secondary">
                                 <a :href="`/files/${file.id}/download`">{{
                                     labels.download

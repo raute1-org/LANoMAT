@@ -51,7 +51,9 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | Voice (Mumble) (optional) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
 | WebVoice (optional) | Web voice | Browser voice (self-hosted LiveKit SFU) and persisted text chat per channel, general + per-match team rooms, admin moderation; orga/admin connection diagnostics and an in-page latency self-test (reserved probe room, never a channel); bearer-token API and device-authorization pairing for the native desktop client (`NativeClient` sub-namespace); see `docs/infra/livekit-web-voice.md` and `docs/infra/native-voice-client-api.md`; the Rust client core, CLI and the Tauri v2 desktop shell (tray, speaking overlay, push-to-talk via control socket and a best-effort global shortcut) live in `clients/voice/` (see its README); the client is downloadable at `/talk/client` in the version that matches the server (`scripts/ops/build-client.sh` publishes `clients-dist/` with a manifest, `ClientBuilds` validates it, `config('app.version')` is the one version string); Linux and Windows builds, signing and the draft-release workflow: `docs/infra/native-client-release.md` |
 | Infoscreen (optional) | M5 | Fullscreen rotating scenes for the venue projector |
-| GameServers (optional) | M6, post-M12 | Pelican Panel integration, match server provisioning from presets (port pool, A2S readiness), permanent game servers across events (Pelican, Docker or listed only) |
+| GameServers (optional) | M6, post-M12 | Pelican Panel integration, match server provisioning from presets (port pool, A2S readiness), permanent game servers across events (Pelican, Docker or listed only); each server row also answers "how does a player get this game?" through the `GameInstallLinks` contract (the matched recipe and the `lanomat://join` link) |
+| GameRecipes (optional) | M6, post-M12 | Recipe catalogue (YAML + `SKILL.md`), sync from bundled/SMB/git, install plans, avatars, launcher catalogue and lineup; sharing a LAN archive as a portable recipe (`ShareGame`, `PortableRecipeBuilder`, `/games/share`), and the pull-request pipeline that carries recipe text back into the git catalogue (`ProposeRecipe`, `RecipeRepository`) |
+| Mcp (optional) | M6, post-M12 | MCP server at `/mcp` (tools, resources, prompts), the agent REST API under `/api/v1`, device-code pairing plus revocable bearer tokens (`/mcp/connect`) |
 | Notifications (core) | M2 (cross-cutting) | `database` + `discord` notification channels |
 | Stats (optional) | M6 | Cross-event leaderboards and badges |
 | Friends (optional) | Friends-System | Cross-user friend requests/blocking, LAN-native suggestions |
@@ -82,7 +84,7 @@ Hard dependencies between optional modules (`Module::requires()`, enforced at bo
 | Stats | Voting |
 | Friends | Presence |
 
-`Module.php` is the single list of modules (31 cases, one per `app/Modules` directory). The architecture
+`Module.php` is the single list of modules (36 cases, one per `app/Modules` directory). The architecture
 ratchet in `tests/Architecture/` keeps the graph honest: `module-dependencies.php` is the baseline of every
 cross-module reference that exists (a new edge or a vanished one fails `ModuleDependenciesTest`; regenerate
 with `LANOMAT_ARCH_DUMP=1 ./vendor/bin/pest tests/Architecture`), `core-optional-baseline.php` records the
@@ -357,6 +359,9 @@ web_voice_channels   (id, kind[general|match], name, description NULLABLE, game_
                       archived_at NULLABLE, UNIQUE(game_match_id, tournament_entry_id))   -- plain references into Tournaments
 web_voice_channel_user (web_voice_channel_id, user_id, UNIQUE)   -- access list of a match room (roster snapshot)
 web_voice_messages   (id, web_voice_channel_id, user_id, body, created_at) · web_voice_mutes (web_voice_channel_id, user_id, muted_by NULLABLE)
+game_recipes         (id, slug UNIQUE, title, status[draft|published|archived], source[bundled|smb|git|panel|contribution], platforms, requirements/steps/metadata JSONB,
+                      skill_markdown, in_lineup, contributor_user_id NULLABLE,
+                      pr_number NULLABLE, pr_url, pr_branch, pr_state[open|merged|closed|blocked|failed] NULLABLE, pr_error, pr_synced_at)
 ```
 
 Key decisions (see design doc §7 for full rationale):
@@ -366,6 +371,83 @@ Key decisions (see design doc §7 for full rationale):
 - `match_reports` carries the report/confirm/dispute flow; `matches` holds the confirmed state.
 - `discord_outbox.dedup_key` gives idempotent announcement delivery (replaces in-memory dedup from v1).
 - File uploads (icons, logos) go to Laravel Storage (`*_path` columns), never Base64 in the database.
+
+## Game sharing, recipes and the git catalogue
+
+A participant shares a game on `/games/share` (`Games/Share`, `GameShareController`): they pick one of
+their own LAN archives of the current event and describe the game. `ShareGame` validates the title, the
+slug (`Str::slug`, `share` is reserved, a foreign published slug is a collision) and the pinned file
+(downloadable for the caller — own or approved, never rejected, `.zip`/`.tar.bz2`), refuses an archive
+name the recipe could not quote or match reliably, then `PortableRecipeBuilder` turns the input into a
+`ContributeRecipe` payload (`via: web`, `metadata.portable: true`) and the module stores a **draft**
+recipe. `ContributeRecipe` holds one writer per slug (a Postgres advisory lock), bounds a participant's
+waiting drafts (`RECIPES_MAX_DRAFTS_PER_USER`) and keeps the pin on the file row, not in the recipe text.
+Approval and publishing stay with the orga (`PublishRecipe`).
+
+`BuildInstallPlan::targetDir()` turns the title into the player's install folder with only
+`A-Za-z0-9 ._-` (Windows: `C:\Games\<name>`) or `Str::slug()` of that (Linux and macOS), because the
+folder is substituted into the quoted arguments of the step and launch commands.
+
+**Two contracts carry the cross-module questions.** Both are bound in `AppServiceProvider::register()`
+and both have a null object, so a module can ask without importing its neighbour:
+
+| Contract | Real implementation | Null implementation | Bound when |
+| --- | --- | --- | --- |
+| `GameServers\Contracts\GameInstallLinks::forServer(?gameSlug, ?gameName, ?address, ?port, ?joinUrl)` | `GameRecipes\Support\RecipeInstallLinks` | `GameServers\Support\NullGameInstallLinks` | the real one while `GameRecipes` is enabled, the null object otherwise |
+| `GameRecipes\Contracts\RecipeRepository` (`isConfigured`, `propose`, `state`, `read`) | `GameRecipes\Support\GitHubRecipeRepository` (GitHub REST) | `GameRecipes\Support\NullRecipeRepository` | the real one only while `recipes.pull_requests.enabled` is true **and** repository and token are set; tests bind `GameRecipes\Testing\FakeRecipeRepository` (`fakeRecipeRepository()`) |
+
+`GameServers` owns the server projection and asks `GameInstallLinks`; the answer is the `install` block
+on every server row (`ServerListProjection`), resolved once per request/fan-out and memoised, so a page
+of fifty servers does not become fifty catalogue queries. `RecipeInstallLinks` loads the published,
+lineup-allowed recipes once, picks the recipe with `RecipeGameMatcher` (exact game slug first, then the
+recipe's `searchTerms()` against the game's slug and name), asks `LauncherSupport` for
+`launcherSupported` and builds `launcherJoinUrl` with `LauncherJoinLink`: `?address=<host>:<port>` for
+UT2004's command-line launch, `?url=<urlencoded join url>` for a server that has an allowlisted join URL,
+the bare `lanomat://join/<slug>` when it has only an address, and `null` when it has neither.
+`install` is `null` when no published recipe matches.
+
+**`GameRecipes\Support\LauncherSupport` is the single decision for `launcher_supported`.** The
+hard-coded slug lists that used to live in the REST controller, `HomeChatData` and the launcher page are
+gone. `supports()` returns, in this order: a boolean `metadata.launcher_supported` override; true for the
+UT2004 pilot (`PILOT_SLUG`) and the hand-verified `VERIFIED_SLUGS`; true for a browser recipe with a
+`play_url`; otherwise `isPortable()` — `metadata.portable: true` plus a required `base` requirement, a
+non-optional `file_exists`/`dir_exists` verify step and at least one launch target. The launcher unpacks
+and starts; it never runs a recipe's step commands.
+
+**The lineup is one rule.** `LauncherLineup::slugs()` is the configured `LAUNCHER_LINEUP` allowlist **plus
+every recipe with `game_recipes.in_lineup = true`**, deduplicated. The player-facing read paths filter
+through `allows()`/`filter()`: `/api/v1/recipes`, `/games` and `/games/{slug}`,
+`HomeChatData::games()`, MCP `recipes_list` and `RecipeInstallLinks` (which feeds the install block on
+every server row, the `/launcher` live rows included). Publishing
+a contributed recipe sets `in_lineup` (in `PublishRecipe`, including the one-step "approve files and
+publish" action), which is how a shared game appears without a config change. An **empty** configured
+lineup stays "unrestricted" and shows every published recipe; the flag only ever adds to a curated
+lineup. `in_lineup` is fillable (the panel's "In der Spieleliste zeigen" switch), the `pr_*` columns are
+not — only the proposal job and the status sync write them (`forceFill`).
+
+**Events and listeners.** `RecipeContributed($recipe, $userId)` is dispatched by `ContributeRecipe` after
+commit (web share, `recipe_contribute`, `POST /api/v1/recipes`); `RecipePublished($recipe, $reviewerId)`
+by `PublishRecipe` on a transition into `published`. Both are listened to only while `GameRecipes` is on:
+
+- `ProposeContributedRecipe` queues the pull request when `RECIPES_PR_TRIGGER=contribute` (opt-in; the
+  default is `publish`) and the recipe is a contribution;
+- `ProposePublishedRecipe` queues it on every publish of a contributable recipe, in both trigger modes.
+
+The listeners decide only *whether* to queue (repository configured, recipe proposable — an archived
+recipe is not — and a budget left), and they queue **after the transaction commits**
+(`DB::afterCommit`; the job is `ShouldQueueAfterCommit`). `ProposeRecipe::limitReason()` bounds the
+automatic path with `RECIPES_PR_PER_USER_HOURLY` and `RECIPES_PR_MAX_OPEN`; the orga's command and the
+panel action are not limited. Then `ProposeRecipePullRequestJob` → `ProposeRecipe` exports `recipe.yaml`,
+`SKILL.md` and the `_catalog.md` row, runs `CatalogReadiness` (would the repository's validator accept
+it?) and `PublicSafeText` (may the text be public?) over it, cleans the title (`::plain`) and escapes
+the body (`::markdown`), and puts it on `recipes/<slug>` with exactly one open pull request
+(`GitHubRecipeRepository`). A blocked or failed attempt keeps the state of a pull request that already
+exists; the hourly sync writes only when the recipe still carries the number it asked about. Off by
+default; the runbook is [`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md).
+
+`Preflight` must not import `GameRecipes` (architecture ratchet), so `RecipeRepositoryCheck` reads
+`config('recipes.pull_requests')` and calls `GET /repos/<repository>` itself, reading
+`permissions.push`; every failure is a `warn`, never `down`.
 
 ## Discord Gateway sidecar
 
@@ -830,7 +912,7 @@ remain correct after a plain reload.
 ## Current implementation status
 
 All roadmap phases M0–M13 are implemented and tagged; the modules above are all present under
-`app/Modules/` (31, see `App\Support\Modules\Module`). Since the last tag the project gained, untagged on
+`app/Modules/` (36, see `App\Support\Modules\Module`). Since the last tag the project gained, untagged on
 `main`: the production deployment on the `core` profile, web voice with LiveKit, the file host with
 resumable uploads, permanent game servers and presets, the `Provisioning` module, Mumble 1.5 and
 TeamSpeak sidecars, the Discord Gateway sidecar, and the native desktop client (`clients/voice/`) with its
