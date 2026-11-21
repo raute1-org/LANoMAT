@@ -448,6 +448,13 @@ deliberately not built):
   The Rust client has no host toolchain: it builds in Docker (`clients/voice/Dockerfile.dev`).
   Guides in German: [`docs/anleitung-teilnehmer-desktop-app.md`](docs/anleitung-teilnehmer-desktop-app.md)
   (participants) and [`docs/anleitung-orga-client.md`](docs/anleitung-orga-client.md) (orga).
+- **Payment comfort:** each event has priced ticket types (the last active one cannot be removed; a price snapshot is
+  taken at registration), a payment link (`paypal.me` links get the amount appended, pool links are shown as-is)
+  and a note. Participants see the open amount, a copyable reference and a pay button on "Meine Anmeldung" and as
+  a card on **Jetzt**; the orga marks payments with an optional "paid by" note and can re-price open
+  registrations in bulk. Food rounds are paid in cash or via PayPal and can be included per ticket type;
+  `registration:payment-reminders` (hourly, quiet hours 09-21 Berlin) sends deduplicated reminders. Guide in
+  German: [`docs/anleitung-orga-bezahlung.md`](docs/anleitung-orga-bezahlung.md).
 - **Location:** "Wo ist wer" shows where people are (voice room, game, server) and lets you follow them.
   Everyone shares their location by default; the profile switch "Meinen Standort teilen" opts out.
 
