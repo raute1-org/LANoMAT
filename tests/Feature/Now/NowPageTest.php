@@ -12,6 +12,7 @@ use App\Modules\Identity\Enums\LinkedAccountProvider;
 use App\Modules\Identity\Models\LinkedAccount;
 use App\Modules\Lfg\Actions\ToggleWantToPlay;
 use App\Modules\Lfg\Models\LfgPost;
+use App\Modules\Lfg\Support\WantToPlayBoard;
 use App\Modules\Notifications\Notifications\RegistrationConfirmed;
 use App\Modules\Presence\Domain\GameLocation;
 use App\Modules\Presence\Domain\PersonLocation;
@@ -196,6 +197,36 @@ it('defers nowPlaying and wantToPlay and resolves them on a partial reload', fun
         ->and($props['nowPlaying'][0]['join']['connectString'])->toBe('steam://connect/198.51.100.1:27015')
         ->and($props['wantToPlay']['games'][0])->toMatchArray(['game' => 'Quake', 'count' => 1, 'mine' => false])
         ->and($props['wantToPlay']['toggleUrl'])->toBe(route('lfg.want-to-play', $event));
+});
+
+it('rescues a failing deferred block instead of failing the partial reload', function () {
+    $event = Event::factory()->live()->create();
+    $user = User::factory()->create();
+    app()->bind(WantToPlayBoard::class, fn () => throw new RuntimeException('board down'));
+
+    $response = nowPartial($user, ['wantToPlay'])->assertOk();
+
+    expect($response->json('rescuedProps'))->toContain('wantToPlay')
+        ->and($response->json('props'))->not->toHaveKey('wantToPlay');
+});
+
+it('counts max players of ready servers only, like players', function () {
+    $event = Event::factory()->live()->create();
+    $user = User::factory()->create();
+    $cs = Game::factory()->create(['name' => 'CS2']);
+    foreach ([ServerLinkStatus::Ready, ServerLinkStatus::NotResponding] as $status) {
+        ServerLink::factory()->create([
+            'event_id' => $event->id,
+            'game_id' => $cs->id,
+            'status' => $status,
+            'join_info' => new JoinInfo(address: '198.51.100.1', port: 27015, connectString: 'steam://connect/198.51.100.1:27015'),
+            'query_info' => ['name' => 'S', 'map' => 'm', 'players' => 3, 'max_players' => 16],
+        ]);
+    }
+
+    $props = nowPartial($user, ['nowPlaying'])->assertOk()->json('props');
+
+    expect($props['nowPlaying'][0])->toMatchArray(['servers' => 2, 'players' => 3, 'maxPlayers' => 16]);
 });
 
 it('hides optional blocks when their modules are off', function () {

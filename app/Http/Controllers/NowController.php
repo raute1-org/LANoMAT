@@ -80,13 +80,13 @@ class NowController extends Controller
         // Only a running event has anything to show here; the block is not part of the other states.
         $playing = $state === 'live'
             && ($modules->enabled(Module::GameServers) || $modules->enabled(Module::Presence));
-        $props['nowPlaying'] = $playing ? Inertia::defer(fn (): array => $this->nowPlaying($modules, $user, $event)) : null;
+        $props['nowPlaying'] = $playing ? Inertia::defer(fn (): array => $this->nowPlaying($modules, $user, $event), rescue: true) : null;
 
         $props['wantToPlay'] = $event !== null && $modules->enabled(Module::Lfg)
             ? Inertia::defer(fn (): array => [
                 ...app(WantToPlayBoard::class)->for($event, $user),
                 'toggleUrl' => route('lfg.want-to-play', $event),
-            ])
+            ], rescue: true)
             : null;
 
         return Inertia::render('Now', $props);
