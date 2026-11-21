@@ -849,8 +849,8 @@ function agentConfig(env = process.env) {
         model: env.PI_MODEL || '',
         provider: env.PI_PROVIDER || '',
         skillsDir: env.PI_SKILLS_DIR || '',
-        timeoutMs: Number(env.DISCORD_AGENT_TIMEOUT_MS || DEFAULT_AGENT_TIMEOUT_MS),
-        mcpTimeoutMs: Number(env.DISCORD_AGENT_MCP_TIMEOUT_MS || DEFAULT_MCP_TIMEOUT_MS),
+        timeoutMs: Number(env.DISCORD_AGENT_TIMEOUT_MS) || DEFAULT_AGENT_TIMEOUT_MS,
+        mcpTimeoutMs: Number(env.DISCORD_AGENT_MCP_TIMEOUT_MS) || DEFAULT_MCP_TIMEOUT_MS,
     };
 }
 
