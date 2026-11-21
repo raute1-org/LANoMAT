@@ -12,6 +12,7 @@ use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\SyncsRequi
 use App\Modules\GameRecipes\Filament\Resources\Recipes\RecipeResource;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ContributionFiles;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ReviewStamp;
+use App\Modules\GameRecipes\Jobs\ProposeRecipePullRequestJob;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -181,25 +182,19 @@ class EditRecipe extends EditRecord
     }
 
     /**
-     * Hands the recipe to the pull request pipeline. The job lives in a
-     * parallel change: until it is wired in, the guarded branch warns instead
-     * of queueing nothing.
+     * Hands the recipe to the pull request pipeline. The job exports the text,
+     * runs the public-safety check and opens or updates the one pull request;
+     * the result shows up in the "Katalog (Pull Request)" section.
      */
     private function requestPullRequest(GameRecipe $record): void
     {
-        $job = 'App\\Modules\\GameRecipes\\Jobs\\ProposeRecipePullRequestJob';
+        ProposeRecipePullRequestJob::dispatch((int) $record->getKey());
 
-        if (! class_exists($job)) {
-            Notification::make()
-                ->title(__('game_recipes.actions.propose_unavailable'))
-                ->body(__('game_recipes.actions.propose_unavailable_help'))
-                ->warning()
-                ->send();
-
-            return;
-        }
-
-        dispatch(new $job($record->id));
+        Notification::make()
+            ->title(__('game_recipes.actions.propose_requested'))
+            ->body(__('game_recipes.actions.propose_requested_help'))
+            ->success()
+            ->send();
     }
 
     /**

@@ -12,11 +12,13 @@ use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Events\RecipePublished;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\CreateRecipe;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\EditRecipe;
+use App\Modules\GameRecipes\Jobs\ProposeRecipePullRequestJob;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\LauncherLineup;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Livewire\Livewire;
@@ -333,14 +335,20 @@ it('shows the pull request action only while the repository is configured', func
         ->assertActionVisible('proposePullRequest');
 });
 
-it('warns instead of queueing while the proposal job is not wired in', function () {
+it('queues the pull request for the recipe the orga asked for', function () {
+    Bus::fake([ProposeRecipePullRequestJob::class]);
     fakeRecipeRepository();
     $recipe = GameRecipe::factory()->draft()->create();
     $this->actingAs($this->orga);
 
     Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
         ->callAction('proposePullRequest')
-        ->assertNotified(__('game_recipes.actions.propose_unavailable'));
+        ->assertNotified(__('game_recipes.actions.propose_requested'));
+
+    Bus::assertDispatched(
+        ProposeRecipePullRequestJob::class,
+        fn (ProposeRecipePullRequestJob $job): bool => $job->recipeId === $recipe->id,
+    );
 });
 
 it('makes a published contribution visible on the games page under a curated lineup', function () {

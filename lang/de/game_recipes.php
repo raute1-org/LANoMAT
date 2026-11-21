@@ -66,8 +66,8 @@ return [
         'published_with_files' => 'Datei freigegeben und Rezept veröffentlicht|:count Dateien freigegeben und Rezept veröffentlicht',
         'propose_pull_request' => 'Pull Request öffnen / aktualisieren',
         'propose_pull_request_help' => 'Schickt den Rezepttext in den Git-Katalog. Die Spieldateien bleiben auf dem LAN-Dateiserver.',
-        'propose_unavailable' => 'Pull Request noch nicht verfügbar',
-        'propose_unavailable_help' => 'Die Pull-Request-Pipeline ist in dieser Version noch nicht aktiv.',
+        'propose_requested' => 'Pull Request wird vorbereitet',
+        'propose_requested_help' => 'Der Stand erscheint gleich im Abschnitt „Katalog (Pull Request)“. Lade die Seite neu, falls er noch fehlt.',
         'archive' => 'Archivieren',
     ],
 
