@@ -4,8 +4,8 @@ description: The MCP tool catalogue, recipe resources, prompts and argument exam
 sidebar_icon: list
 ---
 
-The MCP surface is deliberately explicit: **24 tools**, **one prompt** (`install-game`) and **one
-resource template** (`lanomat://recipes/{slug}/skill`). The table below is the contract — it matches
+The MCP surface is deliberately explicit: **27 tools**, **two prompts** (`install-game`, `import-menu`) and **two
+resources** (the template `lanomat://recipes/{slug}/skill` and `lanomat://skills/import-menu`). The table below is the contract — it matches
 what the served server registers in `app/Modules/Mcp/Server/LanomatServer.php`. If a tool is not in
 this table, the server does not have it.
 
@@ -29,7 +29,10 @@ this table, the server does not have it.
 | `schedule_list` | `event_slug` | Schedule items in order | — |
 | `polls_list` | `event_slug` | Polls, options and my vote | — |
 | `poll_vote` | `poll_id`, `option_id` | Cast vote | — |
-| `catering_menu` | `event_slug` | Open and scheduled food orders with prices | — |
+| `catering_menu` | `event_slug` | Open and closed food orders with prices (drafts for orga/admin only) | — |
+| `catering_menu_get` | `event_slug`, `order_id?` | Orga/admin: rounds incl. drafts, menu in the import shape, ordered-item count | — |
+| `catering_menu_preview` | `event_slug`, `mode`, `items`, `order_id?`, round settings | Orga/admin dry run: errors, warnings, resulting menu, changes; writes nothing | — |
+| `catering_menu_import` | same as preview | Orga/admin: creates a draft round or replaces/merges a menu, atomically | — |
 | `lfg_list` | `event_slug` | Active looking-for-group posts | — |
 | `lfg_create` | `event_slug`, `title`, `game`, `body?`, `slots_needed?` | The created post | — |
 | `recipes_list` | `query?`, `platform?` | Recipe summaries | `GET /api/v1/recipes` |
@@ -38,8 +41,9 @@ this table, the server does not have it.
 | `recipe_avatars` | `slug?`, `query?` | Avatar/content packs with LAN status | `GET /api/v1/recipes/{slug}/avatars` |
 | `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `platforms?`, `aliases?`, `requirements?`, `steps?`, `skill_description?` | Draft recipe | `POST /api/v1/recipes` |
 
-Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `lfg_create` and
-`recipe_contribute`; `recipe_contribute` only creates a **draft**. Nothing in the catalogue
+Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `lfg_create`,
+`recipe_contribute` and `catering_menu_import`; `recipe_contribute` and `catering_menu_import` only create or
+change **drafts** (a round is never opened by the tool). Nothing in the catalogue
 publishes, deletes or edits an event.
 
 A tool result carries the same values the participant app renders — event state, ticket, seat and
@@ -182,3 +186,62 @@ The draft waits in the Filament admin until an orga reviews it:
 |---|---|
 | ![Filament admin dashboard with the Preflight check, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight check, light](/screens/admin-light.png) |
 | `ADMIN · RECIPE DRAFT · ORGA REVIEW` | `ADMIN · LIGHT` |
+
+## Menu import (orga/admin)
+
+The agent reads the menu itself (PDF, web page, text, photo) and passes **structured data**. LANoMAT never
+fetches a URL or parses a document for this, and treats every string as plain data (control characters are
+flattened, markup is stored as text, nothing is executed). The data model is flat: a dish has a `key`, a `name`
+and a price in integer cents. There are no categories, descriptions or allergen flags; the preview reports such
+fields as ignored, and qualifiers such as "vegetarisch" belong into the name.
+
+Item fields: `name` (required, max 255), exactly one of `price_cents` (integer, 0 to 100000) or `price_eur`
+(text with at most two decimals, `"8,50"`), optional `key` (`a-z0-9_-`, max 64, derived from the name when
+omitted). At most 300 dishes. The three tools share their arguments:
+
+```json
+{
+  "name": "catering_menu_preview",
+  "arguments": {
+    "event_slug": "lan-herbst-2026",
+    "mode": "create",
+    "title": "Pizza Samstag",
+    "closes_at": "2026-11-28T18:00:00+01:00",
+    "payment_method": "paypal",
+    "payment_link": "https://paypal.me/example-orga",
+    "items": [
+      { "name": "Pizza Margherita", "price_eur": "8,50" },
+      { "name": "Pizza Salami", "price_cents": 950 },
+      { "name": "Cola 0,5l", "price_eur": "2,50" }
+    ]
+  }
+}
+```
+
+```json
+{
+  "valid": true, "applied": false, "mode": "create", "created": false, "unchanged": false,
+  "errors": [], "warnings": [],
+  "changes": { "added": 3, "kept": 0, "removed": 0, "changed": 0 },
+  "dish_count": 3,
+  "order": { "id": null, "title": "Pizza Samstag", "status": "draft" },
+  "menu": [
+    { "key": "pizza-margherita", "name": "Pizza Margherita", "price_cents": 850 },
+    { "key": "pizza-salami", "name": "Pizza Salami", "price_cents": 950 },
+    { "key": "cola-0-5l", "name": "Cola 0,5l", "price_cents": 250 }
+  ]
+}
+```
+
+`catering_menu_import` takes the same arguments and returns the same shape with `applied: true` and the round id.
+
+| `mode` | Behaviour |
+|---|---|
+| `create` | New **draft** round with `title` (required) and optional `opens_at`, `closes_at`, `payment_method`, `payment_link`. Importing the same title and menu again returns the existing draft (`unchanged: true`). |
+| `replace` | Swaps the menu of `order_id` (and optionally the round settings). Refused for closed rounds and for rounds that already have ordered items. |
+| `merge` | Appends dishes whose name is new; existing dishes and prices stay untouched (a differing price is a warning). Round settings are refused. Works on open rounds with orders. |
+
+`catering_menu_get` returns `items` in exactly this shape (with the stored keys), so get, edit, import is a
+round trip. Only orga and admin accounts may call the three tools (`FoodOrderPolicy`); the write is one
+transaction with the round locked, and an audit log line (`catering.menu_import`: user, event, round, mode,
+dish count, no dish text) is written.

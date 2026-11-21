@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use App\Modules\Mcp\Server\LanomatServer;
+use App\Modules\Mcp\Tools\CateringMenuGetTool;
+use App\Modules\Mcp\Tools\CateringMenuImportTool;
+use App\Modules\Mcp\Tools\CateringMenuPreviewTool;
 use App\Modules\Mcp\Tools\CateringMenuTool;
 use App\Modules\Mcp\Tools\EventGetTool;
 use App\Modules\Mcp\Tools\EventRegisterTool;
@@ -67,6 +70,9 @@ function mcpOptionalToolModules(): array
         PollsListTool::class => Module::Voting,
         PollVoteTool::class => Module::Voting,
         CateringMenuTool::class => Module::Catering,
+        CateringMenuGetTool::class => Module::Catering,
+        CateringMenuPreviewTool::class => Module::Catering,
+        CateringMenuImportTool::class => Module::Catering,
         LfgListTool::class => Module::Lfg,
         LfgCreateTool::class => Module::Lfg,
         RecipesListTool::class => Module::GameRecipes,

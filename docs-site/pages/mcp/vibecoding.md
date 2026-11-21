@@ -129,6 +129,23 @@ JSON Schema validator and publishes.
 | ![Filament admin dashboard with the Preflight tiles and the orga sidebar, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight tiles and the orga sidebar, light](/screens/admin-light.png) |
 | `ADMIN · DARK` — the panel where a submitted draft recipe is reviewed and published | `ADMIN · LIGHT` |
 
+## Import a menu from a PDF or web page
+
+For orga and admin accounts. The agent reads the menu itself; LANoMAT receives structured data only.
+
+```text
+Here is the menu of the pizza place as a PDF (karte.pdf). Create a food round
+"Pizza Samstag" for event lan-herbst-2026, deadline Saturday 18:00, cash payment.
+Preview first, show me the warnings and the result, and only import after I say so.
+Do not guess prices or invent dishes; ask me when a line is unclear.
+```
+
+The agent follows the `import-menu` prompt (or reads `lanomat://skills/import-menu`): it calls
+`catering_menu_preview`, shows errors and warnings (duplicates, price 0, unusually high prices, ignored
+fields), then `catering_menu_import`. The round is created as a **draft**; opening it for orders stays a human
+step in the admin panel. To fix a price or add a dish later, ask for `catering_menu_get` followed by
+`replace` (no orders yet) or `merge`.
+
 ## Troubleshoot
 
 ```text
