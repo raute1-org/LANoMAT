@@ -41,6 +41,20 @@ http:
       buffering:
         maxRequestBodyBytes: 1082130432
         memRequestBodyBytes: 1048576
+    # Maintenance page for a running-but-failing app: when the `app` service answers 502-504 (crashed
+    # FrankenPHP, upstream timeout) Traefik serves the static page from the always-on `maintenance`
+    # service (docker/maintenance) and keeps the original status code. Normal 404/500 of the app are
+    # NOT matched. Only the main `app` router uses it; Reverb (`ws.` host), the upload routers and
+    # the file host keep raw errors. When the app container is gone entirely its routers disappear
+    # and the lowest-priority `maintenance` router (compose.yml labels) answers instead.
+    # NOTE: this references the Docker-provider service `maintenance@docker`; if that container is
+    # missing Traefik drops every router using this middleware, so keep `maintenance` running.
+    maintenance-errors:
+      errors:
+        status:
+          - '502-504'
+        service: maintenance@docker
+        query: '/'
     secure-headers:
       headers:
         frameDeny: true

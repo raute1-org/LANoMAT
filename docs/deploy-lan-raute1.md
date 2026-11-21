@@ -428,6 +428,51 @@ The backups must be copied off the host regularly. A backup that stays on the
 same disk does not count. The repo does not set up an off-host target; choose
 one yourself.
 
+## Maintenance page
+
+Visitors never see a browser or Traefik error during a deploy. A tiny, always-on `maintenance`
+service (nginx, `docker/maintenance/`) serves a German "LANoMAT wird aktualisiert" page with status
+503, `Retry-After: 30` and `no-store`. The page polls `/up` every 4 seconds and reloads itself as soon
+as the app answers 200 (without JavaScript: a 15 second meta refresh). It is self-contained (inline CSS,
+no fonts, scripts or CDN), so it also works offline and under the CSP.
+
+How it is wired (no manual switch, nothing to remove afterwards):
+
+- **App container gone or starting.** Traefik's Docker provider drops the routers of stopped and
+  unhealthy containers, so without a fallback the answer would be 404. The `maintenance` service owns a
+  router with `priority=1` for the app host (labels in `compose.yml`); the real routers win whenever
+  `app` is healthy, so the page appears and disappears by itself.
+- **App running but failing (502-504).** The `maintenance-errors` middleware
+  (`docker/traefik/dynamic.yml`) is attached to the main `app` router and swaps in the same page. A
+  normal 404 or 500 of the app is not replaced. Reverb (`ws.` host), the upload routers and the file
+  host are deliberately excluded. The middleware references `maintenance@docker`: if the maintenance
+  container is missing, Traefik drops every router that uses it (the site answers 404), so
+  `scripts/deploy/deploy.sh` starts it first and never restarts it (it is not in `SERVICES`; it is
+  recreated only when `docker/maintenance` changed).
+- **Laravel maintenance mode** (`artisan down`) is optional: `DEPLOY_MAINTENANCE_MODE=1 scripts/deploy/deploy.sh`
+  wraps the migrations in `down`/`up` with an `EXIT` trap, so a failed migration never leaves a healthy
+  app in maintenance mode. It is off by default because the page already covers the restart and the
+  migrations are additive. The file driver is per container, which is fine: only `app` serves HTTP.
+  The static page replaces Laravel's own 503 (the middleware matches 503 too).
+
+Try it (production, off-peak): `docker compose --profile prod stop app`, open the site (503 page, the
+animated L mark), then `docker compose --profile prod start app`; the page reloads on its own once the
+app is healthy. `curl -i https://lan.example/` while stopped shows `503`, `Retry-After: 30`.
+
+**Venue-specific Traefik files** (not in the repo): the labels live in `compose.yml`, so
+nothing is needed if the venue only overrides the static file (`traefik.venue.yml`). If the venue
+uses its own copy of the dynamic file or its own `app` labels, add (placeholders):
+
+```yaml
+# dynamic file: http.middlewares
+maintenance-errors:
+  errors: { status: ['502-504'], service: 'maintenance@docker', query: '/' }
+```
+
+and append `maintenance-errors@file` to the `app` router's `middlewares` label (compose
+override). Routers added by an override that must show the page need the same; the catch-all
+`maintenance` router already covers every host rule equal to `Host(${APP_DOMAIN})`.
+
 ## Security headers
 
 Traefik's `secure-headers` middleware (`docker/traefik/dynamic.yml`) sets HSTS,
