@@ -140,6 +140,19 @@ const config: ZudokuConfig = {
     },
     {
       type: "category",
+      label: "Guides",
+      icon: "book-open",
+      items: [
+        { type: "doc", file: "guides/install-the-agent", label: "Install the agent" },
+        { type: "doc", file: "guides/install-ut2004", label: "Install UT2004 (+VR)" },
+        { type: "doc", file: "guides/install-ridge-racer", label: "Install Ridge Racer 4" },
+        { type: "doc", file: "guides/install-cs16", label: "Install CS 1.6" },
+        { type: "doc", file: "guides/upload-isos-and-avatars", label: "Upload ISOs & avatars" },
+        { type: "doc", file: "guides/lan-party-runbook", label: "LAN party runbook" },
+      ],
+    },
+    {
+      type: "category",
       label: "The system",
       icon: "layout-dashboard",
       items: [
