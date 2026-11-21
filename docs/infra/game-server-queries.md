@@ -27,6 +27,6 @@ only means an empty list.
 `query_info.player_list` is a list of `{name, score, seconds}` (at most 64 entries, names cut to
 32 characters, control characters and markup removed, best score first; UT2004 colour codes are
 stripped). The names are **in-game nicknames**, not LANoMAT accounts, and are never linked to
-one. The list only reaches logged-in viewers of `/servers` and `/events/{slug}/servers`
+one. The list only reaches logged-in viewers of `/servers`
 (`ServerListProjection::dto(..., withPlayerList: true)`); the guest-safe projections, the
 infoscreen, overlays, broadcasts and the native client API never include it.

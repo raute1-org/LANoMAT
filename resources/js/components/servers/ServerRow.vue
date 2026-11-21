@@ -6,6 +6,7 @@ import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import { Button } from '@/components/ui/button';
+import { useJoinOption } from '@/composables/useJoinOption';
 import type { GameServerDto } from '@/types';
 
 /**
@@ -76,6 +77,34 @@ const joinable = computed(
         !!props.server.connectString,
 );
 
+const { selected: joinOption } = useJoinOption(
+    () => props.server.joinOptions ?? [],
+);
+
+// The row's "Verbinden": the chosen way in when the game has several, else the
+// plain connect link. A plain address:port has no link — copy only.
+const joinHref = computed(() => {
+    if (joinOption.value) {
+        return joinOption.value.url;
+    }
+
+    return props.server.connectIsLink ? props.server.connectString : null;
+});
+
+// A plain connect string that says more than address:port (password, console
+// command): shown in the panel and copied instead of the bare address.
+const plainConnect = computed(() =>
+    !props.server.connectIsLink &&
+    props.server.connectString &&
+    props.server.connectString !== address.value
+        ? props.server.connectString
+        : null,
+);
+
+const copyText = computed(
+    () => plainConnect.value ?? address.value ?? props.server.connectString,
+);
+
 const panelId = computed(() => `server-panel-${props.server.id}`);
 
 const copyState = ref<'idle' | 'ok' | 'failed'>('idle');
@@ -83,9 +112,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 async function copyAddress() {
     try {
-        await navigator.clipboard.writeText(
-            address.value ?? props.server.connectString,
-        );
+        await navigator.clipboard.writeText(copyText.value);
         copyState.value = 'ok';
     } catch {
         copyState.value = 'failed';
@@ -120,12 +147,10 @@ onUnmounted(() => clearTimeout(hintTimer));
 
 <template>
     <div>
-        <div
-            class="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 sm:flex-nowrap"
-        >
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5">
             <button
                 type="button"
-                class="flex min-h-10 min-w-0 flex-1 basis-full items-center gap-3 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:basis-0"
+                class="flex min-h-10 min-w-0 grow basis-60 items-center gap-3 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 :aria-expanded="open"
                 :aria-controls="panelId"
                 @click="emit('toggle')"
@@ -156,7 +181,7 @@ onUnmounted(() => clearTimeout(hintTimer));
 
             <template v-if="joinable">
                 <span
-                    class="hidden w-28 truncate font-mono text-xs text-muted-foreground sm:block"
+                    class="hidden w-28 truncate font-mono text-xs text-muted-foreground lg:block"
                     >{{ server.query?.map ?? '' }}</span
                 >
                 <span
@@ -168,17 +193,17 @@ onUnmounted(() => clearTimeout(hintTimer));
                             : '–'
                     }}</span
                 >
-                <span class="hidden w-48 truncate font-mono text-xs sm:block">{{
+                <span class="hidden w-48 truncate font-mono text-xs xl:block">{{
                     address
                 }}</span>
                 <span class="ml-auto flex items-center gap-1.5 sm:ml-0">
                     <Button
-                        v-if="server.connectIsLink"
+                        v-if="joinHref"
                         as-child
                         size="sm"
                         :variant="primary ? 'default' : 'outline'"
                     >
-                        <a :href="server.connectString">{{ labels.connect }}</a>
+                        <a :href="joinHref">{{ labels.connect }}</a>
                     </Button>
                     <Button
                         type="button"
@@ -231,6 +256,19 @@ onUnmounted(() => clearTimeout(hintTimer));
                 {{ server.description }}
             </p>
 
+            <div v-if="joinable && address" class="space-y-1">
+                <p class="text-xs text-muted-foreground">
+                    {{ overviewLabels.connect_other }}
+                </p>
+                <p class="font-mono text-xs break-all">{{ address }}</p>
+                <p
+                    v-if="plainConnect"
+                    class="font-mono text-xs break-all text-muted-foreground"
+                >
+                    {{ plainConnect }}
+                </p>
+            </div>
+
             <PlayerListDisclosure
                 :query="server.query ?? null"
                 :labels="labels"
@@ -265,7 +303,7 @@ onUnmounted(() => clearTimeout(hintTimer));
                 :address="address"
                 :labels="labels"
                 handler-help
-                :primary="primary"
+                :primary="false"
             />
 
             <div
@@ -317,8 +355,12 @@ onUnmounted(() => clearTimeout(hintTimer));
 
             <p
                 v-if="showEstimate && server.estimate"
-                class="font-mono text-xs text-muted-foreground tabular-nums"
-                :class="server.estimate.overCap ? 'text-warn' : ''"
+                class="font-mono text-xs tabular-nums"
+                :class="
+                    server.estimate.overCap
+                        ? 'text-warn'
+                        : 'text-muted-foreground'
+                "
             >
                 {{ labels.estimate_label }}: ~{{ server.estimate.ramMb }} MB
                 <span v-if="server.estimate.overCap">

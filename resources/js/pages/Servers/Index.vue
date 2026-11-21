@@ -10,6 +10,8 @@ import type { GameServerDto } from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string; isCurrent: boolean } | null;
+    /** False when no LAN is current; the way back then has no target. */
+    hasCurrent: boolean;
     servers: GameServerDto[];
     permanent: GameServerDto[];
     adminMaps: string[] | null;
@@ -28,7 +30,7 @@ let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
 function refreshServers() {
     if (document.visibilityState === 'visible' && !isNavigating.value) {
-        router.reload({ only: ['servers', 'permanent'] });
+        router.reload({ only: ['servers', 'permanent', 'adminMaps'] });
     }
 }
 
@@ -207,7 +209,10 @@ function emptyText(kind: 'event' | 'permanent'): string {
                 </div>
             </section>
 
-            <section v-if="event" aria-labelledby="servers-event">
+            <section
+                v-if="event && (eventRows.length > 0 || mine.length === 0)"
+                aria-labelledby="servers-event"
+            >
                 <h2
                     id="servers-event"
                     class="mb-2 text-sm font-medium text-muted-foreground"
@@ -228,6 +233,7 @@ function emptyText(kind: 'event' | 'permanent'): string {
                         )
                     }}
                     <Link
+                        v-if="hasCurrent"
                         :href="serversIndex.url()"
                         class="text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >{{ overviewLabels.back_to_current }}</Link
@@ -252,7 +258,7 @@ function emptyText(kind: 'event' | 'permanent'): string {
                     />
                 </div>
                 <p
-                    v-else-if="mine.length === 0 || filtered"
+                    v-else
                     class="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
                 >
                     {{ emptyText('event') }}

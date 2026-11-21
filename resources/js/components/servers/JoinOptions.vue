@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { Check, Copy } from '@lucide/vue';
-import { computed, onUnmounted, ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 import Ut2004HandlerDialog from '@/components/servers/Ut2004HandlerDialog.vue';
 import { Button } from '@/components/ui/button';
+import {
+    choosePreferredJoinOption,
+    useJoinOption,
+} from '@/composables/useJoinOption';
 import type { JoinOptionDto } from '@/types';
 
 /**
@@ -31,38 +35,10 @@ const props = withDefaults(
     },
 );
 
-const STORAGE_KEY = 'lanomat.join-option';
-const ALLOWED = /^(steam|ut2004|https?):\/\//;
-
-const safeOptions = computed(() =>
-    props.options.filter((option) => ALLOWED.test(option.url)),
-);
-
-function remembered(): string | null {
-    try {
-        return localStorage.getItem(STORAGE_KEY);
-    } catch {
-        return null;
-    }
-}
-
-const chosenKey = ref<string | null>(remembered());
-
-const selected = computed(
-    () =>
-        safeOptions.value.find((o) => o.key === chosenKey.value) ??
-        safeOptions.value[0] ??
-        null,
-);
+const { safeOptions, selected } = useJoinOption(() => props.options);
 
 function choose(key: string) {
-    chosenKey.value = key;
-
-    try {
-        localStorage.setItem(STORAGE_KEY, key);
-    } catch {
-        // Storage can be blocked; the choice then lasts for this page view only.
-    }
+    choosePreferredJoinOption(key);
 }
 
 const copyState = ref<'idle' | 'ok' | 'failed'>('idle');

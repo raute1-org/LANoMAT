@@ -387,9 +387,6 @@ return [
         'permanent_empty' => 'Es sind noch keine Dauerserver eingerichtet.',
         'other_event_hint' => 'Du siehst die Server von :event.',
         'back_to_current' => 'Zur aktuellen LAN',
-        'details' => 'Details',
-        'on_server' => 'Auf dem Server',
         'connect_other' => 'Anders verbinden',
-        'orga' => 'Orga',
     ],
 ];

@@ -34,8 +34,12 @@ class GameServerPageController extends Controller
         $viewer = $request->user();
         $current = app(CurrentEvent::class)->get();
 
-        if ($request->query('event') !== null) {
-            $event = Event::query()->where('slug', (string) $request->query('event'))->firstOrFail();
+        $slug = $request->query('event');
+
+        if ($slug !== null) {
+            abort_unless(is_string($slug), 404);
+
+            $event = Event::query()->where('slug', $slug)->firstOrFail();
             abort_unless($event->isPubliclyVisible(), 404);
         } else {
             $event = $current;
@@ -79,6 +83,7 @@ class GameServerPageController extends Controller
             'event' => $event instanceof Event
                 ? ['name' => $event->name, 'slug' => $event->slug, 'isCurrent' => $current?->is($event) ?? false]
                 : null,
+            'hasCurrent' => $current instanceof Event,
             'servers' => $servers,
             'permanent' => $permanent,
             'adminMaps' => $manageable ? Cs2Settings::MAPS : null,
@@ -96,7 +101,9 @@ class GameServerPageController extends Controller
         $current = app(CurrentEvent::class)->get();
 
         return redirect()->to(
-            $current?->is($event) ? '/servers' : '/servers?event='.urlencode($event->slug),
+            $current?->is($event)
+                ? route('servers.index', [], false)
+                : route('servers.index', ['event' => $event->slug], false),
             301,
         );
     }

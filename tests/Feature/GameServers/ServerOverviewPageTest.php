@@ -164,15 +164,9 @@ it('does not expose secrets or internals of a server', function () {
         ->assertDontSee('pelican_server_id');
 });
 
-it('has the policy matrix: everyone sees, only admins manage', function (?Role $role, bool $view, bool $manage) {
-    $user = $role === null ? null : User::factory()->state(['role' => $role])->create();
+it('has the policy matrix: everyone sees, only admins manage', function (Role $role, bool $view, bool $manage) {
+    $user = User::factory()->state(['role' => $role])->create();
     $link = ServerLink::factory()->permanent()->create();
-
-    if ($user === null) {
-        expect(true)->toBeTrue();
-
-        return;
-    }
 
     expect($user->can('viewPermanent', ServerLink::class))->toBe($view)
         ->and($user->can('managePermanent', ServerLink::class))->toBe($manage)
@@ -312,6 +306,42 @@ it('flags isMine only for a server whose match the viewer plays in', function ()
         ->has('servers', 3)
         ->where('servers', fn ($servers) => collect($servers)->mapWithKeys(fn ($s) => [$s['title'] => $s['isMine']])->all() === ['Meins' => true, 'Fremd' => false, 'Event' => false])
     );
+});
+
+it('flags isMine for a team entry when the viewer is on the roster snapshot', function () {
+    $event = Event::factory()->live()->create();
+    $tournament = Tournament::factory()->for($event)->create();
+    $viewer = User::factory()->create();
+    $teammate = User::factory()->create();
+    $entry = TournamentEntry::factory()->team()->for($tournament)->create([
+        'roster_snapshot' => [
+            ['user_id' => $teammate->id, 'name' => 'Mate'],
+            ['user_id' => $viewer->id, 'name' => 'Viewer'],
+        ],
+    ]);
+    $match = GameMatch::factory()->for($tournament)->create(['entry2_id' => $entry->id]);
+    ServerLink::factory()->create(['match_id' => $match->id, 'status' => ServerLinkStatus::Ready, 'title' => 'Teamserver']);
+
+    $this->actingAs($viewer)->get('/servers')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('servers.0.isMine', true)
+    );
+});
+
+it('404s instead of failing when ?event is an array', function () {
+    $this->actingAs(User::factory()->create())->get('/servers?event[]=x')->assertNotFound();
+});
+
+it('tells the page whether a current event exists', function () {
+    $other = Event::factory()->finished()->create();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get("/servers?event={$other->slug}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('hasCurrent', false)->where('event.isCurrent', false));
+
+    Event::factory()->live()->create();
+
+    $this->actingAs($user)->get("/servers?event={$other->slug}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('hasCurrent', true));
 });
 
 it('301-redirects the old event URL to the overview', function () {
