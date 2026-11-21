@@ -55,7 +55,7 @@ the recipe is published, `installable` stays false.
 2. Put `dinput8.dll` (x86 Ultimate ASI Loader) in the game root.
 3. Put `net_u2.asi` and `net_u2.ini` in `scripts/`.
 4. Set the same `host` in `[network]` and `[lan]` of `net_u2.ini`. On the event LAN that is
-   `10.23.0.12`; the server must advertise the same address.
+   `<LAN_SERVER_IP>`; the server must advertise the same address.
 5. Windows: start `SPEED2.EXE`. Linux: start it through Wine with the loader override:
 
 ```bash
@@ -96,7 +96,7 @@ The upstream repository is archived since 2026-11-09; the public server continue
 - The downloaded `NFSU2-portable.zip` is still the raw archive (wrapper folder, no
   `scripts/net_u2.asi`/`net_u2.ini`, older bundled `dinput8.dll`); the flat LAN package is pending.
 - No LAN file match yet, so the installer has nothing to download.
-- The running test server was started before the host changed to `10.23.0.12`; restart it so the
+- The running test server was started before the host changed to `<LAN_SERVER_IP>`; restart it so the
   advertised address matches the client INI.
 - `python nfs_online.py status` reports `Stopped` for a foreground/container start because
   `runtime/services.json` is missing; check ports and `/news` instead.
