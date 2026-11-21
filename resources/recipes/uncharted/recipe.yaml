@@ -1,7 +1,14 @@
 schema: lanomat.recipe/v1
 slug: uncharted
 title: "Uncharted: Drake's Fortune"
-aliases: ['uncharted 1', 'uncharted drakes fortune', 'nathan drake']
+aliases:
+    [
+        'uncharted 1',
+        'uncharted drakes fortune',
+        'nathan drake',
+        'uncharted collection',
+        'nathan drake collection',
+    ]
 version: '1.0.0'
 status: draft
 platforms: [windows, linux]
@@ -14,12 +21,13 @@ description: |
     The LAN collection's Uncharted folder is the PS4 Nathan Drake Collection
     (`CUSA02320`), which is a PS4 package: RPCS3 cannot run it. If the user has
     that copy, use shadPS4 and treat it as unverified; this recipe is the PS3
-    game.
+    game. A question about "Uncharted on PC" or "the Nathan Drake Collection on
+    PC" resolves here first: the collection is not an RPCS3 title.
 
     The whole trilogy runs in RPCS3, but only Drake's Fortune is covered here.
     Needs verification on the LAN before this recipe leaves draft status.
 
-homepage: https://rpcs3.net/
+homepage: https://github.com/RPCS3/rpcs3
 license: 'Sony/Naughty Dog; game and firmware user-supplied'
 cover: ''
 skill:
@@ -31,15 +39,16 @@ requires:
       label: "Uncharted: Drake's Fortune PS3 disc or game folder"
       match:
           [
-              '*Uncharted*Drake*.iso',
-              '*Uncharted*Drake*',
-              '*Uncharted*.iso',
-              '*Uncharted*',
+              '*Uncharted Drake*Fortune*',
+              '*Uncharted*Drake*Fortune*',
+              '*BCUS98103*',
+              '*BCES00065*',
+              '*Uncharted Drake*.iso',
           ]
       required: true
       sha256: ''
       url: ''
-      notes: 'PS3 version only. A folder containing PS3_GAME or an ISO works. The PS4 Nathan Drake Collection (CUSA02320) is a different build and does not run in RPCS3.'
+      notes: "PS3 version only: a folder containing PS3_GAME, or an ISO from the user's disc. USA BCUS98103, Europe BCES00065. The PS4 Nathan Drake Collection (CUSA02320) is a different build and does not run in RPCS3."
     - role: base
       label: 'PS3 firmware (PS3UPDAT.PUP)'
       match: ['PS3UPDAT.PUP', 'PS3UPDAT*.PUP']
@@ -49,21 +58,22 @@ requires:
       notes: "From the user's own PS3 or Sony's official update file."
     - role: tool
       label: 'RPCS3 emulator'
-      match: ['rpcs3-*.zip', 'RPCS3*.zip', 'rpcs3*.AppImage']
+      match: ['rpcs3*.7z', 'rpcs3*.AppImage']
       required: true
       url: https://rpcs3.net/download
-      notes: 'Current release; the Qt build is supported.'
+      notes: 'RPCS3 has rolling builds: Windows is a `rpcs3-v0.0.43-<build>_win64_msvc.7z`, Linux a `rpcs3-*_linux64.AppImage`, both from rpcs3.net/download (mirrored in the RPCS3/rpcs3-binaries-win and -linux repos). The main RPCS3/rpcs3 repo tags carry no assets. Extract the 7z to `{{target}}`; `rpcs3.exe` sits at its root.'
 steps:
     - id: install-rpcs3
       title: 'Install RPCS3'
       os: windows
       optional: false
       detail: |
-          Extract RPCS3 to `{{target}}` or install the Linux build. Launch once so
-          the config and `dev_flash` folders are created.
+          Extract the RPCS3 7z to `{{target}}` (Windows `tar -xf`, or 7-Zip), or
+          use the Linux AppImage. Launch once so the config and `dev_flash`
+          folders are created.
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/rpcs3-*.zip" -DestinationPath "{{target}}" -Force'
+            run: 'tar -xf (Get-ChildItem "{{downloads}}/rpcs3-*_win64*.7z" | Select-Object -First 1).FullName -C "{{target}}"'
       verify:
           - type: file_exists
             path: '{{target}}/rpcs3.exe'
@@ -119,5 +129,10 @@ steps:
 metadata:
     genre: action-adventure
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [action, ps3, playstation, rpcs3, uncharted]
+    launch:
+        kind: exe
+        target: '{{target}}/rpcs3.exe'
+        notes: "Start Drake's Fortune from RPCS3's game list; the disc is already registered."

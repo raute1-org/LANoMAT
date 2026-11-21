@@ -41,6 +41,41 @@ SHA-256 or a download URL to make a draft look finished.
 5. The matching `SKILL.md` tells an assistant how to ask the questions, run the
    steps and troubleshoot.
 
+## Matching and execution contract
+
+This is the contract the backend and the agent must implement, and the
+validator enforces the parts that are visible in the YAML.
+
+**Globs (`requires[].match`)**
+
+- Match against the **base name** of each file or folder found on the share
+  (subfolders are scanned; the path itself is not part of the matched string).
+- **Case-insensitive** (simple case folding, as `fnmatch`-style matching does
+  on Windows/SMB). `*Crash Bandicoot (USA).cue` matches
+  `crash bandicoot (usa).cue`.
+- `*` matches any run of characters, including none, but **not** a path
+  separator. There is no `**`, `?` or character-class syntax; a glob is
+  anchored end-to-end, so `*dust2*` is the substring form.
+- Globs contain no `/` or `\`; matching a folder dump is a glob against the
+  folder name, not its contents.
+- `match: []` is a user-supplied requirement: the installer never matches it
+  on the share and asks for the file (or an already-installed copy) instead.
+- A required entry blocks until one match exists; an optional entry is a
+  multi-select over all matches and may stay empty.
+
+**Commands and steps**
+
+- `os` filters whole steps: `windows` steps run only on Windows, `linux` only
+  on Linux, `any` on both.
+- Inside a step, commands are filtered by `shell`: a Windows host runs
+  `powershell` and `cmd` entries, a Linux host runs `bash` entries. An
+  `os: any` step may therefore carry both sets; each host executes only its
+  own shell's commands, in file order.
+- Commands are one per entry and contain no `&&`; a failing command stops the
+  step. `verify` runs after the commands and every entry must pass.
+- `verify` paths are relative to `{{target}}`; template variables are resolved
+  before comparison.
+
 ## Avatars are requirements, not a separate system
 
 Avatar packs are ordinary `role: avatar` requirements. There is no avatar
@@ -66,12 +101,13 @@ registry and no upload path of their own:
 
 1. Create `resources/recipes/<slug>/` with a slug matching
    `^[a-z0-9]+(-[a-z0-9]+)*$`, unique across the catalog.
-2. Write `recipe.yaml` against `schema/recipe.schema.json`. Keep `status:
-draft` until someone has run it on the LAN hardware.
+2. Write `recipe.yaml` against `schema/recipe.schema.json`. Keep the status
+   `draft` until someone has run it on the LAN hardware.
 3. Write `SKILL.md` (60–150 lines) with `name` equal to `skill.name` and a
    `description` that says what the skill does and when to use it.
 4. Add the row to `_catalog.md`.
-5. Run `node resources/recipes/schema/validate.mjs` and fix every error.
+5. Run `node resources/recipes/schema/validate.mjs` (or `npm test` in
+   `schema/`) and fix every error.
 
 Slugs, skill names and aliases must be unique. Aliases are how the chat command
 finds the recipe ("ut2k4", "ut 2k4", "unreal tournament" all point at

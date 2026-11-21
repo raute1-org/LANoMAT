@@ -1,13 +1,13 @@
 ---
 name: azeroth-survivors
-description: 'Install and launch the Warcraft III custom map Azeroth Survivors on Windows: verify Warcraft III, copy the .w3x into the Maps folder, start a custom game or LAN lobby, and verify the map loads. Use when the user says install Azeroth Survivors or the WC3 survival map for the LAN.'
+description: 'Install and launch the Warcraft III custom map Azeroth Survivors on Windows: verify Warcraft III, copy the .w3x into the Maps folder, start a Battle.net private lobby (or a legacy 1.29 LAN game), and verify the map loads. Use when the user says install Azeroth Survivors or the WC3 survival map for the LAN.'
 ---
 
 # Azeroth Survivors
 
 A Warcraft III custom map, not a standalone game. This skill verifies a legal
 Warcraft III install, puts the `.w3x` where the game can see it, and starts a
-custom game or LAN lobby.
+Battle.net private lobby (Reforged) or a legacy 1.29 LAN game.
 
 ## When to use
 
@@ -20,7 +20,8 @@ Not for a standalone Warcraft III campaign or a different custom map.
 
 ## What you need
 
-- A legal Warcraft III: Reforged install, patched to the current version.
+- A legal Warcraft III: Reforged install, patched to the current version; or a
+  legacy 1.29 install for offline LAN.
 - The Azeroth Survivors `.w3x` map from the LAN file host.
 - A Battle.net account for the first launch and patching.
 - About 30 GB for Warcraft III; the map is a few MB.
@@ -33,8 +34,9 @@ Not for a standalone Warcraft III campaign or a different custom map.
    so the Documents folders exist.
 2. **Place the map.** Copy the `.w3x` to
    `Documents\Warcraft III\Maps\`. Create the folder if needed.
-3. **Start the game.** Single Player → Custom Game for solo, or Multiplayer →
-   Local Area Network to host for the LAN.
+3. **Start the game.** Reforged 3.0 has no Local Area Network option: use
+   Multiplayer → Custom Game → Battle.net private lobby. For offline LAN use a
+   legacy 1.29 install and Multiplayer → Local Area Network.
 4. **Pick the map.** Select Azeroth Survivors, set the player slots, and start.
    Everyone in a LAN lobby needs the same map version.
 5. **Wrapper path (optional).** If the user has the `AzerothSurvivors.exe` +
@@ -59,13 +61,14 @@ Not for a standalone Warcraft III campaign or a different custom map.
   map; check its `Data` folder and version.
 - **Missing assets**: the map may require a specific WC3 patch; update the
   game.
-- **LAN lobby empty**: all players must be on the same network and the same
-  game version.
+- **No Local Area Network option**: expected on Reforged 3.0; use a Battle.net
+  private lobby or a legacy 1.29 install.
 
 ## Status
 
-Draft recipe, needs verification on the LAN hardware. The player count and the
-wrapper build are not confirmed.
+Draft recipe, needs verification on the LAN hardware. The player count, the
+online lobby path, the legacy 1.29 LAN path and the wrapper build are not
+confirmed.
 
 ## License
 

@@ -125,5 +125,10 @@ steps:
 metadata:
     genre: tool
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [vr, tool, unreal-engine, injector]
+    launch:
+        kind: exe
+        target: '{{target}}/UEVRInjector.exe'
+        notes: 'Start the game first, then inject; the runtime must be running before the game.'

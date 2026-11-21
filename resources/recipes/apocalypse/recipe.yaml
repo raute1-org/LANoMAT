@@ -125,5 +125,10 @@ steps:
 metadata:
     genre: third-person-shooter
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [shooter, psx, playstation, duckstation]
+    launch:
+        kind: exe
+        target: '{{target}}/duckstation-qt-x64-ReleaseLTCG.exe'
+        notes: "Open Apocalypse from DuckStation's game list; the disc is already registered."

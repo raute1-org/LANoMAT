@@ -31,14 +31,17 @@ requires:
       label: 'Crash Bandicoot (USA) disc image'
       match:
           [
-              '*Crash*Bandicoot*.bin',
-              '*Crash*Bandicoot*.cue',
-              '*Crash*Bandicoot*.chd',
+              '*Crash Bandicoot (USA)*',
+              '*Crash Bandicoot (Europe)*',
+              '*Crash Bandicoot (Japan)*',
+              '*Crash Bandicoot (*.cue',
+              '*Crash Bandicoot (*.bin',
+              '*Crash Bandicoot (*.chd',
           ]
       required: true
       sha256: ''
       url: ''
-      notes: 'The first game, USA preferred. The glob also matches Crash 2/3; confirm the disc title and serial before importing.'
+      notes: 'The first game only, USA preferred. The patterns require the region parenthesis, so Crash Bandicoot 2: Cortex Strikes Back and Crash Bandicoot 3: Warped do not match.'
     - role: base
       label: 'PlayStation BIOS (scph5501.bin, NTSC-U)'
       match: ['scph5501.bin', 'scph*.bin']
@@ -140,5 +143,10 @@ steps:
 metadata:
     genre: platformer
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [platformer, psx, playstation, duckstation]
+    launch:
+        kind: exe
+        target: '{{target}}/duckstation-qt-x64-ReleaseLTCG.exe'
+        notes: "Open Crash Bandicoot from DuckStation's game list; the disc is already registered."

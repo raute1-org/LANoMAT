@@ -42,11 +42,11 @@ requires:
       notes: 'Decrypted USA dump preferred. The native MM3D-PC port requires USA v1.1 specifically; Azahar is less strict, but keep the revision noted.'
     - role: tool
       label: 'Azahar emulator'
-      match: ['Azahar*.zip', 'azahar-*.AppImage', 'azahar*.tar.*']
+      match: ['azahar-windows-*.zip', 'azahar*.zip', 'azahar*.AppImage']
       required: true
       url: https://azahar-emu.org/
-      notes: 'Azahar is the maintained Citra successor. Citra itself is discontinued.'
-    - role: base
+      notes: 'Azahar is the maintained Citra successor. Use the current Windows msvc/mxe zip or the Linux AppImage; Citra itself is discontinued.'
+    - role: config
       label: '3DS keys (aes_keys.txt, optional for decrypted dumps)'
       match: ['aes_keys.txt', '*aes*keys*.txt']
       required: false
@@ -59,15 +59,22 @@ steps:
       os: windows
       optional: false
       detail: |
-          Download the current Azahar release and extract it to `{{target}}`, or
-          install the Linux AppImage/package. Launch once so the user folder is
-          created (`%APPDATA%\Azahar` on Windows).
+          The Windows zip has a top-level `azahar-windows-<build>/` folder.
+          Extract it into `{{target}}/Azahar` and move the inner folder's
+          contents up one level, so the emulator ends at
+          `{{target}}/Azahar/azahar.exe`.
+
+          Linux: download `azahar.AppImage`, place it as
+          `{{target}}/Azahar/azahar.AppImage` and make it executable. Launch once
+          so the user folder is created (`%APPDATA%\Azahar` on Windows).
       commands:
           - shell: powershell
-            run: 'Expand-Archive -Path "{{downloads}}/Azahar-*.zip" -DestinationPath "{{target}}" -Force'
+            run: 'Expand-Archive -Path (Get-ChildItem "{{downloads}}/azahar-windows-*.zip" | Select-Object -First 1).FullName -DestinationPath "{{target}}/Azahar" -Force'
+          - shell: powershell
+            run: 'Get-ChildItem "{{target}}/Azahar" -Directory -Filter "azahar-windows-*" | ForEach-Object { Move-Item "$($_.FullName)/*" "{{target}}/Azahar" -Force; Remove-Item $_.FullName }'
       verify:
           - type: file_exists
-            path: '{{target}}/azahar.exe'
+            path: '{{target}}/Azahar/azahar.exe'
     - id: import-game
       title: 'Import the dump'
       os: any
@@ -133,5 +140,10 @@ steps:
 metadata:
     genre: action-adventure
     players: '1'
+    players_max: 1
     lan_recommended: false
     tags: [adventure, 3ds, nintendo, zelda, azahar]
+    launch:
+        kind: exe
+        target: '{{target}}/Azahar/azahar.exe'
+        notes: "Start Majora's Mask 3D from Azahar's game list; the dump is already registered."

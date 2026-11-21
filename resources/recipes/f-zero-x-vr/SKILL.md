@@ -15,8 +15,8 @@ port. The game is not a GameCube title; Dolphin VR applies to F-Zero GX, not X.
 - "set up the VR F-Zero port on this PC"
 - "run F-Zero X with my headset"
 
-Not for F-Zero GX (GameCube, Dolphin) and not for the Quest 3 standalone APK,
-which is a separate sideload path.
+Not for F-Zero GX (GameCube, Dolphin) and not for the Quest 3 standalone build
+(the same project, installed from a Windows PC over USB).
 
 ## What you need
 
@@ -72,7 +72,7 @@ which is a separate sideload path.
 This recipe is a draft: needs verification on the LAN. The release filename
 and executable name change between builds; the LAN folder shows the R12 PCVR
 zip. Dolphin VR is not an alternative for F-Zero X, and the Quest 3 standalone
-APK is a different installation.
+build is a separate installation.
 
 ## License
 
