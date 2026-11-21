@@ -77,12 +77,43 @@ without them stay valid; nothing was migrated.
 - **Admin.** The menu editor of a restaurant has a description field and a photo upload per dish (images only,
   max 3 MB).
 - **Bulk assignment.** `php artisan catering:import-dish-media {restaurant} {json} --images=<folder> [--dry-run] [--force]`
-  (restaurant slug or id; `-` with `--round=<id>` resolves the restaurant of a round)
+  (the first argument is the restaurant, slug or id; before restaurants existed it was a round id, so an old call
+  `catering:import-dish-media <round-id> ...` must become `catering:import-dish-media - ... --round=<round-id>`, which resolves
+  the restaurant of that round)
   reads a JSON list of `{category, name, description, image_file}`, matches the dishes of the restaurant by
   normalised name (narrowed by category through a fixed table), prints what was matched, what has no
   counterpart and what is ambiguous, and writes only `description` and `image` in one transaction. Existing
   values are kept unless `--force`. Run it with `--dry-run` first.
 - **MCP.** Descriptions can be imported with `catering_menu_import` (into the restaurant); photos cannot.
+
+## Set menus ("Menü für 2 Personen")
+
+Delivery services sell menus where the customer picks the components. A dish (`MenuOption`) can carry optional
+`choices`: up to 5 selection groups `{label, count, allow_repeat, categories | options}`. `count` (1 to 10) is the
+exact number of picks; `categories` offers every ordinary dish whose name prefix ("Hähnchen: Korma") is listed,
+`options` offers a fixed list of dish keys. Dishes with choices of their own are never offered. The price stays the
+menu price; there is no surcharge per pick. Old menus without `choices` and old orders without picks are
+unchanged (nothing was migrated).
+
+**Orga setup (example).** In the menu editor open the dish "Menü: Menü für 2 Personen" and expand **Auswahl**:
+add the group "Hauptgericht", Anzahl 2, Auswahl aus *Kategorien der Karte*, categories `Hähnchen` and
+`Vegetarisch` (the preview shows "N Optionen"), then the group "Beilage", Anzahl 1, *Bestimmte Gerichte*
+`Reis` and `Naan`, repeats off. Save; the menu is now orderable with a picker.
+
+- **Ordering.** The page shows "+" as "Menü zusammenstellen": a dialog with one block per group, progress
+  ("1 von 2 gewählt"), a radio list for one pick, checkboxes without repeats, steppers with repeats and a search
+  for long lists. Ordering is possible only with a complete selection; the server checks count, membership and
+  repeats again (`PlaceFoodOrderItem`) and refuses otherwise. The item stores
+  `selection.choices: [{group, option_key, name}]` (name snapshot). The receipt shows the picks as indented
+  lines under the menu; identical menus with the same picks are grouped, different picks stay separate; removing
+  removes the whole menu item.
+- **Protection.** A dish that was picked inside an ordered set menu is protected like an ordered dish (no delete,
+  no key change); `UpdateRestaurantMenu` also rejects groups that point at missing dishes.
+- **Kitchen list and CSV.** The group order counts the picks under the menu ("2× Menü für 2 Personen: 3× Palak
+  Mushroom, 1× Dal Palak"), prices stay on the menu; the person list shows the picks per person; the item CSV
+  gets an "Auswahl" column once a round has set menus.
+- **MCP and native client.** `catering_menu_get/preview/import` take and return `choices` (see MCP tools); the
+  native client API adds `choices` to menu entries and items (additive, `api_version` 1).
 
 ## Docs for agents
 

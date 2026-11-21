@@ -20,7 +20,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('catering_menu_get')]
-#[Description('Orga/admin: the menu of one restaurant (restaurant = slug from restaurants_list) in exactly the shape catering_menu_preview/import accept (items[].key, name, price_cents, description), plus the number of ordered items per dish and in total. Use it for a round trip or before replace/merge. event_slug + order_id still work (deprecated) and resolve to the restaurant of that round.')]
+#[Description('Orga/admin: the menu of one restaurant (restaurant = slug from restaurants_list) in exactly the shape catering_menu_preview/import accept (items[].key, name, price_cents, description, choices for set menus), plus the number of ordered items per dish and in total. Use it for a round trip or before replace/merge. event_slug + order_id still work (deprecated) and resolve to the restaurant of that round.')]
 #[IsReadOnly]
 class CateringMenuGetTool extends LanomatTool
 {
@@ -65,6 +65,7 @@ class CateringMenuGetTool extends LanomatTool
                 'ordered' => $ordered[$option->key] ?? 0,
                 ...($option->description === null ? [] : ['description' => SafeText::line($option->description, MenuOption::MAX_DESCRIPTION_LENGTH)]),
                 ...($option->image === null ? [] : ['has_image' => true]),
+                ...($option->choices === [] ? [] : ['choices' => $option->toImportArray()['choices'] ?? []]),
             ], $restaurant->menu),
         ]);
     }

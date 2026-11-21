@@ -25,7 +25,7 @@ final class GroupOrder
     private const MAX_PREFIX_LENGTH = 32;
 
     /**
-     * @param  list<array{label: string, lines: list<array{key: string, name: string, quantity: int, unitCents: int, totalCents: int, notes: list<array{note: string, count: int}>, plain: int}>}>  $categories
+     * @param  list<array{label: string, lines: list<array{key: string, name: string, quantity: int, unitCents: int, totalCents: int, notes: list<array{note: string, count: int}>, plain: int, parts: list<array{name: string, count: int}>}>}>  $categories
      * @param  list<array{userId: int, name: string, dishes: list<string>, totalCents: int, includedCents: int, paidCents: int, dueCents: int, state: 'paid'|'open'|'included'}>  $persons
      */
     private function __construct(
@@ -70,7 +70,7 @@ final class GroupOrder
     {
         $order = array_flip(array_keys($dishes));
 
-        /** @var array<string, array{key: string, name: string, category: string, unit: int, quantity: int, notes: array<string, int>, plain: int}> $lines */
+        /** @var array<string, array{key: string, name: string, category: string, unit: int, quantity: int, notes: array<string, int>, plain: int, parts: array<string, int>}> $lines */
         $lines = [];
         /** @var array<int, array{name: string, dishes: array<string, int>, total: int, included: int, paid: int, due: int}> $people */
         $people = [];
@@ -88,12 +88,20 @@ final class GroupOrder
             [$category, $name] = self::split($full);
 
             $lineId = $key."\0".$cents;
-            $lines[$lineId] ??= ['key' => $key, 'name' => $name, 'category' => $category, 'unit' => $cents, 'quantity' => 0, 'notes' => [], 'plain' => 0];
+            $lines[$lineId] ??= ['key' => $key, 'name' => $name, 'category' => $category, 'unit' => $cents, 'quantity' => 0, 'notes' => [], 'plain' => 0, 'parts' => []];
             $lines[$lineId]['quantity']++;
             if ($note === '') {
                 $lines[$lineId]['plain']++;
             } else {
                 $lines[$lineId]['notes'][$note] = ($lines[$lineId]['notes'][$note] ?? 0) + 1;
+            }
+
+            // Set menus: the picked dishes are counted under the menu line; only the menu has a price.
+            $parts = [];
+            foreach (ItemPicks::of($item) as $pick) {
+                $part = self::split($pick['name'])[1];
+                $parts[$part] = ($parts[$part] ?? 0) + 1;
+                $lines[$lineId]['parts'][$part] = ($lines[$lineId]['parts'][$part] ?? 0) + 1;
             }
 
             $positions++;
@@ -104,7 +112,8 @@ final class GroupOrder
                 'name' => $item->relationLoaded('user') && $item->user !== null ? $item->user->displayNameFor() : '',
                 'dishes' => [], 'total' => 0, 'included' => 0, 'paid' => 0, 'due' => 0,
             ];
-            $people[$userId]['dishes'][$name] = ($people[$userId]['dishes'][$name] ?? 0) + 1;
+            $personDish = $name.self::partsSuffix($parts);
+            $people[$userId]['dishes'][$personDish] = ($people[$userId]['dishes'][$personDish] ?? 0) + 1;
             $people[$userId]['total'] += $cents;
 
             if ($item->included) {
@@ -129,6 +138,10 @@ final class GroupOrder
             foreach ($line['notes'] as $text => $count) {
                 $notes[] = ['note' => (string) $text, 'count' => $count];
             }
+            $parts = [];
+            foreach (self::sortedParts($line['parts']) as $part => $count) {
+                $parts[] = ['name' => (string) $part, 'count' => $count];
+            }
             $categories[$line['category']]['lines'][] = [
                 'key' => $line['key'],
                 'name' => $line['name'],
@@ -137,6 +150,7 @@ final class GroupOrder
                 'totalCents' => $line['unit'] * $line['quantity'],
                 'notes' => $notes,
                 'plain' => $line['plain'],
+                'parts' => $parts,
             ];
         }
 
@@ -192,11 +206,18 @@ final class GroupOrder
     /**
      * "2× Chicken Curry (1× mild, 1× scharf)" for one kitchen line.
      *
-     * @param  array{name: string, quantity: int, notes: list<array{note: string, count: int}>, plain: int}  $line
+     * A set menu lists its counted picks after the name: "2× Menü für 2 Personen: 3× Palak, 1× Dal".
+     *
+     * @param  array{name: string, quantity: int, notes: list<array{note: string, count: int}>, plain: int, parts?: list<array{name: string, count: int}>}  $line
      */
     public function kitchenLine(array $line): string
     {
         $text = $line['quantity'].'× '.self::oneLine($line['name']);
+        $parts = $line['parts'] ?? [];
+
+        if ($parts !== []) {
+            $text .= ': '.implode(', ', array_map(fn (array $p): string => $p['count'].'× '.self::oneLine($p['name']), $parts));
+        }
 
         if ($line['notes'] === []) {
             return $text;
@@ -222,6 +243,32 @@ final class GroupOrder
         $label = trim(substr($name, $index + strlen(self::SEPARATOR)));
 
         return $label === '' ? [self::OTHER_CATEGORY, $name] : [trim(substr($name, 0, $index)), $label];
+    }
+
+    /**
+     * @param  array<string, int>  $parts
+     * @return array<string, int> most picked first, then by name
+     */
+    private static function sortedParts(array $parts): array
+    {
+        uksort($parts, fn (string|int $a, string|int $b): int => [-$parts[$a], (string) $a] <=> [-$parts[$b], (string) $b]);
+
+        return $parts;
+    }
+
+    /** @param  array<string, int>  $parts */
+    private static function partsSuffix(array $parts): string
+    {
+        if ($parts === []) {
+            return '';
+        }
+
+        $text = [];
+        foreach (self::sortedParts($parts) as $part => $count) {
+            $text[] = $count > 1 ? $count.'× '.$part : (string) $part;
+        }
+
+        return ' ('.implode(', ', $text).')';
     }
 
     private static function cleanNote(string $note): string

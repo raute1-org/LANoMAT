@@ -6,6 +6,7 @@ namespace App\Modules\WebVoice\NativeClient\Http\Features;
 
 use App\Modules\Catering\Actions\CancelFoodOrderItem;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
+use App\Modules\Catering\Domain\MenuChoices;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
@@ -14,6 +15,7 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
+use App\Modules\Catering\Support\ItemPicks;
 use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Catering\Support\RestaurantCard;
 use App\Modules\Events\Models\Event;
@@ -97,7 +99,7 @@ class CateringApiController extends NativeFeatureController
         $data = $request->validated();
 
         try {
-            $item = $action->handle($foodOrder, $user, $data['option_key'], $data['note'] ?? null);
+            $item = $action->handle($foodOrder, $user, $data['option_key'], $data['note'] ?? null, $data['choices'] ?? null);
         } catch (CateringException $exception) {
             return $this->domainError($exception->translationKey, $exception->parameters);
         }
@@ -154,12 +156,14 @@ class CateringApiController extends NativeFeatureController
             // description and image_url are additive (api_version stays 1) and omitted when empty, so
             // a dish without them keeps its exact original shape.
             'restaurant' => RestaurantCard::forNative($order->restaurant),
-            'menu' => collect($order->menuOptions())->map(fn (MenuOption $option): array => array_filter([
+            // `choices` (set menus) is additive too: only a dish with selection groups carries it.
+            'menu' => collect($menuOptions = $order->menuOptions())->map(fn (MenuOption $option): array => array_filter([
                 'key' => $option->key,
                 'name' => $option->name,
                 'price_cents' => $option->priceCents,
                 'description' => $option->description,
                 'image_url' => DishImage::url($order, $option),
+                'choices' => $option->isSetMenu() ? $this->groupDtos($option, $menuOptions) : null,
             ], static fn (mixed $value): bool => $value !== null))->all(),
             'my_items' => array_map(fn (FoodOrderItem $item): array => $this->itemDto($item, $order), $myItems),
             'my_total_cents' => (int) array_sum(array_map(fn (FoodOrderItem $item): int => $item->price_cents, $myItems)),
@@ -174,13 +178,32 @@ class CateringApiController extends NativeFeatureController
         $key = $item->selection['option_key'] ?? null;
         $option = collect($order->menuOptions())->first(fn (MenuOption $o): bool => $o->key === $key);
 
+        $picks = array_map(static fn (array $p): array => [
+            'group' => $p['group'], 'option_key' => $p['optionKey'], 'name' => $p['name'],
+        ], ItemPicks::of($item));
+
         return [
             'id' => $item->id,
             'option_key' => $key,
             'option_name' => is_string($item->selection['name'] ?? null) ? $item->selection['name'] : $option?->name,
             'note' => $item->selection['note'] ?? null,
+            ...($picks === [] ? [] : ['choices' => $picks]),
             'price_cents' => $item->price_cents,
             'paid' => $item->paid_at !== null,
         ];
+    }
+
+    /**
+     * @param  list<MenuOption>  $menu
+     * @return list<array<string, mixed>>
+     */
+    private function groupDtos(MenuOption $dish, array $menu): array
+    {
+        return array_map(static fn (array $g): array => [
+            'label' => $g['label'],
+            'count' => $g['count'],
+            'allow_repeat' => $g['allowRepeat'],
+            'options' => array_map(static fn (array $o): array => ['key' => $o['key'], 'name' => $o['label'], 'category' => $o['category']], $g['options']),
+        ], MenuChoices::describe($dish, $menu));
     }
 }
