@@ -4,11 +4,16 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import { formatInstant } from '@/lib/datetime';
 import { show as cateringShow } from '@/routes/catering';
+import { register as eventsRegister } from '@/routes/events';
 import type { FoodNowDto } from '@/types/now';
 import Panel from './Panel.vue';
 import { useNowLabels } from './useNowLabels';
 
-defineProps<{ food: FoodNowDto; eventSlug: string }>();
+defineProps<{
+    food: FoodNowDto;
+    eventSlug: string;
+    registrationOpen?: boolean;
+}>();
 
 const t = useNowLabels();
 
@@ -50,11 +55,29 @@ function hm(iso: string): string {
                                 : t('nothing_ordered')
                         }}
                     </span>
-                    <Button as-child size="sm" variant="outline">
+                    <Button
+                        v-if="food.open.orderable"
+                        as-child
+                        size="sm"
+                        variant="outline"
+                    >
                         <Link :href="food.open.href">{{
                             food.open.mine ? t('change_order') : t('order')
                         }}</Link>
                     </Button>
+                    <Button
+                        v-else-if="registrationOpen"
+                        as-child
+                        size="sm"
+                        variant="outline"
+                    >
+                        <Link :href="eventsRegister.url(eventSlug)">{{
+                            t('registration_needed')
+                        }}</Link>
+                    </Button>
+                    <span v-else class="text-xs text-muted-foreground">{{
+                        t('registration_needed')
+                    }}</span>
                 </div>
             </template>
             <p v-else-if="!food.next" class="text-muted-foreground">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Deferred, Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import DesktopClientHint from '@/components/DesktopClientHint.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import CountdownLine from '@/components/now/CountdownLine.vue';
 import FoodPanel from '@/components/now/FoodPanel.vue';
@@ -120,6 +121,9 @@ const dateRange = computed(() => {
 
     <PageContainer width="wide">
         <div class="space-y-4">
+            <!-- desktop app hint: only with a matching build, dismissible per version -->
+            <DesktopClientHint :labels="clientHint" />
+
             <!-- Header -->
             <div
                 class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2"
@@ -196,7 +200,11 @@ const dateRange = computed(() => {
                 </div>
                 <div v-if="food || schedule" class="flex flex-wrap gap-4">
                     <div v-if="food" class="min-w-[min(100%,20rem)] flex-1">
-                        <FoodPanel :food="food" :event-slug="event.slug" />
+                        <FoodPanel
+                            :food="food"
+                            :event-slug="event.slug"
+                            :registration-open="event.availability === 'open'"
+                        />
                     </div>
                     <div v-if="schedule" class="min-w-[min(100%,20rem)] flex-1">
                         <NextPanel

@@ -3,6 +3,7 @@ import type { Auth } from '@/types/auth';
 import type { DesktopClientOffer } from '@/types/desktopClient';
 import type { EventSummary } from '@/types/events';
 import type { NotificationItem } from '@/types/notifications';
+import type { NavSignals } from '@/types/now';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -25,6 +26,7 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             currentEvent: EventSummary | null;
             desktopClient: DesktopClientOffer | null;
+            navSignals: NavSignals | null;
             modules: ModuleKey[];
             notificationLabels: Record<string, string>;
             unreadNotificationCount: number;

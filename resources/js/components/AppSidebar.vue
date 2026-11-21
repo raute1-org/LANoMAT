@@ -5,6 +5,7 @@ import {
     CalendarClock,
     CalendarDays,
     FolderOpen,
+    Activity,
     HandHelping,
     MonitorPlay,
     Server,
@@ -21,7 +22,6 @@ import {
     UserPlus,
     Users,
     Armchair,
-    LayoutDashboard,
     Ticket,
     Radio,
     Music,
@@ -42,7 +42,7 @@ import {
 import { useDesktopClient } from '@/composables/useDesktopClient';
 import { useModules } from '@/composables/useModules';
 import { homeHref } from '@/lib/home';
-import { dashboard } from '@/routes';
+import { home } from '@/routes';
 import { show as cateringShow } from '@/routes/catering';
 import {
     index as eventsIndex,
@@ -84,15 +84,7 @@ const { has } = useModules();
 const { client: desktopClient } = useDesktopClient();
 
 const generalItems = computed<NavItem[]>(() => [
-    { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
-    {
-        title: 'Aktuelle LAN',
-        href: homeHref(currentEvent.value),
-        icon: PartyPopper,
-        // With an active LAN the event group's "Übersicht" owns the highlight
-        // for the same URL, so it is not marked twice.
-        ...(currentEvent.value ? { isActive: false } : {}),
-    },
+    { title: 'Jetzt', href: home(), icon: Activity },
     { title: 'Events', href: eventsIndex(), icon: CalendarDays },
     ...(has('game_recipes')
         ? [{ title: 'Spiele', href: '/games', icon: Gamepad2 }]

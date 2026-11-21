@@ -95,7 +95,7 @@ it('exposes availability on event page, dashboard, shared currentEvent and seati
 
     $this->actingAs($user)->get("/events/{$event->slug}")
         ->assertInertia(fn ($p) => $p->where('event.availability', 'full')->where('event.freeSpots', 0));
-    $this->actingAs($user)->get('/dashboard')
+    $this->actingAs($user)->get('/')
         ->assertInertia(fn ($p) => $p->where('event.availability', 'full'));
     $this->actingAs($user)->get("/events/{$event->slug}/seating")
         ->assertInertia(fn ($p) => $p->where('registrationState', 'full'))

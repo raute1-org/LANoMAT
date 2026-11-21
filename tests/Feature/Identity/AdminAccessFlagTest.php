@@ -21,13 +21,13 @@ it('serializes can_access_admin into the user array', function () {
 
 it('shares can_access_admin with the frontend auth prop', function () {
     $this->actingAs(User::factory()->create(['role' => Role::Admin]))
-        ->get('/dashboard')
+        ->get('/')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('auth.user.can_access_admin', true)
         );
 
     $this->actingAs(User::factory()->create(['role' => Role::Participant]))
-        ->get('/dashboard')
+        ->get('/')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('auth.user.can_access_admin', false)
         );

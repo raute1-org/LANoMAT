@@ -51,6 +51,7 @@ export interface FoodNowDto {
         closesAt: string | null;
         orderCount: number;
         mine: string | null;
+        orderable: boolean;
         href: string;
     };
     next: null | { title: string; opensAt: string };
@@ -112,4 +113,15 @@ export interface NowProps {
     news: NowNewsItem[];
     permanent: PermanentShortDto[] | null;
     labels: Record<string, string>;
+    clientHint: Record<string, string>;
+}
+
+/** Shared Inertia prop `navSignals`: live hints for the sidebar (null for guests). */
+export interface NavSignals {
+    serversOnline: number | null;
+    tournament: 'ready' | 'checkin' | null;
+    foodClosesAt: string | null;
+    seat: string | null;
+    present: number | null;
+    registered?: boolean | null;
 }

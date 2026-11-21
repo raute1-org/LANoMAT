@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Skeleton } from '@/components/ui/skeleton';
-import { permanent as serversPermanent } from '@/routes/servers';
+import { index as serversIndex } from '@/routes/servers';
 import type { NowPlayingRow } from '@/types/now';
 import JoinButton from './JoinButton.vue';
 import Panel from './Panel.vue';
@@ -30,7 +30,7 @@ function where(row: NowPlayingRow): string {
 <template>
     <Panel
         :title="t('now_playing')"
-        :link="{ href: serversPermanent.url(), label: t('all_servers') }"
+        :link="{ href: serversIndex.url(), label: t('all_servers') }"
     >
         <ul
             v-if="loading"

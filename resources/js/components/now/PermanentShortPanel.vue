@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LiveIndicator from '@/components/LiveIndicator.vue';
-import { permanent as serversPermanent } from '@/routes/servers';
+import { index as serversIndex } from '@/routes/servers';
 import type { PermanentShortDto } from '@/types/now';
 import JoinButton from './JoinButton.vue';
 import Panel from './Panel.vue';
@@ -18,7 +18,7 @@ function online(server: PermanentShortDto): boolean {
 <template>
     <Panel
         :title="title"
-        :link="{ href: serversPermanent.url(), label: t('all_servers') }"
+        :link="{ href: serversIndex.url(), label: t('all_servers') }"
     >
         <p
             v-if="servers.length === 0"
