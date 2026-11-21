@@ -13,6 +13,12 @@ lives in the git log, the roadmap
 ([`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md))
 and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-10-30.
 
+## 2026-11-22
+
+### Changed
+
+- Docs/spike: all-in-one client phase 0 (decision record, workspace-merge and deep-link spike, download-engine comparison, recipe inventory); spike code in `clients/voice` is not for production
+
 ## 2026-11-21
 
 ### Added

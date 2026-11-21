@@ -4,6 +4,8 @@
 
 pub mod audio_check;
 pub mod avatar;
+pub mod deeplink;
+pub mod deeplink_wiring;
 pub mod engine;
 pub mod features;
 pub mod joinurl;
@@ -1167,6 +1169,13 @@ pub fn run() {
     .expect("transfer manager");
 
     let builder = tauri::Builder::default()
+        // SPIKE: must be registered first. A second start hands its arguments (including a
+        // lanomat:// link) to this instance (feature `deep-link` forwards them to the deep-link
+        // plugin's on_open_url) and exits.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            deeplink_wiring::focus_main(app);
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -1180,6 +1189,7 @@ pub fn run() {
             engine.set_runtime(tauri::async_runtime::handle().inner().clone());
             let handle = app.handle().clone();
             let _ = APP.set(handle.clone());
+            deeplink_wiring::wire(&handle);
             if let Err(e) = build_tray(&handle) {
                 // No tray host (some Wayland setups, headless): the window still works.
                 tracing::warn!("tray icon unavailable: {e}");
