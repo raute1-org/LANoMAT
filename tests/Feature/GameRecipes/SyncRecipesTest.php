@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Models\User;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Actions\ExportRecipes;
 use App\Modules\GameRecipes\Actions\SyncRecipes;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Yaml\Yaml;
 
@@ -67,10 +69,13 @@ it('imports a recipe directory, updates it and prunes it', function () {
         ->and(GameRecipe::query()->where('slug', 'test-game')->sole()->title)->toBe('Test Game 2');
 
     File::deleteDirectory($dir.'/test-game');
+    // Prune needs at least one recipe directory left in the source: an empty
+    // source must not look like a deleted catalogue (see the empty-source test).
+    writeRecipe($dir, 'other-game');
     $third = $sync->handle($dir, prune: true);
 
     expect($third['pruned'])->toBe(1)
-        ->and(GameRecipe::query()->count())->toBe(0);
+        ->and(GameRecipe::query()->pluck('slug')->all())->toBe(['other-game']);
 
     File::deleteDirectory($dir);
 });
@@ -145,6 +150,127 @@ description: "Install the legacy game."
     expect($recipe->playUrl('lan.example'))->toBe('http://lan.example:8080/play?game=legacy')
         ->and($recipe->launchTarget(null, 'windows'))->toBe('Start-Process "{{target}}/legacy.exe"')
         ->and($recipe->launchTarget('flat-linux'))->toBe('"{{target}}/legacy"');
+
+    File::deleteDirectory($dir);
+});
+
+it('keeps the recipes it did not select for updating when --only prunes', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    writeRecipe($dir, 'game-a');
+    writeRecipe($dir, 'game-b');
+
+    $sync = app(SyncRecipes::class);
+    $sync->handle($dir);
+
+    expect(GameRecipe::query()->count())->toBe(2);
+
+    $result = $sync->handle($dir, prune: true, only: 'game-a');
+
+    expect($result['pruned'])->toBe(0)
+        ->and($result['updated'])->toBe(1)
+        ->and($result['skipped'])->toBe([])
+        ->and(GameRecipe::query()->orderBy('slug')->pluck('slug')->all())->toBe(['game-a', 'game-b']);
+
+    File::deleteDirectory($dir);
+});
+
+it('keeps a recipe whose file fails validation or no longer parses', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    writeRecipe($dir, 'game-a');
+    writeRecipe($dir, 'game-b');
+    writeRecipe($dir, 'game-c');
+
+    $sync = app(SyncRecipes::class);
+    $sync->handle($dir);
+
+    // A schema error (still readable YAML) and a file that is not YAML at all.
+    File::put($dir.'/game-b/recipe.yaml', Yaml::dump(['schema' => 'wrong', 'slug' => 'game-b']));
+    File::put($dir.'/game-c/recipe.yaml', "slug: game-c\ntitle: [unclosed\n");
+
+    $result = $sync->handle($dir, prune: true, only: 'game-a');
+
+    expect($result['pruned'])->toBe(0)
+        ->and($result['skipped'])->toHaveCount(2)
+        ->and(GameRecipe::query()->orderBy('slug')->pluck('slug')->all())->toBe(['game-a', 'game-b', 'game-c']);
+
+    File::deleteDirectory($dir);
+});
+
+it('prunes only this source kind and only slugs whose recipe directory is gone', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    writeRecipe($dir, 'game-a');
+
+    $sync = app(SyncRecipes::class);
+    $sync->handle($dir);
+
+    $contribution = GameRecipe::factory()
+        ->contributedBy(User::factory()->create())
+        ->create(['slug' => 'shared-game']);
+    $panel = GameRecipe::factory()->create(['slug' => 'panel-game', 'source' => GameRecipe::SOURCE_PANEL]);
+    $gone = GameRecipe::factory()->create(['slug' => 'gone-game', 'source' => 'bundled']);
+
+    $result = $sync->handle($dir, prune: true);
+
+    expect($result['pruned'])->toBe(1)
+        ->and(GameRecipe::query()->whereKey($gone->getKey())->exists())->toBeFalse()
+        ->and(GameRecipe::query()->whereKey($contribution->getKey())->exists())->toBeTrue()
+        ->and(GameRecipe::query()->whereKey($panel->getKey())->exists())->toBeTrue()
+        ->and(GameRecipe::query()->where('slug', 'game-a')->exists())->toBeTrue();
+
+    File::deleteDirectory($dir);
+});
+
+it('does not prune anything when the source has no recipe directory', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    File::ensureDirectoryExists($dir);
+
+    $kept = GameRecipe::factory()->create(['slug' => 'kept-game', 'source' => 'bundled']);
+
+    $result = app(SyncRecipes::class)->handle($dir, prune: true);
+
+    expect($result['pruned'])->toBe(0)
+        ->and($result['created'])->toBe(0)
+        ->and($result['skipped'])->toHaveCount(1)
+        ->and($result['skipped'][0])->toContain('no recipe')
+        ->and(GameRecipe::query()->whereKey($kept->getKey())->exists())->toBeTrue();
+
+    $exitCode = Artisan::call('lanomat:recipes:sync', ['source' => $dir, '--prune' => true, '--json' => true]);
+    $decoded = json_decode(Artisan::output(), true);
+
+    expect($exitCode)->toBe(0)
+        ->and($decoded)->toBeArray()
+        ->and($decoded['pruned'])->toBe(0)
+        ->and($decoded['skipped'])->toHaveCount(1)
+        ->and(GameRecipe::query()->whereKey($kept->getKey())->exists())->toBeTrue();
+
+    File::deleteDirectory($dir);
+});
+
+it('warns when --only names a slug the source does not have', function () {
+    $dir = sys_get_temp_dir().'/lanomat-sync-'.bin2hex(random_bytes(4));
+    writeRecipe($dir, 'game-a');
+
+    $result = app(SyncRecipes::class)->handle($dir, only: 'missing-game');
+
+    expect($result['created'])->toBe(0)
+        ->and($result['updated'])->toBe(0)
+        ->and($result['skipped'])->toHaveCount(1)
+        ->and($result['skipped'][0])->toContain('missing-game')
+        ->and(GameRecipe::query()->count())->toBe(0);
+
+    $exitCode = Artisan::call('lanomat:recipes:sync', [
+        'source' => $dir,
+        '--only' => 'missing-game',
+        '--prune' => true,
+        '--json' => true,
+    ]);
+    $decoded = json_decode(Artisan::output(), true);
+
+    expect($exitCode)->toBe(0)
+        ->and($decoded)->toBeArray()
+        ->and(array_keys($decoded))->toBe(['created', 'updated', 'pruned', 'skipped', 'source'])
+        ->and($decoded['skipped'][0])->toContain('missing-game')
+        ->and(GameRecipe::query()->count())->toBe(0);
 
     File::deleteDirectory($dir);
 });
