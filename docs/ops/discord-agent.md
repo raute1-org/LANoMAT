@@ -202,9 +202,10 @@ gegen Live.
 
 > **Offen:** m12-768 ist der Live-Stand. Ob der Fix live ankommt, entscheidet
 > der nächste Deploy von HEAD; ohne Deploy bleibt der Live-Cursor defekt. Der
-> Fallback des Bots fragt `per_page=100` ab, funktioniert mit dem alten Server
-> aber nur für Seite 1 (Recipe-Tools fehlen dann) — deshalb ist der Deploy
-> Voraussetzung für Installationsantworten aus dem Fallback.
+> Fallback ruft `tools/call` direkt (kein `tools/list`), die Recipe-Tools sind
+> also auch auf m12-768 aufrufbar; der kaputte Cursor trifft vor allem `pi`
+> und andere Clients, die die Tool-Liste als Katalog lesen. Für eine saubere
+> Live-Verifikation bleibt der Deploy trotzdem nötig.
 
 ## 4. Tests (ohne Discord, ohne Token)
 

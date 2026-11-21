@@ -610,8 +610,13 @@ async fn run_install(
             .map_err(|error| Failure::from_api(error, secret.as_deref()))?;
         let version = plan.recipe.version.clone();
         // Keep the OS-specific start command in the local ledger so a launch
-        // after install works without another server round-trip.
-        let launch_command = launch_command_for(&plan, Os::current());
+        // after install works without another server round-trip. UT2004 keeps
+        // its dedicated `System/` launcher (`None` here).
+        let launch_command = if slug == LAUNCHER_ENGINE_SLUG {
+            None
+        } else {
+            launch_command_for(&plan, Os::current())
+        };
 
         let outcome = InstallEngine::install(InstallOptions {
             plan,

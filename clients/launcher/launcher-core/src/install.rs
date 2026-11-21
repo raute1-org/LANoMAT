@@ -903,11 +903,12 @@ fn hoist_game_wrapper(target: &Path, plan: &RecipePlan) -> Result<(), InstallErr
         return Ok(());
     }
 
-    let all_missing = checks
+    let missing = checks
         .iter()
-        .all(|relative| resolve_under(target, relative).is_none());
+        .filter(|relative| resolve_under(target, relative).is_none())
+        .collect::<Vec<_>>();
 
-    if !all_missing {
+    if missing.is_empty() {
         return Ok(());
     }
 
@@ -922,7 +923,7 @@ fn hoist_game_wrapper(target: &Path, plan: &RecipePlan) -> Result<(), InstallErr
         .collect::<Vec<_>>();
 
     for wrapper in candidates {
-        let has_game = checks
+        let has_game = missing
             .iter()
             .any(|relative| resolve_under(&wrapper, relative).is_some());
 

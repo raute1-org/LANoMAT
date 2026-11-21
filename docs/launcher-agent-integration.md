@@ -200,15 +200,15 @@ größerer Katalog nicht wieder abgeschnitten wird.
 Am 2026-11-21 gegen `https://lan.raute1.org/mcp` mit dem Launcher-Token
 geprüft:
 
-- Live läuft `m12-768-ge8de9dad` (22 Commits hinter HEAD
-  `m12-790-gb16f4336`).
+- Live läuft `m12-768-ge8de9dad` (23 Commits hinter HEAD
+  `m12-791-gd82d29be`).
 - Seite 1: 15 Tools; Cursor 15: 9 Tools; `per_page=100`: **24 Tools**.
 - Der MCP-SDK-/pi-Client folgt dem Cursor und sieht auch live 24 Tools.
 - Der ausgelieferte Doctor meldet mit einem einzelnen `listTools()` 15;
   der Fix liegt in diesem Baum.
 
 **Kein Pagination-Deploy-Blocker auf `m12-768`**: Cursor und `per_page`
-funktionieren live. Ausgerollt werden muss HEAD (m12-790+) für die
+funktionieren live. Ausgerollt werden muss HEAD (m12-791+) für die
 Cursor-Härtung, den paginierenden Doctor und die Lineup-/Recipe-Änderungen.
 Wenn nach dem Deploy weiter 15 Tools erscheinen: (1) Agent-Build mit
 Doctor-Fix prüfen, (2) Cursor unverändert durchreichen (kein `=`
