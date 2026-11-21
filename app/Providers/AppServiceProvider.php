@@ -88,6 +88,14 @@ use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
+use App\Modules\Lighting\Contracts\LightingClient;
+use App\Modules\Lighting\HttpLightingClient;
+use App\Modules\Lighting\Listeners\TriggerLightingRules;
+use App\Modules\Lighting\Models\LightingRule;
+use App\Modules\Lighting\Models\LightingScene;
+use App\Modules\Lighting\Policies\LightingPolicy;
+use App\Modules\Lighting\Support\NullLightingClient;
+use App\Modules\Lighting\Support\SafeLightingClient;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
@@ -100,6 +108,7 @@ use App\Modules\Preflight\Checks\DiscordApiCheck;
 use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
 use App\Modules\Preflight\Checks\FileHostCheck;
+use App\Modules\Preflight\Checks\LightBridgeCheck;
 use App\Modules\Preflight\Checks\LiveKitCheck;
 use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
@@ -319,6 +328,17 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.room_audio.token'),
         ));
 
+        // Transport: HTTP when the bridge is switched on and has a URL, else a null client.
+        $this->app->bind('lighting.transport', fn (): LightingClient => (bool) config('services.lighting.enabled') && filled(config('services.lighting.base_url'))
+            ? new HttpLightingClient(
+                (string) config('services.lighting.base_url'),
+                config('services.lighting.token') === null ? null : (string) config('services.lighting.token'),
+                (int) config('services.lighting.timeout'),
+            )
+            : new NullLightingClient);
+        // Every command passes the strobe-safety decorator.
+        $this->app->bind(LightingClient::class, fn ($app) => new SafeLightingClient($app->make('lighting.transport')));
+
         $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
             (string) config('services.music_assistant.base_url'),
             (string) config('services.music_assistant.token'),
@@ -367,6 +387,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
             ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
+            ...($modules->enabled(Module::Lighting) ? [LightBridgeCheck::class] : []),
         ], 'preflight.checks');
 
         $this->app->bind(LatestRelease::class, HttpLatestRelease::class);
@@ -617,6 +638,12 @@ class AppServiceProvider extends ServiceProvider
         if ($this->on(Module::RoomAudio)) {
             Gate::define('room-audio.control', [RoomAudioPolicy::class, 'control']);
         }
+
+        if ($this->on(Module::Lighting)) {
+            Gate::define('lighting.control', [LightingPolicy::class, 'control']);
+            Gate::policy(LightingScene::class, LightingPolicy::class);
+            Gate::policy(LightingRule::class, LightingPolicy::class);
+        }
     }
 
     private function on(Module $module): bool
@@ -690,6 +717,12 @@ class AppServiceProvider extends ServiceProvider
         // AnnounceLfgPost injects DiscordClient directly, so it also needs Discord.
         if ($this->on(Module::Lfg) && $this->on(Module::Discord)) {
             Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
+        }
+
+        if ($this->on(Module::Lighting)) {
+            foreach ([TournamentStarted::class, MatchReady::class, MatchWentLive::class, MatchCompleted::class, TournamentCompleted::class, EventStatusChanged::class] as $lightingEvent) {
+                Event::listen($lightingEvent, TriggerLightingRules::class);
+            }
         }
 
         if ($this->on(Module::Presence)) {

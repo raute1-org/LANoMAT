@@ -43,6 +43,7 @@ export type ModuleKey =
     | 'jukebox'
     | 'lancache'
     | 'lfg'
+    | 'lighting'
     | 'mcp'
     | 'news'
     | 'notifications'

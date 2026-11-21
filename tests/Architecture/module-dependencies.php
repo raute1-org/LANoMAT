@@ -112,6 +112,10 @@ return [
         0 => 'Discord',
         1 => 'Events',
     ],
+    'Lighting' => [
+        0 => 'Events',
+        1 => 'Tournaments',
+    ],
     'Mcp' => [
         0 => 'Catering',
         1 => 'Events',

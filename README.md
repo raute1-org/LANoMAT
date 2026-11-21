@@ -470,6 +470,10 @@ deliberately not built):
   (power, volume with an orga ceiling, mute, input, sound mode) from the admin page Raumsteuerung, through a
   telnet sidecar (`docker/denon-admin/`); Music Assistant still plays to the receiver over HEOS
   ([`docs/infra/room-audio-denon.md`](docs/infra/room-audio-denon.md)).
+- **Lighting** (optional `Lighting` module, profile `full`): the orga steers the room's DMX LED lights through
+  the venue's light bridge (REST) from the admin page Licht: colour, brightness, white, pattern, blackout,
+  Game Mode, scenes, and optional off-by-default rules that play a scene on a tournament or event moment.
+  Strobe is locked by default ([`docs/infra/lighting.md`](docs/infra/lighting.md)).
 - **Preflight and update watch:** `lanomat:preflight` is a traffic light over up to 19 checks (database,
   Redis, queue, scheduler, Reverb, backup freshness, and, per enabled module, Discord, the sidecars,
   LiveKit, Music Assistant, the Denon receiver sidecar, Pelican, file host, client build) with a Filament tile and an orga bell;
@@ -498,7 +502,7 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 | Profile          | Modules                                                                                                                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight                                                                                                                    |
-| `full`           | all 32 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, RoomAudio, Schedule, Stats, Voice, Voting, WebVoice) |
+| `full`           | all 35 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, Lighting, News, Presence, Provisioning, Recap, RoomAudio, Schedule, Stats, Voice, Voting, WebVoice) |
 
 ### History in one paragraph
 
