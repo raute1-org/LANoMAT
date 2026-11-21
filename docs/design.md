@@ -142,6 +142,12 @@ Choosing for a new page: behind `auth` middleware → `app` (default answer). Re
 - **Breadcrumbs / back links:** root sidebar pages need none. Settings and deep pages pass `defineOptions({ layout: { breadcrumbs: [...] } })`; detail pages use the `back` prop of `PageContainer`.
 - **Status & hints:** state of the thing (event status, ticket, registration) goes directly under the title in a `rounded-md border bg-card p-4` hint row; live state uses `LiveIndicator`. Hints are calm text, actions are buttons.
 
+### Long menus (catering)
+
+`/events/{slug}/catering` is the reference for a long list with a personal summary. The page uses `full` width so menu and Bon fill a large screen (from `xl` the menu groups flow into two columns): from `lg` the menu sits left and the "Bon" (the user's own order as a receipt) sticks right; below `lg` the menu is one column with a sticky bottom bar (count + sum + "Bestellung ansehen") that opens the Bon in a bottom `Sheet`. The Bon is the one memorable element: mono/`tabular-nums` only for counts and prices, a dotted leader (`border-dotted`) between dish and price, identical dishes shown as "2×" (display-only aggregation in `lib/receipt.ts`; the server still stores one item per click). Removing is a quiet ghost icon button that turns `destructive` only on hover/focus. Amber stays on the pay button.
+
+Menus are **grouped client-side by name prefix**: `Kategorie: Gericht` (prefix before the first `": "`, at most 32 characters) becomes a group heading (`h3`) and the dish shows without the prefix. Entries without a prefix go to "Weitere"; with fewer than two groups the list stays flat (`lib/menuGroups.ts`, tests in `tests/js/menuGroups.test.ts`, run with `node --test`). A search field (case- and umlaut-insensitive) and a sticky jump bar with anchor links sit above the list. With several rounds each round has its own section, Bon and (sticky inside its section) bottom bar.
+
 ### 3. States (all four, every data surface)
 
 | State   | Pattern                                                                                                                           | Component                                                                                                            |
