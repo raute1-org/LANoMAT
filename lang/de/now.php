@@ -29,6 +29,8 @@ return [
     'card_action_order' => 'Bestellen',
     'card_action_schedule' => 'Zeitplan',
     'card_action_notification' => 'Ansehen',
+    'payment_title' => 'Ticket noch nicht bezahlt',
+    'card_action_payment' => 'Bezahlen',
 
     // Now playing
     'now_playing' => 'Läuft gerade',

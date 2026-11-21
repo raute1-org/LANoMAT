@@ -22,7 +22,10 @@ use App\Modules\Presence\Support\LocatedGames;
 use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\MyRegistration;
+use App\Modules\Registration\Support\PaymentDue;
+use App\Modules\Registration\Support\TicketLabel;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Schedule\Support\ScheduleProjection;
 use App\Modules\Seating\Support\MySeat;
@@ -122,9 +125,55 @@ class NowController extends Controller
     {
         $lists = $feed->for($user, $event);
 
+        $cards = array_map(fn (array $card): array => $this->decorate($card, $event), $lists['cards']);
+        $payment = $this->paymentCard($user, $event);
+
+        if ($payment !== null) {
+            // After a ready match (the only thing more urgent), before everything else.
+            $at = 0;
+
+            while (isset($cards[$at]) && $cards[$at]['kind'] === 'match' && $cards[$at]['state'] === 'ready') {
+                $at++;
+            }
+
+            array_splice($cards, $at, 0, [$payment]);
+        }
+
         return [
-            'cards' => array_map(fn (array $card): array => $this->decorate($card, $event), $lists['cards']),
+            'cards' => $cards,
             'more' => array_map(fn (array $card): array => $this->decorate($card, $event), $lists['more']),
+        ];
+    }
+
+    /**
+     * The "ticket not paid yet" card. It carries the amount only; the payment link and reference
+     * stay on the registration page.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function paymentCard(User $user, Event $event): ?array
+    {
+        $registration = MyRegistration::find($event, $user);
+        $due = $registration === null ? null : PaymentDue::forRegistration($registration);
+
+        if ($registration === null || $due === null || $due['paid']) {
+            return null;
+        }
+
+        $name = TicketType::findForEvent($event, $registration->ticket_type)->name ?? TicketLabel::for($registration->ticket_type);
+
+        return [
+            'kind' => 'payment',
+            'id' => 'payment:'.$registration->id,
+            'state' => 'open',
+            'title' => trans('now.payment_title'),
+            'body' => number_format($due['amountCents'] / 100, 2, ',', '.').' € · '.$name,
+            'at' => null,
+            'data' => [
+                'amountCents' => $due['amountCents'],
+                'actionLabel' => trans('now.card_action_payment'),
+            ],
+            'href' => route('events.register', $event),
         ];
     }
 

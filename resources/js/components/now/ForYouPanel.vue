@@ -56,9 +56,23 @@ function dot(card: NowCardDto): 'live' | 'warn' | null {
         return 'live';
     }
 
-    return card.state === 'closing_soon' || card.state === 'checkin_open'
+    return card.state === 'closing_soon' ||
+        card.state === 'checkin_open' ||
+        card.kind === 'payment'
         ? 'warn'
         : null;
+}
+
+function euro(cents: unknown): string {
+    return new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+    }).format(Number(cents) / 100);
+}
+
+// The body is "<amount> · <ticket name>"; only the name is read from it.
+function ticketName(card: NowCardDto): string {
+    return card.body?.split(' · ').slice(1).join(' · ') ?? '';
 }
 
 function actionLabel(card: NowCardDto): string {
@@ -92,7 +106,19 @@ function actionLabel(card: NowCardDto): string {
                     <span class="font-semibold text-foreground">{{
                         card.title
                     }}</span>
-                    <span v-if="card.body" class="text-muted-foreground">
+                    <span
+                        v-if="card.kind === 'payment'"
+                        class="text-muted-foreground"
+                    >
+                        ·
+                        <span class="font-mono tabular-nums">{{
+                            euro(card.data.amountCents)
+                        }}</span>
+                        <template v-if="ticketName(card)">
+                            · {{ ticketName(card) }}
+                        </template>
+                    </span>
+                    <span v-else-if="card.body" class="text-muted-foreground">
                         · {{ card.body }}
                     </span>
                 </span>
