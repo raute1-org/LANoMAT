@@ -8,6 +8,7 @@ use App\Modules\Assistant\Models\AssistantAction;
 use App\Modules\Assistant\Support\ApprovalPreview;
 use App\Modules\Assistant\Support\ArgumentsHash;
 use App\Modules\Assistant\Support\AssistantActionLog;
+use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Laravel\Ai\Approvals\Approval;
 use Laravel\Ai\Concerns\InteractsWithApprovals;
@@ -104,11 +105,29 @@ abstract class ApprovableTool extends AssistantTool implements Approvable
     {
         $arguments = $request->all();
 
-        if (($reason = $this->precheck($arguments)) !== null) {
+        $action = $this->approvedRow($request->toolCallId(), $arguments);
+
+        try {
+            $reason = $this->precheck($arguments);
+        } catch (DomainException $exception) {
+            $reason = $this->domainMessage($exception);
+        }
+
+        if ($reason !== null) {
+            // The world changed (or rights were revoked) between the card and the click: nothing runs.
+            if ($action !== null) {
+                app(AssistantActionLog::class)->failed($action, $reason);
+            }
+
             return $reason;
         }
 
-        $action = $this->approvedRow($request->toolCallId(), $arguments);
+        if ($action !== null && $this->needsSecret($arguments) && blank($action->secret)) {
+            app(AssistantActionLog::class)->failed($action, 'The password was not entered on the card.');
+
+            return __('assistant.password_missing');
+        }
+
         $claimed = $action === null ? null : app(AssistantActionLog::class)->claim($action);
 
         if ($claimed === null) {

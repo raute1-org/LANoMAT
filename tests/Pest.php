@@ -1,5 +1,10 @@
 <?php
 
+use App\Models\User;
+use App\Modules\Assistant\Enums\AssistantActionStatus;
+use App\Modules\Assistant\Models\AssistantAction;
+use App\Modules\Assistant\Support\ArgumentsHash;
+use App\Modules\Assistant\Tools\ApprovableTool;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
 use App\Modules\GameServers\Contracts\PelicanClient;
@@ -13,11 +18,6 @@ use App\Modules\Jukebox\Contracts\MusicClient;
 use App\Modules\Jukebox\Testing\FakeMusicClient;
 use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
 use App\Modules\Provisioning\Testing\FakeHypervisorClient;
-use App\Modules\Provisioning\Testing\FakeHypervisorClientFactory;
-use App\Modules\Voice\Contracts\VoiceClient;
-use App\Modules\Voice\Domain\VoiceProvider;
-use App\Modules\Voice\Testing\FakeVoiceClient;
-use App\Modules\Voice\VoiceProviders;
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -29,9 +29,16 @@ use App\Modules\Voice\VoiceProviders;
 |
 */
 
+use App\Modules\Provisioning\Testing\FakeHypervisorClientFactory;
+use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceProvider;
+use App\Modules\Voice\Testing\FakeVoiceClient;
+use App\Modules\Voice\VoiceProviders;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Laravel\Ai\Approvals\Approval;
+use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -182,6 +189,28 @@ function fakeMusic(): FakeMusicClient
 function fakeLinkedAccounts(array $providers = [LinkedAccountProvider::Steam, LinkedAccountProvider::Twitch]): FakeLinkedAccounts
 {
     return new FakeLinkedAccounts($providers);
+}
+
+/** The SDK's approval decision for a tool call, the way its loop asks (null = no card, runs directly). */
+function approvalFor(ApprovableTool $tool, array $args): ?Approval
+{
+    return $tool->shouldRequestApproval(new Request($args, 'call_x'));
+}
+
+/**
+ * Run an assistant write tool as if the orga had approved exactly this call
+ * (optionally with a card-entered secret). Returns the tool's answer.
+ *
+ * @param  class-string<ApprovableTool>  $class
+ */
+function runApproved(string $class, User $actor, array $args, string $callId = 'call_1', ?string $secret = null): string
+{
+    AssistantAction::factory()->create([
+        'user_id' => $actor->id, 'tool' => $class::toolName(), 'tool_call_id' => $callId,
+        'arguments' => $args, 'arguments_hash' => ArgumentsHash::of($class::toolName(), $args),
+    ])->forceFill(['status' => AssistantActionStatus::Approved, 'secret' => $secret])->save();
+
+    return (string) (new $class($actor))->handle(new Request($args, $callId));
 }
 
 function fakePelican(): FakePelicanClient

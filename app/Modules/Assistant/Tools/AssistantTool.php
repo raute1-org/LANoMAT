@@ -125,7 +125,7 @@ abstract class AssistantTool implements Tool
     }
 
     /** Domain exceptions of the modules carry a translation key; prefer the German text. */
-    private function domainMessage(DomainException $exception): string
+    protected function domainMessage(DomainException $exception): string
     {
         $key = property_exists($exception, 'translationKey') ? $exception->translationKey : null;
 

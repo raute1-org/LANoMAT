@@ -13,6 +13,13 @@ use App\Modules\Assistant\Tools\Read\ServerSettingsGetTool;
 use App\Modules\Assistant\Tools\Read\ServersListTool;
 use App\Modules\Assistant\Tools\Read\TournamentGetTool;
 use App\Modules\Assistant\Tools\Read\TournamentsListTool;
+use App\Modules\Assistant\Tools\Write\ServerChangeMapTool;
+use App\Modules\Assistant\Tools\Write\ServerConsoleTool;
+use App\Modules\Assistant\Tools\Write\ServerCreatePermanentTool;
+use App\Modules\Assistant\Tools\Write\ServerPowerTool;
+use App\Modules\Assistant\Tools\Write\ServerRestartRoundTool;
+use App\Modules\Assistant\Tools\Write\ServerSettingsUpdateTool;
+use App\Modules\Assistant\Tools\Write\ServerStartPresetTool;
 use App\Modules\Assistant\Tools\Write\TournamentAdvanceTool;
 use App\Modules\Assistant\Tools\Write\TournamentCreateTool;
 use App\Modules\Assistant\Tools\Write\TournamentUpdateTool;
@@ -41,6 +48,13 @@ final class ToolRegistry
         TournamentCreateTool::class,
         TournamentUpdateTool::class,
         TournamentAdvanceTool::class,
+        ServerStartPresetTool::class,
+        ServerCreatePermanentTool::class,
+        ServerSettingsUpdateTool::class,
+        ServerChangeMapTool::class,
+        ServerPowerTool::class,
+        ServerConsoleTool::class,
+        ServerRestartRoundTool::class,
     ];
 
     /** @return list<class-string<AssistantTool>> */

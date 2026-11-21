@@ -4,7 +4,6 @@ use App\Models\User;
 use App\Modules\Assistant\Enums\AssistantActionStatus;
 use App\Modules\Assistant\Models\AssistantAction;
 use App\Modules\Assistant\Support\ArgumentsHash;
-use App\Modules\Assistant\Tools\ApprovableTool;
 use App\Modules\Assistant\Tools\Write\TournamentAdvanceTool;
 use App\Modules\Assistant\Tools\Write\TournamentCreateTool;
 use App\Modules\Assistant\Tools\Write\TournamentUpdateTool;
@@ -17,23 +16,6 @@ use Laravel\Ai\Approvals\Approval;
 use Laravel\Ai\Tools\Request;
 
 uses(RefreshDatabase::class);
-
-/** The SDK's needsApproval() decision for a call, the way the loop asks it. */
-function approvalFor(ApprovableTool $tool, array $args): ?Approval
-{
-    return $tool->shouldRequestApproval(new Request($args, 'call_x'));
-}
-
-/** Run a write tool as if the orga had approved this exact call. */
-function runApproved(string $class, User $actor, array $args, string $callId = 'call_1'): string
-{
-    AssistantAction::factory()->create([
-        'user_id' => $actor->id, 'tool' => $class::toolName(), 'tool_call_id' => $callId,
-        'arguments' => $args, 'arguments_hash' => ArgumentsHash::of($class::toolName(), $args),
-    ])->forceFill(['status' => AssistantActionStatus::Approved])->save();
-
-    return (string) (new $class($actor))->handle(new Request($args, $callId));
-}
 
 function createArgs(Event $event, array $overrides = []): array
 {
