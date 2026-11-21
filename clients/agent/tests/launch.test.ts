@@ -158,4 +158,62 @@ describe('launch', () => {
             run: 'wine UT2004.exe',
         });
     });
+
+    it('opens URI launch targets with the platform opener', () => {
+        expect(buildLaunchCommand('windows', 'steam://rungameid/10')).toEqual({
+            shell: 'cmd',
+            run: 'start "" "steam://rungameid/10"',
+        });
+        expect(buildLaunchCommand('linux', 'steam://rungameid/10')).toEqual({
+            shell: 'bash',
+            run: "xdg-open 'steam://rungameid/10'",
+        });
+    });
+
+    it('runs the launch target for the requested OS with its shell', async () => {
+        const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+        const result = await launchRecipe({
+            api: apiFor(
+                {
+                    slug: 'ut2004',
+                    title: 'UT2004',
+                    launch_targets: [
+                        { id: 'flat-windows', os: 'windows', shell: 'powershell', command: 'Start-Process "{{target}}/System/UT2004.exe"' },
+                        { id: 'flat-linux', os: 'linux', shell: 'bash', command: '"{{target}}/System/ut2004-bin-amd64"' },
+                    ],
+                },
+                plan({ target_dir: '/tmp/ut2004' }),
+            ),
+            slug: 'ut2004',
+            os: 'linux',
+            targetDir: '/tmp/ut2004',
+            executor: captureExecutor(calls) as unknown as CommandExecutor,
+        });
+
+        expect(result.code).toBe(0);
+        expect(calls).toHaveLength(1);
+        expect(calls[0].command).toBe('bash');
+        expect(calls[0].args).toEqual(['-c', '"/tmp/ut2004/System/ut2004-bin-amd64"']);
+    });
+
+    it('prefers the default launch_target over the alternatives', async () => {
+        const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+        await launchRecipe({
+            api: apiFor(
+                {
+                    slug: 'flat-first',
+                    title: 'Flat First',
+                    launch_target: '/opt/game/game',
+                    launch_targets: [{ id: 'vr', os: 'linux', shell: 'bash', command: '/opt/game/game-vr' }],
+                },
+                plan({ target_dir: '/opt/game' }),
+            ),
+            slug: 'flat-first',
+            os: 'linux',
+            targetDir: '/opt/game',
+            executor: captureExecutor(calls) as unknown as CommandExecutor,
+        });
+
+        expect(calls[0].args).toEqual(['-c', "'/opt/game/game'"]);
+    });
 });

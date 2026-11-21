@@ -41,27 +41,45 @@ function looksLikePath(value: string): boolean {
 }
 
 /** The plan carries the recipe-level launch fields too; use it only when needed. */
-function launchFields(recipe: RecipeDetail, plan: RecipePlan | null): {
+function launchFields(recipe: RecipeDetail, plan: RecipePlan | null, os: Os): {
     playUrl?: string | null;
     target?: string | null;
+    shell?: 'powershell' | 'cmd' | 'bash';
 } {
+    const targets = recipe.launch_targets ?? plan?.recipe?.launch_targets ?? [];
+    const chosen = targets.find((target) => (target.os ?? 'any') === 'any' || target.os === os) ?? targets[0];
+    const chosenCommand = chosen ? (chosen.target ?? chosen.command ?? null) : null;
+
+    const explicit =
+        recipe.launch_target ??
+        plan?.recipe?.launch_target ??
+        plan?.launch_target ??
+        null;
+
     return {
-        playUrl: recipe.play_url ?? plan?.play_url ?? null,
-        target:
-            recipe.launch_target ??
-            recipe.launch_command ??
-            plan?.launch_target ??
-            plan?.launch_command ??
-            (plan?.recipe as { launch_target?: string; launch_command?: string } | undefined)?.launch_target ??
-            (plan?.recipe as { launch_target?: string; launch_command?: string } | undefined)?.launch_command ??
-            null,
+        playUrl: recipe.play_url ?? plan?.recipe?.play_url ?? plan?.play_url ?? null,
+        target: explicit ?? chosenCommand,
+        // `launch_command` is a display hint ("lanomat-agent launch <slug>"),
+        // never an executable — do not fall back to it.
+        shell: explicit ? undefined : chosen?.shell,
     };
 }
 
 export function buildLaunchCommand(
     os: Os,
     target: string,
-): { shell: 'cmd' | 'bash'; run: string } {
+    shell?: 'powershell' | 'cmd' | 'bash',
+): { shell: 'powershell' | 'cmd' | 'bash'; run: string } {
+    if (shell) {
+        return { shell, run: target };
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target)) {
+        return os === 'windows'
+            ? { shell: 'cmd', run: 'start "" "' + target.replace(/"/g, '\\"') + '"' }
+            : { shell: 'bash', run: `xdg-open ${shellQuote(target)}` };
+    }
+
     if (os === 'windows') {
         return { shell: 'cmd', run: 'start "" "' + target.replace(/"/g, '\\"') + '"' };
     }
@@ -80,11 +98,14 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
     const openUrl = options.openUrl ?? ((url: string) => openBrowser(url, platform));
     const recipe = await options.api.getRecipe(options.slug);
     let plan: RecipePlan | null = null;
-    let fields = launchFields(recipe, plan);
+    let fields = launchFields(recipe, plan, options.os);
 
     if (!fields.playUrl && !fields.target) {
-        plan = await options.api.createPlan(options.slug, options.os, { includeAvatars: false });
-        fields = launchFields(recipe, plan);
+        plan = await options.api.createPlan(options.slug, options.os, {
+            includeAvatars: false,
+            dryRun: options.dryRun,
+        });
+        fields = launchFields(recipe, plan, options.os);
     }
 
     if (fields.playUrl) {
@@ -123,7 +144,7 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
         slug: options.slug,
         os: options.os,
     });
-    const command = buildLaunchCommand(options.os, target);
+    const command = buildLaunchCommand(options.os, target, fields.shell);
 
     if (options.dryRun) {
         log(`[dry-run] target: ${target}`);

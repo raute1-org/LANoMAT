@@ -141,6 +141,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     const plan = await options.api.createPlan(options.slug, options.os, {
         eventSlug: options.eventSlug,
         includeAvatars: true,
+        dryRun: options.dryRun,
     });
     const steps = plan.steps.filter((step) => stepAppliesToOs(step, options.os));
     const planForDownloads: RecipePlan = { ...plan, steps };
@@ -209,6 +210,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
         target: targetDir,
         target_dir: targetDir,
         downloads: downloadsDir,
+        host: (() => { try { return new URL(options.api.baseUrl).hostname; } catch { return ''; } })(),
         os: options.os,
         slug: options.slug,
         event: options.eventSlug ?? '',
@@ -284,6 +286,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     for (const step of steps) {
         await runPlanStep(step, {
             cwd: targetDir,
+            os: options.os,
             variables,
             yes: options.yes,
             executor: options.executor,

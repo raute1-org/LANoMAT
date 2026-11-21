@@ -71,10 +71,16 @@ export interface RecipeDownload {
     fallback_url?: string;
 }
 
+interface VerifyCheckBase {
+    optional?: boolean;
+    /** Run this check only on the given platform. */
+    os?: Os | 'any';
+}
+
 export type VerifyCheck =
-    | { type: 'file_exists'; path: string; optional?: boolean }
-    | { type: 'dir_exists'; path: string; optional?: boolean }
-    | { type: 'command'; command: string; args?: string[]; shell?: 'powershell' | 'cmd' | 'bash'; optional?: boolean };
+    | (VerifyCheckBase & { type: 'file_exists'; path: string })
+    | (VerifyCheckBase & { type: 'dir_exists'; path: string })
+    | (VerifyCheckBase & { type: 'command'; command: string; args?: string[]; shell?: 'powershell' | 'cmd' | 'bash' });
 
 export interface PlanCommand {
     shell: 'powershell' | 'cmd' | 'bash';
@@ -121,6 +127,16 @@ export interface Avatar {
     required?: boolean;
 }
 
+export interface LaunchTarget {
+    id?: string;
+    label?: string;
+    os?: Os | 'any';
+    shell?: 'powershell' | 'cmd' | 'bash';
+    target?: string;
+    command?: string;
+    notes?: string;
+}
+
 export interface RecipeDetail {
     slug: string;
     title: string;
@@ -133,6 +149,8 @@ export interface RecipeDetail {
     play_url?: string | null;
     /** Local command or executable path, e.g. `C:\Games\...\UT2004.exe`. */
     launch_target?: string | null;
+    /** Alternatives (flat/VR, per-OS). The default launch_target wins when present. */
+    launch_targets?: LaunchTarget[];
     supports_multiplayer?: boolean;
     install_command?: string | null;
     launch_command?: string | null;
@@ -144,7 +162,15 @@ export interface RecipeDetail {
 }
 
 export interface RecipePlan {
-    recipe: { slug: string; title: string; version?: string };
+    recipe: {
+        slug: string;
+        title: string;
+        version?: string;
+        launch_target?: string | null;
+        launch_targets?: LaunchTarget[];
+        launch_command?: string | null;
+        play_url?: string | null;
+    };
     os: Os;
     target_dir: string;
     downloads_dir?: string;

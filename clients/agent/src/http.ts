@@ -233,12 +233,16 @@ export class ApiClient {
     async createPlan(
         slug: string,
         os: Os,
-        options: { eventSlug?: string; includeAvatars?: boolean } = {},
+        options: { eventSlug?: string; includeAvatars?: boolean; dryRun?: boolean } = {},
     ): Promise<RecipePlan> {
         const body: Record<string, unknown> = { os, include_avatars: options.includeAvatars ?? true };
 
         if (options.eventSlug) {
             body.event_slug = options.eventSlug;
+        }
+
+        if (options.dryRun) {
+            body.dry_run = true;
         }
 
         return this.request<RecipePlan>(`/api/v1/recipes/${encodeURIComponent(slug)}/plan`, { body });

@@ -84,14 +84,20 @@ export function substituteVariables(value: string, variables: Record<string, str
     });
 }
 
-export function applyStepVariables(step: PlanStep, variables: Record<string, string>): PlanStep {
+export function applyStepVariables(step: PlanStep, variables: Record<string, string>, os?: 'windows' | 'linux'): PlanStep {
     return {
         ...step,
-        commands: step.commands?.map((command) => ({
+        commands: step.commands?.filter((command) => {
+            if (!os || !command.shell) {
+                return true;
+            }
+
+            return os === 'windows' ? command.shell !== 'bash' : command.shell === 'bash';
+        }).map((command) => ({
             ...command,
             run: substituteVariables(command.run, variables),
         })),
-        verify: step.verify?.map((check) => {
+        verify: step.verify?.filter((check) => !check.os || check.os === 'any' || check.os === os).map((check) => {
             if ('path' in check) {
                 return { ...check, path: substituteVariables(check.path, variables) };
             }
@@ -112,6 +118,7 @@ export function applyStepVariables(step: PlanStep, variables: Record<string, str
 
 export interface RunStepOptions {
     cwd: string;
+    os?: 'windows' | 'linux';
     variables?: Record<string, string>;
     yes?: boolean;
     dryRun?: boolean;
@@ -174,7 +181,7 @@ export async function runPlanStep(step: PlanStep, options: RunStepOptions): Prom
     const log = options.log ?? (() => undefined);
     const warn = options.warn ?? (() => undefined);
     const variables = options.variables ?? {};
-    const resolved = applyStepVariables(step, variables);
+    const resolved = applyStepVariables(step, variables, options.os);
     const result: RunStepResult = { step: resolved, skipped: false, commands: [], verify: [] };
 
     if (step.optional) {
