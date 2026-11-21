@@ -19,7 +19,7 @@ it('tags only core Preflight probes under the core profile', function () {
 
     expect($keys)->toContain('database', 'redis');
 
-    foreach (['discord_api', 'discord_gateway', 'mumble', 'teamspeak', 'pelican', 'music_assistant', 'room_audio', 'file_host'] as $key) {
+    foreach (['discord_api', 'discord_gateway', 'mumble', 'teamspeak', 'pelican', 'music_assistant', 'room_audio', 'lighting', 'file_host'] as $key) {
         expect($keys)->not->toContain($key);
     }
 });
@@ -29,7 +29,7 @@ it('keeps all probes and schedule entries under full', function () {
 
     expect(implode("\n", $report['scheduled']))->toContain('lanomat:jukebox-tick');
     expect(implode("\n", $report['scheduled']))->toContain('lanomat:recipes:sync');
-    expect(count($report['preflight']))->toBe(20);
+    expect(count($report['preflight']))->toBe(21);
 });
 
 it('registers no optional listener under the core profile', function () {

@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Http\Middleware\AddContentSecurityPolicy;
 use App\Modules\GameServers\Filament\Pages\ServerSettings;
+use App\Modules\Lighting\Filament\Pages\LightControl;
 use App\Modules\Preflight\Filament\Widgets\PreflightStatusWidget;
 use App\Modules\RoomAudio\Filament\Pages\RoomControl;
 use App\Modules\Tournaments\Filament\Resources\Tournaments\Pages\ManageDisputes;
@@ -121,6 +122,10 @@ class AdminPanelProvider extends PanelProvider
         // (e.g. Registration's ArrivalOverview), which must not be discovered as panel pages.
         if ($modules->enabled(Module::RoomAudio)) {
             $panel->pages([RoomControl::class]);
+        }
+
+        if ($modules->enabled(Module::Lighting)) {
+            $panel->pages([LightControl::class]);
         }
 
         if ($modules->enabled(Module::GameServers)) {

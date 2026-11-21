@@ -18,19 +18,4 @@ class TicketLabel
 
         return $label === $key ? Str::headline($type) : $label;
     }
-
-    /**
-     * @param  array<int, string>  $types
-     * @return array<string, string>
-     */
-    public static function map(array $types): array
-    {
-        $map = [];
-
-        foreach ($types as $type) {
-            $map[$type] = self::for($type);
-        }
-
-        return $map;
-    }
 }

@@ -24,7 +24,7 @@ import {
 } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
-import { index as serversIndex } from '@/routes/servers';
+
 import type { HomeChatData, HomeChatServer } from '@/types';
 
 type Cards = 'games' | 'servers' | 'both';
@@ -340,7 +340,7 @@ function serversHref(server: HomeChatServer): string {
     // Permanent servers (and everything else without a matching join link) go
     // to the aggregated `/servers` browser; event servers to their event list.
     return server.event_slug
-        ? serversIndex.url({ event: server.event_slug })
+        ? `/servers?event=${encodeURIComponent(server.event_slug)}`
         : '/servers';
 }
 

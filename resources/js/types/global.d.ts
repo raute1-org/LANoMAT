@@ -2,6 +2,7 @@ import type { ModuleKey } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { DesktopClientOffer } from '@/types/desktopClient';
 import type { EventSummary } from '@/types/events';
+import type { NavSignals } from '@/types/navigation';
 import type { NotificationItem } from '@/types/notifications';
 
 // Extend ImportMeta interface for Vite...
@@ -25,6 +26,7 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             currentEvent: EventSummary | null;
             desktopClient: DesktopClientOffer | null;
+            navSignals?: NavSignals | null;
             modules: ModuleKey[];
             notificationLabels: Record<string, string>;
             unreadNotificationCount: number;

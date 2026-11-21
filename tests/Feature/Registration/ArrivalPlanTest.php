@@ -196,13 +196,13 @@ it('exposes plan data on the register page props', function () {
     );
 });
 
-it('exposes the plan summary on the dashboard registration', function () {
+it('exposes the plan summary on the Now page registration', function () {
     $event = arrivalEvent();
     $user = User::factory()->create();
     EventRegistration::factory()->for($event)->for($user)->create();
 
-    $this->actingAs($user)->get('/dashboard')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('registration.arrival.arrivalLabel', null)
-        ->where('registration.arrival.editable', true)
+    $this->actingAs($user)->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('me.registration.arrival.arrivalLabel', null)
+        ->where('me.registration.arrival.editable', true)
     );
 });

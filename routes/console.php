@@ -57,6 +57,8 @@ if ($modules->enabled(Module::Presence)) {
         ->withoutOverlapping(1)
         ->when(fn (): bool => Event::query()->where('status', EventStatus::Live->value)->exists());
 }
+// Unpaid-ticket reminders (core): the command itself only sends 09:00-21:00 display time.
+Schedule::command('registration:payment-reminders')->hourly()->withoutOverlapping();
 Schedule::command('lanomat:heartbeat')->everyMinute();
 Schedule::command('lanomat:health-watch')->everyFiveMinutes();
 // More often than the 12 h cache lifetime, so the preflight check never finds an empty cache.

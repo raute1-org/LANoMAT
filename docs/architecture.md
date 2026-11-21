@@ -39,12 +39,12 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 |---|---|---|
 | Identity (core) | M0–M1 | Discord OAuth login, profile, roles (`admin`/`orga`/`participant`) |
 | Events (core) | M1 | Event CRUD, lifecycle, "current event" context |
-| Registration (core) | M2 | Sign-up, ticket tiers, manual payment status, QR check-in |
+| Registration (core) | M2 | Sign-up, priced ticket types with price snapshot, payment link and open-amount reference, manual payment status with "paid by", payment reminders, QR check-in |
 | Seating (core) | M2 | Seating chart editor, seat selection, network metadata per seat |
 | Teams (core) | M3 | Cross-event teams, rosters, join requests |
 | Tournaments (core) | M3 | Bracket engine, check-in, match reporting/disputes, live bracket UI |
 | Schedule (optional) | M4 | Event timeline, manual slots, ICS export |
-| Catering (optional) | M4 | Group food orders and cost splitting |
+| Catering (optional) | M4 | Group food orders and cost splitting; per-round payment method (cash/PayPal) and items included per ticket type |
 | Voting (optional) | M4 | Game votes and generic polls per event |
 | LFG (optional) | M4 | Looking-for-group posts per event |
 | Discord (optional) | M2–M3 (cross-cutting) | REST client, Gateway sidecar ingress, Interactions endpoint (dormant fallback), channel orchestration |

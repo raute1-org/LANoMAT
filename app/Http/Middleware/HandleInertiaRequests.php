@@ -8,6 +8,7 @@ use App\Modules\WebVoice\Support\DesktopClientOffer;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use App\Support\Now\NavSignals;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -51,6 +52,8 @@ class HandleInertiaRequests extends Middleware
             ),
             // Lazy: resolved only when the response includes it; the manifest summary is cached for 60 s.
             'desktopClient' => fn () => app(DesktopClientOffer::class)->for($request),
+            // Lazy and logged-in only; cached per user for 30 s inside NavSignals.
+            'navSignals' => fn () => $request->user() === null ? null : app(NavSignals::class)->for($request->user()),
             'auth' => [
                 'user' => $request->user(),
             ],

@@ -100,3 +100,27 @@ condition = "AND"
 regexTarget = "secret"
 paths = ['''^docs-site/apis/lanomat\.openapi\.yaml$''']
 regexes = ['''^lmt_9b2f4c1d7e6a8f3c5d0b$''']
+
+# (e) Screenshot pipeline: a fixed, made-up MCP agent token seeded into the
+# throwaway screenshot database and used by the capture script. It never
+# authorizes anything outside that local demo database. Matched on the exact
+# value and the two paths.
+[[allowlists]]
+description = "screenshot pipeline: fake MCP agent token lmcp_screenshotAgentToken000..."
+targetRules = ["lanomat-mcp-token"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''^database/seeders/ScreenshotSeeder\.php$''', '''^scripts/screenshots/capture\.mjs$''']
+regexes = ['''^lmcp_screenshotAgentToken0{27}$''']
+
+# (f) docs-site/apis/lanomat.openapi.yaml, history only: an earlier revision
+# used a made-up `lmcp_` example token (40 hex characters in a repeating
+# pattern; real tokens are 48 random mixed-case characters, see McpCodes). The
+# current file no longer contains it. Matched on the exact value.
+[[allowlists]]
+description = "lanomat.openapi.yaml (history): made-up example token lmcp_9b2f4c1d..."
+targetRules = ["lanomat-mcp-token", "generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^docs-site/apis/lanomat\.openapi\.yaml$''']
+regexes = ['''^lmcp_9b2f4c1d7e6a8f3c5d0b9a7e5f3c1d2b4a6e8f0c$''']

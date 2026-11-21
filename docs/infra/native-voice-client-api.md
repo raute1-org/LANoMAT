@@ -235,7 +235,7 @@ checked in. A plain team member sees the match with every flag false.
 ### Game servers
 
 Both lists use the website's projections (`ServerListProjection`), so the listed servers, their status and
-players/map are the same as on `/events/{event}/servers` and `/servers`. Two deliberate differences from the
+players/map are the same as on `/servers`. Two deliberate differences from the
 public event page, which lists every match server to every logged-in user: the event list here drops a server
 bound to a single match unless the user plays in that match (either roster) or is orga, and the DTO is a fixed
 whitelist (no RAM estimate, never the stored password on its own).

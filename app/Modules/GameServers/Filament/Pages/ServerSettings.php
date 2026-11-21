@@ -6,20 +6,31 @@ namespace App\Modules\GameServers\Filament\Pages;
 
 use App\Models\User;
 use App\Modules\GameServers\Actions\ChangeServerMap;
+use App\Modules\GameServers\Actions\ControlRemoteDockerPower;
 use App\Modules\GameServers\Actions\GunGameSettings;
 use App\Modules\GameServers\Actions\LinkPelicanServer;
+use App\Modules\GameServers\Actions\LinkRemoteDockerServer;
 use App\Modules\GameServers\Actions\PowerConfiguredServer;
+use App\Modules\GameServers\Actions\ReadRemoteLogs;
 use App\Modules\GameServers\Actions\ReloadMap;
 use App\Modules\GameServers\Actions\RestartRound;
+use App\Modules\GameServers\Actions\SendRemoteConsoleCommand;
 use App\Modules\GameServers\Actions\UpdateServerSettings;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Contracts\RemoteDockerControl;
 use App\Modules\GameServers\Domain\PowerAction;
+use App\Modules\GameServers\Enums\ControlDriver;
+use App\Modules\GameServers\Enums\ServerSource;
 use App\Modules\GameServers\Enums\ServerState;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\Cs2\Cs2Settings;
 use App\Modules\GameServers\Support\Cs2\GunGameConfig;
+use App\Modules\GameServers\Support\RemoteQuickCommands;
+use App\Modules\Hosts\Models\RemoteHost;
 use App\Providers\Filament\AdminNavigationGroup;
+use App\Support\Modules\Module;
+use App\Support\Modules\Modules;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
@@ -33,6 +44,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 use Throwable;
@@ -75,6 +87,20 @@ class ServerSettings extends Page
 
     public bool $loadFailed = false;
 
+    /** Console input of a remote Docker server (never trusted: the Action validates it). */
+    public string $consoleCommand = '';
+
+    public ?string $consoleOutput = null;
+
+    /** @var list<string> Commands sent in this session, newest first, capped at {@see self::HISTORY_LIMIT}. */
+    public array $consoleHistory = [];
+
+    public ?string $logOutput = null;
+
+    public int $logLines = 100;
+
+    private const HISTORY_LIMIT = 10;
+
     public static function canAccess(): bool
     {
         $user = auth()->user();
@@ -99,6 +125,10 @@ class ServerSettings extends Page
 
     public function updatedServer(): void
     {
+        $this->consoleCommand = '';
+        $this->consoleOutput = null;
+        $this->consoleHistory = [];
+        $this->logOutput = null;
         $this->loadServer();
     }
 
@@ -270,6 +300,48 @@ class ServerSettings extends Page
         });
     }
 
+    /** Remote Docker servers: start, stop or restart the container. */
+    public function remotePower(string $signal): void
+    {
+        $action = PowerAction::tryFrom($signal);
+
+        if (! in_array($action, [PowerAction::Start, PowerAction::Stop, PowerAction::Restart], true)) {
+            return;
+        }
+
+        $this->guarded(function (User $user, ServerLink $link) use ($action): void {
+            app(ControlRemoteDockerPower::class)->handle($user, $link, $action);
+
+            Notification::make()->success()->title(__('gameservers.remote.power_sent'))->send();
+        });
+    }
+
+    /** Remote Docker servers: send the typed console command and show the answer. */
+    public function sendConsole(): void
+    {
+        $this->guarded(function (User $user, ServerLink $link): void {
+            $command = $this->consoleCommand;
+            $this->consoleOutput = app(SendRemoteConsoleCommand::class)->handle($user, $link, $command);
+
+            // Newest first, capped, and only what the Action accepted.
+            $this->consoleHistory = array_slice([trim($command, ' '), ...$this->consoleHistory], 0, self::HISTORY_LIMIT);
+            $this->consoleCommand = '';
+        });
+    }
+
+    /** Remote Docker servers: show the last lines of the container log. */
+    public function loadLogs(): void
+    {
+        $this->guarded(function (User $user, ServerLink $link): void {
+            $this->logOutput = app(ReadRemoteLogs::class)->handle($user, $link, $this->logLines);
+        });
+    }
+
+    public function useQuickCommand(string $command): void
+    {
+        $this->consoleCommand = $command;
+    }
+
     public function restartRound(): void
     {
         $this->guarded(function (User $user, ServerLink $link): void {
@@ -340,7 +412,58 @@ class ServerSettings extends Page
                     Notification::make()->success()->title(__('gameservers.settings.link.done'))->send();
                     $this->loadServer();
                 }),
+            Action::make('linkRemote')
+                ->label(__('gameservers.remote.link.action'))
+                ->icon('heroicon-o-server')
+                ->visible(fn (): bool => $this->canLinkRemote())
+                ->authorize(fn (): bool => auth()->user()?->can('managePermanent', ServerLink::class) ?? false)
+                ->modalDescription(__('gameservers.remote.link.help'))
+                ->schema([
+                    Select::make('host')
+                        ->label(__('gameservers.remote.link.host'))
+                        ->options(fn (): array => RemoteHost::query()->whereNotNull('host_fingerprint')->orderBy('name')->pluck('name', 'id')->all())
+                        ->required()
+                        ->native(false),
+                    TextInput::make('container')
+                        ->label(__('gameservers.remote.link.container'))
+                        ->required()
+                        ->maxLength(128)
+                        ->extraInputAttributes(['class' => 'font-mono']),
+                ])
+                ->action(function (array $data): void {
+                    // Re-check at execution time: the visible()/authorize() above are UI only.
+                    Gate::authorize('managePermanent', ServerLink::class);
+                    $link = $this->selectedLink();
+                    $hostId = $data['host'] ?? null;
+                    $host = is_int($hostId) || is_string($hostId) ? RemoteHost::query()->find((int) $hostId) : null;
+
+                    if ($link === null || $host === null) {
+                        return;
+                    }
+
+                    try {
+                        app(LinkRemoteDockerServer::class)->handle($link, $host, (string) $data['container']);
+                    } catch (GameServerException $e) {
+                        Notification::make()->danger()->title(__($e->translationKey))->send();
+
+                        return;
+                    }
+
+                    Notification::make()->success()->title(__('gameservers.remote.link.done'))->send();
+                    $this->loadServer();
+                }),
         ];
+    }
+
+    private function canLinkRemote(): bool
+    {
+        $link = $this->selectedLink();
+
+        return $link !== null
+            && $link->source === ServerSource::External
+            && $link->controlDriver() === ControlDriver::None
+            && app(Modules::class)->enabled(Module::Hosts)
+            && (auth()->user()?->can('managePermanent', ServerLink::class) ?? false);
     }
 
     /**
@@ -358,12 +481,39 @@ class ServerSettings extends Page
             'state' => $this->runtimeState($link),
             'canReloadMap' => $link !== null && ReloadMap::currentMap($link) !== null,
             'canPower' => $link !== null && (auth()->user()?->can('configure', $link) ?? false),
+            'remote' => $link?->controlDriver() === ControlDriver::RemoteDocker,
+            'remoteStateLabel' => $this->remoteStateLabel($link),
+            'quickCommands' => RemoteQuickCommands::forConsole($link?->console_kind),
         ];
     }
 
     private function selectedLink(): ?ServerLink
     {
         return $this->server === null ? null : ServerLink::query()->permanent()->find($this->server);
+    }
+
+    private function remoteStateLabel(?ServerLink $link): string
+    {
+        $state = $this->remoteState($link);
+
+        if ($state === null) {
+            return __('gameservers.remote.status_unknown');
+        }
+
+        return Lang::has("gameservers.remote.state.{$state}") ? __("gameservers.remote.state.{$state}") : $state;
+    }
+
+    /** Docker's state of a remote container ("running", "exited" ...), or null when the host cannot be asked. */
+    private function remoteState(?ServerLink $link): ?string
+    {
+        $user = auth()->user();
+
+        if ($link === null || ! $user instanceof User || ! $user->can('configure', $link)
+            || $link->controlDriver() !== ControlDriver::RemoteDocker || $link->remoteHost === null) {
+            return null;
+        }
+
+        return app(RemoteDockerControl::class)->status($link->remoteHost, (string) $link->remote_container);
     }
 
     /** The panel's live state, or null when it cannot be read (the page never fails over it). */

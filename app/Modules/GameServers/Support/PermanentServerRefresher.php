@@ -6,10 +6,12 @@ namespace App\Modules\GameServers\Support;
 
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Contracts\RemoteDockerControl;
 use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Domain\PelicanServer;
 use App\Modules\GameServers\Domain\ServerInfo;
+use App\Modules\GameServers\Enums\ControlDriver;
 use App\Modules\GameServers\Enums\QueryProtocol;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Enums\ServerSource;
@@ -43,6 +45,7 @@ class PermanentServerRefresher
         private readonly MinecraftQuery $minecraft,
         private readonly Ut2004Query $ut2004,
         private readonly DockerServerControl $docker,
+        private readonly RemoteDockerControl $remote,
     ) {}
 
     public function refresh(ServerLink $link): void
@@ -67,6 +70,10 @@ class PermanentServerRefresher
             };
         } elseif ($link->source === ServerSource::Docker) {
             $running = $link->customServer !== null ? $this->docker->isRunning($link->customServer) : null;
+        } elseif ($link->controlDriver() === ControlDriver::RemoteDocker && $link->remoteHost !== null) {
+            // Docker's own answer; null (host unreachable) leaves the game server's reply to decide.
+            $state = $this->remote->status($link->remoteHost, (string) $link->remote_container);
+            $running = $state === null ? null : $state === 'running';
         } else {
             $running = null;
         }

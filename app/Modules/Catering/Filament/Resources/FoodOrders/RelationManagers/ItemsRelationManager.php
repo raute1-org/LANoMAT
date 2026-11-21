@@ -3,6 +3,7 @@
 namespace App\Modules\Catering\Filament\Resources\FoodOrders\RelationManagers;
 
 use App\Modules\Catering\Actions\ExportFoodOrderItemsCsv;
+use App\Modules\Catering\Actions\MarkUserItemsPaid;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\CostSplit;
@@ -48,8 +49,23 @@ class ItemsRelationManager extends RelationManager
                     ->label(__('catering.admin.paid'))
                     ->boolean()
                     ->state(fn (FoodOrderItem $record) => $record->paid_at !== null),
+                IconColumn::make('included')
+                    ->label(__('catering.admin.included'))
+                    ->boolean(),
             ])
             ->recordActions([
+                Action::make('mark_user_paid')
+                    ->label(fn (FoodOrderItem $record): string => __('catering.admin.mark_user_paid', ['name' => $record->user->name ?? '']))
+                    ->authorize(fn () => auth()->user()?->isOrga() ?? false)
+                    ->visible(fn (FoodOrderItem $record): bool => ! $record->included && $record->paid_at === null)
+                    ->requiresConfirmation()
+                    ->action(function (FoodOrderItem $record): void {
+                        $order = $this->getOwnerRecord();
+
+                        if ($order instanceof FoodOrder) {
+                            app(MarkUserItemsPaid::class)->handle($order, $record->user_id);
+                        }
+                    }),
                 Action::make('toggle_paid')
                     ->label(__('catering.admin.toggle_paid'))
                     ->authorize(fn () => auth()->user()?->isOrga() ?? false)
@@ -112,9 +128,11 @@ class ItemsRelationManager extends RelationManager
 
         $rows = collect($split['perUser'])
             ->map(fn (array $row) => sprintf(
-                '<tr><td class="fi-ta-cell px-3 py-2">%s</td><td class="fi-ta-cell px-3 py-2 text-right">%s</td></tr>',
+                '<tr><td class="fi-ta-cell px-3 py-2">%s</td><td class="fi-ta-cell px-3 py-2 text-right">%s</td><td class="fi-ta-cell px-3 py-2 text-right">%s</td><td class="fi-ta-cell px-3 py-2 text-right">%s</td></tr>',
                 e($row['name']),
                 e($this->formatEuro($row['totalCents'])),
+                e($this->formatEuro($row['includedCents'])),
+                e($this->formatEuro($row['dueCents'])),
             ))
             ->implode('');
 
@@ -135,6 +153,8 @@ class ItemsRelationManager extends RelationManager
                         <tr>
                             <th class="fi-ta-header-cell px-3 py-2 text-left">{$this->totalsHeaderLabel()}</th>
                             <th class="fi-ta-header-cell px-3 py-2 text-right">{$this->totalsAmountLabel()}</th>
+                            <th class="fi-ta-header-cell px-3 py-2 text-right">{$this->includedLabel()}</th>
+                            <th class="fi-ta-header-cell px-3 py-2 text-right">{$this->dueLabel()}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,6 +195,16 @@ class ItemsRelationManager extends RelationManager
     private function totalsAmountLabel(): string
     {
         return e(__('catering.admin.price'));
+    }
+
+    private function includedLabel(): string
+    {
+        return e(__('catering.admin.included'));
+    }
+
+    private function dueLabel(): string
+    {
+        return e(__('catering.admin.due'));
     }
 
     private function totalsGrandLabel(): string

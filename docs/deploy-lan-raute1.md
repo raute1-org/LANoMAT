@@ -211,7 +211,7 @@ On the host: `/opt/lanomat/scripts/deploy/deploy.sh` (or via
 `ssh <ssh-user>@<APP_SERVER> /opt/lanomat/scripts/deploy/deploy.sh`; the real host and SSH user are kept out of this public repo). It pulls
 `origin/main` fast-forward only, rebuilds with `build --pull` (fresh FrankenPHP/Node base images, so PHP and Node patch releases are picked up on every deploy), recreates the core services,
 waits for `app` to be healthy and runs `migrate --force`. It never touches
-volumes or `.env`.
+volumes or `.env`. At the end it also runs `scripts/ops/teamspeak-allow-sidecar.sh`, which keeps the TeamSpeak sidecar on the ServerQuery allowlist (see `docs/teamspeak-setup.md` section 4a); it does nothing when TeamSpeak is not running.
 
 **Every application service builds its own image.** `app`, `queue`, `scheduler` and `reverb-prod` each have a
 `build:` section for the same Dockerfile, so a deploy must build and recreate ALL of them, never just `app`:

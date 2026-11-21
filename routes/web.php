@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevLoginController;
+use App\Http\Controllers\HomeController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
 use App\Modules\Discord\Http\GatewayIngressController;
@@ -20,7 +20,7 @@ use App\Modules\GameServers\Http\GameServerPageController;
 use App\Modules\GameServers\Http\GlobalServerPageController;
 use App\Modules\GameServers\Http\MatchTelemetryController;
 use App\Modules\GameServers\Http\PermanentServerAdminController;
-use App\Modules\GameServers\Http\PermanentServerPageController;
+use App\Modules\GameServers\Http\RemoteDockerAdminController;
 use App\Modules\Identity\Http\AvatarController;
 use App\Modules\Identity\Http\DiscordAuthController;
 use App\Modules\Identity\Http\ProfileController;
@@ -30,6 +30,7 @@ use App\Modules\Infoscreen\Http\ScreenControlController;
 use App\Modules\Infoscreen\Http\ScreenController;
 use App\Modules\Jukebox\Http\JukeboxController;
 use App\Modules\Lfg\Http\LfgController;
+use App\Modules\Lfg\Http\WantToPlayController;
 use App\Modules\Notifications\Http\NotificationController;
 use App\Modules\Presence\Http\PresencePageController;
 use App\Modules\Recap\Http\RecapPageController;
@@ -89,7 +90,7 @@ if ($modules->routable(Module::Mcp)) {
 
 // ---- core (always) ----
 
-Route::get('/', [EventPageController::class, 'home'])->name('home');
+Route::get('/', HomeController::class)->name('home');
 Route::get('/users/{user}', [ProfileController::class, 'show'])->name('profile.show');
 
 Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
@@ -100,7 +101,7 @@ Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show')
 Route::post('dev/login/{role}', DevLoginController::class)->name('dev.login');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('dashboard', fn () => redirect('/'))->name('dashboard');
 
     // Local avatar copies (Identity, core): every logged-in user, immutable per content hash.
     Route::get('avatars/{user}/{hash}', [AvatarController::class, 'show'])
@@ -111,7 +112,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Nobody who is not logged in may see ANY event data: the event list, the
     // event page and every event-scoped participant page require login. Guests
-    // only get the event-free landing at `/` (EventPageController::home).
+    // only get the event-free landing at `/` (HomeController).
     Route::get('/events', [EventPageController::class, 'archive'])->name('events.index');
     Route::get('/events/{event:slug}', [EventPageController::class, 'show'])->name('events.show');
     Route::get('/events/{event:slug}/seating', [SeatingController::class, 'index'])->name('events.seating');
@@ -232,6 +233,7 @@ if ($modules->routable(Module::Lfg)) {
     Route::middleware(['auth'])->group(function () {
         Route::post('/events/{event:slug}/lfg', [LfgController::class, 'store'])->name('lfg.store');
         Route::delete('/lfg/{lfgPost}', [LfgController::class, 'destroy'])->name('lfg.destroy');
+        Route::post('/events/{event:slug}/want-to-play', [WantToPlayController::class, 'toggle'])->name('lfg.want-to-play');
     });
 }
 
@@ -240,16 +242,23 @@ if ($modules->routable(Module::GameServers)) {
     // catering/polls/lfg, login required" visibility rule; lists the event's
     // Ready game servers only (see ServerListProjection).
     Route::middleware(['auth'])->group(function () {
-        Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'index'])->name('servers.index');
-        // The global server browser: one answer to "which servers are running?" across
-        // all public events plus the permanent servers (see GlobalServerPageController).
-        Route::get('/servers', [GlobalServerPageController::class, 'index'])->name('servers.browser');
-        // Permanent servers: all year, independent of events, every logged-in user.
-        Route::get('/servers/permanent', [PermanentServerPageController::class, 'index'])->name('servers.permanent');
+        // One overview: the current (or `?event=`) LAN's servers plus the permanent ones.
+        Route::get('/servers', [GameServerPageController::class, 'index'])->name('servers.index');
+        // The cross-event browser: every public event's servers in one answer.
+        Route::get('/servers/all', [GlobalServerPageController::class, 'index'])->name('servers.browser');
+        // The permanent servers live in the same overview; keep the old URL alive.
+        Route::redirect('/servers/permanent', '/servers')->name('servers.permanent');
+        Route::get('/events/{event:slug}/servers', [GameServerPageController::class, 'legacy'])->name('servers.event');
         // Admin shortcuts on that page; the Actions authorize `configure` on the server.
         Route::post('/servers/{serverLink}/restart-round', [PermanentServerAdminController::class, 'restartRound'])->name('servers.restart-round');
         Route::post('/servers/{serverLink}/reload-map', [PermanentServerAdminController::class, 'reloadMap'])->name('servers.reload-map');
         Route::post('/servers/{serverLink}/map', [PermanentServerAdminController::class, 'changeMap'])->name('servers.change-map');
+        // A server that runs as a container on a managed remote host: power, console, logs (policy `configure`, 30 per minute and user).
+        Route::middleware('throttle:remote-console')->group(function () {
+            Route::post('/servers/{serverLink}/remote/power', [RemoteDockerAdminController::class, 'power'])->name('servers.remote.power');
+            Route::post('/servers/{serverLink}/remote/command', [RemoteDockerAdminController::class, 'command'])->name('servers.remote.command');
+            Route::get('/servers/{serverLink}/remote/logs', [RemoteDockerAdminController::class, 'logs'])->name('servers.remote.logs');
+        });
     });
 
     // CS2 live-stats webhook (roadmap 6.9): a MatchZy/G5API game server POSTs

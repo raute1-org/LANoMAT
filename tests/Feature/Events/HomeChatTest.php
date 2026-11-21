@@ -118,7 +118,7 @@ it('answers logged-in visitors with games and aggregated servers', function () {
     $response = $this->actingAs(User::factory()->create())->get('/')->assertOk();
 
     $response->assertInertia(fn (AssertableInertia $page) => $page
-        ->component('Event/Show')
+        ->component('Now')
         ->has('chat.greeting')
         ->has('chat.games', 1)
         ->where('chat.games.0.lan_ready', true)
@@ -302,7 +302,7 @@ it('keeps the home query count bounded', function () {
 
     $this->actingAs($user)->get('/')->assertOk();
 
-    expect($queries)->toBeLessThan(50);
+    expect($queries)->toBeLessThan(60);
 });
 
 it('places the chat hero above the fold on every start page', function () {

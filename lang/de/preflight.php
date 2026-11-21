@@ -18,6 +18,7 @@ return [
         'pelican' => 'Pelican (Gameserver)',
         'music_assistant' => 'Music Assistant',
         'room_audio' => 'Raum-Audio (Denon)',
+        'lighting' => 'Lichtserver (DMX)',
         'backup' => 'Backup',
         'client_build' => 'Desktop-App-Download',
         'launcher_build' => 'Launcher-Download',
@@ -50,6 +51,8 @@ return [
         'sidecar_http' => 'Der Raum-Audio-Sidecar antwortet mit HTTP :status.',
         'sidecar_token' => 'Der Raum-Audio-Sidecar lehnt das Token ab oder hat keines konfiguriert. DENON_ADMIN_TOKEN in App und Sidecar prüfen.',
         'sidecar_unreadable' => 'Die Antwort des Raum-Audio-Sidecars ist unlesbar.',
+        'lighting_unreachable' => 'Der Lichtserver ist nicht erreichbar. Die Lichtsteuerung ist gesperrt; Netzwerk und Adresse (LIGHTING_URL) prüfen.',
+        'lighting_unhealthy' => 'Der Lichtserver meldet einen Fehler (DMX-Port oder Setup). /api/health des Lichtservers prüfen.',
         'backup_age' => 'Letztes erfolgreiches Backup vor :hours Stunden.',
     ],
     'status' => [

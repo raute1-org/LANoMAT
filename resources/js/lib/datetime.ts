@@ -39,3 +39,23 @@ export function dayKey(iso: string | Date): string {
         'sv-SE',
     );
 }
+
+/**
+ * Compact clock for lists: `HH:MM` when the instant falls on today's calendar
+ * day in the display timezone, otherwise prefixed with the German weekday
+ * abbreviation (`Sa 07:43`) so a list spanning days never reads as unsorted.
+ */
+export function formatClock(
+    iso: string | Date,
+    now: Date = new Date(),
+): string {
+    const time = formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
+
+    if (dayKey(iso) === dayKey(now)) {
+        return time;
+    }
+
+    const weekday = formatInstant(iso, { weekday: 'short' }).replace('.', '');
+
+    return `${weekday} ${time}`;
+}

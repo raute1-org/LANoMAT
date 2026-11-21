@@ -1,40 +1,36 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
-import { onMounted, onUnmounted, ref } from 'vue';
-import LiveIndicator from '@/components/LiveIndicator.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import PageContainer from '@/components/PageContainer.vue';
-import JoinOptions from '@/components/servers/JoinOptions.vue';
-import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
-import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import ServerRow from '@/components/servers/ServerRow.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
+import { index as serversIndex } from '@/routes/servers';
 import type { GameServerDto } from '@/types';
 
 const props = defineProps<{
-    event: { name: string; slug: string };
+    event: { name: string; slug: string; isCurrent: boolean } | null;
+    /** False when no LAN is current; the way back then has no target. */
+    hasCurrent: boolean;
     servers: GameServerDto[];
+    permanent: GameServerDto[];
+    adminMaps: string[] | null;
     labels: Record<string, string>;
+    permanentLabels: Record<string, string>;
+    overviewLabels: Record<string, string>;
 }>();
 
-// Inertia renders this page synchronously on first load, so "loading"/"error"
-// only apply to a subsequent client-driven navigation/refresh — mirrored via
-// router's global lifecycle events rather than invented polling.
+// Inertia renders the first load synchronously, so "loading"/"error" only apply
+// to a later client-driven reload (see docs/design.md "States").
 const { isNavigating, hasError } = usePageLoadState();
 
-// Player counts and startup state change without any navigation: reload only the
-// server list now and then while the tab is visible (partial reload, no flash).
+// Status and players change without navigation: reload both lists now and then
+// while the tab is visible (partial reload, no flash).
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
 function refreshServers() {
     if (document.visibilityState === 'visible' && !isNavigating.value) {
-        router.reload({ only: ['servers'] });
+        router.reload({ only: ['servers', 'permanent', 'adminMaps'] });
     }
 }
 
@@ -46,311 +42,264 @@ onUnmounted(() => {
     clearInterval(refreshTimer);
 });
 
-const liveVariant: Record<GameServerDto['status'], 'ok' | 'warn' | 'down'> = {
-    ready: 'ok',
-    provisioning: 'warn',
-    pending: 'warn',
-    failed: 'down',
-    stopped: 'down',
-    not_responding: 'warn',
-    install_failed: 'down',
-    offline: 'down',
-};
+const ALL = '__all__';
+const filter = ref<string>(ALL);
+const openId = ref<number | null>(null);
 
-function statusLabel(status: GameServerDto['status']): string {
-    return props.labels[`status_${status}`] ?? status;
+function toggle(id: number) {
+    openId.value = openId.value === id ? null : id;
 }
 
-async function copy(text: string) {
-    await navigator.clipboard.writeText(text);
-}
+const all = computed(() => [...props.servers, ...props.permanent]);
 
-// Tracks which server's install-hint link was just copied, so the "Kopiert!"
-// confirmation only flashes next to the button that was actually clicked
-// (mirrors the connect-string copy affordance above, keyed per-card instead
-// of globally since a page can list several servers at once).
-const copiedHintFor = ref<number | null>(null);
+const chips = computed(() => {
+    const counts = new Map<string, number>();
 
-async function copyHint(serverId: number, text: string) {
-    await copy(text);
-    copiedHintFor.value = serverId;
-    setTimeout(() => {
-        if (copiedHintFor.value === serverId) {
-            copiedHintFor.value = null;
+    for (const server of all.value) {
+        if (server.game) {
+            counts.set(server.game, (counts.get(server.game) ?? 0) + 1);
         }
-    }, 1500);
+    }
+
+    return [...counts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b, 'de'))
+        .map(([game, count]) => ({ game, count }));
+});
+
+// A server that vanished after a reload must not leave a dead filter behind.
+const activeFilter = computed(() =>
+    filter.value === ALL || chips.value.some((c) => c.game === filter.value)
+        ? filter.value
+        : ALL,
+);
+
+function matches(server: GameServerDto): boolean {
+    return activeFilter.value === ALL || server.game === activeFilter.value;
+}
+
+const mine = computed(() =>
+    props.servers.filter((s) => s.isMine && matches(s)),
+);
+const eventRows = computed(() =>
+    props.servers.filter((s) => !s.isMine && matches(s)),
+);
+const permanentRows = computed(() => props.permanent.filter(matches));
+
+const summary = computed(() => {
+    const players = all.value.reduce(
+        (sum, s) => sum + (s.query?.players ?? 0),
+        0,
+    );
+    const online = all.value.filter((s) => s.status === 'ready').length;
+
+    return props.overviewLabels.summary
+        .replace(':players', String(players))
+        .replace(':online', String(online))
+        .replace(':total', String(all.value.length));
+});
+
+const filtered = computed(() => activeFilter.value !== ALL);
+
+function emptyText(kind: 'event' | 'permanent'): string {
+    if (filtered.value) {
+        return props.overviewLabels.section_empty;
+    }
+
+    return kind === 'event'
+        ? props.overviewLabels.event_empty
+        : props.overviewLabels.permanent_empty;
 }
 </script>
 
 <template>
-    <Head :title="`${labels.title} — ${event.name}`" />
+    <Head :title="overviewLabels.title" />
 
-    <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
-        <!-- loading: only shown mid-navigation, e.g. a partial reload -->
-        <div v-if="isNavigating" class="mt-8 space-y-4">
-            <Skeleton class="h-28 w-full rounded-lg" />
-            <Skeleton class="h-28 w-full rounded-lg" />
+    <PageContainer width="wide" :title="overviewLabels.title">
+        <template #actions>
+            <p
+                v-if="all.length > 0"
+                class="font-mono text-sm text-muted-foreground tabular-nums"
+            >
+                {{ summary }}
+            </p>
+        </template>
+
+        <!-- loading: only mid-navigation, e.g. a partial reload -->
+        <div v-if="isNavigating" class="mt-6 space-y-2">
+            <Skeleton class="h-12 w-full rounded-md" />
+            <Skeleton class="h-12 w-full rounded-md" />
+            <Skeleton class="h-12 w-full rounded-md" />
         </div>
 
         <!-- error: a failed client-driven reload/navigation -->
         <div
             v-else-if="hasError"
-            class="mt-8 rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center"
+            class="mt-6 rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center text-sm text-destructive"
         >
-            <p class="text-sm text-destructive">
-                {{ labels.error }}
-            </p>
+            {{ labels.error }}
         </div>
 
-        <template v-else>
-            <!-- empty -->
+        <div v-else class="mt-6 space-y-6">
             <div
-                v-if="servers.length === 0"
-                class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+                v-if="chips.length > 0"
+                role="group"
+                :aria-label="overviewLabels.filter_label"
+                class="flex flex-wrap gap-2"
             >
-                <p class="text-sm text-muted-foreground">
-                    {{ labels.empty }}
-                </p>
+                <button
+                    type="button"
+                    class="inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    :class="
+                        activeFilter === ALL
+                            ? 'border-foreground bg-foreground text-background'
+                            : 'border-border bg-card text-foreground hover:bg-muted'
+                    "
+                    :aria-pressed="activeFilter === ALL"
+                    @click="filter = ALL"
+                >
+                    {{ overviewLabels.filter_all }}
+                    <span class="font-mono text-xs tabular-nums">{{
+                        all.length
+                    }}</span>
+                </button>
+                <button
+                    v-for="chip in chips"
+                    :key="chip.game"
+                    type="button"
+                    class="inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    :class="
+                        activeFilter === chip.game
+                            ? 'border-foreground bg-foreground text-background'
+                            : 'border-border bg-card text-foreground hover:bg-muted'
+                    "
+                    :aria-pressed="activeFilter === chip.game"
+                    @click="filter = chip.game"
+                >
+                    {{ chip.game }}
+                    <span class="font-mono text-xs tabular-nums">{{
+                        chip.count
+                    }}</span>
+                </button>
             </div>
 
-            <!-- normal -->
-            <section
-                v-else
-                class="mt-8"
-                aria-labelledby="event-servers-heading"
-            >
-                <!-- The page title is the only h1; this keeps the card titles
-                     (h3) from skipping a level. -->
-                <h2 id="event-servers-heading" class="sr-only">
-                    {{ labels.title }}
+            <section v-if="mine.length > 0" aria-labelledby="servers-mine">
+                <h2
+                    id="servers-mine"
+                    class="mb-2 text-sm font-medium text-muted-foreground"
+                >
+                    {{ overviewLabels.section_mine }}
+                    <span class="font-mono tabular-nums">{{
+                        mine.length
+                    }}</span>
                 </h2>
-
-                <div class="space-y-4">
-                    <Card v-for="server in servers" :key="server.id">
-                        <CardHeader>
-                            <div
-                                class="flex items-center justify-between gap-4"
-                            >
-                                <CardTitle>{{
-                                    server.title ?? server.game ?? labels.title
-                                }}</CardTitle>
-                                <LiveIndicator
-                                    :variant="liveVariant[server.status]"
-                                    :pulse="server.status === 'provisioning'"
-                                    :label="statusLabel(server.status)"
-                                />
-                            </div>
-                            <CardDescription
-                                v-if="
-                                    server.matchLabel ||
-                                    (server.title && server.game)
-                                "
-                            >
-                                {{ server.matchLabel ?? server.game }}
-                            </CardDescription>
-                        </CardHeader>
-
-                        <CardContent class="space-y-3">
-                            <dl
-                                class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4"
-                            >
-                                <div v-if="server.address">
-                                    <dt class="text-muted-foreground">
-                                        {{ labels.address_label }}
-                                    </dt>
-                                    <dd class="font-mono tabular-nums">
-                                        {{ server.address }}
-                                    </dd>
-                                </div>
-                                <div v-if="server.port">
-                                    <dt class="text-muted-foreground">
-                                        {{ labels.port_label }}
-                                    </dt>
-                                    <dd class="font-mono tabular-nums">
-                                        {{ server.port }}
-                                    </dd>
-                                </div>
-                                <div v-if="server.query">
-                                    <dt class="text-muted-foreground">
-                                        {{ labels.players_label }}
-                                    </dt>
-                                    <dd class="font-mono tabular-nums">
-                                        {{ server.query.players }}/{{
-                                            server.query.maxPlayers
-                                        }}
-                                    </dd>
-                                </div>
-                                <div v-if="server.query?.map">
-                                    <dt class="text-muted-foreground">
-                                        {{ labels.map_label }}
-                                    </dt>
-                                    <dd class="font-mono">
-                                        {{ server.query.map }}
-                                    </dd>
-                                </div>
-                                <div
-                                    v-if="
-                                        server.slotsMax !== undefined &&
-                                        server.slotsUsed !== undefined
-                                    "
-                                >
-                                    <dt class="text-muted-foreground">
-                                        {{ labels.slots_label }}
-                                    </dt>
-                                    <dd class="font-mono tabular-nums">
-                                        {{ server.slotsUsed }}/{{
-                                            server.slotsMax
-                                        }}
-                                    </dd>
-                                </div>
-                                <div v-if="server.estimate">
-                                    <dt class="text-muted-foreground">
-                                        {{ labels.estimate_label }}
-                                    </dt>
-                                    <dd
-                                        class="font-mono tabular-nums"
-                                        :class="
-                                            server.estimate.overCap
-                                                ? 'text-warn'
-                                                : ''
-                                        "
-                                    >
-                                        ~{{ server.estimate.ramMb }} MB
-                                        <span v-if="server.estimate.overCap">
-                                            ·
-                                            {{ labels.estimate_over_cap }}</span
-                                        >
-                                    </dd>
-                                </div>
-                            </dl>
-
-                            <PlayerListDisclosure
-                                :query="server.query ?? null"
-                                :labels="labels"
-                            />
-
-                            <p
-                                v-if="server.status === 'not_responding'"
-                                class="rounded-md border border-warn/40 bg-warn/10 p-3 text-sm text-foreground"
-                            >
-                                {{ labels.not_responding_hint }}
-                            </p>
-                            <p
-                                v-else-if="server.status === 'provisioning'"
-                                class="text-sm text-muted-foreground"
-                            >
-                                {{ labels.starting_hint }}
-                            </p>
-
-                            <JoinOptions
-                                v-if="
-                                    server.joinOptions?.length && server.address
-                                "
-                                :options="server.joinOptions"
-                                :address="
-                                    server.port
-                                        ? `${server.address}:${server.port}`
-                                        : server.address
-                                "
-                                :labels="labels"
-                                handler-help
-                            />
-                            <div
-                                v-else-if="server.connectString"
-                                class="flex flex-wrap items-center gap-2"
-                            >
-                                <Button
-                                    v-if="server.connectIsLink"
-                                    as-child
-                                    size="sm"
-                                >
-                                    <a :href="server.connectString">{{
-                                        labels.connect
-                                    }}</a>
-                                </Button>
-                                <code
-                                    v-else
-                                    class="rounded-md bg-muted px-2 py-1 font-mono text-sm"
-                                    >{{ server.connectString }}</code
-                                >
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    @click="copy(server.connectString)"
-                                >
-                                    {{ labels.copy }}
-                                </Button>
-                            </div>
-
-                            <!-- install hint ("So kommst du ran"): rendered only
-                             when the game has one configured — nothing shown
-                             otherwise, a calm, unobtrusive readout rather than
-                             an empty placeholder. -->
-                            <div
-                                v-if="server.installHint"
-                                class="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm"
-                            >
-                                <p class="font-medium text-foreground">
-                                    {{ labels.install_hint_label }}
-                                </p>
-
-                                <div
-                                    v-if="server.installHint.steamUrl"
-                                    class="flex flex-wrap items-center gap-2"
-                                >
-                                    <Button
-                                        as-child
-                                        size="sm"
-                                        variant="outline"
-                                    >
-                                        <a
-                                            :href="server.installHint.steamUrl"
-                                            >{{ labels.install_hint_steam }}</a
-                                        >
-                                    </Button>
-                                    <code
-                                        class="truncate font-mono text-xs text-muted-foreground"
-                                        >{{ server.installHint.steamUrl }}</code
-                                    >
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="ghost"
-                                        @click="
-                                            copyHint(
-                                                server.id,
-                                                server.installHint.steamUrl,
-                                            )
-                                        "
-                                    >
-                                        {{
-                                            copiedHintFor === server.id
-                                                ? labels.install_hint_copied
-                                                : labels.install_hint_copy
-                                        }}
-                                    </Button>
-                                </div>
-
-                                <div v-if="server.installHint.shareUrl">
-                                    <a
-                                        :href="server.installHint.shareUrl"
-                                        class="text-xs text-primary underline-offset-4 hover:underline"
-                                        >{{ labels.install_hint_download }}</a
-                                    >
-                                </div>
-
-                                <p
-                                    v-if="server.installHint.versionNote"
-                                    class="text-muted-foreground"
-                                >
-                                    {{ server.installHint.versionNote }}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <div class="divide-y rounded-md border bg-card">
+                    <ServerRow
+                        v-for="server in mine"
+                        :key="server.id"
+                        :server="server"
+                        :labels="labels"
+                        :permanent-labels="permanentLabels"
+                        :overview-labels="overviewLabels"
+                        :admin-maps="adminMaps"
+                        :open="openId === server.id"
+                        primary
+                        show-estimate
+                        @toggle="toggle(server.id)"
+                    />
                 </div>
             </section>
-        </template>
+
+            <section
+                v-if="event && (eventRows.length > 0 || mine.length === 0)"
+                aria-labelledby="servers-event"
+            >
+                <h2
+                    id="servers-event"
+                    class="mb-2 text-sm font-medium text-muted-foreground"
+                >
+                    {{ event.name }}
+                    <span class="font-mono tabular-nums">{{
+                        eventRows.length
+                    }}</span>
+                </h2>
+                <p
+                    v-if="!event.isCurrent"
+                    class="mb-2 text-sm text-muted-foreground"
+                >
+                    {{
+                        overviewLabels.other_event_hint.replace(
+                            ':event',
+                            event.name,
+                        )
+                    }}
+                    <Link
+                        v-if="hasCurrent"
+                        :href="serversIndex.url()"
+                        class="text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >{{ overviewLabels.back_to_current }}</Link
+                    >
+                </p>
+                <div
+                    v-if="eventRows.length > 0"
+                    class="divide-y rounded-md border bg-card"
+                >
+                    <ServerRow
+                        v-for="server in eventRows"
+                        :key="server.id"
+                        :server="server"
+                        :labels="labels"
+                        :permanent-labels="permanentLabels"
+                        :overview-labels="overviewLabels"
+                        :admin-maps="adminMaps"
+                        :primary="false"
+                        :open="openId === server.id"
+                        show-estimate
+                        @toggle="toggle(server.id)"
+                    />
+                </div>
+                <p
+                    v-else
+                    class="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
+                >
+                    {{ emptyText('event') }}
+                </p>
+            </section>
+
+            <section aria-labelledby="servers-permanent">
+                <h2
+                    id="servers-permanent"
+                    class="mb-2 text-sm font-medium text-muted-foreground"
+                >
+                    {{ overviewLabels.section_permanent }}
+                    <span class="font-mono tabular-nums">{{
+                        permanentRows.length
+                    }}</span>
+                </h2>
+                <div
+                    v-if="permanentRows.length > 0"
+                    class="divide-y rounded-md border bg-card"
+                >
+                    <ServerRow
+                        v-for="server in permanentRows"
+                        :key="`p${server.id}`"
+                        :server="server"
+                        :labels="labels"
+                        :permanent-labels="permanentLabels"
+                        :overview-labels="overviewLabels"
+                        :admin-maps="adminMaps"
+                        :primary="false"
+                        :open="openId === server.id"
+                        :show-estimate="false"
+                        @toggle="toggle(server.id)"
+                    />
+                </div>
+                <p
+                    v-else
+                    class="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
+                >
+                    {{ emptyText('permanent') }}
+                </p>
+            </section>
+        </div>
     </PageContainer>
 </template>

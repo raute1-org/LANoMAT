@@ -1,30 +1,50 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
+import FoodPaymentState from '@/components/catering/FoodPaymentState.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatInstant } from '@/lib/datetime';
+import { formatEuro } from '@/lib/formatEuro';
 import {
     destroy as destroyItem,
     store as storeItem,
 } from '@/routes/catering/items';
 import type { FoodOrderDto } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     event: { name: string; slug: string };
     orders: FoodOrderDto[];
     labels: Record<string, string>;
     registration: { required: boolean; url: string };
 }>();
+
+// Only the first closed round with something to pay gets the amber button, and
+// never while the "register first" banner already offers its own call to action.
+const primaryPaymentId = computed<number | null>(() => {
+    if (props.registration.required) {
+        return null;
+    }
+
+    return (
+        props.orders.find(
+            (o) =>
+                !o.isOpen &&
+                (o.myPayment?.dueCents ?? 0) > 0 &&
+                !!o.myPayment?.url,
+        )?.id ?? null
+    );
+});
+
+// Included items cost nothing, so they stay out of the sum.
+function payableTotal(foodOrder: FoodOrderDto): number {
+    return foodOrder.myItems
+        .filter((item) => !item.included)
+        .reduce((sum, item) => sum + item.priceCents, 0);
+}
 
 // Reactive, so clearing a note after a successful order also clears the input.
 const notes = reactive<Record<number, string>>({});
@@ -69,13 +89,6 @@ function cancel(item: { id: number }): void {
     });
 }
 
-function formatEuro(cents: number): string {
-    return new Intl.NumberFormat('de-DE', {
-        style: 'currency',
-        currency: 'EUR',
-    }).format(cents / 100);
-}
-
 function formatDateTime(iso: string): string {
     return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
 }
@@ -102,7 +115,7 @@ function menuOptionName(
     <PageContainer width="default" :title="`${labels.title} — ${event.name}`">
         <div
             v-if="registration.required"
-            class="mt-8 flex flex-col gap-3 rounded-md border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+            class="mt-6 flex flex-col gap-3 rounded-md border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
         >
             <p class="text-sm">{{ labels.registration_required }}</p>
             <Button as-child size="sm" class="shrink-0">
@@ -112,82 +125,87 @@ function menuOptionName(
 
         <div
             v-if="orders.length === 0"
-            class="mt-8 rounded-lg border border-dashed border-border p-8 text-center"
+            class="mt-6 rounded-md border border-dashed border-border p-6 text-center"
         >
             <p class="text-sm text-muted-foreground">
                 {{ labels.empty }}
             </p>
         </div>
 
-        <div v-else class="mt-8 space-y-8">
-            <Card v-for="foodOrder in orders" :key="foodOrder.id">
-                <CardHeader>
-                    <div class="flex items-center justify-between gap-4">
-                        <CardTitle>{{ foodOrder.title }}</CardTitle>
-                        <LiveIndicator
-                            :variant="foodOrder.isOpen ? 'ok' : 'down'"
-                            :pulse="foodOrder.isOpen"
-                            :label="
-                                foodOrder.isOpen
-                                    ? labels.window_open
-                                    : labels.window_closed
-                            "
-                        />
-                    </div>
-                    <CardDescription
-                        v-if="foodOrder.opensAt || foodOrder.closesAt"
-                    >
-                        <span v-if="foodOrder.opensAt">
-                            {{ labels.opens_at }}:
-                            <span class="font-mono tabular-nums">{{
-                                formatDateTime(foodOrder.opensAt)
-                            }}</span>
-                        </span>
-                        <span v-if="foodOrder.closesAt">
-                            · {{ labels.closes_at }}:
-                            <span class="font-mono tabular-nums">{{
-                                formatDateTime(foodOrder.closesAt)
-                            }}</span>
-                        </span>
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent class="space-y-6">
-                    <section>
-                        <h2 class="text-sm font-semibold text-muted-foreground">
-                            {{ labels.menu }}
+        <div v-else class="mt-6 space-y-4">
+            <div
+                v-for="foodOrder in orders"
+                :key="foodOrder.id"
+                class="space-y-4"
+            >
+                <div
+                    class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
+                >
+                    <div class="min-w-0">
+                        <h2 class="text-base font-semibold">
+                            {{ foodOrder.title }}
                         </h2>
-                        <ul
-                            class="mt-3 divide-y divide-border rounded-lg border border-border"
+                        <p
+                            v-if="foodOrder.opensAt || foodOrder.closesAt"
+                            class="text-sm text-muted-foreground"
                         >
-                            <li
-                                v-for="option in foodOrder.menu"
-                                :key="option.key"
-                                class="flex items-center justify-between gap-4 px-4 py-3"
-                            >
-                                <div>
-                                    <p class="font-medium">{{ option.name }}</p>
-                                    <p
-                                        class="font-mono text-sm text-muted-foreground tabular-nums"
-                                    >
-                                        {{ formatEuro(option.priceCents) }}
-                                    </p>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    :disabled="
-                                        !foodOrder.isOpen ||
-                                        registration.required
-                                    "
-                                    @click="order(foodOrder, option.key)"
+                            <span v-if="foodOrder.opensAt">
+                                {{ labels.opens_at }}:
+                                <span class="font-mono tabular-nums">{{
+                                    formatDateTime(foodOrder.opensAt)
+                                }}</span>
+                            </span>
+                            <span v-if="foodOrder.closesAt">
+                                · {{ labels.closes_at }}:
+                                <span class="font-mono tabular-nums">{{
+                                    formatDateTime(foodOrder.closesAt)
+                                }}</span>
+                            </span>
+                        </p>
+                    </div>
+                    <LiveIndicator
+                        :variant="foodOrder.isOpen ? 'ok' : 'down'"
+                        :pulse="foodOrder.isOpen"
+                        :label="
+                            foodOrder.isOpen
+                                ? labels.window_open
+                                : labels.window_closed
+                        "
+                    />
+                </div>
+
+                <Panel :title="labels.menu" :level="3">
+                    <ul class="divide-y divide-border border-t border-border">
+                        <li
+                            v-for="option in foodOrder.menu"
+                            :key="option.key"
+                            class="flex items-center justify-between gap-4 px-4 py-2.5"
+                        >
+                            <div class="min-w-0">
+                                <p class="font-medium">{{ option.name }}</p>
+                                <p
+                                    class="font-mono text-sm text-muted-foreground tabular-nums"
                                 >
-                                    {{ labels.order }}
-                                </Button>
-                            </li>
-                        </ul>
+                                    {{ formatEuro(option.priceCents) }}
+                                </p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                :disabled="
+                                    !foodOrder.isOpen || registration.required
+                                "
+                                @click="order(foodOrder, option.key)"
+                            >
+                                {{ labels.order }}
+                            </Button>
+                        </li>
+                    </ul>
+                    <div
+                        v-if="foodOrder.isOpen && !registration.required"
+                        class="border-t border-border p-4"
+                    >
                         <Input
-                            v-if="foodOrder.isOpen && !registration.required"
-                            class="mt-3"
                             maxlength="200"
                             :placeholder="labels.note_placeholder"
                             :aria-label="labels.note_placeholder"
@@ -197,73 +215,87 @@ function menuOptionName(
                                     setNoteFor(foodOrder.id, String(value))
                             "
                         />
-                    </section>
+                    </div>
+                </Panel>
 
-                    <section>
-                        <h2 class="text-sm font-semibold text-muted-foreground">
-                            {{ labels.my_order }}
-                        </h2>
+                <Panel :title="labels.my_order" :level="3">
+                    <p
+                        v-if="foodOrder.myItems.length === 0"
+                        class="border-t border-border px-4 py-3 text-sm text-muted-foreground"
+                    >
+                        {{ labels.my_order_empty }}
+                    </p>
 
-                        <p
-                            v-if="foodOrder.myItems.length === 0"
-                            class="mt-2 text-sm text-muted-foreground"
+                    <ul
+                        v-else
+                        class="divide-y divide-border border-t border-border"
+                    >
+                        <li
+                            v-for="item in foodOrder.myItems"
+                            :key="item.id"
+                            class="flex items-center justify-between gap-4 px-4 py-2.5"
                         >
-                            {{ labels.my_order_empty }}
-                        </p>
-
-                        <ul
-                            v-else
-                            class="mt-3 divide-y divide-border rounded-lg border border-border"
-                        >
-                            <li
-                                v-for="item in foodOrder.myItems"
-                                :key="item.id"
-                                class="flex items-center justify-between gap-4 px-4 py-3"
-                            >
-                                <div>
-                                    <p class="font-medium">
-                                        {{
-                                            menuOptionName(
-                                                foodOrder,
-                                                item.optionKey,
-                                            )
-                                        }}
-                                    </p>
-                                    <p
-                                        v-if="item.note"
-                                        class="text-sm text-muted-foreground"
-                                    >
-                                        {{ item.note }}
-                                    </p>
-                                    <p
-                                        class="font-mono text-sm text-muted-foreground tabular-nums"
-                                    >
-                                        {{ formatEuro(item.priceCents) }}
-                                    </p>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    :disabled="!foodOrder.isOpen"
-                                    @click="cancel(item)"
+                            <div class="min-w-0">
+                                <p class="font-medium">
+                                    {{
+                                        menuOptionName(
+                                            foodOrder,
+                                            item.optionKey,
+                                        )
+                                    }}
+                                </p>
+                                <p
+                                    v-if="item.note"
+                                    class="text-sm text-muted-foreground"
                                 >
-                                    {{ labels.cancel }}
-                                </Button>
-                            </li>
-                        </ul>
+                                    {{ item.note }}
+                                </p>
+                                <p
+                                    v-if="item.included"
+                                    class="text-sm text-muted-foreground"
+                                >
+                                    {{ labels.item_included }}
+                                </p>
+                                <p
+                                    v-else
+                                    class="font-mono text-sm text-muted-foreground tabular-nums"
+                                >
+                                    {{ formatEuro(item.priceCents) }}
+                                </p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                :disabled="!foodOrder.isOpen"
+                                @click="cancel(item)"
+                            >
+                                {{ labels.cancel }}
+                            </Button>
+                        </li>
+                    </ul>
 
-                        <p
-                            v-if="foodOrder.myItems.length > 0"
-                            class="mt-3 text-sm font-medium"
-                        >
-                            {{ labels.my_total }}:
-                            <span class="font-mono tabular-nums">{{
-                                formatEuro(foodOrder.myTotalCents)
-                            }}</span>
-                        </p>
-                    </section>
-                </CardContent>
-            </Card>
+                    <p
+                        v-if="foodOrder.myItems.some((item) => !item.included)"
+                        class="border-t border-border px-4 py-2.5 text-sm font-medium"
+                    >
+                        {{ labels.my_total }}:
+                        <span class="font-mono tabular-nums">{{
+                            formatEuro(payableTotal(foodOrder))
+                        }}</span>
+                    </p>
+
+                    <div
+                        v-if="foodOrder.myPayment"
+                        class="border-t border-border px-4 py-3"
+                    >
+                        <FoodPaymentState
+                            :payment="foodOrder.myPayment"
+                            :primary="foodOrder.id === primaryPaymentId"
+                            :labels="labels"
+                        />
+                    </div>
+                </Panel>
+            </div>
         </div>
     </PageContainer>
 </template>

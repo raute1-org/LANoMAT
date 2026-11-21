@@ -87,6 +87,8 @@ export default defineConfigWithVueTs(
             'vendor',
             'node_modules',
             'public',
+            '.ci-cache/**',
+            'clients-dist/**',
             'bootstrap/ssr',
             'tailwind.config.js',
             'vite.config.ts',

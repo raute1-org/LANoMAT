@@ -41,6 +41,7 @@ use App\Modules\Games\Policies\GamePolicy;
 use App\Modules\Games\Support\NullEggCatalog;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Contracts\RemoteDockerControl;
 use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
@@ -53,6 +54,7 @@ use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
 use App\Modules\GameServers\Support\PelicanEggCatalog;
+use App\Modules\GameServers\Support\SshRemoteDockerControl;
 use App\Modules\GameServers\Support\TcpMinecraftQuery;
 use App\Modules\GameServers\Support\UdpServerQuery;
 use App\Modules\GameServers\Support\UdpUt2004Query;
@@ -88,6 +90,14 @@ use App\Modules\Lfg\Events\LfgPostCreated;
 use App\Modules\Lfg\Listeners\AnnounceLfgPost;
 use App\Modules\Lfg\Models\LfgPost;
 use App\Modules\Lfg\Policies\LfgPostPolicy;
+use App\Modules\Lighting\Contracts\LightingClient;
+use App\Modules\Lighting\HttpLightingClient;
+use App\Modules\Lighting\Listeners\TriggerLightingRules;
+use App\Modules\Lighting\Models\LightingRule;
+use App\Modules\Lighting\Models\LightingScene;
+use App\Modules\Lighting\Policies\LightingPolicy;
+use App\Modules\Lighting\Support\NullLightingClient;
+use App\Modules\Lighting\Support\SafeLightingClient;
 use App\Modules\News\Models\NewsPost;
 use App\Modules\News\Policies\NewsPostPolicy;
 use App\Modules\Notifications\Listeners\NotifyUsersRegistrationOpen;
@@ -101,6 +111,7 @@ use App\Modules\Preflight\Checks\DiscordGatewaySidecarCheck;
 use App\Modules\Preflight\Checks\FailedJobsCheck;
 use App\Modules\Preflight\Checks\FileHostCheck;
 use App\Modules\Preflight\Checks\LauncherBuildCheck;
+use App\Modules\Preflight\Checks\LightBridgeCheck;
 use App\Modules\Preflight\Checks\LiveKitCheck;
 use App\Modules\Preflight\Checks\MumbleSidecarCheck;
 use App\Modules\Preflight\Checks\MusicAssistantCheck;
@@ -129,8 +140,13 @@ use App\Modules\Provisioning\Policies\ProvisioningRunPolicy;
 use App\Modules\Provisioning\Support\CrossCheckHostKeyTrust;
 use App\Modules\Provisioning\Support\PhpseclibHostKeyScanner;
 use App\Modules\Registration\Events\RegistrationCancelled;
+use App\Modules\Registration\Models\EventPaymentSettings;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
+use App\Modules\Registration\Policies\EventPaymentSettingsPolicy;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\Registration\Policies\TicketTypePolicy;
+use App\Modules\Registration\Support\EnsureDefaultTicketType;
 use App\Modules\RoomAudio\Contracts\ReceiverClient;
 use App\Modules\RoomAudio\HttpReceiverClient;
 use App\Modules\RoomAudio\Policies\RoomAudioPolicy;
@@ -196,6 +212,7 @@ use App\Modules\WebVoice\Support\WebVoiceSightings;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
+use App\Support\Now\NavSignals;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Schemas\Schema;
@@ -302,6 +319,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ServerQuery::class, UdpServerQuery::class);
         $this->app->bind(MinecraftQuery::class, TcpMinecraftQuery::class);
         $this->app->bind(Ut2004Query::class, UdpUt2004Query::class);
+        $this->app->bind(RemoteDockerControl::class, SshRemoteDockerControl::class);
 
         $this->app->bind(RemoteExecutor::class, fn () => new SshRemoteExecutor(
             (int) config('services.hosts.connect_timeout'),
@@ -318,6 +336,17 @@ class AppServiceProvider extends ServiceProvider
             rtrim((string) config('services.room_audio.rest_url'), '/'),
             (string) config('services.room_audio.token'),
         ));
+
+        // Transport: HTTP when the bridge is switched on and has a URL, else a null client.
+        $this->app->bind('lighting.transport', fn (): LightingClient => (bool) config('services.lighting.enabled') && filled(config('services.lighting.base_url'))
+            ? new HttpLightingClient(
+                (string) config('services.lighting.base_url'),
+                config('services.lighting.token') === null ? null : (string) config('services.lighting.token'),
+                (int) config('services.lighting.timeout'),
+            )
+            : new NullLightingClient);
+        // Every command passes the strobe-safety decorator.
+        $this->app->bind(LightingClient::class, fn ($app) => new SafeLightingClient($app->make('lighting.transport')));
 
         $this->app->bind(MusicClient::class, fn () => new HttpMusicClient(
             (string) config('services.music_assistant.base_url'),
@@ -368,6 +397,7 @@ class AppServiceProvider extends ServiceProvider
             ...($modules->enabled(Module::GameServers) ? [PelicanCheck::class] : []),
             ...($modules->enabled(Module::Jukebox) ? [MusicAssistantCheck::class] : []),
             ...($modules->enabled(Module::RoomAudio) ? [ReceiverSidecarCheck::class] : []),
+            ...($modules->enabled(Module::Lighting) ? [LightBridgeCheck::class] : []),
         ], 'preflight.checks');
 
         $this->app->bind(LatestRelease::class, HttpLatestRelease::class);
@@ -523,12 +553,16 @@ class AppServiceProvider extends ServiceProvider
 
         // Avatars: a page loads dozens at once, and every one is immutable and cacheable afterwards.
         RateLimiter::for('avatars', fn (Request $request) => Limit::perMinute(600)->by('avatars|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        // Remote game server consoles: 30 commands per minute and user, the same budget for log reads.
+        RateLimiter::for('remote-console', fn (Request $request) => Limit::perMinute(30)->by('remote-console|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('voice-client-avatars', fn (Request $request) => Limit::perMinute(600)->by('voice-client-avatars|'.hash('sha256', (string) $request->bearerToken()).'|'.$request->ip()));
 
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
 
         Gate::policy(EventModel::class, EventPolicy::class);
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
+        Gate::policy(TicketType::class, TicketTypePolicy::class);
+        Gate::policy(EventPaymentSettings::class, EventPaymentSettingsPolicy::class);
         Gate::policy(Seat::class, SeatPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
         Gate::policy(Game::class, GamePolicy::class);
@@ -620,6 +654,12 @@ class AppServiceProvider extends ServiceProvider
         if ($this->on(Module::RoomAudio)) {
             Gate::define('room-audio.control', [RoomAudioPolicy::class, 'control']);
         }
+
+        if ($this->on(Module::Lighting)) {
+            Gate::define('lighting.control', [LightingPolicy::class, 'control']);
+            Gate::policy(LightingScene::class, LightingPolicy::class);
+            Gate::policy(LightingRule::class, LightingPolicy::class);
+        }
     }
 
     private function on(Module $module): bool
@@ -650,6 +690,17 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Event::listen(MatchReady::class, NotifyRosterOnMatchReady::class);
+
+        // Every event always has at least one ticket type (free "Standard").
+        EventModel::created(fn (EventModel $event) => EnsureDefaultTicketType::for($event));
+
+        if ($this->on(Module::Catering)) {
+            // The sidebar's "order food" hint hides once the viewer ordered; drop the cached hint
+            // the moment an item is placed or cancelled instead of waiting out the TTL.
+            // Deferred to commit so a concurrent request cannot re-cache the pre-commit state.
+            FoodOrderItem::created(fn (FoodOrderItem $item) => DB::afterCommit(fn () => NavSignals::forget($item->user_id)));
+            FoodOrderItem::deleted(fn (FoodOrderItem $item) => DB::afterCommit(fn () => NavSignals::forget($item->user_id)));
+        }
 
         if ($this->on(Module::Infoscreen)) {
             Event::listen(MatchCompleted::class, BroadcastWinnerMoment::class);
@@ -693,6 +744,12 @@ class AppServiceProvider extends ServiceProvider
         // AnnounceLfgPost injects DiscordClient directly, so it also needs Discord.
         if ($this->on(Module::Lfg) && $this->on(Module::Discord)) {
             Event::listen(LfgPostCreated::class, AnnounceLfgPost::class);
+        }
+
+        if ($this->on(Module::Lighting)) {
+            foreach ([TournamentStarted::class, MatchReady::class, MatchWentLive::class, MatchCompleted::class, TournamentCompleted::class, EventStatusChanged::class] as $lightingEvent) {
+                Event::listen($lightingEvent, TriggerLightingRules::class);
+            }
         }
 
         if ($this->on(Module::Presence)) {

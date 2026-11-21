@@ -83,22 +83,22 @@ it('exposes join options on /servers only for the UT2004 permanent server', func
         'join_info' => new JoinInfo(address: '203.0.113.8', port: 25565),
     ]);
 
-    $this->actingAs(User::factory()->create())->get('/servers/permanent')
+    $this->actingAs(User::factory()->create())->get('/servers')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Servers/Permanent')
+            ->component('Servers/Index')
             ->where('labels.join', 'Beitreten')
-            ->where('servers.0.title', 'Survival')
-            ->where('servers.0.joinOptions', [])
-            ->where('servers.1.title', 'UT2004 DM')
-            ->where('servers.1.connectString', '203.0.113.7:7777')
-            ->where('servers.1.joinOptions.0.url', 'steam://run/13230//203.0.113.7:7777')
-            ->where('servers.1.joinOptions.1.url', 'ut2004://203.0.113.7:7777')
+            ->where('permanent.0.title', 'Survival')
+            ->where('permanent.0.joinOptions', [])
+            ->where('permanent.1.title', 'UT2004 DM')
+            ->where('permanent.1.connectString', '203.0.113.7:7777')
+            ->where('permanent.1.joinOptions.0.url', 'steam://run/13230//203.0.113.7:7777')
+            ->where('permanent.1.joinOptions.1.url', 'ut2004://203.0.113.7:7777')
         );
 });
 
 it('does not expose join options to guests', function () {
-    $this->get('/servers/permanent')->assertRedirect(route('login'));
+    $this->get('/servers')->assertRedirect(route('login'));
 });
 
 it('exposes join options on the event server list only for visible (listed) servers', function () {
@@ -109,7 +109,7 @@ it('exposes join options on the event server list only for visible (listed) serv
     ServerLink::factory()->create($base + ['title' => 'Sichtbar', 'status' => ServerLinkStatus::Ready]);
     ServerLink::factory()->create($base + ['title' => 'Versteckt', 'status' => ServerLinkStatus::Failed]);
 
-    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/servers")
+    $this->actingAs(User::factory()->create())->get("/servers?event={$event->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 1)

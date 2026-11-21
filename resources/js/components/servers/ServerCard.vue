@@ -7,7 +7,6 @@ import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { index as eventServers } from '@/routes/servers';
 import type { GlobalServerRowDto } from '@/types';
 
 /**
@@ -152,7 +151,7 @@ onUnmounted(() => clearTimeout(copiedTimer));
                 </dt>
                 <dd class="min-w-0">
                     <Link
-                        :href="eventServers(server.event.slug)"
+                        :href="`/servers?event=${encodeURIComponent(server.event.slug)}`"
                         class="block truncate underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                         {{ server.event.name }}

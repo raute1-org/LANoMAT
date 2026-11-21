@@ -23,7 +23,7 @@ beforeEach(function () {
 });
 
 /**
- * The global server browser at /servers: every visible server of the public
+ * The cross-event server browser at /servers/all: every visible server of the public
  * events plus the permanent servers, grouped by game. Visibility mirrors the
  * event server page (login required, draft events 404/hidden there, so they are
  * out of the aggregate too).
@@ -42,10 +42,10 @@ function globalServerLinkFor(Event $event, Game $game, string $address, string $
 }
 
 it('serves the browser to any logged-in participant and sends guests to login', function () {
-    $this->get('/servers')->assertRedirect(route('login'));
+    $this->get('/servers/all')->assertRedirect(route('login'));
 
     $this->actingAs(User::factory()->create())
-        ->get('/servers')
+        ->get('/servers/all')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Servers/Global')
@@ -86,7 +86,7 @@ it('aggregates servers of two public events plus the permanent servers, by game'
     ]);
 
     $this->actingAs(User::factory()->create())
-        ->get('/servers')
+        ->get('/servers/all')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Servers/Global')
@@ -133,7 +133,7 @@ it('leaves out draft and archived events and servers that are not visible', func
     ]);
 
     $this->actingAs(User::factory()->create())
-        ->get('/servers')
+        ->get('/servers/all')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 1)
@@ -159,7 +159,7 @@ it('filters by game and free-text search, and ignores an unknown game', function
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->get('/servers?game='.urlencode("Garry's Mod"))
+        ->get('/servers/all?game='.urlencode("Garry's Mod"))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 1)
@@ -172,7 +172,7 @@ it('filters by game and free-text search, and ignores an unknown game', function
 
     // Search matches the name, the map and the event name.
     $this->actingAs($user)
-        ->get('/servers?q=ttt')
+        ->get('/servers/all?q=ttt')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 1)
             ->where('servers.0.title', 'Sommer TTT')
@@ -180,7 +180,7 @@ it('filters by game and free-text search, and ignores an unknown game', function
         );
 
     $this->actingAs($user)
-        ->get('/servers?q='.urlencode('minecraft_b5'))
+        ->get('/servers/all?q='.urlencode('minecraft_b5'))
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 1)
             ->where('servers.0.title', 'Sommer TTT')
@@ -188,7 +188,7 @@ it('filters by game and free-text search, and ignores an unknown game', function
 
     // An unknown game is "all games", not an error and not an empty page.
     $this->actingAs($user)
-        ->get('/servers?game=Nicht%20vorhanden')
+        ->get('/servers/all?game=Nicht%20vorhanden')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 2)
             ->where('filters.game', '')
@@ -197,16 +197,15 @@ it('filters by game and free-text search, and ignores an unknown game', function
 
     // A search without hits keeps the empty state distinguishable from "nothing running".
     $this->actingAs($user)
-        ->get('/servers?q=ohne%20treffer')
+        ->get('/servers/all?q=ohne%20treffer')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('servers', 0)
             ->where('filters.active', true)
         );
 });
 
-it('keeps the permanent page at its own url', function () {
+it('redirects the old permanent url to the server overview', function () {
     $this->actingAs(User::factory()->create())
         ->get('/servers/permanent')
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->component('Servers/Permanent'));
+        ->assertRedirect('/servers');
 });

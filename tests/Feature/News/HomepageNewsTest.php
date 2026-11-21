@@ -25,7 +25,7 @@ it('shows only published news posts on the homepage', function () {
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->component('Event/Show')
+        ->component('Now')
         ->has('news', 1)
         ->where('news.0.id', $published->id)
         ->where('news.0.title', $published->title)
@@ -56,7 +56,7 @@ it('renders an empty news array when there are no published posts', function () 
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->component('Event/Show')
+        ->component('Now')
         ->has('news', 0)
     );
 });

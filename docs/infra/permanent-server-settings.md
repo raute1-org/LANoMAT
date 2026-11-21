@@ -73,7 +73,7 @@ assumptions until verified on the real server.
 
 ## Admin shortcuts on the participant page
 
-The participant page `/servers` shows an "Admin" block on the card of every Pelican-linked permanent
+The participant page `/servers` shows an "Admin" block on the row of every Pelican-linked permanent
 server, but only to users who may `configure` it (orga and admin). The server decides this per server
 (`canManage`) and sends the map list and the admin flags only then; everyone else gets neither. The block
 offers "Runde neu starten", "Karte neu laden" (when the current map is known) and a map picker with an

@@ -55,7 +55,7 @@ afterEach(function () {
 it('offers the app to a desktop visitor whose OS has a matching build', function () {
     publishClientFor(['linux', 'windows']);
 
-    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')->assertInertia(
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')->assertInertia(
         fn ($page) => $page->where('desktopClient', [
             'url' => '/talk/client', 'version' => 'v1', 'os' => 'linux', 'available' => true,
         ])->where('clientHint.cta', 'Desktop-App holen')
@@ -73,7 +73,7 @@ it('carries the offer on every page, not only the dashboard', function () {
 it('does not offer a build for an OS that has none', function () {
     publishClientFor(['linux']);
 
-    $this->actingAs($this->user)->withHeader('User-Agent', WINDOWS_UA)->get('/dashboard')->assertInertia(
+    $this->actingAs($this->user)->withHeader('User-Agent', WINDOWS_UA)->get('/')->assertInertia(
         fn ($page) => $page->where('desktopClient.os', 'windows')->where('desktopClient.available', false),
     );
 });
@@ -81,14 +81,14 @@ it('does not offer a build for an OS that has none', function () {
 it('never offers the app on phones and tablets', function (string $agent) {
     publishClientFor(['linux', 'windows', 'macos']);
 
-    $this->actingAs($this->user)->withHeader('User-Agent', $agent)->get('/dashboard')
+    $this->actingAs($this->user)->withHeader('User-Agent', $agent)->get('/')
         ->assertInertia(fn ($page) => $page->where('desktopClient.available', false));
 })->with(['android' => ANDROID_UA, 'iphone' => IPHONE_UA]);
 
 it('offers a build published for another server version when it speaks the same API', function () {
     publishClientFor(['linux'], 'v0');
 
-    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')->assertInertia(
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')->assertInertia(
         fn ($page) => $page->where('desktopClient.available', true)->where('desktopClient.version', 'v0'),
     );
 });
@@ -96,7 +96,7 @@ it('offers a build published for another server version when it speaks the same 
 it('does not offer a build for another native-client API version', function () {
     publishClientFor(['linux'], 'v1', 'app', 2);
 
-    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')->assertInertia(
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')->assertInertia(
         fn ($page) => $page->where('desktopClient.available', false),
     );
 });
@@ -104,13 +104,13 @@ it('does not offer a build for another native-client API version', function () {
 it('does not offer anything when nothing is published or only the CLI is', function () {
     config(['webvoice.native.dist_path' => sys_get_temp_dir().'/lanomat-entry-missing-'.bin2hex(random_bytes(4))]);
 
-    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')
         ->assertInertia(fn ($page) => $page->where('desktopClient.available', false)->where('desktopClient.version', null));
 
     publishClientFor(['linux'], 'v1', 'cli');
     Cache::flush();
 
-    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')
         ->assertInertia(fn ($page) => $page->where('desktopClient.available', false));
 });
 
@@ -124,7 +124,7 @@ it('shares no offer while the WebVoice module has no routes', function () {
     publishClientFor(['linux']);
     $this->app->instance(Modules::class, new Modules('full', ['web_voice' => false]));
 
-    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/dashboard')
+    $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')
         ->assertInertia(fn ($page) => $page->where('desktopClient', null));
 });
 

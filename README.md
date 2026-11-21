@@ -413,6 +413,15 @@ Schedule, Catering, Voting, Lfg, Infoscreen, Stats, Friends, Presence, Casting (
 (LAN radio via Music Assistant), Gallery, Recap, News, Discord, Voice (Mumble and TeamSpeak), WebVoice,
 GameServers, CustomServers, Hosts, Lancache, Files, Provisioning.
 
+**Participant app:** a logged-in participant lands on **Jetzt** (`/`), one page for the current LAN:
+what needs them now (match, vote, order), what is being played (per game: people, servers, join), a
+one-click "Bock auf" signal per game (an expiring LFG post), the open food round, what comes next in
+the schedule, and their seat and check-in in one line. Before a LAN it shows the countdown, the
+registration action and who is coming; without a LAN, the permanent servers and the next event. The
+sidebar has seven main items with live badges (servers online, ready match, food deadline, own seat,
+people present) and collapsible groups Mehr, Voice and Orga. All game servers (match, tournament,
+event, permanent) are on one page, `/servers`. `/dashboard` redirects to `/`.
+
 **Native desktop client** (`clients/voice/`, Rust + Tauri v2, Linux x86_64 and Windows x86_64; macOS is
 deliberately not built):
 
@@ -439,6 +448,13 @@ deliberately not built):
   The Rust client has no host toolchain: it builds in Docker (`clients/voice/Dockerfile.dev`).
   Guides in German: [`docs/anleitung-teilnehmer-desktop-app.md`](docs/anleitung-teilnehmer-desktop-app.md)
   (participants) and [`docs/anleitung-orga-client.md`](docs/anleitung-orga-client.md) (orga).
+- **Payment comfort:** each event has priced ticket types (the last active one cannot be removed; a price snapshot is
+  taken at registration), a payment link (`paypal.me` links get the amount appended, pool links are shown as-is)
+  and a note. Participants see the open amount, a copyable reference and a pay button on "Meine Anmeldung" and as
+  a card on **Jetzt**; the orga marks payments with an optional "paid by" note and can re-price open
+  registrations in bulk. Food rounds are paid in cash or via PayPal and can be included per ticket type;
+  `registration:payment-reminders` (hourly, sent only 09:00-21:00 Berlin) sends deduplicated reminders. Guide in
+  German: [`docs/anleitung-orga-bezahlung.md`](docs/anleitung-orga-bezahlung.md).
 - **Location:** "Wo ist wer" shows where people are (voice room, game, server) and lets you follow them.
   Everyone shares their location by default; the profile switch "Meinen Standort teilen" opts out.
 
@@ -460,7 +476,8 @@ deliberately not built):
   over and reloads nginx); every upload still waits for orga approval
   ([`docs/infra/file-host.md`](docs/infra/file-host.md)). A Preflight check watches the host and its
   certificate.
-- **Permanent game servers** (Pelican, Docker or listed-only) independent of events at `/servers`, plus
+- **Permanent game servers** (Pelican, Docker or listed-only) independent of events, listed with the
+  LAN's event and match servers at `/servers`, plus
   match servers from presets (the Garry's Mod egg, port pool, A2S readiness); `PelicanClient` is built
   on the real Pelican API ([`docs/gameservers-pelican.md`](docs/gameservers-pelican.md)).
 - **Provisioning** (optional, off in `core`): `provisioning:plan|run|probe-hypervisor` turns the Proxmox
@@ -470,6 +487,10 @@ deliberately not built):
   (power, volume with an orga ceiling, mute, input, sound mode) from the admin page Raumsteuerung, through a
   telnet sidecar (`docker/denon-admin/`); Music Assistant still plays to the receiver over HEOS
   ([`docs/infra/room-audio-denon.md`](docs/infra/room-audio-denon.md)).
+- **Lighting** (optional `Lighting` module, profile `full`): the orga steers the room's DMX LED lights through
+  the venue's light bridge (REST) from the admin page Licht: colour, brightness, white, pattern, blackout,
+  Game Mode, scenes, and optional off-by-default rules that play a scene on a tournament or event moment.
+  Strobe is locked by default ([`docs/infra/lighting.md`](docs/infra/lighting.md)).
 - **Preflight and update watch:** `lanomat:preflight` is a traffic light over up to 19 checks (database,
   Redis, queue, scheduler, Reverb, backup freshness, and, per enabled module, Discord, the sidecars,
   LiveKit, Music Assistant, the Denon receiver sidecar, Pelican, file host, client build) with a Filament tile and an orga bell;
@@ -498,7 +519,7 @@ under `full`). Inspect the result with `php artisan lanomat:modules`.
 | Profile          | Modules                                                                                                                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core` (default) | Events, Registration, Seating, Teams, Games, Tournaments, Identity, Notifications, Preflight                                                                                                                    |
-| `full`           | all 32 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, News, Presence, Provisioning, Recap, RoomAudio, Schedule, Stats, Voice, Voting, WebVoice) |
+| `full`           | all 35 (core + Casting, Catering, CustomServers, Discord, Files, Friends, Gallery, GameServers, Hosts, Infoscreen, Jukebox, Lancache, Lfg, Lighting, News, Presence, Provisioning, Recap, RoomAudio, Schedule, Stats, Voice, Voting, WebVoice) |
 
 ### History in one paragraph
 

@@ -62,7 +62,7 @@ it('exports registrations as csv for orga', function () {
     $content = base64_decode(data_get($test->effects, 'download.content'));
 
     expect($content)
-        ->toContain('name,ticket_type,status,paid_at,checked_in_at')
+        ->toContain('name,ticket_type,ticket_price_eur,status,paid_at,paid_by,checked_in_at')
         ->toContain('CSV Tester');
 });
 

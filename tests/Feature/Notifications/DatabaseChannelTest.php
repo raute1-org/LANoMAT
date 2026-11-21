@@ -44,7 +44,7 @@ it('shares the unread list and count on a plain visit', function () {
     $user->notify(new RegistrationConfirmed('Testlan 2026'));
 
     $this->actingAs($user)
-        ->get('/dashboard')
+        ->get('/')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('unreadNotifications', 1)
             ->where('unreadNotificationCount', 1));
@@ -57,12 +57,12 @@ it('keeps the remaining unread notifications after marking one as read and redir
     $first = $user->unreadNotifications()->firstOrFail();
 
     $this->actingAs($user)
-        ->from('/dashboard')
+        ->from('/')
         ->post(route('notifications.read', ['notification' => $first->id]))
-        ->assertRedirect('/dashboard');
+        ->assertRedirect('/');
 
     $this->actingAs($user)
-        ->get('/dashboard')
+        ->get('/')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('unreadNotifications', 1)
             ->where('unreadNotificationCount', 1));
@@ -74,17 +74,17 @@ it('shares unread notifications as an inertia prop on partial reload', function 
 
     $version = $this->actingAs($user)
         ->withHeaders(['X-Inertia' => 'true'])
-        ->get('/dashboard')
+        ->get('/')
         ->headers->get('X-Inertia-Version');
 
     $response = $this->actingAs($user)
         ->withHeaders([
             'X-Inertia' => 'true',
             'X-Inertia-Version' => (string) $version,
-            'X-Inertia-Partial-Component' => 'Dashboard',
+            'X-Inertia-Partial-Component' => 'Now',
             'X-Inertia-Partial-Data' => 'unreadNotifications',
         ])
-        ->get('/dashboard')
+        ->get('/')
         ->assertOk();
 
     $props = $response->json('props');

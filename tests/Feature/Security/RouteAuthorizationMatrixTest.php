@@ -168,7 +168,7 @@ const PUBLIC_ROUTES = [
  */
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
-    'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/permanent',
+    'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/all', 'GET servers/permanent',
     'GET voice/setup', 'GET app', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'GET mcp/connect', 'POST mcp/connect', 'GET games', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',
     'PUT settings/password', 'GET settings/security',
@@ -670,6 +670,18 @@ function idorScenarios(): array
                 $s = ServerLink::factory()->permanent()->create(['pelican_server_id' => '7', 'pelican_server_identifier' => 'abcd1234']);
 
                 return [['POST', "/servers/{$s->id}/restart-round"], ['POST', "/servers/{$s->id}/reload-map"], ['POST', "/servers/{$s->id}/map", ['map' => 'de_dust2']]];
+            },
+        ],
+        'remote server power, console and logs by a participant' => [
+            'covers' => ['POST servers/{serverLink}/remote/power', 'POST servers/{serverLink}/remote/command', 'GET servers/{serverLink}/remote/logs'],
+            'build' => function (User $a, User $b) {
+                $s = ServerLink::factory()->remoteDocker(null, 'game-container')->create();
+
+                return [
+                    ['POST', "/servers/{$s->id}/remote/power", ['action' => 'restart']],
+                    ['POST', "/servers/{$s->id}/remote/command", ['command' => 'list']],
+                    ['GET', "/servers/{$s->id}/remote/logs?lines=10"],
+                ];
             },
         ],
         'team management by a non-owner' => [

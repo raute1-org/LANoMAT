@@ -68,6 +68,10 @@ done
 echo "==> Running migrations"
 docker compose --profile prod exec -T app php artisan migrate --force
 
+# The TeamSpeak sidecar must stay on the ServerQuery allowlist (its IP changes when it is recreated),
+# otherwise TeamSpeak flood-bans it and the presence job blocks the queue worker. A no-op without TeamSpeak.
+scripts/ops/teamspeak-allow-sidecar.sh || echo "WARNING: could not update the TeamSpeak allowlist" >&2
+
 git rev-parse HEAD > "$DEPLOYED_MARKER"
 
 echo "==> Done: $(git log --oneline -1)"

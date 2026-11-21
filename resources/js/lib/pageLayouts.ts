@@ -1,7 +1,7 @@
 /**
  * The single, explicit layout decision for every Inertia page.
  *
- * Keys are page names (`Dashboard`) or directory prefixes ending in `/`
+ * Keys are page names (`Now`) or directory prefixes ending in `/`
  * (`Teams/` covers every page below resources/js/pages/Teams). The value is the
  * shell family — see docs/design.md "Page anatomy & layout rules".
  *
@@ -24,7 +24,7 @@ export const pageLayouts: Record<string, PageLayoutKind> = {
     'auth/': 'auth',
     'settings/': 'settings',
     'Profile/': 'profile',
-    Dashboard: 'app',
+    Now: 'app',
     'Catering/': 'app',
     'Checkin/': 'app',
     'Event/': 'app',

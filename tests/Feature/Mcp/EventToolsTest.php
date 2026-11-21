@@ -12,6 +12,7 @@ use App\Modules\Mcp\Tools\EventsListTool;
 use App\Modules\Mcp\Tools\GamesSearchTool;
 use App\Modules\Mcp\Tools\TeamsListTool;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Teams\Models\Team;
 use App\Modules\Teams\Models\TeamMember;
@@ -20,6 +21,16 @@ use App\Support\Modules\Modules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+/** @param  array<int, string>  $keys */
+function ticketTypes(Event $event, array $keys): void
+{
+    TicketType::query()->where('event_id', $event->id)->delete();
+
+    foreach ($keys as $i => $key) {
+        TicketType::query()->create(['event_id' => $event->id, 'key' => $key, 'name' => ucfirst($key), 'sort' => $i]);
+    }
+}
 
 it('lists visible events only and flags the caller\'s own registration', function () {
     $user = User::factory()->create();
@@ -103,6 +114,7 @@ it('registers with the event\'s own default ticket when none is given', function
     $event = Event::factory()->registration()->create([
         'settings' => ['tickets' => ['participant', 'helper']],
     ]);
+    ticketTypes($event, ['participant', 'helper']);
 
     LanomatServer::actingAs($user);
 
@@ -120,6 +132,7 @@ it('registers with an explicitly chosen ticket type', function () {
     $event = Event::factory()->registration()->create([
         'settings' => ['tickets' => ['participant', 'helper']],
     ]);
+    ticketTypes($event, ['participant', 'helper']);
 
     LanomatServer::actingAs($user);
 

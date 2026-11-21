@@ -5,21 +5,26 @@ import ArrivalPlanFields from '@/components/ArrivalPlanFields.vue';
 import DesktopClientLink from '@/components/DesktopClientLink.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import PaymentBlock from '@/components/registration/PaymentBlock.vue';
 import { Button } from '@/components/ui/button';
+import { formatEuro } from '@/lib/formatEuro';
 import { show as eventsShow } from '@/routes/events';
 import { arrival as arrivalRoute } from '@/routes/events/register';
 import {
     destroy as destroyRegistration,
     store as storeRegistration,
 } from '@/routes/events/register';
-import type { ArrivalOptions, RegistrationDetails } from '@/types';
+import type {
+    ArrivalOptions,
+    RegistrationDetails,
+    TicketOption,
+} from '@/types';
 
 const props = defineProps<{
     event: { name: string; slug: string; status: string };
     availability: 'upcoming' | 'open' | 'full' | 'closed';
     freeSpots: number | null;
-    tickets: string[];
-    ticketLabels: Record<string, string>;
+    tickets: TicketOption[];
     registration: RegistrationDetails | null;
     arrivalOptions: ArrivalOptions;
     arrivalLabels: Record<string, any>;
@@ -28,7 +33,7 @@ const props = defineProps<{
     statusLabels: Record<string, string>;
 }>();
 
-const selected = ref(props.tickets[0] ?? 'standard');
+const selected = ref(props.tickets[0]?.key ?? 'standard');
 
 const registerForm = useForm({
     ticket_type: selected.value,
@@ -146,11 +151,25 @@ function cancel() {
                 <dd class="text-foreground">
                     {{ registration.ticketLabel }}
                 </dd>
-                <dt class="text-muted-foreground">{{ labels.status }}</dt>
-                <dd class="text-foreground">
-                    {{ registration.paid ? labels.paid : labels.unpaid }}
-                </dd>
+                <template
+                    v-if="
+                        !registration.payment &&
+                        registration.status !== 'cancelled'
+                    "
+                >
+                    <dt class="text-muted-foreground">{{ labels.price }}</dt>
+                    <dd class="text-foreground" data-test="ticket-free">
+                        {{ labels.free_price }}
+                    </dd>
+                </template>
             </dl>
+
+            <PaymentBlock
+                v-if="registration.payment"
+                :payment="registration.payment"
+                :labels="labels"
+                :primary="!editing"
+            />
 
             <div
                 v-if="hasDays"
@@ -261,24 +280,41 @@ function cancel() {
             >
                 {{ labels.free_spots.replace(':count', String(freeSpots)) }}
             </p>
-            <div class="space-y-2">
+            <fieldset class="space-y-2">
+                <legend class="sr-only">{{ labels.choose_ticket }}</legend>
                 <label
                     v-for="ticket in tickets"
-                    :key="ticket"
-                    class="flex items-center gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
+                    :key="ticket.key"
+                    class="flex items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary"
+                    data-test="ticket-option"
                 >
                     <input
                         v-model="selected"
                         type="radio"
-                        :value="ticket"
+                        :value="ticket.key"
                         name="ticket"
-                        class="accent-primary"
+                        class="mt-1 accent-primary"
                     />
-                    <span class="text-foreground">{{
-                        ticketLabels[ticket] ?? ticket
-                    }}</span>
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-foreground">{{
+                            ticket.name
+                        }}</span>
+                        <span
+                            v-if="ticket.description"
+                            class="block text-sm text-muted-foreground"
+                            >{{ ticket.description }}</span
+                        >
+                    </span>
+                    <span
+                        class="shrink-0 font-mono text-sm whitespace-nowrap text-foreground"
+                        >{{
+                            ticket.priceCents === 0
+                                ? labels.free_price
+                                : formatEuro(ticket.priceCents)
+                        }}</span
+                    >
                 </label>
-            </div>
+            </fieldset>
             <div v-if="hasDays" class="space-y-3" data-test="arrival-section">
                 <h3 class="text-lg font-semibold tracking-tight">
                     {{ arrivalLabels.heading }}

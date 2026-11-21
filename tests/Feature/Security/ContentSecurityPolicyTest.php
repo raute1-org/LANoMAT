@@ -104,7 +104,7 @@ it('gives the admin panel its own policy that allows unsafe-eval for Alpine', fu
 });
 
 it('is sent on authenticated participant pages too', function () {
-    $this->actingAs(User::factory()->create())->get('/dashboard')
+    $this->actingAs(User::factory()->create())->get('/')
         ->assertHeader('Content-Security-Policy-Report-Only');
 });
 
