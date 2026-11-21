@@ -157,3 +157,19 @@ it('shows the game status and passes a chosen mode', function () {
 
     expect($fake->callsTo('startGame'))->toHaveCount(1)->and($fake->callsTo('startGame')[0][3])->toBe('police');
 });
+
+it('renders the last-checked time in the display timezone when the bridge is online', function () {
+    config([
+        'services.lighting.enabled' => true,
+        'services.lighting.base_url' => 'http://bridge.test',
+        'lanomat.timezone' => 'Europe/Berlin',
+    ]);
+
+    $fake = lightingFake(2, 4);
+    $fake->report = new FixtureReport(true, $fake->report->fixtures, new DateTimeImmutable('2026-11-21 12:34:56 UTC'));
+
+    $this->actingAs(User::factory()->orga()->create())
+        ->get('/admin/licht')
+        ->assertOk()
+        ->assertSee('13:34:56');
+});
