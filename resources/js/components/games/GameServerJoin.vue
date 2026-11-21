@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLink, Play } from '@lucide/vue';
+import { ChevronDown, ExternalLink, Play } from '@lucide/vue';
 import { computed } from 'vue';
 import CopyText from '@/components/CopyText.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
@@ -11,6 +11,11 @@ import type { JoinOptionDto } from '@/types';
  * the server row proves, in this order: a launcher one-click, the game's own
  * join options, a link on the scheme allowlist, or the address as copyable
  * mono text — never a guessed `steam://` URL for a non-Steam game.
+ *
+ * With a launcher link the one-click stays the row's primary action; a PC
+ * that already has the game installed (Steam, a manual install) keeps every
+ * direct way behind a quiet "Anders verbinden" disclosure, so nobody is
+ * forced through the launcher's own install.
  */
 const props = defineProps<{
     server: {
@@ -74,6 +79,14 @@ const copyValue = computed<string>(() =>
         : address.value,
 );
 
+/** What the disclosure can offer beside the launcher: options, link, address. */
+const hasAlternatives = computed(
+    () =>
+        hasJoinOptions.value ||
+        connectLink.value !== null ||
+        address.value !== '',
+);
+
 /**
  * `gameservers.join_ui`, inline: the game page has no label prop, and the join
  * block is the same component the server browser uses. No handler help here —
@@ -95,16 +108,78 @@ const labels: Record<string, string> = {
 
 <template>
     <div class="space-y-1">
-        <div class="flex flex-wrap items-center gap-2">
-            <Button v-if="launcherJoinUrl" as-child size="sm">
-                <a :href="launcherJoinUrl">
-                    <Play class="size-4" aria-hidden="true" />
-                    Beitreten
-                </a>
-            </Button>
+        <!-- Launcher: one click installs if needed and starts on this server.
+             The direct ways stay reachable for a PC that already has the game. -->
+        <template v-if="launcherJoinUrl">
+            <div class="flex flex-wrap items-center gap-2">
+                <Button as-child size="sm">
+                    <a :href="launcherJoinUrl">
+                        <Play class="size-4" aria-hidden="true" />
+                        Beitreten
+                    </a>
+                </Button>
+            </div>
 
+            <!-- Holds for every game the launcher can install, not just the first. -->
+            <p class="text-xs text-muted-foreground">
+                Der Launcher installiert das Spiel bei Bedarf und startet direkt
+                auf diesem Server.
+            </p>
+
+            <details v-if="hasAlternatives" class="group text-xs">
+                <summary
+                    class="flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden"
+                >
+                    Anders verbinden
+                    <ChevronDown
+                        class="size-3.5 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+                        aria-hidden="true"
+                    />
+                </summary>
+
+                <div class="mt-2 space-y-2">
+                    <!-- Nothing amber in here: the launcher stays the primary. -->
+                    <JoinOptions
+                        v-if="hasJoinOptions"
+                        :options="server.joinOptions ?? []"
+                        :address="address"
+                        :labels="labels"
+                        :primary="false"
+                    />
+
+                    <Button
+                        v-else-if="connectLink"
+                        as-child
+                        size="sm"
+                        variant="outline"
+                    >
+                        <a :href="connectLink" target="_blank" rel="noreferrer">
+                            <ExternalLink class="size-4" aria-hidden="true" />
+                            Beitreten
+                        </a>
+                    </Button>
+
+                    <template v-if="address !== ''">
+                        <p
+                            class="font-mono text-xs break-all text-muted-foreground"
+                        >
+                            {{ address }}
+                        </p>
+                        <CopyText
+                            :text="address"
+                            label="Adresse kopieren"
+                            copied-label="Kopiert!"
+                            failed-label="Kopieren nicht möglich"
+                        />
+                    </template>
+                </div>
+            </details>
+        </template>
+
+        <!-- No launcher link: exactly what the row itself proves. -->
+        <div v-else class="flex flex-wrap items-center gap-2">
             <JoinOptions
-                v-else-if="hasJoinOptions"
+                v-if="hasJoinOptions"
                 :options="server.joinOptions ?? []"
                 :address="address"
                 :labels="labels"
@@ -125,11 +200,5 @@ const labels: Record<string, string> = {
                 failed-label="Kopieren nicht möglich"
             />
         </div>
-
-        <!-- Holds for every game the launcher can install, not just the first. -->
-        <p v-if="launcherJoinUrl" class="text-xs text-muted-foreground">
-            Der Launcher installiert das Spiel bei Bedarf und startet direkt auf
-            diesem Server.
-        </p>
     </div>
 </template>
