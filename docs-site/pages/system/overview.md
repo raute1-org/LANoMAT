@@ -16,6 +16,14 @@ Laravel events and explicit contracts; no module reaches into another module's t
   <div class="stat"><span>Realtime</span><strong>Reverb</strong></div>
 </div>
 
+Every module lands in one shell: the participant app for Teilnehmer, the Filament panel for orga.
+The dashboard is the participant's entry point — current LAN, ticket, seat and teams.
+
+| Dark | Light |
+|---|---|
+| ![Participant dashboard with current LAN, ticket, seat and teams](/screens/dashboard-dark.png) | ![Participant dashboard in light mode](/screens/dashboard-light.png) |
+| `DASHBOARD · DARK` — current LAN, ticket, seat, teams | `DASHBOARD · LIGHT` — same state, paper tokens |
+
 ## The module contract
 
 | Layer | Rule |
@@ -27,6 +35,14 @@ Laravel events and explicit contracts; no module reaches into another module's t
 | Contracts | External systems are behind `DiscordClient`, `MumbleClient`, `PelicanClient`, `FileStore`, `RemoteExecutor`, `MusicClient`, `ReceiverClient`, `HypervisorClient`. Fakes back every test. |
 | Filament | Admin resources, pages and widgets live in the module's `Filament/` folder. |
 | Tests | Mirrored under `tests/{Feature,Unit}/<Name>/`; the bracket engine is pure domain code with exhaustive property tests. |
+
+The Filament layer is the orga's half of the contract: one admin panel, one Preflight traffic light
+over database, cache, file store, queue, scheduler and Reverb.
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight traffic light](/screens/admin-dark.png) | ![Filament admin dashboard in light mode](/screens/admin-light.png) |
+| `ADMIN · DARK` — Filament panel, Preflight probes | `ADMIN · LIGHT` — same probes, same states |
 
 ## Core and optional
 
@@ -59,6 +75,14 @@ schedule, catering, votes, LFG, gallery, jukebox, presence and recap hang off it
 `User`, `Team` and `Game` are cross-event. That is why history, leaderboards and recaps across
 several LANs fall out of the model instead of needing a second schema.
 
+The public event page is the participant's view of the aggregate: status, dates, spots left and
+arrival info, with the sign-up button appearing only when `RegistrationAvailability` says `open`.
+
+| Dark | Light |
+|---|---|
+| ![Public event page with status, spots left and arrival info](/screens/event-page-dark.png) | ![Public event page in light mode](/screens/event-page-light.png) |
+| `EVENT · DARK` — status, spots, arrival info | `EVENT · LIGHT` — same state |
+
 ```text
 Event (draft … archived)
 ├── Registration ── ticket, QR, check-in, arrival plan
@@ -75,6 +99,14 @@ Event (draft … archived)
 ├── Infoscreen ──── beamer scenes, tombola
 └── Recap ───────── post-LAN projection
 ```
+
+Cross-event `User` and `Game` records make the leaderboard a plain query, not a per-LAN import: every
+tournament result is already attached to the people and games that played it.
+
+| Dark | Light |
+|---|---|
+| ![Cross-event leaderboard with wins, tournament wins and podiums](/screens/leaderboard-dark.png) | ![Cross-event leaderboard in light mode](/screens/leaderboard-light.png) |
+| `LEADERBOARD · DARK` — wins, titles, podiums across LANs | `LEADERBOARD · LIGHT` — same ranking |
 
 ## The 34 modules
 
@@ -98,6 +130,14 @@ and announce a round without reading a single YAML file.
 The production LAN runs the `core` profile plus the modules the venue uses. Optional modules are
 not "unfinished": they are toggles because a small LAN does not need provisioning, and a big one
 does not want to run without Discord. Turning one on is a deploy-time decision, not a code change.
+
+The admin event list keeps every edition side by side with the status the profile is actually
+running — `draft`, `registration`, `live`, `finished` — so a profile switch is visible at a glance.
+
+| Dark | Light |
+|---|---|
+| ![Filament event list with draft, registration, live and finished statuses](/screens/admin-events-dark.png) | ![Filament event list in light mode](/screens/admin-events-light.png) |
+| `EVENTS · DARK` — every edition and its lifecycle status | `EVENTS · LIGHT` — same list, same badges |
 
 <div class="callout-live">
   <strong>Reading order for operators.</strong> Start with <a href="/system/event-people">Event
