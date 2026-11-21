@@ -46,6 +46,7 @@ defineExpose({ focus: () => input.value?.$el?.focus?.() });
             />
             <Button
                 type="submit"
+                variant="secondary"
                 :disabled="disabled || text.trim() === ''"
                 class="shrink-0"
             >

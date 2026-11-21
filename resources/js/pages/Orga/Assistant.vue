@@ -38,7 +38,7 @@ import type {
 
 const props = defineProps<AssistantProps>();
 
-const { isNavigating } = usePageLoadState();
+const { isNavigating, hasError } = usePageLoadState();
 
 const messages = ref<UiMessage[]>(props.messages);
 const draft = ref('');
@@ -82,7 +82,6 @@ watch(
         Object.keys(choices).forEach((key) => delete choices[key]);
         Object.keys(secrets).forEach((key) => delete secrets[key]);
         superseded.value = new Set();
-        errorText.value = null;
         historyOpen.value = false;
     },
 );
@@ -127,6 +126,8 @@ function refresh(id: string | null): void {
         replace: true,
         onFinish: () => {
             messages.value = props.messages;
+            // A send that failed never superseded anything on the server: show the open cards as open again.
+            superseded.value = new Set();
         },
     });
 }
@@ -321,6 +322,15 @@ const empty = computed(
                     <Skeleton class="h-8 w-2/3" />
                     <Skeleton class="ml-auto h-8 w-1/2" />
                     <Skeleton class="h-16 w-3/4" />
+                </div>
+
+                <div
+                    v-else-if="hasError"
+                    class="m-4 rounded-md border border-destructive/50 bg-destructive/10 p-8 text-center text-sm text-destructive"
+                    role="alert"
+                >
+                    Die Unterhaltung konnte nicht geladen werden. Lade die Seite
+                    neu oder starte eine neue Unterhaltung.
                 </div>
 
                 <div

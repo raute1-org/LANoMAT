@@ -77,7 +77,8 @@ export async function streamRequest(
         signal,
         headers: {
             'Content-Type': 'application/json',
-            Accept: 'text/event-stream',
+            // JSON first: validation errors and an expired session must answer 422/401, not redirect to HTML.
+            Accept: 'application/json, text/event-stream',
             'X-Requested-With': 'XMLHttpRequest',
             ...csrfHeaders(),
         },

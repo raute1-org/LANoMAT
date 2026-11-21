@@ -90,6 +90,11 @@ it('refuses a stale card after a new message: 422, superseded, never executed (R
 
     expect(Tournament::query()->count())->toBe(0)
         ->and($row->fresh()->status)->toBe(AssistantActionStatus::Superseded);
+
+    // The history no longer shows the abandoned call as waiting for a decision.
+    $props = assistantPageProps($this, "/orga/assistant/{$id}");
+    $states = collect($props['messages'])->flatMap(fn ($m) => $m['parts'])->filter(fn ($p) => ($p['toolCallId'] ?? null) === 'call_1')->pluck('state')->all();
+    expect($states)->not->toBeEmpty()->and($states)->not->toContain('approval-requested')->and($props['pending'])->toBe([]);
 });
 
 it('never takes arguments from the client: an edited payload is ignored', function () {

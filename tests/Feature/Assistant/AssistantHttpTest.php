@@ -148,3 +148,13 @@ it('uses a conversation table row per start and no orphaned audit state', functi
 
     expect(DB::table('assistant_actions')->count())->toBe(0);
 });
+
+it('answers the real client with JSON errors instead of redirects', function () {
+    $headers = ['Accept' => 'application/json, text/event-stream', 'X-Requested-With' => 'XMLHttpRequest'];
+
+    $this->actingAs($this->orga)->withHeaders($headers)->postJson('/orga/assistant/chat', ['message' => ''])
+        ->assertStatus(422)->assertJsonValidationErrors('message');
+
+    auth()->logout();
+    $this->withHeaders($headers)->postJson('/orga/assistant/chat', ['message' => 'hi'])->assertStatus(401);
+});

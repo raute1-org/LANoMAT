@@ -183,6 +183,7 @@ class AssistantController extends Controller
         $this->log->disarmStale($user);
         $id = $conversation?->getKey();
         $id = $id === null ? null : (string) $id;
+        $pendingIds = $id === null ? [] : array_map(fn ($approval): string => $approval->id, $this->cards->approvals($id));
 
         return Inertia::render('Orga/Assistant', [
             'conversations' => DB::table('agent_conversations')
@@ -192,7 +193,7 @@ class AssistantController extends Controller
                 ->map(fn (object $c): array => ['id' => (string) $c->id, 'title' => (string) $c->title, 'updated_at' => Carbon::parse((string) $c->updated_at)->toIso8601String()])
                 ->all(),
             'conversationId' => $id,
-            'messages' => $id === null ? [] : $this->history->messages($id),
+            'messages' => $id === null ? [] : $this->history->messages($id, $pendingIds),
             'pending' => $id === null ? [] : $this->cards->forPage($user, $id),
             'provider' => ['name' => (string) config('assistant.provider')],
         ]);
