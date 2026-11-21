@@ -6,7 +6,8 @@ description: The orga sequence for game installs — sync recipes from the NAS, 
 This is the orga side of [the install guides](/docs/guides/install-ut2004). It assumes the app is
 deployed and the event exists. The order matters: a recipe that is published before its files are
 approved produces `[MISSING]` plans, and a file that is approved under the wrong name produces the
-same result.
+same result. Steps 1–9 are the **before**; [During the event](#during-the-event) covers the surfaces
+you touch once the doors are open.
 
 The whole sequence is one loop:
 
@@ -162,10 +163,10 @@ Before publishing a draft:
 - [ ] An avatar is optional and multi-select; zero is a valid answer.
 - [ ] No external URL is the only path for a required file.
 
-| Light |
-|---|
-| ![Admin recipes, light](/docs/screens/admin-recipes-light.png) |
-| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` |
+| Dark | Light |
+|---|---|
+| ![Admin recipe list with draft and published rows, dark](/docs/screens/admin-recipes-dark.png) | ![Admin recipe list with draft and published rows, light](/docs/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` | `SPIELREZEPTE · LIGHT` |
 
 Pinning a file in the requirement (**LAN-Datei-ID**) is the escape hatch when a glob is too broad. It
 is per requirement and wins over matching; a removed file leaves the requirement unmatched.
@@ -215,6 +216,15 @@ sentence and the next step. The checks that matter for game installs:
 A `warn` is usable; `down` is "this will hurt at the LAN". The Filament dashboard tile shows the same
 registry during the event; the health watch notifies orga on a transition, once.
 
+| Dark | Light |
+|---|---|
+| ![Filament dashboard with the Preflight traffic light and a red Redis check, dark](/docs/screens/admin-dark.png) | ![Filament dashboard with the Preflight traffic light and a red Redis check, light](/docs/screens/admin-light.png) |
+| `ADMIN · DASHBOARD · PREFLIGHT-AMPEL · AUSFALL` | `DASHBOARD · LIGHT` |
+
+The tile is the same registry as the command, not a summary of it: a red row names the source —
+`Redis`, `Scheduler`, `Queue-Worker` — and the sentence says what to look at. "Neu prüfen" re-runs
+the registry; it does not repair anything.
+
 ## 8. Back up
 
 ```bash
@@ -251,6 +261,103 @@ troubleshooting. Keep the URL on the event page and in the welcome message.
 | ![Event page, dark](/docs/screens/event-page-dark.png) | ![Event page, light](/docs/screens/event-page-light.png) |
 | `EVENT · PROGRAMM · GAMES · FILES` | `EVENT · LIGHT` |
 
+## During the event
+
+Steps 1–9 are the **before**: recipes, files, publishes, one preflight, one backup. Once the doors are
+open the same panel becomes the desk — the event's own state, the door, the kitchen, the disputed
+matches and the PA. None of it needs a shell unless a Preflight check went `down`.
+
+| Surface | Where | The question it answers |
+|---|---|---|
+| Event state | `/admin` → **Events** | Is this edition still a draft, open, live — or over? |
+| Check-in desk | `/orga/events/<slug>/checkin` | Did the ticket scan, or does this person need a typed token? |
+| QR poster | `/orga/events/<slug>/checkin-qr` | Where does a participant check themselves in? |
+| Food orders | `/admin` → **Essensbestellungen** | Which order window is open, and who has ordered? |
+| Disputes | `/admin` → **Strittige Matches** | Which reported result is waiting for a ruling? |
+| Room control | `/admin` → **Raumsteuerung** | Is the receiver reachable, and how loud may it get? |
+
+### The event's own state
+
+The **Events** table is the runbook's clock: `Entwurf` while you prepare, `Anmeldung offen` while
+people register, `Live` once you open the doors, `Beendet` once the hall is empty. The status is not
+cosmetic — self check-in opens when the event is `live`, or during registration once the start is
+less than 12 hours away, and closes again after `Beendet`. Set it before you test the door poster, not
+after.
+
+| Dark | Light |
+|---|---|
+| ![Filament events table with draft, open, live and finished editions, dark](/docs/screens/admin-events-dark.png) | ![Filament events table with draft, open, live and finished editions, light](/docs/screens/admin-events-light.png) |
+| `ADMIN · EVENTS · ENTWURF · LIVE · BEENDET` | `EVENTS · LIGHT` |
+
+**After the doors close** the same table is the handover: `Beendet` closes self check-in and keeps the
+edition for the recap, so take the final backup after that status change, not before it.
+
+### At the door: check-in
+
+Two surfaces, one job. The printed poster sends participants to `/checkin/<token>` on their own phone;
+the desk page is for the dead battery, the printed ticket and the walk-in.
+
+| Dark | Light |
+|---|---|
+| ![Orga check-in desk with camera scanner and token field, dark](/docs/screens/orga-checkin-dark.png) | ![Orga check-in desk with camera scanner and token field, light](/docs/screens/orga-checkin-light.png) |
+| `CHECK-IN · KAMERA · TOKEN · EINCHECKEN` | `CHECK-IN · LIGHT` |
+
+A scan and a typed token end in the same check-in, so the arrival plan and the infoscreen counter do
+not care which one was used. A walk-in registers first (the event must be `live` and a spot must be
+free), then checks in with the same button.
+
+| Dark | Light |
+|---|---|
+| ![Printable check-in QR poster with event title and check-in URL, dark](/docs/screens/orga-checkin-qr-dark.png) | ![Printable check-in QR poster with event title and check-in URL, light](/docs/screens/orga-checkin-qr-light.png) |
+| `CHECK-IN-QR · POSTER · APP_URL · DRUCKEN` | `CHECK-IN-QR · LIGHT` |
+
+The sheet prints the same in both themes — it is paper. The QR encodes an absolute URL built from
+`APP_URL`, so print it from the venue's hostname: a poster printed against `127.0.0.1` lands every
+phone on the wrong host. Rotating the event token kills posters already on the wall, so rotate first
+and print once.
+
+### Kitchen: food orders
+
+A row is an **order window**, not a menu archive: `Offen` while participants add to it, read-only
+afterwards. `Öffnet am` and `Schließt am` are what the participant menu follows; a closed window keeps
+its orders for the per-option counts and the kitchen CSV.
+
+| Dark | Light |
+|---|---|
+| ![Filament food orders table with one open midnight-pizza window, dark](/docs/screens/admin-food-orders-dark.png) | ![Filament food orders table with one open midnight-pizza window, light](/docs/screens/admin-food-orders-light.png) |
+| `ADMIN · ESSENSBESTELLUNGEN · FENSTER OFFEN` | `ESSENSBESTELLUNGEN · LIGHT` |
+
+Marking an option ready notifies its owner once, not on every edit — a second save does not re-ping the
+table.
+
+### Disputes at the desk
+
+A report stays `pending` until the opponent confirms or disputes it; a disputed match lands in
+**Strittige Matches** with both entries, both reported scores, the reporter and the time. The columns
+are the whole briefing: tournament, round, who said what. Orga can decide any match — rule from the
+page, not by editing a bracket by hand.
+
+| Dark | Light |
+|---|---|
+| ![Filament disputes table showing no open disputed matches, dark](/docs/screens/admin-disputes-dark.png) | ![Filament disputes table showing no open disputed matches, light](/docs/screens/admin-disputes-light.png) |
+| `ADMIN · STRITTIGE MATCHES · KEINE OFFENEN` | `STRITTIGE MATCHES · LIGHT` |
+
+An empty table is the goal state. A row that stays for more than a round is a person waiting at the
+desk, not a queue to clear later.
+
+### Room control
+
+The venue's Denon receiver: power, volume, mute, source and sound mode, with a ceiling. A command above
+the ceiling is rejected, not clamped silently, so the PA never gets a surprise. The capture shows the
+honest failure: the receiver is unreachable, the controls are locked until the sidecar answers, and
+the banner names the two things to check — network and power at the device. Room audio degrades
+alone; the Jukebox queue keeps working.
+
+| Dark | Light |
+|---|---|
+| ![Filament room control with an unreachable receiver and a volume ceiling, dark](/docs/screens/admin-room-control-dark.png) | ![Filament room control with an unreachable receiver and a volume ceiling, light](/docs/screens/admin-room-control-light.png) |
+| `ADMIN · RAUMSTEUERUNG · RECEIVER · LAUTSTÄRKE-DECKEL` | `RAUMSTEUERUNG · LIGHT` |
+
 ## The four states of the catalogue
 
 | State | What you see | What it means |
@@ -276,6 +383,7 @@ troubleshooting. Keep the URL on the event page and in the welcome message.
 
 **Doors open**
 
+- [ ] Status `Live`; the door poster prints the venue's host and scans once from a phone on the venue Wi-Fi.
 - [ ] Preflight tile watched; queue heartbeat green.
 - [ ] A test upload → approve → plan still works with real participant accounts.
 - [ ] Games with a live server show the join string on `/games/<slug>`.
