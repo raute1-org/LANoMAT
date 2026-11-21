@@ -148,7 +148,7 @@ Filament's "create tournament" page switches to `CreateTournament`, so there is 
   - `superseded` when the orga sends a new chat message while cards are still open. An open card can never be approved later against changed data. Several cards from one turn can be approved or rejected individually; a rejection does not cancel its siblings.
   - `approved`/`rejected` by the decision endpoint.
   - `executed`/`failed` by the tool base class after running.
-- A read-only Filament `AssistantActionResource` in the "System" group.
+- A read-only Filament `AssistantActionResource` in the "Nutzer" navigation group.
 - **Retention (owner decision):** conversations are kept until the orga deletes them (`DELETE /orga/assistant/{conversation}`, ownership-checked). There is no automatic expiry. `assistant_actions` rows survive a deleted conversation (`conversation_id` without cascade).
 
 ### HTTP and UI
