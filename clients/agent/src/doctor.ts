@@ -1,9 +1,18 @@
-import { readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { access, readFile, readdir } from 'node:fs/promises';
+import { constants, existsSync } from 'node:fs';
+import { delimiter, dirname, join } from 'node:path';
 import type { AgentConfig } from './types.js';
-import { configPath, defaultSkillsDir, defaultAvatarsDir, piModelsPath, type PathEnvironment } from './config.js';
-import { ApiClient } from './http.js';
+import {
+    configPath,
+    defaultAvatarsDir,
+    defaultSkillsDir,
+    inspectConfigPermissions,
+    isTokenExpired,
+    modeToString,
+    piModelsPath,
+    type PathEnvironment,
+} from './config.js';
+import { ApiClient, ApiError, redactSecret } from './http.js';
 import {
     DEFAULT_FALLBACK_MODEL,
     discoverModels,
@@ -15,8 +24,12 @@ import {
     type ModelsConfig,
 } from './models.js';
 import { resolvePiBinary } from './ask.js';
-import { join as joinPath } from 'node:path';
-import { isDirectory } from './util.js';
+
+/**
+ * Stable identifier for `lanomat-agent doctor --json`. Additive fields may appear in a later
+ * version, but a consumer can rely on every field of this schema being present and named.
+ */
+export const DOCTOR_SCHEMA = 'lanomat-agent-doctor/1';
 
 export interface DoctorCheck {
     name: string;
@@ -26,7 +39,16 @@ export interface DoctorCheck {
 }
 
 export interface DoctorReport {
+    /** `lanomat-agent-doctor/1`; the field order is stable for snapshots and shell parsing. */
+    schema: typeof DOCTOR_SCHEMA;
+    generated_at: string;
     ok: boolean;
+    summary: {
+        total: number;
+        passed: number;
+        failed: number;
+        warnings: number;
+    };
     checks: DoctorCheck[];
     model: {
         provider: string;
@@ -43,19 +65,44 @@ export interface DoctorOptions extends PathEnvironment {
     checkMcp?: boolean;
     checkProbe?: boolean;
     checkVeniceModels?: boolean;
+    clock?: () => Date;
+    /** Resolves whether `@earendil-works/pi-coding-agent` is importable. Injectable for tests. */
+    sdkAvailable?: () => Promise<boolean>;
+    /** MCP handshake seam; defaults to the real SDK transport. Injectable for tests. */
+    mcpConnector?: McpConnector;
     fs?: {
         existsSync?: typeof existsSync;
         readdir?: typeof readdir;
-        isDirectory?: typeof isDirectory;
+        access?: typeof access;
     };
 }
 
-function findExecutable(name: string, env: NodeJS.ProcessEnv = process.env): string | null {
+/** A URL that is safe to print: no credentials, query string or fragment. */
+export function safeUrl(input: string): string {
+    try {
+        const url = new URL(input);
+
+        url.username = '';
+        url.password = '';
+        url.search = '';
+        url.hash = '';
+
+        return url.toString().replace(/\/+$/, '');
+    } catch {
+        return input.replace(/\/\/[^/@\s]+@/, '//');
+    }
+}
+
+function findExecutable(
+    name: string,
+    env: NodeJS.ProcessEnv = process.env,
+    exists: typeof existsSync = existsSync,
+): string | null {
     for (const dir of (env.PATH ?? '').split(delimiter).filter(Boolean)) {
         for (const candidate of [name, `${name}.exe`]) {
             const path = join(dir, candidate);
 
-            if (existsSync(path)) {
+            if (exists(path)) {
                 return path;
             }
         }
@@ -64,34 +111,167 @@ function findExecutable(name: string, env: NodeJS.ProcessEnv = process.env): str
     return null;
 }
 
-async function checkMcpEndpoint(api: ApiClient): Promise<{ ok: boolean; detail: string }> {
+function serverFailure(error: unknown, url: string): { ok: false; detail: string } {
+    const target = safeUrl(url);
+
+    if (error instanceof ApiError) {
+        if (error.status === 401) {
+            return {
+                ok: false,
+                detail: `server reachable at ${target}, but the token was rejected (HTTP 401) — run "lanomat-agent login"`,
+            };
+        }
+
+        if (error.status === 0 || error.code === 'network_error') {
+            // ApiClient already prefixes its message with "Cannot reach <url>"; strip it so the
+            // doctor line does not repeat the target twice.
+            const cause =
+                error.message.startsWith('Cannot reach ') && error.message.includes(': ')
+                    ? error.message.slice(error.message.indexOf(': ') + 2)
+                    : error.message;
+
+            return { ok: false, detail: `offline — cannot reach ${target}: ${cause}` };
+        }
+
+        return {
+            ok: false,
+            detail: `server error at ${target} (HTTP ${error.status}): ${error.message}`,
+        };
+    }
+
+    return { ok: false, detail: `cannot reach ${target}: ${(error as Error).message}` };
+}
+
+async function checkMcpEndpoint(
+    api: ApiClient,
+    connector: McpConnector = defaultMcpConnector,
+): Promise<{ ok: boolean; detail: string }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
 
     try {
-        const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
-        const { StreamableHTTPClientTransport } = await import(
-            '@modelcontextprotocol/sdk/client/streamableHttp.js'
-        );
-        const transport = new StreamableHTTPClientTransport(new URL(`${api.baseUrl}/mcp`), {
-            requestInit: {
-                headers: api.authHeaders(),
-                signal: controller.signal,
-            },
-            redirectPolicy: 'follow',
+        const tools = await connector({
+            url: new URL(`${api.baseUrl}/mcp`),
+            headers: api.authHeaders(),
+            signal: controller.signal,
         });
-        const client = new Client({ name: 'lanomat-agent-doctor', version: '0.1.0' });
 
-        await client.connect(transport);
-        const tools = await client.listTools();
-        await client.close();
-
-        return { ok: true, detail: `${tools.tools.length} MCP tool(s) available` };
+        return { ok: true, detail: `${tools} MCP tool(s) available` };
     } catch (error) {
-        return { ok: false, detail: `MCP handshake failed: ${(error as Error).message}` };
+        return { ok: false, detail: mcpFailureDetail(error, api.baseUrl) };
     } finally {
         clearTimeout(timer);
     }
+}
+
+export interface McpConnectorRequest {
+    /** `<baseUrl>/mcp`. */
+    url: URL;
+    headers: Record<string, string>;
+    signal: AbortSignal;
+}
+
+/** Resolves with the number of tools the MCP endpoint listed. Injectable for tests. */
+export type McpConnector = (request: McpConnectorRequest) => Promise<number>;
+
+const defaultMcpConnector: McpConnector = async ({ url, headers, signal }) => {
+    const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+    const { StreamableHTTPClientTransport } = await import(
+        '@modelcontextprotocol/sdk/client/streamableHttp.js'
+    );
+    const transport = new StreamableHTTPClientTransport(url, {
+        requestInit: { headers, signal },
+        redirectPolicy: 'follow',
+    });
+    const client = new Client({ name: 'lanomat-agent-doctor', version: '0.1.0' });
+
+    try {
+        await client.connect(transport);
+        const tools = await client.listTools();
+
+        return tools.tools.length;
+    } finally {
+        await client.close().catch(() => undefined);
+    }
+};
+
+type McpErrorShape = {
+    status?: number;
+    code?: number | string;
+    message?: string;
+    cause?: { code?: string; message?: string };
+};
+
+/**
+ * Turn an MCP handshake failure into the same 401/offline distinction the REST server check uses.
+ * The SDK throws plain errors, sometimes with a numeric `code`; network failures arrive as
+ * `TypeError: fetch failed` with an undici cause code.
+ */
+export function mcpFailureDetail(error: unknown, baseUrl: string): string {
+    const target = mcpTarget(baseUrl);
+    const candidate = (error ?? {}) as McpErrorShape;
+    const status =
+        typeof candidate.status === 'number'
+            ? candidate.status
+            : typeof candidate.code === 'number'
+              ? candidate.code
+              : 0;
+    const message = candidate.message ?? String(error);
+    const causeCode = candidate.cause?.code ?? '';
+    const haystack = `${message} ${causeCode}`;
+
+    if (status === 401 || /\b401\b|unauthori[sz]ed|invalid[ _-]?token/i.test(haystack)) {
+        return 'MCP endpoint rejected the token (HTTP 401) — run "lanomat-agent login"';
+    }
+
+    if (/abort|timed? ?out/i.test(haystack)) {
+        return `MCP endpoint timed out (${target})`;
+    }
+
+    if (
+        status === 0 &&
+        /fetch failed|econnrefused|econnreset|enotfound|eai_again|network|socket hang up/i.test(haystack)
+    ) {
+        return `offline — cannot reach ${target}: ${message}`;
+    }
+
+    return `MCP handshake failed at ${target}: ${message}`;
+}
+
+function mcpTarget(baseUrl: string): string {
+    return `${safeUrl(baseUrl)}/mcp`;
+}
+
+async function canImportPiSdk(): Promise<boolean> {
+    try {
+        await import('@earendil-works/pi-coding-agent');
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function redact(text: string, secrets: Array<string | undefined>): string {
+    let safe = text;
+
+    for (const secret of secrets) {
+        if (secret) {
+            safe = redactSecret(safe, secret);
+        }
+    }
+
+    return safe;
+}
+
+function collectSecrets(config: AgentConfig | null, key: string | undefined, env: NodeJS.ProcessEnv): string[] {
+    return [
+        config?.token,
+        key,
+        env.VENICE_API_KEY,
+        env.OPENAI_MODEL_API_KEY,
+        env.LANOMAT_TOKEN,
+    ].filter((value): value is string => typeof value === 'string' && value.length > 0);
 }
 
 export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
@@ -103,18 +283,56 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
     const modelsPath = piModelsPath(options);
     const skillsDir = defaultSkillsDir(options);
     const platform = options.platform ?? process.platform;
+    const exists = options.fs?.existsSync ?? existsSync;
+    const accessFn = options.fs?.access ?? access;
 
     checks.push({
         name: 'Config',
         ok: Boolean(config),
         required: true,
         detail: config
-            ? `${configPath(options)} (${config.url}, user ${config.user?.name ?? '?'})`
+            ? `${configPath(options)} (${safeUrl(config.url)}, user ${config.user?.name ?? '?'})`
             : `not logged in — run "lanomat-agent login" (${configPath(options)})`,
     });
 
+    const permissions = await inspectConfigPermissions(options);
+    const posixPermissions = platform !== 'win32';
+
+    checks.push({
+        name: 'Config permissions',
+        ok: posixPermissions ? permissions.secure : permissions.configExists,
+        required: false,
+        detail: !posixPermissions
+            ? `Windows ACLs govern access (${configPath(options)})`
+            : permissions.configExists
+              ? `dir ${modeToString(permissions.dirMode)}, file ${modeToString(permissions.fileMode)}${
+                    permissions.secure ? '' : ' — run "lanomat-agent login" to tighten to 0700/0600'
+                }`
+              : `no config file yet (${configPath(options)})`,
+    });
+
+    if (!config) {
+        checks.push({ name: 'Token', ok: false, required: false, detail: 'no token — run "lanomat-agent login"' });
+    } else if (isTokenExpired(config, options.clock)) {
+        checks.push({
+            name: 'Token',
+            ok: false,
+            required: false,
+            detail: `expired at ${config.token_expires_at} — run "lanomat-agent login"`,
+        });
+    } else {
+        checks.push({
+            name: 'Token',
+            ok: true,
+            required: false,
+            detail: config.token_expires_at ? `valid until ${config.token_expires_at}` : 'no expiry recorded',
+        });
+    }
+
+    let api: ApiClient | null = null;
+
     if (config) {
-        const api = new ApiClient({ baseUrl: config.url, token: config.token, fetchImpl: options.fetchImpl });
+        api = new ApiClient({ baseUrl: config.url, token: config.token, fetchImpl: options.fetchImpl });
 
         try {
             const me = await api.me();
@@ -123,33 +341,42 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
                 name: 'Server',
                 ok: true,
                 required: true,
-                detail: `${me.server?.name ?? 'LANoMAT'} ${me.server?.version ?? ''} at ${me.server?.url ?? config.url} (${me.user?.role ?? 'user'})`.trim(),
+                detail: `${me.server?.name ?? 'LANoMAT'} ${me.server?.version ?? ''} at ${safeUrl(
+                    me.server?.url ?? config.url,
+                )} (${me.user?.role ?? 'user'})`.trim(),
             });
         } catch (error) {
+            const failure = serverFailure(error, config.url);
+
             checks.push({
                 name: 'Server',
-                ok: false,
+                ok: failure.ok,
                 required: true,
-                detail: `cannot reach ${config.url}: ${(error as Error).message}`,
+                detail: failure.detail,
             });
-        }
-
-        if (options.checkMcp !== false) {
-            const mcp = await checkMcpEndpoint(api);
-
-            checks.push({ name: 'MCP endpoint', ...mcp, required: false });
         }
     } else {
         checks.push({ name: 'Server', ok: false, required: true, detail: 'skipped: no config' });
     }
 
+    if (config && api && options.checkMcp !== false) {
+        const mcp = await checkMcpEndpoint(api, options.mcpConnector);
+
+        checks.push({ name: 'MCP endpoint', ok: mcp.ok, required: false, detail: mcp.detail });
+    }
+
     const piBinary = resolvePiBinary(env, platform);
+    const sdkAvailable = await (options.sdkAvailable ?? canImportPiSdk)();
 
     checks.push({
         name: 'pi',
-        ok: true,
+        ok: Boolean(piBinary) || sdkAvailable,
         required: false,
-        detail: piBinary ? `binary at ${piBinary} (SDK also bundled)` : 'binary not on PATH; the bundled SDK is used',
+        detail: piBinary
+            ? `binary at ${piBinary}${sdkAvailable ? ' (SDK also bundled)' : ''}`
+            : sdkAvailable
+              ? 'binary not on PATH; the bundled pi SDK is used'
+              : 'pi not found — npm install -g @earendil-works/pi-coding-agent (or reinstall the agent)',
     });
 
     let skillCount = 0;
@@ -160,11 +387,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
         for (const entry of entries) {
             if (entry.isDirectory() && entry.name.startsWith('lanomat-')) {
                 try {
-                    await (options.fs?.isDirectory ?? isDirectory)(joinPath(skillsDir, entry.name, '.lanomat-source'));
-
-                    const marker = await import('node:fs/promises').then((fs) =>
-                        fs.readFile(joinPath(skillsDir, entry.name, '.lanomat-source'), 'utf8'),
-                    );
+                    const marker = await readFile(join(skillsDir, entry.name, '.lanomat-source'), 'utf8');
 
                     if (marker.includes('url')) {
                         skillCount += 1;
@@ -175,11 +398,21 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
             }
         }
 
+        let writable = true;
+
+        try {
+            await accessFn(skillsDir, constants.W_OK);
+        } catch {
+            writable = false;
+        }
+
         checks.push({
             name: 'Skills',
-            ok: skillCount > 0,
+            ok: writable,
             required: false,
-            detail: skillCount > 0 ? `${skillCount} synced recipe skill(s) in ${skillsDir}` : `no synced skills — run "lanomat-agent skills sync" (${skillsDir})`,
+            detail: writable
+                ? `${skillCount > 0 ? `${skillCount} synced recipe skill(s)` : 'no synced skills yet'} in ${skillsDir} (writable)`
+                : `${skillsDir} is not writable — fix its permissions or run "lanomat-agent skills sync --dest <dir>"`,
         });
     } catch {
         checks.push({
@@ -191,7 +424,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
     }
 
     if (platform === 'linux') {
-        const smb = findExecutable('smbclient', env);
+        const smb = findExecutable('smbclient', env, exists);
 
         checks.push({
             name: 'smbclient',
@@ -204,9 +437,17 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
     const key = await resolveApiKey({
         provider: resolved.provider,
         env,
-        envFile: joinPath(configPath(options), '..', 'venice.env'),
+        envFile: join(dirname(configPath(options)), 'venice.env'),
     });
-    const models = await readModelsConfig(modelsPath).catch(() => null as ModelsConfig | null);
+    let models: ModelsConfig | null = null;
+    let modelsError: string | null = null;
+
+    try {
+        models = await readModelsConfig(modelsPath);
+    } catch (error) {
+        modelsError = (error as Error).message;
+    }
+
     const providerConfigured = Boolean(models?.providers?.[resolved.provider]);
 
     checks.push({
@@ -225,7 +466,9 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
         required: false,
         detail: providerConfigured
             ? `provider "${resolved.provider}" configured at ${modelsPath}`
-            : `provider "${resolved.provider}" missing — run "lanomat-agent model setup" (${modelsPath})`,
+            : modelsError
+              ? `cannot parse ${modelsPath}: ${modelsError}`
+              : `provider "${resolved.provider}" missing — run "lanomat-agent model setup" (${modelsPath})`,
     });
 
     if (options.checkVeniceModels !== false) {
@@ -277,11 +520,23 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
         }
     }
 
-    const requiredOk = checks.filter((check) => check.required).every((check) => check.ok);
+    const secrets = collectSecrets(config, key.key, env);
+    const safeChecks = checks.map((check) => ({ ...check, detail: redact(check.detail, secrets) }));
+    const requiredOk = safeChecks.filter((check) => check.required).every((check) => check.ok);
+    const failed = safeChecks.filter((check) => !check.ok && check.required).length;
+    const warnings = safeChecks.filter((check) => !check.ok && !check.required).length;
 
     return {
+        schema: DOCTOR_SCHEMA,
+        generated_at: (options.clock ?? (() => new Date()))().toISOString(),
         ok: requiredOk,
-        checks,
+        summary: {
+            total: safeChecks.length,
+            passed: safeChecks.filter((check) => check.ok).length,
+            failed,
+            warnings,
+        },
+        checks: safeChecks,
         model: {
             provider: resolved.provider,
             model: resolved.full,
@@ -310,6 +565,11 @@ export function formatDoctorReport(report: DoctorReport): string {
     lines.push(report.ok ? 'Doctor: OK' : 'Doctor: attention needed');
 
     return lines.join('\n');
+}
+
+/** The exact payload of `lanomat-agent doctor --json`, with two-space indentation. */
+export function formatDoctorJson(report: DoctorReport): string {
+    return `${JSON.stringify(report, null, 2)}\n`;
 }
 
 export function avatarDirForDoctor(options: PathEnvironment = {}): string {

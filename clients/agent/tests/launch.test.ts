@@ -85,7 +85,8 @@ describe('launch', () => {
         expect(result.code).toBe(0);
         expect(calls[0]).toMatchObject({
             command: 'cmd',
-            args: ['/d', '/s', '/c', `start "" "${target}"`],
+            // cmd /s /c strips exactly the outer pair, so the runner wraps the whole script.
+            args: ['/d', '/s', '/c', `"start "" "${target}""`],
         });
     });
 
@@ -146,6 +147,24 @@ describe('launch', () => {
         expect(result.code).toBe(2);
         expect(result.kind).toBe('missing');
         expect(warnings.join('\n')).toContain('lanomat-agent install missing');
+    });
+
+    it('rejects a path-traversal slug before fetching the recipe', async () => {
+        let fetched = false;
+        const api = {
+            baseUrl: 'http://lan.local',
+            resolve: (path: string) => `http://lan.local${path}`,
+            getRecipe: async () => {
+                fetched = true;
+
+                return { slug: 'x', title: 'X' };
+            },
+        } as unknown as ApiClient;
+
+        await expect(launchRecipe({ api, slug: '..', os: 'linux' })).rejects.toThrow(
+            'path traversal is not allowed',
+        );
+        expect(fetched).toBe(false);
     });
 
     it('builds a quoted Linux path and a raw command', () => {

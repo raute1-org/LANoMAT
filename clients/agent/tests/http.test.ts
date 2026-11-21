@@ -50,4 +50,26 @@ describe('http client', () => {
         expect(redactSecret('x abcdef y', 'abcdef')).toBe('x «redacted» y');
         expect(redactSecret('x abc y', 'abc')).toBe('x abc y');
     });
+
+    it('rejects path-traversal slugs before any request is made', async () => {
+        let calls = 0;
+        const api = new ApiClient({
+            baseUrl: 'http://lan.local',
+            fetchImpl: async () => {
+                calls += 1;
+
+                return jsonResponse({});
+            },
+        });
+
+        for (const slug of ['../etc', '..', 'a/b', 'a\\b']) {
+            await expect(api.getRecipe(slug)).rejects.toThrow('Invalid recipe slug');
+        }
+
+        await expect(api.createPlan('../../etc', 'linux')).rejects.toThrow('path traversal');
+        await expect(api.getSkill('%2e%2e%2fetc')).rejects.toThrow('percent escapes');
+        await expect(api.listRecipeAvatars('../x')).rejects.toThrow('path traversal');
+        await expect(api.listAvatars({ recipe: '../x' })).rejects.toThrow('path traversal');
+        expect(calls).toBe(0);
+    });
 });

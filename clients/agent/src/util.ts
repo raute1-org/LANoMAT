@@ -56,6 +56,45 @@ export function sanitizeSlug(value: string): string {
     return cleaned;
 }
 
+const RECIPE_SLUG_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const RECIPE_SLUG_MAX_LENGTH = 64;
+
+/**
+ * Reject a user-supplied recipe slug before it reaches a URL or the filesystem. Slugs are
+ * URL-path segments: no separators, no `.`/`..`, no percent escapes and no whitespace.
+ */
+export function validateRecipeSlug(value: string): string {
+    const fail = (reason: string): never => {
+        throw new Error(`Invalid recipe slug "${value}": ${reason}`);
+    };
+
+    if (typeof value !== 'string' || value.length === 0) {
+        return fail('the slug is empty');
+    }
+
+    if (value !== value.trim() || /\s/.test(value)) {
+        return fail('whitespace is not allowed');
+    }
+
+    if (value.length > RECIPE_SLUG_MAX_LENGTH) {
+        return fail(`use at most ${RECIPE_SLUG_MAX_LENGTH} characters`);
+    }
+
+    if (value === '.' || value === '..' || value.includes('/') || value.includes('\\')) {
+        return fail('path traversal is not allowed');
+    }
+
+    if (value.includes('%') || value.includes('\0')) {
+        return fail('percent escapes and control characters are not allowed');
+    }
+
+    if (!RECIPE_SLUG_PATTERN.test(value)) {
+        return fail('use letters, digits, ".", "_" and "-", starting with a letter or digit');
+    }
+
+    return value;
+}
+
 export function formatBytes(bytes: number | undefined): string {
     if (bytes === undefined || Number.isNaN(bytes)) {
         return 'unknown size';
