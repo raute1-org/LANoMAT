@@ -31,9 +31,12 @@ class FakeServerQuery implements ServerQuery
         return $this;
     }
 
-    public static function serverInfo(string $name = 'LANoMAT TTT', string $map = 'gm_construct', string $game = 'Trouble in Terrorist Town', int $players = 0, int $max = 16): ServerInfo
+    /**
+     * @param  list<array{name: string, score: int|null, seconds: int|null}>  $playerList
+     */
+    public static function serverInfo(string $name = 'LANoMAT TTT', string $map = 'gm_construct', string $game = 'Trouble in Terrorist Town', int $players = 0, int $max = 16, array $playerList = []): ServerInfo
     {
-        return new ServerInfo($name, $map, 'garrysmod', $game, $players, $max);
+        return new ServerInfo($name, $map, 'garrysmod', $game, $players, $max, playerList: $playerList);
     }
 
     public function info(string $host, int $port): ?ServerInfo

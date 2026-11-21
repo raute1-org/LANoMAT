@@ -4,6 +4,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
+import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -206,6 +207,11 @@ async function copyHint(serverId: number, text: string) {
                                 </dd>
                             </div>
                         </dl>
+
+                        <PlayerListDisclosure
+                            :query="server.query ?? null"
+                            :labels="labels"
+                        />
 
                         <p
                             v-if="server.status === 'not_responding'"

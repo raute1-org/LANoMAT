@@ -33,7 +33,7 @@ class PermanentServerPageController extends Controller
         // `canManage` is decided here, per server, by the same policy the Actions enforce.
         // The admin props (map list, current map) exist only for those who may manage.
         $servers = ServerListProjection::permanentLinks()->map(function (ServerLink $link) use ($viewer, &$manageable): array {
-            $dto = ServerListProjection::permanentDto($link);
+            $dto = ServerListProjection::permanentDto($link, withPlayerList: $viewer instanceof User);
             $canManage = $viewer instanceof User && $link->hasPelicanLink() && $viewer->can('configure', $link);
 
             if (! $canManage) {

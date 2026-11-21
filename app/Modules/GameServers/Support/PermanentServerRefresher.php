@@ -7,6 +7,7 @@ namespace App\Modules\GameServers\Support;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\ServerQuery;
+use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Domain\PelicanServer;
 use App\Modules\GameServers\Domain\ServerInfo;
 use App\Modules\GameServers\Enums\QueryProtocol;
@@ -25,7 +26,7 @@ use Throwable;
  *
  * 1. Is it switched on? Pelican: the panel's runtime state; Docker: the
  *    container state; external: unknowable (null).
- * 2. Does it answer its query (A2S or Minecraft ping)? A single missed answer
+ * 2. Does it answer its query (A2S, Minecraft ping or UT2004)? A single missed answer
  *    never flips a server that answered within the last three minutes.
  *
  * It never throws for an unreachable panel, host or server: not knowing is
@@ -40,6 +41,7 @@ class PermanentServerRefresher
         private readonly PelicanClient $client,
         private readonly ServerQuery $a2s,
         private readonly MinecraftQuery $minecraft,
+        private readonly Ut2004Query $ut2004,
         private readonly DockerServerControl $docker,
     ) {}
 
@@ -127,6 +129,7 @@ class PermanentServerRefresher
         return match ($link->query_protocol) {
             QueryProtocol::A2s => $this->a2s->info($address, $port),
             QueryProtocol::Minecraft => $this->minecraft->info($address, $port),
+            QueryProtocol::Ut2004 => $this->ut2004->info($address, $port),
             null => null,
         };
     }

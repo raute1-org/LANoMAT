@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
+import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -195,6 +196,11 @@ const hasServers = computed(() => props.servers.length > 0);
                                     </dd>
                                 </div>
                             </dl>
+
+                            <PlayerListDisclosure
+                                :query="server.query ?? null"
+                                :labels="labels"
+                            />
 
                             <p
                                 v-if="server.status === 'offline'"

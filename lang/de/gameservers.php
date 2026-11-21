@@ -210,6 +210,12 @@ return [
         'title' => 'Spielserver',
         'empty' => 'Noch keine Spielserver bereit. Sie erscheinen hier, sobald ein Match startet oder die Orga einen Server startet.',
         'players_label' => 'Spieler',
+        'who_online' => 'Wer ist drauf',
+        'who_empty' => 'Niemand drauf.',
+        'who_unknown' => 'Der Server nennt keine Namen.',
+        'who_hint' => 'In-Game-Spitznamen, keine LANoMAT-Konten.',
+        'who_score' => 'Punkte',
+        'who_time' => 'Zeit',
         'map_label' => 'Karte',
         'server_name_label' => 'Servername',
         'checked_ago' => 'Stand :time',
@@ -285,6 +291,7 @@ return [
         'protocol' => [
             'a2s' => 'Source-Abfrage (A2S)',
             'minecraft' => 'Minecraft (Server List Ping)',
+            'ut2004' => 'Unreal Tournament 2004',
         ],
         'resource' => [
             'label' => 'Dauerserver',

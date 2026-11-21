@@ -11,6 +11,8 @@ enum QueryProtocol: string
     case A2s = 'a2s';
     /** Minecraft Java Edition Server List Ping over TCP. */
     case Minecraft = 'minecraft';
+    /** Unreal Tournament 2004 query over UDP (game port + 1). */
+    case Ut2004 = 'ut2004';
 
     public function label(): string
     {

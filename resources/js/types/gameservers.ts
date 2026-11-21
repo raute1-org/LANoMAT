@@ -36,6 +36,15 @@ export interface GameServerQueryDto {
     players: number;
     maxPlayers: number;
     checkedAt: string | null;
+    /** In-game nicknames, only sent to logged-in viewers of the server pages. */
+    playerList?: GameServerPlayerDto[];
+}
+
+/** One entry of the "who is on the server" list (a game nickname, not a LANoMAT account). */
+export interface GameServerPlayerDto {
+    name: string;
+    score: number | null;
+    seconds: number | null;
 }
 
 /** One way to join a server (e.g. via Steam or a native install), built server-side. */
