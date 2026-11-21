@@ -167,7 +167,7 @@ const PUBLIC_ROUTES = [
  * they only ever act on the authenticated user's own data.
  */
 const SELF_SERVICE_ROUTES = [
-    'GET checkin/{token}', 'POST checkin/{token}', 'GET dashboard', 'GET events',
+    'GET checkin/{token}', 'POST checkin/{token}', 'GET chat', 'GET dashboard', 'GET events',
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/all', 'GET servers/permanent',
     'GET voice/setup', 'GET app', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'GET mcp/connect', 'POST mcp/connect', 'GET games', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',

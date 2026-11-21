@@ -56,7 +56,7 @@ final class HomeChatData
 
     /** @var list<string> */
     private const SUGGESTIONS = [
-        'Was gibt es zu spielen?',
+        'Welche Spiele laufen?',
         'Welche Server laufen?',
     ];
 
@@ -156,12 +156,33 @@ final class HomeChatData
             return [];
         }
 
-        $recipes = GameRecipe::query()
+        // A live game must survive the card cap even when its title is far
+        // down the alphabet: "Welche Spiele laufen?" cannot silently omit a
+        // running server. Live recipes come first, then the catalogue fills
+        // the remaining cards.
+        $liveSlugs = $links
+            ->map(fn (ServerLink $link): ?string => $link->game?->slug)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $live = GameRecipe::query()
             ->published()
+            ->whereIn('slug', $liveSlugs)
+            ->with('files')
+            ->orderBy('title')
+            ->get();
+
+        $catalog = GameRecipe::query()
+            ->published()
+            ->when($liveSlugs !== [], fn ($query) => $query->whereNotIn('slug', $liveSlugs))
             ->with('files')
             ->orderBy('title')
             ->limit(self::MAX_GAMES)
             ->get();
+
+        $recipes = $live->concat($catalog)->take(self::MAX_GAMES);
 
         if ($recipes->isEmpty()) {
             return [];

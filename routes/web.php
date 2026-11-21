@@ -8,6 +8,7 @@ use App\Modules\Discord\Http\GatewayIngressController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Discord\Http\VoicePresenceController;
 use App\Modules\Events\Http\EventPageController;
+use App\Modules\Events\Http\HomeChatController;
 use App\Modules\Files\Http\FilePageController;
 use App\Modules\Files\Http\TusHookController;
 use App\Modules\Files\Http\UploadTicketController;
@@ -109,6 +110,12 @@ Route::middleware(['auth'])->group(function () {
         ->where('hash', AvatarStore::HASH_PATTERN)
         ->middleware('throttle:avatars')
         ->name('avatars.show');
+
+    // The always-visible chat dock fetches this on first open instead of
+    // carrying the chat queries on every page.
+    Route::get('/chat', HomeChatController::class)
+        ->middleware('throttle:60,1')
+        ->name('chat.data');
 
     // Nobody who is not logged in may see ANY event data: the event list, the
     // event page and every event-scoped participant page require login. Guests

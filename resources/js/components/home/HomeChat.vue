@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 
 import type { HomeChatData, HomeChatServer } from '@/types';
 
-type Cards = 'games' | 'servers' | 'both';
+type Cards = 'games' | 'live' | 'servers' | 'both';
 
 interface ChatMessage {
     id: number;
@@ -41,13 +41,17 @@ const props = withDefaults(
         chat: HomeChatData;
         /** Guests see the public catalogue only; never event/member data. */
         guest?: boolean;
+        /** Compact dock variant: no hero header, no autoplay, fills its panel. */
+        compact?: boolean;
+        /** Hide the action row when the page already shows the same buttons. */
+        showActions?: boolean;
     }>(),
-    { guest: false },
+    { guest: false, compact: false, showActions: true },
 );
 
 // The autoplay types the very questions the chips offer, so the demo always
 // matches the opaque buttons below it (and stays German — the UI is German).
-const GAME_QUERY = props.chat.suggestions[0] ?? 'Was gibt es zu spielen?';
+const GAME_QUERY = props.chat.suggestions[0] ?? 'Welche Spiele laufen?';
 const SERVER_QUERY = props.chat.suggestions[1] ?? 'Welche Server laufen?';
 
 const messages = ref<ChatMessage[]>([
@@ -59,6 +63,14 @@ const draft = ref('');
 const demoTyping = ref<string | null>(null);
 const demoDone = ref(false);
 const transcript = ref<HTMLElement | null>(null);
+
+// The agent feedback the user actually sees between asking and reading:
+// "denkt …" for the (very short) match, then a streamed answer with a caret.
+// It is intentionally fast — the logic is local, the theatre only softens the
+// jump from question to cards.
+const agentState = ref<'idle' | 'thinking' | 'writing'>('idle');
+const streamingId = ref<number | null>(null);
+let answerToken = 0;
 
 /**
  * Keep the newest message in view inside the capped transcript (the panel has a
@@ -76,11 +88,19 @@ async function scrollToLatest(): Promise<void> {
         return;
     }
 
-    // Anchor on the newest question when there is one, so the visitor sees the
-    // question and the start of its answer — not a card cut off mid-row.
+    // Once the answer has cards, anchor the answer (text + cards), not the
+    // question: the card is the thing the visitor asked for. Short text-only
+    // answers keep the question in view.
+    const answers = element.querySelectorAll<HTMLElement>(
+        '[data-role="assistant"]',
+    );
+    const lastAnswer = answers[answers.length - 1];
     const questions =
         element.querySelectorAll<HTMLElement>('[data-role="user"]');
     const anchor =
+        (lastAnswer?.querySelector('[data-test^="home-chat-answer-"]')
+            ? lastAnswer
+            : null) ??
         questions[questions.length - 1] ??
         (element.lastElementChild as HTMLElement | null);
 
@@ -113,6 +133,19 @@ const runningLabel = computed(() =>
         ? '1 Server läuft'
         : `${runningCount.value} Server laufen`,
 );
+
+/**
+ * "Welche Spiele laufen?" answers with the games that actually have a
+ * running server right now — the catalogue below them is a different
+ * question. A game without a server is not "live", even if it is published.
+ */
+const liveGames = computed(() =>
+    props.chat.games.filter((game) => (game.server_count ?? 0) > 0),
+);
+
+function displayGames(cards: Cards): HomeChatData['games'] {
+    return cards === 'live' ? liveGames.value : props.chat.games;
+}
 
 const serverVariants: Record<string, 'live' | 'ok' | 'warn' | 'down'> = {
     ready: 'ok',
@@ -149,23 +182,104 @@ function clearTimers(): void {
     timers.length = 0;
 }
 
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => later(ms, resolve));
+}
+
+/** "Denkt …", then streams the local answer — no request, no spinner dead air. */
+async function respond(text: string): Promise<void> {
+    const token = ++answerToken;
+    const answer = answerFor(text);
+
+    agentState.value = 'thinking';
+
+    await delay(prefersReducedMotion() ? 140 : 320);
+
+    if (token !== answerToken) {
+        return;
+    }
+
+    messages.value.push({
+        id: nextMessageId++,
+        role: 'assistant',
+        text: '',
+    });
+
+    const message = messages.value[messages.value.length - 1];
+
+    if (!message) {
+        agentState.value = 'idle';
+
+        return;
+    }
+
+    streamingId.value = message.id;
+    agentState.value = 'writing';
+
+    if (prefersReducedMotion()) {
+        message.text = answer.text;
+    } else {
+        const chars = Array.from(answer.text);
+
+        for (let index = 3; index <= chars.length; index += 3) {
+            await delay(13);
+
+            if (token !== answerToken) {
+                return;
+            }
+
+            message.text = chars.slice(0, index).join('');
+        }
+
+        message.text = answer.text;
+    }
+
+    if (token !== answerToken) {
+        return;
+    }
+
+    message.cards = answer.cards;
+    streamingId.value = null;
+    agentState.value = 'idle';
+    void scrollToLatest();
+}
+
 /** The demo's final state: the typed question plus both answer sets. */
 function finishDemo(): void {
     demoRunning = false;
     clearTimers();
     demoTyping.value = null;
+    agentState.value = 'idle';
+    streamingId.value = null;
 
     if (demoDone.value) {
         return;
     }
 
     demoDone.value = true;
+
+    const live = liveGames.value;
+
+    pushMessage({ role: 'user', text: GAME_QUERY });
+    pushMessage({
+        role: 'assistant',
+        text:
+            live.length > 0
+                ? 'Diese Spiele laufen gerade:'
+                : 'Gerade läuft kein Spiel. Diese Spiele gibt es auf der LAN:',
+        cards: live.length > 0 ? 'live' : 'games',
+    });
     pushMessage({ role: 'user', text: SERVER_QUERY });
     pushMessage({
         role: 'assistant',
-        text: 'Spiele und Server — hier ist beides:',
-        cards: 'both',
+        text:
+            props.chat.servers.length > 0
+                ? 'Diese Server laufen gerade:'
+                : 'Gerade läuft kein Server.',
+        cards: 'servers',
     });
+
+    void scrollToLatest();
 }
 
 /** Stop the autoplay because the visitor is interacting. */
@@ -246,17 +360,21 @@ function normalize(value: string): string {
         .replace(/[\u0300-\u036f]/g, '');
 }
 
-type Intent = 'games' | 'servers' | 'help';
+type Intent = 'games' | 'live' | 'servers' | 'help';
 
 function intents(text: string): Intent[] {
     const value = normalize(text);
     const found: Intent[] = [];
 
     if (/(spiel|game|zock|install|download)/.test(value)) {
-        found.push('games');
+        // "Welche Spiele laufen?" is a live question; "Was gibt es zu
+        // spielen?" is the catalogue.
+        found.push(
+            /(lauf|live|gerade|jetzt|online)/.test(value) ? 'live' : 'games',
+        );
     }
 
-    if (/(server|lauf|running|online|beitret|join)/.test(value)) {
+    if (/(server|running|beitret|join)/.test(value)) {
         found.push('servers');
     }
 
@@ -295,6 +413,23 @@ function answerFor(text: string): Omit<ChatMessage, 'id'> {
         };
     }
 
+    if (found[0] === 'live') {
+        const live = liveGames.value;
+
+        return {
+            role: 'assistant',
+            text:
+                live.length > 0
+                    ? 'Diese Spiele laufen gerade:'
+                    : props.chat.games.length > 0
+                      ? 'Gerade läuft kein Spiel. Diese Spiele gibt es auf der LAN:'
+                      : props.guest
+                        ? 'Gerade läuft kein Spiel. Melde dich an, dann siehst du die Spiele-Bibliothek.'
+                        : 'Gerade läuft kein Spiel und es sind keine Spiele freigegeben.',
+            cards: live.length > 0 ? 'live' : 'games',
+        };
+    }
+
     if (found[0] === 'games') {
         return {
             role: 'assistant',
@@ -325,7 +460,7 @@ function answerFor(text: string): Omit<ChatMessage, 'id'> {
 function send(text: string): void {
     const value = text.trim();
 
-    if (value === '') {
+    if (value === '' || agentState.value !== 'idle') {
         return;
     }
 
@@ -333,7 +468,7 @@ function send(text: string): void {
     demoDone.value = true;
     pushMessage({ role: 'user', text: value });
     draft.value = '';
-    pushMessage(answerFor(value));
+    void respond(value);
 }
 
 function serversHref(server: HomeChatServer): string {
@@ -353,6 +488,10 @@ function serverLabel(status: string): string {
 }
 
 onMounted(() => {
+    if (props.compact) {
+        return;
+    }
+
     if (prefersReducedMotion()) {
         finishDemo();
 
@@ -362,16 +501,26 @@ onMounted(() => {
     startDemo();
 });
 
-onBeforeUnmount(cancelDemo);
+onBeforeUnmount(() => {
+    answerToken++;
+    cancelDemo();
+});
 </script>
 
 <template>
     <section
         class="overflow-hidden rounded-lg border border-border bg-card"
+        :class="
+            compact
+                ? 'flex h-full min-h-0 flex-col rounded-none border-0 bg-transparent'
+                : ''
+        "
         data-test="home-chat"
-        aria-labelledby="home-chat-title"
+        :aria-labelledby="compact ? undefined : 'home-chat-title'"
+        :aria-label="compact ? 'LANoMAT Chat' : undefined"
     >
         <div
+            v-if="!compact"
             class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 sm:px-6"
         >
             <h2
@@ -387,13 +536,38 @@ onBeforeUnmount(cancelDemo);
             />
         </div>
 
-        <div class="px-5 py-6 sm:px-8 sm:py-8">
+        <div
+            :class="
+                compact
+                    ? 'flex min-h-0 flex-1 flex-col px-3 py-3'
+                    : 'px-5 py-6 sm:px-8 sm:py-8'
+            "
+        >
+            <!-- The three things a fresh player actually needs, without a detour
+                 through the sidebar. -->
+            <div
+                v-if="!guest && showActions"
+                class="mb-4 flex flex-wrap gap-2"
+                data-test="home-chat-actions"
+            >
+                <Button as-child size="sm">
+                    <Link href="/games">Spiele installieren</Link>
+                </Button>
+                <Button as-child variant="outline" size="sm">
+                    <Link href="/servers">Server ansehen</Link>
+                </Button>
+                <Button as-child variant="outline" size="sm">
+                    <Link href="/launcher">Launcher herunterladen</Link>
+                </Button>
+            </div>
+
             <!-- The transcript scrolls inside a capped box, so the chips and the
                  input never get pushed below the fold (docs/design.md
                  "Start-page chat"). role=log announces appended answers once. -->
             <ol
                 ref="transcript"
                 class="max-h-[7rem] space-y-5 overflow-y-auto pr-1 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-h-[min(52svh,24rem)]"
+                :class="compact ? 'min-h-0 flex-1 sm:max-h-none' : ''"
                 role="log"
                 aria-live="polite"
                 aria-label="Chat-Verlauf"
@@ -409,11 +583,18 @@ onBeforeUnmount(cancelDemo);
                             class="max-w-2xl text-foreground"
                             :class="
                                 index === 0
-                                    ? 'text-2xl font-semibold tracking-tight sm:text-3xl'
+                                    ? compact
+                                        ? 'text-lg font-semibold tracking-tight'
+                                        : 'text-2xl font-semibold tracking-tight sm:text-3xl'
                                     : 'text-base font-medium'
                             "
                         >
-                            {{ message.text }}
+                            {{ message.text
+                            }}<span
+                                v-if="streamingId === message.id"
+                                aria-hidden="true"
+                                class="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle motion-reduce:animate-none"
+                            />
                         </p>
 
                         <div
@@ -424,6 +605,7 @@ onBeforeUnmount(cancelDemo);
                             <div
                                 v-if="
                                     message.cards === 'games' ||
+                                    message.cards === 'live' ||
                                     message.cards === 'both'
                                 "
                                 data-test="home-chat-games"
@@ -431,15 +613,23 @@ onBeforeUnmount(cancelDemo);
                                 <h3
                                     class="font-mono text-xs tracking-widest text-muted-foreground uppercase"
                                 >
-                                    Spiele
+                                    {{
+                                        message.cards === 'live'
+                                            ? 'Live'
+                                            : 'Spiele'
+                                    }}
                                 </h3>
 
                                 <ul
-                                    v-if="chat.games.length > 0"
+                                    v-if="
+                                        displayGames(message.cards).length > 0
+                                    "
                                     class="mt-2 grid gap-3 sm:grid-cols-2"
                                 >
                                     <li
-                                        v-for="game in chat.games"
+                                        v-for="game in displayGames(
+                                            message.cards,
+                                        )"
                                         :key="game.slug"
                                         class="flex flex-col justify-between rounded-md border border-border bg-background p-4"
                                     >
@@ -663,6 +853,33 @@ onBeforeUnmount(cancelDemo);
                 </li>
             </ol>
 
+            <!-- Agent feedback between question and answer. Polite, but the
+                 streamed text itself is not re-announced per chunk. -->
+            <div
+                v-if="agentState !== 'idle'"
+                class="mt-4 flex items-center gap-2 text-sm text-muted-foreground"
+                role="status"
+                aria-live="polite"
+                data-test="home-chat-agent-state"
+            >
+                <span class="flex items-center gap-1" aria-hidden="true">
+                    <span
+                        class="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s] motion-reduce:animate-none"
+                    />
+                    <span
+                        class="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.15s] motion-reduce:animate-none"
+                    />
+                    <span
+                        class="size-1.5 animate-bounce rounded-full bg-primary motion-reduce:animate-none"
+                    />
+                </span>
+                {{
+                    agentState === 'thinking'
+                        ? 'LANoMAT denkt …'
+                        : 'LANoMAT schreibt …'
+                }}
+            </div>
+
             <!-- Autoplay typing: visual only, never announced character by character. -->
             <p
                 v-if="demoTyping !== null"
@@ -687,7 +904,8 @@ onBeforeUnmount(cancelDemo);
                     v-for="suggestion in chat.suggestions"
                     :key="suggestion"
                     type="button"
-                    class="group flex min-h-24 items-center justify-between gap-4 rounded-md border border-border bg-background px-5 py-4 text-left text-lg font-semibold tracking-tight text-foreground transition-colors outline-none hover:border-primary hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring sm:text-xl"
+                    class="group flex min-h-24 items-center justify-between gap-4 rounded-md border border-border bg-background px-5 py-4 text-left text-lg font-semibold tracking-tight text-foreground transition-colors outline-none hover:border-primary hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 sm:text-xl"
+                    :disabled="agentState !== 'idle'"
                     @click="send(suggestion)"
                 >
                     <span>{{ suggestion }}</span>
@@ -698,7 +916,11 @@ onBeforeUnmount(cancelDemo);
                 </button>
             </div>
 
-            <form class="mt-4 flex gap-2" @submit.prevent="send(draft)">
+            <form
+                class="mt-4 flex gap-2"
+                :aria-busy="agentState !== 'idle'"
+                @submit.prevent="send(draft)"
+            >
                 <label class="sr-only" for="home-chat-input"
                     >Frage an LANoMAT</label
                 >
@@ -711,8 +933,12 @@ onBeforeUnmount(cancelDemo);
                     class="h-11 min-w-0 flex-1 rounded-md border border-input bg-background px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     @focus="skipDemo"
                 />
-                <Button type="submit" size="lg" :disabled="!draft.trim()">
-                    Senden
+                <Button
+                    type="submit"
+                    size="lg"
+                    :disabled="!draft.trim() || agentState !== 'idle'"
+                >
+                    Fragen
                 </Button>
             </form>
         </div>

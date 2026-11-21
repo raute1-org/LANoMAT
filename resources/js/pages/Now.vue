@@ -173,8 +173,32 @@ const dateRange = computed(() => {
                 </div>
             </div>
 
-            <!-- The start-page chat: the same front door as the guest landing. -->
-            <HomeChat :chat="chat" />
+            <!-- The three shortcuts, visible without opening the chat. -->
+            <div class="flex flex-wrap gap-2" data-test="now-actions">
+                <Button v-if="has('game_recipes')" as-child size="lg">
+                    <Link href="/games">Spiele installieren</Link>
+                </Button>
+                <Button
+                    v-if="has('game_servers')"
+                    as-child
+                    variant="outline"
+                    size="lg"
+                >
+                    <Link href="/servers">Server ansehen</Link>
+                </Button>
+                <Button
+                    v-if="has('game_recipes')"
+                    as-child
+                    variant="outline"
+                    size="lg"
+                >
+                    <Link href="/launcher">Launcher herunterladen</Link>
+                </Button>
+            </div>
+
+            <!-- The start-page chat: the same front door as the guest landing.
+                 The action row already sits above it on this page. -->
+            <HomeChat :chat="chat" :show-actions="false" />
 
             <!-- Live -->
             <template v-if="state === 'live' && event">

@@ -84,7 +84,7 @@ it('greets guests with a public chat hero and no event or draft data', function 
     $props = $response->viewData('page')['props'];
 
     expect($props['chat']['greeting'])->toContain('Willkommen')
-        ->and($props['chat']['suggestions'])->toBe(['Was gibt es zu spielen?', 'Welche Server laufen?'])
+        ->and($props['chat']['suggestions'])->toBe(['Welche Spiele laufen?', 'Welche Server laufen?'])
         ->and($response->getContent())->not->toContain('Zebrakuchen')
         ->and($response->getContent())->not->toContain('Secret Draft');
 });
@@ -178,6 +178,51 @@ it('renders the chat with empty answer sets when both optional modules are off',
 
     $props = $response->viewData('page')['props'];
     expect($props['chat']['greeting'])->not->toBe('');
+});
+
+it('serves the dock chat data as json for signed-in users', function () {
+    $event = Event::factory()->live()->create();
+    $game = homeChatGame();
+    homeChatRecipe('unreal-tournament-2004', 'Unreal Tournament 2004');
+    ServerLink::factory()->create([
+        'event_id' => $event->id,
+        'game_id' => $game->id,
+        'status' => ServerLinkStatus::Ready,
+    ]);
+
+    $this->get('/chat')->assertRedirect(route('login'));
+
+    $this->actingAs(User::factory()->create())
+        ->getJson('/chat')
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'no-store, private')
+        ->assertJsonPath('suggestions.0', 'Welche Spiele laufen?')
+        ->assertJsonPath('games.0.slug', 'unreal-tournament-2004')
+        ->assertJsonCount(1, 'games')
+        ->assertJsonCount(1, 'servers');
+});
+
+it('keeps a live game in the cards even when its title is last alphabetically', function () {
+    $event = Event::factory()->live()->create();
+
+    foreach (['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff'] as $slug) {
+        homeChatRecipe($slug, strtoupper($slug));
+    }
+
+    $live = Game::factory()->create(['slug' => 'zzz', 'name' => 'Zzz']);
+    homeChatRecipe('zzz', 'Zzz');
+    ServerLink::factory()->create([
+        'event_id' => $event->id,
+        'game_id' => $live->id,
+        'status' => ServerLinkStatus::Ready,
+    ]);
+
+    $response = $this->actingAs(User::factory()->create())->get('/')->assertOk();
+
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('chat.games', 6)
+        ->where('chat.games.0.slug', 'zzz')
+        ->where('chat.games.0.server_count', 1));
 });
 
 it('caps the chat at six games and eight servers', function () {

@@ -262,41 +262,33 @@ The chat never takes focus on load; `Tab` reaches it.
 
 | Part | Rule |
 |---|---|
-| Header row | the node-L mark + wordmark `LANoMAT`, one `LiveIndicator` for the chat's reachability (`ok` "verbunden", `warn` "nur Lesen", `down` "offline") and one quiet ghost link to the Handbuch. No second navigation. |
-| Transcript | one `role="log"`/`aria-live="polite"` region, `max-h-[60svh]`, scrolls internally only; assistant prose is plain and left-aligned (`text-sm`, no bubble), the visitor's own lines sit right in a `bg-muted` bubble. Streaming appends to the same paragraph (`aria-busy` while running) and is announced once when it settles, never per character. |
-| Greeting | instant, not animated, no skeleton: what LANoMAT is, what is playable on this LAN right now, and the three tiles named in one sentence. It is deterministic copy (from `lang/de`), not model output, so the front door is never empty when the model is unavailable. |
-| Suggestions | up to three question buttons above the input ("Was kann ich hier tun?", "Installier mir UT2004.", "Wer ist auf dem Server?"); they fill the input and send on the second press, they do not send on the first. |
-| Input | one real `<form>`: Enter sends, Shift+Enter is a newline, send is a `Button` with an accessible name ("Fragen"). The input stays enabled while an answer streams and during every error state. |
-| Cards | rendered inline in the transcript from tool/API data only — never invented, never a screenshot. See below. |
-| Offline | calm banner inside the chat: "Der Chat ist offline. Spiele und Server funktionieren weiter." The tiles stay live; the input stays usable and the deterministic fallback still answers from the catalogue. |
+| Header row | the wordmark `LANoMAT // Start` and one `LiveIndicator` for running servers. No second navigation. |
+| Transcript | one `role="log"`/`aria-live="polite"` region, `max-h-[7rem]` on phones and `min(52svh,24rem)` from `sm`, scrolls internally only; assistant prose is plain and left-aligned, the visitor's own lines sit right in a `bg-muted` bubble. The streamed text keeps `aria-hidden` carets and is announced once when it settles, never per chunk. |
+| Greeting | instant, not animated, no skeleton: what LANoMAT is and what is playable on this LAN right now. It is deterministic copy from `HomeChatData`, not model output, so the front door is never empty. |
+| Agent feedback | a polite `role="status"` line between transcript and chips: `LANoMAT denkt …` (three bouncing dots) for ~320 ms, then `LANoMAT schreibt …` while the answer streams in 3-character chunks (~13 ms each). Input/chips are disabled while an answer is in flight; the input stays focused. `prefers-reduced-motion` shortens the think to ~140 ms and writes the answer at once. |
+| Suggestions | two question buttons above the input: **Welche Spiele laufen?** (live games only) and **Welche Server laufen?**. They send on the first press. A typed catalogue question ("Was gibt es zu spielen?") still answers with the full library. |
+| Input | one real `<form>`: Enter sends, send is a `Button` named "Fragen". The input stays enabled while an answer streams; sending is disabled until it settles. |
+| Cards | rendered inline in the transcript from the same read models as `/games` and `/servers` — never invented, never a screenshot. A live answer only shows games with `server_count > 0`; with nothing running it falls back to the full catalogue ("Gerade läuft kein Spiel. Diese Spiele gibt es auf der LAN:"). |
+| Quick actions | three plain buttons above the transcript: **Spiele installieren** (`/games`), **Server ansehen** (`/servers`), **Launcher herunterladen** (`/launcher`). The same row is on the Jetzt page and in the dock. |
+| Dock | the same chat on every participant page: a fixed bottom-right `Chat` button opens a `24rem` panel, fetches `GET /chat` once on first open (JSON, `no-store`), and keeps the conversation while navigating. Compact layout: no hero header, no autoplay, actions + transcript + chips + input. |
 
 The chat is the third door to the same data, not a second store: every card is the same read model
 as the page it links to (`/games/<slug>`, `/servers`, the launcher's install record). A card is
 only rendered when its data exists; the answer text alone is the fallback.
 
-### Typewriter and backspace (the suggestion line)
+### Autoplay demo (the first visit)
 
-While the input is **empty and unfocused**, its placeholder cycles through the three suggestions
-as a typewriter. The rules are deliberately boring — this is the only ambient motion on the page:
+The hero types the first suggestion once, pauses, backspaces and types the second, then renders
+both answer sets. It is the only ambient motion on the page:
 
-- **Type** at about 35 characters per second (one character every ~28 ms), including the trailing
-  punctuation; no per-character random jitter.
-- **Hold** the finished phrase for 2.4 s so it can be read.
-- **Delete** at about 70 characters per second (~14 ms per character) — visibly faster than typing,
-  which reads as "backspace", not as a second animation.
-- **Pause** empty for 0.4 s, then type the next phrase. No fade, no slide, no bounce.
-- **Stop permanently** on the first of: focus into the input, the first keystroke, a sent message,
-  `visibilitychange` to hidden (a background tab does not burn frames) — and after one full cycle
-  through the three phrases the first one is left standing. Motion that never ends is noise.
-- **Layout stability:** the line owns a fixed single-line height (`min-h-11`) and truncates; the
-  typed text never wraps and never pushes the tiles. The caret is a 1 px `--primary` bar that
-  blinks at ~1.1 s only while characters are being typed or deleted.
-- **Screen readers:** the cycling text is `aria-hidden="true"`; the input keeps one stable
-  placeholder/label (the first phrase), so nothing re-announces per keystroke. The typed string is
-  decoration, not content.
-- **`prefers-reduced-motion: reduce`:** no typing, no deleting, no caret blink — the first
-  suggestion appears instantly and stays. The same switch removes card entry fades and the
-  streaming caret; text still streams, it just does not animate.
+- **Type** at about 42 characters per second (24 ms), **erase** at 90 (11 ms), hold 260 ms
+  between the two questions. No random jitter, no fade, no bounce.
+- **Stop permanently** on the first of: focus into the input, a chip click, a sent message, or a
+  full cycle. The typed text is `aria-hidden`; the transcript only announces the settled answers.
+- **Layout stability:** the typed line owns its own row and never pushes the chips/input out of
+  view; the transcript above it is capped.
+- **`prefers-reduced-motion: reduce`:** no typing, no erasing — the finished demo state appears
+  immediately. The same switch removes the streaming caret and the thinking dots' bounce.
 
 ### Inline cards
 
