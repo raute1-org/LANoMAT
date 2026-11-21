@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import JoinOptions from '@/components/servers/JoinOptions.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -219,8 +220,19 @@ async function copyHint(serverId: number, text: string) {
                             {{ labels.starting_hint }}
                         </p>
 
+                        <JoinOptions
+                            v-if="server.joinOptions?.length && server.address"
+                            :options="server.joinOptions"
+                            :address="
+                                server.port
+                                    ? `${server.address}:${server.port}`
+                                    : server.address
+                            "
+                            :labels="labels"
+                            handler-help
+                        />
                         <div
-                            v-if="server.connectString"
+                            v-else-if="server.connectString"
                             class="flex flex-wrap items-center gap-2"
                         >
                             <Button

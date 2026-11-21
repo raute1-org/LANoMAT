@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import JoinOptions from '@/components/servers/JoinOptions.vue';
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -218,8 +219,18 @@ const hasServers = computed(() => props.servers.length > 0);
                                 v-if="joinAddress(server)"
                                 class="flex flex-wrap items-center gap-2"
                             >
+                                <JoinOptions
+                                    v-if="server.joinOptions?.length"
+                                    :options="server.joinOptions"
+                                    :address="joinAddress(server) ?? ''"
+                                    :labels="labels"
+                                    handler-help
+                                />
                                 <Button
-                                    v-if="server.connectIsLink"
+                                    v-if="
+                                        !server.joinOptions?.length &&
+                                        server.connectIsLink
+                                    "
                                     as-child
                                     size="sm"
                                 >
@@ -228,6 +239,7 @@ const hasServers = computed(() => props.servers.length > 0);
                                     }}</a>
                                 </Button>
                                 <Button
+                                    v-if="!server.joinOptions?.length"
                                     type="button"
                                     size="sm"
                                     variant="outline"

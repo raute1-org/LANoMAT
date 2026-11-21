@@ -2,6 +2,7 @@
 import { Check, Copy } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
+import JoinOptions from '@/components/servers/JoinOptions.vue';
 import { Button } from '@/components/ui/button';
 import type { MatchServerDto, SpectateHintDto } from '@/types';
 
@@ -105,7 +106,24 @@ async function copyAddress() {
             :pulse="variant === 'warn'"
         />
 
-        <template v-if="server.status === 'ready' && addressPort">
+        <div
+            v-if="
+                server.status === 'ready' &&
+                addressPort &&
+                labels.join &&
+                server.joinOptions?.length
+            "
+            class="w-full"
+        >
+            <JoinOptions
+                :options="server.joinOptions"
+                :address="addressPort"
+                :labels="labels"
+                handler-help
+            />
+        </div>
+
+        <template v-else-if="server.status === 'ready' && addressPort">
             <span class="font-mono text-xs text-muted-foreground tabular-nums">
                 {{ addressPort }}
             </span>

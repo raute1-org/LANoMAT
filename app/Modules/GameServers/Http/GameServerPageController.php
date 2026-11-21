@@ -24,7 +24,7 @@ class GameServerPageController extends Controller
         return Inertia::render('Servers/Index', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
             'servers' => ServerListProjection::forEvent($event),
-            'labels' => trans('gameservers.page'),
+            'labels' => trans('gameservers.page') + trans('gameservers.join_ui'),
         ]);
     }
 }

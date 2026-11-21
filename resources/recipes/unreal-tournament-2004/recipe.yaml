@@ -207,6 +207,52 @@ steps:
             path: '{{target}}/System/ut2004-bin-amd64'
           - type: file_exists
             path: '{{target}}/System/Build.ini'
+    - id: register-link-handler
+      title: 'Register the ut2004:// link handler (optional, Windows)'
+      os: windows
+      optional: true
+      detail: |
+          Optional. Lets the LANoMAT "Beitreten" button (Nativ) open UT2004 on a
+          server through a `ut2004://address:port` link. A game folder copied by
+          hand never registers this URL handler; the retail `Setup.exe` does. The
+          step writes only to the current user (`HKCU\Software\Classes\ut2004`),
+          needs no administrator rights and can be undone by deleting that key.
+
+          Not tested against a real installation: whether UT2004 accepts the
+          `ut2004://` address as its first argument is unverified. The Steam
+          button works without this step on a Steam copy of the game.
+      commands:
+          - shell: powershell
+            run: |
+                $exe = ("{{target}}" -replace '/', '\') + '\System\UT2004.exe'
+                $k = 'HKCU:\Software\Classes\ut2004'
+                New-Item -Path "$k\shell\open\command" -Force | Out-Null
+                Set-ItemProperty -Path $k -Name '(default)' -Value 'URL:UT2004 Protocol'
+                Set-ItemProperty -Path $k -Name 'URL Protocol' -Value ''
+                Set-ItemProperty -Path "$k\shell\open\command" -Name '(default)' -Value ('"' + $exe + '" "%1"')
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/UT2004.exe'
+    - id: register-link-handler-linux
+      title: 'Register the ut2004:// link handler (optional, Linux)'
+      os: linux
+      optional: true
+      detail: |
+          Optional. Registers `ut2004://` for the current user with a desktop
+          entry and `xdg-mime`, so the LANoMAT "Beitreten" button (Nativ) can
+          start `System/ut2004-bin-amd64` with the server address. Nothing outside
+          `~/.local/share/applications` changes.
+
+          Not tested against a real installation: whether UT2004 accepts the
+          `ut2004://` address as its first argument is unverified.
+      commands:
+          - shell: bash
+            run: 'mkdir -p ~/.local/share/applications && printf "[Desktop Entry]\nType=Application\nName=UT2004 (ut2004:// handler)\nExec=\"%s/System/ut2004-bin-amd64\" %%u\nPath=%s/System\nTerminal=false\nNoDisplay=true\nMimeType=x-scheme-handler/ut2004;\n" "{{target}}" "{{target}}" > ~/.local/share/applications/ut2004-handler.desktop'
+          - shell: bash
+            run: 'xdg-mime default ut2004-handler.desktop x-scheme-handler/ut2004 && update-desktop-database ~/.local/share/applications'
+      verify:
+          - type: file_exists
+            path: '{{target}}/System/ut2004-bin-amd64'
     - id: ut2004vr
       title: 'UT2004VR (optional, SteamVR, Windows)'
       os: windows

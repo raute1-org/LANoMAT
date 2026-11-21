@@ -55,7 +55,7 @@ class PermanentServerPageController extends Controller
         return Inertia::render('Servers/Permanent', [
             'servers' => $servers,
             'adminMaps' => $manageable ? Cs2Settings::MAPS : null,
-            'labels' => trans('gameservers.permanent.page') + trans('gameservers.page'),
+            'labels' => trans('gameservers.permanent.page') + trans('gameservers.page') + trans('gameservers.join_ui'),
         ]);
     }
 }
