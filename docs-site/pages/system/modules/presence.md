@@ -24,6 +24,8 @@ feeds the participant page, the "Wo ist wer" panel in the native client and a be
 |---|---|
 | ![Presence, dark](/screens/presence-dark.png) | ![Presence, light](/screens/presence-light.png) |
 | `PRESENCE · DARK` — online, playing, free | `PRESENCE · LIGHT` |
+| ![Native client Personen tab in the dark theme, people with the room and game they are in plus a follow button](/screens/voice-app/dark-personen.png) | ![Native client Personen tab in the light theme, the same roster with follow buttons](/screens/voice-app/24-sprache-personen.png) |
+| `WO IST WER · DARK` — who shares a location, and where | `WO IST WER · LIGHT` — same roster |
 
 ## Guards and rules
 

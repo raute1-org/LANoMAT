@@ -18,6 +18,13 @@ receiver over HEOS; LANoMAT only steers the receiver and never sends audio.
 - Filament **Raumsteuerung** — power, volume, mute, source, mode, receiver state.
 - Preflight — receiver reachability (when configured).
 
+| Dark | Light |
+|---|---|
+| ![Admin Raumsteuerung in the dark theme, receiver unreachable banner, volume, mute, source, sound mode and a ceiling of 60](/screens/admin-room-control-dark.png) | ![Admin Raumsteuerung in the light theme, the same locked controls and volume ceiling](/screens/admin-room-control-light.png) |
+| `RAUMSTEUERUNG · DARK` — control locked while the receiver is unreachable | `RAUMSTEUERUNG · LIGHT` — same state |
+| ![Jukebox in the dark theme, empty queue and the calm Music Assistant outage banner](/screens/jukebox-dark.png) | ![Jukebox in the light theme, the same empty queue and outage banner](/screens/jukebox-light.png) |
+| `JUKEBOX · DARK` — the queue LANoMAT orders, Music Assistant plays | `JUKEBOX · LIGHT` — same queue |
+
 ## Guards and rules
 
 - The receiver's telnet port has no authentication. Only the `denon-admin` sidecar talks to it, and
