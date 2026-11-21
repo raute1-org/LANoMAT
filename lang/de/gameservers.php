@@ -374,4 +374,19 @@ return [
         'power_sent' => 'Befehl wurde gesendet.',
         'power_failed' => 'Der Befehl konnte nicht gesendet werden.',
     ],
+
+    'overview' => [
+        'title' => 'Server',
+        'summary' => ':players Spieler auf :online von :total Servern',
+        'filter_label' => 'Nach Spiel filtern',
+        'filter_all' => 'Alle',
+        'section_mine' => 'Dein Match',
+        'section_permanent' => 'Dauerserver',
+        'section_empty' => 'Hier läuft gerade nichts für diesen Filter.',
+        'event_empty' => 'Für diese LAN läuft noch kein Server. Er erscheint hier, sobald ein Match startet oder die Orga einen Server startet.',
+        'permanent_empty' => 'Es sind noch keine Dauerserver eingerichtet.',
+        'other_event_hint' => 'Du siehst die Server von :event.',
+        'back_to_current' => 'Zur aktuellen LAN',
+        'connect_other' => 'Anders verbinden',
+    ],
 ];

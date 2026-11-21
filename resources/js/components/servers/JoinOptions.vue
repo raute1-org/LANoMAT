@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { Check, Copy } from '@lucide/vue';
-import { computed, onUnmounted, ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 import Ut2004HandlerDialog from '@/components/servers/Ut2004HandlerDialog.vue';
 import { Button } from '@/components/ui/button';
+import {
+    choosePreferredJoinOption,
+    useJoinOption,
+} from '@/composables/useJoinOption';
 import type { JoinOptionDto } from '@/types';
 
 /**
@@ -15,47 +19,26 @@ import type { JoinOptionDto } from '@/types';
  * Rendered only when `options` is non-empty; callers keep their existing
  * connect button for servers without options.
  */
-const props = defineProps<{
-    options: JoinOptionDto[];
-    address: string;
-    /** `gameservers.join_ui` labels. */
-    labels: Record<string, string>;
-    /** Shows the ut2004:// link-handler help next to the native option. */
-    handlerHelp?: boolean;
-}>();
-
-const STORAGE_KEY = 'lanomat.join-option';
-const ALLOWED = /^(steam|ut2004|https?):\/\//;
-
-const safeOptions = computed(() =>
-    props.options.filter((option) => ALLOWED.test(option.url)),
+const props = withDefaults(
+    defineProps<{
+        options: JoinOptionDto[];
+        address: string;
+        /** `gameservers.join_ui` labels. */
+        labels: Record<string, string>;
+        /** Shows the ut2004:// link-handler help next to the native option. */
+        handlerHelp?: boolean;
+        /** Amber "Beitreten" button; false renders it as an outline button. */
+        primary?: boolean;
+    }>(),
+    {
+        primary: true,
+    },
 );
 
-function remembered(): string | null {
-    try {
-        return localStorage.getItem(STORAGE_KEY);
-    } catch {
-        return null;
-    }
-}
-
-const chosenKey = ref<string | null>(remembered());
-
-const selected = computed(
-    () =>
-        safeOptions.value.find((o) => o.key === chosenKey.value) ??
-        safeOptions.value[0] ??
-        null,
-);
+const { safeOptions, selected } = useJoinOption(() => props.options);
 
 function choose(key: string) {
-    chosenKey.value = key;
-
-    try {
-        localStorage.setItem(STORAGE_KEY, key);
-    } catch {
-        // Storage can be blocked; the choice then lasts for this page view only.
-    }
+    choosePreferredJoinOption(key);
 }
 
 const copyState = ref<'idle' | 'ok' | 'failed'>('idle');
@@ -101,7 +84,11 @@ const helpOpen = ref(false);
                 </button>
             </div>
 
-            <Button as-child size="sm">
+            <Button
+                as-child
+                size="sm"
+                :variant="primary ? 'default' : 'outline'"
+            >
                 <a :href="selected.url">{{ labels.join }}</a>
             </Button>
 

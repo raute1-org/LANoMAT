@@ -314,9 +314,10 @@ function pad(value: number): string {
                 }}</Link>
             </Button>
             <Button v-if="has('game_servers')" as-child variant="outline">
-                <Link :href="serversIndex.url(event.slug)">{{
-                    labels.to_servers
-                }}</Link>
+                <Link
+                    :href="serversIndex.url({ query: { event: event.slug } })"
+                    >{{ labels.to_servers }}</Link
+                >
             </Button>
             <Button as-child variant="outline">
                 <Link :href="eventsIndex()">{{ labels.to_archive }}</Link>

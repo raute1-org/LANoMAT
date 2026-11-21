@@ -58,12 +58,17 @@ it('is not torn down even when a cleanup job or deprovision is aimed at it direc
         ->and($this->permanent->fresh()->status)->toBe(ServerLinkStatus::Ready);
 });
 
-it('is not listed on any event\'s server page', function () {
+it('is listed only under permanent, never under an event\'s servers (and vice versa)', function () {
     $event = Event::factory()->live()->create();
+    $eventLink = ServerLink::factory()->create(['event_id' => $event->id, 'status' => ServerLinkStatus::Ready, 'title' => 'Eventserver']);
 
-    $this->actingAs(User::factory()->create())->get("/events/{$event->slug}/servers")
+    $this->actingAs(User::factory()->create())->get('/servers')
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('servers', 0));
+        ->assertInertia(fn ($page) => $page
+            ->has('servers', 1)
+            ->where('servers.0.id', $eventLink->id)
+            ->has('permanent', 1)
+            ->where('permanent.0.id', $this->permanent->id));
 });
 
 it('keeps match and event servers out of the permanent list', function () {
