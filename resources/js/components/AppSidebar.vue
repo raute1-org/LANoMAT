@@ -29,6 +29,7 @@ import {
     Ticket,
     Radio,
     Music,
+    Sparkles,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -61,6 +62,7 @@ import { index as galleryIndex } from '@/routes/gallery';
 import { index as jukeboxIndex } from '@/routes/jukebox';
 import { index as lfgIndex } from '@/routes/lfg';
 import { checkin as orgaCheckin } from '@/routes/orga';
+import { index as assistantIndex } from '@/routes/orga/assistant';
 import { index as pollsIndex } from '@/routes/polls';
 import { show as presenceShow } from '@/routes/presence';
 import { index as scheduleIndex } from '@/routes/schedule';
@@ -333,11 +335,26 @@ const voiceItems = computed<NavItem[]>(() => [
         : []),
 ]);
 
+/** Same label as the Filament navigation item (shell parity, App\\Support\\Brand\\ShellParity). */
+const ASSISTANT_LABEL = 'Assistent';
+
 const orgaItems = computed<NavItem[]>(() => {
     const ev = currentEvent.value;
+    // The assistant is global (no event needed) and orga-only, not helper.
+    const assistant: NavItem[] =
+        has('assistant') && page.props.auth?.user?.can_access_admin === true
+            ? [
+                  {
+                      title: ASSISTANT_LABEL,
+                      href: assistantIndex(),
+                      icon: Sparkles,
+                      prefix: true,
+                  },
+              ]
+            : [];
 
     if (!ev || !isStaff.value) {
-        return [];
+        return assistant;
     }
 
     return [
@@ -351,6 +368,7 @@ const orgaItems = computed<NavItem[]>(() => {
                   },
               ]
             : []),
+        ...assistant,
     ];
 });
 

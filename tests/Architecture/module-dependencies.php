@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'Assistant' => [
+        0 => 'Events',
+        1 => 'GameServers',
+        2 => 'Games',
+        3 => 'Tournaments',
+    ],
     'Casting' => [
         0 => 'Tournaments',
     ],

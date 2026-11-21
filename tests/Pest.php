@@ -1,5 +1,10 @@
 <?php
 
+use App\Models\User;
+use App\Modules\Assistant\Enums\AssistantActionStatus;
+use App\Modules\Assistant\Models\AssistantAction;
+use App\Modules\Assistant\Support\ArgumentsHash;
+use App\Modules\Assistant\Tools\ApprovableTool;
 use App\Modules\Discord\Contracts\DiscordClient;
 use App\Modules\Discord\Testing\FakeDiscordClient;
 use App\Modules\GameServers\Contracts\PelicanClient;
@@ -13,11 +18,6 @@ use App\Modules\Jukebox\Contracts\MusicClient;
 use App\Modules\Jukebox\Testing\FakeMusicClient;
 use App\Modules\Provisioning\Contracts\HypervisorClientFactory;
 use App\Modules\Provisioning\Testing\FakeHypervisorClient;
-use App\Modules\Provisioning\Testing\FakeHypervisorClientFactory;
-use App\Modules\Voice\Contracts\VoiceClient;
-use App\Modules\Voice\Domain\VoiceProvider;
-use App\Modules\Voice\Testing\FakeVoiceClient;
-use App\Modules\Voice\VoiceProviders;
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -29,9 +29,16 @@ use App\Modules\Voice\VoiceProviders;
 |
 */
 
+use App\Modules\Provisioning\Testing\FakeHypervisorClientFactory;
+use App\Modules\Voice\Contracts\VoiceClient;
+use App\Modules\Voice\Domain\VoiceProvider;
+use App\Modules\Voice\Testing\FakeVoiceClient;
+use App\Modules\Voice\VoiceProviders;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Laravel\Ai\Approvals\Approval;
+use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -40,6 +47,7 @@ pest()->extend(TestCase::class)
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in(
+        'Unit/Assistant',
         'Unit/Catering',
         'Unit/CustomServers',
         'Unit/Events',
@@ -78,7 +86,7 @@ pest()->use(RefreshDatabase::class)->in('Feature/Provisioning');
 // communication is properly faked or declared with Http::fake.
 beforeEach(function () {
     Http::preventStrayRequests();
-})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments', 'Feature/Provisioning', 'Unit/Provisioning');
+})->in('Feature/Discord', 'Unit/Discord', 'Feature/Voice', 'Unit/Voice', 'Feature/GameServers', 'Unit/GameServers', 'Feature/Lfg', 'Feature/Schedule', 'Feature/Infoscreen', 'Feature/Tournaments', 'Feature/Provisioning', 'Unit/Provisioning', 'Feature/Assistant', 'Unit/Assistant');
 
 /*
 |--------------------------------------------------------------------------
@@ -181,6 +189,54 @@ function fakeMusic(): FakeMusicClient
 function fakeLinkedAccounts(array $providers = [LinkedAccountProvider::Steam, LinkedAccountProvider::Twitch]): FakeLinkedAccounts
 {
     return new FakeLinkedAccounts($providers);
+}
+
+/** The SDK's approval decision for a tool call, the way its loop asks (null = no card, runs directly). */
+function approvalFor(ApprovableTool $tool, array $args): ?Approval
+{
+    return $tool->shouldRequestApproval(new Request($args, 'call_x'));
+}
+
+/**
+ * Run an assistant write tool as if the orga had approved exactly this call
+ * (optionally with a card-entered secret). Returns the tool's answer.
+ *
+ * @param  class-string<ApprovableTool>  $class
+ */
+function runApproved(string $class, User $actor, array $args, string $callId = 'call_1', ?string $secret = null): string
+{
+    AssistantAction::factory()->create([
+        'user_id' => $actor->id, 'tool' => $class::toolName(), 'tool_call_id' => $callId,
+        'arguments' => $args, 'arguments_hash' => ArgumentsHash::of($class::toolName(), $args),
+    ])->forceFill(['status' => AssistantActionStatus::Approved, 'secret' => $secret])->save();
+
+    return (string) (new $class($actor))->handle(new Request($args, $callId));
+}
+
+/** Start a chat turn and return the response with its streamed body drained (persists the turn). */
+function assistantChat(object $test, User $user, string $message, ?string $conversationId = null)
+{
+    $response = $test->actingAs($user)->post('/orga/assistant/chat', array_filter(['message' => $message, 'conversation_id' => $conversationId]));
+    $response->streamedContent();
+
+    return $response;
+}
+
+/** The Inertia props of a page, fetched the way the client does (no HTML shell, no built asset needed). */
+function assistantPageProps(object $test, string $url): array
+{
+    $headers = ['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia\Inertia::getVersion()];
+    $response = $test->withHeaders($headers)->get($url);
+
+    // The first request of a test may carry a stale asset version; the server answers with the right one.
+    if ($response->getStatusCode() === 409 && $response->headers->has('X-Inertia-Version')) {
+        $response = $test->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => (string) $response->headers->get('X-Inertia-Version')])->get($url);
+    }
+
+    $props = $response->assertOk()->json('props');
+    $test->flushHeaders();
+
+    return $props;
 }
 
 function fakePelican(): FakePelicanClient

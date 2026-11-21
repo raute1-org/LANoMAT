@@ -130,6 +130,23 @@ it('offers the desktop app in both shells under the same label and URL', functio
         ->and(route('client.download.short', absolute: false))->toBe('/app');
 });
 
+it('offers the AI assistant in both shells under the same label and URL', function () {
+    // Participant sidebar (Vue, Orga group, orga/admin only) ...
+    $sidebar = ShellParity::read('resources/js/components/AppSidebar.vue');
+    expect($sidebar)->toContain("const ASSISTANT_LABEL = 'Assistent'")->toContain("has('assistant')")->toContain('can_access_admin');
+
+    // ... and the Filament navigation item, visible while the Assistant module has routes.
+    Filament::setCurrentPanel('admin');
+    $this->actingAs(User::factory()->make());
+    $items = collect(Filament::getPanel('admin')->getNavigationItems())
+        ->filter(fn ($item) => $item->getLabel() === 'Assistent');
+
+    expect($items)->toHaveCount(1)
+        ->and($items->first()->getUrl())->toBe('/orga/assistant')
+        ->and($items->first()->isVisible())->toBeTrue()
+        ->and(route('orga.assistant.index', absolute: false))->toBe('/orga/assistant');
+});
+
 it('offers the launcher download in both shells under the same label and URL', function () {
     // Participant sidebar (Vue) ...
     $sidebar = ShellParity::read('resources/js/components/AppSidebar.vue');

@@ -71,6 +71,12 @@ class AdminPanelProvider extends PanelProvider
                     ->sort(1000)
                     ->visible(fn (): bool => app(Modules::class)->routable(Module::WebVoice)),
                 // The launcher download page, same label as the participant sidebar.
+                // The orga chat, same label as the participant sidebar's Orga group.
+                NavigationItem::make(ShellParity::ASSISTANT_LABEL)
+                    ->url(ShellParity::ASSISTANT_URL)
+                    ->icon('heroicon-o-sparkles')
+                    ->sort(1002)
+                    ->visible(fn (): bool => app(Modules::class)->routable(Module::Assistant)),
                 NavigationItem::make(ShellParity::LAUNCHER_LABEL)
                     ->url(ShellParity::LAUNCHER_URL)
                     ->icon('heroicon-o-rocket-launch')

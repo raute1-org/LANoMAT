@@ -188,6 +188,7 @@ return [
         'checkin_window_order' => 'Check-in schließt (muss nach Check-in öffnet liegen)',
         'team_required' => 'Wähle ein Team, mit dem du dich anmelden möchtest.',
         'not_draft' => 'Nur ein Entwurf kann angekündigt werden.',
+        'not_editable' => 'Nur ein Entwurf oder ein angekündigtes Turnier kann bearbeitet werden.',
         'not_announced' => 'Nur ein Entwurf oder ein angekündigtes Turnier kann für Anmeldungen geöffnet werden.',
         'incomplete_setup' => 'Vor dem Öffnen der Anmeldung fehlen noch: :fields.',
         'cannot_return_to_draft' => 'Nur ein angekündigtes Turnier oder eine Anmelde- bzw. Check-in-Phase kann zum Entwurf zurückgesetzt werden.',

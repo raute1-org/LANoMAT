@@ -12,6 +12,7 @@
         "firebase/php-jwt": "^7.2",
         "inertiajs/inertia-laravel": "^3.0",
         "intervention/image-laravel": "^4",
+        "laravel/ai": "^1.4",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",

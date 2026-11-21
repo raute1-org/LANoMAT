@@ -8,6 +8,7 @@ namespace App\Support\Modules;
  */
 enum Module: string
 {
+    case Assistant = 'assistant';
     case Casting = 'casting';
     case Catering = 'catering';
     case CustomServers = 'custom_servers';
