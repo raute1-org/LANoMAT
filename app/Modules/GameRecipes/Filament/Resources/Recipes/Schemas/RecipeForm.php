@@ -3,9 +3,13 @@
 namespace App\Modules\GameRecipes\Filament\Resources\Recipes\Schemas;
 
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\PullRequestColor;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\RecipeStatusOptions;
+use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Support\DisplayTimezone;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -13,6 +17,10 @@ use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 
 class RecipeForm
@@ -43,6 +51,13 @@ class RecipeForm
                 ->default(RecipeStatus::Draft->value)
                 ->disabled(fn (): bool => ! RecipeStatusOptions::canReview(auth()->user()))
                 ->required(),
+            // The player-facing switch. A disabled field is not dehydrated, so
+            // without the review ability a save keeps the stored value.
+            Toggle::make('in_lineup')
+                ->label(__('game_recipes.fields.in_lineup'))
+                ->helperText(__('game_recipes.fields.in_lineup_help'))
+                ->disabled(fn (): bool => ! RecipeStatusOptions::canReview(auth()->user()))
+                ->columnSpanFull(),
             CheckboxList::make('platforms')
                 ->label(__('game_recipes.fields.platforms'))
                 ->options(['windows' => 'Windows', 'linux' => 'Linux', 'macos' => 'macOS'])
@@ -120,6 +135,46 @@ class RecipeForm
                 ->columns(2)
                 ->defaultItems(0)
                 ->itemLabel(fn (array $state): ?string => isset($state['title']) ? $state['title'] : null),
+            // Where the recipe stands in the git catalogue. Read-only: the
+            // proposal job and the status sync are the only writers.
+            Section::make(__('recipe_pull_requests.section'))
+                ->description(__('recipe_pull_requests.section_help'))
+                ->columnSpanFull()
+                ->visible(fn (?GameRecipe $record): bool => $record instanceof GameRecipe
+                    && $record->pr_state instanceof PullRequestState)
+                ->schema(fn (?GameRecipe $record): array => self::pullRequestEntries($record)),
         ]);
+    }
+
+    /** @return list<Component> */
+    private static function pullRequestEntries(?GameRecipe $record): array
+    {
+        if (! $record instanceof GameRecipe || ! $record->pr_state instanceof PullRequestState) {
+            return [];
+        }
+
+        $state = $record->pr_state;
+
+        $entries = [
+            Text::make($state->label())->badge()->color(PullRequestColor::for($state)),
+        ];
+
+        if ($state->existsRemotely() && is_string($record->pr_url) && $record->pr_url !== '') {
+            $entries[] = TextEntry::make($record->pr_url)
+                ->url($record->pr_url, shouldOpenInNewTab: true)
+                ->color('primary');
+        }
+
+        if (in_array($state, [PullRequestState::Blocked, PullRequestState::Failed], true) && filled($record->pr_error)) {
+            $entries[] = Text::make((string) $record->pr_error)->color('danger');
+        }
+
+        $entries[] = Text::make($record->pr_synced_at === null
+            ? __('recipe_pull_requests.never_synced')
+            : __('recipe_pull_requests.synced_at', [
+                'time' => DisplayTimezone::local($record->pr_synced_at)->format('d.m.Y H:i'),
+            ]));
+
+        return $entries;
     }
 }

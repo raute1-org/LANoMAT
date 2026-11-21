@@ -3,6 +3,9 @@
 // Pull requests that carry a shared recipe into the git catalogue.
 return [
 
+    'section' => 'Katalog (Pull Request)',
+    'section_help' => 'Der Rezepttext liegt im Git-Katalog; die Spieldateien bleiben auf dem LAN-Dateiserver.',
+
     'state' => [
         'open' => 'Pull Request offen',
         'merged' => 'Im Katalog',
@@ -22,5 +25,8 @@ return [
         'synced' => ':count offene Pull Requests geprüft.',
         'sync_failed' => 'Nicht abgefragt: :slug (:reason)',
     ],
+
+    'never_synced' => 'Noch nicht mit dem Repository abgeglichen',
+    'synced_at' => 'Zuletzt abgeglichen: :time',
 
 ];
