@@ -76,8 +76,7 @@ requires:
     - role: base
       label: 'UT2004 portable 3374 (Linux x64, no install)'
       os: linux
-      match:
-          ['ut2004-portable-3374-linux*', 'UT2004-portable-3374-linux*']
+      match: ['ut2004-portable-3374-linux*', 'UT2004-portable-3374-linux*']
       required: false
       sha256: ''
       url: ''
@@ -85,8 +84,7 @@ requires:
     - role: base
       label: 'UT2004 portable 3374 (macOS universal, no install)'
       os: macos
-      match:
-          ['ut2004-portable-3374-macos*', 'UT2004-portable-3374-macos*']
+      match: ['ut2004-portable-3374-macos*', 'UT2004-portable-3374-macos*']
       required: false
       sha256: ''
       url: ''

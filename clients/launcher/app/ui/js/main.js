@@ -45,6 +45,15 @@ function init() {
     $('chat-skip').addEventListener('click', goLibrary);
     $('library-chat').addEventListener('click', goChat);
 
+    // The start page's three main actions: games, servers, chat.
+    $('start-games').addEventListener('click', goLibrary);
+    $('start-servers').addEventListener('click', () => chat.openServers());
+    $('start-chat').addEventListener('click', () => {
+        showScreen('chat');
+        chat.show();
+        $('chat-input').focus();
+    });
+
     listen('deep-link', (event) => {
         routeDeepLink(event?.payload).catch(() => {});
     }).catch(() => {});
@@ -114,7 +123,7 @@ function afterConnect() {
     refreshFooter();
 }
 
-function afterInstall(record, recipe) {
+function afterInstall(record, recipe, join = null) {
     // Logout during an install clears the pairing and moves to the connect screen. The
     // install still finishes, but there is no paired server to show Startklar for, so the
     // connect screen stays instead of being hidden behind a ready screen the user cannot
@@ -123,7 +132,13 @@ function afterInstall(record, recipe) {
         return;
     }
 
-    ready.show(record?.slug || recipe?.slug || state.install?.slug, { record });
+    // A join request keeps going: install wizard, then straight into the
+    // server. A plain library install still stops on Startklar for its click.
+    ready.show(record?.slug || recipe?.slug || state.install?.slug, {
+        record,
+        join,
+        launch: join !== null,
+    });
 }
 
 function reconnect() {
@@ -151,14 +166,25 @@ async function routePendingDeepLink() {
     await routeDeepLink(result.value);
 }
 
-// lanomat://install/<slug> and lanomat://launch/<slug> from the shell. A link that
-// arrives unpaired is only announced: the shell keeps it pending and replays it after
+// lanomat://install|launch|join/<slug> from the shell. A link that arrives
+// unpaired is only announced: the shell keeps it pending and replays it after
 // pairing, so the UI stores nothing and cannot act on a stale token.
 async function routeDeepLink(payload) {
     const action = String(payload?.action || '').toLowerCase();
     const slug = String(payload?.slug || '');
+    const hasJoin =
+        typeof payload?.address === 'string' || typeof payload?.url === 'string';
+    const join = hasJoin
+        ? {
+              address:
+                  typeof payload?.address === 'string'
+                      ? payload.address
+                      : null,
+              url: typeof payload?.url === 'string' ? payload.url : null,
+          }
+        : null;
 
-    if (!slug || (action !== 'install' && action !== 'launch')) {
+    if (!slug || !['install', 'launch', 'join'].includes(action)) {
         return;
     }
 
@@ -183,10 +209,14 @@ async function routeDeepLink(payload) {
             return;
         }
 
-        if (action === 'install') {
-            await deepLinkInstall(slug);
+        if (action === 'join') {
+            // A join always auto-launches after the install, even when the
+            // server has no address or join URL to pass on.
+            await deepLinkJoin(slug, join ?? { address: null, url: null });
+        } else if (action === 'install') {
+            await deepLinkInstall(slug, join);
         } else {
-            await deepLinkLaunch(slug);
+            await deepLinkLaunch(slug, join);
         }
     } finally {
         deepLinkBusy = false;
@@ -216,7 +246,7 @@ async function ensurePaired() {
     return Boolean(result.value?.paired);
 }
 
-async function deepLinkInstall(slug) {
+async function deepLinkInstall(slug, join = null) {
     if (install.isRunning()) {
         toast(S.deepLink.busy);
 
@@ -256,10 +286,10 @@ async function deepLinkInstall(slug) {
         return;
     }
 
-    await install.begin(recipe);
+    await install.begin(recipe, { join });
 }
 
-async function deepLinkLaunch(slug) {
+async function deepLinkLaunch(slug, join = null) {
     // A launch link must not hide a running install: its progress, file and cancel stay
     // on the install screen, and the link is answered with a calm busy toast.
     if (install.isRunning()) {
@@ -295,7 +325,70 @@ async function deepLinkLaunch(slug) {
         return;
     }
 
-    ready.show(slug, { launch: true });
+    ready.show(slug, { launch: true, join });
+}
+
+/**
+ * The website's "Beitreten": install when the recipe is missing, then launch
+ * on the same server. A game this build cannot install falls back to its own
+ * join URL (steam://, ut2004://, browser) instead of a dead button.
+ */
+async function deepLinkJoin(slug, join) {
+    if (!Array.isArray(state.games) || state.games.length === 0) {
+        const games = await call('list_games');
+
+        if (games.ok) {
+            state.games = Array.isArray(games.value) ? games.value : state.games;
+        }
+    }
+
+    if (!hasInstallRecord(slug)) {
+        const result = await call('get_status');
+
+        if (result.ok) {
+            applyStatus(result.value);
+        } else if (result.error.kind === 'network') {
+            toast(S.connect.networkText, 'error');
+
+            return;
+        }
+    }
+
+    const recipe = state.games.find((game) => game && game.slug === slug);
+
+    if (!recipe) {
+        toast(S.deepLink.joinUnknown(slug));
+        goLibrary();
+
+        return;
+    }
+
+    if (hasInstallRecord(slug)) {
+        ready.show(slug, { launch: true, join });
+
+        return;
+    }
+
+    if (recipe.launcher_supported !== false && recipe.installable !== false) {
+        await install.begin(recipe, { join });
+
+        return;
+    }
+
+    const url = join?.url || recipe.play_url || null;
+
+    if (url) {
+        const opened = await call('open_url', { url });
+
+        if (!opened.ok) {
+            toast(S.deepLink.joinError, 'error');
+        }
+
+        return;
+    }
+
+    toast(S.deepLink.notSupported(slug));
+    goLibrary();
 }
 
 function hasInstallRecord(slug) {

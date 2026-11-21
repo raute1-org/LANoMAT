@@ -1,7 +1,14 @@
 schema: lanomat.recipe/v1
 slug: need-for-speed-underground-2
 title: 'Need for Speed: Underground 2'
-aliases: ['nfsu2', 'nfs underground 2', 'nfs:u2', 'underground 2', 'need for speed 2']
+aliases:
+    [
+        'nfsu2',
+        'nfs underground 2',
+        'nfs:u2',
+        'underground 2',
+        'need for speed 2',
+    ]
 version: '1.2 + NFS Online'
 status: published
 platforms: [windows, linux]
@@ -40,7 +47,13 @@ requires:
     - role: base
       label: 'NFSU2 portable 1.2 (Windows game tree, no install)'
       os: windows
-      match: ['nfsu2-portable*.zip', 'NFSU2-portable*.zip', 'nfsu2*.zip', 'NFSU2*.zip']
+      match:
+          [
+              'nfsu2-portable*.zip',
+              'NFSU2-portable*.zip',
+              'nfsu2*.zip',
+              'NFSU2*.zip',
+          ]
       required: true
       sha256: ''
       url: ''
@@ -48,14 +61,26 @@ requires:
     - role: base
       label: 'NFSU2 portable 1.2 (same Windows tree under Wine)'
       os: linux
-      match: ['nfsu2-portable*.zip', 'NFSU2-portable*.zip', 'nfsu2*.zip', 'NFSU2*.zip']
+      match:
+          [
+              'nfsu2-portable*.zip',
+              'NFSU2-portable*.zip',
+              'nfsu2*.zip',
+              'NFSU2*.zip',
+          ]
       required: true
       sha256: ''
       url: ''
       notes: 'Linux has no native build, so a Linux plan installs the same Windows portable tree and starts it through Wine or Proton. The requirement is duplicated with os: linux because the install-plan builder filters files by the plan OS; a Linux plan must still see the base archive. Keep the wrapper-stripping and verify steps identical to Windows.'
     - role: patch
       label: 'NFSU2 patch 1.2 (optional, when the portable tree is older)'
-      match: ['nfsu2*patch*1.2*', 'NFSU2*patch*1.2*', 'nfsu2-patch*.zip', 'NFSU2-patch*.zip']
+      match:
+          [
+              'nfsu2*patch*1.2*',
+              'NFSU2*patch*1.2*',
+              'nfsu2-patch*.zip',
+              'NFSU2-patch*.zip',
+          ]
       required: false
       sha256: ''
       url: ''
@@ -76,7 +101,13 @@ requires:
       notes: 'The shipped clients/underground2/net_u2.ini. Set the same host in [network] and [lan] (the LAN host runs bootstrap 20921, lobby 20922, web 20923 and the race relay on UDP 20000). Keep inject_server = true and patches = true; the installer copies a matched file to {{target}}/scripts/net_u2.ini.'
     - role: tool
       label: 'Ultimate ASI Loader (dinput8.dll)'
-      match: ['dinput8.dll', 'dinput8*.dll', 'Ultimate-ASI-Loader*.zip', 'ultimate-asi-loader*.zip']
+      match:
+          [
+              'dinput8.dll',
+              'dinput8*.dll',
+              'Ultimate-ASI-Loader*.zip',
+              'ultimate-asi-loader*.zip',
+          ]
       required: false
       sha256: ''
       url: https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases

@@ -40,6 +40,7 @@ async fn servers_parses_the_aggregate_with_the_bearer() {
     assert_eq!(event_server.id, json!(11));
     assert_eq!(event_server.title, "Survival");
     assert_eq!(event_server.game.as_deref(), Some("Minecraft"));
+    assert_eq!(event_server.game_slug.as_deref(), Some("minecraft"));
     assert_eq!(event_server.description.as_deref(), Some("Whitelist off"));
     assert_eq!(event_server.address.as_deref(), Some("203.0.113.9"));
     assert_eq!(event_server.port, Some(25565));

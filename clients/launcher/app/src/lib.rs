@@ -31,7 +31,9 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::sync::Mutex;
 
 pub use arcade::ArcadeMode;
-pub use deeplink::{is_valid_slug, parse_deep_link, DeepLinkAction, DeepLinkEvent};
+pub use deeplink::{
+    is_valid_join_address, is_valid_slug, parse_deep_link, DeepLinkAction, DeepLinkEvent,
+};
 pub use env::{EnvironmentView, UpdateView};
 pub use installs::InstallRecord;
 
@@ -771,9 +773,20 @@ fn recorded_path_exists(target: &Path, relative: &str) -> bool {
 }
 
 #[tauri::command]
-async fn launch(state: State<'_, AppState>, slug: String) -> Result<String, String> {
+async fn launch(
+    state: State<'_, AppState>,
+    slug: String,
+    join: Option<String>,
+) -> Result<String, String> {
     if !is_valid_slug(&slug) {
         return Err(invalid_slug());
+    }
+
+    if join
+        .as_deref()
+        .is_some_and(|address| !is_valid_join_address(address))
+    {
+        return Err("Ungültige Serveradresse.".to_string());
     }
 
     let record = installs::find(&state.dir, &slug)
@@ -786,9 +799,13 @@ async fn launch(state: State<'_, AppState>, slug: String) -> Result<String, Stri
         );
     }
 
-    let exe = match record.launch_command.as_deref() {
-        Some(command) => InstallEngine::launch_stored(&target, command),
-        None => InstallEngine::launch(&target),
+    let exe = match (record.launch_command.as_deref(), join.as_deref()) {
+        // UT2004's dedicated `System/` launcher takes the server as its first
+        // argument. Generic recipes keep their stored command (the UI opens
+        // their join URL after the launch instead).
+        (None, Some(address)) => InstallEngine::launch_join(&target, address),
+        (Some(command), _) => InstallEngine::launch_stored(&target, command),
+        (None, None) => InstallEngine::launch(&target),
     }
     .map_err(|error| match error {
         launcher_core::install::InstallError::Verification(file) => {
@@ -966,7 +983,7 @@ async fn take_pending_deep_link(
 /// keep it pending while the launcher is unpaired so connect can replay it.
 async fn process_deep_link(app: &AppHandle, raw: &str, live: bool) {
     let Some(link) = parse_deep_link(raw) else {
-        tracing::debug!(target: "lanomat::deeplink", "ignored a link that is not lanomat://install|launch/<slug>");
+        tracing::debug!(target: "lanomat::deeplink", "ignored a link that is not lanomat://install|launch|join/<slug>");
         return;
     };
 

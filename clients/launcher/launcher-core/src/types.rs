@@ -454,6 +454,9 @@ pub struct GameServer {
     pub title: String,
     #[serde(default)]
     pub game: Option<String>,
+    /// The game's stable slug, used to map the server to its install recipe.
+    #[serde(default)]
+    pub game_slug: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]

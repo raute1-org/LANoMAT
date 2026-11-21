@@ -880,6 +880,7 @@ export function createAgent(options = {}) {
     const ensureConfig = async () => {
         configReady ??= writeMcpConfig({ env, baseUrl: config.baseUrl }).catch((error) => {
             configReady = null;
+
             throw error;
         });
 

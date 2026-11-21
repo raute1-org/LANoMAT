@@ -20,9 +20,13 @@ launcher and the agent are paired independently, and revoking one does not revok
 3. One click downloads the ISO and the patch (resume-safe, SHA-256 checked when the recipe pins a
    hash), extracts the disc payload without `System/`, applies the patch, verifies
    `System/Build.ini` and the 64-bit executable, then offers **Starten**.
-4. `lanomat://install/<slug>` and `lanomat://launch/<slug>` deep links are accepted once the
-   launcher is installed (its `.desktop` entry registers the `lanomat` scheme on Linux, the app
-   bundle's `Info.plist` on macOS, the installed URL handler on Windows).
+4. `lanomat://install/<slug>`, `lanomat://launch/<slug>` and the one-click
+   `lanomat://join/<slug>?address=host:port` (or `?url=<encoded join URL>`) deep links are
+   accepted once the launcher is installed (its `.desktop` entry registers the `lanomat` scheme
+   on Linux, the app bundle's `Info.plist` on macOS, the installed URL handler on Windows). A
+   join runs the install wizard when the game is missing and then launches on that server;
+   UT2004 takes the address as its first argument, other recipes open their join URL after the
+   launch.
 
 The launcher never prints or logs the token. External fallback downloads (a GitHub release URL in a
 recipe) do not receive the LANoMAT bearer token.

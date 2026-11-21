@@ -119,9 +119,9 @@ fn macos_required_files_are_not_the_linux_ones() {
 
     let groups = required_file_groups(Os::Macos);
     assert_eq!(groups[0], &["UT2004.app/Contents/MacOS/UT2004"][..]);
-    assert!(groups.iter().any(|group| group
+    assert!(groups
         .iter()
-        .any(|file| *file == "UT2004.app/Contents/Resources/System/Packages.md5")));
+        .any(|group| group.contains(&"UT2004.app/Contents/Resources/System/Packages.md5")));
 
     // Linux and Windows keep their explicit branches.
     assert_eq!(

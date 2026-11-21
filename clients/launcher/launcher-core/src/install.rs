@@ -375,9 +375,24 @@ impl InstallEngine {
     /// [`Self::launch`] for an explicit platform, so the macOS bundle path is
     /// testable without running on macOS.
     pub fn launch_for(target_dir: &Path, os: Os) -> Result<PathBuf, InstallError> {
+        Self::launch_for_join(target_dir, os, None)
+    }
+
+    /// Start the game already connected to one server. UT2004 takes a
+    /// `host:port` as its first argument, so the one-click join does not need
+    /// the game's URL handler to be registered on a fresh install.
+    pub fn launch_join(target_dir: &Path, address: &str) -> Result<PathBuf, InstallError> {
+        Self::launch_for_join(target_dir, Os::current(), Some(address))
+    }
+
+    fn launch_for_join(
+        target_dir: &Path,
+        os: Os,
+        join: Option<&str>,
+    ) -> Result<PathBuf, InstallError> {
         match os {
-            Os::Macos => launch_macos(target_dir),
-            Os::Windows | Os::Linux => launch_system_binary(target_dir, os),
+            Os::Macos => launch_macos(target_dir, join),
+            Os::Windows | Os::Linux => launch_system_binary(target_dir, os, join),
         }
     }
 
@@ -418,7 +433,11 @@ impl InstallEngine {
     }
 }
 
-fn launch_system_binary(target_dir: &Path, os: Os) -> Result<PathBuf, InstallError> {
+fn launch_system_binary(
+    target_dir: &Path,
+    os: Os,
+    join: Option<&str>,
+) -> Result<PathBuf, InstallError> {
     let system = target_dir.join("System");
     let candidates = launch_candidates(&system, os);
 
@@ -427,7 +446,7 @@ fn launch_system_binary(target_dir: &Path, os: Os) -> Result<PathBuf, InstallErr
         .find(|path| path.is_file())
         .ok_or_else(|| InstallError::Verification(format!("{} fehlt", launch_name(os))))?;
 
-    spawn_game(&exe)?;
+    spawn_game(&exe, join)?;
 
     Ok(exe)
 }
@@ -435,9 +454,16 @@ fn launch_system_binary(target_dir: &Path, os: Os) -> Result<PathBuf, InstallErr
 /// Start a macOS install through LaunchServices (`open <app>`), which gives the
 /// bundle its own working directory and resources. If `open` is unavailable or
 /// fails, the bundle's own executable is started directly.
-fn launch_macos(target_dir: &Path) -> Result<PathBuf, InstallError> {
+fn launch_macos(target_dir: &Path, join: Option<&str>) -> Result<PathBuf, InstallError> {
     if let Some(app) = macos_app_bundle(target_dir) {
-        let open_error = match std::process::Command::new("open").arg(&app).status() {
+        let mut open = std::process::Command::new("open");
+        open.arg(&app);
+
+        if let Some(address) = join {
+            open.args(["--args", address]);
+        }
+
+        let open_error = match open.status() {
             Ok(status) if status.success() => return Ok(app),
             Ok(status) => format!("open exited with {status}"),
             Err(error) => format!("open: {error}"),
@@ -446,7 +472,7 @@ fn launch_macos(target_dir: &Path) -> Result<PathBuf, InstallError> {
         let binary = app.join("Contents/MacOS/UT2004");
 
         if binary.is_file() {
-            spawn_game(&binary)?;
+            spawn_game(&binary, join)?;
             return Ok(binary);
         }
 
@@ -460,7 +486,7 @@ fn launch_macos(target_dir: &Path) -> Result<PathBuf, InstallError> {
     let binary = target_dir.join("Contents/MacOS/UT2004");
 
     if binary.is_file() {
-        spawn_game(&binary)?;
+        spawn_game(&binary, join)?;
         return Ok(binary);
     }
 
@@ -470,11 +496,15 @@ fn launch_macos(target_dir: &Path) -> Result<PathBuf, InstallError> {
     )))
 }
 
-fn spawn_game(exe: &Path) -> Result<(), InstallError> {
+fn spawn_game(exe: &Path, join: Option<&str>) -> Result<(), InstallError> {
     let mut command = std::process::Command::new(exe);
 
     if let Some(directory) = exe.parent() {
         command.current_dir(directory);
+    }
+
+    if let Some(address) = join {
+        command.arg(address);
     }
 
     command
