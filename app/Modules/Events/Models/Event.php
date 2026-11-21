@@ -4,6 +4,7 @@ namespace App\Modules\Events\Models;
 
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use App\Modules\Tournaments\Models\Tournament;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -98,6 +99,12 @@ class Event extends Model
     public function registrations(): HasMany
     {
         return $this->hasMany(EventRegistration::class);
+    }
+
+    /** @return HasMany<TicketType, $this> */
+    public function ticketTypes(): HasMany
+    {
+        return $this->hasMany(TicketType::class);
     }
 
     /** @return HasMany<Tournament, $this> */

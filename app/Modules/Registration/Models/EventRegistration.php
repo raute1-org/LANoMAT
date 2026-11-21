@@ -20,6 +20,8 @@ use Illuminate\Support\Str;
  * @property RegistrationStatus $status
  * @property Carbon|null $paid_at
  * @property Carbon|null $checked_in_at
+ * @property int|null $ticket_price_cents
+ * @property string|null $paid_by
  * @property string $qr_token
  * @property Carbon|null $arrival_day
  * @property TimeWindow|null $arrival_window
@@ -31,6 +33,7 @@ class EventRegistration extends Model
     /** @use HasFactory<EventRegistrationFactory> */
     use HasFactory;
 
+    // ticket_price_cents/paid_by are likewise guarded (snapshot via RegisterForEvent, orga-only).
     // status/paid_at/checked_in_at/qr_token deliberately NOT fillable; the
     // arrival plan is written only via UpdateArrivalPlan/RegisterForEvent.
     // (privilege/state fields — set only via actions or the creating hook).
@@ -55,6 +58,7 @@ class EventRegistration extends Model
             'status' => RegistrationStatus::class,
             'paid_at' => 'datetime',
             'checked_in_at' => 'datetime',
+            'ticket_price_cents' => 'integer',
             'arrival_day' => 'date',
             'arrival_window' => TimeWindow::class,
             'departure_day' => 'date',

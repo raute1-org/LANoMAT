@@ -4,6 +4,7 @@ namespace App\Modules\Catering\Http;
 
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Catering\Actions\CancelFoodOrderItem;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
 use App\Modules\Catering\Domain\MenuOption;
@@ -13,7 +14,9 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Catering\Support\ListedFoodOrders;
+use App\Modules\Catering\Support\MyFoodPayment;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventPaymentSettings;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,10 +42,11 @@ class CateringController extends Controller
         $userId = $request->user()?->id;
 
         $orders = ListedFoodOrders::forEvent($event);
+        $settings = $request->user() === null ? null : EventPaymentSettings::forEvent($event);
 
         return Inertia::render('Catering/Show', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
-            'orders' => $orders->map(fn (FoodOrder $order): array => $this->orderDto($order, $userId))->all(),
+            'orders' => $orders->map(fn (FoodOrder $order): array => $this->orderDto($order, $event, $request->user(), $settings))->all(),
             'labels' => trans('catering.page'),
             'registration' => [
                 'required' => $request->user() !== null
@@ -87,8 +91,9 @@ class CateringController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function orderDto(FoodOrder $order, ?int $userId): array
+    private function orderDto(FoodOrder $order, Event $event, ?User $viewer, ?EventPaymentSettings $settings): array
     {
+        $userId = $viewer?->id;
         $items = $order->items()->with('user')->get();
 
         $myItems = $userId === null
@@ -110,6 +115,7 @@ class CateringController extends Controller
             ])->all(),
             'myItems' => $myItems->map(fn (FoodOrderItem $item): array => $this->itemDto($item))->values()->all(),
             'myTotalCents' => $myItems->sum('price_cents'),
+            'myPayment' => $viewer === null ? null : MyFoodPayment::for($order, $event, $viewer, $myItems, $settings),
         ];
     }
 
@@ -124,6 +130,7 @@ class CateringController extends Controller
             'note' => $item->selection['note'] ?? null,
             'priceCents' => $item->price_cents,
             'paid' => $item->paid_at !== null,
+            'included' => $item->included,
         ];
     }
 }

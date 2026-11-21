@@ -11,6 +11,7 @@ use App\Modules\Registration\Actions\SelfCheckIn;
 use App\Modules\Registration\Enums\RegistrationAvailability;
 use App\Modules\Registration\Exceptions\CheckInException;
 use App\Modules\Registration\Models\EventCheckinToken;
+use App\Modules\Registration\Support\EnsureDefaultTicketType;
 use App\Modules\Registration\Support\MyRegistration;
 use App\Modules\Registration\Support\SelfCheckInWindow;
 use Illuminate\Http\RedirectResponse;
@@ -53,7 +54,7 @@ class SelfCheckInController extends Controller
                 ? SelfCheckInWindow::opensAt($event)?->toIso8601String()
                 : null,
             ...RegistrationAvailability::summary($event),
-            'ticketType' => RegisterForEvent::allowedTickets($event)[0],
+            'ticketType' => RegisterForEvent::allowedTickets($event)[0] ?? EnsureDefaultTicketType::for($event)->key,
             'labels' => trans('registration.self_checkin'),
         ]);
     }

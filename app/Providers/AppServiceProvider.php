@@ -137,8 +137,13 @@ use App\Modules\Provisioning\Policies\ProvisioningRunPolicy;
 use App\Modules\Provisioning\Support\CrossCheckHostKeyTrust;
 use App\Modules\Provisioning\Support\PhpseclibHostKeyScanner;
 use App\Modules\Registration\Events\RegistrationCancelled;
+use App\Modules\Registration\Models\EventPaymentSettings;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
+use App\Modules\Registration\Policies\EventPaymentSettingsPolicy;
 use App\Modules\Registration\Policies\RegistrationPolicy;
+use App\Modules\Registration\Policies\TicketTypePolicy;
+use App\Modules\Registration\Support\EnsureDefaultTicketType;
 use App\Modules\RoomAudio\Contracts\ReceiverClient;
 use App\Modules\RoomAudio\HttpReceiverClient;
 use App\Modules\RoomAudio\Policies\RoomAudioPolicy;
@@ -549,6 +554,8 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(EventModel::class, EventPolicy::class);
         Gate::policy(EventRegistration::class, RegistrationPolicy::class);
+        Gate::policy(TicketType::class, TicketTypePolicy::class);
+        Gate::policy(EventPaymentSettings::class, EventPaymentSettingsPolicy::class);
         Gate::policy(Seat::class, SeatPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
         Gate::policy(Game::class, GamePolicy::class);
@@ -675,6 +682,9 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Event::listen(MatchReady::class, NotifyRosterOnMatchReady::class);
+
+        // Every event always has at least one ticket type (free "Standard").
+        EventModel::created(fn (EventModel $event) => EnsureDefaultTicketType::for($event));
 
         if ($this->on(Module::Catering)) {
             // The sidebar's "order food" hint hides once the viewer ordered; drop the cached hint

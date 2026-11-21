@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import FoodPaymentState from '@/components/catering/FoodPaymentState.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,21 @@ defineProps<{
 }>();
 
 const t = useNowLabels();
+
+const payLabels = (): Record<string, string> => ({
+    pay_included: t('pay_included'),
+    pay_nothing_due: t('pay_nothing_due'),
+    pay_cash: t('pay_cash'),
+    pay_due: t('pay_due'),
+    pay_with_paypal: t('pay_with_paypal'),
+    pay_at_orga: t('pay_at_orga'),
+    pay_reference_hint: t('pay_reference_hint'),
+    pay_copy: t('pay_copy'),
+    copy_reference: t('copy_reference'),
+    pay_copied: t('pay_copied'),
+    pay_copy_failed: t('pay_copy_failed'),
+    new_tab: t('new_tab'),
+});
 </script>
 
 <template>
@@ -81,6 +97,12 @@ const t = useNowLabels();
                         t('registration_needed')
                     }}</span>
                 </div>
+                <FoodPaymentState
+                    v-if="food.open.payment"
+                    :payment="food.open.payment"
+                    :primary="false"
+                    :labels="payLabels()"
+                />
             </template>
             <p v-else-if="!food.next" class="text-muted-foreground">
                 {{ t('food_empty') }}

@@ -3,11 +3,19 @@
 namespace App\Modules\Catering\Filament\Resources\FoodOrders\Schemas;
 
 use App\Modules\Catering\Domain\MenuOption;
+use App\Modules\Catering\Enums\FoodPaymentMethod;
+use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\TicketType;
+use App\Modules\Registration\Support\PaymentLink;
+use App\Support\Money\Euro;
 use Closure;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class FoodOrderForm
@@ -30,6 +38,43 @@ class FoodOrderForm
                     ->label(__('catering.fields.opens_at')),
                 DateTimePicker::make('closes_at')
                     ->label(__('catering.fields.closes_at')),
+                Select::make('payment_method')
+                    ->label(__('catering.fields.payment_method'))
+                    ->options([
+                        FoodPaymentMethod::Cash->value => __('catering.payment_method.cash'),
+                        FoodPaymentMethod::Paypal->value => __('catering.payment_method.paypal'),
+                    ])
+                    ->default(FoodPaymentMethod::Cash->value)
+                    ->required()
+                    ->live(),
+                TextInput::make('payment_link')
+                    ->label(__('catering.fields.payment_link'))
+                    ->url()
+                    ->maxLength(255)
+                    ->placeholder('https://paypal.me/example-orga')
+                    ->visible(fn (Get $get): bool => $get('payment_method') === FoodPaymentMethod::Paypal->value)
+                    ->rules([fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                        if ($value !== null && $value !== '' && ! PaymentLink::isValid(is_string($value) ? $value : null)) {
+                            $fail(__('catering.validation.payment_link'));
+                        }
+                    }]),
+                Select::make('included_ticket_types')
+                    ->label(__('catering.fields.included_ticket_types'))
+                    ->helperText(__('catering.fields.included_ticket_types_help'))
+                    ->multiple()
+                    ->options(fn (Get $get): array => self::ticketOptions($get('event_id')))
+                    ->default([])
+                    ->hintActions([
+                        Action::make('include_all')
+                            ->label(__('catering.fields.include_all'))
+                            ->action(fn (Get $get, Set $set) => $set('included_ticket_types', array_map(
+                                'strval',
+                                array_keys(self::ticketOptions($get('event_id'))),
+                            ))),
+                        Action::make('include_none')
+                            ->label(__('catering.fields.include_none'))
+                            ->action(fn (Set $set) => $set('included_ticket_types', [])),
+                    ]),
                 // A typed Repeater, deliberately not a KeyValue field: each
                 // row maps 1:1 onto the MenuCast/MenuOption array shape
                 // {key,name,price_cents} (see roadmap insight #9). The price is
@@ -71,19 +116,41 @@ class FoodOrderForm
     }
 
     /**
+     * ALL of the event's ticket types (inactive ones marked), keyed by their stable key — a round
+     * may still include a since-deactivated key and must stay saveable.
+     *
+     * @return array<string, string>
+     */
+    public static function ticketOptions(mixed $eventId): array
+    {
+        if (! is_numeric($eventId)) {
+            return [];
+        }
+
+        $event = Event::query()->find((int) $eventId);
+
+        if ($event === null) {
+            return [];
+        }
+
+        return TicketType::query()
+            ->where('event_id', $event->id)
+            ->orderBy('sort')->orderBy('id')
+            ->get()
+            ->mapWithKeys(fn (TicketType $type): array => [
+                $type->key => $type->active ? $type->name : $type->name.' '.__('registration.admin.ticket_types.inactive_suffix'),
+            ])
+            ->all();
+    }
+
+    /**
      * Converts a EUR amount typed with a decimal comma or point ("8,50", "8.5",
      * "9") into integer cents, without float arithmetic. Returns null for
      * anything that is not a plain amount with at most two decimals.
      */
     public static function euroToCents(?string $value): ?int
     {
-        $value = trim((string) $value);
-
-        if (preg_match('/^(\d{1,4})(?:[.,](\d{1,2}))?$/', $value, $matches) !== 1) {
-            return null;
-        }
-
-        return ((int) $matches[1]) * 100 + (int) str_pad($matches[2] ?? '0', 2, '0');
+        return Euro::toCents($value);
     }
 
     private static function priceRule(): Closure

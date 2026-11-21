@@ -29,6 +29,8 @@ return [
     'card_action_order' => 'Bestellen',
     'card_action_schedule' => 'Zeitplan',
     'card_action_notification' => 'Ansehen',
+    'payment_title' => 'Ticket noch nicht bezahlt',
+    'card_action_payment' => 'Bezahlen',
 
     // Now playing
     'now_playing' => 'Läuft gerade',
@@ -69,6 +71,11 @@ return [
     'order' => 'Bestellen',
     'registration_needed' => 'Anmeldung nötig',
     'change_order' => 'Ändern',
+    ...(require __DIR__.'/payment.php'),
+    'pay_included' => 'Im Ticket enthalten, du zahlst hier nichts.',
+    'pay_nothing_due' => 'Alles bezahlt.',
+    'pay_cash' => 'Bar bei der Orga: :amount',
+    'pay_due' => 'Offen: :amount',
     'food_empty' => 'Gerade ist keine Essensrunde offen.',
     'food_next' => ':title öffnet um :time',
 

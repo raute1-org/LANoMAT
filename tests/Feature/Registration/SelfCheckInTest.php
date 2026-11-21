@@ -7,6 +7,7 @@ use App\Modules\Presence\Events\PresenceUpdated;
 use App\Modules\Registration\Actions\RotateEventCheckinToken;
 use App\Modules\Registration\Models\EventCheckinToken;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use App\Modules\Registration\Support\CheckinUrl;
 use App\Modules\Registration\Support\SelfCheckInWindow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -303,4 +304,14 @@ it('builds the QR check-in URL from APP_URL, not from the request host', functio
         ->assertOk()
         ->assertSee("https://lan.example.org/checkin/{$token}")
         ->assertDontSee('other-host.test/checkin');
+});
+
+it('still offers a ticket type to walk-ins when every ticket type is inactive', function () {
+    $event = Event::factory()->live()->create();
+    TicketType::query()->where('event_id', $event->id)->update(['active' => false]);
+
+    $this->actingAs(User::factory()->create())
+        ->get('/checkin/'.tokenFor($event))
+        ->assertOk()
+        ->assertInertia(fn ($p) => $p->where('ticketType', 'standard'));
 });

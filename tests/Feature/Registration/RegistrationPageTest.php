@@ -3,7 +3,9 @@
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Enums\RegistrationStatus;
+use App\Modules\Registration\Models\EventPaymentSettings;
 use App\Modules\Registration\Models\EventRegistration;
+use App\Modules\Registration\Models\TicketType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 
@@ -27,6 +29,8 @@ it('shows ticket options with german labels when not yet registered', function (
             ->component('Event/Register')
             ->where('registration', null)
             ->has('tickets', 1)
+            ->where('tickets.0.key', 'standard')
+            ->where('tickets.0.priceCents', 0)
             ->where('labels.title', 'Zum Event anmelden')
         );
 });
@@ -54,7 +58,6 @@ it('shows my registration with a qr code when already registered', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('registration.ticketType', 'standard')
             ->where('registration.ticketLabel', 'Standard')
-            ->where('ticketLabels.standard', 'Standard')
             ->has('registration.qrSvg')
         );
 });
@@ -155,4 +158,91 @@ it('does not leak another users registration or qr code on the show page', funct
         );
 
     expect($registration->fresh()->status)->toBe(RegistrationStatus::Confirmed);
+});
+
+function paidEvent(?string $link = 'https://paypal.me/example-orga'): Event
+{
+    $event = Event::factory()->registration()->create();
+    TicketType::where('event_id', $event->id)->where('key', 'standard')->update(['price_cents' => 2500, 'name' => 'Standard', 'sort' => 1]);
+    TicketType::create(['event_id' => $event->id, 'key' => 'vip', 'name' => 'VIP', 'description' => 'Mit Snacks', 'price_cents' => 4000, 'sort' => 2, 'active' => true]);
+    TicketType::create(['event_id' => $event->id, 'key' => 'old', 'name' => 'Old', 'price_cents' => 100, 'sort' => 3, 'active' => false]);
+    $settings = EventPaymentSettings::forEvent($event);
+    $settings->payment_link = $link;
+    $settings->save();
+
+    return $event;
+}
+
+it('lists active ticket types with prices in sort order and hides inactive ones', function () {
+    $event = paidEvent();
+
+    $this->actingAs(User::factory()->create())
+        ->get("/events/{$event->slug}/register")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('tickets', 2)
+            ->where('tickets.0.key', 'standard')
+            ->where('tickets.0.priceCents', 2500)
+            ->where('tickets.1.key', 'vip')
+            ->where('tickets.1.description', 'Mit Snacks')
+            ->where('tickets.1.priceCents', 4000)
+            ->missing('registration.payment')
+        );
+});
+
+it('gives the owner a payment link ending with the amount', function () {
+    $event = paidEvent();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create(['ticket_type' => 'standard']);
+    EventRegistration::query()->where('user_id', $user->id)->update(['ticket_price_cents' => 2500]);
+
+    $this->actingAs($user)
+        ->get("/events/{$event->slug}/register")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration.payment.amountCents', 2500)
+            ->where('registration.payment.paid', false)
+            ->where('registration.payment.url', fn ($url) => str_ends_with((string) $url, '/25EUR'))
+        );
+});
+
+it('marks the payment paid and has no url without a link', function () {
+    $event = paidEvent(null);
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create(['ticket_type' => 'standard']);
+    EventRegistration::query()->where('user_id', $user->id)->update(['ticket_price_cents' => 2500, 'paid_at' => now()]);
+
+    $this->actingAs($user)
+        ->get("/events/{$event->slug}/register")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration.payment.paid', true)
+            ->where('registration.payment.url', null)
+        );
+});
+
+it('never exposes another users payment', function () {
+    $event = paidEvent();
+    $owner = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($owner)->create(['ticket_type' => 'standard']);
+    EventRegistration::query()->where('user_id', $owner->id)->update(['ticket_price_cents' => 2500]);
+
+    $this->actingAs(User::factory()->create())
+        ->get("/events/{$event->slug}/register")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration', null)
+            ->missing('registration.payment')
+        );
+});
+
+it('sends no payment block for a free ticket so the page shows "kostenlos"', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create(['ticket_type' => 'standard']);
+    EventRegistration::query()->where('user_id', $user->id)->update(['ticket_price_cents' => 0]);
+
+    $this->actingAs($user)
+        ->get("/events/{$event->slug}/register")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('registration.payment', null)
+            ->where('registration.status', fn ($s) => $s !== 'cancelled')
+            ->where('labels.free_price', 'kostenlos')
+        );
 });

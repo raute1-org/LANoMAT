@@ -10,6 +10,14 @@ export interface FoodOrderItemDto {
     note: string | null;
     priceCents: number;
     paid: boolean;
+    included: boolean;
+}
+
+export interface MyFoodPayment {
+    method: 'cash' | 'paypal' | 'included';
+    dueCents: number;
+    url: string | null;
+    reference: string | null;
 }
 
 export interface FoodOrderDto {
@@ -23,4 +31,5 @@ export interface FoodOrderDto {
     menu: MenuOptionDto[];
     myItems: FoodOrderItemDto[];
     myTotalCents: number;
+    myPayment: MyFoodPayment | null;
 }

@@ -1,7 +1,9 @@
+import type { MyFoodPayment } from '@/types/catering';
+
 export type NowState = 'live' | 'upcoming' | 'none';
 
 export interface NowCardDto {
-    kind: 'match' | 'vote' | 'order' | 'schedule' | 'notification';
+    kind: 'match' | 'vote' | 'order' | 'schedule' | 'notification' | 'payment';
     id: string;
     state: string;
     title: string;
@@ -51,6 +53,7 @@ export interface FoodNowDto {
         closesAt: string | null;
         orderCount: number;
         mine: string | null;
+        payment: MyFoodPayment | null;
         orderable: boolean;
         href: string;
     };

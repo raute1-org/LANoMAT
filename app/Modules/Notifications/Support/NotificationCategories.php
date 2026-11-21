@@ -12,5 +12,5 @@ namespace App\Modules\Notifications\Support;
 final class NotificationCategories
 {
     /** @var list<string> */
-    public const ALL = ['registration', 'checkin', 'match', 'teams', 'friends', 'schedule', 'catering', 'orga_ping', 'discord'];
+    public const ALL = ['registration', 'checkin', 'match', 'teams', 'friends', 'schedule', 'catering', 'orga_ping', 'discord', 'payment'];
 }
