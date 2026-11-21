@@ -12,16 +12,16 @@ plan: [`docs/superpowers/plans/2026-11-21-ai-assistant.md`](../superpowers/plans
 
 ## Enable it
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `MODULE_ASSISTANT` | off in `core`, on in `full` | Module toggle. No hard dependency; each tool is hidden while the module it wraps (Tournaments, GameServers) is off |
-| `ASSISTANT_PROVIDER` | `anthropic` | `anthropic` (cloud) or `ollama` (local/offline) |
-| `ASSISTANT_MODEL` | `claude-opus-5-5` | Model for `anthropic` |
-| `ANTHROPIC_API_KEY` | empty | API key for `anthropic`; never committed, set it only in the server `.env` |
-| `OLLAMA_URL` | `http://localhost:11434` (SDK default) | Base URL of the Ollama server, e.g. `http://ollama.internal:11434` |
-| `ASSISTANT_OLLAMA_MODEL` | empty | Model name for `ollama`, must support tool calling |
-| `ASSISTANT_MAX_STEPS` | `12` | Model/tool round trips per prompt |
-| `ASSISTANT_THROTTLE_PER_MINUTE` | `20` | Chat and decision requests per minute and orga |
+| Variable                        | Default                                | Meaning                                                                                                            |
+| ------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `MODULE_ASSISTANT`              | off in `core`, on in `full`            | Module toggle. No hard dependency; each tool is hidden while the module it wraps (Tournaments, GameServers) is off |
+| `ASSISTANT_PROVIDER`            | `anthropic`                            | `anthropic` (cloud) or `ollama` (local/offline)                                                                    |
+| `ASSISTANT_MODEL`               | `claude-opus-5-5`                      | Model for `anthropic`                                                                                              |
+| `ANTHROPIC_API_KEY`             | empty                                  | API key for `anthropic`; never committed, set it only in the server `.env`                                         |
+| `OLLAMA_URL`                    | `http://localhost:11434` (SDK default) | Base URL of the Ollama server, e.g. `http://ollama.internal:11434`                                                 |
+| `ASSISTANT_OLLAMA_MODEL`        | empty                                  | Model name for `ollama`, must support tool calling                                                                 |
+| `ASSISTANT_MAX_STEPS`           | `12`                                   | Model/tool round trips per prompt                                                                                  |
+| `ASSISTANT_THROTTLE_PER_MINUTE` | `20`                                   | Chat and decision requests per minute and orga                                                                     |
 
 After changing the module toggle or the provider, rebuild/restart the app image as usual (config is read at boot).
 
@@ -52,12 +52,12 @@ Failover between providers (`config/assistant.php` `failover`) only covers rate-
 
 ## What the assistant can do (v1)
 
-| Tool | Kind | Needs |
-| --- | --- | --- |
-| `events_list`, `games_list`, `tournaments_list`, `tournament_get`, `servers_list`, `server_settings_get`, `server_logs` | read | orga |
-| `tournament_create`, `tournament_update`, `tournament_advance` (announce, open enrollment, open check-in, start, back to draft) | write, card | orga |
-| `server_start_preset`, `server_settings_update`, `server_change_map`, `server_power`, `server_console`, `server_restart_round` | write, card | orga |
-| `server_create_permanent` | write, card | admin only |
+| Tool                                                                                                                            | Kind        | Needs      |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------- |
+| `events_list`, `games_list`, `tournaments_list`, `tournament_get`, `servers_list`, `server_settings_get`, `server_logs`         | read        | orga       |
+| `tournament_create`, `tournament_update`, `tournament_advance` (announce, open enrollment, open check-in, start, back to draft) | write, card | orga       |
+| `server_start_preset`, `server_settings_update`, `server_change_map`, `server_power`, `server_console`, `server_restart_round`  | write, card | orga       |
+| `server_create_permanent`                                                                                                       | write, card | admin only |
 
 Not exposed: deleting servers or tournaments, `ProvisionGameServer`, an ungated `PowerServer`. Catering and
 participant tools are not part of v1; the registry (`App\Modules\Assistant\Support\ToolRegistry`) takes more
@@ -87,15 +87,24 @@ tool classes and roles without a rebuild.
 The chat streams server-sent events (`Content-Type: text/event-stream`, `Cache-Control: no-cache, no-transform`,
 `X-Accel-Buffering: no`). Production is FrankenPHP in classic mode behind Traefik: Traefik flushes event streams
 as they arrive, and the Traefik `buffering` middlewares in `docker/traefik/dynamic.yml` buffer **request** bodies
-only. The Caddyfile compresses responses (`encode zstd br gzip`), and compression would buffer a stream; the SDK marks the
-response `no-transform`, but whether this Caddy build honours that for event streams is **not verified**. If the
-answer arrives in one piece, exclude `text/event-stream` from `encode` (a `match` block) in
-`docker/frankenphp/Caddyfile`. After the first deploy, verify end to end (see below) that the answer arrives in pieces and not at once.
+only. Caddy's `encode` default matcher includes `text/*`, so
+without precaution it would also select `text/event-stream` (newer Caddy releases flush event streams
+immediately, older ones can hold them back while compressing). The production `docker/frankenphp/Caddyfile`
+therefore excludes the two stream endpoints (`/orga/assistant/chat`, `/orga/assistant/*/decisions`) from
+`encode` with a named request matcher, independent of the Caddy build. Pest pins the response headers
+(`text/event-stream`, `no-cache, no-transform`, `X-Accel-Buffering: no`, no `Content-Encoding`). After a Caddyfile
+change, verify end to end (see below) that the answer arrives in pieces and not at once.
+
+The browser reads the stream with its own small reader (`resources/js/lib/assistantStream.ts`). It ignores unknown
+part types, accepts CRLF framing and a stream without `[DONE]`, treats only an `error` part or a connection that
+drops before any part as an error, and always reloads the saved history afterwards. A failed run is logged
+server-side as `Assistant run failed.` (exception class, masked and clamped message; never the prompt or a key), so
+a banner in the browser can be matched with a line in `storage/logs`.
 
 ## Privacy
 
 With the cloud provider, names and data from tool results (participants, teams, tournament and server names,
-logs the orga asked for) are sent to Anthropic as part of the conversation. Ollama keeps everything on the
+logs the orga asked for) are sent to the model provider (Anthropic or OpenAI, shown in the page header) as part of the conversation. Ollama keeps everything on the
 venue network. Passwords never reach the provider. Conversations are kept until their owner deletes them
 (trash button; there is no automatic expiry); audit rows (`assistant_actions`) survive a deleted conversation.
 See ruling AU in [`docs/qa/rulings.md`](../qa/rulings.md).

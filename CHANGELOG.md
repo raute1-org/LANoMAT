@@ -57,6 +57,8 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 - Docs: built-output guard against doubled base paths (`/docs/docs/`) in `.md` raw anchors
 
 ### Fixed
+
+- AI assistant: the chat showed "Der Assistent antwortet gerade nicht" although the server had answered. The page fed Vue reactive state to `structuredClone`, which throws a DataCloneError on a Proxy, so the first stream part aborted the turn; the reducer now copies safely, the stream reader tolerates unknown parts, CRLF, a missing `[DONE]` and a connection drop after the answer started, and failed runs are logged (masked) in the server log. The page header shows the real provider and model (OpenAI is no longer labelled "Claude"). The Caddyfile excludes the assistant stream endpoints from compression. Answers render a safe Markdown subset (bold, italic, code, lists, paragraphs, http(s)/relative links) instead of raw asterisks; the parser builds typed nodes and Vue elements, never HTML strings.
 - Onboarding: the public team pages keep the guest-safe shell, so no Spiele/Launcher/Server navigation appears before the Discord login; the guest landing and `/launcher` are covered by regression tests.
 - MCP: `tools/list` omits `nextCursor` on the last page instead of sending `null` (invalid per the MCP schema; Claude Code rejected the whole tool list).
 - Presence: a voice server that does not answer is skipped for two minutes (circuit breaker) instead of blocking the presence refresh and the queue worker for the sidecar timeout.

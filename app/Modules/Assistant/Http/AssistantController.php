@@ -20,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -86,7 +87,8 @@ class AssistantController extends Controller
 
         $streamed = LanomatAssistant::make($user)
             ->continue($conversationId, as: $user)
-            ->stream($prompt, provider: $provider, model: $model);
+            ->stream($prompt, provider: $provider, model: $model)
+            ->catch(fn (Throwable $e) => $this->logFailure($e, $conversationId, $user));
 
         return $this->streamResponse($request, $streamed, $conversationId);
     }
@@ -156,6 +158,7 @@ class AssistantController extends Controller
 
         // Whatever the run left unexecuted must not stay armed.
         $callIds = array_map(fn (array $r): string => $r[3], $rows);
+        $streamed->catch(fn (Throwable $e) => $this->logFailure($e, $conversationId, $user));
         $streamed->then(fn () => $this->log->disarmApproved($user, $conversationId, $callIds));
         // A run that dies mid-stream never reaches the callback above; `disarmStale()` catches that case after two minutes.
 
@@ -195,7 +198,40 @@ class AssistantController extends Controller
             'conversationId' => $id,
             'messages' => $id === null ? [] : $this->history->messages($id, $pendingIds),
             'pending' => $id === null ? [] : $this->cards->forPage($user, $id),
-            'provider' => ['name' => (string) config('assistant.provider')],
+            'provider' => $this->providerInfo(),
+        ]);
+    }
+
+    /**
+     * What the page header shows: the real provider, its German label and the model name (never a key).
+     *
+     * @return array{name: string, label: string, model: string|null}
+     */
+    private function providerInfo(): array
+    {
+        $name = (string) config('assistant.provider');
+        $model = LanomatAssistant::providerArguments()[1] ?? null;
+        $key = "assistant.provider_label.{$name}";
+        $label = __($key);
+
+        return [
+            'name' => $name,
+            'label' => $label === $key ? $name : $label,
+            'model' => is_string($model) ? $model : null,
+        ];
+    }
+
+    /** Logs a failed run without the prompt, the answer or any key: class, masked and clamped message only. */
+    private function logFailure(Throwable $exception, string $conversationId, User $user): void
+    {
+        $message = (string) preg_replace(['/\b(sk|key|pk|tok|ghp|xox[a-z])[-_][A-Za-z0-9_\-]{8,}/i', '/(bearer|authorization|api[-_ ]?key|token|secret|password)(["\'\s:=]+)[^\s"\',}]+/i'], ['[masked]', '$1$2[masked]'], $exception->getMessage());
+
+        Log::warning('Assistant run failed.', [
+            'conversation_id' => $conversationId,
+            'user_id' => $user->id,
+            'provider' => (string) config('assistant.provider'),
+            'exception' => $exception::class,
+            'message' => Str::limit($message, 300),
         ]);
     }
 

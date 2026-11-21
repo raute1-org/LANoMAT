@@ -76,12 +76,21 @@ export function withUserMessage(
     ];
 }
 
+/**
+ * Deep copy that also works on Vue reactive proxies. `structuredClone` throws a
+ * DataCloneError on a Proxy, and the page hands this reducer `ref` state, so
+ * the first stream part used to abort the whole turn with the generic error banner.
+ */
+export function cloneMessages(messages: UiMessage[]): UiMessage[] {
+    return JSON.parse(JSON.stringify(messages)) as UiMessage[];
+}
+
 /** Returns a new list with the stream part applied; unknown parts are ignored. */
 export function applyStreamPart(
     current: UiMessage[],
     part: StreamPart,
 ): UiMessage[] {
-    const messages = structuredClone(current);
+    const messages = cloneMessages(current);
 
     switch (part.type) {
         case 'start':
