@@ -147,11 +147,11 @@ is inconvenient; the token behaves exactly like a paired one.
 - A restore of an older database **un-revokes** tokens that were revoked after the dump; revoke them
   again. Token plaintext still matches, because the digest is unchanged.
 
-## Recipe sync (cron)
+## Recipe sync (scheduled)
 
-`lanomat:recipes:sync` imports recipe folders into the catalogue. It is **not** scheduled by the
-app; run it from cron (or the scheduler) on the app host, because a sync that silently stops is
-worse than a late one.
+`lanomat:recipes:sync` imports recipe folders into the catalogue. The app schedules it daily at
+04:15 (`routes/console.php`); the scheduler service must be running. Run it by hand after changing
+a recipe on the app host, because a sync that silently stops is worse than a late one.
 
 ```bash
 docker compose exec -T app php artisan lanomat:recipes:sync --json

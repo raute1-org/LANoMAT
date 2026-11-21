@@ -199,8 +199,8 @@ service for the monitor.
 ## Security notes
 
 - The token is the only identity; it belongs to the user who approved the pairing. Revoking it
-  under `/mcp/connect` stops the heartbeat immediately (401) and detaches the row
-  (`mcp_token_id` becomes `null`, the row survives for the monitor's history).
+  under `/mcp/connect` stops the heartbeat immediately (401). The row survives for the monitor's
+  history and turns offline after 90 s; delete it in the panel when the cabinet is retired.
 - The list is orga-only (`LauncherTerminalPolicy::viewAny`). Participants never see other
   terminals, their IPs or who paired them.
 - The heartbeat can only write its own row — there is no terminal id in the request, so a

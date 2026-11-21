@@ -42,7 +42,7 @@ Usage: install-terminal.sh [options] [tarball-or-binary]
 
   --bin PATH            use this launcher tarball/binary instead of the one
                         next to the script
-  --arcade              cabinet preset: fullscreen plus autostart (default)
+  --arcade              cabinet preset: fullscreen (without it: a desk app)
   --kiosk               locked fullscreen: Escape cannot leave it
   --no-autostart        install but do not start the launcher at login
   --autostart MODE      desktop (default, ~/.config/autostart) or
@@ -288,11 +288,22 @@ write_unit() { # <exec value, systemd-quoted>
     if command -v systemctl >/dev/null 2>&1; then
         systemctl --user daemon-reload >/dev/null 2>&1 ||
             warn "systemctl --user daemon-reload failed"
-        systemctl --user enable "$APP.service" >/dev/null 2>&1 ||
+        # Enable by path: the unit lives under $XDG_CONFIG_HOME, which the
+        # running user manager does not necessarily search.
+        systemctl --user enable "$UNIT_FILE" >/dev/null 2>&1 ||
             warn "systemctl --user enable $APP.service failed"
     else
         say "systemctl not found - enable $APP.service in your session by hand"
     fi
+}
+
+disable_unit() {
+    command -v systemctl >/dev/null 2>&1 || return 0
+    # `disable` also removes the graphical-session.target.wants symlink, which
+    # would otherwise dangle after the unit file is gone.
+    systemctl --user disable "$UNIT_FILE" >/dev/null 2>&1 || true
+    rm -f "$CONFIG_HOME/systemd/user/graphical-session.target.wants/$APP.service"
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
 }
 
 systemd_exec_value() { # <path> - quoted, % doubled (systemd specifier)
@@ -374,9 +385,7 @@ install_terminal() {
                 ;;
             desktop)
                 if [ -f "$UNIT_FILE" ]; then
-                    if command -v systemctl >/dev/null 2>&1; then
-                        systemctl --user disable "$APP.service" >/dev/null 2>&1 || true
-                    fi
+                    disable_unit
                     rm -f "$UNIT_FILE"
                     say "unit removed (switched to autostart)"
                 fi
@@ -384,6 +393,9 @@ install_terminal() {
                 ;;
         esac
     else
+        if [ -f "$UNIT_FILE" ]; then
+            disable_unit
+        fi
         rm -f "$AUTOSTART_FILE" "$UNIT_FILE"
         say "autostart none (--no-autostart)"
     fi
@@ -397,9 +409,10 @@ install_terminal() {
 }
 
 uninstall_all() {
-    had_unit=0
     if [ -f "$UNIT_FILE" ]; then
-        had_unit=1
+        # Disable while the unit still exists: a fresh user manager rejects
+        # `disable` for a unit file that has already been removed.
+        disable_unit
     fi
 
     for file in "$AUTOSTART_FILE" "$UNIT_FILE"; do
@@ -408,11 +421,6 @@ uninstall_all() {
             say "removed $file"
         fi
     done
-
-    if [ "$had_unit" = 1 ] && command -v systemctl >/dev/null 2>&1; then
-        systemctl --user disable "$APP.service" >/dev/null 2>&1 || true
-        systemctl --user daemon-reload >/dev/null 2>&1 || true
-    fi
 
     installer=$OUR_DIR/install-desktop.sh
     [ -f "$installer" ] || die "install-desktop.sh not found next to this script"

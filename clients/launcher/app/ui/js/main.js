@@ -620,7 +620,21 @@ async function goBack() {
         return connect.back();
     }
 
-    if (state.stage === 'install' || state.stage === 'ready' || state.stage === 'chat') {
+    if (state.stage === 'install') {
+        // Do not hide a running install: the cancel button lives on this
+        // screen and the Rust run would continue invisibly.
+        if (install.isRunning()) {
+            toast(S.install.runningBack);
+
+            return true;
+        }
+
+        goLibrary();
+
+        return true;
+    }
+
+    if (state.stage === 'ready' || state.stage === 'chat') {
         goLibrary();
 
         return true;

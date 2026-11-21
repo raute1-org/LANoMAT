@@ -7,6 +7,7 @@ namespace App\Modules\GameRecipes\Actions;
 use App\Modules\GameRecipes\Enums\TerminalState;
 use App\Modules\GameRecipes\Models\LauncherTerminal;
 use App\Modules\Mcp\Models\McpToken;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 
 /**
@@ -27,8 +28,36 @@ class RecordTerminalHeartbeat
     {
         $terminal = LauncherTerminal::query()
             ->where('mcp_token_id', $token->getKey())
-            ->first() ?? new LauncherTerminal;
+            ->first();
 
+        if ($terminal === null) {
+            $terminal = new LauncherTerminal;
+            $terminal->forceFill(['mcp_token_id' => $token->getKey()]);
+        }
+
+        $this->apply($terminal, $attributes, $ip);
+
+        try {
+            $terminal->save();
+        } catch (UniqueConstraintViolationException) {
+            // Two concurrent heartbeats for a freshly paired token raced past
+            // the unique index; the loser re-reads and updates the winner.
+            $terminal = LauncherTerminal::query()
+                ->where('mcp_token_id', $token->getKey())
+                ->firstOrFail();
+
+            $this->apply($terminal, $attributes, $ip);
+            $terminal->save();
+        }
+
+        return $terminal;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function apply(LauncherTerminal $terminal, array $attributes, ?string $ip): void
+    {
         $terminal->fill(Arr::only($attributes, [
             'name',
             'os',
@@ -39,13 +68,9 @@ class RecordTerminalHeartbeat
             'gamepad',
         ]));
 
-        $terminal->mcp_token_id = $token->getKey();
         $terminal->state = $this->state($attributes['state'] ?? null);
         $terminal->ip = $ip;
         $terminal->last_seen_at = now();
-        $terminal->save();
-
-        return $terminal;
     }
 
     private function state(mixed $reported): TerminalState

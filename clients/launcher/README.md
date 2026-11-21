@@ -60,7 +60,8 @@ Two entry points, different jobs:
 - `ci/build.sh` is the **gate**. Inside the `app` image it runs `cargo fmt --all --check`,
   `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo test --locked --workspace`
   (core and app unit tests — the app crate's slug/URL/footer tests are real), then the release build
-  and stages `dist/linux/`. CI uses it; run it before publishing.
+  and stages `dist/linux/`. The release workflow uses it (PR CI has no launcher job yet); run it
+  before publishing.
 - `scripts/ops/build-launcher.sh` is the **release helper**. It resolves the version, compiles
   `cargo build --locked --release` in the same image, packages and publishes. It does **not** run
   fmt/clippy/tests, so a Rust change that never went through `ci/build.sh` is not caught here.
@@ -121,9 +122,10 @@ same-version exe into the folder and re-run `scripts/ops/build-launcher.sh`, whi
 ## Local pilot acceptance
 
 A seeded LANoMAT database has the real recipe and the demo agent token; the ISO and patch are matched
-by file name and ship with an empty SHA-256, so they are only hash-checked if the Orga pins one. Run
-the server, then the core installer against it (the host has no Rust toolchain, so this runs in the
-image; `--network host` lets the container reach the server on 127.0.0.1):
+by file name and carry the SHA-256 the server stores for them, so every matched LAN file is
+hash-checked (a recipe pin, when present, wins over the stored digest). Run the server, then the
+core installer against it (the host has no Rust toolchain, so this runs in the image;
+`--network host` lets the container reach the server on 127.0.0.1):
 
 ```bash
 docker run --rm --network host \

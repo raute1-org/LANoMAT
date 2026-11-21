@@ -428,6 +428,8 @@ Single definition: `App\Support\Brand\ShellParity`. Canonical logo geometry: `pu
 | Admin marker present **only** in admin | none (must stay absent) | neutral "Admin" badge in the brand + 3px top stripe (`PanelsRenderHook::BODY_START`) |
 | Back link to app always visible in admin | n/a | "Zur App" button (`PanelsRenderHook::TOPBAR_END`) + user-menu item |
 | "Desktop-App" entry (while the WebVoice module is routable) | `AppSidebar.vue` "Allgemein" group, green dot when a build for the visitor's OS exists | Filament navigation item to `/app` (`ShellParity::DESKTOP_APP_LABEL`) |
+| "Launcher" entry (while the GameRecipes module is routable) | `AppSidebar.vue` "Allgemein" group (`ShellParity::LAUNCHER_LABEL`, `/launcher`) | Filament navigation item to `/launcher` (same label/URL) |
+| "Geräte & MCP" user-menu entry | `AppSidebar.vue` / user menu (`ShellParity::DEVICES_MCP_LABEL`, `/mcp/connect`) | Filament user-menu item (same label/URL) |
 
 **Marker colour choice:** the badge and stripe are neutral high-contrast (Filament `gray-950` on light, `gray-50` on dark), not amber. Amber is rationed to the primary action and live state (see above); using it for "you are in admin" would dilute that signal.
 

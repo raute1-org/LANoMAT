@@ -306,8 +306,8 @@ expect_gone "$AUTOSTART_FILE" "switching to systemd removed the autostart entry"
 expect_grep "$UNIT_FILE" "^ExecStart=$BIN_FILE --arcade$" "the unit starts the binary fullscreen"
 expect_grep "$UNIT_FILE" '^Environment="LANOMAT_TERMINAL_NAME=Cab 1"$' "the unit carries the terminal name"
 expect_line "$UNIT_FILE" "WantedBy=graphical-session.target" "the unit belongs to the graphical session"
-expect_grep "$TMP/systemctl.log" "systemctl --user enable lanomat-launcher.service" \
-    "the unit is enabled for the user session"
+expect_grep "$TMP/systemctl.log" "systemctl --user enable $UNIT_FILE" \
+    "the unit is enabled for the user session by path"
 expect_count "$UNIT_FILE" 'LANOMAT_TERMINAL_NAME' 1 "the name appears once in the unit"
 
 # ---- 6. no systemctl on PATH ------------------------------------------------------------------
@@ -378,7 +378,7 @@ expect_gone "$UNIT_FILE" "the user unit is gone"
 expect_gone "$DESKTOP_FILE" "the desktop entry is gone"
 expect_gone "$ICON_FILE" "the icon is gone"
 expect_gone "$BIN_FILE" "the binary is gone"
-expect_grep "$TMP/systemctl.log" "systemctl --user disable lanomat-launcher.service" \
+expect_grep "$TMP/systemctl.log" "systemctl --user disable $UNIT_FILE" \
     "the unit is disabled again"
 
 expect_run "--uninstall is safe to repeat" run_script_with_path "$INSTALL" "$HOME_DIR" \

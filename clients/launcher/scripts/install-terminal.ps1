@@ -147,6 +147,9 @@ function Resolve-Source {
         $candidates += (Join-Path $PSScriptRoot $ExeName)
         $candidates += (Join-Path $PSScriptRoot "$ExeName.zip")
         $candidates += (Join-Path (Split-Path -Parent $PSScriptRoot) $ExeName)
+        # The release ships lanomat-launcher-<version>-windows-x86_64-portable.exe.
+        $candidates += @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter 'lanomat-launcher*.exe' -File -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName)
     }
     if (Test-Path -LiteralPath $InstalledExe) {
         $candidates += $InstalledExe
@@ -166,8 +169,11 @@ function Get-ExeFromSource {
     param([string] $Source)
 
     if ($Source -notlike '*.zip') {
-        if ([System.IO.Path]::GetFileName($Source) -ne $ExeName) {
-            throw "$Source is not $ExeName and not a .zip archive."
+        $leaf = [System.IO.Path]::GetFileName($Source)
+        # Accept the release name (lanomat-launcher-<version>-windows-x86_64-portable.exe)
+        # next to the canonical lanomat-launcher.exe.
+        if ($leaf -ne $ExeName -and $leaf -notlike 'lanomat-launcher*.exe') {
+            throw "$Source is not $ExeName, not a lanomat-launcher*.exe and not a .zip archive."
         }
         return $Source
     }

@@ -222,13 +222,15 @@ never seen this LAN. Requires `MODULE_GAME_RECIPES=true`, `MODULE_FILES=true` an
       exists only on the machine that ran it.
 - [ ] **Arcade terminal by QR:** in kiosk/fullscreen mode the launcher shows a QR of
       `/mcp/connect?code=…` plus the code as text; scan it with a phone, sign in and approve — the
-      terminal stores its own device token and shows **Angemeldet als <Name>**. The QR alone does not
-      sign anyone in.
-- [ ] **Handover:** **Abmelden / Reset** on the arcade terminal clears the session and pairing for the
-      next player; the installed files stay, so the next scan reaches the library without a second
-      download. The same account works on every terminal.
-- [ ] **Per-terminal monitoring:** `/mcp/connect` shows **online**, **aktuelles Spiel** and **zuletzt
-      gesehen** for each terminal; a powered-off machine goes dark there without any manual refresh.
+      terminal stores its own device token and shows **Verbunden mit &lt;Server&gt; · &lt;Name&gt;**.
+      The QR alone does not sign anyone in.
+- [ ] **Handover:** **Abmelden / Nächstes Gerät** on the arcade terminal clears the session and
+      pairing for the next player; the installed files stay, so the next scan reaches the library
+      without a second download. The same account works on every terminal.
+- [ ] **Per-terminal monitoring:** `/admin/launcher-terminals` shows **online**, **aktuelles Spiel**
+      and **zuletzt gesehen** for each terminal, and the pairing itself is listed under
+      **Verbundene Geräte** on `/mcp/connect`; a powered-off machine goes dark without a manual
+      refresh.
 - [ ] **Offline library:** stop the LANoMAT app (leave the file host reachable or not) — a terminal with
       a verified UT2004 install still offers **Starten**, and the catalogue area says the server is
       offline instead of pretending to be empty.

@@ -204,6 +204,8 @@ export const S = {
         cancelling: 'Wird abgebrochen …',
         cancellingHint: 'Der laufende Schritt wird beendet.',
         started: (title) => `Installation von ${title} gestartet.`,
+        runningBack:
+            'Die Installation läuft weiter — bitte den Launcher geöffnet lassen.',
         hint: 'Bitte den Launcher geöffnet lassen.',
         errorTitle: 'Die Installation ist fehlgeschlagen.',
         errorText:

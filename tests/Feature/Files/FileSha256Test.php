@@ -88,6 +88,29 @@ it('leaves the hash null when the stored file is gone', function () {
     expect($file->refresh()->sha256)->toBeNull();
 });
 
+it('does not let an unreadable file starve later files out of a limited run', function () {
+    $missing = SharedFile::factory()->create([
+        'disk' => 'local',
+        'path' => 'event-1/gone.zip',
+        'size_bytes' => 42,
+        'sha256' => null,
+    ]);
+
+    Storage::disk('local')->put('event-1/good.zip', 'good-bytes');
+    $good = SharedFile::factory()->create([
+        'disk' => 'local',
+        'path' => 'event-1/good.zip',
+        'size_bytes' => strlen('good-bytes'),
+        'sha256' => null,
+    ]);
+
+    // The limit caps hashes, not rows: the missing file does not consume it.
+    $this->artisan('lanomat:files:hash', ['--limit' => 1])->assertFailed();
+
+    expect($missing->refresh()->sha256)->toBeNull()
+        ->and($good->refresh()->sha256)->toBe(hash('sha256', 'good-bytes'));
+});
+
 it('does not read or write anything in a dry run', function () {
     $content = 'dry-run-bytes';
     Storage::disk('local')->put('event-1/dry.zip', $content);

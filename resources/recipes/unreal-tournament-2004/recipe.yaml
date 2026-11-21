@@ -266,9 +266,13 @@ steps:
           `ut2004://` address as its first argument is unverified.
       commands:
           - shell: bash
-            run: 'mkdir -p ~/.local/share/applications && printf "[Desktop Entry]\nType=Application\nName=UT2004 (ut2004:// handler)\nExec=\"%s/System/ut2004-bin-amd64\" %%u\nPath=%s/System\nTerminal=false\nNoDisplay=true\nMimeType=x-scheme-handler/ut2004;\n" "{{target}}" "{{target}}" > ~/.local/share/applications/ut2004-handler.desktop'
+            run: 'mkdir -p ~/.local/share/applications'
           - shell: bash
-            run: 'xdg-mime default ut2004-handler.desktop x-scheme-handler/ut2004 && update-desktop-database ~/.local/share/applications'
+            run: 'printf "[Desktop Entry]\nType=Application\nName=UT2004 (ut2004:// handler)\nExec=\"%s/System/ut2004-bin-amd64\" %%u\nPath=%s/System\nTerminal=false\nNoDisplay=true\nMimeType=x-scheme-handler/ut2004;\n" "{{target}}" "{{target}}" > ~/.local/share/applications/ut2004-handler.desktop'
+          - shell: bash
+            run: 'xdg-mime default ut2004-handler.desktop x-scheme-handler/ut2004'
+          - shell: bash
+            run: 'update-desktop-database ~/.local/share/applications'
       verify:
           - type: file_exists
             path: '{{target}}/System/ut2004-bin-amd64'

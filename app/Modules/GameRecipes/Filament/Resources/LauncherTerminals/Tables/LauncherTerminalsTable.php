@@ -12,6 +12,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class LauncherTerminalsTable
 {
@@ -74,9 +75,27 @@ class LauncherTerminalsTable
                     ->options(collect(TerminalState::cases())
                         ->mapWithKeys(fn (TerminalState $state): array => [$state->value => $state->label()])
                         ->all())
-                    // The filter acts on the reported state column; a stale row
-                    // always reads offline above, which is the signal that matters.
-                    ->attribute('state'),
+                    // Match the badge, not the raw column: a stale heartbeat is
+                    // offline no matter what it last reported.
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (! is_string($value) || $value === '') {
+                            return $query;
+                        }
+
+                        $cutoff = now()->subSeconds(LauncherTerminal::OFFLINE_AFTER_SECONDS);
+
+                        if ($value === TerminalState::Offline->value) {
+                            return $query->where(fn (Builder $stale): Builder => $stale
+                                ->where('last_seen_at', '<', $cutoff)
+                                ->orWhere('state', TerminalState::Offline->value));
+                        }
+
+                        return $query
+                            ->where('last_seen_at', '>=', $cutoff)
+                            ->where('state', $value);
+                    }),
             ])
             ->recordActions([
                 DeleteAction::make()

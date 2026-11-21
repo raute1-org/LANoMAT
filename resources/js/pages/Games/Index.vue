@@ -398,7 +398,7 @@ function absoluteTime(iso: string): string {
                                         Launcher schon da?
                                         <a
                                             :href="game.install_deeplink"
-                                            class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                            class="inline-block font-medium whitespace-nowrap text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                         >
                                             Im Launcher öffnen
                                         </a>
@@ -564,7 +564,7 @@ function absoluteTime(iso: string): string {
                                 Launcher schon da?
                                 <a
                                     :href="game.install_deeplink"
-                                    class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                    class="inline-block font-medium whitespace-nowrap text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                 >
                                     Im Launcher öffnen
                                 </a>

@@ -81,7 +81,7 @@ with its size, its SHA-256 and the steps for that file; extra files appear furth
 | OS | File | Notes |
 |---|---|---|
 | Linux x86_64 | `lanomat-launcher-<version>-linux-x86_64.tar.gz` | Extract the tarball, then run `./lanomat-launcher` inside the extracted `lanomat-launcher-<version>-linux-x86_64/` folder (it holds the binary, `install-desktop.sh`, `install-terminal.sh`, `LIESMICH.txt`, the desktop entry and the icon); WebKitGTK 4.1 is required |
-| Windows x86_64 | `lanomat-launcher-<version>-windows-x86_64-portable.exe` | Portable exe, no installation; `install-desktop.ps1` and `install-terminal.ps1` sit next to it in the download. Unsigned at first: SmartScreen → "Weitere Informationen" → "Trotzdem ausführen" |
+| Windows x86_64 | `lanomat-launcher-<version>-windows-x86_64-portable.exe` | Portable exe, no installation; `install-desktop.ps1` and `install-terminal.ps1` ship in the same release artifact (they are not manifest entries, so the page offers only the exe). Unsigned at first: SmartScreen → "Weitere Informationen" → "Trotzdem ausführen" |
 
 Each primary build has a **Herunterladen** button and a **Kopieren** button for its SHA-256.
 **Weitere Dateien** (for example a portable exe next to an archive) lists the additional files with
@@ -89,9 +89,10 @@ their name and size, each with its own download button. The `/launcher` page rea
 `clients-dist/launcher/manifest.json`; a file that is not in that manifest is not offered, and the
 page says "Es ist noch kein Launcher-Build veröffentlicht" when the Orga has not copied one. The
 Preflight check `launcher_build` watches exactly that manifest: it warns when nothing is published,
-when a file no longer matches its size or SHA-256, when only one OS is there, and when the build is
-older than 30 days. On the client side a file is hash-checked only if
-the Orga pinned a SHA-256 in the recipe — the shipped UT2004 recipe pins none.
+when only one OS is there and when the build is older than 30 days; a file that no longer matches
+its size or SHA-256 turns the check **down**. On the client side a matched LAN file is always
+hash-checked against the digest the server stored with it; a recipe pin, when present, wins over
+the stored digest. The shipped UT2004 patch pins its upstream GitHub file.
 
 ## Pair once
 
@@ -117,17 +118,19 @@ its own token: the launcher appears as a separate entry under **Verbundene Gerä
 
 ## The same Games list
 
-The launcher opens on **Spiele** — the same published recipes, the same **LAN** badge, the same
-action words as `/games` in the browser. The newest local install record shows on the card: target
-folder, verified files, and either **Installieren** or **Starten**.
+The launcher opens on **Chat**; the **Spiele** tab has the same published recipes, the same **LAN**
+badge and the same action words as `/games` in the browser. The newest local install record shows
+on the card: target folder, verified files, and either **Installieren** or **Starten**.
 
 | Dark |
 |---|
 | ![Launcher library with the UT2004 card, dark](/screens/launcher-library-dark.png) |
 | `LAUNCHER · SPIELE · DARK` — paired server, LAN badge, Installieren/Starten |
 
-A **Zuletzt gespielt** install is a `Starten` away. A game that is not installed shows
+The newest installed game is one `Starten` away. A game that is not installed shows
 **Installieren** only; nothing claims to be installed that the launcher has not verified.
+(The **Zuletzt gespielt** row on the web `/games` page is server activity, not the launcher's
+local install list.)
 
 ## Percentages, not promises
 
@@ -220,24 +223,24 @@ the phone they already carry:
    address. The QR holds no secret; it is the same approval link the personal flow opens.
 2. The player scans it, logs in with their LANoMAT account and approves the device name shown on
    the page (the terminal's name, not the player's).
-3. The terminal stores **its own** bearer token and shows `Angemeldet als <Name>`; the library
-   and the local installs are ready. The wait state carries a mono countdown, and an expired code
+3. The terminal stores **its own** bearer token and shows `Verbunden mit <Server> · <Name>`; the
+   chat, library and local installs are ready. The wait state carries a mono countdown, and an expired code
    offers **Neuen Code erzeugen** without leaving the screen.
 
-Handover: **Abmelden / Reset** clears the local session and pairing so the next player scans their
-own code. Installed files stay on the machine — the next player sees the same verified library and
+Handover: **Abmelden / Nächstes Gerät** clears the local session and pairing so the next player scans
+their own code. Installed files stay on the machine — the next player sees the same verified library and
 can press **Starten** — so a room full of terminals does not re-download UT2004 for every person.
 
 The same account can sign in on any number of terminals; each terminal is a separate device with
-its own token and its own local library. Under **Verbundene Geräte** on `/mcp/connect` every
-terminal appears as its own row with **online**, **aktuelles Spiel** and **zuletzt gesehen**, and
-you revoke one there when a machine is retired — the room is monitored from the browser, not by
-walking around.
+its own token and its own local library. **Verbundene Geräte** on `/mcp/connect` lists each
+pairing with its device name; the room's live state — **online**, **aktuelles Spiel** and
+**zuletzt gesehen** — is the fleet monitor at `/admin/launcher-terminals`, where an orga revokes
+or removes a retired machine without walking around.
 
-Arcade mode is kiosk: fullscreen, no OS chrome beyond the window, large targets, complete keyboard
-operation and the same actions on a gamepad (QR → **Verbinden** → library → **Installieren** /
-**Starten** → **Abmelden / Reset**). The screen shows the display name only — no e-mail, no Discord
-id, no token. The pilot still installs UT2004 only; other published recipes stay catalog-only until
+Arcade mode starts fullscreen; `--kiosk` additionally locks the window on top and disables the
+Escape exit. Targets are large, the whole flow works with keyboard or gamepad (QR → **Verbinden** →
+library → **Installieren** / **Starten** → **Abmelden / Nächstes Gerät**). The screen shows the
+display name only — no e-mail, no Discord id, no token. The pilot still installs UT2004 only; other published recipes stay catalog-only until
 the recipe engine is generic.
 
 ## If a file is missing
@@ -261,7 +264,8 @@ at the same time, each with its own token — revoking one does not revoke the o
 `scripts/ops/build-launcher.sh` compiles the Linux release in the launcher's Docker image and writes
 `clients-dist/launcher/`: the tarball, `SHA256SUMS` and `manifest.json` (`manifest.json` is renamed
 into place last, so `/launcher` never serves a half-written release). It only compiles — the
-format, clippy and workspace test gate is `clients/launcher/ci/build.sh`, which CI runs. It refuses
+format, clippy and workspace test gate is `clients/launcher/ci/build.sh`, which the release
+workflow runs (PR CI has no launcher job yet). It refuses
 a working tree that is not clean (tracked changes anywhere, untracked files outside the known build
 output); `--allow-dirty` accepts it and marks the version `-dirty`. The toolchain image is rebuilt
 when `Dockerfile.dev` changes (`--rebuild-image` forces it), and older Linux tarballs in the folder

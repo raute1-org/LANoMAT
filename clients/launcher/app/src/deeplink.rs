@@ -1,7 +1,8 @@
 //! The `lanomat://` link grammar, kept pure so it can be tested without Tauri.
 //!
 //! Two actions exist in the pilot: `lanomat://install/<slug>` and
-//! `lanomat://launch/<slug>`. The slug is exactly what the recipe API accepts,
+//! `lanomat://launch/<slug>` (`play` is accepted as an alias for `launch`,
+//! which is what the web's Starten button emits). The slug is exactly what the recipe API accepts,
 //! `[a-z0-9-]{1,120}`, so anything else is refused before it can reach the
 //! shell state or a URL.
 
@@ -27,7 +28,7 @@ impl DeepLinkAction {
     fn parse(raw: &str) -> Option<Self> {
         if raw.eq_ignore_ascii_case("install") {
             Some(Self::Install)
-        } else if raw.eq_ignore_ascii_case("launch") {
+        } else if raw.eq_ignore_ascii_case("launch") || raw.eq_ignore_ascii_case("play") {
             Some(Self::Launch)
         } else {
             None
@@ -142,6 +143,11 @@ mod tests {
         let launch = parse_deep_link("lanomat://launch/ut2004").unwrap();
         assert_eq!(launch.action, DeepLinkAction::Launch);
         assert_eq!(launch.slug, "ut2004");
+
+        // The web's Starten button speaks `play`.
+        let play = parse_deep_link("lanomat://play/ut2004").unwrap();
+        assert_eq!(play.action, DeepLinkAction::Launch);
+        assert_eq!(play.slug, "ut2004");
     }
 
     #[test]

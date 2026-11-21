@@ -44,6 +44,8 @@ tags:
     description: The LAN file host.
   - name: Servers
     description: The aggregated game servers of the active and recent events, plus permanent servers.
+  - name: Terminals
+    description: The launcher fleet — arcade and participant cabinets reporting their state.
 
 x-tagGroups:
   - name: Agents
@@ -62,6 +64,9 @@ x-tagGroups:
   - name: Game servers
     tags:
       - Servers
+  - name: Launcher fleet
+    tags:
+      - Terminals
 
 paths:
   /api/mcp/device:
@@ -741,8 +746,13 @@ paths:
                         connectIsLink: { type: boolean }
                         status:
                           type: string
-                          enum: [ready, not_responding, offline, provisioning, pending, failed, stopped]
+                          enum: [ready, not_responding, offline, provisioning]
                         permanent: { type: boolean }
+                        source:
+                          type: string
+                          nullable: true
+                          enum: [pelican, docker, external]
+                          description: Set for permanent servers; null for event servers.
                         event:
                           type: object
                           nullable: true
@@ -759,6 +769,21 @@ paths:
                             players: { type: integer }
                             maxPlayers: { type: integer }
                             checkedAt: { type: string, nullable: true }
+                        estimate:
+                          type: object
+                          nullable: true
+                          description: Resource estimate for event servers; null for permanent servers or without a game.
+                          properties:
+                            ramMb: { type: integer }
+                            maxRamMb: { type: integer }
+                            overCap: { type: boolean }
+                        installHint:
+                          type: object
+                          nullable: true
+                          properties:
+                            steamUrl: { type: string, nullable: true }
+                            shareUrl: { type: string, nullable: true }
+                            versionNote: { type: string, nullable: true }
                         joinOptions:
                           type: array
                           items:
@@ -795,6 +820,135 @@ paths:
                     joinOptions: []
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/terminals/heartbeat:
+    post:
+      tags: [Terminals]
+      operationId: recordTerminalHeartbeat
+      summary: Report a launcher terminal heartbeat
+      description: |
+        The launcher sends this every 30 seconds with its bearer token. The token is the
+        terminal's identity: repeated heartbeats update the same row, a re-paired token
+        creates a new one. `last_seen_at` and `ip` are server facts, never client claims.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 60 }
+                os:
+                  type: string
+                  nullable: true
+                  enum: [windows, linux, macos]
+                arch: { type: string, maxLength: 16, nullable: true }
+                version: { type: string, maxLength: 32, nullable: true }
+                state:
+                  type: string
+                  nullable: true
+                  enum: [online, playing, idle, offline]
+                current_game_slug: { type: string, maxLength: 120, nullable: true }
+                installed:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, maxLength: 120 }
+                gamepad: { type: boolean, nullable: true }
+      responses:
+        "200":
+          description: The heartbeat was recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, terminal_id, server_time]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  terminal_id: { type: integer }
+                  server_time: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: The heartbeat payload is invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/terminals:
+    get:
+      tags: [Terminals]
+      operationId: listTerminals
+      summary: The launcher fleet
+      description: |
+        The orga monitor's fleet list: online terminals first, then by name. Requires an
+        orga or admin token; a participant or helper token gets 403.
+      responses:
+        "200":
+          description: All registered terminals.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, heartbeat_seconds, offline_after_seconds, server_time]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, state, online, installed, gamepad]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        state:
+                          type: string
+                          enum: [online, playing, idle, offline]
+                        online: { type: boolean }
+                        os: { type: string, nullable: true }
+                        arch: { type: string, nullable: true }
+                        version: { type: string, nullable: true }
+                        current_game_slug: { type: string, nullable: true }
+                        installed:
+                          type: array
+                          items: { type: string }
+                        installed_count: { type: integer }
+                        gamepad: { type: boolean }
+                        last_seen_at: { type: string, format: date-time, nullable: true }
+                        ip: { type: string, nullable: true }
+                        paired_user:
+                          type: object
+                          nullable: true
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                        token_name: { type: string, nullable: true }
+                  heartbeat_seconds: { type: integer }
+                  offline_after_seconds: { type: integer }
+                  server_time: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The token's user may not view the fleet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/files:
     get:

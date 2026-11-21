@@ -8,7 +8,9 @@ use App\Modules\Events\Models\Event;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\SharedFileHasher;
 use Illuminate\Console\Command;
+use Illuminate\Console\View\TaskResult;
 use Illuminate\Database\Eloquent\Builder;
+use Throwable;
 
 /**
  * Fills in the server-side SHA-256 of files that predate the column (or whose
@@ -54,41 +56,64 @@ class HashSharedFilesCommand extends Command
             ->when($eventId !== null, fn (Builder $builder): Builder => $builder->where('event_id', $eventId))
             ->orderBy('id');
 
-        if ($limit > 0) {
-            $query->limit($limit);
-        }
+        $hashed = 0;
+        $failed = 0;
+        $listed = 0;
 
-        $files = $query->get();
+        // `--limit` caps what the run actually hashes, not the rows it looks
+        // at: an unreadable file therefore never keeps later files out of the
+        // window (the starvation a SQL LIMIT would cause).
+        $query->chunkById(100, function ($files) use ($hasher, $force, $dryRun, $limit, &$hashed, &$failed, &$listed): bool {
+            foreach ($files as $file) {
+                if ($limit > 0 && ($dryRun ? $listed : $hashed) >= $limit) {
+                    return false;
+                }
 
-        if ($files->isEmpty()) {
-            $this->components->info('Nothing to hash.');
+                if ($dryRun) {
+                    // No byte is read: only the queue is shown.
+                    $this->line(sprintf('#%d %s (%d bytes, %s)', $file->id, $file->original_name, $file->size_bytes, $file->disk));
+                    $listed++;
+
+                    continue;
+                }
+
+                $hashedOk = false;
+
+                $this->components->task(
+                    sprintf('#%d %s', $file->id, $file->original_name),
+                    function () use ($hasher, $file, $force, &$hashedOk): int {
+                        try {
+                            $hashedOk = $hasher->hash($file, $force) !== null;
+                        } catch (Throwable $exception) {
+                            // One unreadable row or a transient save error must
+                            // not abort a long backfill and lose the progress.
+                            report($exception);
+                        }
+
+                        return $hashedOk ? TaskResult::Success->value : TaskResult::Failure->value;
+                    },
+                );
+
+                if (! $hashedOk) {
+                    $failed++;
+
+                    continue;
+                }
+
+                $hashed++;
+            }
+
+            return ! ($limit > 0 && ($dryRun ? $listed : $hashed) >= $limit);
+        });
+
+        if ($dryRun) {
+            $this->components->info("{$listed} file(s) would be hashed.");
 
             return self::SUCCESS;
         }
 
-        $hashed = 0;
-        $failed = 0;
-
-        foreach ($files as $file) {
-            if ($dryRun) {
-                // No byte is read: only the queue is shown.
-                $this->line(sprintf('#%d %s (%d bytes, %s)', $file->id, $file->original_name, $file->size_bytes, $file->disk));
-
-                continue;
-            }
-
-            if ($hasher->hash($file, $force) === null) {
-                $this->components->warn(sprintf('#%d %s could not be read; sha256 stays null.', $file->id, $file->original_name));
-                $failed++;
-
-                continue;
-            }
-
-            $hashed++;
-        }
-
-        if ($dryRun) {
-            $this->components->info("{$files->count()} file(s) would be hashed.");
+        if ($hashed === 0 && $failed === 0) {
+            $this->components->info('Nothing to hash.');
 
             return self::SUCCESS;
         }
