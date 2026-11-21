@@ -1,0 +1,42 @@
+{
+    "name": "@lanomat/agent",
+    "version": "0.1.0",
+    "description": "LANoMAT desktop installer agent: turn a LANoMAT MCP server into a pi coding agent that installs LAN games by chatting.",
+    "license": "MIT",
+    "type": "module",
+    "bin": {
+        "lanomat-agent": "dist/cli.js"
+    },
+    "exports": {
+        ".": "./dist/index.js"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "engines": {
+        "node": ">=22.12.0"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "lint": "eslint .",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "prepublishOnly": "npm run build"
+    },
+    "dependencies": {
+        "@earendil-works/pi-coding-agent": "^1.6.0",
+        "@modelcontextprotocol/sdk": "^1.32.0",
+        "commander": "^15.1.0"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^22.20.5",
+        "eslint": "^10.15.0",
+        "globals": "^17.14.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.73.0",
+        "vitest": "^5.1.1"
+    }
+}
