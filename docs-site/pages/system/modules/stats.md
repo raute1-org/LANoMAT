@@ -20,6 +20,16 @@ changes the table.
 - Profile — badges and placements.
 - Beamer winner scene — fed by the tournament, not by Stats.
 
+| Dark | Light |
+|---|---|
+| ![Bestenliste with columns for place, name, wins, tournaments, participations and podiums, dark](/screens/leaderboard-dark.png) | ![Bestenliste with columns for place, name, wins, tournaments, participations and podiums, light](/screens/leaderboard-light.png) |
+| `LEADERBOARD · DARK` — wins, tournaments, podiums | `LEADERBOARD · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Filament disputes queue with no open match disputes, dark](/screens/admin-disputes-dark.png) | ![Filament disputes queue with no open match disputes, light](/screens/admin-disputes-light.png) |
+| `DISPUTES · EMPTY` — settled results feed the table | `DISPUTES · LIGHT` |
+
 ## Guards and rules
 
 - `BadgeCalculator` aggregates one competitor across all events; `EventBadgeCalculator` is a

@@ -19,6 +19,16 @@ data.
 - `/overlay/{event}/{scene}` — OBS browser source (transparent, no auth).
 - Filament event form — stream URL field.
 
+| Dark | Light |
+|---|---|
+| ![Infoscreen beamer scene with checked-in count and live matches, dark](/screens/infoscreen-dark.png) | ![Infoscreen beamer scene with checked-in count and live matches, light](/screens/infoscreen-light.png) |
+| `INFOSCREEN · DARK` — the beamer surface next to the stream | `INFOSCREEN · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Filament event list; the event record carries the stream URL, dark](/screens/admin-events-dark.png) | ![Filament event list; the event record carries the stream URL, light](/screens/admin-events-light.png) |
+| `ADMIN · EVENTS · STREAM URL` — set on the event | `ADMIN · EVENTS · LIGHT` |
+
 ## Guards and rules
 
 - Overlays are public by URL and carry no session. That is why they only ever receive public data:

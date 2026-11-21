@@ -18,6 +18,16 @@ the steps.
 - Filament **Provisioning** — plans, dry run, runs, step log.
 - Preflight — hypervisor and host-key checks.
 
+| Dark | Light |
+|---|---|
+| ![Filament Remote-Hosts list with hostname, SSH port, user, key, role and status columns, dark](/screens/admin-remote-hosts-dark.png) | ![Filament Remote-Hosts list with hostname, SSH port, user, key, role and status columns, light](/screens/admin-remote-hosts-light.png) |
+| `REMOTE HOSTS · DARK` — none registered yet | `REMOTE HOSTS · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![Filament admin dashboard with the Preflight service checks, dark](/screens/admin-dark.png) | ![Filament admin dashboard with the Preflight service checks, light](/screens/admin-light.png) |
+| `PREFLIGHT · DARK` — checks before a run | `PREFLIGHT · LIGHT` |
+
 ## Guards and rules
 
 - `HypervisorClient` is a contract; `NullHypervisorClient` is bound when the module is off and
