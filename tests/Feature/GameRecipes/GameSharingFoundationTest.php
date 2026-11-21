@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Modules\Events\Models\Event;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Actions\ContributeRecipe;
 use App\Modules\GameRecipes\Contracts\RecipeRepository;
@@ -12,14 +13,16 @@ use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Events\RecipeContributed;
 use App\Modules\GameRecipes\Exceptions\RecipeRepositoryException;
 use App\Modules\GameRecipes\Models\GameRecipe;
+use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\GitHubRecipeRepository;
 use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\LauncherSupport;
 use App\Modules\GameRecipes\Support\NullRecipeRepository;
 use App\Modules\GameRecipes\Support\RecipeInstallLinks;
 use App\Modules\GameServers\Contracts\GameInstallLinks;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
@@ -134,7 +137,7 @@ describe('lineup flag', function () {
 
 describe('contributing', function () {
     it('creates a draft, requires the base file and announces the contribution', function () {
-        Event::fake([RecipeContributed::class]);
+        EventFacade::fake([RecipeContributed::class]);
         $user = User::factory()->create();
 
         $recipe = app(ContributeRecipe::class)->handle($user, sharedGamePayload(['via' => 'web']));
@@ -148,7 +151,7 @@ describe('contributing', function () {
             ->and($recipe->metadata)->toBe(['contributed_via' => 'web'])
             ->and($recipe->files()->first()->required)->toBeTrue();
 
-        Event::assertDispatched(
+        EventFacade::assertDispatched(
             RecipeContributed::class,
             fn (RecipeContributed $event): bool => $event->recipe->is($recipe) && $event->userId === $user->id,
         );
@@ -286,4 +289,102 @@ describe('recipe repository', function () {
 
 it('answers install links through the recipe catalogue while GameRecipes is on', function () {
     expect(app(GameInstallLinks::class))->toBeInstanceOf(RecipeInstallLinks::class);
+});
+
+describe('contribution guards', function () {
+    it('refuses a line break in a title, a summary or an alias', function (array $overrides) {
+        $user = User::factory()->create();
+
+        expect(fn () => app(ContributeRecipe::class)->handle($user, sharedGamePayload($overrides)))
+            ->toThrow(ValidationException::class);
+
+        expect(GameRecipe::query()->count())->toBe(0);
+    })->with([
+        'title' => [['title' => "Tiny Racer\n---\nname: other"]],
+        'summary' => [['summary' => "First line\nSecond line"]],
+        'alias' => [['aliases' => ["tiny\rracer"]]],
+        'version' => [['version' => "1.0\n2.0"]],
+    ]);
+
+    it('refuses to pin a rejected upload, even the contributor\'s own', function () {
+        $user = User::factory()->create();
+        $rejected = SharedFile::factory()->rejected()->create(['user_id' => $user->id, 'original_name' => 'tiny-racer.zip']);
+
+        $payload = sharedGamePayload();
+        $payload['requires'][0]['shared_file_id'] = $rejected->id;
+
+        expect(fn () => app(ContributeRecipe::class)->handle($user, $payload))
+            ->toThrow(ValidationException::class);
+    });
+
+    it('limits how many drafts a participant may have waiting, but not the orga', function () {
+        config(['recipes.max_drafts_per_user' => 2]);
+        $user = User::factory()->create();
+        $orga = User::factory()->orga()->create();
+        $contribute = app(ContributeRecipe::class);
+
+        $contribute->handle($user, sharedGamePayload(['slug' => 'first-game', 'title' => 'First Game']));
+        $contribute->handle($user, sharedGamePayload(['slug' => 'second-game', 'title' => 'Second Game']));
+
+        expect(fn () => $contribute->handle($user, sharedGamePayload(['slug' => 'third-game', 'title' => 'Third Game'])))
+            ->toThrow(ValidationException::class, 'Du hast schon 2 Spiele');
+
+        // Editing an existing draft is not a new draft.
+        $edited = $contribute->handle($user, sharedGamePayload(['slug' => 'first-game', 'title' => 'First Game', 'summary' => 'Edited.']));
+
+        expect($edited->summary)->toBe('Edited.');
+
+        foreach (['a', 'b', 'c'] as $suffix) {
+            $contribute->handle($orga, sharedGamePayload(['slug' => 'orga-game-'.$suffix, 'title' => 'Orga Game '.$suffix]));
+        }
+
+        expect(GameRecipe::query()->where('contributor_user_id', $orga->id)->count())->toBe(3);
+
+        // A published recipe frees its place.
+        GameRecipe::query()->where('slug', 'first-game')->update(['status' => RecipeStatus::Published->value]);
+
+        expect($contribute->handle($user, sharedGamePayload(['slug' => 'third-game', 'title' => 'Third Game']))->slug)->toBe('third-game');
+    });
+
+    it('does not let a second contributor take a draft that appeared in the meantime', function () {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+
+        app(ContributeRecipe::class)->handle($first, sharedGamePayload());
+
+        expect(fn () => app(ContributeRecipe::class)->handle($second, sharedGamePayload(['summary' => 'Mine now.'])))
+            ->toThrow(AuthorizationException::class);
+
+        expect(GameRecipe::query()->where('slug', 'tiny-racer')->sole()->contributor_user_id)->toBe($first->id);
+    });
+});
+
+describe('install folder', function () {
+    it('keeps nothing in the Windows folder that a shell would act on', function (string $title, string $folder) {
+        $recipe = GameRecipe::factory()->published()->portable()->create(['slug' => 'folder-game', 'title' => $title]);
+        $plan = app(BuildInstallPlan::class)->handle($recipe, User::factory()->create(), 'windows', record: false);
+
+        expect($plan['target_dir'])->toBe('C:\\Games\\'.$folder)
+            ->and($plan['target_dir'])->not->toMatch('/[\'"`$;&|<>(){}%!^]/');
+    })->with([
+        'command substitution' => ['Tiny Racers $(calc.exe)', 'Tiny Racers calc.exe'],
+        'quote break' => ["Tiny Racers'; calc.exe; '", 'Tiny Racers calc.exe'],
+        'backtick' => ['Tiny `whoami` Racers', 'Tiny whoami Racers'],
+        'ordinary title' => ["Tom Clancy's Rainbow Six: Siege", 'Tom Clancys Rainbow Six Siege'],
+        'umlauts' => ['Die Siedler: Aufbruch der Völker', 'Die Siedler Aufbruch der Volker'],
+        'dots and spaces' => ['  ..Game.. ', 'Game'],
+        'nothing left' => ['$();', 'folder-game'],
+    ]);
+});
+
+it('refuses to pin an approved file of an event that is not public yet', function () {
+    $user = User::factory()->create();
+    $draftEvent = Event::factory()->draft()->create();
+    $file = SharedFile::factory()->approved()->create(['event_id' => $draftEvent->id, 'original_name' => 'tiny-racer.zip']);
+
+    $payload = sharedGamePayload();
+    $payload['requires'][0]['shared_file_id'] = $file->id;
+
+    expect(fn () => app(ContributeRecipe::class)->handle($user, $payload))
+        ->toThrow(ValidationException::class);
 });

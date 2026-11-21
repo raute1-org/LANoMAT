@@ -28,10 +28,4 @@ enum PullRequestState: string
     {
         return in_array($this, [self::Open, self::Merged, self::Closed], true);
     }
-
-    /** Whether the status sync still has something to ask the repository. */
-    public function isPending(): bool
-    {
-        return $this === self::Open;
-    }
 }

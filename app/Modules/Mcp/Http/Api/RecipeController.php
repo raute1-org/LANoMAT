@@ -286,6 +286,7 @@ class RecipeController extends Controller
             'metadata.tags' => ['nullable', 'array', 'max:20'],
             'metadata.tags.*' => ['string', 'max:40'],
             'metadata.multiplayer' => ['nullable', 'boolean'],
+            'metadata.launcher_supported' => ['nullable', 'boolean'],
             'steps' => ['nullable', 'array', 'max:50'],
             'skill_description' => ['nullable', 'string', 'max:1024'],
             'skill_markdown' => ['nullable', 'string', 'max:65535'],
@@ -295,7 +296,12 @@ class RecipeController extends Controller
         // metadata document (notably the orga's `launcher_supported` switch)
         // stays what the recipe already carries.
         if (is_array($data['metadata'] ?? null)) {
-            $metadata = array_intersect_key($data['metadata'], array_flip(self::CONTRIBUTION_METADATA_KEYS));
+            // The launcher switch belongs to the orga; from anyone else it is dropped here
+            // (and ignored again by the action).
+            $allowed = $user->isOrga()
+                ? [...self::CONTRIBUTION_METADATA_KEYS, 'launcher_supported']
+                : self::CONTRIBUTION_METADATA_KEYS;
+            $metadata = array_intersect_key($data['metadata'], array_flip($allowed));
 
             if ($metadata !== []) {
                 $data['metadata'] = $metadata;

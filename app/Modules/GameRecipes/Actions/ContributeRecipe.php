@@ -42,34 +42,29 @@ final class ContributeRecipe
     public function handle(User $user, array $payload): GameRecipe
     {
         $slug = (string) ($payload['slug'] ?? '');
-        $existing = GameRecipe::query()->where('slug', $slug)->first();
 
-        if ($existing instanceof GameRecipe) {
-            // A contributor may only edit their own *draft*. Without this guard
-            // any paired participant could rewrite a curated recipe (steps are
-            // shell commands on every installer) and silently unpublish it.
-            if (Gate::forUser($user)->denies('update', $existing)) {
-                throw new AuthorizationException('You may only edit your own draft recipe.');
-            }
-        }
+        // Free text that becomes a heading, a YAML scalar or a table cell
+        // stays on one line: a line break in a title could otherwise end the
+        // SKILL.md front matter or start a new Markdown block.
+        $oneLine = 'not_regex:/[\x00-\x1F\x7F]/';
 
         $validator = Validator::make($payload, [
             // `required` is decided by RecipeValidator, which reports every
             // problem in one pass (slug, title, platforms, steps, …).
-            'title' => ['nullable', 'string', 'max:200'],
-            'summary' => ['nullable', 'string', 'max:500'],
-            'version' => ['nullable', 'string', 'max:40'],
+            'title' => ['nullable', 'string', 'max:200', $oneLine],
+            'summary' => ['nullable', 'string', 'max:500', $oneLine],
+            'version' => ['nullable', 'string', 'max:40', $oneLine],
             'homepage' => ['nullable', 'url:http,https', 'max:500'],
-            'license' => ['nullable', 'string', 'max:200'],
+            'license' => ['nullable', 'string', 'max:200', $oneLine],
             'aliases' => ['nullable', 'array', 'max:20'],
-            'aliases.*' => ['string', 'max:64'],
+            'aliases.*' => ['string', 'max:64', $oneLine],
             'platforms' => ['nullable', 'array', 'max:3'],
             'requirements' => ['nullable', 'array', 'max:50'],
             'requires' => ['nullable', 'array', 'max:50'],
             'steps' => ['nullable', 'array', 'max:50'],
             'launch_targets' => ['nullable', 'array', 'max:10'],
             'metadata' => ['nullable', 'array'],
-            'skill_description' => ['nullable', 'string', 'max:1024'],
+            'skill_description' => ['nullable', 'string', 'max:1024', $oneLine],
             'skill_markdown' => ['nullable', 'string', 'max:65535'],
         ]);
 
@@ -78,52 +73,72 @@ final class ContributeRecipe
         }
 
         $via = in_array($payload['via'] ?? null, ['web', 'mcp', 'api'], true) ? (string) $payload['via'] : 'mcp';
-        $requirements = array_values((array) ($payload['requires'] ?? $payload['requirements'] ?? []));
-        $pins = $this->requestedPins($user, $requirements);
 
-        // A pin is this installation's choice of file, not recipe text: it
-        // lives on the file row and never in the stored requirement.
-        $requirements = array_map(static function (mixed $requirement): mixed {
-            if (is_array($requirement)) {
-                unset($requirement['shared_file_id']);
+        $model = DB::transaction(function () use ($user, $payload, $slug, $via): GameRecipe {
+            // One writer per slug: two people sharing the same title at the
+            // same moment must not both see "no such recipe" and then take
+            // each other's draft. The lock is held until the commit, and the
+            // row is read under it.
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['recipe:'.$slug]);
+
+            $existing = GameRecipe::query()->where('slug', $slug)->first();
+
+            if ($existing instanceof GameRecipe) {
+                // A contributor may only edit their own *draft*. Without this guard
+                // any paired participant could rewrite a curated recipe (steps are
+                // shell commands on every installer) and silently unpublish it.
+                if (Gate::forUser($user)->denies('update', $existing)) {
+                    throw new AuthorizationException('You may only edit your own draft recipe.');
+                }
+            } else {
+                $this->ensureDraftBudget($user);
             }
 
-            return $requirement;
-        }, $requirements);
+            $requirements = array_values((array) ($payload['requires'] ?? $payload['requirements'] ?? []));
+            $pins = $this->requestedPins($user, $requirements);
 
-        $recipe = [
-            'schema' => RecipeValidator::SCHEMA,
-            'slug' => $slug,
-            'title' => (string) ($payload['title'] ?? ''),
-            'aliases' => array_values(array_map('strval', (array) ($payload['aliases'] ?? []))),
-            'version' => isset($payload['version']) ? (string) $payload['version'] : null,
-            'status' => $existing instanceof GameRecipe ? $existing->status->value : RecipeStatus::Draft->value,
-            'platforms' => array_values(array_map('strval', (array) ($payload['platforms'] ?? ['windows']))),
-            'summary' => isset($payload['summary']) && is_string($payload['summary']) ? mb_substr($payload['summary'], 0, 500) : null,
-            'description' => isset($payload['description']) && is_string($payload['description']) ? mb_substr($payload['description'], 0, 10000) : null,
-            'homepage' => $payload['homepage'] ?? null,
-            'license' => $payload['license'] ?? null,
-            'skill' => [
-                'name' => $slug,
-                'description' => (string) ($payload['skill_description'] ?? 'Install the game from the LAN LANoMAT recipe.'),
-            ],
-            'requirements' => $requirements,
-            'steps' => array_values((array) ($payload['steps'] ?? [])),
-            'metadata' => $this->metadata($user, $payload, $existing, $via),
-        ];
+            // A pin is this installation's choice of file, not recipe text: it
+            // lives on the file row and never in the stored requirement.
+            $requirements = array_map(static function (mixed $requirement): mixed {
+                if (is_array($requirement)) {
+                    unset($requirement['shared_file_id']);
+                }
 
-        if (isset($payload['skill_markdown']) && is_string($payload['skill_markdown']) && $payload['skill_markdown'] !== '') {
-            $skillMarkdown = mb_substr($payload['skill_markdown'], 0, 65535);
-        } elseif (isset($payload['skill']) && is_array($payload['skill']) && is_string($payload['skill']['description'] ?? null)) {
-            $recipe['skill'] = $payload['skill'];
-            $skillMarkdown = $this->skills->render($recipe);
-        } else {
-            $skillMarkdown = $this->skills->render($recipe);
-        }
+                return $requirement;
+            }, $requirements);
 
-        $this->validator->validate($recipe, 'contribution:'.$slug);
+            $recipe = [
+                'schema' => RecipeValidator::SCHEMA,
+                'slug' => $slug,
+                'title' => (string) ($payload['title'] ?? ''),
+                'aliases' => array_values(array_map('strval', (array) ($payload['aliases'] ?? []))),
+                'version' => isset($payload['version']) ? (string) $payload['version'] : null,
+                'status' => $existing instanceof GameRecipe ? $existing->status->value : RecipeStatus::Draft->value,
+                'platforms' => array_values(array_map('strval', (array) ($payload['platforms'] ?? ['windows']))),
+                'summary' => isset($payload['summary']) && is_string($payload['summary']) ? mb_substr($payload['summary'], 0, 500) : null,
+                'description' => isset($payload['description']) && is_string($payload['description']) ? mb_substr($payload['description'], 0, 10000) : null,
+                'homepage' => $payload['homepage'] ?? null,
+                'license' => $payload['license'] ?? null,
+                'skill' => [
+                    'name' => $slug,
+                    'description' => (string) ($payload['skill_description'] ?? 'Install the game from the LAN LANoMAT recipe.'),
+                ],
+                'requirements' => $requirements,
+                'steps' => array_values((array) ($payload['steps'] ?? [])),
+                'metadata' => $this->metadata($user, $payload, $existing, $via),
+            ];
 
-        $model = DB::transaction(function () use ($existing, $recipe, $skillMarkdown, $slug, $user, $via, $pins): GameRecipe {
+            if (isset($payload['skill_markdown']) && is_string($payload['skill_markdown']) && $payload['skill_markdown'] !== '') {
+                $skillMarkdown = mb_substr($payload['skill_markdown'], 0, 65535);
+            } elseif (isset($payload['skill']) && is_array($payload['skill']) && is_string($payload['skill']['description'] ?? null)) {
+                $recipe['skill'] = $payload['skill'];
+                $skillMarkdown = $this->skills->render($recipe);
+            } else {
+                $skillMarkdown = $this->skills->render($recipe);
+            }
+
+            $this->validator->validate($recipe, 'contribution:'.$slug);
+
             // An admin's pin survives a contributor's edit, exactly as it
             // survives a directory sync: it is keyed by role and label.
             $kept = $existing instanceof GameRecipe
@@ -199,10 +214,35 @@ final class ContributeRecipe
     }
 
     /**
+     * A participant holds a bounded number of drafts that wait for review.
+     * Without it, one paired device could create recipes (and, with pull
+     * requests on, branches in the repository) as fast as the API allows.
+     */
+    private function ensureDraftBudget(User $user): void
+    {
+        if ($user->isOrga()) {
+            return;
+        }
+
+        $max = max(1, (int) config('recipes.max_drafts_per_user', 20));
+
+        $open = GameRecipe::query()
+            ->where('contributor_user_id', $user->id)
+            ->where('status', RecipeStatus::Draft->value)
+            ->count();
+
+        if ($open >= $max) {
+            throw ValidationException::withMessages([
+                'title' => __('recipe_contributions.errors.too_many_drafts', ['max' => $max]),
+            ]);
+        }
+    }
+
+    /**
      * The LAN files the payload pins, by requirement index. A contributor may
-     * pin a file they could open anyway (their own upload or an approved one);
-     * anything else is refused, so a recipe can never be used to learn about
-     * or reach somebody else's pending upload.
+     * pin a file they could download anyway (their own upload or an approved
+     * one); anything else is refused, so a recipe can never be used to learn
+     * about or reach somebody else's pending upload.
      *
      * @param  list<mixed>  $requirements
      * @return array<int, int>
@@ -219,7 +259,11 @@ final class ContributeRecipe
             $id = filter_var($requirement['shared_file_id'], FILTER_VALIDATE_INT);
             $file = $id === false ? null : SharedFile::query()->find($id);
 
-            if (! $file instanceof SharedFile || Gate::forUser($user)->denies('view', $file)) {
+            // "May download" is the rule an install follows: an approved file,
+            // or the contributor's own upload that still waits for approval;
+            // never a rejected one and never a file of an event that is not
+            // public yet.
+            if (! $file instanceof SharedFile || Gate::forUser($user)->denies('download', $file)) {
                 throw ValidationException::withMessages([
                     "requirements.{$index}.shared_file_id" => 'This file is not available to you.',
                 ]);

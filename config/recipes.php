@@ -36,6 +36,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Contributions
+    |--------------------------------------------------------------------------
+    |
+    | How many draft recipes one participant may have waiting for review at
+    | the same time (shared games, MCP and REST contributions together). The
+    | orga is not limited.
+    |
+    */
+
+    'max_drafts_per_user' => (int) env('RECIPES_MAX_DRAFTS_PER_USER', 20),
+
+    /*
+    |--------------------------------------------------------------------------
     | Pull requests into the git catalogue
     |--------------------------------------------------------------------------
     |

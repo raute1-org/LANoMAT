@@ -153,9 +153,16 @@ final class BuildInstallPlan
 
     private function targetDir(GameRecipe $recipe, string $os): string
     {
-        // A title is authored text, not a path: strip every separator and any
-        // ".." run before it becomes a directory name on the player's disk.
-        $name = trim((string) preg_replace('/[<>:"|?*~\\\\\/]+|\.\.+/', '', $recipe->title));
+        // A title is authored text (since game sharing, by any participant),
+        // and the folder it becomes is substituted into the quoted arguments
+        // of step and launch commands. So the folder keeps only characters
+        // that mean nothing to PowerShell, cmd or a POSIX shell: letters,
+        // digits, space, dot, underscore and hyphen. No quote, `$`, backtick,
+        // semicolon, bracket or separator survives, whatever the title says.
+        $name = (string) preg_replace('/[^A-Za-z0-9 ._-]+/', '', Str::ascii($recipe->title));
+        $name = (string) preg_replace('/\.\.+/', '.', (string) preg_replace('/\s+/', ' ', $name));
+        // Windows refuses a folder that starts or ends with a dot or a space.
+        $name = trim($name, ' .');
 
         if ($name === '') {
             $name = $recipe->slug;
