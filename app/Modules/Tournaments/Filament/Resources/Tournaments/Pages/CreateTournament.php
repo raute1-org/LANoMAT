@@ -28,7 +28,7 @@ class CreateTournament extends CreateRecord
 
         return app(CreateTournamentAction::class)->handle(
             $actor,
-            Event::query()->findOrFail($data['event_id']),
+            Event::query()->findOrFail((int) $data['event_id']),
             Arr::except($data, ['event_id']),
         );
     }

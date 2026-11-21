@@ -38,7 +38,7 @@ class CreateTournament
         ])->validate();
 
         $tournament = new Tournament($validated);
-        $tournament->event_id = $event->id;
+        $tournament->event()->associate($event);
         $tournament->status = TournamentStatus::Draft;
         $tournament->save();
 
