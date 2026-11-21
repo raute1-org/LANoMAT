@@ -51,7 +51,7 @@ Eingriff `live-recipe.mjs show` laufen lassen.
 | --- | --- |
 | App | `https://lan.raute1.org`, Server-Header `m12-768-ge8de9dad` (kurz: m12-768) |
 | Rezept | `unreal-tournament-2004`, **Filament-ID 20**, Status `published`, Version `3374-rc3` |
-| Plattformen | `windows`, `linux`, `macos` (List-API, `updated_at` 2026-11-21T14:17:47Z) |
+| Plattformen | `windows`, `linux`, `macos` (List-API, `updated_at` 2026-11-21T14:27:31Z) |
 | ISO-Rolle | `role: iso`, required, **extern** auf das archive.org-Full-Game-ZIP; kein LAN-Treffer |
 | Patch live | **eine** Zeile, Label „Windows x64 zip / Linux x64 tar.bz2“, URL/SHA256 des **Linux**-Assets; in der Datei-/Plan-API steht `os: null` |
 | Base live | **keine** `base`-Zeile; die portablen Archive sind noch nicht veröffentlicht |
@@ -72,11 +72,11 @@ Der Linux-Patch ist gepinnt auf:
 | SHA-256 | `d79eb45fda3ace2b7a68e6a0b9730b7d6602004b111e0b16f3f7cc28f3111572` |
 | Größe | 59.191.321 B |
 
-**Wichtig — aktueller Live-Zustand kann abweichen:** Bei der Abnahme um
-15:20 stand die ISO-URL auf `http://127.0.0.1:8099/Unreal%20Tournament%202004.zip`
-(Rest eines `install-smoke.sh`). Vor dem Go mit `live-recipe.mjs show`
-prüfen und auf archive.org oder den lokalen Base-Server zurücksetzen
-(Abschnitt 5.8).
+**Wichtig — Smoke-Tests schalten die URL um:** `install-smoke.sh` zeigt die
+ISO-Rolle für die Dauer eines Laufs auf `http://127.0.0.1:8099/...`; nach
+einem Abbruch mit `--no-restore` bleibt sie dort. Vor dem Go mit
+`live-recipe.mjs show` prüfen und auf archive.org oder den lokalen
+Base-Server zurücksetzen (Abschnitt 5.8).
 
 ### 2.1 Live lesen (ohne Token im Terminal)
 
@@ -226,8 +226,12 @@ scripts/ops/ut2004/fetch-base.sh --parallel 4
 ```
 
 Erwartete Größe: **2.550.381.122 B**. Das Skript bricht bei Größenmismatch
-ab (Exit 4) und behält die Teile. Bei einem bereits laufenden Hand-Download
-aus `/tmp/opencode/utparts`:
+ab (Exit 4) und behält die Teile. Stand 2026-11-21, 15:21, liegt der
+Hand-Download bereits vollständig unter
+`~/Downloads/Unreal Tournament 2004.zip` (2.550.381.122 B,
+MD5 `55bd1e0f512cde5f7ce7fbf70dabcfaa`); `fetch-base.sh --dry-run` erkennt
+ihn als `layout: complete output` und schreibt nichts. Bei einem bereits
+laufenden Hand-Download aus `/tmp/opencode/utparts`:
 
 ```bash
 # Layout aus den laufenden curl-Prozessen ableiten, nicht raten:

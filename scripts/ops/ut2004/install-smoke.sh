@@ -10,10 +10,12 @@
 # server. Everything (recipe, server, temp dir) is cleaned up by a trap, also
 # when the install fails.
 #
-# The recipe switch uses the Filament admin page (Livewire), because the live
-# recipe is authored there. It needs an admin browser session; the token from
-# ~/.config/lanomat-launcher/config.json is only used for the install itself
-# and for reading the resulting plan. No secret is ever printed.
+# The recipe switch uses the Filament admin page (Livewire), through
+# scripts/ops/ut2004/live-recipe.mjs when present and inline Playwright
+# otherwise, because the live recipe is authored there. It needs an admin
+# browser session; the token from ~/.config/lanomat-launcher/config.json is
+# only used for the install itself and for reading the resulting plan. No
+# secret is ever printed.
 #
 # Usage:
 #   scripts/ops/ut2004/install-smoke.sh [options]
@@ -54,6 +56,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+LIVE_RECIPE="$ROOT/scripts/ops/ut2004/live-recipe.mjs"
 CONFIG="$HOME/.config/lanomat-launcher/config.json"
 DEFAULT_BASE="$HOME/Downloads/Unreal Tournament 2004.zip"
 DEFAULT_TARGET="$HOME/Games/unreal-tournament-2004"
@@ -180,19 +183,12 @@ fi
 
 ADMIN_COOKIES="${LANOMAT_ADMIN_COOKIES:-}"
 ADMIN_COOKIES_FILE="${LANOMAT_ADMIN_COOKIES_FILE:-$DEFAULT_COOKIES_FILE}"
-if [ -z "$ADMIN_COOKIES" ] && [ ! -f "$ADMIN_COOKIES_FILE" ]; then
-    # Convenience fallback used by the ops sessions on this host.
-    if [ -f "/tmp/opencode/cookies.txt" ]; then
-        ADMIN_COOKIES_FILE="/tmp/opencode/cookies.txt"
-    fi
+if [ -z "$ADMIN_COOKIES" ] && [ -z "${LANOMAT_ADMIN_COOKIES_FILE:-}" ] \
+    && [ ! -f "$ADMIN_COOKIES_FILE" ] && [ -f "/tmp/opencode/cookies.txt" ]; then
+    # Convenience fallback used by the ops sessions on this host; an explicit
+    # LANOMAT_ADMIN_COOKIES_FILE never silently falls through to another file.
+    ADMIN_COOKIES_FILE="/tmp/opencode/cookies.txt"
 fi
-ADMIN_HOST="$(python3 - "$SERVER_URL" <<'PY'
-import sys
-from urllib.parse import urlsplit
-print(urlsplit(sys.argv[1]).hostname or "")
-PY
-)"
-
 # ---------------------------------------------------------------------------
 # URL and local server.
 # ---------------------------------------------------------------------------
@@ -407,8 +403,8 @@ fetch_plan() {
 
 plan_base_url() {
     jq -r '
-        ([.files[]? | select(.requirement == "iso" and (.url // "") != "")][0].url)
-        // ([.downloads[]? | select(.requirement == "iso")][0].url)
+        ([.files[]? | select((.requirement == "iso" or .requirement == "archive" or .requirement == "base") and (.url // "") != "")][0].url)
+        // ([.downloads[]? | select(.requirement == "iso" or .requirement == "archive" or .requirement == "base")][0].url)
         // ([.downloads[]? | .url // empty][0])
         // ""
     ' "$1" 2>/dev/null
@@ -563,7 +559,40 @@ JS
 }
 
 admin_recipe() {
-    local action="$1" value="${2:-}"
+    local action="$1" value="${2:-}" common=()
+
+    if [ -f "$LIVE_RECIPE" ]; then
+        common=(--id "$RECIPE_ID" --base-url "$SERVER_URL")
+        if [ -z "$ADMIN_COOKIES" ] && [ -f "$ADMIN_COOKIES_FILE" ]; then
+            common+=(--cookie-file "$ADMIN_COOKIES_FILE")
+        fi
+        case "$action" in
+            get)
+                local rc=0
+                TMPDIR="$PW_TMP" node "$LIVE_RECIPE" show --json "${common[@]}" 2>"$TMP/live-recipe.err" \
+                    | jq -c '{
+                        ok: true,
+                        url: ([.requirements[] | select(.role == "iso" and (.url // "") != "")][0].url // ""),
+                        key: ([.requirements | to_entries[] | select(.value.role == "iso")][0].key // "")
+                    }' || rc=$?
+                if [ "$rc" != "0" ]; then
+                    cat "$TMP/live-recipe.err" >&2
+                    return "$rc"
+                fi
+                return 0
+                ;;
+            set)
+                if ! TMPDIR="$PW_TMP" node "$LIVE_RECIPE" set --iso-url "$value" --apply --yes \
+                    --backup-dir "$TMP" "${common[@]}" >"$TMP/live-recipe.out" 2>"$TMP/live-recipe.err"; then
+                    cat "$TMP/live-recipe.err" >&2
+                    return 1
+                fi
+                printf '{"ok":true,"url":%s}\n' "$(printf '%s' "$value" | jq -R .)"
+                return
+                ;;
+        esac
+    fi
+
     LANOMAT_ADMIN_BASE="$SERVER_URL" \
     LANOMAT_RECIPE_ID="$RECIPE_ID" \
     LANOMAT_REQUIREMENT_KEY="$BACKUP_KEY" \
@@ -706,7 +735,8 @@ cleanup() {
         # never survive, not even with --keep.
         rm -rf "$TMP/pw" "$TMP/serve"
         rm -f "$TMP/auth-header"
-        if [ "$KEEP" = "1" ] || [ "$NO_RESTORE" = "1" ] || [ "$CLEANUP_FAILED" = "1" ]; then
+        if [ "$KEEP" = "1" ] || [ "$NO_RESTORE" = "1" ] || [ "$CLEANUP_FAILED" = "1" ] \
+            || { [ "$DRY_RUN" = "0" ] && [ "$rc" != "0" ]; }; then
             note "kept temp dir: $TMP"
             note "recipe backup: $BACKUP_FILE"
         else
@@ -738,7 +768,9 @@ INSTALL_LOG="$TMP/install.log"
 HTTP_LOG="$TMP/http.log"
 PLAN_JSON="$TMP/plan.json"
 BACKUP_FILE="$TMP/recipe-backup.json"
-write_recipe_helper
+if [ ! -f "$LIVE_RECIPE" ]; then
+    write_recipe_helper
+fi
 
 step "UT2004 install smoke"
 note "base:    $BASE ($(numfmt --to=iec-i --suffix=B "$BASE_SIZE" 2>/dev/null || printf '%s B' "$BASE_SIZE"))"
@@ -785,6 +817,11 @@ fi
 step "Checking server, token and admin session"
 note "server: $SERVER_URL"
 note "token:  ${#TOKEN} characters (from ${CONFIG})"
+if [ -f "$LIVE_RECIPE" ]; then
+    note "admin:  scripts/ops/ut2004/live-recipe.mjs"
+else
+    note "admin:  inline Playwright (live-recipe.mjs not found)"
+fi
 if [ -n "$ADMIN_COOKIES" ]; then
     note "admin cookies: environment"
 elif [ -f "$ADMIN_COOKIES_FILE" ]; then
@@ -924,7 +961,7 @@ if [ "$URL_IS_LOCAL" = "1" ]; then
         step "Starting local HTTP server"
         SERVE_DIR="$TMP/serve"
         mkdir -p "$SERVE_DIR"
-        ln -s "$BASE" "$SERVE_DIR/$SERVE_NAME"
+        ln -s -- "$BASE" "$SERVE_DIR/$SERVE_NAME"
         python3 -m http.server "$PORT" --bind "$HOST" --directory "$SERVE_DIR" >"$HTTP_LOG" 2>&1 &
         HTTP_PID=$!
         SERVER_STARTED=1
@@ -952,11 +989,13 @@ step "Switching live recipe $RECIPE_ID to the local URL"
 if [ "$BACKUP_URL" = "$RECIPE_URL" ]; then
     note "recipe already points at $RECIPE_URL"
 else
+    # Mark the intent first: even if the admin call fails after the save, the
+    # trap still restores the captured value.
+    RECIPE_SWITCHED=1
     if ! admin_recipe set "$RECIPE_URL" >"$TMP/admin-set.json" 2>"$TMP/admin-set.err"; then
         warn "$(cat "$TMP/admin-set.err" 2>/dev/null || true)"
         die "could not update recipe $RECIPE_ID"
     fi
-    RECIPE_SWITCHED=1
 fi
 if ! wait_for_plan_url "$RECIPE_URL" 30; then
     if [ "$BACKUP_URL" != "$RECIPE_URL" ]; then RECIPE_SWITCHED=1; fi
@@ -971,15 +1010,15 @@ install_with_example() {
     local rc=0
     step "Installing with launcher-core (timeout ${TIMEOUT_SECONDS}s)"
     note "log: $INSTALL_LOG"
+    set +e
     (
         cd "$ROOT/clients/launcher"
-        set +e
         timeout --foreground --signal=TERM --kill-after=30 "$TIMEOUT_SECONDS" \
             env LANOMAT_URL="$SERVER_URL" LANOMAT_TOKEN="$TOKEN" \
                 LANOMAT_TARGET="$TARGET" "$EXAMPLE_BIN"
-        exit $?
     ) 2>&1 | tee -a "$INSTALL_LOG"
-    rc=${PIPESTATUS[0]}
+    rc=$?
+    set -e
     if [ "$rc" = "124" ] || [ "$rc" = "137" ]; then
         die "install timed out after ${TIMEOUT_SECONDS}s (log: $INSTALL_LOG)"
     fi
@@ -996,7 +1035,6 @@ install_with_deeplink() {
     else
         xdg-open "$link" >"$INSTALL_LOG" 2>&1 &
     fi
-    local launcher_pid=$!
     local start now elapsed last=-1 state size
     start="$(date +%s)"
     while :; do
@@ -1015,10 +1053,9 @@ install_with_deeplink() {
         if [ "$elapsed" -ge "$TIMEOUT_SECONDS" ]; then
             die "deep-link install did not verify within ${TIMEOUT_SECONDS}s (log: $INSTALL_LOG)"
         fi
-        kill -0 "$launcher_pid" 2>/dev/null || true
         sleep 5
     done
-    wait "$launcher_pid" 2>/dev/null || true
+    # The launcher window may stay open; do not block the smoke test on it.
 }
 
 case "$RESOLVED_ENGINE" in
@@ -1040,8 +1077,8 @@ if [ "$LAUNCH" = "1" ]; then
     local_bin="$TARGET/System/ut2004-bin-amd64"
     [ -x "$local_bin" ] || local_bin="$TARGET/System/UT2004"
     if [ -x "$local_bin" ]; then
+        rc=0
         ( cd "$TARGET/System" && timeout 15 "$local_bin" ) >"$TMP/launch.log" 2>&1 || rc=$?
-        rc=${rc:-0}
         if [ "$rc" = "124" ]; then
             note "game kept running for 15s (expected for a GUI game)"
         else

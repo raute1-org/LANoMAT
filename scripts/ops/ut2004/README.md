@@ -1,5 +1,51 @@
 # UT2004 ops
 
+Zentraler Index für den UT2004-One-Click-Pilot. Das Runbook steht in
+[`docs/ops/ut2004-pilot.md`](../../../docs/ops/ut2004-pilot.md). Die
+Abschnitte weiter unten pflegen die Tool-Owner; **Skriptkopf und `--help`
+bleiben für alle Flags und Details maßgeblich**.
+
+## Reihenfolge
+
+```text
+fetch-base.sh ──► extract-archive.sh ──► build-portable.sh ──► install-smoke.sh
+       │                  │                      │                      │
+   archive.org        ZIP/TAR/DMG/ISO        drei 3374-ZIPs        echter Launcher-Core
+       └──────────────────────────────► live-recipe.mjs ◄──────────────┘
+                                      Live-Panel (ID 20),
+                                      Plan, Backup/Restore
+```
+
+## Tool-Index
+
+| Tool | Zweck | `--help` | Beispiel |
+| --- | --- | --- | --- |
+| `fetch-base.sh` | archive.org-Base parallel/resumierbar laden, Mirrors rotieren, Größe prüfen | `scripts/ops/ut2004/fetch-base.sh --help` | `scripts/ops/ut2004/fetch-base.sh --dry-run` |
+| `extract-archive.sh` | ZIP/TAR/DMG/ISO/7z/RAR/SFX listen, Baum zeigen, extrahieren, Game-Daten prüfen | `scripts/ops/ut2004/extract-archive.sh --help` | `scripts/ops/ut2004/extract-archive.sh tree "ut2k4+keygen.zip" --depth 2` |
+| `build-portable.sh` | drei flache, bereits gepatchte 3374-Archive bauen und verifizieren | `scripts/ops/ut2004/build-portable.sh --help` | `scripts/ops/ut2004/build-portable.sh --source <tree> --patches <dir> --out clients-dist/ut2004` |
+| `install-smoke.sh` | Live-Recipe auf lokalen HTTP-Server zeigen, echten Install ausführen, restaurieren | `scripts/ops/ut2004/install-smoke.sh --help` | `LANOMAT_ADMIN_COOKIES_FILE=/tmp/opencode/cookies.txt scripts/ops/ut2004/install-smoke.sh --dry-run` |
+| `live-recipe.mjs` | Live-Panel (Filament-ID 20) lesen, Plan prüfen, Backup/Restore, URL/Patches setzen | `node scripts/ops/ut2004/live-recipe.mjs --help` | `node scripts/ops/ut2004/live-recipe.mjs show --json` |
+
+## Konventionen
+
+- **`--help` zuerst.** Die Abschnitte unten sind Einstieg, nicht die
+  vollständige Schnittstelle.
+- **Trockenlauf vor Schreiben.** `fetch-base --dry-run`,
+  `build-portable --dry-run`, `install-smoke --dry-run`, `live-recipe set`
+  ohne `--apply`; `live-recipe --apply` verlangt `--yes`.
+- **Keine Secrets als Argument.** Token aus
+  `~/.config/lanomat-launcher/config.json`; Admin-Cookies aus
+  `/tmp/opencode/cookies.txt` oder `LANOMAT_ADMIN_COOKIES_FILE`. Nichts
+  davon drucken oder committen.
+- **Kein `pkill`-Selbsttreffer.** Prozesse über PID oder `[p]attern` beenden;
+  `fetch-base --take-over` beendet nur die Halter der eigenen Part-Dateien.
+- **Aufräumen.** Private Work-Ordner entfernt jedes Tool selbst; `--keep` nur
+  für Diagnose. Lokale HTTP-Server und `/tmp/opencode/utparts` danach von
+  Hand aufräumen.
+- **Ein Tool, ein Owner.** Wer ein Skript ändert, aktualisiert dessen Kopf und
+  `--help`; der Index bleibt stabil. `scripts/ops/ut2004/` ist kein
+  Download-Ordner: keine Spielartefakte, Cookies oder Backups committen.
+
 ## Archive extraction (Linux, no root)
 
 `extract-archive.sh` unpacks the UT2004 sources the launcher meets in the wild on a
@@ -383,3 +429,182 @@ wiederholten Verbindungsabbrüchen, SIGINT (Exit 130, Parts bleiben, nächster
 Lauf vollendet), `--adopt-running` (Exit 7 ohne, erfolgreich mit
 `--take-over`) und falschem SHA-256 (Exit 5). `shellcheck` ist in dieser
 Umgebung nicht installiert.
+
+---
+
+## Native install smoke test — `install-smoke.sh`
+
+`install-smoke.sh` exercises the whole native UT2004 install path — plan, base
+download, extraction, OldUnreal 3374 patch, verification — against a **local
+full-game archive**, without the real LAN file host (`10.23.0.12`).
+
+The live recipe `20` (`unreal-tournament-2004`) normally names a file on the
+LAN host. For the duration of a run the script points that recipe at a
+throwaway HTTP server on `127.0.0.1`, lets the real launcher engine install,
+checks the result, then restores the previous recipe URL and stops the server
+it started. This proves the launcher and the recipe, not the NAS/file-host
+mount, and works from an off-site machine.
+
+```
+scripts/ops/ut2004/install-smoke.sh --dry-run
+scripts/ops/ut2004/install-smoke.sh
+```
+
+`--dry-run` changes nothing. It reads the archive, detects an in-flight
+download, reads the live plan and the admin form, and prints `READY` (exit 0)
+or `NOT READY` (exit 2) with the reason.
+
+### Why bypass the file host?
+
+The real recipe resolves its base file through the LAN file host. A smoke test
+must not depend on that host being reachable, mounted or fast, and a failed
+mount would look like a launcher bug. Serving the same bytes over loopback
+keeps every other part of the path real: the server builds the plan, the
+launcher downloads with its normal engine, extracts the same wrapper layout,
+applies the same patch and runs the same verification. Only the transport
+(`http://127.0.0.1:8099/...` instead of the LAN host) differs.
+
+### What a run does
+
+1. **Readiness probe.** Opens the zip central directory and checks for real
+   game data (`Maps/DM-Rankin.ut2`, at any wrapper depth) or exactly one nested
+   ISO. A truncated archive, a `.part`, a running `curl`/`wget`, or a
+   multi-range download directory (`/tmp/opencode/utparts` plus the partial
+   prefix) makes it stop with exit 2. It never starts or resumes the download.
+2. **Local HTTP server.** Creates a temp dir with a symlink to the archive and
+   runs `python3 -m http.server 8099 --bind 127.0.0.1 --directory <temp>`.
+   Only the archive is exposed. If a server already answers the same URL with
+   the same `Content-Length`, it is reused and left running; if the port is
+   taken by something else, the run stops (use `--port`).
+3. **Recipe switch.** Uses `scripts/ops/ut2004/live-recipe.mjs` when present
+   (the shared editor: `show --json` / `set --iso-url ... --apply --yes`),
+   otherwise an inline Playwright + Livewire reader. It captures the current
+   requirement URL, sets it to the local URL, and waits until
+   `/api/v1/recipes/unreal-tournament-2004/plan` returns that URL. The original
+   value is written to `recipe-backup.json` before the change; the shared
+   editor also leaves its own full-form backup in the temp dir.
+4. **Install.** Runs the installed deep link (`lanomat://install/...`) or the
+   `launcher-core` `install_local` example (default) with the launcher token
+   from `~/.config/lanomat-launcher/config.json`. Progress is streamed and
+   logged. The default timeout is 30 minutes.
+5. **Verify.** Requires `System/Build.ini`, `System/ut2004-bin-amd64` (or
+   `System/UT2004`), and `Maps/DM-Rankin.ut2` at the target root. A base that
+   stayed inside its wrapper folder is reported explicitly, because the patch
+   alone can make `System/` look complete. `--launch` starts the game for 15
+   seconds afterwards (best effort).
+6. **Cleanup (trap).** Restores the exact previous recipe URL (unless
+   `--no-restore`), stops only the HTTP server this run started (no `pkill`,
+   no pattern matches), removes the browser profile and the token header file,
+   and deletes the temp dir. A failed real run keeps the temp dir with the
+   install log; a failed restore keeps the backup and exits 1. `--keep` keeps
+   the logs of a successful run too.
+
+### Options
+
+| Option | Meaning |
+|---|---|
+| `--base <zip>` | full-game base archive to serve (default: `~/Downloads/Unreal Tournament 2004.zip`) |
+| `--target <dir>` | install target (default: `~/Games/unreal-tournament-2004`) |
+| `--url <url>` | recipe URL for the run (default: `http://127.0.0.1:8099/<archive name>`) |
+| `--timeout <dur>` | install timeout in seconds, `30m` or `2h` (default: `30m`) |
+| `--dry-run` | check everything, change nothing |
+| `--keep` | keep temp dir/logs and the recipe backup (secrets are still removed) |
+| `--no-restore` | leave the live recipe on the local URL; prints the backup |
+| `--engine <mode>` | `auto` (default), `example`, `deeplink` |
+| `--recipe-id <id>` | live recipe row (default: `20`) |
+| `--port <port>` | local HTTP port (default: `8099`) |
+| `--launch` | start the game for 15 seconds after a verified install |
+
+### Environment
+
+| Variable | Use |
+|---|---|
+| `LANOMAT_ADMIN_COOKIES` | raw `Cookie` header for the admin session |
+| `LANOMAT_ADMIN_COOKIES_FILE` | file with a `Cookie` header, Netscape cookies or a Playwright `storageState` JSON (default: `~/.config/lanomat-launcher/admin-cookies.txt`; if that is missing, `/tmp/opencode/cookies.txt` is used when present) |
+| `LANOMAT_PLAYWRIGHT_ENTRY` | path to `playwright/index.mjs` (default: repo `node_modules`) |
+| `LANOMAT_CHROMIUM` | explicit Chromium/headless-shell binary |
+| `LANOMAT_INSTALL_EXAMPLE` | explicit `install_local` example binary |
+| `LANOMAT_LAUNCHER_BIN` | launcher binary for `--engine deeplink` |
+| `LANOMAT_ALLOW_STALE_ENGINE=1` | accept an example binary older than the sources |
+| `LANOMAT_UT2004_PARTS` | parts directory for readiness detection (default: sibling `utparts/`, plus `/tmp/opencode/utparts` for this archive) |
+| `LANOMAT_UT2004_BASE`, `LANOMAT_UT2004_PORT`, `LANOMAT_RECIPE_ID` | alternate defaults for `--base`, `--port`, `--recipe-id` |
+
+The admin session is separate from the launcher token. The token is read only
+from `~/.config/lanomat-launcher/config.json`, sent through a mode-600 header
+file (never argv), and never printed. Admin cookies are passed through the
+environment to the headless browser and its profile is deleted afterwards.
+
+### Expected size and duration
+
+| Item | Size |
+|---|---|
+| `Unreal Tournament 2004.zip` | 2,550,381,122 bytes (2.37 GiB, 1,587 entries) |
+| OldUnreal 3374 Linux patch | 59,191,321 bytes |
+| installed game | ~5.4 GiB |
+
+Observed on this host (NVMe, loopback, current example build): **2 min 53 s**
+from recipe switch to restore. Budget 10–15 minutes on a slower disk and keep
+the default 30-minute timeout. Peak disk is roughly **10–11 GiB**: the archive
+itself, the launcher's copy in the plan's downloads dir, and the extracted
+tree. `--target` moves the install tree, but the engine still uses the plan's
+`downloads_dir` (`~/Games/unreal-tournament-2004/.lanomat-downloads`), so a
+custom target does not isolate the downloaded copy.
+
+The patch is still downloaded from the URL in the recipe (GitHub, 59 MB), so
+the machine needs outbound HTTPS for that one file. The base archive comes
+from loopback.
+
+### Download readiness
+
+The script detects the multi-range download used for this archive:
+`/tmp/opencode/utparts` (or `$LANOMAT_UT2004_PARTS`, or a sibling `utparts/`)
+plus the partial prefix. `--dry-run` reports the prefix size, part count, the
+known range end if available, and why the archive is not usable yet:
+
+```
+==> NOT READY
+    the archive is incomplete or still being written; nothing was changed
+    when every part is complete, append them in name order:
+      cat /tmp/opencode/utparts/* >> "~/Downloads/Unreal Tournament 2004.zip"
+    the test is ready when the zip opens and carries Maps/DM-Rankin.ut2 or one nested ISO
+```
+
+Once the zip opens and contains game data, dry-run turns `READY` even if old
+part files are still lying around. When the test became ready here, the full
+2.55 GB run above was executed and passed.
+
+### Concurrency and cleanup
+
+Recipe `20` is live and shared. Two runs at the same time will fight over its
+URL, and two installs share the plan's downloads dir. Run it serially.
+The backup file is `recipe-backup.json` in the temp dir; with `--no-restore`
+the temp dir is kept and the path is printed. To restore by hand, set the
+requirement URL in `/admin/recipes/20/edit` back to the `url` value in that
+file. Do not simply re-run the tool: a second run would capture the local URL
+as its own backup and restore that.
+
+The script never uses `pkill`/`pgrep` patterns. It stops exactly the PID it
+started and leaves a pre-existing server on `8099` untouched.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | install verified, or dry-run ready |
+| 1 | install, verify or recipe restore failed |
+| 2 | usage error or missing precondition (including incomplete base archive, stale engine, admin session, port) |
+
+### Troubleshooting
+
+- **Wrapper folder left behind** (`<target>/Unreal Tournament 2004/Maps/...`):
+  the `install_local` example is older than `launcher-core`. Rebuild it:
+  `docker run --rm -v "$PWD/clients/launcher:/work" -w /work -e CARGO_TARGET_DIR=/work/target lanomat-launcher-dev cargo build -p launcher-core --example install_local`.
+  The script refuses a stale example unless `LANOMAT_ALLOW_STALE_ENGINE=1`.
+- **`port 8099 is in use`**: another server is there. If it serves the same
+  file size the script reuses it; otherwise pass `--port 8098`.
+- **`admin session expired`**: refresh the cookies, e.g.
+  `LANOMAT_ADMIN_COOKIES_FILE=/path/to/cookies.txt`.
+- **Recipe changed during the run**: the final plan check fails and the trap
+  restores the value captured at the start. Do not run two smoke tests at once.
+- **`--dry-run` says the download is incomplete**: leave the base archive
+  alone, finish/merge the parts, then rerun. Nothing was changed.
