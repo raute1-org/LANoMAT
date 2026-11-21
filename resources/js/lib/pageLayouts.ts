@@ -25,6 +25,7 @@ export const pageLayouts: Record<string, PageLayoutKind> = {
     'settings/': 'settings',
     'Profile/': 'profile',
     Dashboard: 'app',
+    Now: 'app',
     'Catering/': 'app',
     'Checkin/': 'app',
     'Event/': 'app',
