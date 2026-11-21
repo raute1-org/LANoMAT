@@ -70,7 +70,7 @@ jobs:
       - name: Serve /docs and a deep link
         run: |
           set -euo pipefail
-          docker run -d --name docs-ci -p 8080:80 lanomat-docs:ci
+          docker run -d --name docs-ci -p 8080:8080 lanomat-docs:ci
           trap 'docker logs docs-ci || true; docker rm -f docs-ci' EXIT
 
           # nginx answers as soon as the container is up; retry anyway for a

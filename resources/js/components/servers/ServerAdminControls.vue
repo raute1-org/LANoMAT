@@ -170,19 +170,7 @@ const dialogOpen = computed({
                     autocomplete="off"
                     maxlength="12"
                     :aria-invalid="workshopInvalid"
-                    :aria-describedby="`workshop-hint-${server.id}`"
                 />
-                <p
-                    :id="`workshop-hint-${server.id}`"
-                    class="text-xs"
-                    :class="
-                        workshopInvalid
-                            ? 'text-destructive'
-                            : 'text-muted-foreground'
-                    "
-                >
-                    {{ labels.admin_workshop_hint }}
-                </p>
             </div>
             <Button
                 type="submit"

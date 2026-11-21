@@ -97,8 +97,11 @@ COPY --chmod=0755 deploy/healthcheck.sh /usr/local/bin/docs-healthcheck.sh
 COPY --from=build /app/dist/404.html /usr/share/nginx/html/404.html
 COPY --from=build /app/dist/docs /usr/share/nginx/html/docs
 
-# Fail the build, not the deploy, on a broken config.
-RUN nginx -t
+# Fail the build, not the deploy, on a broken config. `nginx -t` runs as root
+# here and creates its temp directories under /tmp owned by root; clear them so
+# the unprivileged runtime (uid 101) can create its pid and temp files when /tmp
+# is not a fresh tmpfs (compose mounts one, a plain `docker run` does not).
+RUN nginx -t && rm -rf /tmp/*
 
 # uid 101 — non-root at runtime (the base image sets it; explicit for readers
 # and so the HEALTHCHECK/CMD below run unprivileged).
