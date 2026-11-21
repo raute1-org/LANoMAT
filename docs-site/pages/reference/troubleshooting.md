@@ -13,6 +13,11 @@ php artisan lanomat:preflight
 It names the failing check and the next step. The admin tile shows the same. If the app itself is
 down, work from the outside in: Traefik → app container → database/Redis → queue/scheduler.
 
+| Dark | Light |
+|---|---|
+| ![Admin dashboard lists each preflight check with OK, Ausfall or Übersprungen, dark](/screens/admin-dark.png) | ![Admin dashboard lists each preflight check with OK, Ausfall or Übersprungen, light](/screens/admin-light.png) |
+| `ADMIN · PREFLIGHT · OK · AUSFALL · ÜBERSPRUNGEN` | `ADMIN · LIGHT` |
+
 ## Login and access
 
 | Symptom | Cause | Fix |
@@ -40,6 +45,14 @@ down, work from the outside in: Traefik → app container → database/Redis →
 | Printed QR unreachable | `APP_URL` is not the venue host | Set `APP_URL` before printing; rotate the token if it leaked |
 | Camera scanner does nothing | Page not HTTPS | Browsers allow cameras only on `https://` or `localhost` |
 | Check-in says "not yet" | Outside the 12-hour window | `SelfCheckInWindow`; event must be `live` or close to start |
+
+The check-in page is the camera path that needs HTTPS: without it the scanner button stays inert and
+only the manual token field works.
+
+| Dark | Light |
+|---|---|
+| ![Orga check-in page with camera scan button and manual token field, dark](/screens/orga-checkin-dark.png) | ![Orga check-in page with camera scan button and manual token field, light](/screens/orga-checkin-light.png) |
+| `CHECK-IN · KAMERA · TOKEN` | `CHECK-IN · LIGHT` |
 
 ## Files and gallery
 
@@ -72,6 +85,14 @@ down, work from the outside in: Traefik → app container → database/Redis →
 | Preflight says queue stale | Heartbeat older than the threshold | Start the worker; `lanomat:heartbeat` writes the marker |
 | Discord announcement missing | No announce channel / bot rights | Set `DISCORD_ANNOUNCE_CHANNEL_ID`, check channel permissions |
 | Duplicate announcement | Outbox dedup bypassed | Check `discord_outbox.dedup_key`; retries are idempotent |
+
+If the bell is quiet while the checks are green, the problem is upstream of the UI: the worker lists
+the job as pending, or the scheduler never enqueued it.
+
+| Dark | Light |
+|---|---|
+| ![Dashboard with the notification bell panel open and no unread items, dark](/screens/notifications-dark.png) | ![Dashboard with the notification bell panel open and no unread items, light](/screens/notifications-light.png) |
+| `DASHBOARD · BELL · NOTHING QUEUED` | `DASHBOARD · LIGHT` |
 
 ## Database and storage
 
