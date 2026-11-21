@@ -111,6 +111,36 @@ registry and no upload path of their own:
 - Conversion to a game's character format is a separate, optional step (for
   UT2004 that is `vrm2ut2004`, built on the LAN server).
 
+## How a shared game gets here
+
+A participant who already has a ready-to-run game archive does not edit this
+directory by hand:
+
+1. On the LAN, the participant uploads the archive to the file host and
+   describes the game on `/games/share` (title, platforms, the executable inside
+   the unpacked folder, version). The file is pinned to the recipe; the game
+   files stay on the file host and never enter git.
+2. LANoMAT writes `recipe.yaml`, `SKILL.md` and the `_catalog.md` row, and opens
+   a pull request on branch `recipes/<slug>`. One branch and one pull request
+   per recipe: a new proposal moves the branch instead of opening a second one.
+3. `.github/workflows/recipes.yml` runs the validator on every pull request that
+   touches these files: schema, SKILL.md contract, unique slugs/aliases, and the
+   catalog row.
+4. A maintainer reviews the diff and merges. The next `lanomat:recipes:sync`
+   makes the game appear on `/games` and in the launcher.
+
+Machine-written `recipe.yaml` and `SKILL.md` files are exempt from Prettier
+(`.prettierignore`); the schema validator is their formatting gate.
+
+A shared game carries `metadata.portable: true`. That promises the required
+`base` archive is a ready-to-run game tree: unpacking it is the whole install.
+The LANoMAT launcher installs such a recipe by itself — it unpacks the archive,
+checks the files a step verifies and starts a launch target, and never runs the
+step commands. That is also why a portable recipe has one required `base`
+archive, real `verify` checks and a launch target.
+
+Recipes added by hand keep the path described next.
+
 ## Adding a recipe
 
 1. Create `resources/recipes/<slug>/` with a slug matching

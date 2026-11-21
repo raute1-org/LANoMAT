@@ -1,0 +1,59 @@
+# Validate the game recipe catalog (resources/recipes).
+#
+# Triggers:
+#   * every pull request that touches resources/recipes or this workflow. A
+#     shared game arrives as an automatically opened pull request, so this is
+#     the gate the participant sees.
+#   * push to main that touches the same paths, so a bad merge is caught.
+#
+# The check is the dependency-free-first validator in resources/recipes/schema:
+# JSON Schema, SKILL.md contract, uniqueness and the _catalog.md index. Every
+# `uses:` is pinned to a commit SHA with the release in a trailing comment, in
+# the same style as .github/workflows/client-agent.yml.
+#
+# Plain `pull_request` (never `pull_request_target`): a fork pull request runs
+# untrusted YAML, so it must not get repository secrets.
+name: Recipes
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'resources/recipes/**'
+      - '.github/workflows/recipes.yml'
+  pull_request:
+    paths:
+      - 'resources/recipes/**'
+      - '.github/workflows/recipes.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recipes-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate recipes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: resources/recipes/schema
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: resources/recipes/schema/package-lock.json
+
+      # Lockfile-exact install: fails when package.json and the lock disagree.
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate every recipe, SKILL.md and catalog row
+        run: node validate.mjs
