@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Gamepad2 } from '@lucide/vue';
+import { Gamepad2, Share2 } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 
 type LibraryGame = {
@@ -77,5 +77,14 @@ const platformLabel = (platforms: string[] | null): string =>
                 </Badge>
             </Link>
         </nav>
+        <!-- Quiet, always there: the library grows when people bring a game. -->
+        <Link
+            href="/games/share"
+            class="mt-2 flex items-center gap-2 rounded-sm border-t border-border px-2 py-2 text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            data-test="games-share"
+        >
+            <Share2 class="size-4 shrink-0" aria-hidden="true" />
+            Spiel teilen
+        </Link>
     </aside>
 </template>
