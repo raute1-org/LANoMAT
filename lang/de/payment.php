@@ -11,9 +11,9 @@ return [
     'pay_reference_hint' => 'Bei PayPal als Nachricht einfügen',
     'pay_amount' => 'Betrag',
     'pay_amount_hint' => 'Betrag bitte selbst eintragen: :amount',
-    'copy' => 'Kopieren',
+    'pay_copy' => 'Kopieren',
     'copy_reference' => 'Verwendungszweck kopieren',
-    'copied' => 'Kopiert',
-    'copy_failed' => 'Kopieren nicht möglich, bitte Text markieren.',
+    'pay_copied' => 'Kopiert',
+    'pay_copy_failed' => 'Kopieren nicht möglich, bitte Text markieren.',
     'new_tab' => '(öffnet in neuem Tab)',
 ];

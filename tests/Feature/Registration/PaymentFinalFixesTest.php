@@ -160,3 +160,11 @@ it('B12: csv cells starting with a formula character are neutralised', function 
         ->and(CsvSafe::cell('Max'))->toBe('Max')
         ->and(CsvSafe::cell(null))->toBe('');
 });
+
+test('shared payment wording does not overwrite the Jetzt join copy fallback', function () {
+    expect(__('now.copy_failed', ['address' => 'host:27015']))->toContain('host:27015')
+        ->and(__('now.copied'))->toBe('Kopiert')
+        ->and(__('now.pay_copy_failed'))->toBe('Kopieren nicht möglich, bitte Text markieren.')
+        ->and(__('registration.page.pay_copied'))->toBe('Kopiert')
+        ->and(__('catering.page.pay_copy'))->toBe('Kopieren');
+});

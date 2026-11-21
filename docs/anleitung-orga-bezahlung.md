@@ -40,8 +40,9 @@ Pool-Link (oder jeder andere Link) wird unverändert angezeigt; dann steht der B
 
 ## Was Teilnehmer sehen
 
-- Auf **Meine Anmeldung** steht, was noch offen ist: Betrag, Ticket, der Zahlungslink als Button, ein
-  Verwendungszweck (Referenz) zum Kopieren und dein Hinweis.
+- Auf **Meine Anmeldung** steht, was noch offen ist: Betrag, Ticket, der Zahlungslink als Button, dein Hinweis
+  und, wenn ein Zahlungslink gesetzt ist, ein Verwendungszweck (Referenz) zum Kopieren. Ohne Link steht dort
+  „Bitte bei der Orga bezahlen."
 - Auf der Startseite **Jetzt** erscheint eine Karte „Ticket noch nicht bezahlt" mit dem Betrag, solange die Anmeldung
   unbezahlt, nicht storniert und der Preis größer als 0 ist. Die Karte führt zum Zahlungsblock auf der Anmeldeseite; der Link selbst steht nur dort.
 - Sobald du die Anmeldung als bezahlt markierst, verschwinden Karte und Aufforderung.
@@ -55,14 +56,15 @@ In der Teilnehmerliste (Anmeldungen im Event) siehst du pro Anmeldung Ticket, Pr
   bezahlt hat oder für wen, zum Beispiel bei einer Sammelüberweisung („Max, für die ganze Gruppe"). Beim
   Zurücksetzen auf unbezahlt wird die Notiz gelöscht.
 - **Filter „Zahlung offen":** zeigt nur Anmeldungen, die noch nicht bezahlt sind (stornierte und kostenlose Anmeldungen ausgenommen).
-- **Ticket ändern:** wechselt das Ticket einer Anmeldung und übernimmt dabei den aktuellen Preis des neuen Tickets.
+- **Ticket ändern:** wechselt das Ticket einer Anmeldung. Unbezahlte Anmeldungen übernehmen dabei den aktuellen
+  Preis des neuen Tickets; bezahlte behalten ihren Preis. Bei stornierten Anmeldungen ist die Aktion ausgeblendet.
 - **CSV-Export:** enthält zusätzlich die Spalten `ticket_price_eur` (Punkt als Dezimaltrenner) und `paid_by`.
 
 ### Preis aus Ticket übernehmen (Sammelaktion)
 
 Hast du den Preis eines Tickets nachträglich geändert, markierst du die betroffenen Anmeldungen und wählst die
 Sammelaktion **Preis aus Ticket übernehmen**. Unbezahlte Anmeldungen bekommen den aktuellen Ticketpreis;
-bezahlte werden bewusst übersprungen. Die Meldung lautet zum Beispiel „2 aktualisiert, 1 übersprungen (bezahlt)".
+bezahlte werden bewusst übersprungen. Die Meldung lautet zum Beispiel „2 aktualisiert, 1 übersprungen (bezahlt oder Ticket-Typ fehlt)".
 
 ## Essensrunden abrechnen
 
@@ -75,7 +77,7 @@ Jede Essensrunde (Catering) hat zwei neue Einstellungen:
   „inklusive". Die Hinweise **Alle** und **Keine** wählen schnell alle oder keinen Ticket-Typ aus.
 
 Teilnehmer sehen in der Runde, was sie schuldig sind und wie sie zahlen (bar, PayPal-Button mit Betrag oder „Im
-Ticket enthalten, du zahlst hier nichts."). Bei geschlossener Runde wird der Zahl-Button hervorgehoben.
+Ticket enthalten, du zahlst hier nichts."). Bei geschlossener Runde wird der PayPal-Button der ersten Runde mit offenem Betrag hervorgehoben.
 
 In der Positionsliste der Runde hakst du ab: Pro Position **Bezahlt umschalten**, oder mit einem Klick
 **Alles von &lt;Name&gt; bezahlt**, das alle Positionen dieser Person in der Runde als bezahlt markiert (enthaltene
@@ -94,7 +96,7 @@ Der Befehl `registration:payment-reminders` läuft stündlich über den Schedule
 - **Sendefenster:** Erinnerungen werden nur zwischen **09:00 und 21:00 Uhr** (Europe/Berlin) verschickt; was nachts fällig wird, geht ab 09:00 raus.
 - Jede Erinnerung geht pro Person und Art **höchstens einmal** raus. Sind beide fällig, wird nur die Erinnerung
   „vor dem Event" verschickt. Bezahlte, stornierte und kostenlose Anmeldungen bekommen keine.
-- Die Kategorie **Zahlungserinnerungen** ist standardmäßig an. Eine Einstellungsseite im Web gibt es dafür nicht; Teilnehmer können sie nur in der Desktop-App abschalten.
+- Die Kategorie **Zahlungserinnerungen** ist standardmäßig an. Einen Schalter dafür gibt es derzeit nicht; die Glocke bekommt die Erinnerung immer.
 
 ## Hinweis: „Freunde und Familie"
 

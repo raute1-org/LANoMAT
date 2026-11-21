@@ -30,8 +30,12 @@ const primaryPaymentId = computed<number | null>(() => {
     }
 
     return (
-        props.orders.find((o) => !o.isOpen && (o.myPayment?.dueCents ?? 0) > 0)
-            ?.id ?? null
+        props.orders.find(
+            (o) =>
+                !o.isOpen &&
+                (o.myPayment?.dueCents ?? 0) > 0 &&
+                !!o.myPayment?.url,
+        )?.id ?? null
     );
 });
 

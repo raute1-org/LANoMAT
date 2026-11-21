@@ -65,10 +65,10 @@ function fill(template: string): string {
                     </p>
                     <CopyText
                         :text="payment.reference"
-                        :label="labels.copy"
+                        :label="labels.pay_copy"
                         :aria-label="labels.copy_reference"
-                        :copied-label="labels.copied"
-                        :failed-label="labels.copy_failed"
+                        :copied-label="labels.pay_copied"
+                        :failed-label="labels.pay_copy_failed"
                     />
                     <p class="text-xs text-muted-foreground">
                         {{ labels.pay_reference_hint }}

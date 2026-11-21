@@ -108,7 +108,7 @@ return [
         'reprice' => 'Preis aus Ticket übernehmen',
         'change_ticket_done' => 'Ticket geändert, Preis neu übernommen.',
         'change_ticket_done_paid' => 'Ticket geändert. Bezahlt — Preis unverändert.',
-        'reprice_done' => ':updated aktualisiert, :skipped übersprungen (bezahlt)',
+        'reprice_done' => ':updated aktualisiert, :skipped übersprungen (bezahlt oder Ticket-Typ fehlt)',
         'ticket_types' => [
             'title' => 'Tickets',
             'model_label' => 'Ticket',

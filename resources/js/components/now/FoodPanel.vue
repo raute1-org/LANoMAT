@@ -26,10 +26,10 @@ const payLabels = (): Record<string, string> => ({
     pay_with_paypal: t('pay_with_paypal'),
     pay_at_orga: t('pay_at_orga'),
     pay_reference_hint: t('pay_reference_hint'),
-    copy: t('copy'),
+    pay_copy: t('pay_copy'),
     copy_reference: t('copy_reference'),
-    copied: t('copied'),
-    copy_failed: t('copy_failed'),
+    pay_copied: t('pay_copied'),
+    pay_copy_failed: t('pay_copy_failed'),
     new_tab: t('new_tab'),
 });
 </script>

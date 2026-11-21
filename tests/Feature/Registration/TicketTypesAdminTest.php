@@ -163,7 +163,7 @@ it('re-prices unpaid registrations in bulk and skips paid ones', function () {
 
     regManager($event)
         ->callTableBulkAction('rePrice', [$a, $b, $c])
-        ->assertNotified('2 aktualisiert, 1 übersprungen (bezahlt)');
+        ->assertNotified('2 aktualisiert, 1 übersprungen (bezahlt oder Ticket-Typ fehlt)');
 
     expect($a->fresh()->ticket_price_cents)->toBe(2500)
         ->and($b->fresh()->ticket_price_cents)->toBe(2500)
