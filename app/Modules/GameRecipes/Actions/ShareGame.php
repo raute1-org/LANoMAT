@@ -70,8 +70,8 @@ final class ShareGame
     }
 
     /**
-     * The pinned file, refused unless the participant could open it, it was not
-     * rejected, and it is an archive the recipe can unpack.
+     * The pinned file, refused unless the participant could download it, it was
+     * not rejected, and it is an archive the recipe can unpack and name safely.
      *
      * @param  array<string, mixed>  $input
      */
@@ -87,21 +87,43 @@ final class ShareGame
 
         $file = SharedFile::query()->find($id);
 
-        if (! $file instanceof SharedFile || Gate::forUser($user)->denies('view', $file)) {
+        if (! $file instanceof SharedFile) {
             throw ValidationException::withMessages([
                 'shared_file_id' => __('game_share.errors.file_missing'),
             ]);
         }
 
-        if ($file->visibility === FileVisibility::Rejected) {
+        // The uploader's own rejected file gets the specific answer; anybody
+        // else's rejected file stays indistinguishable from an unknown id.
+        if ($file->user_id === $user->id && $file->visibility === FileVisibility::Rejected) {
             throw ValidationException::withMessages([
                 'shared_file_id' => __('game_share.errors.file_rejected'),
+            ]);
+        }
+
+        // The same ability an install uses: approved, or the caller's own
+        // pending upload, never a rejected file or one of a non-public event.
+        if (Gate::forUser($user)->denies('download', $file)) {
+            throw ValidationException::withMessages([
+                'shared_file_id' => __('game_share.errors.file_missing'),
             ]);
         }
 
         if (! PortableRecipeBuilder::isArchiveName($file->original_name)) {
             throw ValidationException::withMessages([
                 'shared_file_id' => __('game_share.errors.file_type'),
+            ]);
+        }
+
+        if (PortableRecipeBuilder::hasUnsafeArchiveName($file->original_name)) {
+            throw ValidationException::withMessages([
+                'shared_file_id' => __('game_share.errors.file_name'),
+            ]);
+        }
+
+        if (! PortableRecipeBuilder::hasReliableMatchPattern($file->original_name)) {
+            throw ValidationException::withMessages([
+                'shared_file_id' => __('game_share.errors.file_name_pattern'),
             ]);
         }
 

@@ -6,6 +6,7 @@ use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Support\PortableRecipeBuilder;
 use App\Modules\GameRecipes\Support\RecipeValidator;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * The builder is pure enough to test without the database: it only reads the
@@ -135,13 +136,52 @@ it('generates a summary and a description that says the draft needs verification
         ->and($payload['homepage'] ?? null)->toBeNull();
 });
 
-it('turns glob metacharacters in the archive name into a matching glob', function () {
+it('writes front matter that parses back to the exact strings', function (string $value) {
+    $front = PortableRecipeBuilder::yamlFrontMatter('tiny-racer', $value);
+
+    expect($front)->toStartWith("---\n")
+        ->and($front)->toEndWith("---\n");
+
+    $parsed = Yaml::parse(substr($front, 4, -4));
+
+    expect($parsed)->toBe(['name' => 'tiny-racer', 'description' => $value]);
+})->with([
+    'double and single quotes' => ['He said "install" and \'go\''],
+    'backslash' => ['C:\\Games\\Tiny Racer'],
+    'colon' => ['Install: Tiny Racer'],
+    'leading dash' => ['- not a list item'],
+    'hash' => ['# not a comment'],
+    'line break' => ["line one\nline two"],
+    'tab' => ["tab\there"],
+    'everything' => ["a \"b\" \\ c: d\n- e # f\tg"],
+]);
+
+it('knows which archive names can be shared', function (string $name, bool $shareable) {
+    expect(PortableRecipeBuilder::isShareableArchive($name))->toBe($shareable)
+        ->and(PortableRecipeBuilder::isArchiveName($name))->toBeTrue();
+})->with([
+    'plain' => ['Tiny Racer.zip', true],
+    'tar bz2' => ['game.tar.bz2', true],
+    'glob brackets with a literal core' => ['Game [beta].zip', true],
+    'shell substitution' => ['Doom$(touch pwned).zip', true],
+    'single quote' => ["Doom's Day.zip", true],
+    'bare star glob' => ['*.zip', false],
+    'question mark' => ['Game?.zip', false],
+    'too few literal characters' => ['[a].zip', false],
+    'two digits only' => ['[1][2].zip', false],
+    'backtick' => ['Doom`n`Load.zip', false],
+    'line break' => ["Doom\nLoad.zip", false],
+    'tab' => ["Doom\tLoad.zip", false],
+    'control character' => ["Doom\x01Load.zip", false],
+]);
+
+it('turns bracket globs in the archive name into a matching glob', function () {
     $payload = app(PortableRecipeBuilder::class)->build(
         gameShareInput(),
-        gameShareArchive('Game [beta]*?.zip'),
+        gameShareArchive('Game [beta].zip'),
     );
 
-    expect($payload['requires'][0]['match'])->toBe(['Game *beta***.zip']);
+    expect($payload['requires'][0]['match'])->toBe(['Game *beta*.zip']);
 });
 
 it('builds one unpack step per selected platform with a single command per entry', function () {
@@ -193,6 +233,47 @@ it('uses bsdtar for a zip archive on linux', function () {
         ->and($payload['launch_targets'][0]['command'])->toBe('wine "{{target}}/bin/TinyRacer.exe"');
 });
 
+it('prints copy-paste commands with literal quoting for a hostile archive name', function (string $platform, string $expected) {
+    $payload = app(PortableRecipeBuilder::class)->build(
+        gameShareInput([
+            'platforms' => [$platform],
+            'linux_runner' => $platform === 'linux' ? 'wine' : null,
+        ]),
+        gameShareArchive('Doom$(touch pwned).zip'),
+    );
+
+    $skill = $payload['skill_markdown'];
+    $step = collect($payload['steps'])->firstWhere('id', 'unpack-'.$platform);
+    $runs = array_column($step['commands'], 'run');
+
+    expect($skill)->toContain($expected)
+        ->and($skill)->not->toContain('"{{downloads}}/')
+        ->and($runs)->toContain($expected);
+})->with([
+    'windows' => [
+        'windows',
+        'Expand-Archive -LiteralPath \'{{downloads}}/Doom$(touch pwned).zip\' -DestinationPath "{{target}}" -Force',
+    ],
+    'linux' => [
+        'linux',
+        'bsdtar -xf \'{{downloads}}/Doom$(touch pwned).zip\' -C "{{target}}"',
+    ],
+]);
+
+it('escapes backticks in the title and summary so no code span or fence can be started', function () {
+    $payload = app(PortableRecipeBuilder::class)->build(
+        gameShareInput(['title' => 'Doom`n`Load', 'summary' => 'Use `this` or ```that```']),
+        gameShareArchive('Doom`n`Load.zip'),
+    );
+
+    $skill = $payload['skill_markdown'];
+    $unescaped = str_replace('\\`', '', $skill);
+
+    expect($skill)->toContain('# Doom\\`n\\`Load')
+        ->and($skill)->toContain('Use \\`this\\` or \\`\\`\\`that\\`\\`\\`')
+        ->and(substr_count($unescaped, '`') % 2)->toBe(0);
+});
+
 it('writes a complete SKILL.md with frontmatter, the sections and 60 to 150 lines', function (array $platforms, string $archive) {
     $payload = app(PortableRecipeBuilder::class)->build(
         gameShareInput(['platforms' => $platforms, 'linux_runner' => 'wine']),
@@ -202,9 +283,14 @@ it('writes a complete SKILL.md with frontmatter, the sections and 60 to 150 line
     $skill = $payload['skill_markdown'];
     $lines = substr_count($skill, "\n") + 1;
 
+    preg_match('/^---\n(.*?)\n---\n/s', $skill, $front);
+
+    $parsed = Yaml::parse($front[1]);
+
     expect($lines)->toBeGreaterThanOrEqual(60)
         ->and($lines)->toBeLessThanOrEqual(150)
-        ->and($skill)->toStartWith("---\nname: tiny-racer\ndescription: \"")
+        ->and($parsed['name'])->toBe('tiny-racer')
+        ->and($parsed['description'])->toBe($payload['skill_description'])
         ->and($skill)->toContain('## When to use')
         ->and($skill)->toContain('## What you need')
         ->and($skill)->toContain('## Questions to ask')

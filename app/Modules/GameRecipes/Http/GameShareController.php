@@ -62,6 +62,7 @@ final class GameShareController extends Controller
             ->with('files.sharedFile')
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
+            ->limit(50)
             ->get();
 
         return Inertia::render('Games/Share', [
@@ -90,9 +91,11 @@ final class GameShareController extends Controller
         $recipe = $action->handle($this->authUser($request), $request->validated());
         $message = (string) __('game_share.flash.created', ['title' => $recipe->title]);
 
+        // One success message: the Inertia toast the page renders and
+        // announces. A second session flash would be shown twice.
         Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
-        return to_route('games.share')->with('success', $message);
+        return to_route('games.share');
     }
 
     /**
@@ -152,7 +155,7 @@ final class GameShareController extends Controller
             'sizeBytes' => $file->size_bytes,
             'visibility' => $file->visibility->value,
             'createdAt' => ($file->created_at ?? now())->toIso8601String(),
-            'usable' => PortableRecipeBuilder::isArchiveName($file->original_name),
+            'usable' => PortableRecipeBuilder::isShareableArchive($file->original_name),
         ];
     }
 

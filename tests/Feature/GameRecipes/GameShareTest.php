@@ -208,7 +208,13 @@ it('creates a draft portable recipe pinned to the shared archive', function () {
         'homepage' => 'https://example.test/tiny-racer',
     ]));
 
-    $response->assertRedirect(route('games.share'))->assertSessionHas('success');
+    // One success message: the Inertia toast, never a second session flash.
+    $response->assertRedirect(route('games.share'))
+        ->assertSessionMissing('success')
+        ->assertInertiaFlash('toast', [
+            'type' => 'success',
+            'message' => (string) __('game_share.flash.created', ['title' => 'Tiny Racer']),
+        ]);
 
     $recipe = GameRecipe::query()->where('slug', 'tiny-racer')->firstOrFail();
     $pinned = $recipe->files()->first();
@@ -252,7 +258,7 @@ it('creates a draft portable recipe pinned to the shared archive', function () {
 
     expect($lines)->toBeGreaterThanOrEqual(60)
         ->and($lines)->toBeLessThanOrEqual(150)
-        ->and($skill)->toStartWith("---\nname: tiny-racer\ndescription: \"")
+        ->and($skill)->toStartWith("---\nname: tiny-racer\n")
         ->and($skill)->toContain('needs verification on the LAN');
 });
 
@@ -433,6 +439,196 @@ it('does not let /games/{slug} swallow the share page', function () {
         ->get('/games/share')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('Games/Share'));
+});
+
+it('refuses an archive name that cannot be quoted or shown safely', function (string $name) {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event, $name);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertSessionHasErrors(['shared_file_id' => __('game_share.errors.file_name')]);
+
+    expect(GameRecipe::query()->count())->toBe(0);
+})->with([
+    'backtick' => ['Doom`n`Load.zip'],
+    'line break' => ["Doom\nLoad.zip"],
+    'tab' => ["Doom\tLoad.zip"],
+    'control character' => ["Doom\x01Load.zip"],
+    'star' => ['*.zip'],
+    'question mark' => ['Doom?.zip'],
+]);
+
+it('quotes an archive name with shell syntax literally in the step and the SKILL.md', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event, 'Doom$(touch pwned).zip');
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertRedirect(route('games.share'));
+
+    $recipe = GameRecipe::query()->where('slug', 'tiny-racer')->firstOrFail();
+    $command = $recipe->steps[1]['commands'][0]['run'];
+
+    expect($command)->toBe(
+        'Expand-Archive -LiteralPath \'{{downloads}}/Doom$(touch pwned).zip\' -DestinationPath "{{target}}" -Force',
+    )
+        ->and($recipe->skill_markdown)->toContain($command)
+        ->and($recipe->skill_markdown)->not->toContain('"{{downloads}}/');
+});
+
+it('refuses an archive name whose match pattern would be too broad', function (string $name) {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event, $name);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertSessionHasErrors(['shared_file_id' => __('game_share.errors.file_name_pattern')]);
+
+    expect(GameRecipe::query()->count())->toBe(0);
+})->with([
+    'one letter' => ['[a].zip'],
+    'two digits' => ['[1][2].zip'],
+    'nothing but brackets' => ['[][].zip'],
+]);
+
+it('marks an archive with an unsafe name as not usable on the page', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    gameShareFile($user, $event, '*.zip');
+
+    $this->actingAs($user)
+        ->get('/games/share')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('files', 1)
+            ->where('files.0.name', '*.zip')
+            ->where('files.0.usable', false));
+});
+
+it('refuses control characters in free text with a German message', function (string $field, string $value) {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file, [$field => $value]))
+        ->assertSessionHasErrors([$field => __('game_share.errors.one_line')]);
+
+    expect(GameRecipe::query()->count())->toBe(0);
+})->with([
+    'title newline' => ['title', "Tiny\nRacer"],
+    'title tab' => ['title', "Tiny\tRacer"],
+    'summary newline' => ['summary', "Klein\nRacer"],
+    'version control' => ['version', "1.\x01"],
+    'players newline' => ['players', "2\n8"],
+]);
+
+it('refuses a file of an event that is not public yet, like the download policy does', function () {
+    $user = User::factory()->create();
+    $draft = Event::factory()->draft()->create();
+    $file = SharedFile::factory()->approved()->create([
+        'event_id' => $draft->id,
+        'original_name' => 'tiny-racer.zip',
+    ]);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertSessionHasErrors(['shared_file_id' => __('game_share.errors.file_missing')]);
+
+    expect(GameRecipe::query()->count())->toBe(0);
+});
+
+it('accepts the uploaders own pending archive', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = SharedFile::factory()->create([
+        'user_id' => $user->id,
+        'event_id' => $event->id,
+        'original_name' => 'tiny-racer.zip',
+    ]);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertRedirect(route('games.share'));
+
+    expect(GameRecipe::query()->where('slug', 'tiny-racer')->exists())->toBeTrue();
+});
+
+it('lists only the 50 most recent shares', function () {
+    $user = User::factory()->create();
+    GameRecipe::factory()->count(55)->contributedBy($user)->create();
+
+    $expected = GameRecipe::query()
+        ->where('contributor_user_id', $user->id)
+        ->orderByDesc('updated_at')
+        ->orderByDesc('id')
+        ->limit(50)
+        ->pluck('slug');
+
+    $this->actingAs($user)
+        ->get('/games/share')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('shares', 50)
+            ->where('shares.0.slug', $expected[0])
+            ->where('shares.49.slug', $expected[49]));
+});
+
+it('tells the participant to choose another title instead of editing a draft', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event);
+    GameRecipe::factory()->published()->create(['slug' => 'tiny-racer', 'title' => 'Tiny Racer']);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertSessionHasErrors([
+            'title' => 'Ein Spiel mit diesem Titel gibt es schon. Wähle einen anderen Titel.',
+        ]);
+});
+
+it('uses the share page labels as field names in validation messages', function (string $field, array $overrides, string $label) {
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event);
+
+    $response = $this->actingAs($user)->post('/games/share', gameSharePayload($file, $overrides));
+    $response->assertSessionHasErrors($field);
+
+    $message = (string) session('errors')->first($field);
+
+    expect($message)->toContain($label)
+        ->and($message)->not->toContain('Programmdatei');
+})->with([
+    'title' => ['title', ['title' => 'A'], 'Titel'],
+    'executable' => ['executable', ['executable' => null], 'Startdatei'],
+    'linux executable' => [
+        'linux_executable',
+        ['platforms' => ['linux'], 'linux_runner' => 'native'],
+        'Linux-Startdatei',
+    ],
+    'players' => ['players', ['players' => str_repeat('9', 21)], 'Spieleranzahl'],
+]);
+
+it('shows the draft budget message of ContributeRecipe and creates nothing', function () {
+    Config::set('recipes.max_drafts_per_user', 1);
+
+    $user = User::factory()->create();
+    $event = Event::factory()->live()->create();
+    $file = gameShareFile($user, $event);
+    GameRecipe::factory()->contributedBy($user)->create(['slug' => 'other-game', 'title' => 'Other Game']);
+
+    $this->actingAs($user)
+        ->post('/games/share', gameSharePayload($file))
+        ->assertSessionHasErrors([
+            'title' => __('recipe_contributions.errors.too_many_drafts', ['max' => 1]),
+        ]);
+
+    expect(GameRecipe::query()->count())->toBe(1);
 });
 
 it('answers an unknown file id exactly like a file of somebody else', function () {

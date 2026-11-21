@@ -24,6 +24,9 @@ final class ShareGameRequest extends FormRequest
     /** Characters a path may never contain; they mean something to a shell. */
     private const SHELL_CHARACTERS = "\"'`$;|&<>*?";
 
+    /** Free text stays on one line: a break would end a SKILL.md block. */
+    private const ONE_LINE = 'not_regex:/[\x00-\x1F\x7F]/';
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -33,7 +36,7 @@ final class ShareGameRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'min:2', 'max:'.self::TITLE_MAX],
+            'title' => ['required', 'string', 'min:2', 'max:'.self::TITLE_MAX, self::ONE_LINE],
             // No `exists` rule: an unknown id and somebody else's file must get the
             // same answer, which the action gives after its visibility check.
             'shared_file_id' => ['required', 'integer'],
@@ -53,11 +56,29 @@ final class ShareGameRequest extends FormRequest
                 $this->pathRule(),
                 Rule::requiredIf(fn (): bool => $this->input('linux_runner') === 'native'),
             ],
-            'summary' => ['nullable', 'string', 'max:'.self::SUMMARY_MAX],
-            'version' => ['nullable', 'string', 'max:40'],
+            'summary' => ['nullable', 'string', 'max:'.self::SUMMARY_MAX, self::ONE_LINE],
+            'version' => ['nullable', 'string', 'max:40', self::ONE_LINE],
             'homepage' => ['nullable', 'url:http,https', 'max:500'],
-            'players' => ['nullable', 'string', 'max:20'],
+            'players' => ['nullable', 'string', 'max:20', self::ONE_LINE],
             'multiplayer' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /**
+     * A control character anywhere in free text is one message, not Laravel's
+     * generic "invalid format".
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        $oneLine = (string) __('game_share.errors.one_line');
+
+        return [
+            'title.not_regex' => $oneLine,
+            'summary.not_regex' => $oneLine,
+            'version.not_regex' => $oneLine,
+            'players.not_regex' => $oneLine,
         ];
     }
 
