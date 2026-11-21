@@ -46,7 +46,12 @@ final class NullLightingClient implements LightingClient
         return LightingResult::unreachable('not configured');
     }
 
-    public function startGame(?int $durationSeconds = null, ?int $stepMs = null): LightingResult
+    public function gameStatus(): GameStatus
+    {
+        return GameStatus::unreachable();
+    }
+
+    public function startGame(?int $durationSeconds = null, ?int $stepMs = null, ?string $mode = null): LightingResult
     {
         return LightingResult::unreachable('not configured');
     }

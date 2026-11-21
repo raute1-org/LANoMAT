@@ -158,8 +158,19 @@
             </x-filament::section>
 
             <x-filament::section :heading="__('lighting.game.heading')" :description="__('lighting.game.hint')">
-                <div class="lc-row">
-                    <x-filament::button wire:click="startGame" :disabled="$unreachable">{{ __('lighting.game.start') }}</x-filament::button>
+                <div class="lc-row" x-data="{ mode: '' }">
+                    @if ($game->reachable)
+                        <span class="lc-hint" role="status">{{ $game->active ? __('lighting.game.running', ['mode' => $game->mode ?? '-']) : __('lighting.game.idle') }}</span>
+                    @endif
+                    @if ($game->modes !== [])
+                        <select class="lc-field" x-model="mode" aria-label="{{ __('lighting.game.mode') }}" @disabled($unreachable)>
+                            <option value="">{{ __('lighting.game.mode_default') }}</option>
+                            @foreach ($game->modes as $gameMode)
+                                <option value="{{ $gameMode }}">{{ $gameMode }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                    <x-filament::button x-on:click="$wire.startGame(mode)" :disabled="$unreachable">{{ __('lighting.game.start') }}</x-filament::button>
                     <x-filament::button color="gray" wire:click="cancelGame" :disabled="$unreachable">{{ __('lighting.game.cancel') }}</x-filament::button>
                 </div>
             </x-filament::section>

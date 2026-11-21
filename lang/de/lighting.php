@@ -48,6 +48,10 @@ return [
         'heading' => 'Game Mode',
         'hint' => 'Lichteffekt des Lichtservers. Startet nur, wenn Blitz freigegeben ist.',
         'start' => 'Game Mode starten',
+        'idle' => 'Kein Effekt aktiv',
+        'running' => 'Läuft: :mode',
+        'mode' => 'Modus',
+        'mode_default' => 'Standardmodus',
         'cancel' => 'Game Mode abbrechen',
     ],
     'errors' => [

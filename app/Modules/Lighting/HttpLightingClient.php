@@ -8,6 +8,7 @@ use App\Modules\Lighting\Contracts\LightingClient;
 use App\Modules\Lighting\Support\BridgeHealth;
 use App\Modules\Lighting\Support\Fixture;
 use App\Modules\Lighting\Support\FixtureReport;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightingResult;
 use App\Modules\Lighting\Support\LightState;
 use DateTimeImmutable;
@@ -15,6 +16,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -93,17 +95,7 @@ final class HttpLightingClient implements LightingClient
                 continue;
             }
 
-            try {
-                $state = LightState::fromArray([
-                    'hex' => $row['hex'] ?? $row['color'] ?? null,
-                    'brightness' => $row['brightness'] ?? null,
-                    'temperature' => $row['temperature'] ?? null,
-                    'white_level' => $row['white_level'] ?? null,
-                    'strobe' => $row['strobe'] ?? null,
-                ]);
-            } catch (Throwable) {
-                $state = new LightState;
-            }
+            $state = self::parseState($row);
 
             $fixtures[] = new Fixture((int) $id, $state);
         }
@@ -151,9 +143,34 @@ final class HttpLightingClient implements LightingClient
         return $this->command('POST', '/api/blackout', null);
     }
 
-    public function startGame(?int $durationSeconds = null, ?int $stepMs = null): LightingResult
+    public function gameStatus(): GameStatus
+    {
+        $response = $this->attempt(fn () => $this->http()->get($this->url('/api/game')));
+
+        if (! $response instanceof Response || $response->failed()) {
+            return GameStatus::unreachable();
+        }
+
+        $json = $response->json();
+        $json = is_array($json) ? $json : [];
+        $config = is_array($json['config'] ?? null) ? $json['config'] : [];
+        $modes = array_values(array_filter(
+            array_map('strval', array_keys($config)),
+            fn (string $m) => GameStatus::isValidMode($m),
+        ));
+
+        return new GameStatus(
+            true,
+            ($json['active'] ?? false) === true,
+            is_string($json['mode'] ?? null) && GameStatus::isValidMode($json['mode']) ? $json['mode'] : null,
+            $modes,
+        );
+    }
+
+    public function startGame(?int $durationSeconds = null, ?int $stepMs = null, ?string $mode = null): LightingResult
     {
         $body = array_filter([
+            'mode' => $mode,
             'duration_s' => $durationSeconds,
             'step_ms' => $stepMs,
         ], fn ($v) => $v !== null);
@@ -164,6 +181,56 @@ final class HttpLightingClient implements LightingClient
     public function cancelGame(): LightingResult
     {
         return $this->command('DELETE', '/api/game', null);
+    }
+
+    /**
+     * Reads one light of `GET /api/lights`: `red`/`green`/`blue` (0-255) become
+     * the hex colour, `dimmer` (0-255) the brightness, `strobe` stays raw, and
+     * `cold_white`/`warm_white` become the white level and temperature. Missing
+     * fields stay unset; the older `hex`/`brightness`/... names still work.
+     *
+     * @param  array<array-key, mixed>  $row
+     */
+    private static function parseState(array $row): LightState
+    {
+        $byte = fn (mixed $v): ?int => is_numeric($v) ? max(0, min(255, (int) round((float) $v))) : null;
+
+        $hex = is_string($row['hex'] ?? null) ? $row['hex'] : (is_string($row['color'] ?? null) ? $row['color'] : null);
+        $r = $byte($row['red'] ?? null);
+        $g = $byte($row['green'] ?? null);
+        $b = $byte($row['blue'] ?? null);
+
+        if ($r !== null || $g !== null || $b !== null) {
+            $hex = sprintf('#%02x%02x%02x', $r ?? 0, $g ?? 0, $b ?? 0);
+        }
+
+        $brightness = $row['brightness'] ?? null;
+        if (($d = $byte($row['dimmer'] ?? null)) !== null) {
+            $brightness = $d / 255;
+        }
+
+        $temperature = $row['temperature'] ?? null;
+        $white = $row['white_level'] ?? null;
+        $cold = $byte($row['cold_white'] ?? null);
+        $warm = $byte($row['warm_white'] ?? null);
+
+        if ($cold !== null || $warm !== null) {
+            $sum = ($cold ?? 0) + ($warm ?? 0);
+            $white = max($cold ?? 0, $warm ?? 0) / 255;
+            $temperature = $sum > 0 ? ($cold ?? 0) / $sum : $temperature;
+        }
+
+        try {
+            return LightState::make(
+                $hex,
+                is_numeric($brightness) ? (float) $brightness : null,
+                is_numeric($temperature) ? (float) $temperature : null,
+                is_numeric($white) ? (float) $white : null,
+                is_numeric($row['strobe'] ?? null) ? (float) $row['strobe'] : null,
+            );
+        } catch (InvalidArgumentException) {
+            return new LightState;
+        }
     }
 
     /**

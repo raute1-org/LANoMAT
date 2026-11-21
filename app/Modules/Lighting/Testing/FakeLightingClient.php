@@ -7,6 +7,7 @@ namespace App\Modules\Lighting\Testing;
 use App\Modules\Lighting\Contracts\LightingClient;
 use App\Modules\Lighting\Support\BridgeHealth;
 use App\Modules\Lighting\Support\FixtureReport;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightingResult;
 use App\Modules\Lighting\Support\LightState;
 use DateTimeImmutable;
@@ -94,9 +95,16 @@ final class FakeLightingClient implements LightingClient
         return $this->record(['blackout']);
     }
 
-    public function startGame(?int $durationSeconds = null, ?int $stepMs = null): LightingResult
+    public ?GameStatus $game = null;
+
+    public function gameStatus(): GameStatus
     {
-        return $this->record(['startGame', $durationSeconds, $stepMs]);
+        return $this->unreachable ? GameStatus::unreachable() : ($this->game ?? new GameStatus(true));
+    }
+
+    public function startGame(?int $durationSeconds = null, ?int $stepMs = null, ?string $mode = null): LightingResult
+    {
+        return $this->record(['startGame', $durationSeconds, $stepMs, $mode]);
     }
 
     public function cancelGame(): LightingResult

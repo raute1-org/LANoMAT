@@ -8,6 +8,7 @@ use App\Modules\Lighting\Models\LightingScene;
 use App\Modules\Lighting\Models\LightingSetting;
 use App\Modules\Lighting\Support\Fixture;
 use App\Modules\Lighting\Support\FixtureReport;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightState;
 use App\Modules\Lighting\Testing\FakeLightingClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,4 +143,17 @@ it('shows a rate limit message instead of failing', function () {
     Livewire::test(LightControl::class)->call('blackout')->call('blackout')->assertNotified();
 
     expect($fake->callsTo('blackout'))->toHaveCount(1);
+});
+
+it('shows the game status and passes a chosen mode', function () {
+    config(['lighting.game_mode_strobe_free' => true]);
+    $fake = lightingFake();
+    $fake->game = new GameStatus(true, true, 'police', ['game', 'police']);
+    $this->actingAs(User::factory()->orga()->create());
+
+    $this->get('/admin/licht')->assertOk()->assertSee('Läuft: police')->assertSee('<option value="game">game</option>', false);
+
+    Livewire::test(LightControl::class)->call('startGame', 'police')->call('startGame', '../x');
+
+    expect($fake->callsTo('startGame'))->toHaveCount(1)->and($fake->callsTo('startGame')[0][3])->toBe('police');
 });

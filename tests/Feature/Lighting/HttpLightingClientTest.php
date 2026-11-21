@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Lighting\HttpLightingClient;
 use App\Modules\Lighting\Support\FixtureUpdate;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightState;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -37,6 +38,7 @@ it('builds the expected requests', function (string $method, string $url, ?array
     'pattern' => ['POST', 'http://bridge.test:8060/api/pattern', ['a' => '#00ff00', 'b' => '#ff0000', 'brightness' => 1.0], fn ($c) => $c->pattern('#00FF00', '#ff0000', 5)],
     'blackout' => ['POST', 'http://bridge.test:8060/api/blackout', null, fn ($c) => $c->blackout()],
     'game start' => ['POST', 'http://bridge.test:8060/api/game', ['duration_s' => 5, 'step_ms' => 250], fn ($c) => $c->startGame(5, 250)],
+    'game start with mode' => ['POST', 'http://bridge.test:8060/api/game', ['mode' => 'police', 'duration_s' => 5], fn ($c) => $c->startGame(5, null, 'police')],
     'game cancel' => ['DELETE', 'http://bridge.test:8060/api/game', null, fn ($c) => $c->cancelGame()],
 ]);
 
@@ -116,4 +118,59 @@ it('sends no Authorization header without a token', function () {
     lightClient(null)->blackout();
 
     Http::assertSent(fn (Request $r) => ! $r->hasHeader('Authorization'));
+});
+
+it('reads the real bridge light list', function () {
+    Http::fake(['bridge.test:8060/api/lights' => Http::response([
+        ['id' => 1, 'name' => 'Strahler 1', 'start_address' => 1, 'red' => 0, 'green' => 128, 'blue' => 0, 'cold_white' => 0, 'warm_white' => 0, 'strobe' => 0, 'dimmer' => 255, 'mode' => 'rgb'],
+        ['id' => 2, 'name' => 'Strahler 2', 'start_address' => 7, 'red' => 255, 'green' => 85, 'blue' => 32, 'cold_white' => 51, 'warm_white' => 153, 'strobe' => 200, 'dimmer' => 51, 'mode' => 'rgb'],
+    ], 200)]);
+
+    $fixtures = lightClient()->fixtures()->fixtures;
+
+    expect($fixtures)->toHaveCount(2)
+        ->and($fixtures[0]->state->hex)->toBe('#008000')
+        ->and($fixtures[0]->state->brightness)->toBe(1.0)
+        ->and($fixtures[0]->state->strobe)->toBe(0)
+        ->and($fixtures[0]->state->whiteLevel)->toBe(0.0)
+        ->and($fixtures[1]->state->hex)->toBe('#ff5520')
+        ->and($fixtures[1]->state->brightness)->toBe(0.2)
+        ->and($fixtures[1]->state->strobe)->toBe(200)
+        ->and($fixtures[1]->state->whiteLevel)->toBe(0.6)
+        ->and($fixtures[1]->state->temperature)->toBe(0.25);
+});
+
+it('tolerates a single light object with missing fields', function () {
+    Http::fake(['bridge.test:8060/api/lights' => Http::response([['id' => 1, 'red' => 10]], 200)]);
+
+    $state = lightClient()->fixtures()->fixtures[0]->state;
+
+    expect($state->hex)->toBe('#0a0000')->and($state->brightness)->toBeNull()->and($state->strobe)->toBeNull();
+});
+
+it('reads the real health answer', function () {
+    Http::fake(['bridge.test:8060/api/health' => Http::response(['ok' => true, 'port' => '/dev/ttyUSB0', 'error' => null, 'fixtures' => 2, 'channels_per_fixture' => 4, 'start_addresses' => [1, 7]], 200)]);
+
+    $h = lightClient()->health();
+
+    expect($h->healthy)->toBeTrue()->and($h->fixtureCount)->toBe(2)->and($h->channelsPerFixture)->toBe(4)->and($h->startAddresses)->toBe([1, 7]);
+});
+
+it('reads the game status and the configured modes', function () {
+    Http::fake(['bridge.test:8060/api/game' => Http::response([
+        'active' => true, 'mode' => 'police',
+        'config' => ['game' => ['duration_s' => 5, 'step_ms' => 250], 'police' => ['colors' => ['#f00', '#00f']], 'start' => ['duration_s' => 3]],
+    ], 200)]);
+
+    $g = lightClient()->gameStatus();
+
+    expect($g->reachable)->toBeTrue()->and($g->active)->toBeTrue()->and($g->mode)->toBe('police')->and($g->modes)->toBe(['game', 'police', 'start']);
+});
+
+it('reports an unreachable game status and rejects odd mode names', function () {
+    Http::fake(fn () => throw new ConnectionException('refused'));
+    expect(lightClient()->gameStatus()->reachable)->toBeFalse();
+
+    expect(GameStatus::isValidMode('police'))->toBeTrue()
+        ->and(GameStatus::isValidMode('../x'))->toBeFalse();
 });

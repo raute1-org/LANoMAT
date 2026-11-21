@@ -17,6 +17,7 @@ use App\Modules\Lighting\Models\LightingScene;
 use App\Modules\Lighting\Models\LightingSetting;
 use App\Modules\Lighting\Support\Fixture;
 use App\Modules\Lighting\Support\FixtureReport;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightingResult;
 use App\Modules\Lighting\Support\LightState;
 use App\Modules\Lighting\Support\Topology;
@@ -110,9 +111,12 @@ class LightControl extends Page
         $this->guarded(fn () => app(BlackoutLights::class)($this->actor()));
     }
 
-    public function startGame(): void
+    public function startGame(mixed $mode = null): void
     {
-        $this->guarded(fn () => app(ControlGameMode::class)->start($this->actor()));
+        $this->guarded(fn () => app(ControlGameMode::class)->start(
+            $this->actor(),
+            mode: is_string($mode) && $mode !== '' ? $mode : null,
+        ));
     }
 
     public function cancelGame(): void
@@ -143,7 +147,7 @@ class LightControl extends Page
     }
 
     /**
-     * @return array{report: FixtureReport, topology: Topology, strobeAllowed: bool, maxStrobe: int, scenes: Collection<int, LightingScene>, enabled: bool, configured: bool, pollSeconds: int}
+     * @return array{report: FixtureReport, game: GameStatus, topology: Topology, strobeAllowed: bool, maxStrobe: int, scenes: Collection<int, LightingScene>, enabled: bool, configured: bool, pollSeconds: int}
      */
     protected function getViewData(): array
     {
@@ -151,6 +155,7 @@ class LightControl extends Page
 
         return [
             'report' => $report,
+            'game' => $report->reachable ? app(LightingClient::class)->gameStatus() : GameStatus::unreachable(),
             // An unreachable bridge costs one timeout per poll, not two.
             'topology' => $report->reachable ? app(TopologyResolver::class)->resolve() : new Topology,
             'strobeAllowed' => LightingSetting::strobeAllowed(),

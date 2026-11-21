@@ -37,9 +37,20 @@ The number of lights and their channels are not fixed. `GET /api/health` reports
 - Health unreadable: ids fall back to 1..4. A scene entry for a light the bridge does not report is
   skipped without error. The plan is cached for 30 seconds.
 
-The response shape of `/api/lights` is not documented here; the client accepts a list or an object with
-`lights` or `fixtures`, with `id`, `hex` (or `color`), `brightness`, `temperature`, `white_level`, `strobe`.
-Check it against the real bridge (checklist below).
+## Response format (verified against the real bridge)
+
+- `GET /api/health`: `{"ok":true,"port":"/dev/ttyUSB0","error":null,"fixtures":2,"channels_per_fixture":4,"start_addresses":[1,7]}`.
+  Healthy means `ok` is true and `error` is null.
+- `GET /api/lights` is a list of `{"id","name","start_address","red","green","blue","cold_white","warm_white","strobe","dimmer","mode"}`
+  with values 0 to 255. The client derives the hex colour from `red`/`green`/`blue`, the brightness from
+  `dimmer / 255`, keeps `strobe` raw, and turns `cold_white`/`warm_white` into the white level (the larger
+  of the two) and the temperature (share of cold white). Missing fields stay unset. The bridge reports
+  `dimmer`, `strobe` and the whites even for 4-channel lights, so the UI offers those controls only when
+  `channels_per_fixture` is 6 or more.
+- `GET /api/game`: `{"active":false,"mode":"start","config":{"game":{...},"police":{...},"start":{...}}}`.
+  The page shows whether an effect runs and its mode, and offers the configured modes (the keys of
+  `config`) next to "Game Mode starten". The start body carries `mode` only when one is chosen; the
+  bridge's write API for the mode field is assumed, check it at the venue.
 
 ## Strobe safety (photosensitivity)
 
@@ -83,7 +94,7 @@ ignores what it cannot show.
 1. Set `LIGHTING_URL`, `LIGHTING_ENABLED=true`, restart app and queue.
 2. `lighting:status`: the reported light count matches the room.
 3. Colour and brightness on one light, then all lights; blackout.
-4. Compare `/api/lights` with the page's state (shape assumption above).
+4. Compare `/api/lights` with the page's state and try the Game Mode modes (the `mode` body field is an assumption).
 5. Pattern, then every default scene. Strobe stays locked unless the orga decides otherwise.
 6. Try Game Mode only after checking whether it strobes; set `LIGHTING_GAME_MODE_STROBE_FREE` accordingly.
 7. While strobe is locked every command carries `"strobe": 0` (and a pattern is preceded by a strobe-only command). If the bridge rejects that field on 4-channel lights, every command fails: check this first.

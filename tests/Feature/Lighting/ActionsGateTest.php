@@ -75,7 +75,7 @@ it('validates fixture ids and clamps game mode parameters', function () {
 
     config(['lighting.game_mode_strobe_free' => true]);
     app(ControlGameMode::class)->start($orga, 99999, 1);
-    expect($this->fake->callsTo('startGame')[0])->toBe(['startGame', 600, 50]);
+    expect($this->fake->callsTo('startGame')[0])->toBe(['startGame', 600, 50, null]);
 });
 
 it('reports an unreachable bridge as a result, not an exception', function () {

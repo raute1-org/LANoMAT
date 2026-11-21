@@ -73,13 +73,18 @@ final class SafeLightingClient implements LightingClient
         return $this->inner->blackout();
     }
 
-    public function startGame(?int $durationSeconds = null, ?int $stepMs = null): LightingResult
+    public function gameStatus(): GameStatus
+    {
+        return $this->inner->gameStatus();
+    }
+
+    public function startGame(?int $durationSeconds = null, ?int $stepMs = null, ?string $mode = null): LightingResult
     {
         if (! $this->allowed() && ! ($this->gameStrobeFree ?? (bool) config('lighting.game_mode_strobe_free'))) {
             return LightingResult::blocked(__('lighting.errors.game_blocked'));
         }
 
-        return $this->inner->startGame($durationSeconds, $stepMs);
+        return $this->inner->startGame($durationSeconds, $stepMs, $mode);
     }
 
     public function cancelGame(): LightingResult

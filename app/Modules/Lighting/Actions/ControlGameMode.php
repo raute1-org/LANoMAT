@@ -6,6 +6,7 @@ namespace App\Modules\Lighting\Actions;
 
 use App\Models\User;
 use App\Modules\Lighting\Contracts\LightingClient;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightingResult;
 
 /**
@@ -18,13 +19,18 @@ final readonly class ControlGameMode
 
     public function __construct(private LightingClient $client) {}
 
-    public function start(User $actor, ?int $durationSeconds = null, ?int $stepMs = null): LightingResult
+    public function start(User $actor, ?int $durationSeconds = null, ?int $stepMs = null, ?string $mode = null): LightingResult
     {
         $this->guard($actor);
+
+        if ($mode !== null && ! GameStatus::isValidMode($mode)) {
+            throw new \InvalidArgumentException('Invalid game mode.');
+        }
 
         return $this->client->startGame(
             $durationSeconds === null ? null : max(1, min(600, $durationSeconds)),
             $stepMs === null ? null : max(50, min(5000, $stepMs)),
+            $mode,
         );
     }
 

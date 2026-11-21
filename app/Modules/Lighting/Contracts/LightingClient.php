@@ -7,6 +7,7 @@ namespace App\Modules\Lighting\Contracts;
 use App\Modules\Lighting\Support\BridgeHealth;
 use App\Modules\Lighting\Support\FixtureReport;
 use App\Modules\Lighting\Support\FixtureUpdate;
+use App\Modules\Lighting\Support\GameStatus;
 use App\Modules\Lighting\Support\LightingResult;
 use App\Modules\Lighting\Support\LightState;
 
@@ -34,7 +35,9 @@ interface LightingClient
 
     public function blackout(): LightingResult;
 
-    public function startGame(?int $durationSeconds = null, ?int $stepMs = null): LightingResult;
+    public function gameStatus(): GameStatus;
+
+    public function startGame(?int $durationSeconds = null, ?int $stepMs = null, ?string $mode = null): LightingResult;
 
     public function cancelGame(): LightingResult;
 }
