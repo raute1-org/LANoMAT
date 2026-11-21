@@ -18,6 +18,12 @@ use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
+// The chat fixtures are a broad catalogue; the lineup filter is covered by
+// tests/Feature/GameRecipes/LauncherLineupTest.php.
+beforeEach(function () {
+    Config::set('launcher.lineup', '');
+});
+
 /**
  * A published recipe with one required LAN file, so `installable` is true and
  * the games library's LAN-readiness rule has something to match.

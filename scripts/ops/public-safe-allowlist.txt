@@ -19,3 +19,9 @@ docs/infra/proxmox-test-vm-lancache.md:^100\.64\.0\.0$
 # docs/infra/wireguard-tunnel.md: `wg-quick@wg0.service` is a systemd template-unit instance name
 # (service wg-quick, instance wg0), not an e-mail address.
 docs/infra/wireguard-tunnel.md:^wg-quick@wg0\.service$
+
+# docs/ops/first-lineup: the Raute1 LAN UT2004 server address is intentionally in the post text.
+docs/ops/announcements/2026-11-first-lineup.md:^10\.23\.0\.40$
+docs/ops/discord-announcement.md:^10\.23\.0\.40$
+# ... and the laptop fallback address is named only to say "do not publish it".
+docs/ops/discord-announcement.md:^10\.23\.3\.220$

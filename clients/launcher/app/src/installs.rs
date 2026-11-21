@@ -20,6 +20,10 @@ pub struct InstallRecord {
     pub version: Option<String>,
     #[serde(default)]
     pub verified: Vec<String>,
+    /// The OS-specific start command from the recipe/plan. Older records have
+    /// none and fall back to the UT2004 `System/` launcher.
+    #[serde(default)]
+    pub launch_command: Option<String>,
 }
 
 pub fn path(dir: &Path) -> PathBuf {
@@ -71,6 +75,7 @@ mod tests {
             target_dir: dir.to_string(),
             version: Some("3374".into()),
             verified: vec!["System/Build.ini".into()],
+            launch_command: None,
         }
     }
 

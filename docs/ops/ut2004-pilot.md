@@ -581,12 +581,20 @@ Fassung zurück.
 ### 5.9 macOS: App bauen, signieren, notarisieren
 
 **UT2004 selbst:** Das Patch-DMG ist nicht von Apple notarisiert; Gatekeeper
-kann den ersten Start blockieren.
-Auf macOS mounten, `UT2004.app` nach `~/Applications` kopieren, die
-Asset-Ordner nach `~/Library/Application Support/UT2004` (ohne `System/`),
-dann einmalig:
+kann den ersten Start blockieren. Auf macOS mounten, `UT2004.app` nach
+`~/Applications` kopieren, die Asset-Ordner nach
+`~/Library/Application Support/UT2004` (ohne `System/`), dann einmalig:
 
 ```bash
+DMG="$HOME/Downloads/OldUnreal-UT2004Patch3374-macOS.dmg"
+mkdir -p /tmp/ut2004-dmg "$HOME/Applications" "$HOME/Library/Application Support/UT2004"
+hdiutil attach "$DMG" -mountpoint /tmp/ut2004-dmg -nobrowse -readonly
+app="$(find /tmp/ut2004-dmg -maxdepth 2 -name UT2004.app -print -quit)"
+cp -R "$app" "$HOME/Applications/"
+for d in /tmp/ut2004-dmg/*/; do
+  case "$d" in */System/|*/UT2004.app/) ;; *) cp -R "$d" "$HOME/Library/Application Support/UT2004/" ;; esac
+done
+hdiutil detach /tmp/ut2004-dmg
 xattr -dr com.apple.quarantine "$HOME/Applications/UT2004.app"
 ```
 

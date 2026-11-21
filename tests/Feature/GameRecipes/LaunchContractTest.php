@@ -6,8 +6,14 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // This test is about launch metadata, not the curated lineup.
+    Config::set('launcher.lineup', '');
+});
 
 /**
  * The games page must never hand `{{host}}` to a browser and must expose every

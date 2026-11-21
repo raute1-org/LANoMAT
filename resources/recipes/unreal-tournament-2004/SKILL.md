@@ -23,18 +23,6 @@ Use this skill when the user says any of:
 Do not use it for Unreal Tournament 1999 (different game and patch line) or for
 the dedicated server on the game-server host.
 
-## Ask first: flat or VR
-
-Ask one question **before** installing: "Flat on a monitor, or VR?"
-
-- **Flat** is the default and needs nothing beyond the base game and patch. It
-  works on Windows, Linux and macOS.
-- **VR** is Windows 10/11 only and needs SteamVR plus motion controllers. VR is
-  offline bots only; joining an online server drops back to a flat screen.
-
-Do not assume VR from a plugged-in headset, and never install VR on Linux or
-macOS.
-
 ## What you need
 
 - **Preferred:** the portable 3374 base archive for the player's OS on the LAN
@@ -123,28 +111,6 @@ steps on macOS; the agent follows them.
   `System\Play-VR.bat`. VR is on only when started from `Play-VR.bat`; a normal
   start stays flat. `Play-VR.bat DM-Antalus` skips the menus.
 
-VR settings live in `System\UT2004VR_Game.ini`, made from `UT2004.ini` on the
-first VR start. Delete it to start over. `RenderScale` in
-`System\UT2004VR_proxy.ini` (for example `0.7`) is the frame-rate lever.
-
-## Asking about avatars
-
-Avatars are `role: avatar` requirements matched against the LAN file host. The
-installer shows every `.vrm` match as a multi-select:
-
-1. List the LAN matches first and recommend them. Prefer LAN copies; do not
-   invent download URLs for an avatar.
-2. Ask: "Which avatars should I install? Pick any number, or none."
-3. Only build with `vrm2ut2004` if the user wants converted characters. The
-   repo is private: clone it on the LAN server with an account that can read
-   it, follow its README, and feed it the local `.vrm` paths.
-4. Copy the generated UT2004 character packages to each client's `System`
-   folder.
-5. Avatars are optional. Never block the base install or UT2004VR on them.
-
-Live example: the operator's UT2004VR/VRM deployment, "Raute1 | VRM-UT2004", at
-https://ut.raute1.org/ (HTTP/2 200 on 2026-11-21) runs this path in production.
-
 ## Verification
 
 - `System/Build.ini` reports `v3374`, the main menu starts without
@@ -180,5 +146,4 @@ https://ut.raute1.org/ (HTTP/2 200 on 2026-11-21) runs this path in production.
 
 ## License
 
-UT2004 belongs to Epic Games; the user supplies the disc. OldUnreal's patch is
-free and Epic-approved; UT2004VR is MIT, OpenVR BSD-3-Clause.
+UT2004 belongs to Epic Games; the user supplies the disc. OldUnreal's patch is free and Epic-approved.

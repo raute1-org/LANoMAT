@@ -120,6 +120,9 @@ export const S = {
         soon: 'Bald im Launcher',
         soonHint:
             'Der Launcher installiert dieses Spiel noch nicht. Auf der Webseite stehen alle Infos.',
+        play: 'Spielen',
+        playTitle: (title) => `${title} im Browser öffnen`,
+        playError: 'Das Spiel konnte nicht im Browser geöffnet werden.',
         web: 'Auf der Webseite ansehen',
         webTitle: (title) => `${title} auf der LANoMAT-Seite öffnen`,
         webError: 'Die Spielseite konnte nicht geöffnet werden.',

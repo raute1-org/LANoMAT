@@ -16,8 +16,14 @@ use App\Modules\Mcp\Tools\RecipeGetTool;
 use App\Modules\Mcp\Tools\RecipeInstallPlanTool;
 use App\Modules\Mcp\Tools\RecipesListTool;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // These fixtures are a full catalogue; the lineup filter has its own test.
+    Config::set('launcher.lineup', '');
+});
 
 function ut2004Recipe(): GameRecipe
 {

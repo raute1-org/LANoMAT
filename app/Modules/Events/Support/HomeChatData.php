@@ -7,6 +7,7 @@ namespace App\Modules\Events\Support;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
+use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
@@ -43,17 +44,6 @@ final class HomeChatData
 
     public const MAX_SERVERS = 8;
 
-    /**
-     * Recipes the launcher pilot can actually install. Everything else is a
-     * library entry only — the chat must never offer a launcher download that
-     * ends in a catalog-only game (see the launcher roadmap, L46).
-     *
-     * @var list<string>
-     */
-    private const LAUNCHER_SUPPORTED_SLUGS = [
-        'unreal-tournament-2004',
-    ];
-
     /** @var list<string> */
     private const SUGGESTIONS = [
         'Welche Spiele laufen?',
@@ -64,6 +54,7 @@ final class HomeChatData
         private readonly Modules $modules,
         private readonly LauncherBuilds $launcher,
         private readonly RecipeFileMatcher $matcher,
+        private readonly LauncherLineup $lineup,
     ) {}
 
     /**
@@ -167,19 +158,27 @@ final class HomeChatData
             ->values()
             ->all();
 
-        $live = GameRecipe::query()
+        // Only the curated lineup reaches the chat cards. The rest stays in
+        // the database, but the hero must not advertise a game the launcher
+        // and web library no longer show.
+        $lineupSlugs = $this->lineup->slugs();
+        $inLineup = fn ($query) => $lineupSlugs === []
+            ? $query
+            : $query->whereIn('slug', $lineupSlugs);
+
+        $live = $inLineup(GameRecipe::query()
             ->published()
             ->whereIn('slug', $liveSlugs)
             ->with('files')
-            ->orderBy('title')
+            ->orderBy('title'))
             ->get();
 
-        $catalog = GameRecipe::query()
+        $catalog = $inLineup(GameRecipe::query()
             ->published()
             ->when($liveSlugs !== [], fn ($query) => $query->whereNotIn('slug', $liveSlugs))
             ->with('files')
             ->orderBy('title')
-            ->limit(self::MAX_GAMES)
+            ->limit(self::MAX_GAMES))
             ->get();
 
         $recipes = $live->concat($catalog)->take(self::MAX_GAMES);
@@ -211,9 +210,15 @@ final class HomeChatData
                 'lan_ready' => $lanReady,
                 'server_count' => count($recipeServers),
                 'installable' => $recipe->files->isNotEmpty() || ($recipe->requirements ?? []) !== [],
-                // Only the pilot recipe has a working launcher install path;
-                // every other published recipe is "Ansehen" in the chat card.
-                'launcher_supported' => in_array($recipe->slug, self::LAUNCHER_SUPPORTED_SLUGS, true),
+                // A dedicated recipe installs, the generic engine handles its
+                // plan, and a browser recipe opens its play_url. Everything
+                // else is "Ansehen" in the chat card.
+                'launcher_supported' => in_array($recipe->slug, [
+                    'unreal-tournament-2004',
+                    'need-for-speed-underground-2',
+                ], true) || $recipe->playUrl(request()->getHost()) !== null,
+                'play_url' => $recipe->playUrl(request()->getHost()),
+                'server_note' => $recipe->serverNote(),
                 // Null when no launcher build is published, so the card never
                 // offers a download the /launcher page cannot deliver.
                 'launcher_url' => $launcherUrl,

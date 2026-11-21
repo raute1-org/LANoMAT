@@ -12,6 +12,7 @@ use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
+use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
@@ -262,11 +263,16 @@ class GamePageController extends Controller
     /** @return Collection<int, GameRecipe> */
     private function publishedRecipes(): Collection
     {
-        return GameRecipe::query()
-            ->published()
-            ->with('files')
-            ->orderBy('title')
-            ->get();
+        // The database keeps every published recipe; the player-facing library
+        // only shows the curated first lineup. An empty lineup is the
+        // back-compat path and keeps the whole catalogue visible.
+        return app(LauncherLineup::class)->filter(
+            GameRecipe::query()
+                ->published()
+                ->with('files')
+                ->orderBy('title')
+                ->get(),
+        );
     }
 
     /**
@@ -380,7 +386,7 @@ class GamePageController extends Controller
      */
     private function serversForRecipe(GameRecipe $recipe, Collection $links): array
     {
-        return array_values($this->matchedLinks($recipe, $links)
+        $servers = $this->matchedLinks($recipe, $links)
             ->map(static function (ServerLink $link): array {
                 $dto = ServerListProjection::dto($link);
 
@@ -399,7 +405,21 @@ class GamePageController extends Controller
                 ];
             })
             ->values()
-            ->all());
+            ->all();
+
+        // A browser recipe has no ServerLink row: its one public server is
+        // described by the recipe itself and joined through the HTTPS
+        // `play_url`. An actual manual/permanent row for the same game wins,
+        // so the page never shows the same server twice.
+        if ($servers === []) {
+            $browser = $recipe->browserServer(request()->getHost());
+
+            if ($browser !== null) {
+                $servers[] = $browser;
+            }
+        }
+
+        return $servers;
     }
 
     /**
@@ -766,14 +786,16 @@ class GamePageController extends Controller
             // build is published, so the page must not link to an empty download page.
             'launcher_available' => $launcherAvailable,
             'launcher_url' => $launcherAvailable ? route('launcher.index', absolute: false) : null,
-            // The shipped launcher build only installs the pilot engine (see
-            // {@see RecipeController::LAUNCHER_PILOT_SLUG}), so the download is
-            // the card's first-user path only for that recipe; the rest keep
-            // their agent deep link instead of a catalogue-only detour.
-            'launcher_supported' => $recipe->slug === RecipeController::LAUNCHER_PILOT_SLUG,
+            // The shipped launcher build installs the pilot/generic engine
+            // (see {@see RecipeController::LAUNCHER_SUPPORTED_SLUGS}) and can
+            // open a browser recipe's play_url; the rest keep their agent link.
+            'launcher_supported' => RecipeController::supportsLauncher($recipe->slug)
+                || $recipe->playUrl() !== null,
             // {{host}} is the LAN address that serves the web game; substitute the
             // request host so a recipe never hardcodes localhost.
             'play_url' => $this->absoluteHttpUrl($recipe->playUrlFor(request()->getHost())),
+            // "Ein Server · Nickname · Join/Leave" for a browser recipe.
+            'server_note' => $recipe->serverNote(),
             'launch_target' => $recipe->launchTarget(),
             'launch_targets' => $recipe->launchTargets(),
             'supports_multiplayer' => $recipe->supportsMultiplayer(),

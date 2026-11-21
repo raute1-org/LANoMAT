@@ -12,6 +12,7 @@ use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
+use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\Mcp\Support\SafeText;
 use Illuminate\Http\JsonResponse;
@@ -25,24 +26,39 @@ class RecipeController extends Controller
     use ResolvesAuthenticatedUser;
 
     /**
-     * The one recipe the shipped launcher build can install: its engine still
-     * verifies the UT2004 `System/` tree. The catalogue lists the other
-     * published recipes anyway (their web page and their summary are useful);
-     * they are just not launcher-installable yet. Keeping the fact here means
-     * the launcher, the web page and every agent read the same flag instead of
-     * each guessing from a slug.
+     * The one recipe with a dedicated engine path (UT2004's `System/`
+     * verifier). A browser recipe needs no install at all: its `play_url`
+     * makes it launcher-supported too. Every other recipe that the generic
+     * engine can install is listed in [`self::LAUNCHER_SUPPORTED_SLUGS`].
      */
     public const LAUNCHER_PILOT_SLUG = 'unreal-tournament-2004';
 
-    public function index(Request $request): JsonResponse
+    /**
+     * Published recipes the native launcher can install end to end. UT2004 has
+     * the dedicated installer; NFSU2 is driven by its plan's `steps[].verify`
+     * and `launch_targets`.
+     *
+     * @var list<string>
+     */
+    public const LAUNCHER_SUPPORTED_SLUGS = [
+        self::LAUNCHER_PILOT_SLUG,
+        'need-for-speed-underground-2',
+    ];
+
+    public static function supportsLauncher(string $slug): bool
+    {
+        return in_array($slug, self::LAUNCHER_SUPPORTED_SLUGS, true);
+    }
+
+    public function index(Request $request, LauncherLineup $lineup): JsonResponse
     {
         $user = $this->authUser($request);
         $query = mb_strtolower($request->string('query')->toString());
 
-        $recipes = GameRecipe::query()
+        $recipes = $lineup->filter(GameRecipe::query()
             ->visibleTo($user)
             ->orderBy('title')
-            ->get()
+            ->get())
             ->when($query !== '', fn ($collection) => $collection->filter(
                 fn (GameRecipe $recipe): bool => collect($recipe->searchTerms())->contains(
                     static fn (string $term): bool => str_contains($term, $query),
@@ -61,7 +77,11 @@ class RecipeController extends Controller
                 // Read-only capability flags: what a client may do with this
                 // catalogue entry, without it having to open the plan first.
                 'installable' => $this->installable($recipe),
-                'launcher_supported' => $recipe->slug === self::LAUNCHER_PILOT_SLUG,
+                // A browser recipe has no install path, but the launcher can
+                // still open its `play_url`; the shell uses that as "Spielen".
+                'launcher_supported' => self::supportsLauncher($recipe->slug)
+                    || $recipe->playUrl($request->getHost()) !== null,
+                'play_url' => $recipe->playUrl($request->getHost()),
                 'updated_at' => $recipe->updated_at?->toIso8601String(),
             ])->all(),
         ], 200, ['Cache-Control' => 'no-store, private']);

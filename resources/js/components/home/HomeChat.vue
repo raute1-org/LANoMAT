@@ -657,6 +657,12 @@ onBeforeUnmount(() => {
                                                 {{ game.summary }}
                                             </p>
                                             <p
+                                                v-if="game.server_note"
+                                                class="mt-1 font-mono text-[11px] text-muted-foreground"
+                                            >
+                                                {{ game.server_note }}
+                                            </p>
+                                            <p
                                                 class="mt-2 font-mono text-xs text-muted-foreground tabular-nums"
                                             >
                                                 <span v-if="game.version"
@@ -670,7 +676,10 @@ onBeforeUnmount(() => {
                                             class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2"
                                         >
                                             <template
-                                                v-if="game.launcher_supported"
+                                                v-if="
+                                                    game.installable &&
+                                                    game.launcher_supported
+                                                "
                                             >
                                                 <Button as-child>
                                                     <a
@@ -690,6 +699,18 @@ onBeforeUnmount(() => {
                                                     >Im Launcher öffnen</a
                                                 >
                                             </template>
+                                            <Button
+                                                v-else-if="game.play_url"
+                                                as-child
+                                                variant="outline"
+                                            >
+                                                <a
+                                                    :href="game.play_url"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    >Spielen</a
+                                                >
+                                            </Button>
                                             <Link
                                                 v-else
                                                 :href="`/games/${game.slug}`"

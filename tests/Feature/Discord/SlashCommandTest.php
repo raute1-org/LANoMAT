@@ -310,6 +310,19 @@ it('returns the help text for /help', function () {
         ->assertJsonPath('data.content', __('discord.help.text'));
 });
 
+it('advertises /ask in /help only while the guest assistant is enabled', function () {
+    postInteraction(applicationCommand('help'))
+        ->assertOk()
+        ->assertJsonPath('data.content', __('discord.help.text'));
+
+    config(['services.discord.agent_enabled' => true]);
+
+    postInteraction(applicationCommand('help'))
+        ->assertOk()
+        ->assertJsonPath('data.content', fn (string $content): bool => str_contains($content, '/ask')
+            && str_contains($content, __('discord.help.agent')));
+});
+
 it('tells an unregistered participant to register for the event before checking in', function () {
     $user = User::factory()->create(['discord_id' => '555666777']);
     $event = Event::factory()->live()->create();

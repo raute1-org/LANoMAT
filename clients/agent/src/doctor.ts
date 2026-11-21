@@ -171,6 +171,65 @@ export interface McpConnectorRequest {
     signal: AbortSignal;
 }
 
+/** One page of `tools/list` (`nextCursor` is absent or null on the last page). */
+export interface McpToolPage {
+    tools: Array<{ name: string }>;
+    nextCursor?: string | null;
+}
+
+/** A caller-supplied `tools/list`; the SDK's `Client.listTools` fits this shape. */
+export type McpToolLister = (params?: { cursor?: string; per_page?: number }) => Promise<McpToolPage>;
+
+/**
+ * Page through `tools/list` until the server stops returning `nextCursor`.
+ *
+ * A single `listTools()` call only sees the first page (15 tools on LANoMAT),
+ * which is why the doctor used to under-report the catalogue and why the
+ * recipe tools looked invisible. `per_page` asks for the largest page the
+ * server supports (LANoMAT clamps it), and the loop still follows cursors for
+ * a server with more tools than one page. A cursor that repeats or a page
+ * that adds nothing fails loudly instead of returning a silently truncated
+ * list.
+ */
+export async function listAllToolNames(lister: McpToolLister, perPage = 100): Promise<string[]> {
+    const names: string[] = [];
+    const seenNames = new Set<string>();
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
+        const params: { cursor?: string; per_page?: number } = { per_page: perPage };
+
+        if (cursor !== undefined) {
+            params.cursor = cursor;
+        }
+
+        const page = await lister(params);
+
+        for (const tool of page.tools) {
+            if (!seenNames.has(tool.name)) {
+                seenNames.add(tool.name);
+                names.push(tool.name);
+            }
+        }
+
+        const nextCursor = page.nextCursor ?? undefined;
+
+        if (nextCursor === undefined) {
+            return names;
+        }
+
+        if (seenCursors.has(nextCursor)) {
+            throw new Error(`MCP tools/list repeated the cursor ${nextCursor}; pagination is broken`);
+        }
+
+        seenCursors.add(nextCursor);
+        cursor = nextCursor;
+    }
+
+    throw new Error('MCP tools/list exceeded 100 pages');
+}
+
 /** Resolves with the number of tools the MCP endpoint listed. Injectable for tests. */
 export type McpConnector = (request: McpConnectorRequest) => Promise<number>;
 
@@ -187,9 +246,11 @@ const defaultMcpConnector: McpConnector = async ({ url, headers, signal }) => {
 
     try {
         await client.connect(transport);
-        const tools = await client.listTools();
 
-        return tools.tools.length;
+        const list: McpToolLister = (params) =>
+            client.listTools(params as Parameters<typeof client.listTools>[0]);
+
+        return (await listAllToolNames(list)).length;
     } finally {
         await client.close().catch(() => undefined);
     }

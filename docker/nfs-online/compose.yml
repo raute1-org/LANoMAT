@@ -1,0 +1,74 @@
+name: lanomat-nfs-online
+
+# NFS Online Server for Need for Speed: Underground 2.
+# Runbook: docs/ops/nfsu2-server.md
+#
+# Start (event server 10.23.0.12):
+#   NFS_ONLINE_SRC=/opt/NFS-Online-Server NFS_PUBLIC_HOST=10.23.0.12 \
+#     docker compose -f docker/nfs-online/compose.yml up -d --build
+#
+# Local test on the laptop (advertises its LAN address):
+#   NFS_PUBLIC_HOST=10.23.3.220 \
+#     docker compose -f docker/nfs-online/compose.yml up -d --build
+#
+# NFS_ONLINE_SRC defaults to this developer machine's checkout; set it on every
+# other host.
+
+services:
+  nfs-online:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        nfs: ${NFS_ONLINE_SRC:-../../../../Downloads/nfsu2/NFS-Online-Server}
+    image: lanomat/nfs-online:local
+    restart: unless-stopped
+    # PID 1 reaping for the launcher's child services.
+    init: true
+    # Foreground console reads stdin. Keep it open, otherwise the console sees
+    # EOF, shuts the children down and the container exits.
+    stdin_open: true
+    tty: false
+    environment:
+      # Advertised to game clients (net_u2.ini host). IP or DNS name, no port.
+      PUBLIC_HOST: ${NFS_PUBLIC_HOST:-10.23.0.12}
+      # u2, mw, carbon or a comma-separated list.
+      NFS_GAMES: ${NFS_GAMES:-u2}
+      # Optional extra start flags, e.g. --verbose.
+      NFS_ONLINE_EXTRA_ARGS: ${NFS_ONLINE_EXTRA_ARGS:-}
+    ports:
+      # Shared EA Messenger
+      - "13505:13505/tcp"
+      # U2 bootstrap, lobby, control/PREL
+      - "20921:20921/tcp"
+      - "20922:20922/tcp"
+      - "20923:20923/tcp"
+      # U2 race relay: one UDP port per participant (6 channels).
+      - "20000-20005:20000-20005/udp"
+      # Most Wanted, if NFS_GAMES includes mw:
+      # - "30920:30920/tcp"
+      # - "30921:30921/tcp"
+      # Carbon, if NFS_GAMES includes carbon:
+      # - "18210:18210/tcp"
+      # - "18215:18215/tcp"
+      # - "19119:19119/udp"
+      # - "9000:9000/tcp"
+    volumes:
+      - nfs-online-config:/app/config
+      - nfs-online-data:/app/data
+      - nfs-online-logs:/app/logs
+    healthcheck:
+      # 20922 = 0x51BA. Read the listener table instead of opening a TCP
+      # connection, so the check does not spam the lobby log every 15s.
+      test:
+        - CMD-SHELL
+        - grep -q ':51BA ' /proc/net/tcp
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  nfs-online-config:
+  nfs-online-data:
+  nfs-online-logs:
