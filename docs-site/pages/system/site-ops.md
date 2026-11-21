@@ -34,6 +34,30 @@ LANoMAT action ── RemoteExecutor ──SSH──► managed host
                                              └── SFTP (file host uploads)
 ```
 
+| Dark | Light |
+|---|---|
+| ![Remote hosts registry with address, SSH user, key, role and last probe columns, dark](/screens/admin-remote-hosts-dark.png) | ![Remote hosts registry with address, SSH user, key, role and last probe columns, light](/screens/admin-remote-hosts-light.png) |
+| `REMOTE HOSTS · DARK` — empty registry: address, user, role, last probe | `REMOTE HOSTS · LIGHT` |
+
+`Files` is the visible side of the SFTP path: every row records whether it lives on the app's disk or
+on the file host, so switching stores never strands a file.
+
+| Dark | Light |
+|---|---|
+| ![Shared files table with size, moderation status and store per file, dark](/screens/admin-shared-files-dark.png) | ![Shared files table with size, moderation status and store per file, light](/screens/admin-shared-files-light.png) |
+| `SHARED FILES · DARK` — event files, status, store per row | `SHARED FILES · LIGHT` |
+
+## Room audio
+
+`RoomAudio` drives the venue's Denon AV receiver from the admin panel: volume, source, sound mode and
+a ceiling no command may exceed. When the receiver stops answering, every control is locked until it
+is back — the page says so instead of pretending the last press worked.
+
+| Dark | Light |
+|---|---|
+| ![Room control page with receiver unreachable warning and a locked volume slider, dark](/screens/admin-room-control-dark.png) | ![Room control page with receiver unreachable warning and a locked volume slider, light](/screens/admin-room-control-light.png) |
+| `ROOM CONTROL · DARK` — receiver unreachable, controls locked, ceiling 60 | `ROOM CONTROL · LIGHT` |
+
 ## The preflight traffic light
 
 One registry, one command, one tile. Every check returns `ok`, `warn`, `down` or `skipped` with a
