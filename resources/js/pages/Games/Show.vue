@@ -324,6 +324,7 @@ function announceRound(): void {
                         type="button"
                         size="sm"
                         variant="outline"
+                        class="h-auto max-w-full text-left whitespace-normal"
                         @click="
                             copy(
                                 game.install_command,
@@ -332,7 +333,7 @@ function announceRound(): void {
                         "
                     >
                         <ClipboardCopy class="size-4" aria-hidden="true" />
-                        <span class="font-mono">{{
+                        <span class="font-mono break-all">{{
                             game.install_command
                         }}</span>
                     </Button>

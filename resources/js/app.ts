@@ -22,7 +22,11 @@ const reverbPort =
 
 configureEcho({
     broadcaster: 'reverb',
-    key: reverb?.key ?? undefined,
+    // Pusher throws when the key is missing, which used to blank any page
+    // that subscribes during setup (Now, Polls, Presence, …). A deployment
+    // without Reverb (BROADCAST_CONNECTION=log) still needs a constructible
+    // client; the placeholder never matches a real server key.
+    key: reverb?.key ?? 'lanomat-no-reverb',
     wsHost: reverb?.host ?? undefined,
     wsPort: reverbPort,
     wssPort: reverbPort,

@@ -400,9 +400,9 @@ const copyAnnouncement = computed(() =>
                                 v-for="build in secondaryBuilds"
                                 :key="build.name"
                                 as-child
-                                variant="outline"
+                                variant="ghost"
                                 size="lg"
-                                class="h-auto min-h-12 justify-start rounded-xl px-4 py-2.5 text-left text-sm text-foreground"
+                                class="h-auto min-h-12 justify-start rounded-xl border border-background/30 px-4 py-2.5 text-left text-sm text-background hover:bg-background/10 hover:text-background"
                                 :aria-label="`${osNames[build.os]} herunterladen (${megabytes(build.size)})`"
                                 data-test="launcher-secondary"
                             >
@@ -416,7 +416,7 @@ const copyAnnouncement = computed(() =>
                                             {{ osNames[build.os] }}
                                         </span>
                                         <span
-                                            class="mt-0.5 block font-mono text-xs font-normal text-muted-foreground"
+                                            class="mt-0.5 block font-mono text-xs font-normal text-background/70"
                                         >
                                             {{ megabytes(build.size) }}
                                         </span>
