@@ -46,7 +46,7 @@ final readonly class MenuImportReport
             'changes' => $this->changes,
             'dish_count' => count($this->menu),
             'order' => $this->order,
-            'menu' => array_map(static fn (MenuOption $option): array => $option->toArray(), $this->menu),
+            'menu' => array_map(static fn (MenuOption $option): array => $option->toImportArray(), $this->menu),
         ];
     }
 }

@@ -462,6 +462,10 @@ polls (`kind: "mvp"` polls follow the same rules), an option of another poll is 
 }
 ```
 
+Menu entries may also carry `description` (plain text, at most 600 characters) and `image_url`
+(an absolute, public, cacheable WebP URL); both keys are omitted when the dish has none. Both are additive: `api_version` stays 1 and clients
+that do not know them ignore them.
+
 `mine` returns `{items: [{id, option_key, option_name, note, price_cents, paid, order_id, order_title,
 order_status, order_is_open, can_cancel}], total_cents, paid_cents}`. The price is always taken from the
 menu on the server (a `price_cents` in the body is ignored). Placing goes through `PlaceFoodOrderItem`:

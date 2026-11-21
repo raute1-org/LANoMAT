@@ -38,9 +38,10 @@ abstract class CateringMenuWriteTool extends LanomatTool
                 ->required(),
             'order_id' => $schema->integer()->description('Round id from catering_menu_get (replace/merge only).'),
             'items' => $schema->array()->items($schema->object([
-                'name' => $schema->string()->description('Dish name as printed, max 255 characters. Put qualifiers such as "vegetarisch" or "groß" into the name: the menu stores only name and price.')->required(),
+                'name' => $schema->string()->description('Dish name as printed, max 255 characters. Put qualifiers such as "vegetarisch" or "groß" into the name; a category can be a prefix ("Pizza: Margherita").')->required(),
                 'price_cents' => $schema->integer()->description('Price in whole cents (850 = 8,50 EUR). Give this OR price_eur.'),
                 'price_eur' => $schema->string()->description('Price as text with at most two decimals, e.g. "8,50". Give this OR price_cents.'),
+                'description' => $schema->string()->description('Optional short dish description as printed (ingredients, max 600 characters, plain text; longer text is shortened with a warning). merge only fills a description that is still empty; replace sets it; an omitted description never deletes an existing one. Photos cannot be imported here: they are uploaded in the admin panel or assigned with the artisan command catering:import-dish-media.'),
                 'key' => $schema->string()->description('Optional stable id (a-z, 0-9, - _; max 64). Omit it to derive one from the name; keep the keys from catering_menu_get when round-tripping.'),
             ]))->description('The dishes, 1 to 300. Never invent a price or a dish that is not in the source.')->required(),
             'title' => $schema->string()->description('Round title (required for create; replace only when changing it), e.g. "Pizza Samstag".'),

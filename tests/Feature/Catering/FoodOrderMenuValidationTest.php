@@ -5,8 +5,10 @@ use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\CreateFoodOrder;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\EditFoodOrder;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Events\Models\Event;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -115,4 +117,25 @@ it('creates an order with EUR prices through the create page', function () {
     $created = FoodOrder::query()->whereKeyNot($this->order->id)->firstOrFail();
 
     expect($created->menu[0]->priceCents)->toBe(850);
+});
+
+it('saves a description and keeps an existing image reference through the editor', function () {
+    Storage::fake('local');
+    $image = app(DishImageStore::class)->store(dishPng(100, 100));
+    $this->order->menu = [new MenuOption('a', 'Pizza', 850, null, $image)];
+    $this->order->save();
+
+    $component = Livewire::test(EditFoodOrder::class, ['record' => $this->order->getRouteKey()]);
+    $state = $component->get('data.menu');
+    $first = array_key_first($state);
+
+    $component->set("data.menu.{$first}.description", 'Tomaten und Käse')->call('save')->assertHasNoFormErrors();
+
+    $option = $this->order->fresh()->menu[0];
+    expect($option->description)->toBe('Tomaten und Käse')->and($option->priceCents)->toBe(850)->and($option->image)->toBe($image);
+});
+
+it('rejects a description above 600 characters in the editor', function () {
+    saveMenu([['key' => 'a', 'name' => 'A', 'price_cents' => '1', 'description' => str_repeat('a', 601)]])
+        ->assertHasFormErrors();
 });

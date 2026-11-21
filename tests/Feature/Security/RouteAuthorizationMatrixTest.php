@@ -142,6 +142,7 @@ const PUBLIC_ROUTES = [
     'GET discord/voice' => 'public no-PII voice occupancy projection',
     'GET filament/exports/{export}/download' => 'Filament action middleware authorizes the owner',
     'GET filament/imports/{import}/failed-rows/download' => 'Filament action middleware authorizes the owner',
+    'GET catering/dish-image/{foodOrder}/{key}' => 'published rounds of publicly visible events only (draft round, draft event, dish without image: 404); content-hashed file, public cache',
     'GET gallery/public/photos/{eventPhoto}' => 'approved photos of publicly visible events only',
     'GET gallery/public/photos/{eventPhoto}/thumb' => 'approved photos of publicly visible events only',
     'POST internal/discord/gateway' => 'shared-secret middleware (VerifyGatewaySecret)',

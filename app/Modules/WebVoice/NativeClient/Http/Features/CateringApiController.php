@@ -12,6 +12,7 @@ use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Events\Models\Event;
@@ -149,11 +150,15 @@ class CateringApiController extends NativeFeatureController
             'is_open' => $order->isOpenNow(),
             'opens_at' => $order->opens_at?->toIso8601String(),
             'closes_at' => $order->closes_at?->toIso8601String(),
-            'menu' => collect($order->menu)->map(fn (MenuOption $option): array => [
+            // description and image_url are additive (api_version stays 1) and omitted when empty, so
+            // a dish without them keeps its exact original shape.
+            'menu' => collect($order->menu)->map(fn (MenuOption $option): array => array_filter([
                 'key' => $option->key,
                 'name' => $option->name,
                 'price_cents' => $option->priceCents,
-            ])->all(),
+                'description' => $option->description,
+                'image_url' => DishImage::url($order, $option),
+            ], static fn (mixed $value): bool => $value !== null))->all(),
             'my_items' => array_map(fn (FoodOrderItem $item): array => $this->itemDto($item, $order), $myItems),
             'my_total_cents' => (int) array_sum(array_map(fn (FoodOrderItem $item): int => $item->price_cents, $myItems)),
         ];

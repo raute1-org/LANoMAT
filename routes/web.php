@@ -4,6 +4,8 @@ use App\Http\Controllers\DevLoginController;
 use App\Http\Controllers\HomeController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
+use App\Modules\Catering\Http\DishImageController;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Discord\Http\GatewayIngressController;
 use App\Modules\Discord\Http\InteractionsController;
 use App\Modules\Discord\Http\VoicePresenceController;
@@ -214,6 +216,12 @@ if ($modules->routable(Module::Catering)) {
     Route::middleware(['auth'])->group(function () {
         Route::get('/events/{event:slug}/catering', [CateringController::class, 'show'])->name('catering.show');
     });
+
+    // Dish photos: no login (like the public gallery photos), the data is the gate: a published
+    // round of a publicly visible event whose dish has an image; everything else is a 404.
+    Route::get('/catering/dish-image/{foodOrder}/{key}', DishImageController::class)
+        ->where('key', DishImage::KEY_PATTERN)
+        ->name('catering.dish-image');
 
     Route::middleware(['auth'])->group(function () {
         Route::post('/food-orders/{foodOrder}/items', [CateringController::class, 'store'])->name('catering.items.store');

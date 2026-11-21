@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Mcp\Tools;
 
+use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Mcp\Support\SafeText;
@@ -17,7 +18,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('catering_menu')]
-#[Description('Open and closed food orders of one event with their menu options and prices (cents). Drafts are only listed for orga/admin.')]
+#[Description('Open and closed food orders of one event with their menu options, prices (cents) and optional descriptions. Drafts are only listed for orga/admin.')]
 #[IsReadOnly]
 class CateringMenuTool extends LanomatTool
 {
@@ -54,10 +55,11 @@ class CateringMenuTool extends LanomatTool
                 'closes_at' => $order->closes_at?->toIso8601String(),
                 'is_open_now' => $order->isOpenNow(),
                 'menu' => array_map(
-                    static fn ($option): array => [
+                    static fn (MenuOption $option): array => [
                         'key' => $option->key,
                         'name' => SafeText::line($option->name, 255) ?? '',
                         'price_cents' => $option->priceCents,
+                        ...($option->description === null ? [] : ['description' => SafeText::line($option->description, MenuOption::MAX_DESCRIPTION_LENGTH)]),
                     ],
                     $order->menu,
                 ),
