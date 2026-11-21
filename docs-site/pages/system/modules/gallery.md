@@ -26,6 +26,14 @@ recap and a zip download.
 | ![Gallery, dark](/screens/gallery-dark.png) | ![Gallery, light](/screens/gallery-light.png) |
 | `GALLERY · DARK` — approved photos, highlights | `GALLERY · LIGHT` |
 
+Approval happens in the Filament **Photos** table: thumbnail preview, caption, status and the
+highlight toggle — including the "Wartet auf Freigabe" rows the participant cannot see yet.
+
+| Dark | Light |
+|---|---|
+| ![Admin photo moderation queue with status and highlight toggle, dark](/screens/admin-event-photos-dark.png) | ![Admin photo moderation queue with status and highlight toggle, light](/screens/admin-event-photos-light.png) |
+| `GALLERY · ADMIN · DARK` — moderation queue, highlights | `GALLERY · ADMIN · LIGHT` |
+
 ## Guards and rules
 
 - Upload requires a non-cancelled event registration — deliberately looser than the Jukebox's

@@ -17,6 +17,22 @@ that is bigger than the current LAN: the date of the next one, a venue change, a
 - Homepage/event page — a "Neuigkeiten" block with the latest published posts.
 - Filament **News posts** — title, body, publish/unpublish.
 
+The block sits below the event actions and shows the two newest published posts with date and body;
+nothing unpublished ever reaches it.
+
+| Dark | Light |
+|---|---|
+| ![Event page Neuigkeiten block with published posts, dark](/screens/event-page-dark.png) | ![Event page Neuigkeiten block with published posts, light](/screens/event-page-light.png) |
+| `NEWS · EVENT · DARK` — published posts on the event page | `NEWS · EVENT · LIGHT` |
+
+Orga works in Filament **News posts**: title, author, publish date, and the withdraw/edit actions per
+row.
+
+| Dark | Light |
+|---|---|
+| ![Filament news posts table with withdraw and edit actions, dark](/screens/admin-news-dark.png) | ![Filament news posts table with withdraw and edit actions, light](/screens/admin-news-light.png) |
+| `NEWS · ADMIN · DARK` — publish, withdraw, edit | `NEWS · ADMIN · LIGHT` |
+
 ## Guards and rules
 
 - `published_at` is a state field flipped only by the publish action via `forceFill()`; it is not

@@ -22,6 +22,14 @@ summary from the other modules' read-models and serves a public page plus a beam
 | ![Recap, dark](/screens/recap-dark.png) | ![Recap, light](/screens/recap-light.png) |
 | `RECAP · DARK` — podiums, photos, songs | `RECAP · LIGHT` |
 
+The same projection runs as a beamer scene for the closing slide: counts, tournament winner and the
+three surviving highlights, readable from the back of the hall.
+
+| Dark | Light |
+|---|---|
+| ![Recap beamer scene with counts, winner and highlight photos, dark](/screens/infoscreen-recap-dark.png) | ![Recap beamer scene with counts, winner and highlight photos, light](/screens/infoscreen-recap-light.png) |
+| `RECAP · BEAMER · DARK` — counts, winner, highlights | `RECAP · BEAMER · LIGHT` |
+
 ## Guards and rules
 
 - The page is public only when the event is publicly visible **and** `finished`/`archived`. A recap
