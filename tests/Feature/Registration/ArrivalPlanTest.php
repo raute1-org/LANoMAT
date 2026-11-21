@@ -202,7 +202,7 @@ it('exposes the plan summary on the Now page registration', function () {
     EventRegistration::factory()->for($event)->for($user)->create();
 
     $this->actingAs($user)->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('registration.arrival.arrivalLabel', null)
-        ->where('registration.arrival.editable', true)
+        ->where('me.registration.arrival.arrivalLabel', null)
+        ->where('me.registration.arrival.editable', true)
     );
 });
