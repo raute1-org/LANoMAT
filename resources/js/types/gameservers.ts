@@ -24,6 +24,22 @@ export interface GameInstallHintDto {
 }
 
 /**
+ * How a player gets a server's game onto their machine: the published recipe
+ * that matches the server's game, its install page and — when the launcher can
+ * run it — the one-click deep link that installs the game when missing and
+ * starts it on that server. Absent or `null` when no recipe matches.
+ */
+export interface ServerInstallDto {
+    recipeSlug: string;
+    title: string;
+    /** `/games/<slug>` — the install page, also the "Mitspieler suchen" target. */
+    pageUrl: string;
+    launcherSupported: boolean;
+    /** `lanomat://join/<slug>?address=…` or `?url=…`; only when supported. */
+    launcherJoinUrl: string | null;
+}
+
+/**
  * The wire shape produced by `ServerListProjection::forEvent()` — shared by
  * the public server list page (`Servers/Index`) and the infoscreen's
  * Servers scene (`SceneServers.vue`). Ready servers, not-responding ones and
@@ -83,6 +99,8 @@ export interface GameServerDto {
     description?: string | null;
     estimate: GameServerResourceEstimate | null;
     installHint: GameInstallHintDto | null;
+    /** The recipe that gets this game onto a machine; null when none matches. */
+    install?: ServerInstallDto | null;
     /** Per-game join options; empty for games without templates. */
     joinOptions?: JoinOptionDto[];
     /** Event servers on the overview: the viewer plays the match this server belongs to. */

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatInstant } from '@/lib/datetime';
+import { index as serversIndex } from '@/routes/servers';
+import type { ServerInstallDto } from '@/types';
 
 type Os = 'linux' | 'windows' | 'macos';
 type Variant = 'installer' | 'portable' | 'archive';
@@ -37,6 +39,8 @@ type LiveServer = {
     permanent: boolean;
     event: { name: string; slug: string } | null;
     join: { href: string; launcher: boolean } | null;
+    /** The matching recipe, so a row without a join still leads to its game. */
+    install?: ServerInstallDto | null;
 };
 
 const props = defineProps<{
@@ -269,6 +273,13 @@ function whereLabel(server: LiveServer): string {
 
     return server.event?.name ?? '';
 }
+
+// The old per-event server URL only redirects; the overview takes the event as a query.
+function serversHref(server: LiveServer): string {
+    return server.event?.slug
+        ? `${serversIndex.url()}?event=${encodeURIComponent(server.event.slug)}`
+        : serversIndex.url();
+}
 </script>
 
 <template>
@@ -326,13 +337,11 @@ function whereLabel(server: LiveServer): string {
                 </p>
                 <p class="mt-2 max-w-xl text-sm text-muted-foreground">
                     Sobald ein Build bereitsteht, findest du hier den Download
-                    für Windows und Linux. Bis dahin installierst du Unreal
-                    Tournament 2004 wie gewohnt von Hand über die Spiele-Seite.
+                    für Windows und Linux. Bis dahin installierst du die Spiele
+                    wie gewohnt von Hand über die Spiele-Bibliothek.
                 </p>
                 <Button as-child size="lg" class="mt-8">
-                    <Link href="/games/unreal-tournament-2004">
-                        Zum Spiel Unreal Tournament 2004
-                    </Link>
+                    <Link href="/games">Zu den Spielen</Link>
                 </Button>
             </div>
         </div>
@@ -589,16 +598,17 @@ function whereLabel(server: LiveServer): string {
                                 </a>
                             </Button>
                             <Button v-else as-child size="sm" variant="outline">
-                                <Link
-                                    :href="
-                                        live.event?.slug
-                                            ? `/events/${live.event.slug}/servers`
-                                            : '/servers'
-                                    "
-                                >
+                                <Link :href="serversHref(live)">
                                     Server ansehen
                                 </Link>
                             </Button>
+                            <Link
+                                v-if="!live.join && live.install?.pageUrl"
+                                :href="live.install.pageUrl"
+                                class="inline-flex min-h-8 items-center rounded-sm px-1 text-xs text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+                            >
+                                Zum Spiel
+                            </Link>
                         </div>
                     </li>
                 </ul>
@@ -855,13 +865,13 @@ function whereLabel(server: LiveServer): string {
                     </div>
 
                     <p class="text-sm text-muted-foreground">
-                        Im Pilotbetrieb installiert der Launcher Unreal
-                        Tournament 2004.
+                        Der Launcher installiert jedes Spiel, das in der
+                        Spiele-Bibliothek mit „Installieren“ angeboten wird.
                         <Link
-                            href="/games/unreal-tournament-2004"
+                            href="/games"
                             class="rounded-sm underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                            Zum Spiel Unreal Tournament 2004
+                            Zu den Spielen
                         </Link>
                     </p>
                 </div>

@@ -57,6 +57,7 @@ function online(server: PermanentShortDto): boolean {
                         v-if="server.connectString"
                         :connect-string="server.connectString"
                         :connect-is-link="server.connectIsLink"
+                        :install="server.install ?? null"
                     />
                 </template>
                 <span v-else class="text-xs text-muted-foreground">{{

@@ -5,6 +5,7 @@ import { computed, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
+import ServerInstallActions from '@/components/servers/ServerInstallActions.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { GlobalServerRowDto } from '@/types';
@@ -216,6 +217,14 @@ onUnmounted(() => clearTimeout(copiedTimer));
                 {{ copied ? labels.copied : labels.copy }}
             </Button>
         </div>
+
+        <!-- The recipe way in comes before the hand-written install hint. -->
+        <ServerInstallActions
+            v-if="server.install"
+            class="mt-3"
+            :install="server.install"
+            :labels="labels"
+        />
 
         <details
             v-if="server.installHint"
