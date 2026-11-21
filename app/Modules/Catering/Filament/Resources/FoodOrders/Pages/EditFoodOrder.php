@@ -14,6 +14,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 
 class EditFoodOrder extends EditRecord
@@ -73,6 +74,12 @@ class EditFoodOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('group_order')
+                ->label(__('catering.group_order.action'))
+                ->icon(Heroicon::OutlinedClipboardDocumentList)
+                ->color('gray')
+                ->authorize('update')
+                ->url(fn (FoodOrder $record): string => FoodOrderResource::getUrl('group-order', ['record' => $record])),
             Action::make('open')
                 ->label(__('catering.admin.actions.open'))
                 ->authorize('open')

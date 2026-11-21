@@ -5,6 +5,7 @@ namespace App\Modules\Catering\Filament\Resources\FoodOrders;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\CreateFoodOrder;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\EditFoodOrder;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\ListFoodOrders;
+use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\ViewGroupOrder;
 use App\Modules\Catering\Filament\Resources\FoodOrders\RelationManagers\ItemsRelationManager;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Schemas\FoodOrderForm;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Tables\FoodOrdersTable;
@@ -60,6 +61,7 @@ class FoodOrderResource extends Resource
             'index' => ListFoodOrders::route('/'),
             'create' => CreateFoodOrder::route('/create'),
             'edit' => EditFoodOrder::route('/{record}/edit'),
+            'group-order' => ViewGroupOrder::route('/{record}/group-order'),
         ];
     }
 }

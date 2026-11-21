@@ -3,10 +3,14 @@
 namespace App\Modules\Catering\Filament\Resources\FoodOrders\Tables;
 
 use App\Modules\Catering\Enums\FoodOrderStatus;
+use App\Modules\Catering\Filament\Resources\FoodOrders\FoodOrderResource;
+use App\Modules\Catering\Models\FoodOrder;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -38,6 +42,11 @@ class FoodOrdersTable
                 //
             ])
             ->recordActions([
+                Action::make('group_order')
+                    ->label(__('catering.group_order.action'))
+                    ->icon(Heroicon::OutlinedClipboardDocumentList)
+                    ->authorize('update')
+                    ->url(fn (FoodOrder $record): string => FoodOrderResource::getUrl('group-order', ['record' => $record])),
                 EditAction::make(),
                 DeleteAction::make()
                     ->authorize('update'),
