@@ -14,12 +14,12 @@ uses(RefreshDatabase::class);
 require_once __DIR__.'/../WebVoice/NativeClient/PlayHelpers.php';
 
 /** @return array{0: Event, 1: User, 2: EventRegistration} */
-function payNowSetup(string $state = 'live', int $price = 2500, array $reg = []): array
+function payNowSetup(string $state = 'live', int $price = 2500, array $reg = [], ?Event $event = null): array
 {
-    $event = $state === 'live' ? Event::factory()->live()->create() : Event::factory()->registration()->create();
+    $event ??= $state === 'live' ? Event::factory()->live()->create() : Event::factory()->registration()->create();
     TicketType::query()->updateOrCreate(
         ['event_id' => $event->id, 'key' => 'standard'],
-        ['name' => 'Flatrate', 'price_cents' => $price, 'sort' => 1, 'active' => true],
+        ['name' => 'Flatrate', 'price_cents' => 2500, 'sort' => 1, 'active' => true],
     );
     $user = User::factory()->create();
     $registration = EventRegistration::factory()->for($event)->for($user)->create(['ticket_type' => 'standard', 'ticket_price_cents' => $price, ...$reg]);
@@ -65,17 +65,18 @@ it('puts the payment card first without a ready match', function () {
     expect(payNowCards($user)[0]['kind'])->toBe('payment');
 });
 
-it('hides the payment card when paid, free, cancelled or unregistered', function () {
-    [, $paid] = payNowSetup('live', 2500, ['paid_at' => now()]);
-    [, $free] = payNowSetup('live', 0);
-    [, $cancelled] = payNowSetup('live', 2500, ['status' => RegistrationStatus::Cancelled]);
+it('hides the payment card when paid, free, cancelled or unregistered, but shows it to an unpaid user of the same event', function () {
+    [$event, $unpaid] = payNowSetup();
+    [, $paid] = payNowSetup('live', 2500, ['paid_at' => now()], $event);
+    [, $free] = payNowSetup('live', 0, [], $event);
+    [, $cancelled] = payNowSetup('live', 2500, ['status' => RegistrationStatus::Cancelled], $event);
+    $stranger = User::factory()->create();
 
-    foreach ([$paid, $free, $cancelled] as $user) {
+    expect(collect(payNowCards($unpaid))->firstWhere('kind', 'payment'))->not->toBeNull();
+
+    foreach ([$paid, $free, $cancelled, $stranger] as $user) {
         expect(collect(payNowCards($user))->firstWhere('kind', 'payment'))->toBeNull();
     }
-
-    Event::factory()->live()->create();
-    expect(collect(payNowCards(User::factory()->create()))->firstWhere('kind', 'payment'))->toBeNull();
 });
 
 it('has no payment card without a current event', function () {

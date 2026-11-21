@@ -63,6 +63,18 @@ function dot(card: NowCardDto): 'live' | 'warn' | null {
         : null;
 }
 
+function euro(cents: unknown): string {
+    return new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+    }).format(Number(cents) / 100);
+}
+
+// The body is "<amount> · <ticket name>"; only the name is read from it.
+function ticketName(card: NowCardDto): string {
+    return card.body?.split(' · ').slice(1).join(' · ') ?? '';
+}
+
 function actionLabel(card: NowCardDto): string {
     return typeof card.data.actionLabel === 'string'
         ? card.data.actionLabel
@@ -95,15 +107,15 @@ function actionLabel(card: NowCardDto): string {
                         card.title
                     }}</span>
                     <span
-                        v-if="card.body && card.kind === 'payment'"
+                        v-if="card.kind === 'payment'"
                         class="text-muted-foreground"
                     >
                         ·
                         <span class="font-mono tabular-nums">{{
-                            card.body.split(' · ')[0]
+                            euro(card.data.amountCents)
                         }}</span>
-                        <template v-if="card.body.includes(' · ')">
-                            · {{ card.body.split(' · ').slice(1).join(' · ') }}
+                        <template v-if="ticketName(card)">
+                            · {{ ticketName(card) }}
                         </template>
                     </span>
                     <span v-else-if="card.body" class="text-muted-foreground">
