@@ -178,6 +178,7 @@ class ServerListProjection
             'query' => self::queryFor($link),
             'estimate' => $link->permanent ? null : self::estimateFor($game),
             'installHint' => self::installHintFor($game),
+            'joinOptions' => JoinLinkTemplates::optionsFor($game, $link->join_info),
         ];
     }
 

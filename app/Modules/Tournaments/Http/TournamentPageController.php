@@ -209,7 +209,7 @@ class TournamentPageController extends Controller
             'bracketStateLabels' => trans('tournaments.bracket'),
             'reportLabels' => trans('tournaments.report'),
             'warmupLabels' => trans('tournaments.warmup'),
-            'serverLabels' => trans('gameservers.match_page'),
+            'serverLabels' => trans('gameservers.match_page') + trans('gameservers.join_ui'),
             'serverLinkStatusLabels' => trans('gameservers.server_link_status'),
             'liveScoreLabels' => trans('gameservers.live_score'),
             'voiceLabels' => app(Modules::class)->enabled(Module::Voice) ? trans('voice.join') : [],

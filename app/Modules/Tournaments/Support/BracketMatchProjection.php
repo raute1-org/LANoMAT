@@ -5,6 +5,7 @@ namespace App\Modules\Tournaments\Support;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\EffectiveConfig;
+use App\Modules\GameServers\Support\JoinLinkTemplates;
 use App\Modules\GameServers\Support\PelicanJoinLink;
 use App\Modules\GameServers\Support\ResourceEstimate;
 use App\Modules\Infoscreen\Support\ScenePayload;
@@ -119,7 +120,7 @@ class BracketMatchProjection
      * `ProvisionMatchServerJob` uses, so the UI number can never drift from
      * what's actually enforced.
      *
-     * @return array{address: ?string, port: ?int, connectString: ?string, status: string, estimate: ?array{ramMb: int, maxRamMb: int, overCap: bool}}|null
+     * @return array{address: ?string, port: ?int, connectString: ?string, status: string, joinOptions: list<array{key: string, label: string, url: string, hint: string}>, estimate: ?array{ramMb: int, maxRamMb: int, overCap: bool}}|null
      */
     private static function serverDto(GameMatch $match, ?ServerLink $link): ?array
     {
@@ -134,6 +135,7 @@ class BracketMatchProjection
             'port' => $isReady ? $link->join_info->port : null,
             'connectString' => $isReady ? PelicanJoinLink::for($link->join_info) : null,
             'status' => $link->status->value,
+            'joinOptions' => $isReady ? JoinLinkTemplates::optionsFor($match->tournament?->game, $link->join_info) : [],
             'estimate' => $isReady ? null : self::estimateFor($match),
         ];
     }

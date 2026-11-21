@@ -38,6 +38,14 @@ export interface GameServerQueryDto {
     checkedAt: string | null;
 }
 
+/** One way to join a server (e.g. via Steam or a native install), built server-side. */
+export interface JoinOptionDto {
+    key: string;
+    label: string;
+    url: string;
+    hint: string;
+}
+
 export interface GameServerDto {
     id: number;
     game: string | null;
@@ -66,6 +74,8 @@ export interface GameServerDto {
     description?: string | null;
     estimate: GameServerResourceEstimate | null;
     installHint: GameInstallHintDto | null;
+    /** Per-game join options; empty for games without templates. */
+    joinOptions?: JoinOptionDto[];
     /** Permanent servers page only: set server-side by the policy, never derived in the client. */
     canManage?: boolean;
     /** Only present when `canManage` is true. */

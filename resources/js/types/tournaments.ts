@@ -1,3 +1,5 @@
+import type { JoinOptionDto } from './gameservers';
+
 /**
  * Advisory-only game-ownership signal for the enrollment CTA (M9 task 9.7):
  * `not_owned` renders a calm warning, `unknown` (no provider mapping, no
@@ -129,6 +131,7 @@ export interface MatchServerDto {
     address: string | null;
     port: number | null;
     connectString: string | null;
+    joinOptions?: JoinOptionDto[];
     status: ServerLinkStatusValue;
     estimate: ServerResourceEstimate | null;
 }
