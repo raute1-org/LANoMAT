@@ -56,7 +56,7 @@ It never:
 - writes to a recipe that a sync adopted from the bundled/SMB/git catalogue unless that recipe already
   has a `pr_number`;
 - erases an existing pull request. A later proposal that is blocked or fails keeps the state of the
-  pull request that is already open (§8).
+  pull request that already exists (§8).
 
 ## 2. Prerequisites
 
