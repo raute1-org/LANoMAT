@@ -38,6 +38,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Changed
 
+- Catering admin redesign: the round form is split into sections (Runde, Bestellfenster in Berlin time, Zahlung und Ticket with a PayPal link preview for an example amount); the edit page shows the status badge and a summary line (dishes, orders, sum, paid, open); the round list has status badge, window, order count, sum and open amount, a default filter hiding closed rounds, and row actions for open/close (with confirmation) and the group order; the ordered items are split into the tabs "Nach Gericht" and "Nach Person" with paid/open filter, search by person or dish and sum rows. The menu editor is unchanged
 - Catering: clear order feedback (button spinner then check, success toast with price, receipt row highlight, mobile cart bar flash, one screen-reader announcement) and menu filter chips (my selection, up to 10 or 15 euro, N of M count, reset).
 - Catering page redesign for long menus: dishes grouped by name prefix with search and a sticky category jump bar, add/remove buttons per dish (identical dishes shown as "2×"), the order as a sticky receipt ("Bon") on large screens and a bottom bar with a sheet on phones, note field moved into the receipt, calm ghost remove buttons
 - Onboarding/MVP: the guest landing at `/` is only a login gate (mark, wordmark, tagline/hint, "Mit Discord anmelden"); `/launcher` and its downloads require login, and the chat (Now, event pages, dock) and the sidebar entry "Launcher" appear only after the Discord login

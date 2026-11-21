@@ -100,6 +100,40 @@ return [
         'paypal' => 'PayPal',
     ],
 
+    'sections' => [
+        'round' => 'Runde',
+        'round_help' => 'Zu welcher LAN gehört die Bestellung und wie heißt sie.',
+        'window' => 'Bestellfenster',
+        'window_help' => 'Optional. Zeiten in :timezone. Außerhalb des Fensters kann nicht bestellt werden, auch wenn die Runde offen ist.',
+        'payment' => 'Zahlung und Ticket',
+        'payment_help' => 'Wie die Gäste bezahlen und für welche Tickets das Essen schon enthalten ist.',
+    ],
+
+    'list' => [
+        'window' => 'Bestellfenster',
+        'orders' => 'Bestellungen',
+        'total' => 'Summe',
+        'due' => 'Offen',
+        'empty' => 'Keine Essensrunden in dieser Ansicht',
+        'from' => 'ab :at',
+        'until' => 'bis :at',
+        'no_window' => 'ohne Fenster',
+    ],
+
+    'summary' => [
+        'dishes' => 'Gerichte',
+        'orders' => 'Bestellungen',
+        'total' => 'gesamt',
+        'paid' => 'bezahlt',
+        'due' => 'offen',
+    ],
+
+    'payment_preview' => [
+        'none' => 'Vorschau: noch kein gültiger Link.',
+        'with_amount' => 'Vorschau für :amount: :url',
+        'open_amount' => 'Vorschau (Betrag wird vom Gast eingetragen): :url',
+    ],
+
     'validation' => [
         'payment_link' => 'Der Zahlungslink muss mit https:// beginnen.',
         'price_format' => 'Bitte einen Preis in Euro eingeben, z. B. 8,50.',
@@ -118,6 +152,14 @@ return [
             'close' => 'Schließen',
             'closed' => 'Bestellung wurde geschlossen.',
         ],
+        'tabs' => [
+            'dish' => 'Nach Gericht',
+            'person' => 'Nach Person',
+        ],
+        'note' => 'Anmerkung',
+        'filter_all' => 'Alle',
+        'filter_paid' => 'Bezahlt / im Ticket',
+        'filter_open' => 'Offen',
         'items_title' => 'Bestellte Positionen',
         'participant' => 'Teilnehmer',
         'option' => 'Option',

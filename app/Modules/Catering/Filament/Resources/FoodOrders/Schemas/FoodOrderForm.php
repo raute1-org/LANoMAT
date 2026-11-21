@@ -14,6 +14,8 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -24,56 +26,81 @@ class FoodOrderForm
     {
         return $schema
             ->components([
-                Select::make('event_id')
-                    ->label(__('catering.fields.event'))
-                    ->relationship('event', 'name')
-                    ->required()
-                    ->searchable(),
-                TextInput::make('title')
-                    ->label(__('catering.fields.title'))
-                    ->required()
-                    ->maxLength(255)
-                    ->rules([self::noNulBytes()]),
-                DateTimePicker::make('opens_at')
-                    ->label(__('catering.fields.opens_at')),
-                DateTimePicker::make('closes_at')
-                    ->label(__('catering.fields.closes_at')),
-                Select::make('payment_method')
-                    ->label(__('catering.fields.payment_method'))
-                    ->options([
-                        FoodPaymentMethod::Cash->value => __('catering.payment_method.cash'),
-                        FoodPaymentMethod::Paypal->value => __('catering.payment_method.paypal'),
-                    ])
-                    ->default(FoodPaymentMethod::Cash->value)
-                    ->required()
-                    ->live(),
-                TextInput::make('payment_link')
-                    ->label(__('catering.fields.payment_link'))
-                    ->url()
-                    ->maxLength(255)
-                    ->placeholder('https://paypal.me/example-orga')
-                    ->visible(fn (Get $get): bool => $get('payment_method') === FoodPaymentMethod::Paypal->value)
-                    ->rules([fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
-                        if ($value !== null && $value !== '' && ! PaymentLink::isValid(is_string($value) ? $value : null)) {
-                            $fail(__('catering.validation.payment_link'));
-                        }
-                    }]),
-                Select::make('included_ticket_types')
-                    ->label(__('catering.fields.included_ticket_types'))
-                    ->helperText(__('catering.fields.included_ticket_types_help'))
-                    ->multiple()
-                    ->options(fn (Get $get): array => self::ticketOptions($get('event_id')))
-                    ->default([])
-                    ->hintActions([
-                        Action::make('include_all')
-                            ->label(__('catering.fields.include_all'))
-                            ->action(fn (Get $get, Set $set) => $set('included_ticket_types', array_map(
-                                'strval',
-                                array_keys(self::ticketOptions($get('event_id'))),
-                            ))),
-                        Action::make('include_none')
-                            ->label(__('catering.fields.include_none'))
-                            ->action(fn (Set $set) => $set('included_ticket_types', [])),
+                Section::make(__('catering.sections.round'))
+                    ->description(__('catering.sections.round_help'))
+                    ->columns(2)
+                    ->schema([
+                        Select::make('event_id')
+                            ->label(__('catering.fields.event'))
+                            ->relationship('event', 'name')
+                            ->required()
+                            ->searchable(),
+                        TextInput::make('title')
+                            ->label(__('catering.fields.title'))
+                            ->required()
+                            ->maxLength(255)
+                            ->rules([self::noNulBytes()]),
+                    ]),
+                Section::make(__('catering.sections.window'))
+                    ->description(__('catering.sections.window_help', ['timezone' => (string) config('lanomat.timezone', 'Europe/Berlin')]))
+                    ->columns(2)
+                    ->schema([
+                        DateTimePicker::make('opens_at')
+                            ->label(__('catering.fields.opens_at'))
+                            ->timezone((string) config('lanomat.timezone', 'Europe/Berlin'))
+                            ->seconds(false),
+                        DateTimePicker::make('closes_at')
+                            ->label(__('catering.fields.closes_at'))
+                            ->timezone((string) config('lanomat.timezone', 'Europe/Berlin'))
+                            ->seconds(false)
+                            ->after('opens_at'),
+                    ]),
+                Section::make(__('catering.sections.payment'))
+                    ->description(__('catering.sections.payment_help'))
+                    ->columns(2)
+                    ->schema([
+                        Select::make('payment_method')
+                            ->label(__('catering.fields.payment_method'))
+                            ->options([
+                                FoodPaymentMethod::Cash->value => __('catering.payment_method.cash'),
+                                FoodPaymentMethod::Paypal->value => __('catering.payment_method.paypal'),
+                            ])
+                            ->default(FoodPaymentMethod::Cash->value)
+                            ->required()
+                            ->live(),
+                        TextInput::make('payment_link')
+                            ->label(__('catering.fields.payment_link'))
+                            ->url()
+                            ->maxLength(255)
+                            ->placeholder('https://paypal.me/example-orga')
+                            ->live(onBlur: true)
+                            ->visible(fn (Get $get): bool => $get('payment_method') === FoodPaymentMethod::Paypal->value)
+                            ->rules([fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                                if ($value !== null && $value !== '' && ! PaymentLink::isValid(is_string($value) ? $value : null)) {
+                                    $fail(__('catering.validation.payment_link'));
+                                }
+                            }]),
+                        Text::make(fn (Get $get): string => self::paymentPreview($get('payment_link')))
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get): bool => $get('payment_method') === FoodPaymentMethod::Paypal->value),
+                        Select::make('included_ticket_types')
+                            ->label(__('catering.fields.included_ticket_types'))
+                            ->helperText(__('catering.fields.included_ticket_types_help'))
+                            ->multiple()
+                            ->columnSpanFull()
+                            ->options(fn (Get $get): array => self::ticketOptions($get('event_id')))
+                            ->default([])
+                            ->hintActions([
+                                Action::make('include_all')
+                                    ->label(__('catering.fields.include_all'))
+                                    ->action(fn (Get $get, Set $set) => $set('included_ticket_types', array_map(
+                                        'strval',
+                                        array_keys(self::ticketOptions($get('event_id'))),
+                                    ))),
+                                Action::make('include_none')
+                                    ->label(__('catering.fields.include_none'))
+                                    ->action(fn (Set $set) => $set('included_ticket_types', [])),
+                            ]),
                     ]),
                 // A typed Repeater, deliberately not a KeyValue field: each
                 // row maps 1:1 onto the MenuCast/MenuOption array shape
@@ -113,6 +140,26 @@ class FoodOrderForm
                     ->defaultItems(0)
                     ->rules([self::uniqueMenuKeysRule()]),
             ]);
+    }
+
+    /**
+     * What a participant would be sent to for an example amount, so the orga
+     * sees whether the link works before opening the round.
+     */
+    public static function paymentPreview(mixed $link): string
+    {
+        $link = is_string($link) ? trim($link) : '';
+
+        if ($link === '' || ! PaymentLink::isValid($link)) {
+            return __('catering.payment_preview.none');
+        }
+
+        $example = 1250;
+        $url = PaymentLink::for($link, $example);
+
+        return PaymentLink::appendsAmount($link)
+            ? __('catering.payment_preview.with_amount', ['amount' => Euro::format($example), 'url' => (string) $url])
+            : __('catering.payment_preview.open_amount', ['url' => (string) $url]);
     }
 
     /**

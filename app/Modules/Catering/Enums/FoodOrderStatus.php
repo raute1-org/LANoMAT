@@ -12,4 +12,14 @@ enum FoodOrderStatus: string
     {
         return __('catering.status.'.$this->value);
     }
+
+    /** Filament badge colour: draft is quiet, open is the live one. */
+    public function color(): string
+    {
+        return match ($this) {
+            self::Draft => 'gray',
+            self::Open => 'success',
+            self::Closed => 'warning',
+        };
+    }
 }
