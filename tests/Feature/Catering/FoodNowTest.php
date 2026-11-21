@@ -7,6 +7,7 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\FoodNow;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -153,4 +154,29 @@ it('only considers rounds of the given event', function () {
     FoodOrder::factory()->open()->create(['title' => 'Fremd']);
 
     expect(FoodNow::for($event, User::factory()->create()))->toBe(['open' => null, 'next' => null]);
+});
+
+it('marks the open round orderable only for a confirmed registration', function () {
+    $event = Event::factory()->registration()->create();
+    FoodOrder::factory()->for($event)->open()->create(['menu' => foodNowMenu()]);
+
+    $confirmed = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($confirmed)->create();
+    $pending = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($pending)->pending()->create();
+    $none = User::factory()->create();
+
+    expect(FoodNow::for($event, $confirmed)['open']['orderable'])->toBeTrue();
+    expect(FoodNow::for($event, $pending)['open']['orderable'])->toBeFalse();
+    expect(FoodNow::for($event, $none)['open']['orderable'])->toBeFalse();
+});
+
+it('breaks a closes_at tie by the lower order id', function () {
+    $event = Event::factory()->registration()->create();
+    $closes = now()->addHour()->startOfSecond();
+    $first = FoodOrder::factory()->for($event)->open()->create(['title' => 'Erste', 'closes_at' => $closes]);
+    FoodOrder::factory()->for($event)->open()->create(['title' => 'Zweite', 'closes_at' => $closes]);
+
+    expect(FoodNow::for($event, User::factory()->create())['open']['title'])->toBe('Erste');
+    expect($first->id)->toBeLessThan(FoodOrder::query()->where('title', 'Zweite')->value('id'));
 });

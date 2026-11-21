@@ -11,6 +11,7 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Events\Models\Event;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * The food block of the "Jetzt" home page: the order round open right now (closing soonest)
@@ -20,7 +21,7 @@ final class FoodNow
 {
     /**
      * @return array{
-     *     open: null|array{title: string, closesAt: string|null, orderCount: int, mine: string|null, href: string},
+     *     open: null|array{title: string, closesAt: string|null, orderCount: int, mine: string|null, orderable: bool, href: string},
      *     next: null|array{title: string, opensAt: string}
      * }
      */
@@ -36,13 +37,13 @@ final class FoodNow
 
     /**
      * @param  Collection<int, FoodOrder>  $rounds
-     * @return array{title: string, closesAt: string|null, orderCount: int, mine: string|null, href: string}|null
+     * @return array{title: string, closesAt: string|null, orderCount: int, mine: string|null, orderable: bool, href: string}|null
      */
     private static function open(Event $event, User $viewer, Collection $rounds): ?array
     {
         $order = $rounds
             ->filter(fn (FoodOrder $order): bool => $order->isOpenNow())
-            ->sortBy(fn (FoodOrder $order): int => $order->closes_at?->getTimestamp() ?? PHP_INT_MAX)
+            ->sortBy(fn (FoodOrder $order): array => [$order->closes_at?->getTimestamp() ?? PHP_INT_MAX, $order->id])
             ->first();
 
         if (! $order instanceof FoodOrder) {
@@ -59,8 +60,19 @@ final class FoodNow
             'closesAt' => $order->closes_at?->toIso8601String(),
             'orderCount' => $items->pluck('user_id')->unique()->count(),
             'mine' => self::summarize($order, $items->where('user_id', $viewer->id)),
+            'orderable' => self::orderable($event, $viewer),
             'href' => route('catering.show', $event),
         ];
+    }
+
+    /**
+     * The same eligibility NativeOrderCards applies before offering a round: a confirmed
+     * registration and permission to create an item.
+     */
+    private static function orderable(Event $event, User $viewer): bool
+    {
+        return FoodOrderRegistrationRequirement::satisfiedBy($viewer, $event)
+            && Gate::forUser($viewer)->allows('create', FoodOrderItem::class);
     }
 
     /**
