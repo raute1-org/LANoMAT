@@ -131,7 +131,7 @@ it('returns all 27 tools on the default page, without a cursor', function () {
 
     expect($json['result']['tools'])->toHaveCount(27)
         ->and(array_column($json['result']['tools'], 'name'))->toBe(mcpPaginationToolNames())
-        ->and($json['result']['nextCursor'])->toBeNull();
+        ->and($json['result'])->not->toHaveKey('nextCursor');
 });
 
 it('collects all 27 tools through the cursor when a client asks for 15 per page', function () {
@@ -148,15 +148,14 @@ it('collects all 27 tools through the cursor when a client asks for 15 per page'
         ->and($collected['names'])->toBe(mcpPaginationToolNames());
 });
 
-it('returns every tool on one page with per_page=100 and a null nextCursor', function () {
+it('returns every tool on one page with per_page=100 and no nextCursor', function () {
     $token = mcpPaginationToken();
 
     $json = mcpToolsListRequest($token, ['per_page' => 100]);
 
     expect($json['result']['tools'])->toHaveCount(27)
         ->and(array_column($json['result']['tools'], 'name'))->toBe(mcpPaginationToolNames())
-        ->and($json['result'])->toHaveKey('nextCursor')
-        ->and($json['result']['nextCursor'])->toBeNull();
+        ->and($json['result'])->not->toHaveKey('nextCursor');
 });
 
 it('accepts a numeric-string per_page and an unpadded base64url cursor', function () {
@@ -175,7 +174,7 @@ it('accepts a numeric-string per_page and an unpadded base64url cursor', functio
     ]);
 
     expect($second['result']['tools'][0]['name'])->toBe('poll_vote')
-        ->and($second['result']['nextCursor'])->toBeNull();
+        ->and($second['result'])->not->toHaveKey('nextCursor');
 });
 
 it('rejects a malformed cursor instead of silently replaying page 1', function () {
