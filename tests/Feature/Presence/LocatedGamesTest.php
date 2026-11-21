@@ -6,12 +6,15 @@ use App\Models\User;
 use App\Modules\Friends\Models\UserBlock;
 use App\Modules\Presence\Domain\GameLocation;
 use App\Modules\Presence\Domain\PersonLocation;
+use App\Modules\Presence\Jobs\RefreshLocationSnapshotJob;
 use App\Modules\Presence\Support\LocatedGames;
 use App\Modules\Presence\Support\LocationSnapshot;
 use App\Modules\Presence\Support\LocationSnapshotStore;
 use App\Modules\Registration\Enums\RegistrationStatus;
 use App\Modules\Registration\Models\EventRegistration;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 
 require_once __DIR__.'/PresenceHelpers.php';
 
@@ -75,4 +78,14 @@ it('builds the snapshot on a cold cache and returns nothing when it stays empty'
 
     expect(app(LocatedGames::class)->countsFor($this->event, $this->users['Max']))->toBe([])
         ->and(app(LocationSnapshotStore::class)->get())->not->toBeNull();
+});
+
+it('queues the snapshot refresh only once while one is pending', function () {
+    Queue::fake();
+
+    RefreshLocationSnapshotJob::dispatch();
+    RefreshLocationSnapshotJob::dispatch();
+
+    expect(new RefreshLocationSnapshotJob)->toBeInstanceOf(ShouldBeUnique::class);
+    Queue::assertPushed(RefreshLocationSnapshotJob::class, 1);
 });

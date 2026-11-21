@@ -201,9 +201,9 @@ final class PresenceProjection
     private static function activityLabel(GameMatch $match): string
     {
         $game = $match->tournament?->game;
-        $gameName = $game === null ? '?' : $game->name;
 
-        return "{$gameName} · ".self::matchLabel($match);
+        // Without a known game the activity is just the match label (no placeholder game name).
+        return $game === null ? self::matchLabel($match) : "{$game->name} · ".self::matchLabel($match);
     }
 
     /**

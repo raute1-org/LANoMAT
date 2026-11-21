@@ -157,3 +157,14 @@ it('returns 404 for a draft event', function () {
 
     $this->actingAs(User::factory()->create())->post("/events/{$event->slug}/want-to-play", ['game' => 'CS2'])->assertNotFound();
 });
+
+it('lets a user switch their own signal off even when the policy no longer lets them post', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+    signal($event, $user, 'CS2');
+    Gate::policy(LfgPost::class, DenyingLfgPostPolicy::class);
+
+    $this->actingAs($user)->post("/events/{$event->slug}/want-to-play", ['game' => 'CS2'])->assertRedirect();
+
+    expect(LfgPost::count())->toBe(0);
+});

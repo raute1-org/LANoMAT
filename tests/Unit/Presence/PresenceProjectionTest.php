@@ -59,6 +59,22 @@ it('resolves seatLabel for a seated participant and null for an unseated one', f
         ->and($byName['Bob']->seatLabel)->toBeNull();
 });
 
+it('labels the activity with the match alone when the tournament has no game', function () {
+    $event = Event::factory()->create();
+    $ada = User::factory()->create(['name' => 'Ada']);
+    EventRegistration::factory()->for($event)->for($ada, 'user')->checkedIn()->create();
+    $bob = User::factory()->create(['name' => 'Bob']);
+    EventRegistration::factory()->for($event)->for($bob, 'user')->checkedIn()->create();
+    $tournament = Tournament::factory()->for($event)->live()->create(['game_id' => null]);
+    $entry1 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id, 'user_id' => $ada->id, 'team_id' => null, 'display_name' => 'Ada']);
+    $entry2 = TournamentEntry::factory()->create(['tournament_id' => $tournament->id, 'user_id' => $bob->id, 'team_id' => null, 'display_name' => 'Bob']);
+    GameMatch::factory()->for($tournament)->create(['status' => MatchStatus::Warmup, 'entry1_id' => $entry1->id, 'entry2_id' => $entry2->id]);
+
+    $byName = collect(PresenceProjection::forEvent($event)->participants)->keyBy('name');
+
+    expect($byName['Ada']->activity)->toBe('Ada vs Bob');
+});
+
 it('flags a roster member of a live warmup/ready match as playing with activity, others as idle', function () {
     $event = Event::factory()->create();
     $game = Game::factory()->create(['name' => 'Quake']);
