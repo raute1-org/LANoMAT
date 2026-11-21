@@ -413,6 +413,15 @@ Schedule, Catering, Voting, Lfg, Infoscreen, Stats, Friends, Presence, Casting (
 (LAN radio via Music Assistant), Gallery, Recap, News, Discord, Voice (Mumble and TeamSpeak), WebVoice,
 GameServers, CustomServers, Hosts, Lancache, Files, Provisioning.
 
+**Participant app:** a logged-in participant lands on **Jetzt** (`/`), one page for the current LAN:
+what needs them now (match, vote, order), what is being played (per game: people, servers, join), a
+one-click "Bock auf" signal per game (an expiring LFG post), the open food round, what comes next in
+the schedule, and their seat and check-in in one line. Before a LAN it shows the countdown, the
+registration action and who is coming; without a LAN, the permanent servers and the next event. The
+sidebar has seven main items with live badges (servers online, ready match, food deadline, own seat,
+people present) and collapsible groups Mehr, Voice and Orga. All game servers (match, tournament,
+event, permanent) are on one page, `/servers`. `/dashboard` redirects to `/`.
+
 **Native desktop client** (`clients/voice/`, Rust + Tauri v2, Linux x86_64 and Windows x86_64; macOS is
 deliberately not built):
 
@@ -460,7 +469,8 @@ deliberately not built):
   over and reloads nginx); every upload still waits for orga approval
   ([`docs/infra/file-host.md`](docs/infra/file-host.md)). A Preflight check watches the host and its
   certificate.
-- **Permanent game servers** (Pelican, Docker or listed-only) independent of events at `/servers`, plus
+- **Permanent game servers** (Pelican, Docker or listed-only) independent of events, listed with the
+  LAN's event and match servers at `/servers`, plus
   match servers from presets (the Garry's Mod egg, port pool, A2S readiness); `PelicanClient` is built
   on the real Pelican API ([`docs/gameservers-pelican.md`](docs/gameservers-pelican.md)).
 - **Provisioning** (optional, off in `core`): `provisioning:plan|run|probe-hypervisor` turns the Proxmox
