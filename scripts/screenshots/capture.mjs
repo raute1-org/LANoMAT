@@ -23,7 +23,11 @@ import { chromium } from '@playwright/test';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:8000';
-const OUTPUT_DIR = path.resolve(__dirname, '../../docs/screenshots');
+// `SCREENSHOT_DIR` lets a docs run write into a scratch folder instead of the
+// app's own docs/screenshots set (same script, one extra knob).
+const OUTPUT_DIR = process.env.SCREENSHOT_DIR
+    ? path.resolve(process.env.SCREENSHOT_DIR)
+    : path.resolve(__dirname, '../../docs/screenshots');
 const VIEWPORT = { width: 1440, height: 900 };
 
 // Must match the fixed demo fixtures created by database/seeders/ScreenshotSeeder.php.
@@ -61,6 +65,16 @@ const ROUTES = [
     { name: 'recap', path: `/events/${RECAP_SLUG}/recap` },
     { name: 'infoscreen', path: `/screen/${EVENT_SLUG}` },
     { name: 'infoscreen-recap', path: `/screen/${RECAP_SLUG}` },
+    // Games library + MCP pairing (docs site, card 13). The pending pairing
+    // state needs a device code; the docs run creates one with the fixed user
+    // code DEMO-2345 (see docs-site/scripts/README.md for the docs run).
+    // `viewportOnly` keeps the docs-sized 1440x900 frame instead of a full-page
+    // shot.
+    { name: 'games', path: '/games', auth: true, viewportOnly: true },
+    { name: 'game-ut2004', path: '/games/unreal-tournament-2004', auth: true, viewportOnly: true },
+    { name: 'mcp-connect', path: '/mcp/connect', auth: true, viewportOnly: true },
+    { name: 'mcp-connect-pending', path: '/mcp/connect?code=DEMO-2345', auth: true, viewportOnly: true },
+    { name: 'settings-connections', path: '/settings/connections', auth: true, viewportOnly: true },
     { name: 'admin', path: '/admin', auth: true },
 ];
 
@@ -111,7 +125,7 @@ async function captureRoute(context, route, colorScheme) {
     const fileName = `${route.name}-${colorScheme}.png`;
     await page.screenshot({
         path: path.join(OUTPUT_DIR, fileName),
-        fullPage: true,
+        fullPage: route.viewportOnly !== true,
     });
     console.log(`  wrote docs/screenshots/${fileName}`);
 
