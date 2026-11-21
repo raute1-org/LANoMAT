@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
+ * Legacy per-round dish photo URL, kept as an alias of {@see RestaurantImageController} (bookmark and cache
+ * compatibility): it resolves the round's restaurant and serves the same file.
+ *
  * Streams a dish photo from the private disk. Like the public gallery photos the gate is the
  * data itself, not a login: the round must be published (never a draft), its event publicly
  * visible, and the dish must carry an image. Anything else is a plain 404. The file name is a
@@ -27,7 +30,7 @@ class DishImageController extends Controller
         abort_if($event === null || ! $event->isPubliclyVisible(), 404);
         abort_if($foodOrder->status === FoodOrderStatus::Draft, 404);
 
-        $option = collect($foodOrder->menu)->first(static fn (MenuOption $o): bool => $o->key === $key);
+        $option = collect($foodOrder->menuOptions())->first(static fn (MenuOption $o): bool => $o->key === $key);
         $path = $option?->image;
 
         abort_if($path === null, 404);

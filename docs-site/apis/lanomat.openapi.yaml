@@ -177,10 +177,11 @@ paths:
         with `WWW-Authenticate: Bearer`. The endpoint is **stateless**: no `Mcp-Session-Id` is
         issued or required. `GET`/`DELETE /mcp` answer `405`.
 
-        **Tools (24):** `lanomat_me`, `events_list`, `event_get`, `event_register`, `teams_list`,
+        **Tools (29):** `lanomat_me`, `events_list`, `event_get`, `event_register`, `teams_list`,
         `tournament_list`, `tournament_bracket`, `tournament_checkin`, `match_result`,
         `games_search`, `servers_list`, `files_list`, `file_download_url`, `schedule_list`,
-        `polls_list`, `poll_vote`, `catering_menu`, `lfg_list`, `lfg_create`, `recipes_list`,
+        `polls_list`, `poll_vote`, `catering_menu`, `catering_menu_get`, `catering_menu_preview`,
+        `catering_menu_import`, `catering_round_create`, `restaurants_list`, `lfg_list`, `lfg_create`, `recipes_list`,
         `recipe_get`, `recipe_install_plan`, `recipe_avatars`, `recipe_contribute` — the
         catalogue page is authoritative; the server paginates `tools/list` at 15 per page.
 

@@ -6,6 +6,7 @@ namespace App\Modules\Catering\Console;
 
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Catering\Support\DishImageStore;
 use App\Support\Images\InvalidImageException;
 use Illuminate\Console\Command;
@@ -14,7 +15,7 @@ use Illuminate\Support\Str;
 use JsonException;
 
 /**
- * Mass-assigns descriptions and photos to the dishes of one food round from a JSON list
+ * Mass-assigns descriptions and photos to the dishes of one restaurant from a JSON list
  * (a scrape or export of the restaurant's own menu page) and a folder of images.
  *
  * Only `description` and `image` of existing menu entries are written; name, price and key are
@@ -58,22 +59,20 @@ class ImportDishMediaCommand extends Command
     ];
 
     protected $signature = 'catering:import-dish-media
-        {foodOrder : Id of the food round}
+        {restaurant : Slug or id of the restaurant ("-" when --round is given)}
         {json : JSON file: list of {category, name, description, image_file}}
+        {--round= : Id of a food round; its restaurant is used and the restaurant argument is ignored}
         {--images= : Folder the image_file paths are relative to (default: the folder of the JSON)}
         {--dry-run : Show what would be assigned and write nothing}
         {--force : Overwrite descriptions and photos that dishes already have}';
 
-    protected $description = 'Assign descriptions and photos from a JSON list and an image folder to the dishes of a food round.';
+    protected $description = 'Assign descriptions and photos from a JSON list and an image folder to the dishes of a restaurant.';
 
     public function handle(DishImageStore $store): int
     {
-        $id = $this->argument('foodOrder');
-        $order = (is_int($id) || (is_string($id) && ctype_digit($id))) ? FoodOrder::query()->find((int) $id) : null;
+        $restaurant = $this->resolveRestaurant();
 
-        if (! $order instanceof FoodOrder) {
-            $this->components->error('Food round not found.');
-
+        if (! $restaurant instanceof Restaurant) {
             return self::FAILURE;
         }
 
@@ -103,7 +102,7 @@ class ImportDishMediaCommand extends Command
         $dry = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
 
-        $menu = $order->menu;
+        $menu = $restaurant->menu;
         $index = $this->indexMenu($menu);
 
         /** @var array<string, array{entry: array<string, mixed>, via: string}> $matches option key => source entry */
@@ -199,7 +198,7 @@ class ImportDishMediaCommand extends Command
             ];
         }
 
-        $this->components->info(($dry ? 'Dry run: ' : '').'matched '.count($matches).' of '.count($entries).' JSON entries to the '.count($menu).' dishes of "'.$order->title.'".');
+        $this->components->info(($dry ? 'Dry run: ' : '').'matched '.count($matches).' of '.count($entries).' JSON entries to the '.count($menu).' dishes of "'.$restaurant->name.'".');
 
         $this->table(['Dish in round', 'Matched by', 'Description', 'Photo', 'Notes'], $rows);
 
@@ -232,9 +231,9 @@ class ImportDishMediaCommand extends Command
             return $failed > 0 ? self::FAILURE : self::SUCCESS;
         }
 
-        DB::transaction(function () use ($order, $updated): void {
+        DB::transaction(function () use ($restaurant, $updated): void {
             // Re-read under a lock so a concurrent menu edit is never overwritten with a stale copy.
-            $locked = FoodOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            $locked = Restaurant::query()->whereKey($restaurant->getKey())->lockForUpdate()->firstOrFail();
 
             $locked->menu = array_map(
                 static fn (MenuOption $option): MenuOption => isset($updated[$option->key])
@@ -248,6 +247,48 @@ class ImportDishMediaCommand extends Command
         $this->components->info(count($updated).' dishes updated.');
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function resolveRestaurant(): ?Restaurant
+    {
+        $round = $this->option('round');
+
+        if (is_string($round) && $round !== '') {
+            $foodOrder = ctype_digit($round) ? FoodOrder::query()->with('restaurant')->find((int) $round) : null;
+
+            if (! $foodOrder instanceof FoodOrder) {
+                $this->components->error('Food round not found.');
+
+                return null;
+            }
+
+            if (! $foodOrder->restaurant instanceof Restaurant) {
+                $this->components->error('This round has no restaurant (legacy round); assign one first.');
+
+                return null;
+            }
+
+            return $foodOrder->restaurant;
+        }
+
+        $ref = $this->argument('restaurant');
+
+        if (! is_string($ref) || $ref === '' || $ref === '-') {
+            $this->components->error('Give a restaurant (slug or id) or --round=<id>.');
+
+            return null;
+        }
+
+        $restaurant = Restaurant::query()->where('slug', $ref)->first()
+            ?? (ctype_digit($ref) ? Restaurant::query()->find((int) $ref) : null);
+
+        if (! $restaurant instanceof Restaurant) {
+            $this->components->error('Restaurant not found.');
+
+            return null;
+        }
+
+        return $restaurant;
     }
 
     /**

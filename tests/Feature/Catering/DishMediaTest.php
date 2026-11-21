@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Events\Models\Event;
 use App\Support\Images\InvalidImageException;
@@ -127,9 +128,9 @@ it('gives the page description and a versioned image url', function () {
 });
 
 describe('catering:import-dish-media', function () {
-    function mediaRound(): FoodOrder
+    function mediaRound(): Restaurant
     {
-        $order = FoodOrder::factory()->create();
+        $order = Restaurant::factory()->create();
         $order->menu = [
             new MenuOption('hawaii', 'Hähnchen: Chicken Hawaii', 1100),
             new MenuOption('curry', 'Lamm: Lamb Curry', 1300),
@@ -163,7 +164,7 @@ describe('catering:import-dish-media', function () {
             ['category' => 'X', 'name' => 'Lamb Curry', 'description' => 'mehrdeutig'],
         ]));
 
-        $this->artisan('catering:import-dish-media', ['foodOrder' => $order->id, 'json' => $dir.'/m.json'])
+        $this->artisan('catering:import-dish-media', ['restaurant' => $order->slug, 'json' => $dir.'/m.json'])
             ->expectsOutputToContain('Ambiguous')
             ->assertFailed(); // one photo file is missing
 
@@ -179,12 +180,30 @@ describe('catering:import-dish-media', function () {
             ->and($menu['reis']->name)->toBe('Reis: Basmati');
     });
 
+    it('resolves the restaurant of a round with --round and accepts the numeric id', function () {
+        $restaurant = mediaRound();
+        $round = FoodOrder::factory()->withRestaurant($restaurant)->create();
+        $dir = mediaDir();
+        file_put_contents($dir.'/m.json', menuJson([['category' => 'Hähnchen Gerichte', 'name' => 'Chicken Hawaii', 'description' => 'Per Runde']]));
+
+        $this->artisan('catering:import-dish-media', ['restaurant' => '-', 'json' => $dir.'/m.json', '--round' => (string) $round->id])->assertSuccessful();
+        expect($restaurant->fresh()->menu[0]->description)->toBe('Per Runde');
+
+        file_put_contents($dir.'/m.json', menuJson([['category' => 'Hähnchen Gerichte', 'name' => 'Chicken Hawaii', 'description' => 'Per Id']]));
+        $this->artisan('catering:import-dish-media', ['restaurant' => (string) $restaurant->id, 'json' => $dir.'/m.json', '--force' => true])->assertSuccessful();
+        expect($restaurant->fresh()->menu[0]->description)->toBe('Per Id');
+
+        $legacy = FoodOrder::factory()->create();
+        $this->artisan('catering:import-dish-media', ['restaurant' => '-', 'json' => $dir.'/m.json', '--round' => (string) $legacy->id])->assertFailed();
+        $this->artisan('catering:import-dish-media', ['restaurant' => 'nope', 'json' => $dir.'/m.json'])->assertFailed();
+    });
+
     it('writes nothing on a dry run', function () {
         $order = mediaRound();
         $dir = mediaDir();
         file_put_contents($dir.'/m.json', menuJson([['category' => 'Hähnchen Gerichte', 'name' => 'Chicken Hawaii', 'description' => 'Mit Ananas', 'image_file' => 'hawaii.png']]));
 
-        $this->artisan('catering:import-dish-media', ['foodOrder' => $order->id, 'json' => $dir.'/m.json', '--dry-run' => true])
+        $this->artisan('catering:import-dish-media', ['restaurant' => $order->slug, 'json' => $dir.'/m.json', '--dry-run' => true])
             ->expectsOutputToContain('Nothing was written')
             ->assertSuccessful();
 
@@ -199,10 +218,10 @@ describe('catering:import-dish-media', function () {
         $dir = mediaDir();
         file_put_contents($dir.'/m.json', menuJson([['category' => 'Hähnchen Gerichte', 'name' => 'Chicken Hawaii', 'description' => 'Neu', 'image_file' => 'hawaii.png']]));
 
-        $this->artisan('catering:import-dish-media', ['foodOrder' => $order->id, 'json' => $dir.'/m.json'])->assertSuccessful();
+        $this->artisan('catering:import-dish-media', ['restaurant' => $order->slug, 'json' => $dir.'/m.json'])->assertSuccessful();
         expect($order->fresh()->menu[0]->description)->toBe('Alt')->and($order->fresh()->menu[0]->image)->not->toBeNull();
 
-        $this->artisan('catering:import-dish-media', ['foodOrder' => $order->id, 'json' => $dir.'/m.json', '--force' => true])->assertSuccessful();
+        $this->artisan('catering:import-dish-media', ['restaurant' => $order->slug, 'json' => $dir.'/m.json', '--force' => true])->assertSuccessful();
         expect($order->fresh()->menu[0]->description)->toBe('Neu');
     });
 
@@ -212,7 +231,7 @@ describe('catering:import-dish-media', function () {
         copy(dishPng(), dirname($dir).'/outside.png');
         file_put_contents($dir.'/m.json', menuJson([['category' => 'Reis Gerichte', 'name' => 'Basmati', 'image_file' => '../outside.png']]));
 
-        $this->artisan('catering:import-dish-media', ['foodOrder' => $order->id, 'json' => $dir.'/m.json'])->assertFailed();
+        $this->artisan('catering:import-dish-media', ['restaurant' => $order->slug, 'json' => $dir.'/m.json'])->assertFailed();
         expect(collect($order->fresh()->menu)->firstWhere('key', 'reis')->image)->toBeNull();
     });
 });

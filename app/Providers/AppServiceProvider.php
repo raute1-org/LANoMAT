@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Catering\Policies\FoodOrderItemPolicy;
 use App\Modules\Catering\Policies\FoodOrderPolicy;
+use App\Modules\Catering\Policies\RestaurantPolicy;
 use App\Modules\Catering\Support\NativeOrderCards;
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\CustomServers\Policies\CustomServerPolicy;
@@ -581,6 +583,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->on(Module::Catering)) {
             Gate::policy(FoodOrder::class, FoodOrderPolicy::class);
+            Gate::policy(Restaurant::class, RestaurantPolicy::class);
             Gate::policy(FoodOrderItem::class, FoodOrderItemPolicy::class);
         }
 

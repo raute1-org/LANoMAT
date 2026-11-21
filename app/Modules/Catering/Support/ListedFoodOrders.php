@@ -23,6 +23,7 @@ final class ListedFoodOrders
         return FoodOrder::query()
             ->where('event_id', $event->id)
             ->whereIn('status', [FoodOrderStatus::Open->value, FoodOrderStatus::Closed->value])
+            ->with('restaurant')
             ->orderByDesc('created_at')
             ->get();
     }

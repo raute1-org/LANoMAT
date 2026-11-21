@@ -15,7 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * @property list<MenuOption> $menu
+ * @property list<MenuOption> $menu LEGACY column; read menus through {@see self::menuOptions()}
+ * @property int|null $restaurant_id
  * @property FoodOrderStatus $status
  * @property FoodPaymentMethod $payment_method
  * @property string|null $payment_link
@@ -34,6 +35,7 @@ class FoodOrder extends Model
     // (see roadmap insight #9 on Filament's KeyValue mangling jsonb types).
     protected $fillable = [
         'event_id',
+        'restaurant_id',
         'title',
         'opens_at',
         'closes_at',
@@ -77,6 +79,29 @@ class FoodOrder extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    /** @return BelongsTo<Restaurant, $this> */
+    public function restaurant(): BelongsTo
+    {
+        return $this->belongsTo(Restaurant::class);
+    }
+
+    /**
+     * THE menu of this round: the restaurant's when the round has one, otherwise the legacy
+     * `menu` column of rounds that predate restaurants. Every reader goes through here.
+     *
+     * @return list<MenuOption>
+     */
+    public function menuOptions(): array
+    {
+        if ($this->restaurant_id === null) {
+            return $this->menu;
+        }
+
+        $restaurant = $this->restaurant;
+
+        return $restaurant instanceof Restaurant ? $restaurant->menu : [];
     }
 
     /** @return HasMany<FoodOrderItem, $this> */

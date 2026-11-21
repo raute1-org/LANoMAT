@@ -117,8 +117,11 @@ function dishName(optionKey: string | null): string {
         return '';
     }
 
+    // A dish that left the menu keeps the name snapshotted on the order.
     const full =
         props.foodOrder.menu.find((option) => option.key === optionKey)?.name ??
+        props.foodOrder.myItems.find((item) => item.optionKey === optionKey)
+            ?.name ??
         optionKey;
 
     // Show the dish without its category prefix when the menu is grouped.
@@ -324,36 +327,63 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
         <div
             class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
         >
-            <div class="min-w-0">
-                <h2
-                    :id="`round-title-${foodOrder.id}`"
-                    class="text-xl font-semibold tracking-tight"
-                >
-                    {{ foodOrder.title }}
-                </h2>
-                <p
-                    v-if="foodOrder.opensAt || foodOrder.closesAt"
-                    class="text-sm text-muted-foreground"
-                >
-                    <span v-if="foodOrder.opensAt">
-                        {{ labels.opens_at }}
-                        <span class="font-mono tabular-nums">{{
-                            formatDateTime(foodOrder.opensAt)
-                        }}</span>
-                    </span>
-                    <span v-if="foodOrder.opensAt && foodOrder.closesAt">
-                        ·
-                    </span>
-                    <span
-                        v-if="foodOrder.closesAt"
-                        class="font-medium text-foreground"
+            <div class="flex min-w-0 items-start gap-3">
+                <img
+                    v-if="foodOrder.restaurant?.logoUrl"
+                    :src="foodOrder.restaurant.logoUrl"
+                    alt=""
+                    width="48"
+                    height="48"
+                    loading="lazy"
+                    decoding="async"
+                    class="size-12 shrink-0 rounded-md border border-border bg-card object-contain"
+                />
+                <div class="min-w-0">
+                    <h2
+                        :id="`round-title-${foodOrder.id}`"
+                        class="text-xl font-semibold tracking-tight"
                     >
-                        {{ labels.closes_at }}
-                        <span class="font-mono tabular-nums">{{
-                            formatDateTime(foodOrder.closesAt)
-                        }}</span>
-                    </span>
-                </p>
+                        {{ foodOrder.title }}
+                    </h2>
+                    <p
+                        v-if="
+                            foodOrder.restaurant &&
+                            foodOrder.restaurant.name !== foodOrder.title
+                        "
+                        class="text-sm font-medium"
+                    >
+                        {{ foodOrder.restaurant.name }}
+                    </p>
+                    <p
+                        v-if="foodOrder.restaurant?.description"
+                        class="max-w-prose text-sm text-muted-foreground"
+                    >
+                        {{ foodOrder.restaurant.description }}
+                    </p>
+                    <p
+                        v-if="foodOrder.opensAt || foodOrder.closesAt"
+                        class="text-sm text-muted-foreground"
+                    >
+                        <span v-if="foodOrder.opensAt">
+                            {{ labels.opens_at }}
+                            <span class="font-mono tabular-nums">{{
+                                formatDateTime(foodOrder.opensAt)
+                            }}</span>
+                        </span>
+                        <span v-if="foodOrder.opensAt && foodOrder.closesAt">
+                            ·
+                        </span>
+                        <span
+                            v-if="foodOrder.closesAt"
+                            class="font-medium text-foreground"
+                        >
+                            {{ labels.closes_at }}
+                            <span class="font-mono tabular-nums">{{
+                                formatDateTime(foodOrder.closesAt)
+                            }}</span>
+                        </span>
+                    </p>
+                </div>
             </div>
             <LiveIndicator
                 :variant="foodOrder.isOpen ? 'ok' : 'down'"

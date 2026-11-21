@@ -9,11 +9,11 @@ namespace App\Modules\Catering\Domain;
 final readonly class MenuImportReport
 {
     /**
-     * @param  list<MenuOption>  $menu  the menu the round has (or would have) afterwards
+     * @param  list<MenuOption>  $menu  the menu the restaurant has (or would have) afterwards
      * @param  list<string>  $errors
      * @param  list<string>  $warnings
      * @param  array{added: int, kept: int, removed: int, changed: int}  $changes
-     * @param  array{id: int|null, title: string, status: string}|null  $order
+     * @param  array{id: int|null, slug: string|null, name: string}|null  $restaurant
      */
     public function __construct(
         public string $mode,
@@ -24,7 +24,7 @@ final readonly class MenuImportReport
         public array $warnings,
         public array $menu,
         public array $changes,
-        public ?array $order,
+        public ?array $restaurant,
     ) {}
 
     public function isValid(): bool
@@ -45,7 +45,7 @@ final readonly class MenuImportReport
             'warnings' => $this->warnings,
             'changes' => $this->changes,
             'dish_count' => count($this->menu),
-            'order' => $this->order,
+            'restaurant' => $this->restaurant,
             'menu' => array_map(static fn (MenuOption $option): array => $option->toImportArray(), $this->menu),
         ];
     }

@@ -8,6 +8,7 @@ use App\Modules\Catering\Filament\Resources\FoodOrders\FoodOrderResource;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\CostSplit;
+use App\Modules\Catering\Support\DishNames;
 use App\Modules\Catering\Support\GroupOrder;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -170,10 +171,9 @@ class ItemsRelationManager extends RelationManager
 
     private function dishName(FoodOrderItem $record): string
     {
-        $key = (string) ($record->selection['option_key'] ?? '');
         $order = $this->getOwnerRecord();
 
-        return $order instanceof FoodOrder ? (GroupOrder::dishesOf($order)[$key] ?? $key) : $key;
+        return DishNames::forItem($record, $order instanceof FoodOrder ? GroupOrder::dishesOf($order) : []);
     }
 
     /**
@@ -197,7 +197,9 @@ class ItemsRelationManager extends RelationManager
             }
         }
 
-        return $query->orWhereIn(DB::raw("food_order_items.selection->>'option_key'"), $keys);
+        // Ordered names are snapshotted on the item, so the search also covers dishes that left the menu.
+        return $query->orWhereIn(DB::raw("food_order_items.selection->>'option_key'"), $keys)
+            ->orWhereRaw("lower(food_order_items.selection->>'name') like ?", ['%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $needle).'%']);
     }
 
     private function canExport(): bool

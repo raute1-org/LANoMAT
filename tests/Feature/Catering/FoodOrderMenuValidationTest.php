@@ -2,140 +2,138 @@
 
 use App\Models\User;
 use App\Modules\Catering\Domain\MenuOption;
+use App\Modules\Catering\Filament\Livewire\RestaurantMenuTable;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\CreateFoodOrder;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Pages\EditFoodOrder;
 use App\Modules\Catering\Models\FoodOrder;
-use App\Modules\Catering\Support\DishImageStore;
+use App\Modules\Catering\Models\FoodOrderItem;
+use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Events\Models\Event;
+use Filament\Actions\Testing\TestAction;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    Filament::setCurrentPanel('admin');
     $this->actingAs(User::factory()->orga()->create());
     $this->event = Event::factory()->create();
-    $this->order = FoodOrder::factory()->for($this->event)->create(['menu' => []]);
+    $this->restaurant = Restaurant::factory()->withMenu([])->create();
+    $this->order = FoodOrder::factory()->for($this->event)->withRestaurant($this->restaurant)->create();
 });
 
-function saveMenu(array $menu)
+function addDish(array $data)
 {
-    return Livewire::test(EditFoodOrder::class, ['record' => test()->order->getRouteKey()])
-        ->fillForm(['menu' => $menu])
-        ->call('save');
+    return Livewire::test(RestaurantMenuTable::class, ['restaurantId' => test()->restaurant->id])
+        ->callAction(TestAction::make('add')->table(), $data);
 }
 
-// F-R2B-14: the price is entered in EUR (comma or point) and stored as integer cents.
+// F-R2B-14 (ported to the restaurant menu editor): the price is entered in EUR and stored as integer cents.
 
 it('stores a EUR price entered with a decimal comma as integer cents', function () {
-    saveMenu([['key' => 'pizza', 'name' => 'Pizza', 'price_cents' => '8,50']])->assertHasNoFormErrors();
+    addDish(['name' => 'Pizza', 'price' => '8,50'])->assertHasNoActionErrors();
 
-    expect($this->order->fresh()->menu[0]->priceCents)->toBe(850);
+    expect($this->restaurant->fresh()->menu[0]->priceCents)->toBe(850);
 });
 
 it('accepts a decimal point and a whole euro amount', function () {
-    saveMenu([
-        ['key' => 'a', 'name' => 'A', 'price_cents' => '8.5'],
-        ['key' => 'b', 'name' => 'B', 'price_cents' => '9'],
-    ])->assertHasNoFormErrors();
+    addDish(['name' => 'A', 'price' => '8.5'])->assertHasNoActionErrors();
+    addDish(['name' => 'B', 'price' => '9'])->assertHasNoActionErrors();
 
-    expect(array_map(fn (MenuOption $o) => $o->priceCents, $this->order->fresh()->menu))->toBe([850, 900]);
+    expect(array_map(fn (MenuOption $o) => $o->priceCents, $this->restaurant->fresh()->menu))->toBe([850, 900]);
 });
 
 it('accepts exactly the maximum price of 1000,00 EUR', function () {
-    saveMenu([['key' => 'big', 'name' => 'Catering-Platte', 'price_cents' => '1000,00']])->assertHasNoFormErrors();
+    addDish(['name' => 'Catering-Platte', 'price' => '1000,00'])->assertHasNoActionErrors();
 
-    expect($this->order->fresh()->menu[0]->priceCents)->toBe(100000);
+    expect($this->restaurant->fresh()->menu[0]->priceCents)->toBe(100000);
 });
 
 it('rejects a price above 1000,00 EUR instead of overflowing the integer column', function () {
-    saveMenu([['key' => 'huge', 'name' => 'Zu teuer', 'price_cents' => '21474836,48']])
-        ->assertHasFormErrors(['menu.0.price_cents']);
+    addDish(['name' => 'Zu teuer', 'price' => '21474836,48'])->assertHasActionErrors(['price']);
 
-    expect($this->order->fresh()->menu)->toBe([]);
+    expect($this->restaurant->fresh()->menu)->toBe([]);
 });
 
-it('rejects a negative price', function () {
-    saveMenu([['key' => 'neg', 'name' => 'Negativ', 'price_cents' => '-0,50']])
-        ->assertHasFormErrors(['menu.0.price_cents']);
+it('rejects a negative price, more than two decimals and letters', function () {
+    addDish(['name' => 'Negativ', 'price' => '-0,50'])->assertHasActionErrors(['price']);
+    addDish(['name' => 'X', 'price' => '8,505'])->assertHasActionErrors(['price']);
+    addDish(['name' => 'Y', 'price' => 'acht'])->assertHasActionErrors(['price']);
+
+    expect($this->restaurant->fresh()->menu)->toBe([]);
 });
 
-it('rejects a price with more than two decimals or with letters', function () {
-    saveMenu([['key' => 'x', 'name' => 'X', 'price_cents' => '8,505']])->assertHasFormErrors(['menu.0.price_cents']);
-    saveMenu([['key' => 'y', 'name' => 'Y', 'price_cents' => 'acht']])->assertHasFormErrors(['menu.0.price_cents']);
-});
+// Duplicate keys were forbidden (first one used to win silently): keys are now generated unique and fixed.
 
-// Duplicate keys within one menu are forbidden (first one used to win silently).
+it('never produces two dishes with the same key', function () {
+    addDish(['name' => 'Pizza Salami', 'price' => '9,50']);
+    addDish(['name' => 'Pizza Salami', 'price' => '9,50']);
 
-it('rejects two menu options with the same key', function () {
-    saveMenu([
-        ['key' => 'pizza', 'name' => 'Pizza Salami', 'price_cents' => '9,50'],
-        ['key' => 'pizza', 'name' => 'Pizza Margherita', 'price_cents' => '8,50'],
-    ])->assertHasFormErrors(['menu']);
-
-    expect($this->order->fresh()->menu)->toBe([]);
-});
-
-it('rejects a menu key longer than 64 characters, the limit of an order option_key', function () {
-    saveMenu([['key' => str_repeat('k', 65), 'name' => 'Lang', 'price_cents' => '1,00']])
-        ->assertHasFormErrors(['menu.0.key']);
+    $keys = array_map(fn (MenuOption $o) => $o->key, $this->restaurant->fresh()->menu);
+    expect($keys)->toBe(['pizza-salami', 'pizza-salami-2']);
 });
 
 it('shows stored cents as a EUR amount with a decimal comma when editing', function () {
-    $this->order->menu = [new MenuOption(key: 'pizza', name: 'Pizza', priceCents: 850)];
-    $this->order->save();
+    $this->restaurant->menu = [new MenuOption(key: 'pizza', name: 'Pizza', priceCents: 850)];
+    $this->restaurant->save();
 
-    $component = Livewire::test(EditFoodOrder::class, ['record' => $this->order->getRouteKey()]);
-
-    expect(collect($component->get('data')['menu'])->first()['price_cents'])->toBe('8,50');
+    Livewire::test(RestaurantMenuTable::class, ['restaurantId' => $this->restaurant->id])
+        ->mountTableAction('edit', 'pizza')
+        ->assertSchemaStateSet(['price' => '8,50']);
 });
 
-// NUL bytes in free text reached PostgreSQL varchar/jsonb and produced a 500 (F-R2B-12, Filament side).
+// NUL bytes in free text reached PostgreSQL varchar/jsonb and produced a 500 (F-R2B-12).
 
-it('rejects a NUL byte in the order title and in a menu name', function () {
+it('rejects a NUL byte in the order title and in a dish name', function () {
     Livewire::test(EditFoodOrder::class, ['record' => $this->order->getRouteKey()])
         ->fillForm(['title' => "Pizza\u{0}"])
         ->call('save')
         ->assertHasFormErrors(['title']);
 
-    saveMenu([['key' => 'p', 'name' => "Pi\u{0}zza", 'price_cents' => '1,00']])
-        ->assertHasFormErrors(['menu.0.name']);
+    addDish(['name' => "Pi\u{0}zza", 'price' => '1,00'])->assertHasActionErrors(['name']);
 });
 
-it('creates an order with EUR prices through the create page', function () {
+it('rejects a description above 600 characters', function () {
+    addDish(['name' => 'A', 'price' => '1', 'description' => str_repeat('a', 601)])->assertHasActionErrors(['description']);
+});
+
+it('creates a round from a restaurant, prefilling title and payment from its defaults', function () {
+    $restaurant = Restaurant::factory()->create(['name' => 'Beispiel Grill']);
+    $restaurant->forceFill(['default_payment_method' => 'paypal', 'default_payment_link' => 'https://paypal.me/example-orga'])->save();
+
+    $component = Livewire::test(CreateFoodOrder::class)
+        ->fillForm(['event_id' => $this->event->id, 'restaurant_id' => $restaurant->id])
+        ->assertSchemaStateSet(['title' => 'Beispiel Grill', 'payment_method' => 'paypal', 'payment_link' => 'https://paypal.me/example-orga']);
+
+    $component->call('create')->assertHasNoFormErrors();
+
+    $created = FoodOrder::query()->where('restaurant_id', $restaurant->id)->firstOrFail();
+    expect($created->menuOptions())->toHaveCount(3);
+});
+
+it('requires a restaurant for a new round', function () {
     Livewire::test(CreateFoodOrder::class)
-        ->fillForm([
-            'event_id' => $this->event->id,
-            'title' => 'Pizza-Bestellung',
-            'menu' => [['key' => 'pizza', 'name' => 'Pizza', 'price_cents' => '8,50']],
-        ])
+        ->fillForm(['event_id' => $this->event->id, 'title' => 'Ohne'])
         ->call('create')
+        ->assertHasFormErrors(['restaurant_id']);
+});
+
+it('locks the restaurant of a round that already has orders', function () {
+    FoodOrderItem::factory()->create(['food_order_id' => $this->order->id, 'selection' => ['option_key' => 'x']]);
+
+    Livewire::test(EditFoodOrder::class, ['record' => $this->order->getRouteKey()])
+        ->assertFormFieldIsDisabled('restaurant_id');
+});
+
+it('keeps a legacy round without restaurant editable', function () {
+    $legacy = FoodOrder::factory()->for($this->event)->create();
+
+    Livewire::test(EditFoodOrder::class, ['record' => $legacy->getRouteKey()])
+        ->fillForm(['title' => 'Neu benannt'])
+        ->call('save')
         ->assertHasNoFormErrors();
 
-    // The beforeEach order shares the factory's default title, so exclude it by id.
-    $created = FoodOrder::query()->whereKeyNot($this->order->id)->firstOrFail();
-
-    expect($created->menu[0]->priceCents)->toBe(850);
-});
-
-it('saves a description and keeps an existing image reference through the editor', function () {
-    Storage::fake('local');
-    $image = app(DishImageStore::class)->store(dishPng(100, 100));
-    $this->order->menu = [new MenuOption('a', 'Pizza', 850, null, $image)];
-    $this->order->save();
-
-    $component = Livewire::test(EditFoodOrder::class, ['record' => $this->order->getRouteKey()]);
-    $state = $component->get('data.menu');
-    $first = array_key_first($state);
-
-    $component->set("data.menu.{$first}.description", 'Tomaten und Käse')->call('save')->assertHasNoFormErrors();
-
-    $option = $this->order->fresh()->menu[0];
-    expect($option->description)->toBe('Tomaten und Käse')->and($option->priceCents)->toBe(850)->and($option->image)->toBe($image);
-});
-
-it('rejects a description above 600 characters in the editor', function () {
-    saveMenu([['key' => 'a', 'name' => 'A', 'price_cents' => '1', 'description' => str_repeat('a', 601)]])
-        ->assertHasFormErrors();
+    expect($legacy->fresh()->title)->toBe('Neu benannt');
 });

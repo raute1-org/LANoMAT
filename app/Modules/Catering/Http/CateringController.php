@@ -16,6 +16,7 @@ use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
 use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Catering\Support\MyFoodPayment;
+use App\Modules\Catering\Support\RestaurantCard;
 use App\Modules\Events\Models\Event;
 use App\Modules\Registration\Models\EventPaymentSettings;
 use App\Support\Money\Euro;
@@ -73,7 +74,7 @@ class CateringController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => trans('catering.page.toast_added', [
-            'dish' => $this->dishName($foodOrder, $data['option_key']),
+            'dish' => $this->dishName($foodOrder, $data['option_key'], $item->selection['name'] ?? null),
             'price' => Euro::format($item->price_cents),
         ])]);
 
@@ -86,6 +87,7 @@ class CateringController extends Controller
 
         $order = $foodOrderItem->foodOrder;
         $optionKey = (string) ($foodOrderItem->selection['option_key'] ?? '');
+        $snapshot = $foodOrderItem->selection['name'] ?? null;
 
         try {
             $action->handle($foodOrderItem);
@@ -96,17 +98,17 @@ class CateringController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => trans('catering.page.toast_removed', [
-            'dish' => $this->dishName($order, $optionKey),
+            'dish' => $this->dishName($order, $optionKey, $snapshot),
         ])]);
 
         return back();
     }
 
     /** The dish name without its "Category: " prefix, as the page shows it. */
-    private function dishName(?FoodOrder $order, string $optionKey): string
+    private function dishName(?FoodOrder $order, string $optionKey, ?string $snapshot = null): string
     {
-        $option = collect($order?->menu)->first(fn (MenuOption $menuOption): bool => $menuOption->key === $optionKey);
-        $name = $option === null ? $optionKey : $option->name;
+        $option = collect($order?->menuOptions())->first(fn (MenuOption $menuOption): bool => $menuOption->key === $optionKey);
+        $name = $snapshot !== null && $snapshot !== '' ? $snapshot : ($option === null ? $optionKey : $option->name);
         $index = strpos($name, ': ');
 
         if ($index === false || $index <= 0 || $index > 32) {
@@ -138,7 +140,8 @@ class CateringController extends Controller
             'isOpen' => $order->isOpenNow(),
             'opensAt' => $order->opens_at?->toIso8601String(),
             'closesAt' => $order->closes_at?->toIso8601String(),
-            'menu' => collect($order->menu)->map(fn (MenuOption $option): array => [
+            'restaurant' => RestaurantCard::for($order->restaurant),
+            'menu' => collect($order->menuOptions())->map(fn (MenuOption $option): array => [
                 'key' => $option->key,
                 'name' => $option->name,
                 'priceCents' => $option->priceCents,
@@ -159,6 +162,7 @@ class CateringController extends Controller
         return [
             'id' => $item->id,
             'optionKey' => $item->selection['option_key'] ?? null,
+            'name' => $item->selection['name'] ?? null,
             'note' => $item->selection['note'] ?? null,
             'priceCents' => $item->price_cents,
             'paid' => $item->paid_at !== null,

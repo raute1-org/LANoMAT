@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Models\FoodOrder;
+use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Events\Models\Event;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -25,6 +26,12 @@ class FoodOrderFactory extends Factory
             'closes_at' => null,
             'status' => FoodOrderStatus::Draft,
         ];
+    }
+
+    /** The round points at a restaurant (a new one unless given); its menu replaces the legacy column. */
+    public function withRestaurant(?Restaurant $restaurant = null): static
+    {
+        return $this->state(fn (): array => ['restaurant_id' => ($restaurant ?? Restaurant::factory()->create())->id]);
     }
 
     public function open(): static

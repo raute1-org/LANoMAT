@@ -134,17 +134,19 @@ JSON Schema validator and publishes.
 For orga and admin accounts. The agent reads the menu itself; LANoMAT receives structured data only.
 
 ```text
-Here is the menu of the pizza place as a PDF (karte.pdf). Create a food round
-"Pizza Samstag" for event lan-herbst-2026, deadline Saturday 18:00, cash payment.
+Here is the menu of the pizza place as a PDF (karte.pdf). Create the restaurant
+"Pizzeria Beispiel" with it, then a food round for event lan-herbst-2026,
+deadline Saturday 18:00, cash payment.
 Preview first, show me the warnings and the result, and only import after I say so.
 Do not guess prices or invent dishes; ask me when a line is unclear.
 ```
 
 The agent follows the `import-menu` prompt (or reads `lanomat://skills/import-menu`): it calls
-`catering_menu_preview`, shows errors and warnings (duplicates, price 0, unusually high prices, ignored
-fields), then `catering_menu_import`. The round is created as a **draft**; opening it for orders stays a human
-step in the admin panel. To fix a price or add a dish later, ask for `catering_menu_get` followed by
-`replace` (no orders yet) or `merge`.
+`restaurants_list`, `catering_menu_preview`, shows errors and warnings (duplicates, price 0, unusually high
+prices, ignored fields), then `catering_menu_import` into the restaurant. The round is a separate step
+(`catering_round_create`) and is created as a **draft**; opening it for orders stays a human step in the admin
+panel. To fix a price or add a dish later, ask for `catering_menu_get` followed by `replace` (ordered dishes must
+keep their keys) or `merge`.
 
 ## Troubleshoot
 

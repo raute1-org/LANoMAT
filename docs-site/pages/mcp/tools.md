@@ -4,7 +4,7 @@ description: The MCP tool catalogue, recipe resources, prompts and argument exam
 sidebar_icon: list
 ---
 
-The MCP surface is deliberately explicit: **27 tools**, **two prompts** (`install-game`, `import-menu`) and **two
+The MCP surface is deliberately explicit: **29 tools**, **two prompts** (`install-game`, `import-menu`) and **two
 resources** (the template `lanomat://recipes/{slug}/skill` and `lanomat://skills/import-menu`). The table below is the contract — it matches
 what the served server registers in `app/Modules/Mcp/Server/LanomatServer.php`. If a tool is not in
 this table, the server does not have it.
@@ -30,9 +30,11 @@ this table, the server does not have it.
 | `polls_list` | `event_slug` | Polls, options and my vote | — |
 | `poll_vote` | `poll_id`, `option_id` | Cast vote | — |
 | `catering_menu` | `event_slug` | Open and closed food orders with prices (drafts for orga/admin only) | — |
-| `catering_menu_get` | `event_slug`, `order_id?` | Orga/admin: rounds incl. drafts, menu in the import shape, ordered-item count | — |
-| `catering_menu_preview` | `event_slug`, `mode`, `items`, `order_id?`, round settings | Orga/admin dry run: errors, warnings, resulting menu, changes; writes nothing | — |
-| `catering_menu_import` | same as preview | Orga/admin: creates a draft round or replaces/merges a menu, atomically | — |
+| `restaurants_list` | — | Orga/admin: restaurants with slug, dish count, rounds and contact data | — |
+| `catering_menu_get` | `restaurant` (or deprecated `event_slug` + `order_id`) | Orga/admin: the restaurant's menu in the import shape, with ordered counts per dish | — |
+| `catering_menu_preview` | `mode`, `restaurant?`, `name?`, `items` | Orga/admin dry run: errors, warnings, resulting menu, changes; writes nothing | — |
+| `catering_menu_import` | same as preview | Orga/admin: creates a restaurant or replaces/merges its menu, atomically | — |
+| `catering_round_create` | `event_slug`, `restaurant`, `opens_at`, `closes_at`, `payment_method`, `title?`, `payment_link?` | Orga/admin: creates a food round as a **draft**; never opens it | — |
 | `lfg_list` | `event_slug` | Active looking-for-group posts | — |
 | `lfg_create` | `event_slug`, `title`, `game`, `body?`, `slots_needed?` | The created post | — |
 | `recipes_list` | `query?`, `platform?` | Recipe summaries | `GET /api/v1/recipes` |
@@ -206,12 +208,8 @@ At most 300 dishes. The three tools share their arguments:
 {
   "name": "catering_menu_preview",
   "arguments": {
-    "event_slug": "lan-herbst-2026",
     "mode": "create",
-    "title": "Pizza Samstag",
-    "closes_at": "2026-11-28T18:00:00+01:00",
-    "payment_method": "paypal",
-    "payment_link": "https://paypal.me/example-orga",
+    "name": "Pizzeria Beispiel",
     "items": [
       { "name": "Pizza Margherita", "price_eur": "8,50" },
       { "name": "Pizza Salami", "price_cents": 950 },
@@ -227,7 +225,7 @@ At most 300 dishes. The three tools share their arguments:
   "errors": [], "warnings": [],
   "changes": { "added": 3, "kept": 0, "removed": 0, "changed": 0 },
   "dish_count": 3,
-  "order": { "id": null, "title": "Pizza Samstag", "status": "draft" },
+  "restaurant": { "id": null, "slug": null, "name": "Pizzeria Beispiel" },
   "menu": [
     { "key": "pizza-margherita", "name": "Pizza Margherita", "price_cents": 850 },
     { "key": "pizza-salami", "name": "Pizza Salami", "price_cents": 950 },
@@ -236,15 +234,19 @@ At most 300 dishes. The three tools share their arguments:
 }
 ```
 
-`catering_menu_import` takes the same arguments and returns the same shape with `applied: true` and the round id.
+`catering_menu_import` takes the same arguments and returns the same shape with `applied: true` and the restaurant id and slug.
 
 | `mode` | Behaviour |
 |---|---|
-| `create` | New **draft** round with `title` (required) and optional `opens_at`, `closes_at`, `payment_method`, `payment_link`. Importing the same title and menu again returns the existing draft (`unchanged: true`). |
-| `replace` | Swaps the menu of `order_id` (and optionally the round settings); sets descriptions, and a dish that keeps its key keeps its photo. Refused for closed rounds and for rounds that already have ordered items. |
-| `merge` | Appends dishes whose name is new; existing dishes and prices stay untouched (a differing price is a warning). The one exception: a description is filled in when the existing dish has none (a differing description is a warning). Round settings are refused. Works on open rounds with orders. |
+| `create` | New restaurant with `name` (required) and this menu. Importing the same name and menu again returns the existing restaurant (`unchanged: true`); the same name with another menu is refused. |
+| `replace` | Swaps the menu of `restaurant`; sets descriptions, and a dish that keeps its key keeps its photo. Dishes that were already ordered in any round must stay in the menu with the same key, otherwise the import is refused with the list of missing keys (take the keys from `catering_menu_get`). |
+| `merge` | Appends dishes whose name is new; existing dishes and prices stay untouched (a differing price is a warning). The one exception: a description is filled in when the existing dish has none (a differing description is a warning). |
+
+Menus belong to the **restaurant** (event-spanning), not to a round. A round is created separately with
+`catering_round_create` (always a draft; opening it is a human step). `event_slug` + `order_id` still work on
+get/preview/import as a **deprecated** way to address the restaurant of that round.
 
 `catering_menu_get` returns `items` in exactly this shape (with the stored keys and descriptions; `has_image: true`
-marks a dish with a photo and is ignored on import), so get, edit, import is a round trip. Only orga and admin accounts may call the three tools (`FoodOrderPolicy`); the write is one
-transaction with the round locked, and an audit log line (`catering.menu_import`: user, event, round, mode,
+marks a dish with a photo and is ignored on import), so get, edit, import is a round trip. Only orga and admin accounts may call the three tools (`RestaurantPolicy`); the write is one
+transaction with the restaurant row locked, and an audit log line (`catering.menu_import`: user, restaurant, mode,
 dish count, no dish text) is written.

@@ -8,7 +8,7 @@ LANoMAT exposes a **Model Context Protocol** server at `/mcp`. It speaks streama
 bearer token, and gives an agent a small, deliberate surface: identity, game recipes, recipe skills,
 files and a contribution draft. It does not expose a generic database or shell.
 
-<div class="live">LIVE 17:42 · MCP connected · 27 tools · 2 resources · 2 prompts</div>
+<div class="live">LIVE 17:42 · MCP connected · 29 tools · 2 resources · 2 prompts</div>
 
 ## Endpoint
 
