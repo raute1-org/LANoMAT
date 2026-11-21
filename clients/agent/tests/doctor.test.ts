@@ -5,6 +5,7 @@ import {
     DOCTOR_SCHEMA,
     formatDoctorJson,
     formatDoctorReport,
+    listAllToolNames,
     runDoctor,
     safeUrl,
     type DoctorReport,
@@ -454,5 +455,51 @@ describe('doctor', () => {
         expect(text).toContain('tool calls work');
         expect(text).toContain('Tool calls:');
         expect(text).not.toContain('super-secret-key');
+    });
+});
+
+describe('MCP tools/list pagination', () => {
+    const page = (count: number, offset: number, nextCursor?: string | null) => ({
+        tools: Array.from({ length: count }, (_, index) => ({ name: `tool-${offset + index + 1}` })),
+        ...(nextCursor === undefined ? {} : { nextCursor }),
+    });
+
+    it('collects every page and asks for per_page=100', async () => {
+        const requests: Array<{ cursor?: string; per_page?: number } | undefined> = [];
+        const pages = [page(15, 0, 'cursor-2'), page(9, 15, null)];
+
+        const names = await listAllToolNames(async (params) => {
+            requests.push(params);
+
+            return pages[requests.length - 1]!;
+        });
+
+        expect(names).toHaveLength(24);
+        expect(names[0]).toBe('tool-1');
+        expect(names.at(-1)).toBe('tool-24');
+        expect(requests).toEqual([
+            { per_page: 100 },
+            { per_page: 100, cursor: 'cursor-2' },
+        ]);
+    });
+
+    it('stops on an omitted cursor and de-duplicates a tool repeated across pages', async () => {
+        const pages = [
+            { tools: [{ name: 'lanomat_me' }, { name: 'recipes_list' }], nextCursor: 'cursor-2' },
+            { tools: [{ name: 'recipes_list' }, { name: 'recipe_get' }] },
+        ];
+
+        const names = await listAllToolNames(async () => pages.shift()!);
+
+        expect(names).toEqual(['lanomat_me', 'recipes_list', 'recipe_get']);
+    });
+
+    it('fails loudly when the server repeats a cursor instead of replaying page 1', async () => {
+        await expect(
+            listAllToolNames(async () => page(15, 0, 'eyJvZmZzZXQiOjE1fQ==')),
+        ).rejects.toThrow('repeated the cursor');
+
+        // The loop must not request forever: two calls see the same cursor and
+        // the second one raises before any further page is fetched.
     });
 });

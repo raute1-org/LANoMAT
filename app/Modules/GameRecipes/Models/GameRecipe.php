@@ -295,6 +295,66 @@ class GameRecipe extends Model
         return $this->playUrl($host);
     }
 
+    /**
+     * The one public server of a browser recipe, described by
+     * `metadata.server` and joined through the HTTPS `play_url`. It is not a
+     * `ServerLink` row: there is no process LANoMAT controls, just a page a
+     * player opens. Returns null when the recipe has no such metadata, so a
+     * normal installable recipe keeps its real server rows only.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function browserServer(?string $host = null): ?array
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $server = $metadata['server'] ?? null;
+
+        if (! is_array($server)) {
+            return null;
+        }
+
+        $name = trim((string) ($server['name'] ?? ''));
+        $address = trim((string) ($server['address'] ?? ''));
+        $port = filter_var($server['port'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 65535],
+        ]);
+        $connect = $server['connect_url'] ?? $this->playUrl($host);
+
+        if ($name === '' || $address === '' || $port === false
+            || ! is_string($connect) || trim($connect) === '') {
+            return null;
+        }
+
+        $scheme = mb_strtolower((string) parse_url($connect, PHP_URL_SCHEME));
+
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return null;
+        }
+
+        return [
+            'id' => 0,
+            'title' => $name,
+            'game' => $this->title,
+            'matchLabel' => null,
+            'address' => $address,
+            'port' => (int) $port,
+            'connectString' => $connect,
+            'connectIsLink' => true,
+            'status' => 'ready',
+            'query' => null,
+            'event' => null,
+        ];
+    }
+
+    /** The short "Ein Server · Nickname · Join/Leave" line of a browser recipe. */
+    public function serverNote(): ?string
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $note = data_get($metadata, 'server.players') ?? data_get($metadata, 'server.note');
+
+        return is_string($note) && trim($note) !== '' ? trim($note) : null;
+    }
+
     /** Whether the recipe has a multiplayer mode (default true; a singleplayer recipe says so). */
     public function supportsMultiplayer(): bool
     {

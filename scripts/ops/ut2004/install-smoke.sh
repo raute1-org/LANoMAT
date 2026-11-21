@@ -2,7 +2,7 @@
 # End-to-end smoke test for the native UT2004 install path, without the LAN file host.
 #
 # The live recipe 20 ("unreal-tournament-2004") normally points at a file on
-# the LAN file host (10.23.0.12). That host is not reachable from every test
+# the LAN file host (<LAN_FILEHOST_IP>). That host is not reachable from every test
 # machine (and a smoke test should not need it). This script serves a full-game
 # base archive from a throwaway local HTTP server, points the live recipe at
 # that URL for the duration of the run, lets the real launcher engine install

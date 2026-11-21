@@ -19,6 +19,10 @@ export interface HomeChatGame {
      * else links to its game page instead.
      */
     launcher_supported: boolean;
+    /** A browser recipe's entry point; it has no install path. */
+    play_url: string | null;
+    /** Short browser-server line ("Ein Server · Nickname · Join/Leave"). */
+    server_note: string | null;
     /** `/launcher` when a build is published, otherwise null. */
     launcher_url: string | null;
     /** `lanomat://install/{slug}` — opens the launcher when it is installed. */

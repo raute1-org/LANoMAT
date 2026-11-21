@@ -180,6 +180,7 @@ const config: ZudokuConfig = {
       items: [
         { type: "doc", file: "recipes/overview", label: "How recipes work" },
         { type: "doc", file: "recipes/ut2004", label: "UT2004 + UT2004VR" },
+        { type: "doc", file: "recipes/nfsu2", label: "NFSU2 + NFS-Online" },
         { type: "doc", file: "recipes/ridge-racer", label: "Ridge Racer" },
         { type: "doc", file: "recipes/contributing", label: "Contributing" },
         { type: "doc", file: "recipes/smb", label: "SMB import" },

@@ -145,6 +145,41 @@
                     "format": "uri",
                     "description": "A live deployment of this recipe, when one exists (for example a LAN event's public UT2004VR server)."
                 },
+                "server": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "name",
+                        "address",
+                        "port",
+                        "connect_url"
+                    ],
+                    "description": "The one public server of a browser recipe. It is not a managed ServerLink row: the recipe page shows it and 'join' opens connect_url.",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "address": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "port": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                        },
+                        "connect_url": {
+                            "type": "string",
+                            "pattern": "^https?://"
+                        },
+                        "players": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "One short line for the game card, e.g. 'Ein Server · Nickname · Join/Leave'."
+                        }
+                    }
+                },
                 "tags": {
                     "type": "array",
                     "items": {

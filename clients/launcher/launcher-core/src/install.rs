@@ -7,7 +7,7 @@
 //! ISO path: it is extracted as a flat game tree, with one wrapper folder
 //! stripped, and must still carry real game data outside `System/`.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -184,6 +184,7 @@ impl InstallEngine {
 
         let base = base_file(plan).ok_or(InstallError::NoBaseFile)?;
         let patch = patch_file(plan)?;
+        let generic = !is_ut2004_plan(plan);
 
         let target = options
             .target_dir
@@ -200,22 +201,54 @@ impl InstallEngine {
             source,
         })?;
 
-        let mut tasks = Vec::new();
-        tasks.push(download_task(
-            base,
-            &downloads_dir,
-            options.bearer.clone(),
-            options.bearer_origin.clone(),
-        )?);
-        if let Some(patch) = patch {
-            tasks.push(download_task(
-                patch,
+        // The base and patch keep their roles; every other matched LAN file
+        // (an ASI plugin, a loader DLL, a config) is an optional extra for the
+        // generic path. Deduplicate by file name so two OS-specific base
+        // requirements can never download the same archive twice.
+        let mut planned: Vec<(&'static str, DownloadTask)> = Vec::new();
+        let mut seen_names = std::collections::HashSet::new();
+
+        let push_task = |role: &'static str,
+                         file: &PlanFile,
+                         planned: &mut Vec<(&'static str, DownloadTask)>,
+                         seen: &mut std::collections::HashSet<String>|
+         -> Result<(), InstallError> {
+            let task = download_task(
+                file,
                 &downloads_dir,
                 options.bearer.clone(),
                 options.bearer_origin.clone(),
-            )?);
+            )?;
+            let key = task.filename.to_ascii_lowercase();
+
+            if seen.insert(key) {
+                planned.push((role, task));
+            }
+
+            Ok(())
+        };
+
+        push_task("base", base, &mut planned, &mut seen_names)?;
+
+        if let Some(patch) = patch {
+            push_task("patch", patch, &mut planned, &mut seen_names)?;
         }
 
+        if generic {
+            for extra in extra_plan_files(plan) {
+                push_task("extra", extra, &mut planned, &mut seen_names)?;
+            }
+        }
+
+        let patch_index = planned.iter().position(|(role, _)| *role == "patch");
+        let extra_indices = planned
+            .iter()
+            .enumerate()
+            .filter(|(_, (role, _))| *role == "extra")
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+
+        let tasks: Vec<DownloadTask> = planned.into_iter().map(|(_, task)| task).collect();
         let total: u64 = tasks.iter().filter_map(|task| task.size_bytes).sum();
         let mut done = 0u64;
         let paths = match download_many(&tasks, &options.cancel, |index, update| {
@@ -244,7 +277,11 @@ impl InstallEngine {
         };
 
         let base_path = &paths[0];
-        let patch_path = paths.get(1);
+        let patch_path = patch_index.map(|index| &paths[index]);
+        let extra_paths = extra_indices
+            .iter()
+            .filter_map(|index| paths.get(*index))
+            .collect::<Vec<_>>();
 
         std::fs::create_dir_all(&target).map_err(|source| InstallError::Io {
             path: target.clone(),
@@ -261,15 +298,22 @@ impl InstallEngine {
         let used_archive = matches!(base_kind, ArchiveKind::Zip | ArchiveKind::TarBz2);
         let mut files_extracted = extract_base(base_path, base_kind, &target, &downloads_dir)?;
 
-        // A base that is only an installer (`setup.exe`) is not a game, even
-        // when a patch supplies `System/`. Check the extracted base before the
-        // patch so the patch can never make an installer look complete.
-        ensure_game_payload(&target)?;
+        if generic {
+            // A portable LAN archive often wraps the game in one titled folder
+            // (`Need for Speed - Underground 2/SPEED.EXE`). The plan's verify
+            // paths are the authority; hoist that wrapper before checking them.
+            hoist_game_wrapper(&target, plan)?;
+        } else {
+            // A base that is only an installer (`setup.exe`) is not a game, even
+            // when a patch supplies `System/`. Check the extracted base before the
+            // patch so the patch can never make an installer look complete.
+            ensure_game_payload(&target)?;
+        }
 
         if let Some(patch_path) = patch_path {
             progress(InstallProgress::phase(
                 InstallPhase::Patching,
-                "OldUnreal-Patch wird eingespielt",
+                "Patch wird eingespielt",
             ));
 
             if detect_zip(patch_path) {
@@ -284,6 +328,11 @@ impl InstallEngine {
             }
         }
 
+        if generic {
+            files_extracted += materialize_extra_files(&target, plan, &extra_paths)?;
+            hoist_game_wrapper(&target, plan)?;
+        }
+
         progress(InstallProgress::phase(
             InstallPhase::Verifying,
             "Installation wird geprüft",
@@ -291,8 +340,17 @@ impl InstallEngine {
         // Verify the layout for the platform the plan was built for, not the
         // machine running the test suite: a Windows base must stay checkable
         // on Linux CI and a macOS base must not fall back to the Linux layout.
-        let verified = verify_install_for(&target, plan.target_os())?;
-        mark_executable(&target)?;
+        let verified = if generic {
+            verify_plan(&target, plan)?
+        } else {
+            verify_install_for(&target, plan.target_os())?
+        };
+
+        if generic {
+            mark_plan_executable(&target, plan)?;
+        } else {
+            mark_executable(&target)?;
+        }
 
         progress(InstallProgress::phase(
             InstallPhase::Ready,
@@ -321,6 +379,42 @@ impl InstallEngine {
             Os::Macos => launch_macos(target_dir),
             Os::Windows | Os::Linux => launch_system_binary(target_dir, os),
         }
+    }
+
+    /// Start a generic (non-UT2004) install from the plan's launch target for
+    /// the plan's OS. UT2004 keeps its dedicated `System/` launcher.
+    pub fn launch_plan(target_dir: &Path, plan: &RecipePlan) -> Result<PathBuf, InstallError> {
+        if is_ut2004_plan(plan) {
+            return Self::launch_for(target_dir, plan.target_os());
+        }
+
+        let os = plan.target_os();
+        let command = launch_command_for(plan, os).ok_or_else(|| {
+            InstallError::Launch(format!(
+                "{} hat kein Startziel für {}",
+                plan.recipe.slug,
+                os.as_str()
+            ))
+        })?;
+
+        Self::launch_command(target_dir, &command, os)
+    }
+
+    /// Start an already installed generic game from a stored launch command
+    /// (the shell keeps it in the install ledger so launch works offline).
+    pub fn launch_stored(target_dir: &Path, command: &str) -> Result<PathBuf, InstallError> {
+        Self::launch_command(target_dir, command, Os::current())
+    }
+
+    /// Run one plan launch command. `{{target}}` is substituted; a Windows
+    /// `.exe` is started directly, while Wine/Proton and shell-style Linux
+    /// commands run through `sh -c` from the install folder.
+    pub fn launch_command(
+        target_dir: &Path,
+        command: &str,
+        os: Os,
+    ) -> Result<PathBuf, InstallError> {
+        launch_plan_command(target_dir, command, os)
     }
 }
 
@@ -429,6 +523,595 @@ fn launch_name(os: Os) -> &'static str {
         Os::Linux => "System/ut2004-bin-amd64 or System/UT2004",
         Os::Macos => "UT2004.app (Contents/MacOS/UT2004)",
     }
+}
+
+/// The pilot recipe keeps its dedicated UT2004 `System/` installer and
+/// verifier. Every other recipe uses the plan's own verify steps and launch
+/// target; there is no per-game code for it.
+pub fn is_ut2004_plan(plan: &RecipePlan) -> bool {
+    plan.recipe.slug == "unreal-tournament-2004"
+}
+
+/// Matched LAN files that are not the base or patch: an ASI plugin, a loader
+/// DLL, a config. They are downloaded for the generic path so the plan's
+/// `file_exists` checks can be satisfied from the LAN instead of the archive.
+fn extra_plan_files(plan: &RecipePlan) -> Vec<&PlanFile> {
+    let os = plan.target_os();
+
+    plan.files
+        .iter()
+        .filter(|file| {
+            matches!(
+                file.requirement.as_str(),
+                "mod" | "tool" | "config" | "content"
+            )
+        })
+        .filter(|file| matches!(file.status.as_str(), "matched" | "external"))
+        .filter(|file| file.download_url.is_some() || file.fallback_url.is_some())
+        .filter(|file| file.fits_os(os))
+        .collect()
+}
+
+/// The plan's launch command for one OS. An exact OS target wins over an
+/// `any` target; the first one is the default (for example Wine over Proton).
+pub fn launch_command_for(plan: &RecipePlan, os: Os) -> Option<String> {
+    let exact = plan.recipe.launch_targets.iter().find(|target| {
+        target
+            .os
+            .as_deref()
+            .and_then(Os::from_wire)
+            .is_some_and(|named| named == os)
+    });
+
+    let any = plan.recipe.launch_targets.iter().find(|target| {
+        target
+            .os
+            .as_deref()
+            .map(|value| value.is_empty() || value.eq_ignore_ascii_case("any"))
+            .unwrap_or(true)
+    });
+
+    exact
+        .or(any)
+        .and_then(|target| target.command.clone())
+        .or_else(|| plan.recipe.launch_target.clone())
+}
+
+fn launch_plan_command(target_dir: &Path, command: &str, os: Os) -> Result<PathBuf, InstallError> {
+    let expanded = command.replace("{{target}}", &target_dir.to_string_lossy());
+    let exe = find_exe_path(&expanded);
+
+    match os {
+        Os::Windows => {
+            // The plan's Windows target is an `.exe` (possibly wrapped in
+            // `Start-Process`): start the executable itself, not a shell.
+            if let Some(path) = exe
+                .as_deref()
+                .and_then(|token| resolve_command_path(target_dir, token))
+            {
+                if path.is_file() {
+                    spawn_from(&path, target_dir)?;
+                    return Ok(path);
+                }
+            }
+
+            let mut process = std::process::Command::new("powershell");
+            process
+                .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"])
+                .arg(&expanded)
+                .current_dir(target_dir);
+            process
+                .spawn()
+                .map_err(|error| InstallError::Launch(error.to_string()))?;
+
+            Ok(PathBuf::from("powershell"))
+        }
+        Os::Linux | Os::Macos => {
+            if needs_shell(&expanded) {
+                let mut process = std::process::Command::new("sh");
+                process.arg("-c").arg(&expanded).current_dir(target_dir);
+                process
+                    .spawn()
+                    .map_err(|error| InstallError::Launch(error.to_string()))?;
+
+                // For a Wine/Proton run the real process is the launcher
+                // binary, not speed.exe; returning it keeps the heartbeat's
+                // "playing" state alive until the game exits.
+                if let Some(program) = shell_program(&expanded) {
+                    let program_lower = program.to_ascii_lowercase();
+
+                    if matches!(program_lower.as_str(), "wine" | "wine64" | "proton") {
+                        if let Some(path) = which(&program) {
+                            return Ok(path);
+                        }
+                    }
+                }
+
+                if let Some(path) = exe
+                    .as_deref()
+                    .and_then(|token| resolve_command_path(target_dir, token))
+                {
+                    return Ok(path);
+                }
+
+                if let Some(program) = shell_program(&expanded) {
+                    if let Some(path) = which(&program) {
+                        return Ok(path);
+                    }
+
+                    return Ok(PathBuf::from(program));
+                }
+
+                return Ok(target_dir.to_path_buf());
+            }
+
+            let token =
+                first_command_word(&expanded).unwrap_or_else(|| expanded.trim().to_string());
+            let path = resolve_command_path(target_dir, &token)
+                .ok_or_else(|| InstallError::Verification(format!("Startziel fehlt: {token}")))?;
+
+            spawn_from(&path, target_dir)?;
+
+            Ok(path)
+        }
+    }
+}
+
+/// Start an executable with the game folder as working directory. NFSU2 reads
+/// its data relative to `SPEED.EXE`, so the install root (not the binary's
+/// parent in a nested tree) is the safe cwd for a generic plan.
+fn spawn_from(exe: &Path, working_dir: &Path) -> Result<(), InstallError> {
+    std::process::Command::new(exe)
+        .current_dir(working_dir)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| InstallError::Launch(error.to_string()))
+}
+
+fn needs_shell(command: &str) -> bool {
+    let first = first_command_word(command)
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    first == "wine"
+        || first == "wine64"
+        || first == "proton"
+        || command.contains('=')
+        || command
+            .chars()
+            .any(|c| matches!(c, '|' | '&' | ';' | '<' | '>' | '$' | '`' | '\n' | '\r'))
+}
+
+fn first_command_word(command: &str) -> Option<String> {
+    let trimmed = command.trim();
+    let first = trimmed.chars().next()?;
+
+    if first == '"' || first == '\'' {
+        let rest = &trimmed[first.len_utf8()..];
+        let end = rest.find(first)?;
+
+        return Some(rest[..end].to_string());
+    }
+
+    trimmed
+        .split_whitespace()
+        .next()
+        .map(|word| word.trim_matches(['"', '\'']).to_string())
+}
+
+/// The executable after any leading `KEY=value` environment assignments.
+fn shell_program(command: &str) -> Option<String> {
+    command
+        .split_whitespace()
+        .map(|word| word.trim_matches(['"', '\'']))
+        .find(|word| !word.contains('=') && !word.starts_with('-'))
+        .map(str::to_string)
+}
+
+/// The first token of a launch command that names an `.exe`. Both
+/// `C:\Games\NFSU2\speed.exe` and `-FilePath "…\speed.exe"` work.
+fn find_exe_path(command: &str) -> Option<String> {
+    command
+        .split_whitespace()
+        .map(|token| token.trim_matches(['"', '\'']))
+        .find(|token| token.to_ascii_lowercase().ends_with(".exe"))
+        .map(str::to_string)
+}
+
+fn resolve_command_path(target: &Path, token: &str) -> Option<PathBuf> {
+    let path = Path::new(token);
+
+    if path.is_absolute() {
+        return resolve_case_insensitive(path);
+    }
+
+    resolve_case_insensitive(&target.join(path))
+}
+
+fn which(program: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+
+    for directory in std::env::split_paths(&path) {
+        for name in [program.to_string(), format!("{program}.exe")] {
+            let candidate = directory.join(name);
+
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
+}
+
+/// Verify a generic plan from its `steps[].verify` entries. Optional steps do
+/// not block the install; `file_exists` and `dir_exists` are the checks the
+/// native path can prove without running the game.
+pub fn verify_plan(target: &Path, plan: &RecipePlan) -> Result<Vec<String>, InstallError> {
+    let os = plan.target_os();
+    let mut verified = Vec::new();
+
+    for step in &plan.steps {
+        if step.optional {
+            continue;
+        }
+
+        for check in &step.verify {
+            if !check.fits_os(os) {
+                continue;
+            }
+
+            let Some(raw) = check.path.as_deref() else {
+                continue;
+            };
+
+            let Some(path) = resolve_plan_path(target, raw) else {
+                return Err(InstallError::Verification(display_plan_path(raw)));
+            };
+
+            let found = match check.kind.as_str() {
+                "file_exists" => path.is_file(),
+                "dir_exists" => path.is_dir(),
+                // A `command` check is for the agent; the launcher proves the
+                // file layout without executing game code here.
+                _ => true,
+            };
+
+            if !found {
+                return Err(InstallError::Verification(display_plan_path(raw)));
+            }
+
+            let label = display_plan_path(raw);
+
+            if !verified.contains(&label) {
+                verified.push(label);
+            }
+        }
+    }
+
+    Ok(verified)
+}
+
+/// Copy or unpack matched extra files (ASI plugin, loader, config) into the
+/// exact path the plan verifies. A file with no matching verify path lands in
+/// `scripts/` when it is an ASI/INI and at the game root otherwise.
+fn materialize_extra_files(
+    target: &Path,
+    plan: &RecipePlan,
+    extras: &[&PathBuf],
+) -> Result<usize, InstallError> {
+    if extras.is_empty() {
+        return Ok(0);
+    }
+
+    let expected = plan_expected_paths(target, plan);
+    let mut written = 0;
+
+    for extra in extras {
+        if !extra.is_file() {
+            continue;
+        }
+
+        if detect_zip(extra) {
+            written += extract_zip(extra, target)?;
+            continue;
+        }
+
+        if detect_tar_bz2(extra) {
+            written += extract_tar_bz2(extra, target)?;
+            continue;
+        }
+
+        let Some(name) = extra.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        let lower = name.to_ascii_lowercase();
+        let destination = expected
+            .iter()
+            .find(|(expected_name, path)| {
+                expected_name.eq_ignore_ascii_case(&lower)
+                    && !path.exists()
+                    && path.starts_with(target)
+            })
+            .map(|(_, path)| path.clone())
+            .unwrap_or_else(|| {
+                if lower.ends_with(".asi") || lower.ends_with(".ini") {
+                    target.join("scripts").join(name)
+                } else {
+                    target.join(name)
+                }
+            });
+
+        if let Some(parent) = destination.parent() {
+            std::fs::create_dir_all(parent).map_err(|source| InstallError::Io {
+                path: parent.to_path_buf(),
+                source,
+            })?;
+        }
+
+        std::fs::copy(extra, &destination).map_err(|source| InstallError::Io {
+            path: destination.clone(),
+            source,
+        })?;
+        written += 1;
+    }
+
+    Ok(written)
+}
+
+/// The basename -> target path pairs the plan expects, used to place an extra
+/// file where `verify` looks for it (`scripts/net_u2.asi`, `dinput8.dll`).
+fn plan_expected_paths(target: &Path, plan: &RecipePlan) -> Vec<(String, PathBuf)> {
+    let mut expected = Vec::new();
+
+    for step in &plan.steps {
+        if step.optional {
+            continue;
+        }
+
+        for check in &step.verify {
+            if !check.fits_os(plan.target_os())
+                || !matches!(check.kind.as_str(), "file_exists" | "dir_exists")
+            {
+                continue;
+            }
+
+            let Some(raw) = check.path.as_deref() else {
+                continue;
+            };
+            let Some(relative) = relative_plan_path(raw) else {
+                continue;
+            };
+            let Some(name) = relative.rsplit('/').next() else {
+                continue;
+            };
+            let path = resolve_under(target, &relative).unwrap_or_else(|| target.join(&relative));
+
+            expected.push((name.to_ascii_lowercase(), path));
+        }
+    }
+
+    expected
+}
+
+/// Hoist one wrapper folder (`Need for Speed - Underground 2/…`) when every
+/// plan verify path is missing at the root but present one level down.
+fn hoist_game_wrapper(target: &Path, plan: &RecipePlan) -> Result<(), InstallError> {
+    let checks = plan_relative_checks(plan);
+
+    if checks.is_empty() {
+        return Ok(());
+    }
+
+    let missing = checks
+        .iter()
+        .filter(|relative| resolve_under(target, relative).is_none())
+        .collect::<Vec<_>>();
+
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    let candidates = std::fs::read_dir(target)
+        .map_err(|source| InstallError::Io {
+            path: target.to_path_buf(),
+            source,
+        })?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+
+    for wrapper in candidates {
+        let has_game = missing
+            .iter()
+            .any(|relative| resolve_under(&wrapper, relative).is_some());
+
+        if !has_game {
+            continue;
+        }
+
+        merge_move(&wrapper, target)?;
+        let _ = std::fs::remove_dir(&wrapper);
+        return Ok(());
+    }
+
+    Ok(())
+}
+
+fn merge_move(source: &Path, target: &Path) -> Result<(), InstallError> {
+    let entries = std::fs::read_dir(source).map_err(|error| InstallError::Io {
+        path: source.to_path_buf(),
+        source: error,
+    })?;
+
+    for entry in entries.flatten() {
+        let from = entry.path();
+        let to = target.join(entry.file_name());
+        let from_is_dir = std::fs::symlink_metadata(&from)
+            .map(|metadata| metadata.is_dir())
+            .unwrap_or(false);
+
+        if to.exists() {
+            if from_is_dir && to.is_dir() {
+                merge_move(&from, &to)?;
+            } else if to.is_file() {
+                std::fs::remove_file(&to).map_err(|error| InstallError::Io {
+                    path: to.clone(),
+                    source: error,
+                })?;
+                std::fs::rename(&from, &to).map_err(|error| InstallError::Io {
+                    path: to.clone(),
+                    source: error,
+                })?;
+            }
+
+            continue;
+        }
+
+        std::fs::rename(&from, &to).map_err(|error| InstallError::Io {
+            path: to.clone(),
+            source: error,
+        })?;
+    }
+
+    Ok(())
+}
+
+fn plan_relative_checks(plan: &RecipePlan) -> Vec<String> {
+    let os = plan.target_os();
+    let mut relative = Vec::new();
+
+    for step in &plan.steps {
+        if step.optional {
+            continue;
+        }
+
+        for check in &step.verify {
+            if !check.fits_os(os) || !matches!(check.kind.as_str(), "file_exists" | "dir_exists") {
+                continue;
+            }
+
+            if let Some(path) = check.path.as_deref().and_then(relative_plan_path) {
+                relative.push(path);
+            }
+        }
+    }
+
+    relative
+}
+
+fn relative_plan_path(raw: &str) -> Option<String> {
+    let normalized = raw.replace('\\', "/").replace("{{target}}", "");
+    let relative = normalized.trim_start_matches('/');
+
+    if relative.is_empty()
+        || relative.starts_with("~/")
+        || relative.split('/').any(|part| part == "..")
+    {
+        return None;
+    }
+
+    Some(relative.to_string())
+}
+
+fn display_plan_path(raw: &str) -> String {
+    relative_plan_path(raw).unwrap_or_else(|| raw.to_string())
+}
+
+fn resolve_plan_path(target: &Path, raw: &str) -> Option<PathBuf> {
+    let normalized = raw.replace('\\', "/");
+
+    if normalized.starts_with("~/") {
+        return resolve_case_insensitive(&expand_home(&normalized));
+    }
+
+    let without_target = normalized.replace("{{target}}", "");
+
+    if without_target.starts_with('/') && normalized == without_target {
+        return resolve_case_insensitive(Path::new(&without_target));
+    }
+
+    let relative = without_target.trim_start_matches('/');
+
+    if relative.is_empty() || relative.split('/').any(|part| part == "..") {
+        return None;
+    }
+
+    resolve_under(target, relative)
+}
+
+fn resolve_under(base: &Path, relative: &str) -> Option<PathBuf> {
+    resolve_case_insensitive(&base.join(relative))
+}
+
+/// Resolve each path component case-insensitively. Windows installs are
+/// checked from Linux CI, and the NFSU2 archive stores `SPEED.EXE` while the
+/// recipe names `speed.exe`.
+fn resolve_case_insensitive(path: &Path) -> Option<PathBuf> {
+    let mut current = PathBuf::new();
+
+    for component in path.components() {
+        match component {
+            Component::Prefix(_) | Component::RootDir | Component::CurDir => {
+                current.push(component.as_os_str());
+            }
+            Component::ParentDir => return None,
+            Component::Normal(name) => {
+                let candidate = current.join(name);
+
+                if candidate.exists() {
+                    current = candidate;
+                    continue;
+                }
+
+                let directory = if current.as_os_str().is_empty() {
+                    Path::new(".")
+                } else {
+                    current.as_path()
+                };
+                let found = std::fs::read_dir(directory).ok()?.flatten().find(|entry| {
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .eq_ignore_ascii_case(&name.to_string_lossy())
+                })?;
+                current = found.path();
+            }
+        }
+    }
+
+    current.exists().then_some(current)
+}
+
+fn mark_plan_executable(target: &Path, plan: &RecipePlan) -> Result<(), InstallError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        if let Some(command) = launch_command_for(plan, plan.target_os()) {
+            let expanded = command.replace("{{target}}", &target.to_string_lossy());
+
+            if let Some(path) =
+                find_exe_path(&expanded).and_then(|token| resolve_command_path(target, &token))
+            {
+                if path.is_file() {
+                    let mut permissions = std::fs::metadata(&path)
+                        .map_err(|source| InstallError::Io {
+                            path: path.clone(),
+                            source,
+                        })?
+                        .permissions();
+                    permissions.set_mode(permissions.mode() | 0o111);
+                    let _ = std::fs::set_permissions(&path, permissions);
+                }
+            }
+        }
+    }
+
+    let _ = (target, plan);
+
+    Ok(())
 }
 
 fn is_base_requirement(requirement: &str) -> bool {

@@ -436,12 +436,19 @@ services:
 
   # Discord Gateway sidecar (spec 2026-07-21): the single persistent Gateway
   # connection (presence + inbound events), bridged to `app` over the compose
-  # network. Pure transport; all logic is in the Laravel app. profiles:[prod]
+  # network. Domain events still go to Laravel; the opt-in guest assistant
+  # (/ask, @mentions, DMs — docs/ops/discord-agent.md) runs here because it needs
+  # the discord.js reply path and a short-lived `pi` process. profiles:[prod]
   # so exactly one session per bot token exists.
   discord-gateway:
     build: ./docker/discord-gateway
     profiles: [prod]
     env_file: .env
+    environment:
+      # Base URL for the MCP endpoint (`${LANOMAT_URL}/mcp`) and for the
+      # lanomat://install + /games links in answers. Token, model and the
+      # DISCORD_AGENT_* switches come from .env / the host environment.
+      LANOMAT_URL: ${LANOMAT_URL:-https://lan.raute1.org}
     restart: unless-stopped
 
   # Music Assistant (M11, Jukebox/LAN-Radio). Official image; like

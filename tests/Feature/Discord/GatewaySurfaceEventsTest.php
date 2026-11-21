@@ -33,3 +33,32 @@ it('dispatches typed events for surfaced gateway events', function () {
     Event::assertDispatched(DiscordMessageCreated::class, fn ($e) => $e->messageId === 'm');
     Event::assertDispatched(DiscordMessageReactionChanged::class, fn ($e) => $e->added === true && $e->emoji === '✅');
 });
+
+it('forwards the enriched body only for messages addressed to the assistant', function () {
+    Event::fake([DiscordMessageCreated::class]);
+
+    postEvent('message_create', [
+        'channel_id' => 'c',
+        'author_id' => '900',
+        'message_id' => 'm2',
+        'content' => '<@42> Installiere UT2004',
+        'author' => ['id' => '900', 'username' => 'rene', 'global_name' => 'Rene', 'bot' => false],
+        'channel' => ['id' => 'c', 'name' => 'hilfe', 'type' => 0],
+        'guild' => ['id' => 'g', 'name' => 'Raute1'],
+        'mentions' => [['id' => '42', 'username' => 'LANoMAT']],
+        'isDM' => false,
+    ])->assertNoContent();
+
+    Event::assertDispatched(DiscordMessageCreated::class, fn (DiscordMessageCreated $event) => $event->messageId === 'm2'
+        && $event->content === '<@42> Installiere UT2004'
+        && $event->isDM === false
+        && $event->mentions === [['id' => '42', 'username' => 'LANoMAT']]
+        && $event->context['channel']['name'] === 'hilfe'
+        && $event->context['guild']['name'] === 'Raute1');
+
+    postEvent('message_create', ['channel_id' => 'c', 'author_id' => '900', 'message_id' => 'm3'])->assertNoContent();
+
+    Event::assertDispatched(DiscordMessageCreated::class, fn (DiscordMessageCreated $event) => $event->messageId === 'm3'
+        && $event->content === null
+        && $event->context === []);
+});

@@ -70,6 +70,8 @@ type Game = {
     }[];
     avatars: number;
     play_url: string | null;
+    /** "Ein Server · Nickname · Join/Leave" for a browser recipe. */
+    server_note: string | null;
     launch_target: string | null;
     supports_multiplayer: boolean;
     lan_ready: boolean;
@@ -192,6 +194,13 @@ function announceRound(): void {
                         <p class="mt-2 max-w-2xl text-sm text-muted-foreground">
                             {{ game.summary }}
                         </p>
+                        <p
+                            v-if="game.server_note"
+                            class="mt-1 font-mono text-xs text-muted-foreground"
+                            data-test="game-server-note"
+                        >
+                            {{ game.server_note }}
+                        </p>
                         <div class="mt-3 flex flex-wrap items-center gap-2">
                             <Badge
                                 v-if="game.lan_ready"
@@ -298,7 +307,7 @@ function announceRound(): void {
                                     class="size-4"
                                     aria-hidden="true"
                                 />
-                                Im Browser starten
+                                Spielen
                             </a>
                         </Button>
                         <Button

@@ -19,6 +19,15 @@ use Illuminate\Support\Facades\File;
 
 uses(RefreshDatabase::class);
 
+// These fixtures cover the whole historical catalogue, not the curated first
+// lineup; the lineup filter has its own LauncherLineupTest.
+beforeEach(function () {
+    Config::set('launcher.lineup', '');
+    // A build on the developer machine (clients-dist) must not decide whether
+    // this file's "no build published" assertions pass.
+    Config::set('launcher.dist_path', base_path('clients-dist/__missing-for-tests__'));
+});
+
 afterEach(function () {
     // LauncherPageTest may have pointed the dist dir at a temp folder; reset it
     // so this file never sees a deleted build directory.

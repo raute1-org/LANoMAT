@@ -407,6 +407,7 @@ mod tests {
                 target_dir: "/games/ut2004".into(),
                 version: Some("3374".into()),
                 verified: Vec::new(),
+                launch_command: None,
             },
         )
         .unwrap();

@@ -9,6 +9,7 @@ end-to-end; `draft` means authored but not yet checked on the LAN hardware.
 | Slug                     | Title                  | Platforms      | Status    | One line                                                                                          |
 | ------------------------ | ---------------------- | -------------- | --------- | ------------------------------------------------------------------------------------------------- |
 | `unreal-tournament-2004` | Unreal Tournament 2004 | windows, linux | published | UT2004 DVD install + OldUnreal 3374 64-bit patch, optional UT2004VR and VRM avatars.              |
+| `need-for-speed-underground-2` | Need for Speed: Underground 2 | windows, linux | published | Portable 1.2 tree + NFS-Online ASI client (net_u2.asi, net_u2.ini, dinput8.dll); Wine on Linux. |
 | `ridge-racer-type-4`     | Ridge Racer Type 4     | windows, linux | published | Self-hosted browser cabinet (EmulatorJS) with 2P netplay, optional native recomp (Windows/Linux). |
 
 ## Draft
@@ -26,6 +27,7 @@ end-to-end; `draft` means authored but not yet checked on the LAN hardware.
 | `god-of-war-iii`                    | God of War III                          | windows, linux        | draft  | PS3 God of War III (BCUS98111/BCES00510) in RPCS3; the PS4 Remastered build is a different, unsupported title.   |
 | `hookshot`                          | Hookshot                                | windows, linux        | draft  | Native Ocarina of Time (Switch 2) recompilation from the exact supported dump.                                   |
 | `mm3d-pc`                           | Majora's Mask 3D PC                     | windows, linux        | draft  | Native MM3D port (TriAevum) built from the user's decrypted USA v1.1 ROM.                                        |
+| `need-for-speed-underground-2-browser` | Need for Speed: Underground 2 (Browser) | windows, linux, macos | published | Zero-install Underground 2 Revived at nfsu2.xyz, WebGPU in Chrome/Brave, one public server, browser saves.      |
 | `pokemon-snap`                      | Pokémon Snap                            | windows, linux, macos | draft  | N64 Pokémon Snap through the native Snap64Recomp port, USA ROM.                                                  |
 | `shadow-of-the-colossus`            | Shadow of the Colossus                  | windows, linux        | draft  | PS2 original in PCSX2; the LAN collection's PS4 remaster is a different build.                                   |
 | `super-mario-galaxy`                | Super Mario Galaxy                      | windows, linux        | draft  | Wii platformer in Dolphin with emulated Wii Remote, Nunchuk and pointer.                                         |

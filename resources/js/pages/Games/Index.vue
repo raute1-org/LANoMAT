@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Download, Filter, Search, Server, Trophy, Users } from '@lucide/vue';
+import {
+    Download,
+    Filter,
+    MonitorPlay,
+    Search,
+    Server,
+    Trophy,
+    Users,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
 import PageContainer from '@/components/PageContainer.vue';
@@ -45,6 +53,8 @@ type GameCard = {
     running_tournaments_count: number;
     open_lfg: number;
     play_url: string | null;
+    /** "Ein Server · Nickname · Join/Leave" for a browser recipe. */
+    server_note: string | null;
     supports_multiplayer: boolean;
     launcher_available: boolean;
     launcher_url: string | null;
@@ -359,7 +369,25 @@ function absoluteTime(iso: string): string {
                                                     : 'outline'
                                             "
                                         >
-                                            <Link :href="installHref(game)">
+                                            <a
+                                                v-if="
+                                                    !game.installable &&
+                                                    game.play_url
+                                                "
+                                                :href="game.play_url"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <MonitorPlay
+                                                    class="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Spielen
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="installHref(game)"
+                                            >
                                                 <Download
                                                     v-if="game.installable"
                                                     class="size-4"
@@ -373,7 +401,10 @@ function absoluteTime(iso: string): string {
                                             </Link>
                                         </Button>
                                         <Button
-                                            v-if="game.play_url"
+                                            v-if="
+                                                game.installable &&
+                                                game.play_url
+                                            "
                                             as-child
                                             size="sm"
                                             variant="outline"
@@ -383,7 +414,7 @@ function absoluteTime(iso: string): string {
                                                 target="_blank"
                                                 rel="noreferrer"
                                             >
-                                                Starten
+                                                Spielen
                                             </a>
                                         </Button>
                                     </div>
@@ -480,6 +511,14 @@ function absoluteTime(iso: string): string {
                                 {{ game.summary }}
                             </p>
 
+                            <p
+                                v-if="game.server_note"
+                                class="font-mono text-[11px] text-muted-foreground"
+                                data-test="game-server-note"
+                            >
+                                {{ game.server_note }}
+                            </p>
+
                             <div class="flex flex-wrap gap-2 text-xs">
                                 <Badge
                                     v-if="game.running_tournaments_count > 0"
@@ -523,7 +562,21 @@ function absoluteTime(iso: string): string {
                                         game.installable ? 'default' : 'outline'
                                     "
                                 >
-                                    <Link :href="installHref(game)">
+                                    <a
+                                        v-if="
+                                            !game.installable && game.play_url
+                                        "
+                                        :href="game.play_url"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <MonitorPlay
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Spielen
+                                    </a>
+                                    <Link v-else :href="installHref(game)">
                                         <Download
                                             v-if="game.installable"
                                             class="size-4"
@@ -537,7 +590,7 @@ function absoluteTime(iso: string): string {
                                     </Link>
                                 </Button>
                                 <Button
-                                    v-if="game.play_url"
+                                    v-if="game.installable && game.play_url"
                                     as-child
                                     size="sm"
                                     variant="outline"
@@ -547,7 +600,7 @@ function absoluteTime(iso: string): string {
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        Starten
+                                        Spielen
                                     </a>
                                 </Button>
                             </div>

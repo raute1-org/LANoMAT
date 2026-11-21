@@ -52,6 +52,9 @@ return [
         'application_id' => env('DISCORD_APPLICATION_ID'),
         'gateway_bridge_secret' => env('DISCORD_GATEWAY_BRIDGE_SECRET'),
         'gateway_health_url' => env('DISCORD_GATEWAY_HEALTH_URL'),
+        // Guest assistant runs in the gateway sidecar (/ask, mentions, DMs);
+        // this flag only controls whether /help advertises the command.
+        'agent_enabled' => (bool) env('DISCORD_AGENT_ENABLED', false),
     ],
 
     // Linked-account providers (M9, Identity+): Steam (OpenID, no client

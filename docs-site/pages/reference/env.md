@@ -184,6 +184,7 @@ under "Verbundene Geräte" until they are disconnected.
 | `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
 | `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |
 | `LAUNCHER_DIST_PATH` | `clients-dist/launcher` | Where the published launcher builds and `manifest.json` live; read by `/launcher` and the Preflight `launcher_build` check |
+| `LAUNCHER_LINEUP` | `unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser` | Comma-separated recipe allowlist for the launcher library, `/games`, home chat cards and MCP `recipes_list`; empty = show every visible recipe |
 
 ## Agent and model variables (client side)
 

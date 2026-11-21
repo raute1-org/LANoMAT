@@ -20,7 +20,8 @@ use launcher_core::api::{ApiClient, ApiError};
 use launcher_core::auth::{device_name, DeviceLogin, LoginError, LoginPoll};
 use launcher_core::download::{origin_of, CancelToken};
 use launcher_core::install::{
-    required_file_groups, InstallEngine, InstallOptions, InstallPhase, InstallProgress,
+    launch_command_for, required_file_groups, InstallEngine, InstallOptions, InstallPhase,
+    InstallProgress,
 };
 use launcher_core::state::{self, LauncherConfig};
 use launcher_core::types::{MeUser, Os, RecipePlan, RecipeSummary, ServerInfo, ServerList};
@@ -449,20 +450,23 @@ async fn logout(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
-/// The one recipe this build's install engine can drive end to end. The engine
-/// still verifies the UT2004 `System/` tree and patches it with the OldUnreal
-/// build; every other recipe is listed, but its card says "Bald im Launcher"
-/// and links to the game's web page instead of a dead Install button.
-///
-/// The engine becomes generic later (per-recipe verify steps from the plan);
-/// this constant is then replaced by a capability check on the plan itself.
+/// The one recipe this build's install engine has a dedicated path for. The
+/// engine is generic now (per-recipe verify steps from the plan, launch target
+/// from the plan); UT2004 keeps its own `System/` verifier and OldUnreal patch
+/// path, and every other recipe runs through the plan-driven fallback.
 pub const LAUNCHER_ENGINE_SLUG: &str = "unreal-tournament-2004";
 
-/// Whether this launcher build can install a recipe. Server flags are a hint,
-/// not the truth: an older server sends none, a newer one may advertise more
-/// than this binary can verify.
+/// Whether this launcher build can drive a recipe: install it (dedicated
+/// engine or the server's generic flag) or open its browser `play_url`. UT2004
+/// stays supported because this build has the dedicated path; an older server
+/// sends no capability flag, so the slug is the back-compat fallback.
 pub fn launcher_supports(recipe: &RecipeSummary) -> bool {
     recipe.slug == LAUNCHER_ENGINE_SLUG
+        || recipe.launcher_supported
+        || recipe
+            .play_url
+            .as_deref()
+            .is_some_and(|url| !url.trim().is_empty())
 }
 
 /// What `list_games` hands the UI: the whole shared server catalogue, each
@@ -605,6 +609,14 @@ async fn run_install(
             .await
             .map_err(|error| Failure::from_api(error, secret.as_deref()))?;
         let version = plan.recipe.version.clone();
+        // Keep the OS-specific start command in the local ledger so a launch
+        // after install works without another server round-trip. UT2004 keeps
+        // its dedicated `System/` launcher (`None` here).
+        let launch_command = if slug == LAUNCHER_ENGINE_SLUG {
+            None
+        } else {
+            launch_command_for(&plan, Os::current())
+        };
 
         let outcome = InstallEngine::install(InstallOptions {
             plan,
@@ -624,6 +636,7 @@ async fn run_install(
             target_dir: outcome.target_dir,
             version,
             verified: outcome.verified,
+            launch_command,
         };
 
         installs::save(dir, &record).map_err(|error| {
@@ -677,23 +690,42 @@ async fn verify_install(state: State<'_, AppState>, slug: String) -> Result<Inst
     let record = installs::find(&state.dir, &slug)
         .ok_or_else(|| "Das Spiel ist noch nicht installiert.".to_string())?;
 
-    Ok(check_install(Path::new(&record.target_dir)))
+    Ok(check_install(Path::new(&record.target_dir), &record))
 }
 
 /// The pure part of `verify_install`, testable without an `AppState`.
-fn check_install(target: &Path) -> InstallCheck {
+///
+/// The UT2004 pilot keeps its `System/` groups. A generic recipe is checked
+/// against the verified paths its own install recorded (the plan's
+/// `file_exists` checks), so NFSU2 does not have to look like UT2004.
+fn check_install(target: &Path, record: &InstallRecord) -> InstallCheck {
     let exists = target.is_dir();
-    let ok = launcher_core::install::verify_install(target).is_ok();
-    let missing = if ok {
-        Vec::new()
-    } else {
-        // A group is missing only when none of its alternatives exists — the
-        // Linux build accepts `System/ut2004-bin-amd64` or `System/UT2004`.
-        required_file_groups(Os::current())
+    let generic = record.slug != LAUNCHER_ENGINE_SLUG;
+
+    let (ok, missing) = if generic && !record.verified.is_empty() {
+        let missing = record
+            .verified
             .iter()
-            .filter(|group| !group.iter().any(|file| target.join(file).is_file()))
-            .map(|group| group.join(" or "))
-            .collect()
+            .filter(|file| !recorded_path_exists(target, file))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        (missing.is_empty(), missing)
+    } else {
+        let ok = launcher_core::install::verify_install(target).is_ok();
+        let missing = if ok {
+            Vec::new()
+        } else {
+            // A group is missing only when none of its alternatives exists — the
+            // Linux build accepts `System/ut2004-bin-amd64` or `System/UT2004`.
+            required_file_groups(Os::current())
+                .iter()
+                .filter(|group| !group.iter().any(|file| target.join(file).is_file()))
+                .map(|group| group.join(" or "))
+                .collect()
+        };
+
+        (ok, missing)
     };
 
     InstallCheck {
@@ -701,6 +733,41 @@ fn check_install(target: &Path) -> InstallCheck {
         exists,
         missing,
     }
+}
+
+/// A recorded verify path may keep the recipe's spelling (`speed.exe`) while
+/// the Windows archive stores `SPEED.EXE`; on Linux the case still differs.
+/// Walk the path case-insensitively, exactly like the install verifier.
+fn recorded_path_exists(target: &Path, relative: &str) -> bool {
+    let mut current = target.to_path_buf();
+
+    for part in relative.replace('\\', "/").split('/') {
+        if part.is_empty() || part == "." {
+            continue;
+        }
+
+        let exact = current.join(part);
+
+        if exact.exists() {
+            current = exact;
+            continue;
+        }
+
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            return false;
+        };
+        let Some(found) = entries.flatten().find(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .eq_ignore_ascii_case(part)
+        }) else {
+            return false;
+        };
+        current = found.path();
+    }
+
+    current.exists()
 }
 
 #[tauri::command]
@@ -719,7 +786,11 @@ async fn launch(state: State<'_, AppState>, slug: String) -> Result<String, Stri
         );
     }
 
-    let exe = InstallEngine::launch(&target).map_err(|error| match error {
+    let exe = match record.launch_command.as_deref() {
+        Some(command) => InstallEngine::launch_stored(&target, command),
+        None => InstallEngine::launch(&target),
+    }
+    .map_err(|error| match error {
         launcher_core::install::InstallError::Verification(file) => {
             format!("launch failed: {file}")
         }
@@ -1210,8 +1281,15 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("ut2004");
         let groups = required_file_groups(Os::current());
+        let record = InstallRecord {
+            slug: LAUNCHER_ENGINE_SLUG.into(),
+            target_dir: target.to_string_lossy().to_string(),
+            version: None,
+            verified: Vec::new(),
+            launch_command: None,
+        };
 
-        let absent = check_install(&target);
+        let absent = check_install(&target, &record);
 
         assert!(!absent.ok);
         assert!(!absent.exists);
@@ -1230,7 +1308,7 @@ mod tests {
             created.push(*file);
         }
 
-        let complete = check_install(&target);
+        let complete = check_install(&target, &record);
 
         assert!(complete.ok);
         assert!(complete.exists);
@@ -1238,11 +1316,41 @@ mod tests {
 
         std::fs::remove_file(target.join(created[0])).unwrap();
 
-        let incomplete = check_install(&target);
+        let incomplete = check_install(&target, &record);
 
         assert!(!incomplete.ok);
         assert!(incomplete.exists);
         assert_eq!(incomplete.missing, vec![groups[0].join(" or ")]);
+    }
+
+    #[test]
+    fn a_generic_install_checks_its_recorded_plan_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("nfsu2");
+        std::fs::create_dir_all(target.join("scripts")).unwrap();
+        std::fs::write(target.join("SPEED.EXE"), b"x").unwrap();
+        std::fs::write(target.join("scripts/net_u2.asi"), b"x").unwrap();
+
+        let record = InstallRecord {
+            slug: "need-for-speed-underground-2".into(),
+            target_dir: target.to_string_lossy().to_string(),
+            version: Some("1.2 + NFS Online".into()),
+            verified: vec![
+                "speed.exe".into(),
+                "scripts/net_u2.asi".into(),
+                "dinput8.dll".into(),
+            ],
+            launch_command: Some(
+                "WINEDLLOVERRIDES=\"dinput8=n,b\" wine \"{{target}}/speed.exe\"".into(),
+            ),
+        };
+
+        let incomplete = check_install(&target, &record);
+        assert!(!incomplete.ok);
+        assert_eq!(incomplete.missing, vec!["dinput8.dll".to_string()]);
+
+        std::fs::write(target.join("dinput8.dll"), b"x").unwrap();
+        assert!(check_install(&target, &record).ok);
     }
 
     #[test]
@@ -1431,6 +1539,7 @@ mod tests {
             platforms: Vec::new(),
             installable: Some(true),
             launcher_supported: false,
+            play_url: None,
         }
     }
 
@@ -1452,15 +1561,28 @@ mod tests {
     }
 
     #[test]
-    fn a_server_flag_never_promises_more_than_this_build_can_install() {
-        let mut advertised = summary("openra", "OpenRA");
+    fn the_server_flag_enables_the_generic_engine_for_a_new_recipe() {
+        let mut advertised = summary("need-for-speed-underground-2", "NFSU2");
         advertised.launcher_supported = true;
 
         let games = prepare_games(vec![advertised]);
 
         // `installable` is the server's answer and is passed through; the
-        // launcher flag is this build's own verdict.
+        // generic engine accepts a recipe the updated server marks supported.
         assert_eq!(games[0].installable, Some(true));
-        assert!(!games[0].launcher_supported);
+        assert!(games[0].launcher_supported);
+    }
+
+    #[test]
+    fn a_browser_recipe_is_supported_by_its_play_url() {
+        let mut browser = summary("need-for-speed-underground-2-browser", "NFSU2 (Browser)");
+        browser.installable = Some(false);
+        browser.play_url = Some("https://nfsu2.xyz/".into());
+
+        let games = prepare_games(vec![browser]);
+
+        assert!(games[0].launcher_supported);
+        assert_eq!(games[0].installable, Some(false));
+        assert_eq!(games[0].play_url.as_deref(), Some("https://nfsu2.xyz/"));
     }
 }

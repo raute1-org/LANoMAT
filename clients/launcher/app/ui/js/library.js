@@ -370,6 +370,38 @@ function canInstall(recipe) {
     return Boolean(recipe.launcher_supported) && recipe.installable !== false;
 }
 
+/**
+ * A browser recipe (NFSU2) has no install path: the server sends
+ * `installable: false` plus a `play_url`. Its card offers "Spielen" and opens
+ * that URL through the shell's `open_url`; no plan, download or verify runs.
+ */
+function isBrowserRecipe(recipe) {
+    return Boolean(
+        recipe &&
+            recipe.installable === false &&
+            typeof recipe.play_url === 'string' &&
+            /^https?:\/\//i.test(recipe.play_url.trim()),
+    );
+}
+
+async function openPlayUrl(event) {
+    if (event) {
+        event.preventDefault();
+    }
+
+    const url = event?.currentTarget?.dataset?.playUrl;
+
+    if (!url) {
+        return;
+    }
+
+    const result = await call('open_url', { url });
+
+    if (!result.ok) {
+        announce(S.library.playError);
+    }
+}
+
 /** The game's web page on the paired server, or null without an http(s) base. */
 export function gamePageUrl(slug) {
     const base = serverBase(state.url || state.status?.server?.url);
@@ -460,28 +492,39 @@ export function gameCard(recipe, { hero = false } = {}) {
 
     const installButton = node.querySelector('[data-action="install"]');
     const startButton = node.querySelector('[data-action="start"]');
+    const playButton = node.querySelector('[data-action="play"]');
     const reinstallButton = node.querySelector('[data-action="reinstall"]');
     const webLink = node.querySelector('[data-action="web"]');
     const installable = canInstall(recipe);
+    const browser = isBrowserRecipe(recipe);
     const repair = needsRepair(check);
 
     // An installed game always starts, whatever the catalogue says today, and
-    // keeps a quiet way back into the install flow.
-    installButton.hidden = Boolean(record) || !installable;
+    // keeps a quiet way back into the install flow. A browser recipe never
+    // installs: its one primary action is "Spielen" over `play_url`.
+    installButton.hidden = Boolean(record) || !installable || browser;
     startButton.hidden = !record;
+    playButton.hidden = !browser;
     reinstallButton.hidden = !record;
     reinstallButton.textContent = repair ? S.library.repair : S.library.reinstall;
     reinstallButton.title = repair
         ? S.library.repairHint
         : S.library.reinstallHint;
 
+    if (browser) {
+        playButton.textContent = S.library.play;
+        playButton.title = S.library.playTitle(recipe.title || recipe.slug);
+        playButton.dataset.playUrl = recipe.play_url;
+    }
+
     installButton.addEventListener('click', () => install.begin(recipe));
     startButton.addEventListener('click', () =>
         ready.show(recipe.slug, { launch: true, record }),
     );
+    playButton.addEventListener('click', openPlayUrl);
     reinstallButton.addEventListener('click', () => install.begin(recipe));
 
-    if (!record && !installable) {
+    if (!record && !installable && !browser) {
         // "Bald im Launcher": the browser page is the honest next step, and no
         // Install button promises an install this build cannot finish.
         const soon = node.querySelector('[data-field="soon"]');

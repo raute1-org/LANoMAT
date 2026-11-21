@@ -161,6 +161,11 @@ pub struct RecipeSummary {
     /// Install button that would fail.
     #[serde(default)]
     pub launcher_supported: bool,
+    /// A browser recipe's entry point (e.g. `https://nfsu2.xyz/`). It has no
+    /// install path at all; the library card says "Spielen" and opens this URL
+    /// through `open_url`. `None` for an installable recipe.
+    #[serde(default)]
+    pub play_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,6 +225,92 @@ pub struct PlanStep {
     pub optional: bool,
     #[serde(default)]
     pub detail: Option<String>,
+    #[serde(default)]
+    pub commands: Vec<PlanCommand>,
+    /// The plan's own post-install checks. A generic (non-UT2004) install
+    /// verifies these `file_exists`/`dir_exists` entries instead of the
+    /// pilot's hardcoded `System/` tree.
+    #[serde(default)]
+    pub verify: Vec<PlanVerification>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanCommand {
+    #[serde(default)]
+    pub shell: String,
+    #[serde(default)]
+    pub run: String,
+}
+
+/// One `steps[].verify` entry from the server's install plan. Older plans use
+/// a bare path string (`"- verify: [System/UT2004.exe]"`), newer ones the
+/// documented `{type, path}` object; both deserialize to this shape.
+#[derive(Debug, Clone, Serialize)]
+pub struct PlanVerification {
+    /// Wire name is `type`; `kind` keeps the Rust field name usable.
+    #[serde(rename = "type", default)]
+    pub kind: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub command: Option<String>,
+    #[serde(default)]
+    pub os: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for PlanVerification {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Wire {
+            Path(String),
+            Check(PlanVerificationCheck),
+        }
+
+        #[derive(Deserialize)]
+        struct PlanVerificationCheck {
+            #[serde(rename = "type", default)]
+            kind: String,
+            #[serde(default)]
+            path: Option<String>,
+            #[serde(default)]
+            command: Option<String>,
+            #[serde(default)]
+            os: Option<String>,
+        }
+
+        Ok(match Wire::deserialize(deserializer)? {
+            Wire::Path(path) => Self {
+                kind: "file_exists".into(),
+                path: Some(path),
+                command: None,
+                os: None,
+            },
+            Wire::Check(check) => Self {
+                kind: if check.kind.is_empty() {
+                    "file_exists".into()
+                } else {
+                    check.kind
+                },
+                path: check.path,
+                command: check.command,
+                os: check.os,
+            },
+        })
+    }
+}
+
+impl PlanVerification {
+    /// Whether this check belongs to `os`; absent/`any` checks run everywhere.
+    pub fn fits_os(&self, os: Os) -> bool {
+        match self.os.as_deref() {
+            None | Some("") | Some("any") => true,
+            Some(value) => Os::from_wire(value).is_none_or(|named| named == os),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -601,5 +692,17 @@ mod tests {
 
         assert_eq!(flagged.installable, Some(true));
         assert!(flagged.launcher_supported);
+
+        let browser: RecipeSummary = serde_json::from_value(serde_json::json!({
+            "slug": "need-for-speed-underground-2-browser",
+            "title": "NFSU2 (Browser)",
+            "installable": false,
+            "launcher_supported": true,
+            "play_url": "https://nfsu2.xyz/"
+        }))
+        .unwrap();
+
+        assert_eq!(browser.play_url.as_deref(), Some("https://nfsu2.xyz/"));
+        assert_eq!(browser.installable, Some(false));
     }
 }

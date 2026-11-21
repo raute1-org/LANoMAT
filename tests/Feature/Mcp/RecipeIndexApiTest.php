@@ -10,8 +10,15 @@ use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Support\McpCodes;
 use Dotenv\Dotenv;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // This file exercises visibility/capability flags across the catalogue;
+    // the curated first lineup has its own tests.
+    Config::set('launcher.lineup', '');
+});
 
 beforeAll(function (): void {
     recipeIndexReachableDatabase();

@@ -2,6 +2,10 @@
   "name": "lanomat-discord-gateway",
   "private": true,
   "type": "module",
+  "scripts": {
+    "check": "node --check bot.mjs && node --check agent.mjs",
+    "test": "node --test agent.test.mjs"
+  },
   "dependencies": {
     "discord.js": "14.27.0"
   }

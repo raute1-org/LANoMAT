@@ -11,6 +11,7 @@ use App\Modules\Mcp\Resources\RecipeSkillResource;
 use App\Modules\Mcp\Tools\CateringMenuGetTool;
 use App\Modules\Mcp\Tools\CateringMenuImportTool;
 use App\Modules\Mcp\Tools\CateringMenuPreviewTool;
+use App\Modules\Mcp\Server\Methods\ListTools as LanomatListTools;
 use App\Modules\Mcp\Tools\CateringMenuTool;
 use App\Modules\Mcp\Tools\EventGetTool;
 use App\Modules\Mcp\Tools\EventRegisterTool;
@@ -65,6 +66,14 @@ Never invent ids or prices. Everything you need comes from the tools.
 TEXT)]
 class LanomatServer extends Server
 {
+    /**
+     * The full catalogue is 24 tools today; one page is enough for every
+     * ordinary MCP client, including one that does not follow cursors. The
+     * package maximum stays 50, so `per_page` still has room and the doctor
+     * still follows a cursor when a future profile outgrows one page.
+     */
+    public int $defaultPaginationLength = 50;
+
     /** @var array<int, class-string<Tool>> */
     protected array $tools = [
         MeTool::class,
@@ -107,4 +116,14 @@ class LanomatServer extends Server
         InstallGamePrompt::class,
         ImportMenuPrompt::class,
     ];
+
+    /**
+     * Use LANoMAT's cursor handling for `tools/list` (see the class docblock):
+     * unpadded base64url cursors work, a malformed cursor is -32602 instead of
+     * a silent replay of page 1, and the last page carries `nextCursor: null`.
+     */
+    protected function boot(): void
+    {
+        $this->addMethod('tools/list', LanomatListTools::class);
+    }
 }
