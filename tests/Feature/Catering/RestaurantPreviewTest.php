@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Filament\Livewire\RestaurantMenuTable;
+use App\Modules\Catering\Filament\Resources\Restaurants\Pages\EditRestaurant;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\Restaurant;
 use App\Modules\Catering\Support\DishImageStore;
@@ -62,4 +63,17 @@ it('shows a thumbnail column pointing at the orga preview route', function () {
     Livewire::test(RestaurantMenuTable::class, ['restaurantId' => $restaurant->id])
         ->assertSeeHtml("/orga/catering/restaurants/{$restaurant->id}/image/salami")
         ->assertSeeHtml('loading="lazy"');
+});
+
+it('shows a larger dish preview in the modal and the logo in the restaurant form', function () {
+    Filament::setCurrentPanel('admin');
+    $restaurant = previewRestaurant();
+    $this->actingAs(User::factory()->orga()->create());
+
+    Livewire::test(RestaurantMenuTable::class, ['restaurantId' => $restaurant->id])
+        ->mountTableAction('edit', 'salami')
+        ->assertSeeHtml("/orga/catering/restaurants/{$restaurant->id}/image/salami");
+
+    Livewire::test(EditRestaurant::class, ['record' => $restaurant->getKey()])
+        ->assertSeeHtml("/orga/catering/restaurants/{$restaurant->id}/logo");
 });

@@ -108,7 +108,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                     ->extraImgAttributes(fn (array $record): array => [
                         'loading' => 'lazy',
                         'alt' => $record['full_name'],
-                        'class' => 'rounded-md object-cover',
+                        'style' => 'border-radius: 0.375rem; object-fit: cover;',
                     ])
                     ->placeholder(__('catering.restaurant.menu.no_photo')),
                 TextColumn::make('ordered')
