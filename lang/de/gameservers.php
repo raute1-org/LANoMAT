@@ -423,7 +423,6 @@ return [
             'admin_map_label' => 'Karte',
             'admin_map_placeholder' => 'Karte wählen',
             'admin_workshop_label' => 'oder Workshop-ID',
-            'admin_workshop_hint' => '6 bis 12 Ziffern',
             'admin_reload_map' => 'Karte neu laden',
             'admin_change_map' => 'Karte wechseln',
             'admin_map_confirm' => 'Karte wirklich wechseln? Das laufende Spiel wird unterbrochen.',
