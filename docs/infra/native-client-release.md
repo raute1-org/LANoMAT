@@ -11,15 +11,17 @@ How the native voice client (`clients/voice`: the Tauri desktop app `lanomat-voi
 - A client release build is started by a tag **`client-v<name>`** (for example `client-v2026-11-a`, or
   `client-v` plus the server version string) or by hand. The tag only starts the workflow and names the
   draft release; it is **not** the version that the client reports.
-- **The version string is the server's.** The server offers a client only if the manifest's
-  `app_version` equals its own `config('app.version')` (and the commit matches when both know it), see
-  `ClientBuilds::matchesServer()`. That string is `git describe --tags --always --dirty`
-  (`scripts/ops/lib/version.sh`, for example `m12-463-g0a3b6ff`). The workflow computes it for the built
-  commit with the same function (without `--dirty`, a CI checkout is clean), passes it to the compiler as
-  `LANOMAT_BUILD_VERSION` (and the 12-character commit as `LANOMAT_BUILD_COMMIT`) and puts it into every
-  file name. The client's `--version`, the user agent and the about view therefore report exactly what
-  the server reports.
-- **How to get a client that matches a deployed server.** Build the commit the server was deployed
+- **Compatibility is by API version, not by server version.** The server offers a client when the manifest's
+  `api_version` equals the server's native-client API version (`NativeClientConfig::API_VERSION`, also in
+  `config('webvoice.native.api_version')`). A server update that does not change the API needs **no** client
+  rebuild: the download page shows the older build with a quiet "built for version X, compatible" note, and
+  Preflight reports `ok` with the same note. A client that is too old for the server's floor
+  (`webvoice.native.min_client_version`) is told to update by the API itself. Only an API change (raise
+  `API_VERSION`) makes an old build "does not match this server". The client still reports the version it was
+  built with (`git describe --tags --always --dirty`, see `scripts/ops/lib/version.sh`, passed as
+  `LANOMAT_BUILD_VERSION` and `LANOMAT_BUILD_COMMIT`), and the download page marks a build that was built for
+  exactly this server version and commit as the exact match.
+- **How to get an exact-match client for a deployed server (optional now).** Build the commit the server was deployed
   from. Two cases: (1) tag that commit `client-v<anything>` and push the tag; mind that this tag then
   also becomes the nearest tag for `git describe`, so a server image built from the same checkout
   AFTER tagging reports `client-v<anything>` (or `client-v<anything>-N-g<sha>` later), and the workflow

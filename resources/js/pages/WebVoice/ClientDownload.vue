@@ -23,6 +23,7 @@ type Build = {
 
 const props = defineProps<{
     state: 'none' | 'mismatch' | 'current';
+    exact: boolean;
     server: { version: string; commit: string | null };
     release: {
         version: string;
@@ -233,6 +234,20 @@ const hasWindowsApp = computed(
                         </p>
                     </div>
                 </div>
+
+                <!-- compatible: built for another server version, same API -->
+                <p
+                    v-if="state === 'current' && !exact"
+                    class="mt-8 text-sm text-muted-foreground"
+                    data-test="client-compatible"
+                >
+                    {{
+                        labels.compatible_note.replace(
+                            ':version',
+                            release?.version ?? '',
+                        )
+                    }}
+                </p>
 
                 <!-- normal -->
                 <dl

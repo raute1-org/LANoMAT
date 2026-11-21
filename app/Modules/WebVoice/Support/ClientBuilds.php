@@ -105,10 +105,24 @@ class ClientBuilds
     }
 
     /**
-     * Is the published client the one built for this server? Exactly the same version string, and,
-     * when both sides know their commit, the same commit. A `dev` server never matches a release.
+     * Can the published client talk to this server? It can when it was built for the same native-client
+     * API version ({@see NativeClientConfig::API_VERSION}); the server version and commit do not have
+     * to match, so a server update that does not change the API does not need a client rebuild. A
+     * client that is too old for the server's own floor is turned away by the API itself
+     * (`min_client_version`).
      */
     public function matchesServer(): bool
+    {
+        $manifest = $this->current();
+
+        return $manifest !== null && $manifest->apiVersion === NativeClientConfig::API_VERSION;
+    }
+
+    /**
+     * Was the published client built for exactly this server: the same version string and, when both
+     * sides know their commit, the same commit. A `dev` server never matches a release.
+     */
+    public function matchesExactly(): bool
     {
         $manifest = $this->current();
 

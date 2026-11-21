@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 uses(RefreshDatabase::class);
 
 /** @return array{string, string} directory and file name of a published linux app build */
-function publishedClient(string $version = 'v1', string $content = 'binary-bytes'): array
+function publishedClient(string $version = 'v1', string $content = 'binary-bytes', int $api = 1): array
 {
     $dir = sys_get_temp_dir().'/lanomat-dl-'.bin2hex(random_bytes(6));
     mkdir($dir);
@@ -21,7 +21,7 @@ function publishedClient(string $version = 'v1', string $content = 'binary-bytes
     file_put_contents($dir.'/manifest.json', json_encode([
         'app_version' => $version,
         'commit' => 'abc123def456',
-        'api_version' => 1,
+        'api_version' => $api,
         'built_at' => '2026-11-01T10:00:00Z',
         'files' => [['name' => $name, 'os' => 'linux', 'arch' => 'x86_64', 'kind' => 'app', 'size' => strlen($content), 'sha256' => hash('sha256', $content)]],
     ]));
@@ -80,11 +80,27 @@ it('preselects the visitor operating system from the user agent', function (stri
     ['curl/8.0', null],
 ]);
 
-it('warns when the build was made for another server version', function () {
+it('offers a build for another server version when it speaks the same API', function () {
     publishedClient(version: 'v0');
 
     $this->actingAs($this->user)->get('/talk/client')->assertInertia(
-        fn ($page) => $page->where('state', 'mismatch')->where('release.version', 'v0')->where('server.version', 'v1')->has('builds', 1),
+        fn ($page) => $page->where('state', 'current')->where('exact', false)->where('release.version', 'v0')->where('server.version', 'v1')->has('builds', 1),
+    );
+});
+
+it('marks a build for exactly this server version as exact', function () {
+    publishedClient();
+
+    $this->actingAs($this->user)->get('/talk/client')->assertInertia(
+        fn ($page) => $page->where('state', 'current')->where('exact', true),
+    );
+});
+
+it('warns when the build speaks another native-client API version', function () {
+    publishedClient(api: 2);
+
+    $this->actingAs($this->user)->get('/talk/client')->assertInertia(
+        fn ($page) => $page->where('state', 'mismatch')->where('exact', true)->where('release.apiVersion', 2)->has('builds', 1),
     );
 });
 

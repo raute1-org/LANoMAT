@@ -8,7 +8,9 @@ use App\Modules\Preflight\Support\HealthResult;
 /**
  * Is the native voice client that /talk/client offers the one built for this server? Reads
  * `manifest.json` that scripts/ops/build-client.sh wrote into the (read-only mounted) dist directory
- * and compares its `app_version` with the running app. Self-contained on purpose (config and a
+ * and compares it with the running app: the same `app_version` and commit is `ok`; so is a build for the
+ * same native-client API version (a server update that does not change the API needs no client rebuild).
+ * Self-contained on purpose (config and a
  * JSON file only, no WebVoice classes): Preflight is a core module. Never `down`: a missing or old
  * client build does not stop anybody from using the site, it only costs the Desktop-App download.
  */
@@ -46,13 +48,30 @@ class ClientBuildCheck implements HealthCheck
             return HealthResult::ok();
         }
 
+        $serverApi = $this->serverApiVersion();
+
+        if ($manifest['api'] !== null && $serverApi !== null && $manifest['api'] === $serverApi) {
+            return HealthResult::ok(__('preflight.messages.client_build_compatible', [
+                'client' => $manifest['version'],
+                'api' => $serverApi,
+            ]));
+        }
+
         return HealthResult::warn(__('preflight.messages.client_build_stale', [
             'client' => $manifest['version'],
             'server' => $version,
         ]));
     }
 
-    /** @return array{version: string, commit: string}|null */
+    /** The server's native-client API version (config, set by the WebVoice module's config file). */
+    private function serverApiVersion(): ?int
+    {
+        $value = config('webvoice.native.api_version');
+
+        return is_int($value) ? $value : null;
+    }
+
+    /** @return array{version: string, commit: string, api: int|null}|null */
     private function manifest(string $file): ?array
     {
         if (! is_file($file) || (int) @filesize($file) > 262144) {
@@ -68,6 +87,7 @@ class ClientBuildCheck implements HealthCheck
         return [
             'version' => $data['app_version'],
             'commit' => is_string($data['commit'] ?? null) ? $data['commit'] : '',
+            'api' => is_int($data['api_version'] ?? null) ? $data['api_version'] : null,
         ];
     }
 }
