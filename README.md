@@ -175,8 +175,10 @@ rule (configured list plus the `in_lineup` flag) are in
 [`docs/ops/launcher-lineup.md`](docs/ops/launcher-lineup.md).
 
 **Recipe pull requests** (off by default): a shared recipe can travel back into the git catalogue as
-a pull request on `recipes/<slug>` — recipe text only, never game files. A public-safety check refuses
-private IPs, e-mail addresses and tokens before anything leaves LANoMAT.
+a pull request on `recipes/<slug>` — recipe text only, never game files. By default the pull request is
+opened when the orga publishes, and only text the repository's own validator and a public-safety check
+accept leaves LANoMAT: private IPs, e-mail addresses and tokens are refused, participant text is cleaned
+and the body escaped, and two budgets keep one participant from flooding the repository.
 [`docs/infra/recipe-pull-requests.md`](docs/infra/recipe-pull-requests.md) has the token, the switches,
 the states, the Preflight check and the troubleshooting.
 

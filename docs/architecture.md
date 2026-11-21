@@ -377,9 +377,16 @@ Key decisions (see design doc §7 for full rationale):
 A participant shares a game on `/games/share` (`Games/Share`, `GameShareController`): they pick one of
 their own LAN archives of the current event and describe the game. `ShareGame` validates the title, the
 slug (`Str::slug`, `share` is reserved, a foreign published slug is a collision) and the pinned file
-(own or approved, never rejected, `.zip`/`.tar.bz2`), then `PortableRecipeBuilder` turns the input into a
+(downloadable for the caller — own or approved, never rejected, `.zip`/`.tar.bz2`), refuses an archive
+name the recipe could not quote or match reliably, then `PortableRecipeBuilder` turns the input into a
 `ContributeRecipe` payload (`via: web`, `metadata.portable: true`) and the module stores a **draft**
-recipe. Approval and publishing stay with the orga (`PublishRecipe`).
+recipe. `ContributeRecipe` holds one writer per slug (a Postgres advisory lock), bounds a participant's
+waiting drafts (`RECIPES_MAX_DRAFTS_PER_USER`) and keeps the pin on the file row, not in the recipe text.
+Approval and publishing stay with the orga (`PublishRecipe`).
+
+`BuildInstallPlan::targetDir()` turns the title into the player's install folder with only
+`A-Za-z0-9 ._-`, because that folder is substituted into the quoted arguments of the step and launch
+commands.
 
 **Two contracts carry the cross-module questions.** Both are bound in `AppServiceProvider::register()`
 and both have a null object, so a module can ask without importing its neighbour:
@@ -422,14 +429,21 @@ not — only the proposal job and the status sync write them (`forceFill`).
 commit (web share, `recipe_contribute`, `POST /api/v1/recipes`); `RecipePublished($recipe, $reviewerId)`
 by `PublishRecipe` on a transition into `published`. Both are listened to only while `GameRecipes` is on:
 
-- `ProposeContributedRecipe` queues the pull request when `RECIPES_PR_TRIGGER=contribute` and the recipe is
-  a contribution;
+- `ProposeContributedRecipe` queues the pull request when `RECIPES_PR_TRIGGER=contribute` (opt-in; the
+  default is `publish`) and the recipe is a contribution;
 - `ProposePublishedRecipe` queues it on every publish of a contributable recipe, in both trigger modes.
 
-The listeners decide only *whether* to queue; `ProposeRecipePullRequestJob` → `ProposeRecipe` exports
-`recipe.yaml`, `SKILL.md` and the `_catalog.md` row, runs `PublicSafeText` over the text, and puts it on
-`recipes/<slug>` with exactly one open pull request (`GitHubRecipeRepository`). Off by default; the
-runbook is [`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md).
+The listeners decide only *whether* to queue (repository configured, recipe proposable — an archived
+recipe is not — and a budget left), and they queue **after the transaction commits**
+(`DB::afterCommit`; the job is `ShouldQueueAfterCommit`). `ProposeRecipe::limitReason()` bounds the
+automatic path with `RECIPES_PR_PER_USER_HOURLY` and `RECIPES_PR_MAX_OPEN`; the orga's command and the
+panel action are not limited. Then `ProposeRecipePullRequestJob` → `ProposeRecipe` exports `recipe.yaml`,
+`SKILL.md` and the `_catalog.md` row, runs `CatalogReadiness` (would the repository's validator accept
+it?) and `PublicSafeText` (may the text be public?) over it, cleans the title (`::plain`) and escapes
+the body (`::markdown`), and puts it on `recipes/<slug>` with exactly one open pull request
+(`GitHubRecipeRepository`). A blocked or failed attempt keeps the state of a pull request that already
+exists; the hourly sync writes only when the recipe still carries the number it asked about. Off by
+default; the runbook is [`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md).
 
 `Preflight` must not import `GameRecipes` (architecture ratchet), so `RecipeRepositoryCheck` reads
 `config('recipes.pull_requests')` and calls `GET /repos/<repository>` itself, reading

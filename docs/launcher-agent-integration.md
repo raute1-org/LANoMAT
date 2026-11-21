@@ -116,6 +116,16 @@ Der MCP-Katalog (`recipes_list`) sieht dieselbe Lineup. `recipe_get` und
 `recipe_install_plan` bleiben für direkte Slugs erreichbar; der Plan eines
 Browser-Rezepts ist leer (keine Requirements).
 
+Ein Beitrag über `recipe_contribute` oder `POST /api/v1/recipes` muss einzeilig
+sein (Titel, Kurzfassung, Version, Aliase), pinnt nur Dateien, die der Aufrufer
+herunterladen darf (`SharedFilePolicy::download`: die eigene wartende Datei
+oder eine freigegebene; nie eine abgelehnte), und zählt gegen
+`RECIPES_MAX_DRAFTS_PER_USER` (Standard 20 je Teilnehmer, Orga ausgenommen).
+`metadata.launcher_supported` setzt nur die Orga. Ein Entwurf erreicht den
+öffentlichen Katalog erst, wenn die Orga ihn veröffentlicht — mit dem
+Standard `RECIPES_PR_TRIGGER=publish` entsteht der Pull Request in diesem
+Moment; `contribute` öffnet ihn schon beim Teilen.
+
 ## 5. Serverbrowser
 
 Jede Serverzeile trägt jetzt den **Install-Block** aus der Serverprojektion

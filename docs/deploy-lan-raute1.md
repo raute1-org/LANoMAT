@@ -334,9 +334,13 @@ is what turns the button into a download and adds "Im Launcher öffnen" next to 
 the repository as a pull request (`recipes/<slug>` with `recipe.yaml`, `SKILL.md` and a `_catalog.md`
 row). It needs `RECIPES_PR_ENABLED=true`, `RECIPES_PR_REPOSITORY=<owner>/<name>` and a fine-grained
 `RECIPES_PR_TOKEN` (*Contents* and *Pull requests*, read and write, on that one repository) in the
-server's `.env`, plus a running `queue` service — the proposal is queued. The token never enters the
-repository and the game files never leave the LAN file host. Step by step, including the token menu,
-triggers, states, the Preflight check **Rezept-Katalog (Pull Requests)** and troubleshooting:
+server's `.env`, plus a running `queue` service — the proposal is queued after the publishing
+transaction commits. The default `RECIPES_PR_TRIGGER=publish` sends only text the orga released;
+`contribute` opens the pull request the moment somebody shares. The automatic path is budgeted
+(`RECIPES_PR_PER_USER_HOURLY`, `RECIPES_PR_MAX_OPEN`), and nothing is sent that the repository's
+validator or the public-safety check would refuse. The token never enters the repository and the game
+files never leave the LAN file host. Step by step, including the token menu, triggers, budgets, states,
+the Preflight check **Rezept-Katalog (Pull Requests)** and troubleshooting:
 [`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md).
 
 Every terminal pairs its own device: the catalogue is shared, the installs are local, and the same

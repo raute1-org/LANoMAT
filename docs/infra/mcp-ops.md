@@ -76,12 +76,20 @@ lives in `config/recipes.php` (`pull_requests`) and is off with any of the three
 RECIPES_PR_ENABLED=true
 RECIPES_PR_REPOSITORY=<GITHUB_OWNER>/<REPOSITORY>
 RECIPES_PR_TOKEN=<fine-grained token: Contents + Pull requests, read and write>
-# optional: RECIPES_PR_TRIGGER=contribute|publish, RECIPES_PR_BASE=main, RECIPES_PR_PATH=resources/recipes,
-#           RECIPES_PR_BRANCH_PREFIX=recipes/, RECIPES_PR_ATTRIBUTION=false, RECIPES_PR_API_URL=https://api.github.com
+# optional: RECIPES_PR_TRIGGER=publish|contribute (default publish), RECIPES_PR_BASE=main,
+#           RECIPES_PR_PATH=resources/recipes, RECIPES_PR_BRANCH_PREFIX=recipes/,
+#           RECIPES_PR_PER_USER_HOURLY=6, RECIPES_PR_MAX_OPEN=30,
+#           RECIPES_PR_ATTRIBUTION=false, RECIPES_PR_API_URL=https://api.github.com
 ```
 
-The proposal is queued, so the **queue worker must run**; without it a recipe keeps `pr_state = null`.
-The full path — token menu, triggers, branch/pull-request contents, public-safety gate, states,
+With the default `publish`, the pull request is opened (or updated) when the orga publishes; `contribute`
+opens it as soon as a participant shares. The automatic path is budgeted (per contributor per hour, and
+a ceiling of open pull requests); the panel action and `lanomat:recipes:propose` are not.
+
+The proposal is queued, so the **queue worker must run**; without it a recipe keeps `pr_state = null`, and
+a proposal skipped for a budget is visible only as `recipes.pull_request_skipped` in the queue log.
+Drafts are bounded separately by `RECIPES_MAX_DRAFTS_PER_USER` (default 20). The full path — token menu,
+triggers, budgets, catalogue readiness, branch/pull-request contents, public-safety gate, states,
 commands, troubleshooting — is [`recipe-pull-requests.md`](recipe-pull-requests.md).
 
 ## Endpoints
