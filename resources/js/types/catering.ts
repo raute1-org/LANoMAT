@@ -1,9 +1,13 @@
+import type { ChoiceGroupDto } from '@/lib/menuChoices';
+
 export interface MenuOptionDto {
     key: string;
     name: string;
     priceCents: number;
     description?: string | null;
     imageUrl?: string | null;
+    /** Selection groups of a set menu (empty for an ordinary dish). */
+    choices?: ChoiceGroupDto[];
 }
 
 export interface RestaurantDto {
@@ -12,11 +16,20 @@ export interface RestaurantDto {
     logoUrl: string | null;
 }
 
+export interface ItemPickDto {
+    group: string;
+    optionKey: string;
+    /** Name snapshot, with its category prefix. */
+    name: string;
+}
+
 export interface FoodOrderItemDto {
     id: number;
     optionKey: string | null;
     name?: string | null;
     note: string | null;
+    /** The picks of a set menu; empty for an ordinary dish. */
+    choices?: ItemPickDto[];
     priceCents: number;
     paid: boolean;
     included: boolean;

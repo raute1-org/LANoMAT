@@ -49,8 +49,15 @@ class ImportMenuSkillResource extends Resource
                ("Pizza: Margherita"). Copy descriptions as printed (max 600 characters, plain text). Do not invent
                allergens, descriptions or prices. Photos cannot be imported: they are uploaded in the admin panel
                or assigned with the artisan command `catering:import-dish-media`.
+               **Set menus** ("Menü für 2 Personen", "Family Box"): when the source says that the customer chooses
+               the components, give that dish `choices`: up to 5 groups
+               `{"label": "Hauptgericht", "count": 2, "categories": ["Hähnchen", "Lamm"]}` (pick from whole
+               categories, the prefix before ": ") or `{"label": "Beilage", "count": 1, "options": ["reis", "naan"]}`
+               (a fixed list of dish keys). `allow_repeat` (default true) controls whether one dish may be picked
+               twice. The set menu keeps its own price, picks cost nothing extra; picks can only be ordinary dishes
+               of the same menu. Do not invent groups the source does not show.
             2. Ask the human when something is unclear: unreadable price, per-size prices, a dish without a price,
-               which restaurant. Never guess.
+               which restaurant, how many picks a set menu has. Never guess.
             3. Call `restaurants_list` to see whether the restaurant exists (use its `slug`).
             4. Build `items`: `[{"name": "Margherita", "price_eur": "8,50", "description": "Tomaten, Mozzarella"}, ...]`
                (or `price_cents`: 850). Max 300.

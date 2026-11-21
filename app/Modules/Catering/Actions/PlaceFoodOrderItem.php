@@ -3,6 +3,7 @@
 namespace App\Modules\Catering\Actions;
 
 use App\Models\User;
+use App\Modules\Catering\Domain\MenuChoices;
 use App\Modules\Catering\Enums\FoodOrderStatus;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Models\FoodOrder;
@@ -16,9 +17,12 @@ use Illuminate\Support\Facades\DB;
 
 class PlaceFoodOrderItem
 {
-    public function handle(FoodOrder $order, User $user, string $optionKey, ?string $note = null): FoodOrderItem
+    /**
+     * @param  list<array{group?: mixed, option_key?: mixed}>|null  $choices  the picks of a set menu (ignored for an ordinary dish)
+     */
+    public function handle(FoodOrder $order, User $user, string $optionKey, ?string $note = null, ?array $choices = null): FoodOrderItem
     {
-        return DB::transaction(function () use ($order, $user, $optionKey, $note): FoodOrderItem {
+        return DB::transaction(function () use ($order, $user, $optionKey, $note, $choices): FoodOrderItem {
             // Lock EVERY order of the event, in id order, before reading any
             // of them. The per-user item limit is counted across the event's
             // open orders, so two parallel clicks on different orders of the
@@ -50,6 +54,10 @@ class PlaceFoodOrderItem
                 throw CateringException::unknownOption($optionKey);
             }
 
+            // A set menu is only ever stored with a complete, valid selection (checked against the
+            // menu as it is right now, under the restaurant lock); picks are name snapshots.
+            $picked = $option->isSetMenu() ? MenuChoices::resolveSelection($option, $order->menuOptions(), $choices) : [];
+
             $event = $order->event()->firstOrFail();
 
             if (! FoodOrderRegistrationRequirement::satisfiedBy($user, $event)) {
@@ -78,6 +86,7 @@ class PlaceFoodOrderItem
                     // Name snapshot: later menu edits or removals keep this order readable.
                     'name' => $option->name,
                     'note' => $note,
+                    ...($picked === [] ? [] : ['choices' => $picked]),
                 ],
             ]);
             $item->included = FoodIncluded::for($order, MyRegistration::find($event, $user)?->ticket_type);

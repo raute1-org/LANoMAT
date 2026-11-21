@@ -6,6 +6,7 @@ use App\Modules\Catering\Enums\FoodPaymentMethod;
 use App\Modules\Catering\Filament\Livewire\RestaurantMenuTable;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Schemas\FoodOrderForm;
 use App\Modules\Catering\Models\Restaurant;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Registration\Support\PaymentLink;
 use App\Support\Images\InvalidImageException;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Image;
 use Filament\Schemas\Components\Livewire;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
@@ -57,6 +59,13 @@ class RestaurantForm
                         ->rows(3)
                         ->maxLength(600)
                         ->rules([$nul])
+                        ->columnSpanFull(),
+                    Image::make(
+                        fn (?Restaurant $record): string => $record === null ? '' : (string) DishImage::previewLogoUrl($record),
+                        __('catering.restaurant.fields.logo_preview'),
+                    )
+                        ->imageHeight('6rem')
+                        ->visible(fn (?Restaurant $record): bool => $record?->logo !== null)
                         ->columnSpanFull(),
                     // Re-encoded to a small WebP by DishImageStore (same rules as dish photos).
                     FileUpload::make('logo')

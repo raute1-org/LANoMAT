@@ -5,7 +5,7 @@ import FoodPaymentState from '@/components/catering/FoodPaymentState.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatEuro } from '@/lib/formatEuro';
-import { aggregateItems } from '@/lib/receipt';
+import { aggregateItems, lineKeyOf } from '@/lib/receipt';
 import type { FoodOrderDto } from '@/types';
 
 const props = defineProps<{
@@ -34,10 +34,6 @@ const totalCents = computed(() =>
 const hasPayableItems = computed(() =>
     props.foodOrder.myItems.some((item) => !item.included),
 );
-
-function lineKey(line: { optionKey: string | null; included: boolean }) {
-    return `${line.optionKey ?? ''}|${line.included ? 1 : 0}`;
-}
 </script>
 
 <template>
@@ -54,7 +50,7 @@ function lineKey(line: { optionKey: string | null; included: boolean }) {
             <ul v-else class="space-y-3">
                 <li
                     v-for="line in lines"
-                    :key="lineKey(line)"
+                    :key="lineKeyOf(line)"
                     :class="[
                         '-mx-2 rounded-sm px-2 py-0.5',
                         highlightKey === line.optionKey
@@ -105,6 +101,29 @@ function lineKey(line: { optionKey: string | null; included: boolean }) {
                             <Minus aria-hidden="true" />
                         </Button>
                     </div>
+                    <ul
+                        v-if="line.parts.length > 0"
+                        class="mt-0.5 ml-7 space-y-0.5 text-xs text-muted-foreground"
+                        :aria-label="
+                            labels.menu_picks_aria.replace(
+                                ':dish',
+                                dishName(line.optionKey),
+                            )
+                        "
+                        data-test="receipt-parts"
+                    >
+                        <li v-if="line.count > 1">
+                            {{ labels.menu_picks_each }}
+                        </li>
+                        <li v-for="part in line.parts" :key="part.name">
+                            <span
+                                v-if="part.count > 1"
+                                class="font-mono tabular-nums"
+                                >{{ part.count }}×
+                            </span>
+                            {{ part.name }}
+                        </li>
+                    </ul>
                     <ul
                         v-if="line.notes.length > 0"
                         class="mt-0.5 ml-7 space-y-0.5 text-xs text-muted-foreground"

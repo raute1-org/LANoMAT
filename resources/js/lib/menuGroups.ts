@@ -3,12 +3,15 @@
  * menus"). An imported menu carries the category as a name prefix
  * ("Lamm: Lamb Curry"); the server stays flat and the page derives groups here.
  */
+import type { ChoiceGroupDto } from '@/lib/menuChoices';
+
 export interface MenuItemInput {
     key: string;
     name: string;
     priceCents: number;
     description?: string | null;
     imageUrl?: string | null;
+    choices?: ChoiceGroupDto[];
 }
 
 export interface MenuGroupItem {
@@ -18,6 +21,8 @@ export interface MenuGroupItem {
     priceCents: number;
     description: string | null;
     imageUrl: string | null;
+    /** Selection groups of a set menu; empty for an ordinary dish. */
+    choices: ChoiceGroupDto[];
 }
 
 export interface MenuGroup {
@@ -82,6 +87,7 @@ export function buildMenuGroups(menu: MenuItemInput[]): {
             priceCents: option.priceCents,
             description: option.description ?? null,
             imageUrl: option.imageUrl ?? null,
+            choices: option.choices ?? [],
         });
     }
 
@@ -98,6 +104,7 @@ export function buildMenuGroups(menu: MenuItemInput[]): {
                         priceCents: option.priceCents,
                         description: option.description ?? null,
                         imageUrl: option.imageUrl ?? null,
+                        choices: option.choices ?? [],
                     })),
                 },
             ],

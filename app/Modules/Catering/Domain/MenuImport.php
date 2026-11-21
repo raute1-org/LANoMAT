@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  * accepts structured data and treats every string in it as untrusted text:
  * control characters are flattened, the text is never interpreted.
  *
- * Accepted item shape: {name, price_cents | price_eur, key?, description?}. The data
+ * Accepted item shape: {name, price_cents | price_eur, key?, description?, choices?}. `choices` makes the dish a set menu (see MenuChoices). The data
  * model has no categories or allergen flags, so such fields are reported as ignored
  * instead of being dropped silently. Photos are never imported here (they are uploaded
  * in the admin panel or assigned with `catering:import-dish-media`).
@@ -28,7 +28,7 @@ final class MenuImport
     /** Prices above this are accepted (up to MenuOption::MAX_PRICE_CENTS) but flagged as unusual. */
     public const UNUSUAL_PRICE_CENTS = 5_000;
 
-    private const KNOWN_FIELDS = ['key', 'name', 'price_cents', 'price_eur', 'description'];
+    private const KNOWN_FIELDS = ['key', 'name', 'price_cents', 'price_eur', 'description', 'choices'];
 
     /** Echoed by catering_menu_get; accepted and dropped without a warning so get -> import round-trips. */
     private const SILENT_FIELDS = ['has_image'];
@@ -53,7 +53,7 @@ final class MenuImport
             return new MenuImportResult([], ['items: at most '.self::MAX_ITEMS.' dishes per menu ('.count($items).' given).'], []);
         }
 
-        /** @var list<array{name: string, price: int, key: ?string, description: ?string, at: int}> $rows */
+        /** @var list<array{name: string, price: int, key: ?string, description: ?string, choices: list<MenuChoice>, at: int}> $rows */
         $rows = [];
         $explicitKeys = [];
 
@@ -80,6 +80,7 @@ final class MenuImport
             $price = self::price($item, $at, $errors, $warnings);
             $key = self::key($item['key'] ?? null, $at, $errors);
             $description = self::description($item['description'] ?? null, $at, $errors, $warnings);
+            $choices = MenuChoices::parse($item['choices'] ?? null, $at, $errors, $warnings);
 
             if ($key !== null) {
                 if (isset($explicitKeys[$key])) {
@@ -90,7 +91,7 @@ final class MenuImport
             }
 
             if ($name !== null && $price !== null) {
-                $rows[] = ['name' => $name, 'price' => $price, 'key' => $key, 'description' => $description, 'at' => (int) $index];
+                $rows[] = ['name' => $name, 'price' => $price, 'key' => $key, 'description' => $description, 'choices' => $choices, 'at' => (int) $index];
             }
         }
 
@@ -119,10 +120,17 @@ final class MenuImport
         foreach ($rows as $row) {
             $key = $row['key'] ?? self::uniqueKey($row['name'], $used);
             $used[$key] = true;
-            $menu[] = new MenuOption($key, $row['name'], $row['price'], $row['description']);
+            $menu[] = new MenuOption($key, $row['name'], $row['price'], $row['description'], null, $row['choices']);
         }
 
-        return new MenuImportResult($menu, [], $warnings);
+        $menu = MenuChoices::resolveReferences($menu, $warnings);
+        $checked = MenuChoices::validateMenu($menu);
+
+        if ($checked['errors'] !== []) {
+            return new MenuImportResult([], $checked['errors'], [...$warnings, ...$checked['warnings']]);
+        }
+
+        return new MenuImportResult($menu, [], [...$warnings, ...$checked['warnings']]);
     }
 
     /**

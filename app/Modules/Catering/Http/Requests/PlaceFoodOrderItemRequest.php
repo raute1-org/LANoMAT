@@ -36,6 +36,10 @@ class PlaceFoodOrderItemRequest extends FormRequest
         return [
             'option_key' => ['required', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:200'],
+            // Picks of a set menu; PlaceFoodOrderItem validates them against the menu.
+            'choices' => ['nullable', 'array', 'max:50'],
+            'choices.*.group' => ['required_with:choices', 'string', 'max:80'],
+            'choices.*.option_key' => ['required_with:choices', 'string', 'max:64'],
         ];
     }
 }

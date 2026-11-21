@@ -3,6 +3,7 @@
 namespace App\Modules\Catering\Actions;
 
 use App\Models\User;
+use App\Modules\Catering\Domain\MenuChoices;
 use App\Modules\Catering\Domain\MenuImport;
 use App\Modules\Catering\Domain\MenuImportReport;
 use App\Modules\Catering\Domain\MenuOption;
@@ -181,7 +182,7 @@ class ImportRestaurantMenu
             }
 
             $incomingKeys = array_fill_keys(array_map(static fn (MenuOption $o): string => $o->key, $incoming), true);
-            $lost = array_filter($restaurant->orderedCounts(), static fn (int $n, string $key): bool => ! isset($incomingKeys[$key]), ARRAY_FILTER_USE_BOTH);
+            $lost = array_filter($restaurant->protectedCounts(), static fn (int $n, string $key): bool => ! isset($incomingKeys[$key]), ARRAY_FILTER_USE_BOTH);
 
             if ($lost !== []) {
                 $errors[] = 'Dishes that were already ordered must stay in the menu with the same key, but these are missing: '
@@ -197,11 +198,13 @@ class ImportRestaurantMenu
                 // Photos are not part of an import: a dish that stays keeps its photo, and one
                 // without a description in the import keeps the one it has.
                 $description = $option->description ?? $old?->description;
-                $menu[] = $option->with($description, $old?->image);
+                // Likewise a dish without choices in the import keeps its set-menu groups (remove them in the editor).
+                $withChoices = $option->choices === [] && $old !== null ? $option->withChoices($old->choices) : $option;
+                $menu[] = $withChoices->with($description, $old?->image);
 
                 if ($old === null) {
                     $changes['added']++;
-                } elseif ($old->name === $option->name && $old->priceCents === $option->priceCents && $old->description === $description) {
+                } elseif ($old->name === $option->name && $old->priceCents === $option->priceCents && $old->description === $description && $old->choices == $withChoices->choices) {
                     $changes['kept']++;
                 } else {
                     $changes['changed']++;
@@ -209,6 +212,7 @@ class ImportRestaurantMenu
             }
 
             $changes['removed'] = count(array_filter($existing, static fn (MenuOption $old): bool => ! isset($incomingKeys[$old->key])));
+            [$errors, $warnings] = $this->checkChoices($menu, $errors, $warnings);
             $unchanged = $errors === [] && $changes['added'] === 0 && $changes['changed'] === 0 && $changes['removed'] === 0;
 
             return new MenuImportReport($mode->value, false, false, $unchanged, $errors, $warnings, $menu, $changes, $info);
@@ -218,6 +222,7 @@ class ImportRestaurantMenu
         $merged = $existing;
         $usedKeys = array_fill_keys(array_map(static fn (MenuOption $o): string => $o->key, $existing), true);
         $byName = [];
+        $renamed = [];
         foreach ($existing as $option) {
             $byName[mb_strtolower($option->name)] = $option;
         }
@@ -256,7 +261,8 @@ class ImportRestaurantMenu
             $key = isset($usedKeys[$option->key]) ? MenuImport::uniqueKey($option->name, $usedKeys) : $option->key;
             $usedKeys[$key] = true;
             $byName[mb_strtolower($option->name)] = $option;
-            $merged[] = new MenuOption($key, $option->name, $option->priceCents, $option->description);
+            $renamed[$option->key] = $key;
+            $merged[] = new MenuOption($key, $option->name, $option->priceCents, $option->description, null, $option->choices);
             $changes['added']++;
         }
 
@@ -264,9 +270,40 @@ class ImportRestaurantMenu
             $errors[] = 'The merged menu would exceed '.MenuImport::MAX_ITEMS.' dishes.';
         }
 
+        // A new dish that had to get another key keeps pointing at the dish it meant.
+        $merged = array_map(static function (MenuOption $o) use ($renamed, $existing): MenuOption {
+            if ($o->choices === [] || in_array($o->key, array_map(static fn (MenuOption $e): string => $e->key, $existing), true)) {
+                return $o;
+            }
+
+            return $o->withChoices(array_map(
+                static fn ($group) => $group->options === [] ? $group : $group->withOptions(array_map(static fn (string $k): string => $renamed[$k] ?? $k, $group->options)),
+                $o->choices,
+            ));
+        }, $merged);
+        [$errors, $warnings] = $this->checkChoices($merged, $errors, $warnings);
+
         $unchanged = $errors === [] && $changes['added'] === 0 && $changes['changed'] === 0;
 
         return new MenuImportReport($mode->value, false, false, $unchanged, $errors, $warnings, $merged, $changes, $info);
+    }
+
+    /**
+     * @param  list<MenuOption>  $menu
+     * @param  list<string>  $errors
+     * @param  list<string>  $warnings
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function checkChoices(array $menu, array $errors, array $warnings): array
+    {
+        // Only the resulting menu is checked here; a malformed import already failed in MenuImport.
+        if ($errors === []) {
+            $checked = MenuChoices::validateMenu($menu, 'menu');
+            $errors = $checked['errors'];
+            $warnings = [...$warnings, ...array_diff($checked['warnings'], $warnings)];
+        }
+
+        return [$errors, $warnings];
     }
 
     /**
