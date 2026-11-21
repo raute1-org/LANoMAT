@@ -3,6 +3,7 @@
 use App\Modules\CustomServers\Models\CustomServer;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Contracts\RemoteDockerControl;
 use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Domain\JoinInfo;
@@ -176,7 +177,7 @@ it('keeps going when refreshing one server throws', function () {
     $first = permanentLink(ServerSource::External, ['title' => 'A', 'status' => ServerLinkStatus::Offline]);
     $second = permanentLink(ServerSource::External, ['title' => 'B', 'status' => ServerLinkStatus::Offline]);
 
-    app()->instance(PermanentServerRefresher::class, new class(app(PelicanClient::class), $this->a2s, new FakeMinecraftQuery(FakeMinecraftQuery::serverInfo()), new FakeUt2004Query, app(DockerServerControl::class)) extends PermanentServerRefresher
+    app()->instance(PermanentServerRefresher::class, new class(app(PelicanClient::class), $this->a2s, new FakeMinecraftQuery(FakeMinecraftQuery::serverInfo()), new FakeUt2004Query, app(DockerServerControl::class), app(RemoteDockerControl::class)) extends PermanentServerRefresher
     {
         public function refresh(ServerLink $link): void
         {
