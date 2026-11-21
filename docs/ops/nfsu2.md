@@ -47,12 +47,14 @@ v1.2-Kopie und einen Build aus dem archivierten Repo.
 
 ## 3. Dateien und Hashes
 
-Alle Werte am 2026-11-21 aus dem lokalen Download gemessen. Der portable
-ZIP-Name ist noch irreführend: **`NFSU2-portable.zip` ist derzeit das rohe
-archive.org-Archiv**, nicht das fertige LANoMAT-Paket (siehe Abschnitt 9).
+Alle Werte am 2026-11-21 aus dem lokalen Download gemessen. Zwei Dateien
+heißen ähnlich: **`NFSU2-portable.zip`** ist das rohe archive.org-Archiv,
+**`nfsu2-portable.zip`** (klein geschrieben) ist das fertige flache
+LANoMAT-Paket.
 
 | Datei | Größe | SHA-256 | Anmerkung |
 | --- | ---: | --- | --- |
+| `nfsu2-portable.zip` (**fertiges Paket**) | 2.602.084.719 B | `0d7028987ba4fdb5dfbd92e3c5a77fd2d6e98992b85b14ef0268fba040767219` | 1.395 Einträge, flach, inkl. Loader/ASI/INI/README/Startskript, `speed.exe` + `SPEED2.EXE` |
 | `NFSU2-portable.zip` (rohes Archiv) | 2.593.519.936 B | `0565c4bc372995b770c72763cf734191759fd974344d15b177676180e83bef2e` | 1.393 Einträge, **ein** Wrapper-Ordner `Need for Speed - Underground 2/` |
 | `SPEED2.EXE` (v1.2 US) | 4.800.512 B | `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7` | exakt die Version, die `nfsu2.xyz` für Self-Host verlangt |
 | `net_u2.asi` (Client 0.2.22) | 112.640 B | `8db6557e685cf2dd47f825e62cc202cbace85f6cc4a43af271b8238e0367a04f` | aus `source/client-zig/zig-out/bin/`, PE32 DLL, i386 |
@@ -212,6 +214,18 @@ Das startet bis zum Titelbild und weiter ins Menü/Quick Race (Screenshots
 unten). Der `proton`-Befehl aus dem Rezept ist nur vorhanden, wenn ein
 Wrapper im `PATH` liegt; sonst den vollen Proton-Pfad nehmen.
 
+Das fertige Paket bringt dafür `start-nfsu2-linux.sh` mit (nimmt `wine`, sonst
+`proton run` mit Prefix unter `.proton/`):
+
+```bash
+./start-nfsu2-linux.sh
+```
+
+Wichtig: **nicht** die nackte `files/bin/wine` aus Proton verwenden. In einem
+frischen Prefix fehlen die `libvkd3d-*.dll`; `d3d9.dll` lädt dann nicht und das
+Spiel endet mit `c0000135` (getestet 2026-11-21). `proton run` richtet den
+Prefix samt vkd3d ein.
+
 ### Server starten
 
 ```bash
@@ -234,10 +248,11 @@ dann „Stopped“, obwohl die Ports lauschen. Für die Prüfung zusätzlich
    meldet zusätzlich `launcher_supported: false` — sie ist älter als der
    Repo-Code. Erst nach Deploy, Publish und Datei-Match erscheint die Karte;
    der Screenshot unten zeigt den Zustand ohne NFSU2.
-2. **Das portable ZIP ist noch das rohe Archiv.** Es hat den Wrapper-Ordner,
-   `scripts/net_u2.asi`, `scripts/net_u2.ini`, README und Startskript fehlen;
-   die enthaltene `dinput8.dll` ist die 2,2-MB-Version des Archivs, nicht
-   unser 10.0.4-Loader. Das LANoMAT-Paket muss noch gebaut/hochgeladen werden.
+2. **Das portable ZIP war bis 2026-11-21 das rohe Archiv.** Erledigt: das
+   flache Paket `nfsu2-portable.zip` (2.602.084.719 B, SHA-256 `0d702898…7219`)
+   liegt mit Loader 10.0.4, `scripts/net_u2.asi`/`net_u2.ini`, README und
+   Linux-Startskript in `/home/reneil1337/Downloads/nfsu2/`. Offen ist nur noch
+   der Upload auf den Dateihost.
 3. **Live-Dateien ohne LAN-Match.** Rezept-`requires` matchen derzeit keine
    freigegebene Datei auf dem Filehost (`lan_match: null`). Ohne Upload bleibt
    `installable: false`.
@@ -315,9 +330,11 @@ Skalierung 1.6, `grim`).
 
 - [ ] Rezept live auf `published` setzen und Version/`launch_targets` prüfen;
       danach Launcher-Karte erneut screenshotten.
-- [ ] `nfsu2-portable.zip` als flaches LANoMAT-Paket bauen (Wrapper strippen,
+- [x] `nfsu2-portable.zip` als flaches LANoMAT-Paket bauen (Wrapper strippen,
       Loader 10.0.4, `scripts/net_u2.asi` + `net_u2.ini`, README/Startskript),
-      hashen und auf den Dateihost hochladen.
+      hashen — erledigt, Test unter Proton Experimental bestanden.
+- [ ] `nfsu2-portable.zip` auf den Dateihost hochladen und `sha256` ins
+      Rezept eintragen.
 - [ ] `lan_match` im Rezept prüfen; `installable` muss `true` werden.
 - [ ] Server auf `10.23.0.12` neu starten und die angekündigte Adresse im
       Log verifizieren (`advertised as 10.23.0.12`).

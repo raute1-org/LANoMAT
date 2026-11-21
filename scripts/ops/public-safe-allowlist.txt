@@ -45,3 +45,4 @@ docs/ops/announcements/2026-11-first-lineup.md:^10\.23\.0\.12$
 docs/ops/announcements/2026-11-first-lineup.md:^.*$
 tests/Feature/GameRecipes/LauncherLineupTest.php:^.*$
 docs-site/pages/recipes/nfsu2.md:^.*$
+docs/ops/nfsu2-package.md:^.*$
