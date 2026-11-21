@@ -127,7 +127,7 @@ Jede Serverzeile trägt jetzt den **Install-Block** aus der Serverprojektion
   "title": "Unreal Tournament 2004",
   "pageUrl": "/games/unreal-tournament-2004",
   "launcherSupported": true,
-  "launcherJoinUrl": "lanomat://join/unreal-tournament-2004?address=%3CLAN_HOST%3E%3A7777"
+  "launcherJoinUrl": "lanomat://join/unreal-tournament-2004?address=lan.example%3A7777"
 }
 ```
 
