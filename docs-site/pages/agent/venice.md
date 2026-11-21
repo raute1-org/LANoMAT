@@ -53,6 +53,11 @@ The provider reads the key from the environment; `$VENICE_API_KEY` is a referenc
 The model list is fetched live on `model setup`; the JSON above only records the
 selection.
 
+| Dark | Light |
+|---|---|
+| ![Doctor report naming the Venice provider, the reachable model catalog, the default model and the role table, dark](/screens/agent-doctor-terminal-dark.png) | ![Doctor report naming the Venice provider, the reachable model catalog, the default model and the role table, light](/screens/agent-doctor-terminal-light.png) |
+| `MODEL SETUP · DOCTOR · KEY · CATALOG · ROLES` | `MODEL SETUP · LIGHT` |
+
 ## The default model
 
 ```text
@@ -174,6 +179,14 @@ Any pi-native provider also works without these variables: `pi /login` for a sub
 - The LANoMAT token and the model key are separate credentials: revoking one does not touch the
   other.
 - With a local model, no prompt or response leaves the machine at all.
+
+**Settings › Verknüpfungen** is where the LANoMAT account shows what it is linked to — Steam, Twitch,
+the desktop app. The model key is not among them:
+
+| Dark | Light |
+|---|---|
+| ![Verknüpfungen settings page with Steam and Twitch unlinked and the desktop app download, dark](/screens/connections-dark.png) | ![Verknüpfungen settings page with Steam and Twitch unlinked and the desktop app download, light](/screens/connections-light.png) |
+| `VERKNÜPFUNGEN · KONTEN · DESKTOP-APP` | `VERKNÜPFUNGEN · LIGHT` |
 
 <div class="callout-live">
   <strong>Model choice is not a security boundary.</strong> The agent's tools are scoped by the
