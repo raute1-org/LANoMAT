@@ -202,7 +202,8 @@ command `catering:import-dish-media`.
 Item fields: `name` (required, max 255), exactly one of `price_cents` (integer, 0 to 100000) or `price_eur`
 (text with at most two decimals, `"8,50"`), optional `key` (`a-z0-9_-`, max 64, derived from the name when
 omitted), optional `description` (plain text, max 600 characters; a longer text is shortened with a warning).
-At most 300 dishes. The three tools share their arguments:
+At most 300 dishes. The three tools share their arguments. An optional `choices` list turns a dish into a
+**set menu** (see below).
 
 ```json
 {
@@ -235,6 +236,27 @@ At most 300 dishes. The three tools share their arguments:
 ```
 
 `catering_menu_import` takes the same arguments and returns the same shape with `applied: true` and the restaurant id and slug.
+
+### Set menus ("Menü für 2 Personen")
+
+When the source says that the customer chooses the components, give the dish `choices`: up to 5 groups, each
+with a `label` (unique per dish, max 60), an exact `count` (1 to 10), a source and optionally `allow_repeat`
+(default `true`: the same dish may be picked twice). The source is either `categories` (all dishes whose name
+starts with one of these prefixes before `": "`) or `options` (fixed dish keys; a dish name that matches exactly
+one dish is accepted with a warning). Picks can only be ordinary dishes of the same menu, never another set
+menu or the dish itself. The set menu keeps its own price; picks carry no surcharge.
+
+```json
+{ "name": "Menü: Menü für 2 Personen", "price_eur": "24,90", "key": "menue-2", "choices": [
+  { "label": "Hauptgericht", "count": 2, "categories": ["Hähnchen", "Vegetarisch"] },
+  { "label": "Beilage", "count": 1, "options": ["reis", "naan"], "allow_repeat": false }
+] }
+```
+
+Validation: more than 5 groups, a count outside 1 to 10, duplicate labels, a group with both or neither source,
+unknown keys, self references and set menus as picks are errors; a group that offers no dish (or fewer
+different dishes than `count` when repeats are off) is a warning. `catering_menu_get` returns the same `choices`
+so a replace round-trips; a `replace` import that omits `choices` for a dish keeps the groups it already has.
 
 | `mode` | Behaviour |
 |---|---|

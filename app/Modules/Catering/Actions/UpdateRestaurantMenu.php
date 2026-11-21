@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catering\Actions;
 
+use App\Modules\Catering\Domain\MenuChoices;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Exceptions\MenuProtectedException;
 use App\Modules\Catering\Models\FoodOrderItem;
@@ -32,10 +33,17 @@ class UpdateRestaurantMenu
             throw ValidationException::withMessages(['menu' => 'Two dishes share the same key.']);
         }
 
+        // Set menus: groups must point at existing dishes (never at themselves or at another set menu).
+        $choices = MenuChoices::validateMenu($menu, 'menu');
+
+        if ($choices['errors'] !== []) {
+            throw ValidationException::withMessages(['menu' => $choices['errors']]);
+        }
+
         return DB::transaction(function () use ($restaurant, $menu, $repriceOpen): array {
             $locked = Restaurant::query()->whereKey($restaurant->getKey())->lockForUpdate()->firstOrFail();
 
-            $ordered = $locked->orderedCounts();
+            $ordered = $locked->protectedCounts();
             $newKeys = array_fill_keys(array_map(static fn (MenuOption $o): string => $o->key, $menu), true);
             $blocked = array_filter($ordered, static fn (int $n, string $key): bool => ! isset($newKeys[$key]), ARRAY_FILTER_USE_BOTH);
 

@@ -89,16 +89,66 @@ class Restaurant extends Model
     }
 
     /**
-     * Ordered positions per dish key over all rounds of this restaurant.
+     * Ordered positions per dish key over all rounds of this restaurant (orders of the dish itself).
      *
      * @return array<string, int>
      */
     public function orderedCounts(): array
     {
+        return $this->exists ? $this->directCounts() : [];
+    }
+
+    /**
+     * What keeps a dish in the menu: its own orders plus its picks inside ordered set menus. A dish
+     * that was chosen inside an ordered set menu is protected like an ordered one.
+     *
+     * @return array<string, int>
+     */
+    public function protectedCounts(): array
+    {
         if (! $this->exists) {
             return [];
         }
 
+        $counts = $this->directCounts();
+
+        foreach ($this->pickedCounts() as $key => $n) {
+            $counts[$key] = ($counts[$key] ?? 0) + $n;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Picks inside ordered set menus per dish key.
+     *
+     * @return array<string, int>
+     */
+    public function pickedCounts(): array
+    {
+        if (! $this->exists) {
+            return [];
+        }
+
+        /** @var array<string, int> $counts */
+        $counts = FoodOrderItem::query()
+            ->join('food_orders', 'food_orders.id', '=', 'food_order_items.food_order_id')
+            ->crossJoin(DB::raw("jsonb_array_elements(case when jsonb_typeof(food_order_items.selection->'choices') = 'array' then food_order_items.selection->'choices' else '[]'::jsonb end) as pick"))
+            ->where('food_orders.restaurant_id', $this->getKey())
+            ->selectRaw("pick->>'option_key' as option_key, count(*) as total")
+            ->groupBy(DB::raw("pick->>'option_key'"))
+            ->pluck('total', 'option_key')
+            ->map(fn (mixed $n): int => (int) $n)
+            ->all();
+
+        return $counts;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function directCounts(): array
+    {
         /** @var array<string, int> $counts */
         $counts = FoodOrderItem::query()
             ->join('food_orders', 'food_orders.id', '=', 'food_order_items.food_order_id')

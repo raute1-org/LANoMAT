@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * @property array{option_key: string, note?: string|null, name?: string} $selection
+ * @property array{option_key: string, note?: string|null, name?: string, choices?: list<array{group: string, option_key: string, name?: string}>} $selection
  * @property int $price_cents
  * @property Carbon|null $paid_at
  * @property bool $included

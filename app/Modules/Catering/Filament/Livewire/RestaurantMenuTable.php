@@ -3,11 +3,14 @@
 namespace App\Modules\Catering\Filament\Livewire;
 
 use App\Modules\Catering\Actions\UpdateRestaurantMenu;
+use App\Modules\Catering\Domain\MenuChoice;
+use App\Modules\Catering\Domain\MenuChoices;
 use App\Modules\Catering\Domain\MenuImport;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Exceptions\MenuProtectedException;
 use App\Modules\Catering\Filament\Resources\FoodOrders\Schemas\FoodOrderForm;
 use App\Modules\Catering\Models\Restaurant;
+use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\DishImageStore;
 use App\Modules\Catering\Support\GroupOrder;
 use App\Support\Images\InvalidImageException;
@@ -18,14 +21,21 @@ use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Image;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -100,9 +110,20 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                     ->formatStateUsing(fn (mixed $state): string => Euro::format((int) $state))
                     ->alignEnd()
                     ->fontFamily('mono'),
-                IconColumn::make('has_image')
+                ImageColumn::make('image_url')
                     ->label(__('catering.restaurant.menu.photo'))
-                    ->boolean(),
+                    ->imageSize(48)
+                    ->extraImgAttributes(fn (array $record): array => [
+                        'loading' => 'lazy',
+                        'alt' => $record['full_name'],
+                        'style' => 'border-radius: 0.375rem; object-fit: cover;',
+                    ])
+                    ->placeholder(__('catering.restaurant.menu.no_photo')),
+                TextColumn::make('choices_label')
+                    ->label(__('catering.restaurant.menu.choices'))
+                    ->badge()
+                    ->color('gray')
+                    ->placeholder('–'),
                 TextColumn::make('ordered')
                     ->label(__('catering.restaurant.menu.ordered'))
                     ->numeric()
@@ -151,12 +172,13 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
     }
 
     /**
-     * @return array<string, array{key: string, category: string, label: string, full_name: string, price_cents: int, description: string|null, has_image: bool, ordered: int, open: int}>
+     * @return array<string, array{key: string, category: string, label: string, full_name: string, price_cents: int, description: string|null, image_url: string|null, choices_label: string|null, ordered: int, protected: int, open: int}>
      */
     private function rows(): array
     {
         $restaurant = $this->restaurant();
         $ordered = $restaurant->orderedCounts();
+        $protected = $restaurant->protectedCounts();
         $open = $restaurant->openCounts();
         $rows = [];
 
@@ -169,8 +191,10 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                 'full_name' => $option->name,
                 'price_cents' => $option->priceCents,
                 'description' => $option->description,
-                'has_image' => $option->image !== null,
+                'image_url' => DishImage::previewUrl($restaurant, $option),
+                'choices_label' => $option->isSetMenu() ? self::t('catering.restaurant.menu.choices_badge', ['count' => count($option->choices)]) : null,
                 'ordered' => $ordered[$option->key] ?? 0,
+                'protected' => $protected[$option->key] ?? 0,
                 'open' => $open[$option->key] ?? 0,
             ];
         }
@@ -179,7 +203,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
     }
 
     /** @return list<\Filament\Schemas\Components\Component> */
-    private function dishFields(bool $withReprice): array
+    private function dishFields(bool $withReprice, ?string $selfKey = null): array
     {
         $fields = [
             TextInput::make('name')
@@ -202,6 +226,10 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                 ->rows(2)
                 ->maxLength(MenuOption::MAX_DESCRIPTION_LENGTH)
                 ->rules([FoodOrderForm::noNulBytes()]),
+            Hidden::make('preview_url'),
+            Image::make(fn (Get $get): string => (string) $get('preview_url'), __('catering.restaurant.menu.photo_preview'))
+                ->imageHeight('14rem')
+                ->visible(fn (Get $get): bool => filled($get('preview_url'))),
             FileUpload::make('image')
                 ->label(__('catering.restaurant.menu.photo'))
                 ->helperText(__('catering.fields.menu_image_help'))
@@ -219,6 +247,8 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                 })
                 ->deleteUploadedFileUsing(fn (): null => null),
         ];
+
+        $fields[] = $this->choicesSection($selfKey);
 
         if ($withReprice) {
             $fields[] = Hidden::make('open_count')->default(0);
@@ -241,6 +271,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
             ->authorize(fn (): bool => Gate::allows('update', $this->restaurant()))
             ->modalHeading(__('catering.restaurant.menu.add'))
             ->schema($this->dishFields(false))
+            ->modalWidth('3xl')
             ->action(function (array $data): void {
                 $restaurant = $this->restaurant();
                 $used = array_fill_keys(array_map(static fn (MenuOption $o): string => $o->key, $restaurant->menu), true);
@@ -251,6 +282,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                     (int) FoodOrderForm::euroToCents((string) $data['price']),
                     MenuOption::cleanDescription($data['description'] ?? null),
                     is_string($data['image'] ?? null) ? $data['image'] : null,
+                    self::choicesFromForm($data['choices'] ?? null),
                 );
 
                 $this->write($restaurant, [...$restaurant->menu, $option], false, 'added');
@@ -274,11 +306,17 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                     'price' => $option === null ? null : number_format($option->priceCents / 100, 2, ',', ''),
                     'description' => $option?->description,
                     'image' => $option?->image,
+                    'choices' => array_map(static fn (MenuChoice $c): array => [
+                        ...$c->toArray(),
+                        'source' => $c->usesCategories() ? 'categories' : 'options',
+                    ], $option === null ? [] : $option->choices),
+                    'preview_url' => $option === null ? null : DishImage::previewUrl($this->restaurant(), $option),
                     'reprice_open' => false,
                     'open_count' => $record['open'],
                 ];
             })
-            ->schema(fn (): array => $this->dishFields(true))
+            ->schema(fn (array $record): array => $this->dishFields(true, $record['key']))
+            ->modalWidth('3xl')
             ->action(function (array $data, array $record): void {
                 $restaurant = $this->restaurant();
                 $menu = array_map(
@@ -289,6 +327,7 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
                             (int) FoodOrderForm::euroToCents((string) $data['price']),
                             MenuOption::cleanDescription($data['description'] ?? null),
                             is_string($data['image'] ?? null) && $data['image'] !== '' ? $data['image'] : null,
+                            self::choicesFromForm($data['choices'] ?? null),
                         )
                         : $o,
                     $restaurant->menu,
@@ -307,9 +346,9 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
             ->color('danger')
             ->authorize(fn (): bool => Gate::allows('update', $this->restaurant()))
             ->requiresConfirmation()
-            ->disabled(fn (array $record): bool => $record['ordered'] > 0)
-            ->tooltip(fn (array $record): ?string => $record['ordered'] > 0
-                ? self::t('catering.restaurant.menu.protected', ['count' => $record['ordered']])
+            ->disabled(fn (array $record): bool => $record['protected'] > 0)
+            ->tooltip(fn (array $record): ?string => $record['protected'] > 0
+                ? self::t('catering.restaurant.menu.protected', ['count' => $record['protected']])
                 : null)
             ->action(function (array $record): void {
                 $restaurant = $this->restaurant();
@@ -317,6 +356,149 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
 
                 $this->write($restaurant, $menu, false, 'deleted');
             });
+    }
+
+    /**
+     * The "Auswahl" section: selection groups that turn a dish into a set menu.
+     */
+    private function choicesSection(?string $selfKey): Section
+    {
+        $menu = fn (): array => $this->restaurant()->menu;
+
+        return Section::make(__('catering.restaurant.menu.choices'))
+            ->description(__('catering.restaurant.menu.choices_help'))
+            ->collapsible()
+            ->collapsed()
+            ->schema([
+                Repeater::make('choices')
+                    ->hiddenLabel()
+                    ->addActionLabel(__('catering.restaurant.menu.choices_add'))
+                    ->defaultItems(0)
+                    ->maxItems(MenuChoice::MAX_GROUPS)
+                    ->itemLabel(fn (array $state): ?string => is_string($state['label'] ?? null) && $state['label'] !== '' ? $state['label'] : null)
+                    ->collapsible()
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('label')
+                            ->label(__('catering.restaurant.menu.choice_label'))
+                            ->helperText(__('catering.restaurant.menu.choice_label_help'))
+                            ->required()
+                            ->maxLength(MenuChoice::MAX_LABEL_LENGTH)
+                            ->rules([FoodOrderForm::noNulBytes()]),
+                        TextInput::make('count')
+                            ->label(__('catering.restaurant.menu.choice_count'))
+                            ->numeric()
+                            ->integer()
+                            ->required()
+                            ->default(1)
+                            ->minValue(MenuChoice::MIN_COUNT)
+                            ->maxValue(MenuChoice::MAX_COUNT),
+                        Radio::make('source')
+                            ->label(__('catering.restaurant.menu.choice_source'))
+                            ->options([
+                                'categories' => __('catering.restaurant.menu.choice_source_categories'),
+                                'options' => __('catering.restaurant.menu.choice_source_options'),
+                            ])
+                            ->default('categories')
+                            ->live()
+                            ->required(),
+                        Toggle::make('allow_repeat')
+                            ->label(__('catering.restaurant.menu.choice_repeat'))
+                            ->helperText(__('catering.restaurant.menu.choice_repeat_help'))
+                            ->default(true),
+                        Select::make('categories')
+                            ->label(__('catering.restaurant.menu.choice_categories'))
+                            ->multiple()
+                            ->searchable()
+                            ->options(fn (): array => $this->categoryOptions($menu()))
+                            ->visible(fn (Get $get): bool => ($get('source') ?? 'categories') === 'categories')
+                            ->required(fn (Get $get): bool => ($get('source') ?? 'categories') === 'categories')
+                            ->live()
+                            ->columnSpanFull(),
+                        Select::make('options')
+                            ->label(__('catering.restaurant.menu.choice_options'))
+                            ->multiple()
+                            ->searchable()
+                            ->options(fn (): array => $this->dishOptions($menu(), $selfKey))
+                            ->visible(fn (Get $get): bool => $get('source') === 'options')
+                            ->required(fn (Get $get): bool => $get('source') === 'options')
+                            ->live()
+                            ->columnSpanFull(),
+                        Text::make(fn (Get $get): string => self::t('catering.restaurant.menu.choice_preview', [
+                            'count' => count(MenuChoices::eligible(self::choiceFromState($get('label'), $get('count'), $get('source'), $get('categories'), $get('options'), $get('allow_repeat')), $menu(), (string) $selfKey)),
+                        ]))
+                            ->columnSpanFull(),
+                    ]),
+            ]);
+    }
+
+    /**
+     * @param  list<MenuOption>  $menu
+     * @return array<string, string>
+     */
+    private function categoryOptions(array $menu): array
+    {
+        $out = [];
+
+        foreach ($menu as $option) {
+            if (! $option->isSetMenu()) {
+                $category = GroupOrder::split($option->name)[0];
+                $out[$category] = $category;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<MenuOption>  $menu
+     * @return array<string, string>
+     */
+    private function dishOptions(array $menu, ?string $selfKey): array
+    {
+        $out = [];
+
+        foreach ($menu as $option) {
+            if (! $option->isSetMenu() && $option->key !== $selfKey) {
+                $out[$option->key] = $option->name;
+            }
+        }
+
+        return $out;
+    }
+
+    private static function choiceFromState(mixed $label, mixed $count, mixed $source, mixed $categories, mixed $options, mixed $repeat): MenuChoice
+    {
+        $strings = static fn (mixed $v): array => is_array($v) ? array_values(array_filter($v, 'is_string')) : [];
+
+        return new MenuChoice(
+            is_string($label) ? $label : '',
+            is_numeric($count) ? (int) $count : 1,
+            $source === 'options' ? [] : $strings($categories),
+            $source === 'options' ? $strings($options) : [],
+            $repeat !== false,
+        );
+    }
+
+    /** @return list<MenuChoice> */
+    private static function choicesFromForm(mixed $groups): array
+    {
+        $out = [];
+
+        foreach (is_array($groups) ? $groups : [] as $group) {
+            if (is_array($group)) {
+                $out[] = self::choiceFromState(
+                    trim((string) ($group['label'] ?? '')),
+                    $group['count'] ?? 1,
+                    $group['source'] ?? null,
+                    $group['categories'] ?? null,
+                    $group['options'] ?? null,
+                    $group['allow_repeat'] ?? true,
+                );
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -328,6 +510,14 @@ class RestaurantMenuTable extends Component implements HasActions, HasSchemas, H
 
         try {
             $result = app(UpdateRestaurantMenu::class)->handle($restaurant, $menu, $reprice);
+        } catch (ValidationException $e) {
+            Notification::make()
+                ->title(__('catering.restaurant.menu.invalid'))
+                ->body(__('catering.restaurant.menu.invalid_help'))
+                ->danger()
+                ->send();
+
+            return;
         } catch (MenuProtectedException $e) {
             Notification::make()
                 ->title(__('catering.restaurant.menu.protected_many', ['list' => implode(', ', array_map(

@@ -27,6 +27,7 @@ final readonly class MenuOption
     /**
      * @param  string|null  $description  plain text, at most MAX_DESCRIPTION_LENGTH characters
      * @param  string|null  $image  relative storage path (never a URL), see DishImageStore
+     * @param  list<MenuChoice>  $choices  selection groups of a set menu (empty for an ordinary dish)
      */
     public function __construct(
         public string $key,
@@ -34,13 +35,14 @@ final readonly class MenuOption
         public int $priceCents,
         public ?string $description = null,
         public ?string $image = null,
+        public array $choices = [],
     ) {}
 
     /**
      * The stored shape. Optional fields are omitted when empty, so menus written before
      * descriptions and images existed keep their exact JSON.
      *
-     * @return array{key: string, name: string, price_cents: int, description?: string, image?: string}
+     * @return array{key: string, name: string, price_cents: int, description?: string, image?: string, choices?: list<array<string, mixed>>}
      */
     public function toArray(): array
     {
@@ -58,13 +60,17 @@ final readonly class MenuOption
             $data['image'] = $this->image;
         }
 
+        if ($this->choices !== []) {
+            $data['choices'] = array_map(static fn (MenuChoice $c): array => $c->toArray(), $this->choices);
+        }
+
         return $data;
     }
 
     /**
      * The agent-facing shape (MCP get/preview): no storage path, only whether a photo exists.
      *
-     * @return array{key: string, name: string, price_cents: int, description?: string, has_image?: true}
+     * @return array{key: string, name: string, price_cents: int, description?: string, has_image?: true, choices?: list<array<string, mixed>>}
      */
     public function toImportArray(): array
     {
@@ -82,12 +88,27 @@ final readonly class MenuOption
             $data['has_image'] = true;
         }
 
+        if ($this->choices !== []) {
+            $data['choices'] = array_map(static fn (MenuChoice $c): array => $c->toArray(), $this->choices);
+        }
+
         return $data;
     }
 
     public function with(?string $description, ?string $image): self
     {
-        return new self($this->key, $this->name, $this->priceCents, $description, $image);
+        return new self($this->key, $this->name, $this->priceCents, $description, $image, $this->choices);
+    }
+
+    /** @param  list<MenuChoice>  $choices */
+    public function withChoices(array $choices): self
+    {
+        return new self($this->key, $this->name, $this->priceCents, $this->description, $this->image, $choices);
+    }
+
+    public function isSetMenu(): bool
+    {
+        return $this->choices !== [];
     }
 
     /** One bounded plain-text line, or null when nothing is left. Markup is text, never interpreted. */
@@ -104,6 +125,28 @@ final readonly class MenuOption
     public static function cleanImage(mixed $value): ?string
     {
         return is_string($value) && preg_match(self::IMAGE_PATH_PATTERN, $value) === 1 ? $value : null;
+    }
+
+    /**
+     * @return list<MenuChoice>
+     */
+    public static function cleanChoices(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $groups = [];
+
+        foreach ($value as $raw) {
+            $group = MenuChoice::fromStored($raw);
+
+            if ($group !== null) {
+                $groups[] = $group;
+            }
+        }
+
+        return array_slice($groups, 0, MenuChoice::MAX_GROUPS);
     }
 
     /**
@@ -133,6 +176,7 @@ final readonly class MenuOption
             priceCents: (int) $data['price_cents'],
             description: self::cleanDescription($data['description'] ?? null),
             image: self::cleanImage($data['image'] ?? null),
+            choices: self::cleanChoices($data['choices'] ?? null),
         );
     }
 }

@@ -5,6 +5,7 @@ namespace App\Modules\Catering\Actions;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Support\DishNames;
+use App\Modules\Catering\Support\ItemPicks;
 use App\Support\Csv\CsvSafe;
 
 /**
@@ -27,9 +28,12 @@ class ExportFoodOrderItemsCsv
             throw new \RuntimeException('Could not open a temporary stream for the food order export.');
         }
 
-        fputcsv($handle, ['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt', 'Im Ticket enthalten'], ';', '"', '', "\r\n");
-
         $items = $order->items()->with('user')->orderBy('id')->get();
+        // The "Auswahl" column (picks of set menus) only appears once a round has one, so the layout of
+        // ordinary exports stays as it was.
+        $withPicks = $items->contains(fn ($item): bool => ItemPicks::of($item) !== []);
+
+        fputcsv($handle, ['Teilnehmer', 'Option', 'Anmerkung', 'Preis (EUR)', 'Bezahlt', 'Im Ticket enthalten', ...($withPicks ? ['Auswahl'] : [])], ';', '"', '', "\r\n");
 
         foreach ($items as $item) {
             $optionKey = (string) ($item->selection['option_key'] ?? '');
@@ -42,6 +46,7 @@ class ExportFoodOrderItemsCsv
                 number_format($item->price_cents / 100, 2, ',', ''),
                 $item->paid_at !== null ? 'ja' : 'nein',
                 $item->included ? 'ja' : 'nein',
+                ...($withPicks ? [CsvSafe::cell(implode(', ', array_map(static fn (array $p): string => $p['name'], ItemPicks::of($item))))] : []),
             ], ';', '"', '', "\r\n");
         }
 

@@ -47,6 +47,13 @@ abstract class CateringMenuWriteTool extends LanomatTool
                 'price_eur' => $schema->string()->description('Price as text with at most two decimals, e.g. "8,50". Give this OR price_cents.'),
                 'description' => $schema->string()->description('Optional short dish description as printed (ingredients, max 600 characters, plain text; longer text is shortened with a warning). merge only fills a description that is still empty; replace sets it; an omitted description never deletes an existing one. Photos cannot be imported here: they are uploaded in the admin panel or assigned with the artisan command catering:import-dish-media.'),
                 'key' => $schema->string()->description('Optional stable id (a-z, 0-9, - _; max 64). Omit it to derive one from the name; keep the keys from catering_menu_get when round-tripping.'),
+                'choices' => $schema->array()->items($schema->object([
+                    'label' => $schema->string()->description('Group name as shown to participants, e.g. "Hauptgericht" or "Beilage" (max 60, unique per dish).')->required(),
+                    'count' => $schema->integer()->description('Exactly this many picks, 1 to 10.')->required(),
+                    'categories' => $schema->array()->items($schema->string())->description('Pick from all dishes of these menu categories (the name prefix before ": ", e.g. ["Hähnchen","Lamm"]). Give this OR options.'),
+                    'options' => $schema->array()->items($schema->string())->description('Pick from this fixed list of dish keys (a dish name that matches exactly one dish also works, with a warning). Give this OR categories.'),
+                    'allow_repeat' => $schema->boolean()->description('May the same dish be picked more than once in the group? Default true.'),
+                ]))->description('Optional, makes the dish a SET MENU such as "Menü für 2 Personen": 1 to 5 selection groups, the dish price stays the menu price, no surcharge per pick. Picks can only be ordinary dishes of the same menu (never another set menu or the dish itself). Only use it when the source says that the customer chooses the components; never invent groups. Without choices the dish is ordered as is.'),
             ]))->description('The dishes, 1 to 300. Never invent a price or a dish that is not in the source.')->required(),
         ];
     }

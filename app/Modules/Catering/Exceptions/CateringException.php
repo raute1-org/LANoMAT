@@ -51,4 +51,26 @@ class CateringException extends DomainException
     {
         return new self($reason, 'catering.errors.import_refused');
     }
+
+    /** A set menu needs exactly `count` picks for the group. */
+    public static function choicesIncomplete(string $group, int $count, int $given): self
+    {
+        return new self(
+            "Selection group {$group} needs exactly {$count} picks, {$given} given.",
+            'catering.errors.choices_incomplete',
+            ['group' => $group, 'count' => $count, 'given' => $given],
+        );
+    }
+
+    /** A pick that is not offered by the group, a repeat that is not allowed, or an unknown group. */
+    public static function choicesInvalid(string $group): self
+    {
+        return new self("Invalid selection for {$group}.", 'catering.errors.choices_invalid', ['group' => $group]);
+    }
+
+    /** The set menu has a group without any pickable dish. */
+    public static function choicesUnavailable(string $dish): self
+    {
+        return new self("{$dish} currently offers nothing to pick.", 'catering.errors.choices_unavailable', ['dish' => $dish]);
+    }
 }

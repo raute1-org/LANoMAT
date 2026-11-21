@@ -466,6 +466,14 @@ Menu entries may also carry `description` (plain text, at most 600 characters) a
 (an absolute, public, cacheable WebP URL); both keys are omitted when the dish has none. Both are additive: `api_version` stays 1 and clients
 that do not know them ignore them.
 
+**Set menus (additive).** A menu entry of a set menu carries `choices: [{label, count, allow_repeat,
+options: [{key, name, category}]}]` (absent for an ordinary dish). To order it, `POST food-orders/{id}/items`
+takes `"choices": [{"group": "Hauptgericht", "option_key": "tikka"}, ...]`: exactly `count` entries per group, keys
+from that group's `options`, repeats only when `allow_repeat`; otherwise `422` with `choices_incomplete`,
+`choices_invalid` or `choices_unavailable`. Items (in `my_items`, `mine` and the `201` answer) then carry
+`choices: [{group, option_key, name}]` (name snapshot); the key is omitted for ordinary dishes. `choices` in the
+body of an ordinary dish is ignored. `api_version` stays 1.
+
 `mine` returns `{items: [{id, option_key, option_name, note, price_cents, paid, order_id, order_title,
 order_status, order_is_open, can_cancel}], total_cents, paid_cents}`. The price is always taken from the
 menu on the server (a `price_cents` in the body is ignored). Placing goes through `PlaceFoodOrderItem`:

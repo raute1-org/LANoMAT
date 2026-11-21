@@ -4,6 +4,7 @@ import { Check, LoaderCircle, Minus, Plus, Search } from '@lucide/vue';
 import { useMediaQuery } from '@vueuse/core';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import FoodReceipt from '@/components/catering/FoodReceipt.vue';
+import MenuChoiceDialog from '@/components/catering/MenuChoiceDialog.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +24,8 @@ import {
 } from '@/components/ui/sheet';
 import { formatInstant } from '@/lib/datetime';
 import { formatEuro } from '@/lib/formatEuro';
+import { groupsSummary } from '@/lib/menuChoices';
+import type { ChoicePayload } from '@/lib/menuChoices';
 import {
     applyMenuFilters,
     countItems,
@@ -30,6 +33,7 @@ import {
     NO_FILTERS,
 } from '@/lib/menuFilters';
 import type { MenuFilters } from '@/lib/menuFilters';
+import type { MenuGroupItem } from '@/lib/menuGroups';
 import { buildMenuGroups, filterMenuGroups } from '@/lib/menuGroups';
 import { aggregateItems, newestItemIdFor } from '@/lib/receipt';
 import {
@@ -196,7 +200,49 @@ function mark(target: typeof pending, key: string, on: boolean): void {
     target.value = next;
 }
 
-function add(optionKey: string): void {
+// The set menu whose picker is open (one controlled dialog for the round).
+const composing = ref<MenuGroupItem | null>(null);
+const composeOpen = computed({
+    get: () => composing.value !== null,
+    set: (open: boolean) => {
+        if (!open) {
+            composing.value = null;
+        }
+    },
+});
+
+/** "+" on a set menu opens the picker, an ordinary dish is ordered at once. */
+function onAdd(item: MenuGroupItem): void {
+    if (item.choices.length > 0) {
+        composing.value = item;
+
+        return;
+    }
+
+    add(item.key);
+}
+
+function confirmMenu(payload: {
+    choices: ChoicePayload[];
+    note: string;
+}): void {
+    const item = composing.value;
+
+    if (item === null) {
+        return;
+    }
+
+    note.value = payload.note;
+    add(item.key, payload.choices, () => {
+        composing.value = null;
+    });
+}
+
+function add(
+    optionKey: string,
+    choices?: ChoicePayload[],
+    done?: () => void,
+): void {
     if (pending.value.has(optionKey)) {
         return;
     }
@@ -204,13 +250,19 @@ function add(optionKey: string): void {
     mark(pending, optionKey, true);
     router.post(
         storeItem.url({ foodOrder: props.foodOrder.id }),
-        { option_key: optionKey, note: note.value || undefined },
+        {
+            option_key: optionKey,
+            note: note.value || undefined,
+            choices,
+        },
         {
             preserveScroll: true,
             onSuccess: (page) => {
                 if (wasRefused(page.flash)) {
                     return;
                 }
+
+                done?.();
 
                 note.value = '';
                 highlight(optionKey);
@@ -580,6 +632,18 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                                         >
                                         {{ item.label }}
                                     </p>
+                                    <p
+                                        v-if="item.choices.length > 0"
+                                        class="text-sm text-muted-foreground"
+                                        data-test="dish-choices-hint"
+                                    >
+                                        {{
+                                            labels.menu_choose_hint.replace(
+                                                ':summary',
+                                                groupsSummary(item.choices),
+                                            )
+                                        }}
+                                    </p>
                                     <template v-if="item.description">
                                         <p
                                             :id="`dish-desc-${foodOrder.id}-${item.key}`"
@@ -645,13 +709,18 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                                         !editable || pending.has(item.key)
                                     "
                                     :aria-busy="pending.has(item.key)"
-                                    :aria-label="
-                                        labels.add_aria.replace(
-                                            ':dish',
-                                            item.label,
-                                        )
+                                    :aria-haspopup="
+                                        item.choices.length > 0
+                                            ? 'dialog'
+                                            : undefined
                                     "
-                                    @click="add(item.key)"
+                                    :aria-label="
+                                        (item.choices.length > 0
+                                            ? labels.menu_choose_aria
+                                            : labels.add_aria
+                                        ).replace(':dish', item.label)
+                                    "
+                                    @click="onAdd(item)"
                                 >
                                     <LoaderCircle
                                         v-if="pending.has(item.key)"
@@ -726,6 +795,18 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                 {{ labels.cart_bar_open }}
             </Button>
         </div>
+
+        <MenuChoiceDialog
+            v-if="composing"
+            v-model:open="composeOpen"
+            :dish="composing.label"
+            :price-cents="composing.priceCents"
+            :groups="composing.choices"
+            :note="note"
+            :pending="pending.has(composing.key)"
+            :labels="labels"
+            @confirm="confirmMenu"
+        />
 
         <Dialog v-model:open="photoOpen">
             <DialogContent class="sm:max-w-xl">

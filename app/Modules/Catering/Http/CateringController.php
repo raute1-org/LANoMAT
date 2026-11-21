@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Catering\Actions\CancelFoodOrderItem;
 use App\Modules\Catering\Actions\PlaceFoodOrderItem;
+use App\Modules\Catering\Domain\MenuChoices;
 use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Exceptions\CateringException;
 use App\Modules\Catering\Http\Requests\PlaceFoodOrderItemRequest;
@@ -14,6 +15,7 @@ use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Catering\Support\DishImage;
 use App\Modules\Catering\Support\FoodOrderRegistrationRequirement;
+use App\Modules\Catering\Support\ItemPicks;
 use App\Modules\Catering\Support\ListedFoodOrders;
 use App\Modules\Catering\Support\MyFoodPayment;
 use App\Modules\Catering\Support\RestaurantCard;
@@ -66,7 +68,7 @@ class CateringController extends Controller
         $data = $request->validated();
 
         try {
-            $item = $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null);
+            $item = $action->handle($foodOrder, $this->authUser($request), $data['option_key'], $data['note'] ?? null, $data['choices'] ?? null);
         } catch (CateringException $exception) {
             Inertia::flash('toast', ['type' => 'error', 'message' => trans($exception->translationKey, $exception->parameters)]);
 
@@ -141,12 +143,13 @@ class CateringController extends Controller
             'opensAt' => $order->opens_at?->toIso8601String(),
             'closesAt' => $order->closes_at?->toIso8601String(),
             'restaurant' => RestaurantCard::for($order->restaurant),
-            'menu' => collect($order->menuOptions())->map(fn (MenuOption $option): array => [
+            'menu' => collect($menuOptions = $order->menuOptions())->map(fn (MenuOption $option): array => [
                 'key' => $option->key,
                 'name' => $option->name,
                 'priceCents' => $option->priceCents,
                 'description' => $option->description,
                 'imageUrl' => DishImage::url($order, $option),
+                'choices' => MenuChoices::describe($option, $menuOptions),
             ])->all(),
             'myItems' => $myItems->map(fn (FoodOrderItem $item): array => $this->itemDto($item))->values()->all(),
             'myTotalCents' => $myItems->sum('price_cents'),
@@ -164,6 +167,7 @@ class CateringController extends Controller
             'optionKey' => $item->selection['option_key'] ?? null,
             'name' => $item->selection['name'] ?? null,
             'note' => $item->selection['note'] ?? null,
+            'choices' => ItemPicks::of($item),
             'priceCents' => $item->price_cents,
             'paid' => $item->paid_at !== null,
             'included' => $item->included,
