@@ -100,7 +100,14 @@ list_files() {
   if [ "$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || true)" = "$ROOT" ]; then
     git -C "$ROOT" ls-files -z
   else
-    (cd "$ROOT" && find . -type f -print0 | sed -z 's|^\./||')
+    # No git (a tarball, or a container where the repo is not trusted):
+    # prune build output and vendor trees, which are never published source
+    # and would otherwise make the check depend on whether docs/assets were
+    # built before the tests ran.
+    (cd "$ROOT" && find . \
+      \( -path ./node_modules -o -path ./vendor -o -path ./public/build \
+        -o -path ./docs-site/dist -o -path ./storage -o -path ./.git \) -prune -o \
+      -type f -print0 | sed -z 's|^\./||')
   fi
 }
 
