@@ -49,6 +49,17 @@
                     </div>
                 </x-filament::section>
 
+                @if ($canPower)
+                    <x-filament::section :heading="__('gameservers.settings.restart_round.heading')">
+                        <div class="ss-row">
+                            <x-filament::button color="warning" size="sm" wire:click="restartRound" wire:confirm="{{ __('gameservers.settings.restart_round.confirm') }}">{{ __('gameservers.settings.restart_round.action') }}</x-filament::button>
+                            @if ($canReloadMap)
+                                <x-filament::button color="gray" size="sm" wire:click="reloadMap" wire:confirm="{{ __('gameservers.settings.reload.confirm') }}">{{ __('gameservers.settings.reload.action') }}</x-filament::button>
+                            @endif
+                        </div>
+                    </x-filament::section>
+                @endif
+
                 <x-filament::section :heading="__('gameservers.settings.general.heading')" :description="__('gameservers.settings.general.help')">
                     <form wire:submit="saveSettings" class="ss-form">
                         {{ $this->settingsForm }}
