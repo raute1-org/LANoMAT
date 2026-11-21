@@ -13,6 +13,7 @@ use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\Mcp\Support\SafeText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -79,7 +80,7 @@ class RecipeController extends Controller
                 'files' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                     'id' => $file->id,
                     'role' => $file->role->value,
-                    'label' => $file->label,
+                    'label' => SafeText::line($file->label) ?? '',
                     'match' => $file->patterns(),
                     'required' => $file->required,
                     'sha256' => $file->sha256,
@@ -132,7 +133,7 @@ class RecipeController extends Controller
             'data' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                 'id' => $file->id,
                 'role' => $file->role->value,
-                'label' => $file->label,
+                'label' => SafeText::line($file->label) ?? '',
                 'required' => $file->required,
                 'match' => $file->patterns(),
                 'status' => isset($matches[$file->id]) ? 'matched' : ($file->url !== null ? 'external' : 'missing'),

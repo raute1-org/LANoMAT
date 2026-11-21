@@ -184,19 +184,25 @@ final class BuildInstallPlan
     /** @return array<string, mixed> */
     private function externalDto(GameRecipeFile $entry): array
     {
+        $url = (string) $entry->url;
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $isFile = preg_match('/\.(iso|zip|7z|rar|tar|bz2|gz|xz|exe|msi|dmg|appimage|vrm|bin|cue|chd)$/i', $path) === 1;
+
         return [
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
             'label' => $entry->label,
-            'status' => 'external',
+            'status' => $isFile ? 'external' : 'manual',
             'required' => $entry->required,
-            'source' => 'external',
-            'name' => basename((string) parse_url((string) $entry->url, PHP_URL_PATH)),
+            'source' => $isFile ? 'external' : 'manual',
+            'name' => $isFile ? basename($path) : $entry->label,
             'size_bytes' => $entry->size_bytes,
             'sha256' => $entry->sha256,
             'shared_file_id' => null,
-            'download_url' => $entry->url,
-            'fallback_url' => $entry->url,
+            'download_url' => $isFile ? $url : null,
+            'fallback_url' => $isFile ? $url : null,
+            'url' => $url,
+            'manual' => ! $isFile,
         ];
     }
 

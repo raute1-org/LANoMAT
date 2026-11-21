@@ -7,6 +7,7 @@ namespace App\Modules\Mcp\Tools;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\Mcp\Support\SafeText;
 use App\Support\Modules\Module;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -66,12 +67,20 @@ class RecipeGetTool extends LanomatTool
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),
-                'requirements' => $recipe->requirements,
-                'steps' => $recipe->steps,
+                'requirements' => collect($recipe->requirements ?? [])->map(function (array $requirement): array {
+                    $requirement['label'] = SafeText::line((string) ($requirement['label'] ?? '')) ?? '';
+
+                    return $requirement;
+                })->all(),
+                'steps' => collect($recipe->steps ?? [])->map(function (array $step): array {
+                    $step['title'] = SafeText::line((string) ($step['title'] ?? '')) ?? '';
+
+                    return $step;
+                })->all(),
                 'files' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                     'id' => $file->id,
                     'role' => $file->role->value,
-                    'label' => $file->label,
+                    'label' => SafeText::line($file->label) ?? '',
                     'match' => $file->patterns(),
                     'required' => $file->required,
                     'sha256' => $file->sha256,

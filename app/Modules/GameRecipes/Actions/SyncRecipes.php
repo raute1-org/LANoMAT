@@ -77,13 +77,29 @@ final class SyncRecipes
                         $created++;
                     }
 
-                    $existing->files()->delete();
+                    // Update rows in place (stable ids) so avatar selection,
+                    // plan references and pins survive a nightly sync; only
+                    // rows whose role+label disappeared are deleted.
+                    $current = $existing->files()->get()->keyBy(
+                        static fn (GameRecipeFile $file): string => $file->role->value.'|'.$file->label,
+                    );
+                    $kept = [];
 
                     foreach ($payload['files'] as $file) {
                         $pinKey = $file['role'].'|'.$file['label'];
-                        $file['shared_file_id'] = $pins[$pinKey] ?? null;
-                        $existing->files()->create($file);
+                        $row = $current->get($pinKey);
+
+                        if ($row instanceof GameRecipeFile) {
+                            $file['shared_file_id'] = $row->shared_file_id ?? $pins[$pinKey] ?? null;
+                            $row->fill($file)->save();
+                            $kept[] = $row->id;
+                        } else {
+                            $file['shared_file_id'] = $pins[$pinKey] ?? null;
+                            $kept[] = $existing->files()->create($file)->id;
+                        }
                     }
+
+                    $existing->files()->when($kept !== [], fn ($query) => $query->whereNotIn('id', $kept))->delete();
                 });
             }
 

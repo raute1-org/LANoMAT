@@ -45,12 +45,13 @@ class MatchResultTool extends LanomatTool
         $action = (string) $request->get('action');
 
         if ($action === 'report') {
-            $report = app(SubmitMatchReport::class)->handle(
-                $match,
-                $entry,
-                (int) $request->get('score1', 0),
-                (int) $request->get('score2', 0),
-            );
+            $score1 = (int) $request->get('score1', 0);
+            $score2 = (int) $request->get('score2', 0);
+
+            abort_if($score1 < 0 || $score2 < 0 || $score1 > 9999 || $score2 > 9999, 422, 'Scores must be between 0 and 9999.');
+            abort_if($score1 === $score2, 422, 'A tournament match cannot end in a draw; report a winner.');
+
+            $report = app(SubmitMatchReport::class)->handle($match, $entry, $score1, $score2);
         } else {
             $report = MyTournamentState::pendingReportFor($match);
 

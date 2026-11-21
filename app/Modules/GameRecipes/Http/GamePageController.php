@@ -7,8 +7,8 @@ namespace App\Modules\GameRecipes\Http;
 use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
+use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
@@ -171,12 +171,9 @@ class GamePageController extends Controller
 
     private function activeEvent(): ?Event
     {
-        return Event::query()
-            ->publiclyVisible()
-            ->whereIn('status', [EventStatus::Live->value, EventStatus::Registration->value, EventStatus::Announced->value])
-            ->orderByDesc('starts_at')
-            ->orderByDesc('id')
-            ->first()
+        // Same precedence as the shell: a live event beats a future
+        // registration/announced one (CurrentEvent is the single source).
+        return app(CurrentEvent::class)->get()
             ?? Event::query()->publiclyVisible()->orderByDesc('starts_at')->orderByDesc('id')->first();
     }
 

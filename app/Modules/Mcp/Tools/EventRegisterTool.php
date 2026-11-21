@@ -28,7 +28,10 @@ class EventRegisterTool extends LanomatTool
     {
         $register = app(RegisterForEvent::class);
         $event = $this->eventFromSlug((string) $request->get('slug'));
-        $registration = $register->handle($event, $this->user(), (string) $request->get('ticket_type', 'standard'));
+        $tickets = RegisterForEvent::allowedTickets($event);
+        $ticketType = (string) ($request->get('ticket_type') ?: ($tickets[0] ?? 'standard'));
+
+        $registration = $register->handle($event, $this->user(), $ticketType);
 
         return $this->structured([
             'registration' => [
