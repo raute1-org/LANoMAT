@@ -64,7 +64,11 @@ it('places an item for the authenticated user at the menu price within the windo
             // price. Assert below that the persisted price is 850, not this.
             'price_cents' => 1,
         ])
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertInertiaFlash('toast', [
+            'type' => 'success',
+            'message' => 'Pizza Margherita bestellt · 8,50 €',
+        ]);
 
     $item = FoodOrderItem::where('food_order_id', $order->id)->where('user_id', $user->id)->first();
 
@@ -94,13 +98,18 @@ it('redirects back with a german error when the order is closed', function () {
 
 it('cancels the users own item within the window', function () {
     $event = Event::factory()->registration()->create();
-    $order = FoodOrder::factory()->for($event)->open()->create();
+    $order = FoodOrder::factory()->for($event)->open()->create([
+        'menu' => [new MenuOption(key: 'curry', name: 'Reis: Chicken Curry', priceCents: 1249)],
+    ]);
     $user = User::factory()->create();
-    $item = FoodOrderItem::factory()->for($order, 'foodOrder')->for($user)->create();
+    $item = FoodOrderItem::factory()->for($order, 'foodOrder')->for($user)->create([
+        'selection' => ['option_key' => 'curry'],
+    ]);
 
     $this->actingAs($user)
         ->delete("/food-order-items/{$item->id}")
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Chicken Curry entfernt']);
 
     expect(FoodOrderItem::find($item->id))->toBeNull();
 });

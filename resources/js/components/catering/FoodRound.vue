@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { Minus, Plus, Search } from '@lucide/vue';
+import { Check, LoaderCircle, Minus, Plus, Search } from '@lucide/vue';
 import { useMediaQuery } from '@vueuse/core';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import FoodReceipt from '@/components/catering/FoodReceipt.vue';
@@ -16,6 +16,13 @@ import {
 } from '@/components/ui/sheet';
 import { formatInstant } from '@/lib/datetime';
 import { formatEuro } from '@/lib/formatEuro';
+import {
+    applyMenuFilters,
+    countItems,
+    hasActiveFilters,
+    NO_FILTERS,
+} from '@/lib/menuFilters';
+import type { MenuFilters } from '@/lib/menuFilters';
 import { buildMenuGroups, filterMenuGroups } from '@/lib/menuGroups';
 import { aggregateItems, newestItemIdFor } from '@/lib/receipt';
 import {
@@ -37,12 +44,46 @@ const editable = computed(
 
 const menu = computed(() => buildMenuGroups(props.foodOrder.menu));
 const query = ref('');
-const visibleGroups = computed(() =>
+const filters = ref<MenuFilters>({ ...NO_FILTERS });
+const filtersActive = computed(() => hasActiveFilters(filters.value));
+const searched = computed(() =>
     filterMenuGroups(menu.value.groups, query.value),
 );
-const visibleCount = computed(() =>
-    visibleGroups.value.reduce((sum, group) => sum + group.items.length, 0),
+const visibleGroups = computed(() =>
+    applyMenuFilters(
+        searched.value,
+        filters.value,
+        new Set(props.foodOrder.myItems.map((item) => item.optionKey ?? '')),
+    ),
 );
+const visibleCount = computed(() => countItems(visibleGroups.value));
+const totalDishes = computed(() => props.foodOrder.menu.length);
+const narrowed = computed(
+    () => query.value.trim() !== '' || filtersActive.value,
+);
+
+function togglePrice(cents: number): void {
+    filters.value.maxPriceCents =
+        filters.value.maxPriceCents === cents ? null : cents;
+}
+
+function resetFilters(): void {
+    query.value = '';
+    filters.value = { ...NO_FILTERS };
+}
+
+const priceChips = computed(() => [
+    { cents: 1000, label: props.labels.filter_price_10 },
+    { cents: 1500, label: props.labels.filter_price_15 },
+]);
+
+const chipClass = (active: boolean): string =>
+    [
+        'inline-flex min-h-9 items-center rounded-md border px-3 text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11',
+        active
+            ? 'border-foreground bg-accent font-medium text-foreground'
+            : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+    ].join(' ');
 
 function anchorId(groupId: string): string {
     return `round-${props.foodOrder.id}-${groupId}`;
@@ -127,25 +168,96 @@ function wasRefused(flash: Record<string, unknown> | undefined): boolean {
     return toast?.type === 'error';
 }
 
+// Keys with a request in flight (button disabled, spinner) and keys that were
+// just ordered (check icon for a moment).
+const pending = ref<Set<string>>(new Set());
+const justAdded = ref<Set<string>>(new Set());
+const announcement = ref('');
+
+function mark(target: typeof pending, key: string, on: boolean): void {
+    const next = new Set(target.value);
+
+    if (on) {
+        next.add(key);
+    } else {
+        next.delete(key);
+    }
+
+    target.value = next;
+}
+
 function add(optionKey: string): void {
+    if (pending.value.has(optionKey)) {
+        return;
+    }
+
+    mark(pending, optionKey, true);
     router.post(
         storeItem.url({ foodOrder: props.foodOrder.id }),
         { option_key: optionKey, note: note.value || undefined },
         {
             preserveScroll: true,
             onSuccess: (page) => {
-                if (!wasRefused(page.flash)) {
-                    note.value = '';
-                    highlight(optionKey);
+                if (wasRefused(page.flash)) {
+                    return;
                 }
+
+                note.value = '';
+                highlight(optionKey);
+                mark(justAdded, optionKey, true);
+                setTimeout(() => mark(justAdded, optionKey, false), 1200);
+                announce(
+                    props.labels.toast_added
+                        .replace(':dish', dishName(optionKey))
+                        .replace(' · :price', ''),
+                );
+                bumpBar();
             },
+            onFinish: () => mark(pending, optionKey, false),
         },
     );
 }
 
+function announce(message: string): void {
+    // Toggle a trailing space so a repeated identical message is announced again.
+    announcement.value =
+        announcement.value === message ? `${message} ` : message;
+}
+
+// The mobile cart bar flashes briefly on every change.
+const barBumped = ref(false);
+let barTimer: ReturnType<typeof setTimeout> | undefined;
+
+function bumpBar(): void {
+    barBumped.value = true;
+    clearTimeout(barTimer);
+    barTimer = setTimeout(() => {
+        barBumped.value = false;
+    }, 1200);
+}
+
+onBeforeUnmount(() => clearTimeout(barTimer));
+
 function removeItem(itemId: number): void {
+    const item = props.foodOrder.myItems.find((entry) => entry.id === itemId);
+    const key = item?.optionKey ?? null;
+
     router.delete(destroyItem.url({ foodOrderItem: itemId }), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            if (wasRefused(page.flash)) {
+                return;
+            }
+
+            if (key !== null) {
+                highlight(key);
+                announce(
+                    props.labels.toast_removed.replace(':dish', dishName(key)),
+                );
+            }
+
+            bumpBar();
+        },
     });
 }
 
@@ -172,6 +284,9 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
         :aria-labelledby="`round-title-${foodOrder.id}`"
         :data-test="`food-round-${foodOrder.id}`"
     >
+        <p class="sr-only" role="status" aria-live="polite">
+            {{ announcement }}
+        </p>
         <div
             class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
         >
@@ -241,6 +356,51 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                             :aria-label="labels.search_placeholder"
                         />
                     </div>
+                    <div
+                        class="flex flex-wrap items-center gap-1.5"
+                        role="group"
+                        :aria-label="labels.filter_group"
+                        data-test="menu-filters"
+                    >
+                        <button
+                            type="button"
+                            :class="chipClass(filters.mine)"
+                            :aria-pressed="filters.mine"
+                            @click="filters.mine = !filters.mine"
+                        >
+                            {{ labels.filter_mine }}
+                        </button>
+                        <button
+                            v-for="chip in priceChips"
+                            :key="chip.cents"
+                            type="button"
+                            :class="
+                                chipClass(filters.maxPriceCents === chip.cents)
+                            "
+                            :aria-pressed="filters.maxPriceCents === chip.cents"
+                            @click="togglePrice(chip.cents)"
+                        >
+                            {{ chip.label }}
+                        </button>
+                        <span
+                            class="ml-auto text-sm text-muted-foreground tabular-nums"
+                            data-test="filter-count"
+                        >
+                            {{
+                                labels.filter_count
+                                    .replace(':shown', String(visibleCount))
+                                    .replace(':total', String(totalDishes))
+                            }}
+                        </span>
+                        <Button
+                            v-if="narrowed"
+                            variant="ghost"
+                            size="sm"
+                            @click="resetFilters"
+                        >
+                            {{ labels.filter_reset }}
+                        </Button>
+                    </div>
                     <nav
                         v-if="menu.grouped && visibleGroups.length > 0"
                         :aria-label="labels.groups_nav"
@@ -270,19 +430,25 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                 >
                     <p class="text-sm text-muted-foreground">
                         {{
-                            query.trim() === ''
+                            !narrowed
                                 ? labels.menu_empty
-                                : labels.no_results
+                                : filtersActive
+                                  ? labels.filter_no_results
+                                  : labels.no_results
                         }}
                     </p>
                     <Button
-                        v-if="query.trim() !== ''"
+                        v-if="narrowed"
                         variant="outline"
                         size="sm"
                         class="mt-3"
-                        @click="query = ''"
+                        @click="resetFilters"
                     >
-                        {{ labels.clear_search }}
+                        {{
+                            filtersActive
+                                ? labels.filter_reset
+                                : labels.clear_search
+                        }}
                     </Button>
                 </div>
 
@@ -348,7 +514,10 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                                     variant="outline"
                                     size="icon"
                                     class="size-11 shrink-0"
-                                    :disabled="!editable"
+                                    :disabled="
+                                        !editable || pending.has(item.key)
+                                    "
+                                    :aria-busy="pending.has(item.key)"
                                     :aria-label="
                                         labels.add_aria.replace(
                                             ':dish',
@@ -357,7 +526,17 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
                                     "
                                     @click="add(item.key)"
                                 >
-                                    <Plus aria-hidden="true" />
+                                    <LoaderCircle
+                                        v-if="pending.has(item.key)"
+                                        class="animate-spin motion-reduce:animate-none"
+                                        aria-hidden="true"
+                                    />
+                                    <Check
+                                        v-else-if="justAdded.has(item.key)"
+                                        class="text-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <Plus v-else aria-hidden="true" />
                                 </Button>
                             </li>
                         </ul>
@@ -402,7 +581,13 @@ const isDesktop = useMediaQuery('(min-width: 1024px)');
             class="sticky bottom-0 z-20 -mx-4 flex items-center justify-between gap-3 border-t border-border bg-background px-4 py-2 sm:-mx-6 sm:px-6"
             data-test="cart-bar"
         >
-            <p class="min-w-0 text-sm" aria-live="polite">
+            <p
+                :class="[
+                    'min-w-0 rounded-sm px-1 text-sm',
+                    barBumped ? 'bg-accent motion-reduce:bg-transparent' : '',
+                ]"
+                data-test="cart-summary"
+            >
                 <span class="font-medium">{{ countLabel() }}</span>
                 <span
                     v-if="itemCount > 0"
