@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Main window: IPC, open links and receive lanomat:// deep links.","local":true,"windows":["main"],"permissions":["core:default","deep-link:default"]}}
