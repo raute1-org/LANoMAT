@@ -102,27 +102,27 @@ final class ServerSettingsUpdateTool extends ApprovableTool
     {
         $link = $this->linkOrFail($arguments);
         $current = $this->currentState($link);
-        $rows = [ApprovalPreview::row('Server', $this->describeLink($link))];
-        $labels = ['server_name' => 'Name', 'mode' => 'Modus', 'map' => 'Map', 'workshop_id' => 'Workshop-ID', 'max_players' => 'Spieler'];
+        $rows = [ApprovalPreview::row(__('assistant.card.label.server'), $this->describeLink($link))];
+        $labels = ['server_name' => 'name', 'mode' => 'mode', 'map' => 'map', 'workshop_id' => 'workshop_id', 'max_players' => 'players'];
 
         foreach ($labels as $key => $label) {
             if (isset($arguments[$key])) {
                 $old = $current[$key] ?? null;
-                $rows[] = ApprovalPreview::row($label, ($old !== null && $old !== '' ? $old.' → ' : '').$arguments[$key], in_array($key, ['map', 'workshop_id'], true));
+                $rows[] = ApprovalPreview::row(__('assistant.card.label.'.$label), ($old !== null && $old !== '' ? $old.' → ' : '').$arguments[$key], in_array($key, ['map', 'workshop_id'], true));
             }
         }
 
         $action = $this->passwordAction($arguments);
 
         if ($action !== 'keep') {
-            $rows[] = ApprovalPreview::row('Passwort', $action === 'set' ? 'wird auf der Karte gesetzt' : 'wird entfernt');
+            $rows[] = ApprovalPreview::row(__('assistant.card.label.password'), $action === 'set' ? __('assistant.card.label.password_set') : __('assistant.card.label.password_clear'));
         }
 
         if (! empty($arguments['restart'])) {
-            $rows[] = ApprovalPreview::row('Neustart', true);
+            $rows[] = ApprovalPreview::row(__('assistant.card.label.restart'), true);
         }
 
-        return new ApprovalPreview('Server-Einstellungen ändern', $rows, danger: ! empty($arguments['restart']), needsSecret: $action === 'set');
+        return new ApprovalPreview(__('assistant.card.title.update_settings'), $rows, danger: ! empty($arguments['restart']), needsSecret: $action === 'set');
     }
 
     protected function execute(array $arguments, ?string $secret): array

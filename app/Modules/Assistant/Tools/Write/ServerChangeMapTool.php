@@ -67,8 +67,8 @@ final class ServerChangeMapTool extends ApprovableTool
         $link = $this->linkOrFail($arguments);
         $workshop = isset($arguments['workshop_id']) && $arguments['workshop_id'] !== '';
 
-        return new ApprovalPreview('Map wechseln', [
-            ApprovalPreview::row('Server', $this->describeLink($link)),
+        return new ApprovalPreview(__('assistant.card.title.change_map'), [
+            ApprovalPreview::row(__('assistant.card.label.server'), $this->describeLink($link)),
             ApprovalPreview::row($workshop ? 'Workshop-ID' : 'Map', $workshop ? $arguments['workshop_id'] : ($arguments['map'] ?? null), true),
         ]);
     }

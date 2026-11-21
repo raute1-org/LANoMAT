@@ -225,7 +225,15 @@ function assistantChat(object $test, User $user, string $message, ?string $conve
 /** The Inertia props of a page, fetched the way the client does (no HTML shell, no built asset needed). */
 function assistantPageProps(object $test, string $url): array
 {
-    $props = $test->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia\Inertia::getVersion()])->get($url)->assertOk()->json('props');
+    $headers = ['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia\Inertia::getVersion()];
+    $response = $test->withHeaders($headers)->get($url);
+
+    // The first request of a test may carry a stale asset version; the server answers with the right one.
+    if ($response->getStatusCode() === 409 && $response->headers->has('X-Inertia-Version')) {
+        $response = $test->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => (string) $response->headers->get('X-Inertia-Version')])->get($url);
+    }
+
+    $props = $response->assertOk()->json('props');
     $test->flushHeaders();
 
     return $props;

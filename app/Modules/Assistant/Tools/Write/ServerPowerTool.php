@@ -69,9 +69,9 @@ final class ServerPowerTool extends ApprovableTool
         $link = $this->linkOrFail($arguments);
         $action = PowerAction::from((string) $arguments['action']);
 
-        return new ApprovalPreview('Server-Power: '.$action->value, [
-            ApprovalPreview::row('Server', $this->describeLink($link)),
-            ApprovalPreview::row('Aktion', $action->value, true),
+        return new ApprovalPreview(__('assistant.card.title.power', ['action' => $action->value]), [
+            ApprovalPreview::row(__('assistant.card.label.server'), $this->describeLink($link)),
+            ApprovalPreview::row(__('assistant.card.label.action'), $action->value, true),
         ], danger: in_array($action, [PowerAction::Stop, PowerAction::Kill], true));
     }
 

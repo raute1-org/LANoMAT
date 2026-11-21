@@ -68,7 +68,7 @@ final class TournamentUpdateTool extends ApprovableTool
     public function preview(array $arguments): ApprovalPreview
     {
         $tournament = Tournament::query()->findOrFail((int) $arguments['tournament_id']);
-        $rows = [ApprovalPreview::row('Turnier', $tournament->name)];
+        $rows = [ApprovalPreview::row(__('assistant.card.label.tournament'), $tournament->name)];
 
         $current = [
             'name' => $tournament->name,
@@ -82,23 +82,20 @@ final class TournamentUpdateTool extends ApprovableTool
             'rules' => $tournament->rules === null ? null : mb_substr($tournament->rules, 0, 100),
             'require_checkin' => $tournament->settings['require_checkin'] ?? true,
         ];
-        $labels = [
-            'name' => 'Name', 'format' => 'Format', 'team_size' => 'Teamgröße', 'starts_at' => 'Start', 'game_id' => 'Spiel-ID',
-            'max_entries' => 'Max. Anmeldungen', 'checkin_opens_at' => 'Check-in öffnet', 'checkin_closes_at' => 'Check-in schließt',
-            'rules' => 'Regeln', 'require_checkin' => 'Check-in verlangen',
-        ];
+        $labels = ['name', 'format', 'team_size', 'starts_at', 'game_id', 'max_entries', 'checkin_opens_at', 'checkin_closes_at', 'rules', 'require_checkin'];
 
-        foreach ($labels as $field => $label) {
+        foreach ($labels as $field) {
+            $label = __('assistant.card.label.'.$field);
             if (! array_key_exists($field, $arguments)) {
                 continue;
             }
 
             $old = $current[$field] ?? null;
             $new = $field === 'rules' ? mb_substr((string) $arguments[$field], 0, 100) : $arguments[$field];
-            $rows[] = ApprovalPreview::row($label, ($old === null || $old === '' ? '—' : (is_bool($old) ? ($old ? 'ja' : 'nein') : (string) $old)).' → '.(is_bool($new) ? ($new ? 'ja' : 'nein') : (string) $new));
+            $rows[] = ApprovalPreview::row($label, ($old === null || $old === '' ? '—' : (is_bool($old) ? __('assistant.card.'.($old ? 'yes' : 'no')) : (string) $old)).' → '.(is_bool($new) ? __('assistant.card.'.($new ? 'yes' : 'no')) : (string) $new));
         }
 
-        return new ApprovalPreview('Turnier ändern', $rows);
+        return new ApprovalPreview(__('assistant.card.title.tournament_update'), $rows);
     }
 
     protected function execute(array $arguments, ?string $secret): array

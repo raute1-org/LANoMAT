@@ -90,20 +90,20 @@ final class ServerStartPresetTool extends ApprovableTool
         $game = Game::query()->findOrFail((int) $arguments['game_id']);
         $preset = $game->findPreset((string) $arguments['preset_key']);
         $rows = [
-            ApprovalPreview::row('Event', $event->name),
-            ApprovalPreview::row('Spiel', $game->name),
-            ApprovalPreview::row('Preset', $preset->name ?? (string) $arguments['preset_key']),
+            ApprovalPreview::row(__('assistant.card.label.event'), $event->name),
+            ApprovalPreview::row(__('assistant.card.label.game'), $game->name),
+            ApprovalPreview::row(__('assistant.card.label.preset'), $preset->name ?? (string) $arguments['preset_key']),
         ];
 
         if (isset($arguments['title']) && $arguments['title'] !== '') {
-            $rows[] = ApprovalPreview::row('Titel', $arguments['title']);
+            $rows[] = ApprovalPreview::row(__('assistant.card.label.title'), $arguments['title']);
         }
 
         foreach ($this->overrides($arguments) as $key => $value) {
             $rows[] = ApprovalPreview::row($key, $value, true);
         }
 
-        return new ApprovalPreview('Server starten', $rows);
+        return new ApprovalPreview(__('assistant.card.title.start_preset'), $rows);
     }
 
     protected function execute(array $arguments, ?string $secret): array

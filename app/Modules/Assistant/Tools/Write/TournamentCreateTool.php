@@ -64,17 +64,17 @@ final class TournamentCreateTool extends ApprovableTool
         $event = Event::query()->find((int) ($arguments['event_id'] ?? 0));
         $format = TournamentFormat::tryFrom((string) ($arguments['format'] ?? ''));
 
-        return new ApprovalPreview('Turnier anlegen', array_values(array_filter([
-            ApprovalPreview::row('Event', $event->name ?? '#'.($arguments['event_id'] ?? '?')),
-            ApprovalPreview::row('Name', $arguments['name'] ?? null),
-            ApprovalPreview::row('Format', $format?->label() ?? ($arguments['format'] ?? null)),
-            ApprovalPreview::row('Teamgröße', $arguments['team_size'] ?? null),
-            ApprovalPreview::row('Start', $arguments['starts_at'] ?? null),
-            isset($arguments['checkin_opens_at']) ? ApprovalPreview::row('Check-in öffnet', $arguments['checkin_opens_at']) : null,
-            isset($arguments['checkin_closes_at']) ? ApprovalPreview::row('Check-in schließt', $arguments['checkin_closes_at']) : null,
-            isset($arguments['max_entries']) ? ApprovalPreview::row('Max. Anmeldungen', $arguments['max_entries']) : null,
-            isset($arguments['game_id']) ? ApprovalPreview::row('Spiel', Game::query()->find((int) $arguments['game_id'])->name ?? '#'.$arguments['game_id']) : null,
-            isset($arguments['rules']) ? ApprovalPreview::row('Regeln', mb_substr((string) $arguments['rules'], 0, 200)) : null,
+        return new ApprovalPreview(__('assistant.card.title.tournament_create'), array_values(array_filter([
+            ApprovalPreview::row(__('assistant.card.label.event'), $event->name ?? '#'.($arguments['event_id'] ?? '?')),
+            ApprovalPreview::row(__('assistant.card.label.name'), $arguments['name'] ?? null),
+            ApprovalPreview::row(__('assistant.card.label.format'), $format?->label() ?? ($arguments['format'] ?? null)),
+            ApprovalPreview::row(__('assistant.card.label.team_size'), $arguments['team_size'] ?? null),
+            ApprovalPreview::row(__('assistant.card.label.starts_at'), $arguments['starts_at'] ?? null),
+            isset($arguments['checkin_opens_at']) ? ApprovalPreview::row(__('assistant.card.label.checkin_opens_at'), $arguments['checkin_opens_at']) : null,
+            isset($arguments['checkin_closes_at']) ? ApprovalPreview::row(__('assistant.card.label.checkin_closes_at'), $arguments['checkin_closes_at']) : null,
+            isset($arguments['max_entries']) ? ApprovalPreview::row(__('assistant.card.label.max_entries'), $arguments['max_entries']) : null,
+            isset($arguments['game_id']) ? ApprovalPreview::row(__('assistant.card.label.game'), Game::query()->find((int) $arguments['game_id'])->name ?? '#'.$arguments['game_id']) : null,
+            isset($arguments['rules']) ? ApprovalPreview::row(__('assistant.card.label.rules'), mb_substr((string) $arguments['rules'], 0, 200)) : null,
         ])));
     }
 

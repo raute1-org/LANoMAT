@@ -20,11 +20,11 @@ final class TournamentAdvanceTool extends ApprovableTool
 {
     /** @var array<string, array{label: string, action: class-string}> */
     private const STEPS = [
-        'announce' => ['label' => 'Ankündigen', 'action' => AnnounceTournament::class],
-        'open_enrollment' => ['label' => 'Anmeldung öffnen', 'action' => OpenTournamentEnrollment::class],
-        'open_checkin' => ['label' => 'Check-in öffnen', 'action' => OpenCheckin::class],
-        'start' => ['label' => 'Turnier starten', 'action' => StartTournament::class],
-        'reopen_draft' => ['label' => 'Zurück zum Entwurf', 'action' => ReopenToDraft::class],
+        'announce' => ['label' => 'assistant.card.step.announce', 'action' => AnnounceTournament::class],
+        'open_enrollment' => ['label' => 'assistant.card.step.open_enrollment', 'action' => OpenTournamentEnrollment::class],
+        'open_checkin' => ['label' => 'assistant.card.step.open_checkin', 'action' => OpenCheckin::class],
+        'start' => ['label' => 'assistant.card.step.start', 'action' => StartTournament::class],
+        'reopen_draft' => ['label' => 'assistant.card.step.reopen_draft', 'action' => ReopenToDraft::class],
     ];
 
     public static function toolName(): string
@@ -85,10 +85,10 @@ final class TournamentAdvanceTool extends ApprovableTool
         $tournament = Tournament::query()->findOrFail((int) $arguments['tournament_id']);
         $step = self::STEPS[(string) $arguments['step']];
 
-        return new ApprovalPreview($step['label'], [
-            ApprovalPreview::row('Turnier', $tournament->name),
-            ApprovalPreview::row('Status jetzt', $tournament->status->value, true),
-            ApprovalPreview::row('Schritt', $step['label']),
+        return new ApprovalPreview(__($step['label']), [
+            ApprovalPreview::row(__('assistant.card.label.tournament'), $tournament->name),
+            ApprovalPreview::row(__('assistant.card.label.status_now'), $tournament->status->value, true),
+            ApprovalPreview::row(__('assistant.card.label.step'), __($step['label'])),
         ], danger: $arguments['step'] === 'start');
     }
 

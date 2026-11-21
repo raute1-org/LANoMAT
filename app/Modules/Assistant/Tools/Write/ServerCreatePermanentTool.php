@@ -67,12 +67,12 @@ final class ServerCreatePermanentTool extends ApprovableTool
     {
         $game = Game::query()->findOrFail((int) $arguments['game_id']);
 
-        return new ApprovalPreview('Dauer-Server anlegen', array_values(array_filter([
-            ApprovalPreview::row('Titel', $arguments['title'] ?? null),
-            ApprovalPreview::row('Spiel', $game->name),
-            ApprovalPreview::row('Preset', $game->findPreset((string) $arguments['preset_key'])->name ?? (string) $arguments['preset_key']),
-            isset($arguments['description']) ? ApprovalPreview::row('Beschreibung', $arguments['description']) : null,
-            isset($arguments['node_id']) ? ApprovalPreview::row('Node', $arguments['node_id'], true) : null,
+        return new ApprovalPreview(__('assistant.card.title.create_permanent'), array_values(array_filter([
+            ApprovalPreview::row(__('assistant.card.label.title'), $arguments['title'] ?? null),
+            ApprovalPreview::row(__('assistant.card.label.game'), $game->name),
+            ApprovalPreview::row(__('assistant.card.label.preset'), $game->findPreset((string) $arguments['preset_key'])->name ?? (string) $arguments['preset_key']),
+            isset($arguments['description']) ? ApprovalPreview::row(__('assistant.card.label.description'), $arguments['description']) : null,
+            isset($arguments['node_id']) ? ApprovalPreview::row(__('assistant.card.label.node'), $arguments['node_id'], true) : null,
         ])));
     }
 

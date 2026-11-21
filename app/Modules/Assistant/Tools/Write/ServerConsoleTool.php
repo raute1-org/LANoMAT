@@ -78,9 +78,9 @@ final class ServerConsoleTool extends ApprovableTool
     {
         $link = $this->linkOrFail($arguments);
 
-        return new ApprovalPreview('Konsolenbefehl senden', [
-            ApprovalPreview::row('Server', $this->describeLink($link)),
-            ApprovalPreview::row('Befehl', (string) $arguments['command'], true),
+        return new ApprovalPreview(__('assistant.card.title.console'), [
+            ApprovalPreview::row(__('assistant.card.label.server'), $this->describeLink($link)),
+            ApprovalPreview::row(__('assistant.card.label.command'), (string) $arguments['command'], true),
         ], danger: true);
     }
 

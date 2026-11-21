@@ -29,10 +29,15 @@ final class AssistantActionLog
      */
     public function propose(User $user, string $conversationId, ?string $callId, string $tool, array $arguments): AssistantAction
     {
+        $hash = ArgumentsHash::of($tool, $arguments);
+
         if ($callId !== null) {
+            // Same call id and same arguments is the same card. A provider that recycles an id for different
+            // arguments (some local models do) gets its own row, never the old, possibly closed one.
             $existing = AssistantAction::query()
-                ->where('conversation_id', $conversationId)->where('tool_call_id', $callId)->where('user_id', $user->id)
-                ->first();
+                ->where('conversation_id', $conversationId)->where('tool_call_id', $callId)
+                ->where('user_id', $user->id)->where('tool', $tool)->where('arguments_hash', $hash)
+                ->latest('id')->first();
 
             if ($existing !== null) {
                 return $existing;
@@ -45,7 +50,7 @@ final class AssistantActionLog
             'tool_call_id' => $callId,
             'tool' => $tool,
             'arguments' => self::mask($arguments),
-            'arguments_hash' => ArgumentsHash::of($tool, $arguments),
+            'arguments_hash' => $hash,
         ]);
         $action->forceFill(['status' => AssistantActionStatus::Proposed])->save();
 
@@ -61,6 +66,18 @@ final class AssistantActionLog
         return AssistantAction::query()
             ->where('user_id', $user->id)->where('conversation_id', $conversationId)
             ->whereIn('status', [AssistantActionStatus::Proposed->value, AssistantActionStatus::Approved->value])
+            ->update(['status' => AssistantActionStatus::Superseded->value, 'secret' => null, 'updated_at' => now()]);
+    }
+
+    /**
+     * Approvals that were not executed within a couple of minutes (the run died, the client vanished)
+     * are disarmed so a card-entered secret never lingers.
+     */
+    public function disarmStale(User $user): int
+    {
+        return AssistantAction::query()
+            ->where('user_id', $user->id)->where('status', AssistantActionStatus::Approved->value)
+            ->where('updated_at', '<', now()->subMinutes(2))
             ->update(['status' => AssistantActionStatus::Superseded->value, 'secret' => null, 'updated_at' => now()]);
     }
 
@@ -130,7 +147,8 @@ final class AssistantActionLog
 
     public function failed(AssistantAction $action, string $error): void
     {
-        $action->forceFill(['status' => AssistantActionStatus::Failed, 'error' => SafeText::line($error, 500)])->save();
+        // A card-entered secret never outlives the run, whatever way it ended.
+        $action->forceFill(['status' => AssistantActionStatus::Failed, 'error' => SafeText::line($error, 500), 'secret' => null])->save();
     }
 
     /**

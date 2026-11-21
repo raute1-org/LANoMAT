@@ -4,6 +4,8 @@ use App\Models\User;
 use App\Modules\Assistant\Agents\LanomatAssistant;
 use App\Modules\Assistant\Enums\AssistantActionStatus;
 use App\Modules\Assistant\Models\AssistantAction;
+use App\Modules\Assistant\Support\AssistantActionLog;
+use App\Modules\Assistant\Tools\Write\ServerSettingsUpdateTool;
 use App\Modules\Events\Models\Event;
 use App\Modules\Games\Models\Game;
 use App\Modules\GameServers\Domain\JoinInfo;
@@ -218,4 +220,58 @@ it('keeps a card the resumed run proposes next armed (only the decided calls are
 
     lifecycleDecide($this, $this->orga, $id, ['call_2' => 'approve']);
     expect(Tournament::query()->count())->toBe(2);
+});
+
+it('does not let a double click cancel an approved action that is still running', function () {
+    LanomatAssistant::fake([new ToolCall('call_1', 'tournament_create', lifecycleCreateArgs($this->event)), 'ok'])->preventStrayPrompts();
+    $id = assistantChat($this, $this->orga, 'Turnier')->headers->get('X-Conversation-Id');
+
+    // The tool runs when the response is sent, so the first request is approved but not drained yet.
+    $first = $this->actingAs($this->orga)->post("/orga/assistant/{$id}/decisions", ['decisions' => ['call_1' => 'approve']]);
+    expect(AssistantAction::query()->firstOrFail()->status)->toBe(AssistantActionStatus::Approved);
+
+    $this->actingAs($this->orga)->post("/orga/assistant/{$id}/decisions", ['decisions' => ['call_1' => 'approve']])->assertStatus(422);
+    expect(AssistantAction::query()->firstOrFail()->status)->toBe(AssistantActionStatus::Approved);
+
+    $first->streamedContent();
+
+    expect(AssistantAction::query()->firstOrFail()->status)->toBe(AssistantActionStatus::Executed)
+        ->and(Tournament::query()->count())->toBe(1);
+});
+
+it('drops the card password when the run fails after the approval', function () {
+    [$pelican, $links] = lifecyclePelicanServers($this);
+    $args = ['server_id' => $links[7]->id, 'password_action' => 'set'];
+
+    // Between the card and the click the server disappears: the precheck fails at execution.
+    $links[7]->delete();
+    $out = runApproved(ServerSettingsUpdateTool::class, $this->orga, $args, secret: 'geheim123');
+
+    $row = AssistantAction::query()->firstOrFail();
+    expect($out)->toStartWith('Not found')
+        ->and($row->status)->toBe(AssistantActionStatus::Failed)->and($row->secret)->toBeNull()
+        ->and(json_encode(DB::table('assistant_actions')->get()))->not->toContain('geheim123');
+});
+
+it('disarms an approval that never ran once it is stale, and its secret with it', function () {
+    $row = AssistantAction::factory()->create(['user_id' => $this->orga->id, 'status' => AssistantActionStatus::Approved]);
+    $row->forceFill(['secret' => 'altes-geheimnis'])->save();
+    $row->forceFill(['updated_at' => now()->subMinutes(5)])->saveQuietly();
+
+    $this->actingAs($this->orga);
+    assistantPageProps($this, '/orga/assistant');
+
+    expect($row->fresh()->status)->toBe(AssistantActionStatus::Superseded)->and($row->fresh()->secret)->toBeNull();
+});
+
+it('gives a recycled call id with different arguments its own card', function () {
+    $log = app(AssistantActionLog::class);
+    $first = $log->propose($this->orga, 'conv-1', 'call_1', 'tournament_create', ['name' => 'A']);
+    $first->forceFill(['status' => AssistantActionStatus::Executed])->save();
+
+    $again = $log->propose($this->orga, 'conv-1', 'call_1', 'tournament_create', ['name' => 'A']);
+    $other = $log->propose($this->orga, 'conv-1', 'call_1', 'tournament_create', ['name' => 'B']);
+
+    expect($again->id)->toBe($first->id)->and($other->id)->not->toBe($first->id)
+        ->and($other->status)->toBe(AssistantActionStatus::Proposed);
 });

@@ -102,13 +102,13 @@ class AssistantController extends Controller
         /** @var array<string, string|null> $secrets */
         $secrets = $request->validated('secrets') ?? [];
 
+        $this->log->disarmStale($user);
         $pending = $this->cards->approvals($conversationId);
 
         // One resume decides the whole paused turn, so every open card needs an answer.
+        // A refusal here never touches the rows: a double click or a stale tab must not cancel a decision that is still running.
         if ($pending === [] || array_diff(array_keys($choices), array_map(fn ($a) => $a->id, $pending)) !== [] || count($choices) !== count($pending)) {
-            $this->log->supersedeOpen($user, $conversationId);
-
-            return response()->json(['message' => 'Diese Karten sind nicht mehr offen. Bitte lade die Unterhaltung neu.'], 422);
+            return response()->json(['message' => __('assistant.http.cards_closed')], 422);
         }
 
         $rows = [];
@@ -119,15 +119,13 @@ class AssistantController extends Controller
             $approve = ($choices[$approval->id] ?? null) === 'approve';
 
             if ($row->status !== AssistantActionStatus::Proposed || ($tool === null && $approve)) {
-                $this->log->supersedeOpen($user, $conversationId);
-
-                return response()->json(['message' => 'Eine dieser Karten ist nicht mehr gültig. Bitte lade die Unterhaltung neu.'], 422);
+                return response()->json(['message' => __('assistant.http.card_invalid')], 422);
             }
 
             $secret = $approve && $tool->needsSecret($approval->arguments) ? trim((string) ($secrets[$approval->id] ?? '')) : null;
 
             if ($approve && $tool->needsSecret($approval->arguments) && $secret === '') {
-                return response()->json(['message' => 'Bitte gib das Passwort auf der Karte ein.', 'errors' => ['secrets.'.$approval->id => ['Passwort fehlt.']]], 422);
+                return response()->json(['message' => __('assistant.http.password_required'), 'errors' => ['secrets.'.$approval->id => [__('assistant.http.password_missing')]]], 422);
             }
 
             $rows[] = [$row, $approve, $secret, $approval->id];
@@ -140,9 +138,7 @@ class AssistantController extends Controller
                 }
             });
         } catch (DomainException) {
-            $this->log->supersedeOpen($user, $conversationId);
-
-            return response()->json(['message' => 'Eine dieser Karten wurde bereits entschieden.'], 422);
+            return response()->json(['message' => __('assistant.http.already_decided')], 422);
         }
 
         [$provider, $model] = LanomatAssistant::providerArguments();
@@ -161,6 +157,7 @@ class AssistantController extends Controller
         // Whatever the run left unexecuted must not stay armed.
         $callIds = array_map(fn (array $r): string => $r[3], $rows);
         $streamed->then(fn () => $this->log->disarmApproved($user, $conversationId, $callIds));
+        // A run that dies mid-stream never reaches the callback above; `disarmStale()` catches that case after two minutes.
 
         return $this->streamResponse($request, $streamed, $conversationId);
     }
@@ -183,6 +180,7 @@ class AssistantController extends Controller
 
     private function page(User $user, ?Conversation $conversation): InertiaResponse
     {
+        $this->log->disarmStale($user);
         $id = $conversation?->getKey();
         $id = $id === null ? null : (string) $id;
 

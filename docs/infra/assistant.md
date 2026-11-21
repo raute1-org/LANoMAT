@@ -87,8 +87,10 @@ tool classes and roles without a rebuild.
 The chat streams server-sent events (`Content-Type: text/event-stream`, `Cache-Control: no-cache, no-transform`,
 `X-Accel-Buffering: no`). Production is FrankenPHP in classic mode behind Traefik: Traefik flushes event streams
 as they arrive, and the Traefik `buffering` middlewares in `docker/traefik/dynamic.yml` buffer **request** bodies
-only. The Caddyfile compresses responses (`encode zstd br gzip`); Caddy skips responses marked `no-transform`.
-After the first deploy, verify end to end (see below) that the answer arrives in pieces and not at once.
+only. The Caddyfile compresses responses (`encode zstd br gzip`), and compression would buffer a stream; the SDK marks the
+response `no-transform`, but whether this Caddy build honours that for event streams is **not verified**. If the
+answer arrives in one piece, exclude `text/event-stream` from `encode` (a `match` block) in
+`docker/frankenphp/Caddyfile`. After the first deploy, verify end to end (see below) that the answer arrives in pieces and not at once.
 
 ## Privacy
 
@@ -135,4 +137,6 @@ Deviations from the plan, all in the safer direction:
 - Unknown conversation ids are 404, foreign ones 403.
 
 Not verified (needs a key or a server, do it at the first real run): Opus through the SDK with thinking, the
-approval round trip against a real Ollama model, and the end-to-end proxy streaming above.
+approval round trip against a real Ollama model, the end-to-end proxy streaming above, and how a local model
+behaves when it reuses a tool-call id (the audit log gives a call id with different arguments its own row, so
+this cannot arm a wrong card, but the SDK's own pairing of such ids was not exercised).

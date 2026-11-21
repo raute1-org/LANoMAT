@@ -51,9 +51,9 @@ final class ServerRestartRoundTool extends ApprovableTool
     {
         $link = $this->linkOrFail($arguments);
 
-        return new ApprovalPreview('Runde neu starten', [
-            ApprovalPreview::row('Server', $this->describeLink($link)),
-            ApprovalPreview::row('Befehl', RestartRound::commandFor($link), true),
+        return new ApprovalPreview(__('assistant.card.title.restart_round'), [
+            ApprovalPreview::row(__('assistant.card.label.server'), $this->describeLink($link)),
+            ApprovalPreview::row(__('assistant.card.label.command'), RestartRound::commandFor($link), true),
         ], danger: true);
     }
 

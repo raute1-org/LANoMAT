@@ -31,7 +31,7 @@ final readonly class ApprovalPreview
     {
         return [
             'label' => $label,
-            'value' => SafeText::line(is_bool($value) ? ($value ? 'ja' : 'nein') : (string) $value, 500) ?? '—',
+            'value' => SafeText::line(is_bool($value) ? __('assistant.card.'.($value ? 'yes' : 'no')) : (string) $value, 500) ?? '—',
             'mono' => $mono,
         ];
     }
