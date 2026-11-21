@@ -10,6 +10,7 @@ use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Server\LanomatServer;
 use App\Modules\Mcp\Support\McpCodes;
 use App\Modules\Mcp\Tools\RecipesListTool;
+use Database\Seeders\LauncherLineupSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 
@@ -213,8 +214,8 @@ it('parses, normalizes and ignores malformed lineup entries', function () {
 it('registers the browser server once without touching other servers', function () {
     $user = User::factory()->create();
 
-    $this->seed(\Database\Seeders\LauncherLineupSeeder::class);
-    $this->seed(\Database\Seeders\LauncherLineupSeeder::class);
+    $this->seed(LauncherLineupSeeder::class);
+    $this->seed(LauncherLineupSeeder::class);
 
     $this->actingAs($user)
         ->get('/servers')

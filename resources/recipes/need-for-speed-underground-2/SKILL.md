@@ -26,7 +26,7 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
 ## What you need
 
 - The portable game archive `nfsu2-portable*.zip` on the LAN file host. It is
-  a ready-to-copy 1.2 tree with `SPEED.EXE`, `DATA/`, `CARS/`, `TRACKS/` and
+  a ready-to-copy 1.2 tree with `SPEED2.EXE`, `CARS/`, `TRACKS/`, `GLOBAL/` and
   usually `dinput8.dll` at the root plus `scripts/`. The user supplies the
   game; no disc and no retail installer are needed.
 - Optional but expected if the base is older: the 1.2 patch ZIP
@@ -38,7 +38,7 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
   server 1.1.3.
 - The Ultimate ASI Loader as `dinput8.dll` (x86). Many portable trees already
   carry it; if not, take it from the loader release. Do not rename it.
-- About 1.5 GB of disk. On Linux a 32-bit Wine prefix is enough; Proton is an
+- About 3 GB of disk. On Linux a 32-bit Wine prefix is enough; Proton is an
   optional fallback.
 - The LAN server address. The server host runs bootstrap TCP 20921, lobby TCP
   20922, web/PREL TCP 20923 and the race relay on UDP 20000. The current LAN
@@ -49,14 +49,14 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
 
 1. **Pick the install folder.** Use a short writable path:
    `C:\Games\NFSU2` on Windows or `~/Games/nfsu2` on Linux. Avoid
-   `Program Files`; the game writes `SAVEDATA/` next to `SPEED.EXE`.
+   `Program Files`; the game writes `SAVE/` next to `SPEED2.EXE`.
 2. **Unpack the base.** Extract `nfsu2-portable*.zip` into `{{target}}`.
    The archive has one wrapper folder (`Need for Speed - Underground 2/`);
-   move its contents up so `SPEED.EXE` and `scripts/` sit directly in
+   move its contents up so `SPEED2.EXE` and `scripts/` sit directly in
    `{{target}}`. On Linux `bsdtar -xf` is enough, no extra unzip package.
 3. **Apply the 1.2 patch only if needed.** If the base is older than 1.2,
    extract the optional patch ZIP over `{{target}}`, merging. Do not keep two
-   `SPEED.EXE` copies in nested folders.
+   `SPEED2.EXE` copies in nested folders.
 4. **Install the ASI client.** Ensure `{{target}}/scripts/net_u2.asi` exists.
    If the base does not carry it, copy the matched `net_u2.asi` there.
 5. **Configure the server.** Edit `{{target}}/scripts/net_u2.ini` and set the
@@ -64,7 +64,7 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
    `host = 10.23.3.220` (or the Orga's address). Keep
    `inject_server = true`, `patches = true` and `enabled = true`. The client
    talks to the LAN server; it never needs an EA account.
-6. **Check the ASI loader.** `dinput8.dll` must sit next to `SPEED.EXE` at the
+6. **Check the ASI loader.** `dinput8.dll` must sit next to `SPEED2.EXE` at the
    game root. On Linux the launch command must set
    `WINEDLLOVERRIDES=dinput8=n,b`; without it Wine ignores the ASI plugin.
 7. **Smoke test.** Start the game and confirm the NFS-Online menu replaces the
@@ -73,24 +73,24 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
 
 ## Starting the game
 
-- **Windows:** `Start-Process -FilePath "{{target}}/speed.exe"
-  -WorkingDirectory "{{target}}"`, or simply `SPEED.EXE`.
+- **Windows:** `Start-Process -FilePath "{{target}}/SPEED2.EXE"
+  -WorkingDirectory "{{target}}"`, or simply `SPEED2.EXE`.
 - **Linux, Wine (default):**
-  `WINEDLLOVERRIDES="dinput8=n,b" wine "{{target}}/speed.exe"`.
+  `WINEDLLOVERRIDES="dinput8=n,b" wine "{{target}}/SPEED2.EXE"`.
 - **Linux, Proton (optional):**
-  `WINEDLLOVERRIDES="dinput8=n,b" proton run "{{target}}/speed.exe"`.
+  `WINEDLLOVERRIDES="dinput8=n,b" proton run "{{target}}/SPEED2.EXE"`.
   Use it only when the machine already has a `proton` command (Steam/Proton
   install); the recipe's default Linux target is Wine.
 
 The launcher's native install path unpacks the base, applies an optional
 patch, copies `net_u2.asi`/`net_u2.ini` into `scripts/` and verifies
-`speed.exe`, `scripts/net_u2.asi` and `dinput8.dll` from the plan's
-`file_exists` checks. Everything else in this skill is for the agent.
+`SPEED2.EXE`, `scripts/net_u2.asi`, `scripts/net_u2.ini` and `dinput8.dll`
+from the plan's `file_exists` checks. Everything else in this skill is for the agent.
 
 ## Verification
 
-- `SPEED.EXE` (case-insensitive `speed.exe`), `scripts/net_u2.asi` and
-  `dinput8.dll` exist in the install folder.
+- `SPEED2.EXE` (matched case-insensitively), `scripts/net_u2.asi`,
+  `scripts/net_u2.ini` and `dinput8.dll` exist in the install folder.
 - The NFS-Online menu appears instead of EA Online, and the LAN lobby lists
   the server.
 - On Linux the game starts through Wine with `dinput8=n,b`; a launch without
@@ -99,7 +99,7 @@ patch, copies `net_u2.asi`/`net_u2.ini` into `scripts/` and verifies
 ## Troubleshooting
 
 - **EA Online is still shown:** `net_u2.asi` is missing, in the wrong folder,
-  or `dinput8.dll` is not next to `SPEED.EXE`. Put the ASI in `scripts/`.
+  or `dinput8.dll` is not next to `SPEED2.EXE`. Put the ASI in `scripts/`.
 - **Wine ignores the plugin:** start with
   `WINEDLLOVERRIDES=dinput8=n,b`. Check that the prefix is 32-bit-capable and
   that `dinput8.dll` is the x86 build.

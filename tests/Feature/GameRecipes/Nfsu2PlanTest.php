@@ -51,7 +51,7 @@ it('ships the native NFSU2 recipe with the NFS-Online requirements and targets',
     $targets = collect($recipe->metadata['launch_targets'] ?? [])->keyBy('id');
 
     expect($targets['windows-direct']['os'])->toBe('windows')
-        ->and($targets['windows-direct']['command'])->toContain('{{target}}/speed.exe')
+        ->and($targets['windows-direct']['command'])->toContain('{{target}}/SPEED2.EXE')
         ->and($targets['linux-wine']['os'])->toBe('linux')
         ->and($targets['linux-wine']['command'])->toContain('WINEDLLOVERRIDES="dinput8=n,b" wine')
         ->and($targets['linux-proton']['command'])->toContain('proton run');
@@ -96,8 +96,9 @@ it('builds a windows plan with the base, the verify paths and the NFS-Online ste
     expect($steps->keys()->all())->toContain('install-base', 'install-nfs-online', 'check-install')
         ->and($steps->keys()->all())->not->toContain('install-base-linux')
         ->and($verify->all())->toContain(
-            '{{target}}/speed.exe',
+            '{{target}}/SPEED2.EXE',
             '{{target}}/scripts/net_u2.asi',
+            '{{target}}/scripts/net_u2.ini',
             '{{target}}/dinput8.dll',
         )
         ->and($plan['recipe']['launch_targets'])->toHaveCount(3);

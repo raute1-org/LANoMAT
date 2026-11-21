@@ -77,7 +77,7 @@ Mehr: lanomat://install/unreal-tournament-2004 · https://lan.raute1.org/games/u
 
 ```
 Server:
-- UT2004 Hauptserver (Unreal Tournament 2004) · Status: online · Beitreten: 10.23.0.40:7777
+- UT2004 Hauptserver (Unreal Tournament 2004) · Status: online · Beitreten: <lan-ip>:7777
 Serverbrowser: https://lan.raute1.org/servers
 ```
 
@@ -222,13 +222,13 @@ Systemprompt, DM-/Mention-/Prefix-Erkennung inkl. Guild/Channel-Filter,
 deterministischer Install-/Server-Fallback ohne Halluzinationen, pi-Fehler →
 Fallback, Rate-Limit.
 
-PHP (Docker, da auf dem Host oft kein PHP):
+PHP (lokal oder im CI-Container mit Test-DB):
 
 ```bash
-docker run --rm --network host -v "$PWD":/app -w /app lanomat-dev:latest \
-  php artisan test tests/Feature/Discord/GatewaySurfaceEventsTest.php \
-                   tests/Feature/Discord/SlashCommandTest.php \
-                   tests/Feature/Mcp/McpToolPaginationTest.php
+php artisan test \
+  tests/Feature/Discord/GatewaySurfaceEventsTest.php \
+  tests/Feature/Discord/SlashCommandTest.php \
+  tests/Feature/Mcp/McpToolPaginationTest.php
 ```
 
 ## 5. Offene Punkte vor dem Live-Betrieb

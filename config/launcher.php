@@ -31,6 +31,6 @@ return [
     |
     */
 
-    'lineup' => env('LAUNCHER_LINEUP', 'unreal-tournament-2004,need-for-speed-underground-2-browser'),
+    'lineup' => env('LAUNCHER_LINEUP', 'unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser'),
 
 ];

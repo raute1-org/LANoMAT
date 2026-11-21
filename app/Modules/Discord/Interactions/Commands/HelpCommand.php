@@ -2,6 +2,7 @@
 
 namespace App\Modules\Discord\Interactions\Commands;
 
+use App\Modules\Discord\Interactions\CommandDefinitions;
 use App\Modules\Discord\Interactions\InteractionResponse;
 
 /**
@@ -9,7 +10,7 @@ use App\Modules\Discord\Interactions\InteractionResponse;
  * action/query to wrap; the copy lives in lang/de/discord.php.
  *
  * `/ask` is registered guild-only by the gateway sidecar (it needs the
- * discord.js reply path and pi/MCP), not in {@see \App\Modules\Discord\Interactions\CommandDefinitions}.
+ * discord.js reply path and pi/MCP), not in {@see CommandDefinitions}.
  * It is only advertised while the sidecar's agent is enabled.
  */
 class HelpCommand

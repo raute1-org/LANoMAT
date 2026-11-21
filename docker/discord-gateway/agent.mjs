@@ -136,11 +136,12 @@ export function buildPiArgs({
         args.push('--no-builtin-tools');
     }
 
-    if (provider) {
-        args.push('--provider', provider);
-    }
-
+    // pi's help: --provider only searches within --model and errors without it.
     if (model) {
+        if (provider) {
+            args.push('--provider', provider);
+        }
+
         args.push('--model', model);
     }
 

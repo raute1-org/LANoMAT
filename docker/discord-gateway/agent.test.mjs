@@ -89,7 +89,7 @@ function fakeMcp(overrides = {}) {
                 title: 'UT2004 Hauptserver',
                 game: 'Unreal Tournament 2004',
                 status: 'online',
-                join_info: { address: '10.23.0.40', port: 7777, connect_string: 'ut2004://10.23.0.40:7777' },
+                join_info: { address: 'lan-server.test', port: 7777, connect_string: 'ut2004://lan-server.test:7777' },
             }],
         }),
         ...overrides,
@@ -277,7 +277,7 @@ describe('deterministic fallback', () => {
 
         assert.deepEqual(mcp.calls, [['servers_list', {}]]);
         assert.match(answer, /UT2004 Hauptserver/);
-        assert.match(answer, /ut2004:\/\/10\.23\.0\.40:7777/);
+        assert.match(answer, /ut2004:\/\/lan-server\.test:7777/);
         assert.doesNotMatch(answer, /\[object Object\]/);
     });
 

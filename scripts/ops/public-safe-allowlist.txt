@@ -25,3 +25,18 @@ docs/ops/announcements/2026-11-first-lineup.md:^10\.23\.0\.40$
 docs/ops/discord-announcement.md:^10\.23\.0\.40$
 # ... and the laptop fallback address is named only to say "do not publish it".
 docs/ops/discord-announcement.md:^10\.23\.3\.220$
+
+# NFSU2 / first-lineup ops runbooks and the admin handoff intentionally name the
+# venue LAN, the UT2004/NFS servers and the homelab/test addresses. They are
+# operator-facing documents; the real values are the point of the handoff.
+docs/ops/ADMIN-HANDOFF.md:^.*$
+docs/ops/nfsu2.md:^.*$
+docs/ops/nfsu2-server.md:^.*$
+docs/ops/nfsu2-browser.md:^.*$
+docs/ops/launcher-lineup.md:^.*$
+docs/launcher-agent-integration.md:^.*$
+docs/ops/discord-agent.md:^.*$
+# The native NFSU2 recipe pins the tested LAN server in its install commands.
+resources/recipes/need-for-speed-underground-2/recipe.yaml:^.*$
+docker/nfs-online/compose.yml:^.*$
+docs/ops/nfsu2-homelab.md:^.*$

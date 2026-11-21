@@ -13,7 +13,7 @@ description: |
 
     The base game is user-supplied. The preferred LAN file is
     `nfsu2-portable.zip`, a ready-to-copy 1.2 game tree that already carries
-    `SPEED.EXE`, the `DATA/`, `CARS/` and `TRACKS/` folders and the Ultimate
+    `SPEED2.EXE`, the `CARS/`, `TRACKS/` and `GLOBAL/` folders and the Ultimate
     ASI Loader as `dinput8.dll`. Unpack it, strip the single wrapper folder
     and put `net_u2.asi` plus `net_u2.ini` into `scripts/`.
 
@@ -23,7 +23,8 @@ description: |
     same file also enables the LAN lobby. The server itself runs on the game
     server host, not on every player PC.
 
-    On Windows the game starts directly from `speed.exe`. On Linux it runs
+    On Windows the game starts directly from `SPEED2.EXE` (often written
+    `speed.exe`). On Linux it runs
     through Wine with the ASI loader override
     `WINEDLLOVERRIDES=dinput8=n,b`; Proton is a documented fallback when the
     installed Proton build exposes a working `proton` command. There is no
@@ -34,7 +35,7 @@ cover: ''
 skill:
     name: nfsu2
     description: 'Install Need for Speed Underground 2 1.2 on a LAN PC from the portable nfsu2-portable.zip archive, add the NFS-Online ASI client (net_u2.asi, net_u2.ini, dinput8.dll), point it at the LAN server and start the game on Windows or through Wine on Linux. Use when the user says install NFSU2, NFS Underground 2, NFS U2, or asks to set up Underground 2 for the LAN.'
-    compatibility: 'Windows 10/11 or Linux with Wine/Proton; ~1.5 GB disk; the NFS-Online server host must be reachable on UDP 20000 and TCP 20921-20923'
+    compatibility: 'Windows 10/11 or Linux with Wine/Proton; ~3 GB disk; the NFS-Online server host must be reachable on UDP 20000 and TCP 20921-20923'
 requires:
     - role: base
       label: 'NFSU2 portable 1.2 (Windows game tree, no install)'
@@ -43,7 +44,7 @@ requires:
       required: true
       sha256: ''
       url: ''
-      notes: 'Preferred LAN file: a ready-to-copy Need for Speed Underground 2 1.2 game tree. It contains SPEED.EXE, DATA/, CARS/, TRACKS/, SAVEDATA/ and usually dinput8.dll at the root and the ASI plugin under scripts/. Unpack it into {{target}} and strip the one top-level wrapper folder (`Need for Speed - Underground 2/`). A retail installer ZIP is accepted as the same base only when it already contains a flat game tree; the launcher verifies SPEED.EXE and the NFS-Online files after extraction.'
+      notes: 'Preferred LAN file: a ready-to-copy Need for Speed Underground 2 1.2 game tree. It contains SPEED2.EXE, CARS/, TRACKS/, GLOBAL/, SAVE/ and usually dinput8.dll at the root and the ASI plugin under scripts/. Unpack it into {{target}} and strip the one top-level wrapper folder (`Need for Speed - Underground 2/`). A retail installer ZIP is accepted as the same base only when it already contains a flat game tree; the launcher verifies SPEED2.EXE and the NFS-Online files after extraction.'
     - role: base
       label: 'NFSU2 portable 1.2 (same Windows tree under Wine)'
       os: linux
@@ -58,7 +59,7 @@ requires:
       required: false
       sha256: ''
       url: ''
-      notes: 'Optional: the portable base is expected to be 1.2 already. When the LAN copy is an older 1.0/1.1 tree, this ZIP (or an installer tree that already contains SPEED.EXE) is extracted over {{target}} before the NFS-Online files are checked. A Windows-only 1.2 patch still installs on Linux because the game runs under Wine; it carries no OS-specific installer.'
+      notes: 'Optional: the portable base is expected to be 1.2 already. When the LAN copy is an older 1.0/1.1 tree, this ZIP (or an installer tree that already contains SPEED2.EXE) is extracted over {{target}} before the NFS-Online files are checked. A Windows-only 1.2 patch still installs on Linux because the game runs under Wine; it carries no OS-specific installer.'
     - role: mod
       label: 'NFS-Online client plugin (net_u2.asi)'
       match: ['net_u2.asi', 'net_u2*.asi', '*NFS-Online*.zip']
@@ -89,7 +90,7 @@ steps:
           Unpack `nfsu2-portable*.zip` into `{{target}}` (for example
           `C:\Games\NFSU2`). The archive carries one wrapper folder
           (`Need for Speed - Underground 2/`); move its contents up so
-          `SPEED.EXE` sits directly in `{{target}}`.
+          `SPEED2.EXE` sits directly in `{{target}}`.
 
           When a separate 1.2 patch ZIP is on the LAN, extract it over
           `{{target}}` afterwards, merging and overwriting. A portable base
@@ -102,13 +103,13 @@ steps:
             run: |
                 $zip = (Get-ChildItem "{{downloads}}/nfsu2-portable*.zip" | Select-Object -First 1).FullName
                 Expand-Archive -Path $zip -DestinationPath "{{target}}" -Force
-                $inner = Get-ChildItem "{{target}}" -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'SPEED.EXE') } | Select-Object -First 1
+                $inner = Get-ChildItem "{{target}}" -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'SPEED2.EXE') } | Select-Object -First 1
                 if ($inner) { Get-ChildItem $inner.FullName -Force | Move-Item -Destination "{{target}}" -Force; Remove-Item $inner.FullName -Force }
       verify:
           - type: file_exists
-            path: '{{target}}/speed.exe'
+            path: '{{target}}/SPEED2.EXE'
           - type: dir_exists
-            path: '{{target}}/DATA'
+            path: '{{target}}/TRACKS'
     - id: install-base-linux
       title: 'Unpack the portable game tree (Linux)'
       os: linux
@@ -119,7 +120,7 @@ steps:
           choice). `bsdtar` reads the ZIP, keeps the original file names and
           works without an extra `unzip` package.
 
-          The archive carries one wrapper folder; flatten it so `SPEED.EXE`
+          The archive carries one wrapper folder; flatten it so `SPEED2.EXE`
           and `scripts/` sit directly in `{{target}}`. A 1.2 patch ZIP is
           extracted over the same folder. The game itself starts through Wine
           or Proton, not natively.
@@ -129,12 +130,12 @@ steps:
           - shell: bash
             run: 'zip=$(find "{{downloads}}" -maxdepth 1 -iname "nfsu2-portable*.zip" -print -quit); bsdtar -xf "$zip" -C "{{target}}"'
           - shell: bash
-            run: 'wrapper=$(find "{{target}}" -mindepth 1 -maxdepth 1 -type d | head -n 1); if [ -n "$wrapper" ]; then if find "$wrapper" -maxdepth 2 -iname "speed.exe" | grep -q .; then mv "$wrapper"/* "{{target}}"/ 2>/dev/null || true; rmdir "$wrapper" 2>/dev/null || true; fi; fi'
+            run: 'wrapper=$(find "{{target}}" -mindepth 1 -maxdepth 1 -type d | head -n 1); if [ -n "$wrapper" ]; then if find "$wrapper" -maxdepth 2 -iname "SPEED2.EXE" | grep -q .; then mv "$wrapper"/* "{{target}}"/ 2>/dev/null || true; rmdir "$wrapper" 2>/dev/null || true; fi; fi'
       verify:
           - type: file_exists
-            path: '{{target}}/speed.exe'
+            path: '{{target}}/SPEED2.EXE'
           - type: dir_exists
-            path: '{{target}}/DATA'
+            path: '{{target}}/TRACKS'
     - id: install-nfs-online
       title: 'Add the NFS-Online client and set the LAN host (Windows)'
       os: windows
@@ -159,11 +160,26 @@ steps:
                   $asi = (Get-ChildItem "{{downloads}}" -Recurse -Filter 'net_u2*.asi' | Select-Object -First 1).FullName
                   if ($asi) { Copy-Item $asi (Join-Path $scripts 'net_u2.asi') -Force }
                 }
+                if (-not (Test-Path (Join-Path $scripts 'net_u2.ini'))) {
+                  $src = (Get-ChildItem "{{downloads}}" -Recurse -Filter 'net_u2*.ini' | Select-Object -First 1).FullName
+                  if ($src) { Copy-Item $src (Join-Path $scripts 'net_u2.ini') -Force }
+                }
                 $ini = Join-Path $scripts 'net_u2.ini'
-                if (Test-Path $ini) { (Get-Content $ini) -replace '(?m)^\s*host\s*=.*$', 'host = 10.23.3.220' | Set-Content $ini }
+                if (Test-Path $ini) {
+                  $lines = Get-Content $ini
+                  $lines = $lines -replace '(?m)^\s*host\s*=.*$', 'host = 10.23.3.220'
+                  $lines = $lines -replace '(?m)^\s*bootstrap_port\s*=.*$', 'bootstrap_port = 20921'
+                  $lines = $lines -replace '(?m)^\s*lobby_port\s*=.*$', 'lobby_port = 20922'
+                  $lines = $lines -replace '(?m)^\s*control_port\s*=.*$', 'control_port = 20923'
+                  $lines = $lines -replace '(?m)^\s*control_alias_port\s*=.*$', 'control_alias_port = 13505'
+                  $lines = $lines -replace '(?m)^\s*race_port\s*=.*$', 'race_port = 20000'
+                  $lines | Set-Content $ini
+                }
       verify:
           - type: file_exists
             path: '{{target}}/scripts/net_u2.asi'
+          - type: file_exists
+            path: '{{target}}/scripts/net_u2.ini'
           - type: file_exists
             path: '{{target}}/dinput8.dll'
     - id: install-nfs-online-linux
@@ -181,10 +197,14 @@ steps:
           - shell: bash
             run: 'mkdir -p "{{target}}/scripts"; if [ ! -f "{{target}}/scripts/net_u2.asi" ]; then asi=$(find "{{downloads}}" -iname "net_u2*.asi" -print -quit); if [ -n "$asi" ]; then cp "$asi" "{{target}}/scripts/net_u2.asi"; fi; fi'
           - shell: bash
-            run: 'if [ -f "{{target}}/scripts/net_u2.ini" ]; then sed -i "s/^[[:space:]]*host[[:space:]]*=.*/host = 10.23.3.220/" "{{target}}/scripts/net_u2.ini"; fi'
+            run: 'if [ ! -f "{{target}}/scripts/net_u2.ini" ]; then ini=$(find "{{downloads}}" -iname "net_u2*.ini" -print -quit); if [ -n "$ini" ]; then cp "$ini" "{{target}}/scripts/net_u2.ini"; fi; fi'
+          - shell: bash
+            run: 'ini="{{target}}/scripts/net_u2.ini"; if [ -f "$ini" ]; then sed -i -e "s/^[[:space:]]*host[[:space:]]*=.*/host = 10.23.3.220/" -e "s/^[[:space:]]*bootstrap_port[[:space:]]*=.*/bootstrap_port = 20921/" -e "s/^[[:space:]]*lobby_port[[:space:]]*=.*/lobby_port = 20922/" -e "s/^[[:space:]]*control_port[[:space:]]*=.*/control_port = 20923/" -e "s/^[[:space:]]*control_alias_port[[:space:]]*=.*/control_alias_port = 13505/" -e "s/^[[:space:]]*race_port[[:space:]]*=.*/race_port = 20000/" "$ini"; fi'
       verify:
           - type: file_exists
             path: '{{target}}/scripts/net_u2.asi'
+          - type: file_exists
+            path: '{{target}}/scripts/net_u2.ini'
           - type: file_exists
             path: '{{target}}/dinput8.dll'
     - id: check-install
@@ -196,7 +216,7 @@ steps:
           dead EA Online entry. Then open the LAN lobby and check that the
           server directory lists the LAN host.
 
-          Start `SPEED.EXE` directly on Windows. On Linux start it through
+          Start `SPEED2.EXE` directly on Windows. On Linux start it through
           Wine (or Proton) with `WINEDLLOVERRIDES=dinput8=n,b`; without the
           override the ASI loader is not loaded and the game falls back to
           the offline menu.
@@ -206,29 +226,31 @@ steps:
           original EA account.
       verify:
           - type: file_exists
-            path: '{{target}}/speed.exe'
+            path: '{{target}}/SPEED2.EXE'
           - type: file_exists
             path: '{{target}}/scripts/net_u2.asi'
+          - type: file_exists
+            path: '{{target}}/scripts/net_u2.ini'
           - type: file_exists
             path: '{{target}}/dinput8.dll'
 launch_targets:
     - id: windows-direct
-      label: 'Windows (speed.exe)'
+      label: 'Windows (SPEED2.EXE)'
       os: windows
       shell: powershell
-      command: 'Start-Process -FilePath "{{target}}/speed.exe" -WorkingDirectory "{{target}}"'
-      notes: 'Default Windows start. The Ultimate ASI Loader (dinput8.dll) next to speed.exe loads scripts/net_u2.asi automatically; no extra flag is needed.'
+      command: 'Start-Process -FilePath "{{target}}/SPEED2.EXE" -WorkingDirectory "{{target}}"'
+      notes: 'Default Windows start. The Ultimate ASI Loader (dinput8.dll) next to SPEED2.EXE loads scripts/net_u2.asi automatically; no extra flag is needed.'
     - id: linux-wine
       label: 'Linux (Wine + ASI override)'
       os: linux
       shell: bash
-      command: 'WINEDLLOVERRIDES="dinput8=n,b" wine "{{target}}/speed.exe"'
+      command: 'WINEDLLOVERRIDES="dinput8=n,b" wine "{{target}}/SPEED2.EXE"'
       notes: 'Default Linux start. The override is required so Wine loads the Ultimate ASI Loader; without it net_u2.asi is ignored. A 32-bit Wine prefix is enough for this game.'
     - id: linux-proton
       label: 'Linux (Proton, optional fallback)'
       os: linux
       shell: bash
-      command: 'WINEDLLOVERRIDES="dinput8=n,b" proton run "{{target}}/speed.exe"'
+      command: 'WINEDLLOVERRIDES="dinput8=n,b" proton run "{{target}}/SPEED2.EXE"'
       notes: 'Optional fallback when the machine has a `proton` command from a Steam/Proton install. The launcher picks linux-wine first; choose this target manually only if the Wine run fails.'
 metadata:
     genre: racing
