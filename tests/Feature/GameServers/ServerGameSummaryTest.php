@@ -6,6 +6,8 @@ use App\Modules\GameServers\Domain\JoinInfo;
 use App\Modules\GameServers\Enums\ServerLinkStatus;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Support\ServerGameSummary;
+use App\Modules\Tournaments\Models\GameMatch;
+use App\Modules\Tournaments\Models\Tournament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -43,9 +45,10 @@ it('groups the event servers per game and sums players and slots', function () {
     $summary = ServerGameSummary::forEvent($event);
 
     expect($summary)->toHaveCount(2)
-        ->and($summary[0])->toMatchArray(['game' => 'Counter-Strike 2', 'servers' => 2, 'players' => 4, 'maxPlayers' => 18])
+        ->and($summary[0])->toMatchArray(['game' => 'Counter-Strike 2', 'servers' => 2, 'players' => 3, 'maxPlayers' => 18])
         ->and($summary[1])->toMatchArray(['game' => 'UT2004', 'servers' => 1, 'players' => 4, 'maxPlayers' => 16]);
-    expect(ServerGameSummary::totalPlayers($event))->toBe(8);
+    // The NotResponding server's query data is stale: it counts as a server, not as players.
+    expect(ServerGameSummary::totalPlayers($event))->toBe(7);
 });
 
 it('counts only ready and not-responding servers', function () {
@@ -197,7 +200,33 @@ it('ranks a server with query data above one without it at equal players', funct
     $known = summaryLink($event, $game, ['title' => 'Bekannt'], queryInfo(0, 10));
 
     expect(ServerGameSummary::forEvent($event)[0]['join'])->toMatchArray(['serverId' => $known->id])
-        ->and($unknown->id)->toBeInt();
+        ->and($known->id)->not->toBe($unknown->id);
+});
+
+it('counts a match server in servers and players but never offers it to join', function () {
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'CS2']);
+    $tournament = Tournament::factory()->for($event)->create(['game_id' => $game->id]);
+    $match = GameMatch::factory()->for($tournament)->create();
+
+    summaryLink($event, null, ['match_id' => $match->id, 'title' => 'Match'], queryInfo(8, 12));
+    $public = summaryLink($event, $game, ['title' => 'Public'], queryInfo(2, 16));
+
+    $row = collect(ServerGameSummary::forEvent($event))->firstWhere('game', $game->name);
+
+    expect($row)->toMatchArray(['servers' => 2, 'players' => 10, 'maxPlayers' => 28])
+        ->and($row['join']['serverId'])->toBe($public->id);
+});
+
+it('has no join when the only server of a game is bound to a match', function () {
+    $event = Event::factory()->live()->create();
+    $game = Game::factory()->create(['name' => 'CS2']);
+    $tournament = Tournament::factory()->for($event)->create(['game_id' => $game->id]);
+    $match = GameMatch::factory()->for($tournament)->create();
+
+    summaryLink($event, null, ['match_id' => $match->id], queryInfo(8, 12));
+
+    expect(ServerGameSummary::forEvent($event)[0])->toMatchArray(['servers' => 1, 'players' => 8, 'join' => null]);
 });
 
 it('prefers a ready server over a not-responding one even when the latter has more players', function () {

@@ -11,7 +11,8 @@ use App\Modules\GameServers\Enums\ServerLinkStatus;
  * Per-game summary of the servers people can play on right now: the event's
  * servers merged with the permanent ones, built on {@see ServerListProjection::dto()}
  * so status and game resolution stay in one place. Only Ready and NotResponding
- * servers count, the same set the public server list shows.
+ * servers count, the same set the public server list shows; players are summed over Ready
+ * servers only (a NotResponding server's query data is stale).
  *
  * Feeds the "Jetzt" home page's now-playing block and the nav badge.
  */
@@ -37,7 +38,7 @@ class ServerGameSummary
                 continue;
             }
 
-            $players = self::queryCount($dto, 'players');
+            $players = self::countedPlayers($dto);
             $maxPlayers = self::queryCount($dto, 'maxPlayers');
 
             $groups[$label] ??= ['game' => $label, 'servers' => 0, 'players' => 0, 'maxPlayers' => 0, 'join' => null, 'candidates' => []];
@@ -69,7 +70,7 @@ class ServerGameSummary
         $total = 0;
 
         foreach (self::liveDtos($event) as $dto) {
-            $total += self::queryCount($dto, 'players');
+            $total += self::countedPlayers($dto);
         }
 
         return $total;
@@ -120,7 +121,9 @@ class ServerGameSummary
      */
     private static function joinable(array $dto): bool
     {
-        if ($dto['connectString'] === '') {
+        // A match or tournament server is bound to its participants: it counts in the totals but
+        // is never offered as "the server to join".
+        if ($dto['connectString'] === '' || $dto['matchLabel'] !== null) {
             return false;
         }
 
@@ -189,6 +192,17 @@ class ServerGameSummary
         }
 
         return (int) $candidate['id'] < (int) $current['id'];
+    }
+
+    /**
+     * Players of a Ready server only: a NotResponding server's query_info is stale, so it adds
+     * a server to the count but no players.
+     *
+     * @param  array<string, mixed>  $dto
+     */
+    private static function countedPlayers(array $dto): int
+    {
+        return $dto['status'] === ServerLinkStatus::Ready->value ? self::queryCount($dto, 'players') : 0;
     }
 
     /** @param array<string, mixed> $dto */
