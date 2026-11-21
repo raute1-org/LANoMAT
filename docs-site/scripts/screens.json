@@ -3,270 +3,531 @@
     "width": 1440,
     "height": 900,
     "bytes": 23309,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/customservers.md",
+      "pages/system/modules/hosts.md",
+      "pages/system/modules/preflight.md"
+    ]
   },
   "admin-custom-servers-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 23168,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/customservers.md",
+      "pages/system/modules/hosts.md",
+      "pages/system/modules/preflight.md"
+    ]
   },
   "admin-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31402,
     "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/mcp/overview.md",
+      "pages/mcp/security.md",
+      "pages/mcp/tools.md",
+      "pages/mcp/vibecoding.md",
+      "pages/reference/commands.md",
+      "pages/reference/troubleshooting.md",
+      "pages/start/deployment.md",
+      "pages/start/introduction.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md",
-      "pages/system/modules/discord.md"
+      "pages/system/modules/discord.md",
+      "pages/system/modules/lancache.md",
+      "pages/system/modules/preflight.md",
+      "pages/system/modules/provisioning.md",
+      "pages/system/modules/voting.md",
+      "pages/system/overview.md"
     ]
   },
   "admin-disputes-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 21569,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/stats.md"
+    ]
   },
   "admin-disputes-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 21506,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/stats.md"
+    ]
   },
   "admin-event-photos-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 39250,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/media.md",
+      "pages/system/modules/gallery.md"
+    ]
   },
   "admin-event-photos-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 39972,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/media.md",
+      "pages/system/modules/gallery.md"
+    ]
   },
   "admin-events-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 40855,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/casting.md",
+      "pages/system/modules/events.md",
+      "pages/system/modules/lfg.md",
+      "pages/system/overview.md"
+    ]
   },
   "admin-events-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 40982,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/casting.md",
+      "pages/system/modules/events.md",
+      "pages/system/modules/lfg.md",
+      "pages/system/overview.md"
+    ]
   },
   "admin-food-orders-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 25779,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/catering.md"
+    ]
   },
   "admin-food-orders-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 25775,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/catering.md"
+    ]
   },
   "admin-games-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 23558,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md"
+    ]
   },
   "admin-games-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 23713,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md"
+    ]
   },
   "admin-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31391,
     "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/mcp/overview.md",
+      "pages/mcp/security.md",
+      "pages/mcp/tools.md",
+      "pages/mcp/vibecoding.md",
+      "pages/reference/commands.md",
+      "pages/reference/troubleshooting.md",
+      "pages/start/deployment.md",
+      "pages/start/introduction.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md",
-      "pages/system/modules/discord.md"
+      "pages/system/modules/discord.md",
+      "pages/system/modules/lancache.md",
+      "pages/system/modules/preflight.md",
+      "pages/system/modules/provisioning.md",
+      "pages/system/modules/voting.md",
+      "pages/system/overview.md"
     ]
   },
   "admin-news-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31399,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/reference/changelog.md",
+      "pages/start/screenshots.md",
+      "pages/system/modules/discord.md",
+      "pages/system/modules/news.md"
+    ]
   },
   "admin-news-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31404,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/reference/changelog.md",
+      "pages/start/screenshots.md",
+      "pages/system/modules/discord.md",
+      "pages/system/modules/news.md"
+    ]
   },
   "admin-recipe-edit-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 48711,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/contributing.md",
+      "pages/recipes/ridge-racer.md",
+      "pages/recipes/smb.md",
+      "pages/recipes/ut2004.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
   },
   "admin-recipe-edit-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 48026,
     "referencedBy": [
-      "pages/guides/upload-isos-and-avatars.mdx"
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/contributing.md",
+      "pages/recipes/ridge-racer.md",
+      "pages/recipes/smb.md",
+      "pages/recipes/ut2004.md",
+      "pages/system/modules/gamerecipes.md"
     ]
   },
   "admin-recipes-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 47107,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/overview.md",
+      "pages/recipes/ridge-racer.md",
+      "pages/recipes/smb.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
   },
   "admin-recipes-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 46976,
     "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/guides/install-ut2004.mdx",
       "pages/guides/lan-party-runbook.mdx",
-      "pages/guides/upload-isos-and-avatars.mdx"
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/overview.md",
+      "pages/recipes/ridge-racer.md",
+      "pages/recipes/smb.md",
+      "pages/system/modules/gamerecipes.md"
     ]
   },
   "admin-remote-hosts-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 23378,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/integrations.md",
+      "pages/system/modules/customservers.md",
+      "pages/system/modules/hosts.md",
+      "pages/system/modules/lancache.md",
+      "pages/system/modules/preflight.md",
+      "pages/system/modules/provisioning.md",
+      "pages/system/site-ops.md"
+    ]
   },
   "admin-remote-hosts-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 23248,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/integrations.md",
+      "pages/system/modules/customservers.md",
+      "pages/system/modules/hosts.md",
+      "pages/system/modules/lancache.md",
+      "pages/system/modules/preflight.md",
+      "pages/system/modules/provisioning.md",
+      "pages/system/site-ops.md"
+    ]
   },
   "admin-room-control-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31415,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/jukebox.md",
+      "pages/system/modules/roomaudio.md",
+      "pages/system/site-ops.md"
+    ]
   },
   "admin-room-control-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31436,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/jukebox.md",
+      "pages/system/modules/roomaudio.md",
+      "pages/system/site-ops.md"
+    ]
   },
   "admin-schedule-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 35205,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/schedule.md"
+    ]
   },
   "admin-schedule-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 35173,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/schedule.md"
+    ]
   },
   "admin-seats-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 41689,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/seating.md"
+    ]
   },
   "admin-seats-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 41757,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/seating.md"
+    ]
   },
   "admin-server-links-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 25284,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
   },
   "admin-server-links-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 25148,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
   },
   "admin-shared-files-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 49576,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/contributing.md",
+      "pages/recipes/overview.md",
+      "pages/recipes/smb.md",
+      "pages/recipes/ut2004.md",
+      "pages/reference/changelog.md",
+      "pages/reference/env.md",
+      "pages/start/screenshots.md",
+      "pages/system/integrations.md",
+      "pages/system/media.md",
+      "pages/system/modules/files.md",
+      "pages/system/site-ops.md"
+    ]
   },
   "admin-shared-files-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 49641,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/contributing.md",
+      "pages/recipes/overview.md",
+      "pages/recipes/smb.md",
+      "pages/recipes/ut2004.md",
+      "pages/reference/changelog.md",
+      "pages/reference/env.md",
+      "pages/start/screenshots.md",
+      "pages/system/integrations.md",
+      "pages/system/media.md",
+      "pages/system/modules/files.md",
+      "pages/system/site-ops.md"
+    ]
   },
   "admin-teams-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 21108,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/teams.md"
+    ]
   },
   "admin-teams-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 20992,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/teams.md"
+    ]
   },
   "admin-users-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 44955,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/mcp/security.md",
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md",
+      "pages/system/modules/identity.md",
+      "pages/system/modules/mcp.md"
+    ]
   },
   "admin-users-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 45126,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/mcp/security.md",
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md",
+      "pages/system/modules/identity.md",
+      "pages/system/modules/mcp.md"
+    ]
   },
   "agent-doctor-terminal-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 28216,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/install.md",
+      "pages/agent/troubleshooting.md",
+      "pages/agent/venice.md",
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/start/screenshots.md"
+    ]
   },
   "agent-doctor-terminal-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 29363,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/install.md",
+      "pages/agent/troubleshooting.md",
+      "pages/agent/venice.md",
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/start/screenshots.md"
+    ]
   },
   "agent-doctor-terminal.png": {
     "width": 1440,
     "height": 900,
     "bytes": 29363,
-    "referencedBy": [
-      "pages/guides/install-the-agent.mdx"
-    ]
+    "referencedBy": []
   },
   "agent-install-terminal-dark.png": {
     "width": 1440,
     "height": 1847,
     "bytes": 69244,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/install.md",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/mcp/overview.md",
+      "pages/mcp/tools.md",
+      "pages/mcp/vibecoding.md",
+      "pages/recipes/contributing.md",
+      "pages/recipes/overview.md",
+      "pages/recipes/smb.md",
+      "pages/recipes/ut2004.md",
+      "pages/start/screenshots.md"
+    ]
   },
   "agent-install-terminal-light.png": {
     "width": 1440,
     "height": 1847,
     "bytes": 68628,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/install.md",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/mcp/overview.md",
+      "pages/mcp/tools.md",
+      "pages/mcp/vibecoding.md",
+      "pages/recipes/contributing.md",
+      "pages/recipes/overview.md",
+      "pages/recipes/smb.md",
+      "pages/recipes/ut2004.md",
+      "pages/start/screenshots.md"
+    ]
   },
   "agent-install-terminal.png": {
     "width": 1440,
     "height": 1524,
     "bytes": 54454,
-    "referencedBy": [
-      "pages/guides/install-the-agent.mdx"
-    ]
+    "referencedBy": []
   },
   "catering-dark.png": {
     "width": 1440,
@@ -292,20 +553,35 @@
     "width": 1440,
     "height": 900,
     "bytes": 32013,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/install.md",
+      "pages/agent/venice.md",
+      "pages/mcp/security.md",
+      "pages/start/screenshots.md",
+      "pages/system/integrations.md",
+      "pages/system/modules/identity.md"
+    ]
   },
   "connections-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 31931,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/install.md",
+      "pages/agent/venice.md",
+      "pages/mcp/security.md",
+      "pages/start/screenshots.md",
+      "pages/system/integrations.md",
+      "pages/system/modules/identity.md"
+    ]
   },
   "countdown-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 37124,
     "referencedBy": [
-      "pages/start/tour.md"
+      "pages/start/tour.md",
+      "pages/system/modules/events.md"
     ]
   },
   "countdown-light.png": {
@@ -313,7 +589,8 @@
     "height": 900,
     "bytes": 36944,
     "referencedBy": [
-      "pages/start/tour.md"
+      "pages/start/tour.md",
+      "pages/system/modules/events.md"
     ]
   },
   "dashboard-dark.png": {
@@ -321,7 +598,16 @@
     "height": 900,
     "bytes": 34793,
     "referencedBy": [
-      "pages/guides/install-ut2004.mdx"
+      "pages/agent/overview.md",
+      "pages/agent/troubleshooting.md",
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/mcp/tools.md",
+      "pages/start/quickstart.md",
+      "pages/start/tour.md",
+      "pages/system/modules/notifications.md",
+      "pages/system/modules/registration.md",
+      "pages/system/overview.md"
     ]
   },
   "dashboard-light.png": {
@@ -329,7 +615,16 @@
     "height": 900,
     "bytes": 34391,
     "referencedBy": [
-      "pages/guides/install-ut2004.mdx"
+      "pages/agent/overview.md",
+      "pages/agent/troubleshooting.md",
+      "pages/guides/install-the-agent.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/mcp/tools.md",
+      "pages/start/quickstart.md",
+      "pages/start/tour.md",
+      "pages/system/modules/notifications.md",
+      "pages/system/modules/registration.md",
+      "pages/system/overview.md"
     ]
   },
   "dashboard-mobile-dark.png": {
@@ -365,6 +660,8 @@
     "height": 900,
     "bytes": 129856,
     "referencedBy": [
+      "pages/mcp/vibecoding.md",
+      "pages/start/deployment.md",
       "pages/start/tour.md"
     ]
   },
@@ -373,6 +670,8 @@
     "height": 900,
     "bytes": 129257,
     "referencedBy": [
+      "pages/mcp/vibecoding.md",
+      "pages/start/deployment.md",
       "pages/start/tour.md"
     ]
   },
@@ -382,9 +681,13 @@
     "bytes": 42428,
     "referencedBy": [
       "pages/guides/lan-party-runbook.mdx",
+      "pages/start/introduction.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md",
-      "pages/system/modules/events.md"
+      "pages/system/event-people.md",
+      "pages/system/modules/events.md",
+      "pages/system/modules/news.md",
+      "pages/system/overview.md"
     ]
   },
   "event-page-light.png": {
@@ -393,9 +696,13 @@
     "bytes": 42382,
     "referencedBy": [
       "pages/guides/lan-party-runbook.mdx",
+      "pages/start/introduction.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md",
-      "pages/system/modules/events.md"
+      "pages/system/event-people.md",
+      "pages/system/modules/events.md",
+      "pages/system/modules/news.md",
+      "pages/system/overview.md"
     ]
   },
   "event-page-mobile-dark.png": {
@@ -414,19 +721,35 @@
     "width": 1440,
     "height": 900,
     "bytes": 25302,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/competition.md",
+      "pages/system/modules/gameservers.md"
+    ]
   },
   "event-servers-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 25285,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ut2004.mdx",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/competition.md",
+      "pages/system/modules/gameservers.md"
+    ]
   },
   "files-dark.png": {
     "width": 1440,
     "height": 2330,
     "bytes": 76955,
     "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md",
       "pages/system/modules/files.md"
@@ -437,6 +760,8 @@
     "height": 2330,
     "bytes": 77737,
     "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md",
       "pages/system/modules/files.md"
@@ -448,7 +773,9 @@
     "bytes": 36957,
     "referencedBy": [
       "pages/guides/lan-party-runbook.mdx",
-      "pages/guides/upload-isos-and-avatars.mdx"
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/tour.md",
+      "pages/system/modules/files.md"
     ]
   },
   "files-upload-light.png": {
@@ -457,7 +784,9 @@
     "bytes": 36941,
     "referencedBy": [
       "pages/guides/lan-party-runbook.mdx",
-      "pages/guides/upload-isos-and-avatars.mdx"
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/tour.md",
+      "pages/system/modules/files.md"
     ]
   },
   "files-upload-mobile-dark.png": {
@@ -476,13 +805,19 @@
     "width": 1440,
     "height": 900,
     "bytes": 37905,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/friends.md"
+    ]
   },
   "friends-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 37735,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/friends.md"
+    ]
   },
   "gallery-dark.png": {
     "width": 1440,
@@ -491,6 +826,7 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/media.md",
       "pages/system/modules/gallery.md"
     ]
   },
@@ -501,6 +837,7 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/media.md",
       "pages/system/modules/gallery.md"
     ]
   },
@@ -510,8 +847,14 @@
     "bytes": 55236,
     "referencedBy": [
       "pages/guides/install-ut2004.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/contributing.md",
+      "pages/recipes/ut2004.md",
+      "pages/start/quickstart.md",
       "pages/start/screenshots.md",
-      "pages/system/games-library.md"
+      "pages/start/tour.md",
+      "pages/system/games-library.md",
+      "pages/system/modules/games.md"
     ]
   },
   "game-ut2004-light.png": {
@@ -520,8 +863,14 @@
     "bytes": 55593,
     "referencedBy": [
       "pages/guides/install-ut2004.mdx",
+      "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/recipes/contributing.md",
+      "pages/recipes/ut2004.md",
+      "pages/start/quickstart.md",
       "pages/start/screenshots.md",
-      "pages/system/games-library.md"
+      "pages/start/tour.md",
+      "pages/system/games-library.md",
+      "pages/system/modules/games.md"
     ]
   },
   "game-ut2004-mobile-dark.png": {
@@ -541,8 +890,14 @@
     "height": 900,
     "bytes": 53477,
     "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/recipes/overview.md",
+      "pages/start/introduction.mdx",
+      "pages/start/quickstart.md",
       "pages/start/screenshots.md",
-      "pages/system/games-library.md"
+      "pages/system/games-library.md",
+      "pages/system/modules/games.md"
     ]
   },
   "games-filter-dark.png": {
@@ -550,7 +905,10 @@
     "height": 900,
     "bytes": 39104,
     "referencedBy": [
-      "pages/guides/install-ridge-racer.mdx"
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/recipes/ridge-racer.md",
+      "pages/start/tour.md",
+      "pages/system/modules/games.md"
     ]
   },
   "games-filter-light.png": {
@@ -558,7 +916,10 @@
     "height": 900,
     "bytes": 39227,
     "referencedBy": [
-      "pages/guides/install-ridge-racer.mdx"
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/recipes/ridge-racer.md",
+      "pages/start/tour.md",
+      "pages/system/modules/games.md"
     ]
   },
   "games-filter-mobile-dark.png": {
@@ -578,8 +939,14 @@
     "height": 900,
     "bytes": 53845,
     "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/install-ridge-racer.mdx",
+      "pages/recipes/overview.md",
+      "pages/start/introduction.mdx",
+      "pages/start/quickstart.md",
       "pages/start/screenshots.md",
-      "pages/system/games-library.md"
+      "pages/system/games-library.md",
+      "pages/system/modules/games.md"
     ]
   },
   "home-dark.png": {
@@ -600,6 +967,7 @@
     "bytes": 6848,
     "referencedBy": [
       "pages/guides/upload-isos-and-avatars.mdx",
+      "pages/start/introduction.mdx",
       "pages/start/screenshots.md",
       "pages/start/tour.md"
     ]
@@ -623,6 +991,8 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/media.md",
+      "pages/system/modules/casting.md",
       "pages/system/modules/infoscreen.md"
     ]
   },
@@ -633,6 +1003,8 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/media.md",
+      "pages/system/modules/casting.md",
       "pages/system/modules/infoscreen.md"
     ]
   },
@@ -642,7 +1014,9 @@
     "bytes": 12789,
     "referencedBy": [
       "pages/start/screenshots.md",
-      "pages/start/tour.md"
+      "pages/start/tour.md",
+      "pages/system/modules/infoscreen.md",
+      "pages/system/modules/recap.md"
     ]
   },
   "infoscreen-recap-light.png": {
@@ -651,7 +1025,9 @@
     "bytes": 12789,
     "referencedBy": [
       "pages/start/screenshots.md",
-      "pages/start/tour.md"
+      "pages/start/tour.md",
+      "pages/system/modules/infoscreen.md",
+      "pages/system/modules/recap.md"
     ]
   },
   "jukebox-dark.png": {
@@ -661,7 +1037,8 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
-      "pages/system/modules/jukebox.md"
+      "pages/system/modules/jukebox.md",
+      "pages/system/modules/roomaudio.md"
     ]
   },
   "jukebox-light.png": {
@@ -671,20 +1048,31 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
-      "pages/system/modules/jukebox.md"
+      "pages/system/modules/jukebox.md",
+      "pages/system/modules/roomaudio.md"
     ]
   },
   "leaderboard-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 36213,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/competition.md",
+      "pages/system/modules/stats.md",
+      "pages/system/overview.md"
+    ]
   },
   "leaderboard-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 36218,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/competition.md",
+      "pages/system/modules/stats.md",
+      "pages/system/overview.md"
+    ]
   },
   "lfg-dark.png": {
     "width": 1440,
@@ -711,7 +1099,13 @@
     "height": 900,
     "bytes": 31825,
     "referencedBy": [
-      "pages/agent/install.md"
+      "pages/agent/install.md",
+      "pages/agent/troubleshooting.md",
+      "pages/guides/install-the-agent.mdx",
+      "pages/mcp/overview.md",
+      "pages/mcp/security.md",
+      "pages/reference/env.md",
+      "pages/system/modules/mcp.md"
     ]
   },
   "mcp-connect-light.png": {
@@ -719,7 +1113,13 @@
     "height": 900,
     "bytes": 31653,
     "referencedBy": [
-      "pages/agent/install.md"
+      "pages/agent/install.md",
+      "pages/agent/troubleshooting.md",
+      "pages/guides/install-the-agent.mdx",
+      "pages/mcp/overview.md",
+      "pages/mcp/security.md",
+      "pages/reference/env.md",
+      "pages/system/modules/mcp.md"
     ]
   },
   "mcp-connect-pending-dark.png": {
@@ -727,10 +1127,15 @@
     "height": 900,
     "bytes": 35121,
     "referencedBy": [
+      "pages/agent/overview.md",
       "pages/guides/install-the-agent.mdx",
       "pages/guides/install-ut2004.mdx",
       "pages/mcp/overview.md",
-      "pages/start/screenshots.md"
+      "pages/start/deployment.md",
+      "pages/start/quickstart.md",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/mcp.md"
     ]
   },
   "mcp-connect-pending-light.png": {
@@ -738,47 +1143,78 @@
     "height": 900,
     "bytes": 34999,
     "referencedBy": [
+      "pages/agent/overview.md",
       "pages/guides/install-the-agent.mdx",
       "pages/guides/install-ut2004.mdx",
       "pages/mcp/overview.md",
-      "pages/start/screenshots.md"
+      "pages/start/deployment.md",
+      "pages/start/quickstart.md",
+      "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/modules/mcp.md"
     ]
   },
   "notifications-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 36332,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/reference/commands.md",
+      "pages/reference/troubleshooting.md",
+      "pages/start/screenshots.md",
+      "pages/system/modules/notifications.md"
+    ]
   },
   "notifications-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 36089,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/reference/commands.md",
+      "pages/reference/troubleshooting.md",
+      "pages/start/screenshots.md",
+      "pages/system/modules/notifications.md"
+    ]
   },
   "orga-checkin-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 21877,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/reference/troubleshooting.md",
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md"
+    ]
   },
   "orga-checkin-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 21895,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/reference/troubleshooting.md",
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md"
+    ]
   },
   "orga-checkin-qr-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 18982,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md"
+    ]
   },
   "orga-checkin-qr-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 18982,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md"
+    ]
   },
   "presence-dark.png": {
     "width": 1440,
@@ -787,6 +1223,7 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/modules/friends.md",
       "pages/system/modules/presence.md"
     ]
   },
@@ -797,6 +1234,7 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/modules/friends.md",
       "pages/system/modules/presence.md"
     ]
   },
@@ -824,13 +1262,21 @@
     "width": 1440,
     "height": 900,
     "bytes": 28167,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md",
+      "pages/system/modules/registration.md"
+    ]
   },
   "register-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 28341,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md",
+      "pages/system/modules/registration.md"
+    ]
   },
   "schedule-dark.png": {
     "width": 1440,
@@ -876,13 +1322,19 @@
     "width": 1440,
     "height": 900,
     "bytes": 21173,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
   },
   "servers-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 21146,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
   },
   "settings-connections-dark.png": {
     "width": 1440,
@@ -900,38 +1352,66 @@
     "width": 1440,
     "height": 900,
     "bytes": 23368,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/overview.md",
+      "pages/reference/env.md",
+      "pages/start/screenshots.md",
+      "pages/system/modules/discord.md",
+      "pages/system/modules/webvoice.md"
+    ]
   },
   "talk-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 23205,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/agent/overview.md",
+      "pages/reference/env.md",
+      "pages/start/screenshots.md",
+      "pages/system/modules/discord.md",
+      "pages/system/modules/webvoice.md"
+    ]
   },
   "teams-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 19245,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md",
+      "pages/system/modules/teams.md"
+    ]
   },
   "teams-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 19217,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/start/screenshots.md",
+      "pages/system/event-people.md",
+      "pages/system/modules/teams.md"
+    ]
   },
   "tournament-bracket-dark.png": {
     "width": 1440,
     "height": 900,
     "bytes": 34135,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/start/tour.md",
+      "pages/system/competition.md",
+      "pages/system/modules/tournaments.md"
+    ]
   },
   "tournament-bracket-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 33907,
     "referencedBy": [
-      "pages/guides/install-cs16.mdx"
+      "pages/guides/install-cs16.mdx",
+      "pages/start/tour.md",
+      "pages/system/competition.md",
+      "pages/system/modules/tournaments.md"
     ]
   },
   "tournament-bracket-mobile-dark.png": {
@@ -953,6 +1433,7 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/competition.md",
       "pages/system/modules/tournaments.md"
     ]
   },
@@ -963,6 +1444,7 @@
     "referencedBy": [
       "pages/start/screenshots.md",
       "pages/start/tour.md",
+      "pages/system/competition.md",
       "pages/system/modules/tournaments.md"
     ]
   },
@@ -972,7 +1454,8 @@
     "bytes": 12238,
     "referencedBy": [
       "pages/start/screenshots.md",
-      "pages/start/tour.md"
+      "pages/start/tour.md",
+      "pages/system/modules/voice.md"
     ]
   },
   "voice-app/02-connect-wait.png": {
@@ -1021,7 +1504,8 @@
     "bytes": 24433,
     "referencedBy": [
       "pages/start/screenshots.md",
-      "pages/start/tour.md"
+      "pages/start/tour.md",
+      "pages/system/modules/voice.md"
     ]
   },
   "voice-app/11-jetzt-vote.png": {
@@ -1078,13 +1562,17 @@
     "width": 960,
     "height": 760,
     "bytes": 22408,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/system/modules/voice.md"
+    ]
   },
   "voice-app/21-chat-mention.png": {
     "width": 960,
     "height": 760,
     "bytes": 24582,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/system/modules/voice.md"
+    ]
   },
   "voice-app/22-badge-mention.png": {
     "width": 960,
@@ -1102,7 +1590,9 @@
     "width": 960,
     "height": 760,
     "bytes": 29935,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/system/modules/presence.md"
+    ]
   },
   "voice-app/24b-personen-followed-into-room.png": {
     "width": 960,
@@ -1594,7 +2084,9 @@
     "width": 960,
     "height": 760,
     "bytes": 28371,
-    "referencedBy": []
+    "referencedBy": [
+      "pages/system/modules/presence.md"
+    ]
   },
   "voice-app/dark-profile.png": {
     "width": 960,
