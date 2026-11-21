@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevLoginController;
 use App\Modules\Casting\Http\OverlayController;
 use App\Modules\Catering\Http\CateringController;
@@ -89,7 +88,7 @@ Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show')
 Route::post('dev/login/{role}', DevLoginController::class)->name('dev.login');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::redirect('dashboard', '/')->name('dashboard');
 
     // Local avatar copies (Identity, core): every logged-in user, immutable per content hash.
     Route::get('avatars/{user}/{hash}', [AvatarController::class, 'show'])
