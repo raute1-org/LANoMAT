@@ -6,9 +6,16 @@ export interface MenuOptionDto {
     imageUrl?: string | null;
 }
 
+export interface RestaurantDto {
+    name: string;
+    description: string | null;
+    logoUrl: string | null;
+}
+
 export interface FoodOrderItemDto {
     id: number;
     optionKey: string | null;
+    name?: string | null;
     note: string | null;
     priceCents: number;
     paid: boolean;
@@ -30,6 +37,7 @@ export interface FoodOrderDto {
     isOpen: boolean;
     opensAt: string | null;
     closesAt: string | null;
+    restaurant: RestaurantDto | null;
     menu: MenuOptionDto[];
     myItems: FoodOrderItemDto[];
     myTotalCents: number;
