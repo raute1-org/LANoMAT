@@ -9,7 +9,6 @@ use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherSupport;
-use App\Modules\Mcp\Http\Api\RecipeController;
 use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Support\McpCodes;
 use Dotenv\Dotenv;
@@ -118,7 +117,7 @@ function recipeIndexToken(User $user): string
 
 it('flags every published recipe as installable and launcher supported without hiding the rest', function () {
     recipeIndexComplete([
-        'slug' => RecipeController::LAUNCHER_PILOT_SLUG,
+        'slug' => LauncherSupport::PILOT_SLUG,
         'title' => 'Unreal Tournament 2004',
     ]);
     // Complete, but the install engine is still the UT2004 pilot.
@@ -136,8 +135,8 @@ it('flags every published recipe as installable and launcher supported without h
     $recipes = collect($response->json('data'))->keyBy('slug');
 
     expect($recipes)->toHaveCount(3)
-        ->and($recipes[RecipeController::LAUNCHER_PILOT_SLUG]['installable'])->toBeTrue()
-        ->and($recipes[RecipeController::LAUNCHER_PILOT_SLUG]['launcher_supported'])->toBeTrue()
+        ->and($recipes[LauncherSupport::PILOT_SLUG]['installable'])->toBeTrue()
+        ->and($recipes[LauncherSupport::PILOT_SLUG]['launcher_supported'])->toBeTrue()
         ->and($recipes['openra']['installable'])->toBeTrue()
         ->and($recipes['openra']['launcher_supported'])->toBeFalse()
         ->and($recipes['stub-game']['installable'])->toBeFalse()
@@ -210,7 +209,7 @@ it('shows every draft to an orga bearer token', function () {
 
 it('decides launcher support with LauncherSupport for the pilot, a browser recipe, a portable and a plain recipe', function () {
     recipeIndexComplete([
-        'slug' => RecipeController::LAUNCHER_PILOT_SLUG,
+        'slug' => LauncherSupport::PILOT_SLUG,
         'title' => 'Unreal Tournament 2004',
     ]);
     recipeIndexComplete([
@@ -236,7 +235,7 @@ it('decides launcher support with LauncherSupport for the pilot, a browser recip
 
     $recipes = collect($response->json('data'))->keyBy('slug');
 
-    expect($recipes[RecipeController::LAUNCHER_PILOT_SLUG]['launcher_supported'])->toBeTrue()
+    expect($recipes[LauncherSupport::PILOT_SLUG]['launcher_supported'])->toBeTrue()
         ->and($recipes['arcade-racer']['launcher_supported'])->toBeTrue()
         ->and($recipes['tiny-racer']['launcher_supported'])->toBeTrue()
         ->and($recipes['plain-game']['launcher_supported'])->toBeFalse()

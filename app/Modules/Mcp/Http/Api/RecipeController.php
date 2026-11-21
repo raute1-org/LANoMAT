@@ -28,31 +28,6 @@ class RecipeController extends Controller
     use ResolvesAuthenticatedUser;
 
     /**
-     * The one recipe with a dedicated engine path (UT2004's `System/`
-     * verifier). A browser recipe needs no install at all: its `play_url`
-     * makes it launcher-supported too. Every other recipe that the generic
-     * engine can install is listed in [`self::LAUNCHER_SUPPORTED_SLUGS`].
-     */
-    public const LAUNCHER_PILOT_SLUG = 'unreal-tournament-2004';
-
-    /**
-     * Published recipes the native launcher can install end to end. UT2004 has
-     * the dedicated installer; NFSU2 is driven by its plan's `steps[].verify`
-     * and `launch_targets`.
-     *
-     * @var list<string>
-     */
-    public const LAUNCHER_SUPPORTED_SLUGS = [
-        self::LAUNCHER_PILOT_SLUG,
-        'need-for-speed-underground-2',
-    ];
-
-    public static function supportsLauncher(string $slug): bool
-    {
-        return in_array($slug, self::LAUNCHER_SUPPORTED_SLUGS, true);
-    }
-
-    /**
      * The metadata keys a contribution may set through the REST surface. The
      * rest of a recipe's metadata document belongs to the orga and to the
      * recipe source; `launcher_supported` in particular is an orga override.

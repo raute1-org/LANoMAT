@@ -65,7 +65,10 @@ class ServerListProjection
             return $install;
         }
 
-        if (! app()->bound('request')) {
+        // Only a web request may keep the instance: a queue worker or the
+        // scheduler has one synthetic request for its whole lifetime, and a
+        // memo there would never see a recipe that is published later.
+        if (! app()->bound('request') || (app()->runningInConsole() && ! app()->runningUnitTests())) {
             return app(GameInstallLinks::class);
         }
 
