@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import PageContainer from '@/components/PageContainer.vue';
+import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -19,6 +20,8 @@ import type { GameServerDto } from '@/types';
 // logged-in user, whatever the source (Pelican, Docker or external).
 const props = defineProps<{
     servers: GameServerDto[];
+    /** Standard maps for the admin map picker; null for everyone who may not manage. */
+    adminMaps: string[] | null;
     labels: Record<string, string>;
 }>();
 
@@ -297,6 +300,18 @@ const hasServers = computed(() => props.servers.length > 0);
                                     {{ server.installHint.versionNote }}
                                 </p>
                             </div>
+
+                            <ServerAdminControls
+                                v-if="
+                                    server.canManage &&
+                                    server.admin &&
+                                    adminMaps
+                                "
+                                :server="server"
+                                :admin="server.admin"
+                                :maps="adminMaps"
+                                :labels="labels"
+                            />
                         </CardContent>
                     </Card>
                 </li>

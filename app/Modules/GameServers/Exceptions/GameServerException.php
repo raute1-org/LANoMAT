@@ -116,6 +116,18 @@ class GameServerException extends DomainException
         return new self('This server is not linked to a Pelican server.', 'gameservers.settings.errors.not_linked');
     }
 
+    /** A console command needs a running server; a stopped one would silently drop it. */
+    public static function notRunning(): self
+    {
+        return new self('The server is not running.', 'gameservers.settings.map.needs_running');
+    }
+
+    /** The current map is not known (never queried, or not a standard map), so it cannot be reloaded. */
+    public static function mapUnknown(): self
+    {
+        return new self('The current map is not known.', 'gameservers.settings.reload.map_unknown');
+    }
+
     /** The server file is not valid JSON in the expected shape; it is never overwritten then. */
     public static function configFileInvalid(string $path): self
     {

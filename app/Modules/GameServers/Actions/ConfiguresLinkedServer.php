@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\GameServers\Actions;
 
 use App\Models\User;
+use App\Modules\GameServers\Contracts\PelicanClient;
+use App\Modules\GameServers\Enums\ServerState;
 use App\Modules\GameServers\Exceptions\GameServerException;
 use App\Modules\GameServers\Models\ServerLink;
 use Illuminate\Support\Facades\Gate;
@@ -27,5 +29,17 @@ trait ConfiguresLinkedServer
         return $link->pelican_server_identifier !== null && $link->pelican_server_id !== null
             ? $link->pelican_server_identifier
             : throw GameServerException::notLinkedToPelican();
+    }
+
+    /**
+     * Console commands only reach a running server.
+     *
+     * @throws GameServerException
+     */
+    private function assertRunning(string $identifier): void
+    {
+        if (app(PelicanClient::class)->getResources($identifier)->state !== ServerState::Running) {
+            throw GameServerException::notRunning();
+        }
     }
 }

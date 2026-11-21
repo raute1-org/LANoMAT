@@ -34,6 +34,8 @@ final class ChangeServerMap
     {
         $identifier = $this->authorizeConfigure($actor, $link);
 
+        $this->assertRunning($identifier);
+
         $data = Validator::make(
             ['map' => $map === '' ? null : $map, 'workshop_id' => $workshopId === '' ? null : $workshopId],
             [

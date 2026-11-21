@@ -40,13 +40,15 @@ form. Admins can also use the header action **Mit Pelican verknüpfen** on the p
 
 ## What the page does
 
-| Part       | Panel call                                                                                                                         |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Save       | Application API `GET` then `PATCH /servers/{id}/startup` with egg, image, startup command and the complete environment, six keys changed. Applies on the next start. |
-| Save and restart | Same, then Client API `POST /servers/{identifier}/power` with `restart`.                                                      |
-| Change map | Client API `POST /servers/{identifier}/command`: `changelevel <map>` or `host_workshop_map <id>`.                                |
-| Power      | Client API `power` with `start`, `stop`, `restart`; status from `/resources`.                                                      |
-| GunGame    | Client API `files/contents` and `files/write` for `game/csgo/cfg/gungame/gungame.json` and `gungame_weapons.json`, then `gg_restart`. |
+| Part             | Panel call                                                                                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save             | Application API `GET` then `PATCH /servers/{id}/startup` with egg, image, startup command and the complete environment, six keys changed. Applies on the next start. |
+| Save and restart | Same, then Client API `POST /servers/{identifier}/power` with `restart`.                                                                                             |
+| Change map       | Client API `POST /servers/{identifier}/command`: `changelevel <map>` or `host_workshop_map <id>`.                                                                    |
+| Restart round    | Client API `command`: `mp_restartgame 1`, or `gg_restart` on a GunGame server (`preset_key=cs2-gungame`). Needs a running server.                                    |
+| Reload map       | Client API `command`: `changelevel <map>` with the map from the last A2S answer, only when it is on the allowlist.                                                   |
+| Power            | Client API `power` with `start`, `stop`, `restart`; status from `/resources`.                                                                                        |
+| GunGame          | Client API `files/contents` and `files/write` for `game/csgo/cfg/gungame/gungame.json` and `gungame_weapons.json`, then `gg_restart`.                                |
 
 Rules:
 
@@ -68,3 +70,13 @@ Rules:
 
 Open points: the value ranges of the GunGame fields and the egg's `HOST_WORKSHOP_MAP` variable are
 assumptions until verified on the real server.
+
+## Admin shortcuts on the participant page
+
+The participant page `/servers` shows an "Admin" block on the card of every Pelican-linked permanent
+server, but only to users who may `configure` it (orga and admin). The server decides this per server
+(`canManage`) and sends the map list and the admin flags only then; everyone else gets neither. The block
+offers "Runde neu starten", "Karte neu laden" (when the current map is known) and a map picker with an
+optional workshop id, each behind a confirmation dialog. The routes are `POST /servers/{serverLink}/restart-round`,
+`/reload-map` and `/map`; they run the same Actions as the settings page, so the policy and the allowlists
+apply again. Result and errors come back as a toast.
