@@ -24,6 +24,10 @@ persistent Gateway held by a small discord.js sidecar.
 |---|---|
 | ![Admin, dark](/screens/admin-dark.png) | ![Admin, light](/screens/admin-light.png) |
 | `ADMIN · DARK` — settings live in Filament | `ADMIN · LIGHT` |
+| ![Neuigkeiten admin list with retract and edit actions, dark](/screens/admin-news-dark.png) | ![Neuigkeiten admin list with retract and edit actions, light](/screens/admin-news-light.png) |
+| `DISCORD · NEUIGKEITEN` — announcements that become Discord posts | `DISCORD · LIGHT` — the same announcement queue |
+| ![Sprachchat page with the team-room hint and no channels yet, dark](/screens/talk-dark.png) | ![Sprachchat page with the team-room hint and no channels yet, light](/screens/talk-light.png) |
+| `DISCORD · SPRACHCHAT` — one room per team, created when a match is ready | `DISCORD · LIGHT` — the empty voice lobby |
 
 ## Guards and rules
 

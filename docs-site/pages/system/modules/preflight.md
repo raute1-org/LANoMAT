@@ -20,6 +20,15 @@ next step.
 - `php artisan lanomat:preflight` — terminal output for scripts and runbooks.
 - Notifications — one `SystemUnhealthy` notification per transition, not per check.
 
+| Dark | Light |
+|---|---|
+| ![Filament dashboard with the Preflight traffic-light tile, dark](/screens/admin-dark.png) | ![Filament dashboard with the Preflight traffic-light tile, light](/screens/admin-light.png) |
+| `PREFLIGHT · DASHBOARD TILE` — grouped checks, one status and one sentence each | `PREFLIGHT · LIGHT` — the same tile in light mode |
+| ![Remote hosts list with role, status and last-probe columns, dark](/screens/admin-remote-hosts-dark.png) | ![Remote hosts list with role, status and last-probe columns, light](/screens/admin-remote-hosts-light.png) |
+| `PREFLIGHT · REMOTE HOSTS` — role, status and "Zuletzt geprüft" per host | `PREFLIGHT · LIGHT` — the host table in light mode |
+| ![Custom servers list with per-server status column, dark](/screens/admin-custom-servers-dark.png) | ![Custom servers list with per-server status column, light](/screens/admin-custom-servers-light.png) |
+| `PREFLIGHT · CUSTOM SERVERS` — host, image, container and readiness status | `PREFLIGHT · LIGHT` — the same server table |
+
 ## What it checks
 
 Database, Redis, queue heartbeat, scheduler heartbeat, storage writability, backup marker freshness,
