@@ -55,6 +55,14 @@ return [
         'my_total' => 'Meine Summe',
         'registration_required' => 'Bestätige zuerst deine Anmeldung zum Event, dann kannst du Essen bestellen.',
         'register_link' => 'Zur Anmeldung',
+        'item_included' => 'inklusive',
+        'pay_included' => 'Im Ticket enthalten, du zahlst hier nichts.',
+        'pay_nothing_due' => 'Alles bezahlt.',
+        'pay_cash' => 'Bar bei der Orga: :amount',
+        'pay_due' => 'Offen: :amount',
+        'pay_button' => 'Mit PayPal bezahlen',
+        'pay_no_link' => 'Zahlungslink folgt, frag die Orga.',
+        'pay_copy_reference' => 'Verwendungszweck kopieren',
     ],
 
     'notifications' => [

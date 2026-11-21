@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import FoodPaymentState from '@/components/catering/FoodPaymentState.vue';
 import LiveIndicator from '@/components/LiveIndicator.vue';
 import Panel from '@/components/Panel.vue';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,16 @@ defineProps<{
 }>();
 
 const t = useNowLabels();
+
+const payLabels = (): Record<string, string> => ({
+    pay_included: t('pay_included'),
+    pay_nothing_due: t('pay_nothing_due'),
+    pay_cash: t('pay_cash'),
+    pay_due: t('pay_due'),
+    pay_button: t('pay_button'),
+    pay_no_link: t('pay_no_link'),
+    pay_copy_reference: t('pay_copy_reference'),
+});
 </script>
 
 <template>
@@ -57,12 +68,7 @@ const t = useNowLabels();
                                 : t('nothing_ordered')
                         }}
                     </span>
-                    <Button
-                        v-if="food.open.orderable"
-                        as-child
-                        size="sm"
-                        variant="outline"
-                    >
+                    <Button v-if="food.open.orderable" as-child size="sm">
                         <Link :href="food.open.href">{{
                             food.open.mine ? t('change_order') : t('order')
                         }}</Link>
@@ -81,6 +87,12 @@ const t = useNowLabels();
                         t('registration_needed')
                     }}</span>
                 </div>
+                <FoodPaymentState
+                    v-if="food.open.payment"
+                    :payment="food.open.payment"
+                    :primary="false"
+                    :labels="payLabels()"
+                />
             </template>
             <p v-else-if="!food.next" class="text-muted-foreground">
                 {{ t('food_empty') }}

@@ -69,6 +69,13 @@ return [
     'order' => 'Bestellen',
     'registration_needed' => 'Anmeldung nötig',
     'change_order' => 'Ändern',
+    'pay_included' => 'Im Ticket enthalten, du zahlst hier nichts.',
+    'pay_nothing_due' => 'Alles bezahlt.',
+    'pay_cash' => 'Bar bei der Orga: :amount',
+    'pay_due' => 'Offen: :amount',
+    'pay_button' => 'Mit PayPal bezahlen',
+    'pay_no_link' => 'Zahlungslink folgt, frag die Orga.',
+    'pay_copy_reference' => 'Verwendungszweck kopieren',
     'food_empty' => 'Gerade ist keine Essensrunde offen.',
     'food_next' => ':title öffnet um :time',
 

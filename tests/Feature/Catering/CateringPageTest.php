@@ -5,6 +5,7 @@ use App\Modules\Catering\Domain\MenuOption;
 use App\Modules\Catering\Models\FoodOrder;
 use App\Modules\Catering\Models\FoodOrderItem;
 use App\Modules\Events\Models\Event;
+use App\Modules\Registration\Models\EventPaymentSettings;
 use App\Modules\Registration\Models\EventRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -115,4 +116,80 @@ it('forbids cancelling another users item', function () {
         ->assertForbidden();
 
     expect(FoodOrderItem::find($item->id))->not->toBeNull();
+});
+
+function payRound(Event $event, array $attrs = []): FoodOrder
+{
+    return FoodOrder::factory()->for($event)->open()->create(array_merge([
+        'menu' => [new MenuOption(key: 'pizza', name: 'Pizza', priceCents: 950)],
+    ], $attrs));
+}
+
+function payItem(FoodOrder $order, User $user, array $attrs = []): FoodOrderItem
+{
+    return FoodOrderItem::factory()->for($order, 'foodOrder')->for($user)->create(array_merge(
+        ['selection' => ['option_key' => 'pizza'], 'price_cents' => 950], $attrs));
+}
+
+function myPayment(User $user, Event $event, FoodOrder $order): mixed
+{
+    $res = test()->actingAs($user)->get("/events/{$event->slug}/catering")->assertOk();
+
+    return collect($res->inertiaProps('orders'))->firstWhere('id', $order->id)['myPayment'];
+}
+
+it('has no payment block without own items', function () {
+    $event = Event::factory()->registration()->create();
+    $order = payRound($event);
+    payItem($order, User::factory()->create());
+
+    expect(myPayment(User::factory()->create(), $event, $order))->toBeNull();
+});
+
+it('marks an included viewer as included with nothing due', function () {
+    $event = Event::factory()->registration()->create();
+    $order = payRound($event, ['included_ticket_types' => ['standard']]);
+    $user = User::factory()->create();
+    EventRegistration::factory()->for($event)->for($user)->create(['ticket_type' => 'standard']);
+    payItem($order, $user, ['included' => true]);
+
+    expect(myPayment($user, $event, $order))->toMatchArray(['method' => 'included', 'dueCents' => 0, 'url' => null]);
+});
+
+it('shows cash due as own unpaid sum only', function () {
+    $event = Event::factory()->registration()->create();
+    $order = payRound($event, ['payment_method' => 'cash']);
+    $user = User::factory()->create();
+    payItem($order, $user);
+    payItem($order, $user, ['paid_at' => now()]);
+    payItem($order, User::factory()->create());
+
+    expect(myPayment($user, $event, $order))->toMatchArray(['method' => 'cash', 'dueCents' => 950, 'url' => null]);
+});
+
+it('builds a paypal url from the round link, falls back to the event link, else null', function () {
+    $event = Event::factory()->registration()->create();
+    $user = User::factory()->create();
+
+    $own = payRound($event, ['payment_method' => 'paypal', 'payment_link' => 'https://paypal.me/example-orga']);
+    payItem($own, $user);
+    expect(myPayment($user, $event, $own))->toMatchArray(['method' => 'paypal', 'url' => 'https://paypal.me/example-orga/9.5EUR']);
+
+    $fallback = payRound($event, ['payment_method' => 'paypal', 'payment_link' => null]);
+    payItem($fallback, $user);
+    expect(myPayment($user, $event, $fallback)['url'])->toBeNull();
+
+    $settings = EventPaymentSettings::forEvent($event);
+    $settings->payment_link = 'https://www.paypal.com/pool/example';
+    $settings->save();
+    expect(myPayment($user, $event, $fallback)['url'])->toBe('https://www.paypal.com/pool/example');
+});
+
+it('ignores a stored round link when the round is cash', function () {
+    $event = Event::factory()->registration()->create();
+    $order = payRound($event, ['payment_method' => 'cash', 'payment_link' => 'https://paypal.me/example-orga']);
+    $user = User::factory()->create();
+    payItem($order, $user);
+
+    expect(myPayment($user, $event, $order)['url'])->toBeNull();
 });
