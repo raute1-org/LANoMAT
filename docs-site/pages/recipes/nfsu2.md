@@ -40,6 +40,14 @@ the recipe is published, `installable` stays false.
 |---|---|
 | ![NFSU2 title screen over Proton Experimental](/screens/nfsu2/nfsu2-native-title.png) | ![Terminal with NFS-Online status, ports and HTTP checks](/screens/nfsu2/nfs-online-server-status.png) |
 
+| Launcher library (NFSU2 card still missing) | Downloaded archive and hashes |
+|---|---|
+| ![Launcher library with UT2004 and Apocalypse, no NFSU2 card](/screens/nfsu2/launcher-library.png) | ![Terminal with SHA-256, 1,393 files and SPEED2.EXE hash](/screens/nfsu2/nfsu2-archive-facts.png) |
+
+| Quick Race Car Select (native) | Browser intro |
+|---|---|
+| ![NFSU2 Quick Race Car Select over Proton](/screens/nfsu2/nfsu2-native-quickrace.png) | ![nfsu2.xyz intro cutscene in Chrome](/screens/nfsu2/browser-intro-chrome.png) |
+
 ## Install and launch
 
 1. Unpack the portable ZIP and remove the single wrapper folder, so `SPEED2.EXE`, `CARS/`,

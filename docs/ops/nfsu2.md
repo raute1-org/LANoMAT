@@ -162,7 +162,7 @@ latency-kritisch. Details, Compose und Firewall:
 | Repo-Status | `published`, Version `1.2 + NFS Online` |
 | Plattformen | `windows`, `linux` |
 | Launcher-Support | in `RecipeController::LAUNCHER_SUPPORTED_SLUGS` enthalten |
-| Browser-Variante | `need-for-speed-underground-2-browser` (draft, `play_url: https://nfsu2.xyz/`) |
+| Browser-Variante | `need-for-speed-underground-2-browser` (Repo `published`, live noch nicht gelistet, `play_url: https://nfsu2.xyz/`) |
 | Lineup | `config/launcher.php` bzw. `LAUNCHER_LINEUP` enthält beide NFSU2-Slugs |
 
 **Live-Stand 2026-11-21 16:10:** Der native Slug ist über die API sichtbar,
@@ -323,3 +323,144 @@ Skalierung 1.6, `grim`).
 - [ ] Windows-Client mit `dinput8.dll` + `net_u2.asi` end-to-end testen.
 - [ ] Split-Screen allein und in Kombination mit Online testen (ASI-Konflikt).
 - [ ] Browser-Rezept veröffentlichen oder bewusst draft lassen.
+
+## 13. Split-Screen (optional, Stand 2026-11-21)
+
+**Kurzfassung:** `mihaits/NFSU2-SplitScreen` ist ein optionaler ASI-Mod für
+lokalen Couch-Splitscreen (2–6 Spieler an **einem** PC). Er lädt neben
+`net_u2.asi` im selben `scripts/`-Ordner, ohne Dateinamen-Kollision; im Test
+initialisierten beide ASIs in einem Prozess und das Hauptmenü baute den
+Eintrag **Split-Screen**. Ein volles 2P-Rennen wurde auf dem Testlaptop nicht
+gefahren (kein Gamepad). Empfehlung: als optionalen `mod` aufnehmen
+(`required: false`), nicht als Standard.
+
+| Punkt | Wert |
+| --- | --- |
+| Quelle | [mihaits/NFSU2-SplitScreen](https://github.com/mihaits/NFSU2-SplitScreen) |
+| Release | `v0.14.1-beta`, 2026-11-09 (Beta, MIT) |
+| Asset | `NFSU2SplitScreen-0.14.1-beta.zip`, 397.738 B, sha256 `b84522b7db060c34fdce4815fb7b87c4d6d3aa43e0968b4844914e8348c81eaf` |
+| Inhalt | `NFSU2SplitScreen.asi` 799.232 B, sha256 `0247d890dee929c7785f254b44729c9fe0b46d0ab2eefddc4e5f1583ba33348b`; `NFSU2SplitScreen.ini` 3.713 B, sha256 `92ee3ccc1070ca54385c20ea5c66ebc441109de41fa4a8284e3e25d3ba661095` |
+| Ablage | `Downloads/nfsu2/mods/splitscreen/` (ZIP + entpackt), Testbaum `Downloads/nfsu2/test-split/` |
+| Spieler | 2–6 lokal (Repo-Kurzbeschreibung nennt noch „2–4“; README/Release: 2–6) |
+| Nicht enthalten | keine DLL, kein Loader, keine Registry, kein Installer |
+
+**Voraussetzungen**
+
+- `SPEED2.EXE` **v1.2**, exakt 4.800.512 B. Das portable Basispaket passt:
+  sha256 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
+  Andere Versionen lehnt der Mod mit einer MessageBox ab (`IsExeV12`) und
+  installiert nichts.
+- ASI-Loader: das Basispaket bringt `dinput8.dll` (Ultimate ASI Loader,
+  sha256 `51ff8090fd73df83cc18a1957d3d56f73adebf8c9a056653d7cdead3b3498a03`)
+  und WidescreenFix mit. Wine braucht weiterhin
+  `WINEDLLOVERRIDES=dinput8=n,b`.
+- WidescreenFix ist **empfohlen** (freie Kamera pro Spieler) und liegt im
+  Basispaket (`scripts/NFSUnderground2.WidescreenFix.asi`).
+- Extra Options ist unkritisch, solange
+  `ExperimentalSplitScreenFix = 0` bleibt (im Basispaket bereits 0). Steht es
+  auf 1, warnt der Mod per MessageBox.
+- Unlimiter ist laut Mod-Autoren kompatibel und im Basispaket enthalten.
+- **XtendedInput entfernen**: nicht nötig, läuft nicht zusammen (der Mod liest
+  XInput selbst und hat eigene Keybinds pro Spieler).
+
+**Installation** (kein Build nötig)
+
+1. `NFSU2SplitScreen.asi` und `NFSU2SplitScreen.ini` nach `{{target}}/scripts/`
+   kopieren (neben `net_u2.asi`).
+2. Für Fehlersuche `Debug = 1` in der INI; dann schreibt der Mod
+   `scripts/NFSU2SplitScreen.log` (plus `NFSU2SplitScreen_crash*.txt/.dmp`).
+3. Start wie bisher über `SPEED2.EXE`; im Hauptmenü erscheint der Eintrag
+   **Split-Screen** direkt beim Quick-Race-Menü.
+
+**Koexistenz mit NFS-Online (`net_u2.asi`)**
+
+- Beide sind eigenständige `*.asi` in `scripts/`; es gibt keine gemeinsame
+  DLL und keinen Namenskonflikt. Der Loader lädt alphabetisch:
+  `net_u2.asi` → `NFSU2ExtraOptions.asi` → `NFSU2SplitScreen.asi` →
+  `NFSU2Unlimiter.asi` → `NFSUnderground2.WidescreenFix.asi`. `net_u2`
+  patcht damit zuerst, Split-Screen hängt sich dahinter (der Mod chaint
+  fremde Hooks an Funktionsstarts und Call-Sites).
+- Getestet mit Client 0.2.22 (`net_u2.asi`, 112.640 B) in einem Prozess:
+  Log zeigt `installed plugin: net_u2.asi`, danach alle Split-Screen-
+  Relocations; `net_u2` meldet `U2 base patches installed` und
+  `U2 LAN injection installed`; das Hauptmenü baut den Eintrag
+  (`split icon: stock`) – kein Absturz beim Laden.
+- **Grenze:** Split-Screen ist lokal. Er ersetzt keine LAN-Lobby; ob ein
+  Online-Rennen parallel zum Splitscreen sinnvoll ist, ist ungetestet. Für
+  die LAN heißt das: Splitscreen-PC = Couch-Station, nicht „mehrere
+  LAN-Spieler pro Rechner“.
+
+**Proton/Wine**
+
+- Getestet mit **Proton Experimental (wine 11.0)**, frisches Prefix,
+  `STEAM_COMPAT_DATA_PATH` + `WINEDLLOVERRIDES=dinput8=n,b`, WidescreenFix
+  `WindowedMode = 4`. Das Spiel startet, lädt beide ASIs und erreicht das
+  Frontend mit ~120 fps (2880×1800-Testfenster).
+- Autorenangabe: bis 4 Spieler mit GE-Proton über Lutris getestet; 5–6
+  Spieler unter Linux nicht getestet.
+- Linux-Pads: DualSense/DS4 nativ (hidraw-uaccess-Regel), Xbox-BT-
+  Impulstrigger brauchen die udev-Regel aus
+  [docs/linux.md](https://github.com/mihaits/NFSU2-SplitScreen/blob/main/docs/linux.md);
+  Steam Input für PlayStation-Pads abschalten, sonst gehen Lightbar,
+  Trigger und Speaker verloren.
+
+**Testprotokoll 2026-11-21 (dieser Laptop, Intel Arc, Omarchy)**
+
+| Schritt | Ergebnis |
+| --- | --- |
+| ZIP-Hash | `NFSU2-portable.zip` md5 `8386b637e9ea5ac6f98d9704b04b28bc` (archive.org) ✔ |
+| Exe-Erkennung | `SPEED2.EXE` 4.800.512 B, v1.2 akzeptiert, Mod installiert ✔ |
+| ASI-Load | `net_u2.asi` + `NFSU2SplitScreen.asi` (+ ExtraOptions, Unlimiter, WSF) in einem Prozess ✔ |
+| Menüeintrag | `split icon: stock (Quick Race icon 128 wide)` = Split-Screen-Eintrag gebaut ✔ |
+| 2P-Rennen | **nicht gefahren** (kein Gamepad am Laptop; P2 braucht START am Pad) |
+| Stabilität | 2. Lauf: > 7 min im Frontend ohne Absturz; 1. Lauf: ein Crash nach 718 s im Frontend (s. u.) |
+
+**Beobachteter Crash (nicht reproduziert, nicht zugeordnet)**
+
+- 1. Lauf, 718 s nach Load, `exception C0000005 at 0046568A SPEED2.EXE+6568A`,
+  `read 0DCCBF7F`, mode 2 / state 3, Stack mit Frames aus
+  `NFSU2ExtraOptions.asi` und `NFSU2SplitScreen.asi`.
+- Kontext: im Frontend wurden per Skript wiederholt Enter-Tasten ans
+  Splash/FMV geschickt; parallel liefen weitere Spiele auf demselben
+  Desktop (CPU/GPU-Last). Artefakte:
+  `Downloads/nfsu2/test-split/scripts/NFSU2SplitScreen_crash_20261121_160606.{txt,dmp}`.
+- Ein zweiter Lauf mit identischem Setup lief > 7 min im Frontend stabil.
+  Vor einer Paket-Freigabe daher **ein echter 2P-Splitscreen-Lauf** auf
+  Windows **und** unter Proton, je einmal mit und ohne `net_u2.asi`.
+
+**Konfiguration, die LAN-Spieler typischerweise ändern**
+
+| INI-Schlüssel | Default | Wirkung |
+| --- | --- | --- |
+| `VerticalSplit` | 0 | 2P nebeneinander (1) statt übereinander (0) |
+| `PadSpeakers` / `PadSpeakerGain` | 1 / 400 | Motorsound auf DualSense-/DS4-Lautsprecher |
+| `Rumble` / `RumbleStrength` | 1 / 100 | Rumble pro Pad |
+| `AdaptiveTriggers` / `TriggerStrength` | 1 / 100 | DualSense-/Xbox-Trigger |
+| `GaugeScalePercent` | 60 | Tacho-Größe pro Spieler |
+| `ExtraPlayers` | 0 | Default der Players-Zeile (2 + n) |
+| `Debug` | 0 | 1 = Log + Crash-Dumps + Debug-Mailbox |
+
+**Risiken / Abbau**
+
+- Beta-Stand; bekannte Bugs im Repo (`docs/open-issues.md`), u. a.
+  Boot-Hänger mit WidescreenFix im Exclusive-Fullscreen (mit
+  `WindowedMode = 4` nicht gesehen) und Stutter bei gemischten
+  Monitor-Refresh-Raten.
+- Jeder Spieler ab P2 braucht einen eigenen Controller; P1 kann Tastatur
+  sein. Ohne Pads lässt sich kein 2P-Rennen starten.
+- Alle Spieler teilen Profil/Garage; Keybinds landen in
+  `scripts/NFSU2SplitScreen_Players.ini`.
+- Abbau: die zwei Dateien aus `scripts/` löschen; Save und `net_u2.asi`
+  bleiben unberührt.
+
+**Rezept-Block (Vorschlag, `role: mod`, optional)**
+
+```yaml
+    - role: mod
+      label: 'NFSU2 Split Screen 0.14.1 beta (optional, local 2-6 players)'
+      match: ['NFSU2SplitScreen-*.zip', 'NFSU2SplitScreen.asi']
+      required: false
+      sha256: 'b84522b7db060c34fdce4815fb7b87c4d6d3aa43e0968b4844914e8348c81eaf'
+      url: https://github.com/mihaits/NFSU2-SplitScreen/releases/download/v0.14.1-beta/NFSU2SplitScreen-0.14.1-beta.zip
+      notes: 'MIT. Optional couch mode only: 2-6 local players on one PC, not a LAN mode. Copy NFSU2SplitScreen.asi + NFSU2SplitScreen.ini into {{target}}/scripts/ next to net_u2.asi (no DLL, no installer). Needs SPEED2.EXE v1.2 (4,800,512 B); WidescreenFix/Ultimate ASI Loader provides the loader. Verified 2026-11-21 with Proton Experimental (wine 11.0): net_u2.asi and the plugin load in one process and the Split-Screen menu entry appears. Keep Extra Options ExperimentalSplitScreenFix = 0 and remove XtendedInput. Each player from P2 needs a gamepad.'
+```

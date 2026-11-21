@@ -81,6 +81,13 @@ requires:
       sha256: ''
       url: https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases
       notes: 'The portable base usually already carries dinput8.dll at the game root; otherwise provide the Ultimate ASI Loader (x86 build) under this name. Wine must load it with WINEDLLOVERRIDES=dinput8=n,b. Do not rename it: the game only loads ASI plugins through dinput8.dll.'
+    - role: mod
+      label: 'NFSU2 Split Screen 0.14.1 beta (optional, local 2-6 players)'
+      match: ['NFSU2SplitScreen-*.zip', 'NFSU2SplitScreen.asi']
+      required: false
+      sha256: 'b84522b7db060c34fdce4815fb7b87c4d6d3aa43e0968b4844914e8348c81eaf'
+      url: https://github.com/mihaits/NFSU2-SplitScreen/releases/download/v0.14.1-beta/NFSU2SplitScreen-0.14.1-beta.zip
+      notes: 'MIT. Optional couch mode only: 2-6 local players on one PC, not a LAN mode. Release asset NFSU2SplitScreen-0.14.1-beta.zip, 397,738 B, sha256 b84522b7db060c34fdce4815fb7b87c4d6d3aa43e0968b4844914e8348c81eaf (contains NFSU2SplitScreen.asi 799,232 B sha256 0247d890dee929c7785f254b44729c9fe0b46d0ab2eefddc4e5f1583ba33348b and NFSU2SplitScreen.ini). Copy both files into {{target}}/scripts/ next to net_u2.asi; no DLL and no installer. Needs SPEED2.EXE v1.2 (4,800,512 B); WidescreenFix or the Ultimate ASI Loader provides the loader. Verified 2026-11-21 with Proton Experimental (wine 11.0): net_u2.asi and the plugin load in one process and the Split-Screen menu entry appears; a full 2P race was not run. Keep Extra Options ExperimentalSplitScreenFix = 0 and remove XtendedInput. Every player from P2 needs a gamepad.'
 steps:
     - id: install-base
       title: 'Unpack the portable game tree (Windows)'
