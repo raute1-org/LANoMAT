@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import { Button } from '@/components/ui/button';
 import type { ServerInstallDto } from '@/types';
 
@@ -48,14 +49,15 @@ const playersHref = computed(() =>
             v-if="launcherHref"
             class="flex min-w-0 flex-col items-start gap-1"
         >
-            <Button
-                as-child
+            <LauncherLink
+                :href="launcherHref"
                 size="sm"
                 variant="outline"
                 class="pointer-coarse:min-h-11"
+                manual-hint="Die Serveradresse auf dieser Seite bleibt gültig — du kannst auch von Hand beitreten."
             >
-                <a :href="launcherHref">{{ labels.install_launcher }}</a>
-            </Button>
+                {{ labels.install_launcher }}
+            </LauncherLink>
             <p v-if="!compact" class="max-w-xs text-xs text-muted-foreground">
                 {{ labels.install_launcher_hint }}
             </p>

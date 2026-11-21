@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Check, ChevronDown, Copy, Download, TriangleAlert } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -574,14 +575,15 @@ function serversHref(server: LiveServer): string {
                         </div>
 
                         <div class="flex shrink-0 items-center gap-2">
-                            <Button
+                            <LauncherLink
                                 v-if="live.join?.launcher"
-                                as-child
+                                :href="live.join.href"
                                 size="sm"
                                 data-test="launcher-live-join"
+                                manual-hint="Die Serveradresse oben bleibt gültig — du kannst auch im Spiel beitreten."
                             >
-                                <a :href="live.join.href">Beitreten</a>
-                            </Button>
+                                Beitreten
+                            </LauncherLink>
                             <Button
                                 v-else-if="live.join"
                                 as-child

@@ -16,6 +16,7 @@ import { computed } from 'vue';
 import CopyText from '@/components/CopyText.vue';
 import GameServerJoin from '@/components/games/GameServerJoin.vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -181,6 +182,24 @@ const formatBytes = (bytes: number | null): string => {
     return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
 };
 
+/**
+ * The launcher download, when one is published and can install this recipe.
+ * Not null means "Installieren" leads to the download page instead of firing
+ * `lanomat://` at a PC that may have no handler for it yet.
+ */
+const launcherDownload = computed<string | null>(() =>
+    props.game.installable &&
+    props.game.launcher_supported &&
+    props.game.launcher_available &&
+    props.game.launcher_url !== null
+        ? props.game.launcher_url
+        : null,
+);
+
+/** The manual way stays on this page: install command and file list. */
+const manualInstallHint =
+    'Installationsbefehl und Dateien stehen direkt unter den Aktionen.';
+
 function announceRound(): void {
     router.post(`/games/${props.game.slug}/lfg`, {}, { preserveScroll: true });
 }
@@ -325,45 +344,34 @@ function announceRound(): void {
                              opens the launcher download. The rest keep the
                              agent deep link. -->
                         <Button
-                            v-if="game.installable"
+                            v-if="launcherDownload"
                             as-child
                             data-test="install"
                         >
-                            <Link
-                                v-if="
-                                    game.launcher_supported &&
-                                    game.launcher_available &&
-                                    game.launcher_url
-                                "
-                                :href="game.launcher_url"
-                            >
+                            <Link :href="launcherDownload">
                                 <Download class="size-4" aria-hidden="true" />
                                 Installieren
                             </Link>
-                            <a v-else :href="game.install_deeplink">
-                                <Download class="size-4" aria-hidden="true" />
-                                Installieren
-                            </a>
                         </Button>
-                        <Button
-                            v-if="
-                                game.installable &&
-                                game.launcher_supported &&
-                                game.launcher_available &&
-                                game.launcher_url
-                            "
-                            as-child
+                        <LauncherLink
+                            v-else-if="game.installable"
+                            :href="game.install_deeplink"
+                            data-test="install"
+                            :manual-hint="manualInstallHint"
+                        >
+                            <Download class="size-4" aria-hidden="true" />
+                            Installieren
+                        </LauncherLink>
+                        <LauncherLink
+                            v-if="launcherDownload"
+                            :href="game.install_deeplink"
                             variant="ghost"
                             data-test="install-launcher"
+                            :manual-hint="manualInstallHint"
                         >
-                            <a :href="game.install_deeplink">
-                                <ExternalLink
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                                Im Launcher öffnen
-                            </a>
-                        </Button>
+                            <ExternalLink class="size-4" aria-hidden="true" />
+                            Im Launcher öffnen
+                        </LauncherLink>
                         <Button
                             v-if="game.play_url"
                             as-child
@@ -382,19 +390,33 @@ function announceRound(): void {
                                 Spielen
                             </a>
                         </Button>
-                        <Button
+                        <LauncherLink
                             v-else-if="game.requires_agent"
-                            as-child
+                            :href="game.launch_deeplink"
                             variant="outline"
                             data-test="launch"
+                            manual-hint="Der Startbefehl steht direkt unter den Aktionen."
                         >
-                            <a :href="game.launch_deeplink">
-                                <Play class="size-4" aria-hidden="true" />
-                                Starten
-                            </a>
-                        </Button>
+                            <Play class="size-4" aria-hidden="true" />
+                            Starten
+                        </LauncherLink>
                     </div>
                 </header>
+
+                <!-- The install button IS the deep link when no build is
+                     published: say what it can and cannot do instead of
+                     pretending the click always installs. With a build, the
+                     primary action leads to the download instead. -->
+                <p
+                    v-if="game.installable && !launcherDownload"
+                    class="mt-4 max-w-2xl text-xs leading-relaxed text-muted-foreground"
+                    data-test="install-deeplink-hint"
+                >
+                    Ist der LANoMAT Launcher schon auf diesem PC, öffnet der
+                    Klick die Installation. Sonst gelten die manuellen Schritte
+                    unten — Installationsbefehl und Dateien stehen direkt
+                    darunter.
+                </p>
 
                 <div
                     v-if="game.installable || game.requires_agent"
@@ -440,22 +462,14 @@ function announceRound(): void {
                     Browser. Der Agent ist optional.
                 </p>
 
-                <!-- The deep link only fires once the launcher is installed;
-                     this explains why the primary action leads to the download
-                     on a fresh PC (a published build for this recipe). -->
                 <p
-                    v-if="
-                        game.requires_agent &&
-                        game.launcher_supported &&
-                        game.launcher_available &&
-                        game.launcher_url
-                    "
+                    v-if="game.requires_agent && launcherDownload"
                     class="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
                     data-test="launcher-download"
                 >
                     Noch kein Launcher auf diesem PC? „Installieren“ führt zum
                     <Link
-                        :href="game.launcher_url"
+                        :href="launcherDownload"
                         class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                         Launcher-Download</Link

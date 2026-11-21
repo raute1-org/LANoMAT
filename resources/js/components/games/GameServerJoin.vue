@@ -2,6 +2,7 @@
 import { ChevronDown, ExternalLink, Play } from '@lucide/vue';
 import { computed } from 'vue';
 import CopyText from '@/components/CopyText.vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import { Button } from '@/components/ui/button';
 import type { JoinOptionDto } from '@/types';
@@ -112,12 +113,18 @@ const labels: Record<string, string> = {
              The direct ways stay reachable for a PC that already has the game. -->
         <template v-if="launcherJoinUrl">
             <div class="flex flex-wrap items-center gap-2">
-                <Button as-child size="sm">
-                    <a :href="launcherJoinUrl">
-                        <Play class="size-4" aria-hidden="true" />
-                        Beitreten
-                    </a>
-                </Button>
+                <LauncherLink
+                    :href="launcherJoinUrl"
+                    size="sm"
+                    :manual-hint="
+                        hasAlternatives
+                            ? 'Unter „Anders verbinden“ steht die Serveradresse zum Kopieren.'
+                            : undefined
+                    "
+                >
+                    <Play class="size-4" aria-hidden="true" />
+                    Beitreten
+                </LauncherLink>
             </div>
 
             <!-- Holds for every game the launcher can install, not just the first. -->

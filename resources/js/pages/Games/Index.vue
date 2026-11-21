@@ -12,6 +12,7 @@ import {
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import GamesSidebar from '@/components/games/GamesSidebar.vue';
+import LauncherLink from '@/components/LauncherLink.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -500,12 +501,13 @@ function absoluteTime(iso: string): string {
                                         class="text-xs leading-relaxed text-muted-foreground"
                                     >
                                         Launcher schon da?
-                                        <a
+                                        <LauncherLink
                                             :href="game.install_deeplink"
-                                            class="inline-block font-medium whitespace-nowrap text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                            variant="text"
+                                            manual-hint="Die Spielseite nennt Befehl und Dateien."
                                         >
                                             Im Launcher öffnen
-                                        </a>
+                                        </LauncherLink>
                                     </p>
                                 </CardContent>
                             </Card>
@@ -706,12 +708,13 @@ function absoluteTime(iso: string): string {
                                 data-test="card-launcher"
                             >
                                 Launcher schon da?
-                                <a
+                                <LauncherLink
                                     :href="game.install_deeplink"
-                                    class="inline-block font-medium whitespace-nowrap text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                    variant="text"
+                                    manual-hint="Die Spielseite nennt Befehl und Dateien."
                                 >
                                     Im Launcher öffnen
-                                </a>
+                                </LauncherLink>
                             </p>
                         </CardContent>
                     </Card>
