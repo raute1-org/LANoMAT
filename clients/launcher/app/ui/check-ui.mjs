@@ -911,16 +911,30 @@ check(
     'the share entries follow the pairing status on every change',
 );
 check(
-    shareJs.includes('isOffered()') && shareJs.includes('openShare'),
-    'the share action re-checks before it opens the browser',
+    shareJs.includes('isOffered()'),
+    'the offered state gates every share entry',
+);
+check(
+    /export async function openShare[\s\S]{0,600}?if \(!url\) {[\s\S]{0,120}?return;/.test(
+        shareJs,
+    ),
+    'the share action refuses without a valid URL',
+);
+check(
+    !/shareUnavailable/.test(`${shareJs}\n${stringJs}`),
+    'no unreachable share-unavailable copy or branch',
 );
 check(
     stringJs.includes('nach der Prüfung durch die Orga'),
     'the share hint names the orga check before the game appears',
 );
 check(
-    stringJs.includes('shareError') && stringJs.includes('shareUnavailable'),
+    stringJs.includes('shareError'),
     'a failed share page has German error copy',
+);
+check(
+    stringJs.includes('Dort kannst du das Spiel teilen'),
+    'the share-opened hint says what happens in the browser',
 );
 
 for (const id of [
@@ -1001,6 +1015,34 @@ check(
         /webLink\.href = url/.test(libraryJs),
     'the web fallback targets the game page /games/<slug>',
 );
+
+// ---- one source per empty-state sentence ----
+// The UI's static screen copy lives in index.html (connect, install, ready and
+// the empty states); strings.js carries only the copy the JS paints. The empty
+// states used to exist in both — the HTML is the one source now, and a re-added
+// string fails here. ("Gerade läuft kein Server." is excluded: the chat answer
+// legitimately paints the same sentence from strings.js.)
+const htmlText = html.replace(/\s+/g, ' ');
+const emptyStateCopy = [
+    'Noch kein Spiel freigegeben.',
+    'Sobald die Orga ein Spiel für den Launcher freigibt, erscheint es hier. Du kannst auch selbst eines teilen.',
+    'Noch nichts installiert.',
+    'Installiere ein Spiel aus der Serverliste. Es bleibt auf diesem Gerät. Du hast ein eigenes Spiel? Teile es über LANoMAT.',
+    'Sobald ein Server bereit ist, erscheint er hier mit einem Klick zum Beitreten.',
+    'Noch keine Installation.',
+    'Installiere das Spiel zuerst in der Bibliothek.',
+];
+
+for (const sentence of emptyStateCopy) {
+    check(
+        htmlText.includes(sentence),
+        `empty-state copy in index.html: ${sentence.slice(0, 40)}…`,
+    );
+    check(
+        !stringJs.includes(sentence),
+        `empty-state copy only in index.html, not strings.js: ${sentence.slice(0, 40)}…`,
+    );
+}
 
 // ---- README contract ----
 check(readme.includes('check-ui.mjs'), 'README names the check script');

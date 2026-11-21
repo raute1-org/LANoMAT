@@ -18,13 +18,13 @@ the shell returns. It never fabricates progress, files, versions or server state
 | `js/nav.js` | keyboard + gamepad navigation and the footer's gamepad indicator |
 | `js/connect.js` | device flow: URL, QR, code, poll states, reconnect/logout entry |
 | `js/chat.js` | the Start page (main actions + the live-server list with one-click join) and the arcade front desk: greeting, deterministic `games`/`servers` intents, skippable demo, game/server cards |
-| `js/library.js` | `get_status` + `list_games`: „Meine Bibliothek" from the local install ledger, the shared catalogue with one primary action per card, `verify_install` record state and reinstall/repair, the „Bald im Launcher" web fallback |
+| `js/library.js` | `get_status` + `list_games`: „Meine Bibliothek" from the local install ledger, the shared catalogue with one primary action per installable card and a web fallback for the rest, `verify_install` record state and reinstall/repair |
 | `js/share.js` | „Spiel teilen": the paired server's `/games/share` page through `open_url`, offered only while paired with a valid http(s) base |
 | `js/install.js` | `install-progress` listener, phases, bytes/speed/ETA, cancel, errors |
 | `js/ready.js` | launch, repair, target path, server browser |
 | `js/qr.js` | dependency-free QR encoder (byte mode, ECC M/L) for the phone sign-in |
 | `js/util.js` | invoke/listen wrappers, German number formatting, error classification |
-| `js/strings.js` | every visible string, German, in one place |
+| `js/strings.js` | every string the JS paints, German, in one place; static screen copy (headings, empty states) lives in `index.html` |
 | `fonts/` | Space Grotesk + JetBrains Mono (woff2) and their licences, copied from the voice client |
 | `logo-mark.svg` | the node-L mark, shared with the voice client |
 | `check-ui.mjs` | dependency-free contract check (ids, strings, commands, tokens, CSP) |
@@ -100,7 +100,7 @@ The shell validates the slug (`[a-z0-9-]{1,120}`) before it ever reaches the UI.
 One stage at a time: `boot → connect → chat → library → install → ready`. `chat` is the home
 once paired — the **Start** page with the main actions and the live-server list, plus the
 arcade chat below it; `library` is this terminal's own installs next to the shared catalogue
-(every recipe with one primary action, the rest with an honest web fallback); `install` returns
+(one primary action per installable recipe, the rest with an honest web fallback); `install` returns
 to `library` on error/cancel and to `ready` on success.
 
 - **Connect**: editable server URL (default `https://lan.raute1.org`), `Verbinden` → a large,
@@ -152,7 +152,8 @@ to `library` on error/cancel and to `ready` on success.
   lands in the normal install → ready flow. An older shell without `verify_install` leaves the
   check unknown: the record keeps the quiet `Neu installieren` and nothing is downloaded.
   Both empty states (`library-empty` for the catalogue, `library-installed-empty` for the local
-  ledger) keep their `Aktualisieren`/folder hint and add the same `Spiel teilen` action.
+  ledger) keep their `Aktualisieren`/folder hint and add the same `Spiel teilen` action. Their
+  copy is static markup in `index.html`; `strings.js` holds no second copy of those sentences.
   Loading skeletons, empty, error and content as before; `Chat` returns to the front desk.
 - **Install**: six phases (Planen, Herunterladen/Archiv laden, Entpacken, Patchen/Ergänzen,
   Prüfen, Fertig), current file, one large `bytes_done / bytes_total` bar with a big percent,

@@ -1,6 +1,6 @@
 // Chat: the launcher's arcade front desk. Deterministic intents only (games,
 // servers), a quick demo type-in that a click can skip, and cards with one
-// primary action. Nothing here invents data; every card comes from the shell.
+// clear action. Nothing here invents data; every card comes from the shell.
 import * as install from './install.js';
 import * as ready from './ready.js';
 import * as share from './share.js';

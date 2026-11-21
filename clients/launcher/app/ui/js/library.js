@@ -429,8 +429,9 @@ async function openGamePage(event, slug) {
 /**
  * One game tile, shared by the library and the chat answer. The hero variant
  * (the first installable game of the catalogue, the shell sorts it first)
- * carries the screen's primary action; every card has exactly one primary
- * action: Install or Start.
+ * carries the screen's primary action. Every installable card has exactly one
+ * primary action (Install, Start, or Spielen for a browser recipe); a card this
+ * build cannot install has no primary action, only the web fallback.
  */
 export function gameCard(recipe, { hero = false } = {}) {
     const template = $('tpl-game');

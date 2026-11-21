@@ -78,9 +78,10 @@ export function init() {
 export async function openShare() {
     const url = shareUrl();
 
-    if (!isOffered() || !url) {
-        announce(S.library.shareUnavailable);
-
+    // Every entry is hidden while sharing is not offered and the chat checks
+    // `isOffered()` first, so this guard is the last line of defence, not a
+    // visible state: there is no "zuerst verbinden" copy to announce.
+    if (!url) {
         return;
     }
 

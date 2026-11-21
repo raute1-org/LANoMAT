@@ -30,9 +30,6 @@ export const S = {
         liveTitle: 'Jetzt live',
         liveLead:
             'Jeder Server hier startet mit einem Klick — samt Installation, wenn das Spiel noch fehlt.',
-        liveEmptyTitle: 'Gerade läuft kein Server.',
-        liveEmptyText:
-            'Sobald ein Server bereit ist, erscheint er hier mit einem Klick zum Beitreten.',
         liveErrorTitle: 'Server konnten nicht geladen werden.',
         liveLoaded: (count) =>
             count === 1 ? '1 Server live.' : `${count} Server live.`,
@@ -111,9 +108,6 @@ export const S = {
         title: 'Spiele',
         refresh: 'Aktualisieren',
         loading: 'Spiele werden geladen',
-        emptyTitle: 'Noch kein Spiel freigegeben.',
-        emptyText:
-            'Sobald die Orga ein Spiel für den Launcher freigibt, erscheint es hier. Du kannst auch selbst eines teilen.',
         errorTitle: 'Spiele konnten nicht geladen werden.',
         errorText: 'Der letzte Stand ist nicht verfügbar.',
         authText:
@@ -145,17 +139,13 @@ export const S = {
         share: 'Spiel teilen',
         shareHint:
             'Öffnet LANoMAT im Browser: Archiv hochladen, Spiel beschreiben — nach der Prüfung durch die Orga erscheint es hier.',
-        shareOpened: 'LANoMAT im Browser geöffnet: Spiel teilen.',
+        shareOpened:
+            'LANoMAT im Browser geöffnet. Dort kannst du das Spiel teilen.',
         shareError: 'Die Seite „Spiel teilen“ konnte nicht geöffnet werden.',
-        shareUnavailable:
-            'Zum Teilen zuerst mit einem LANoMAT-Server verbinden.',
         // The local library: this terminal's own installs, no server involved.
         libraryTitle: 'Meine Bibliothek',
         libraryHint:
             'Auf diesem Gerät installiert — der Start klappt auch ohne Server.',
-        libraryEmptyTitle: 'Noch nichts installiert.',
-        libraryEmptyText:
-            'Installiere ein Spiel aus der Serverliste. Es bleibt auf diesem Gerät. Du hast ein eigenes Spiel? Teile es über LANoMAT.',
         installedLoaded: (count) =>
             count === 1
                 ? '1 Spiel in deiner Bibliothek.'
@@ -297,8 +287,6 @@ export const S = {
         launched: (exe) => `Gestartet: ${exe}`,
         launchError: 'Das Spiel konnte nicht gestartet werden.',
         browserError: 'Der Browser konnte nicht geöffnet werden.',
-        emptyTitle: 'Noch keine Installation.',
-        emptyText: 'Installiere das Spiel zuerst in der Bibliothek.',
     },
 
     header: {
