@@ -94,6 +94,14 @@ Dateiserver übertragen und machen nach einer Unterbrechung an derselben Stelle 
 
 A rejected file's bytes are gone. To try again, upload it anew — an old row cannot be resurrected.
 
+The list is the page every participant sees: the Ridge Racer `.chd`, five `.vrm` avatars, the UT2004
+ISO and its OldUnreal patch — all allowed types, all approved and therefore visible.
+
+| Dark | Light |
+|---|---|
+| ![Event Files list with a .chd disc image, five .vrm avatars, the UT2004 ISO and patch, dark](/docs/screens/files-dark.png) | ![Event Files list with a .chd disc image, five .vrm avatars, the UT2004 ISO and patch, light](/docs/screens/files-light.png) |
+| `FILES · CHD · VRM · ISO · PATCH` | `FILES · LIGHT` |
+
 ## 4. Approval (orga)
 
 Open `/admin` → **Dateien**. The table shows visibility, uploader, size and store. Two row actions:
@@ -107,10 +115,21 @@ Approve only what the recipe should use. A file that is approved but misnamed is
 one: the plan shows `[MISSING]` for a name that looks present to a human. Check the name against the
 recipe's `match` list before approving.
 
-| Light |
-|---|
-| ![Admin recipes list, light](/docs/screens/admin-recipes-light.png) |
-| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` |
+The moderation table is the list an orga works from: one row per upload with event, uploader, size,
+status and store.
+
+| Dark | Light |
+|---|---|
+| ![Admin Dateien table with uploader, file name, size, status Freigegeben and store per row, dark](/docs/screens/admin-shared-files-dark.png) | ![Admin Dateien table with uploader, file name, size, status Freigegeben and store per row, light](/docs/screens/admin-shared-files-light.png) |
+| `ADMIN · DATEIEN · STATUS · SPEICHER` | `ADMIN · DATEIEN · LIGHT` |
+
+The recipe list closes the loop: the **Dateien** column counts the requirements per recipe, and the
+**Status** column separates `Entwurf` from `Veröffentlicht` — UT2004 shows ten, the drafts three.
+
+| Dark | Light |
+|---|---|
+| ![Admin Spielrezepte list with status Entwurf and Veröffentlicht plus file counts, dark](/docs/screens/admin-recipes-dark.png) | ![Admin Spielrezepte list with status Entwurf and Veröffentlicht plus file counts, light](/docs/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` | `ADMIN · SPIELREZEPTE · LIGHT` |
 
 ## 5. How matching works
 
@@ -147,16 +166,24 @@ Use it when exactly one upload is the right one — a specific patched ISO, or a
 too generic for a glob. The field takes the numeric id of an approved `SharedFile`. Pinning wins over
 matching; a deleted or rejected file leaves the requirement unmatched again.
 
-| Light |
-|---|
-| ![Admin recipe edit with requirements, light](/docs/screens/admin-recipe-edit-light.png) |
-| `ADMIN · REZEPT · DATEIEN · ROLLE · MUSTER` |
+| Dark | Light |
+|---|---|
+| ![Admin recipe form with Rolle, Dateinamen-Muster and the empty LAN-Datei-ID field, dark](/docs/screens/admin-recipe-edit-dark.png) | ![Admin recipe form with Rolle, Dateinamen-Muster and the empty LAN-Datei-ID field, light](/docs/screens/admin-recipe-edit-light.png) |
+| `ADMIN · REZEPT · MUSTER · LAN-DATEI-ID` | `ADMIN · REZEPT · LIGHT` |
 
 ## 6. Avatars (`.vrm`)
 
 Avatars are ordinary files with `role: avatar` on the recipe. The UT2004 recipe repeats one entry per
 catalogue avatar (Ayla, Brutus, Kestrel, Mako, Sable) plus a broad `*.vrm`; the installer shows every
 LAN match as one multi-select.
+
+The game page states the count before the agent runs: the installation card reads **„6 Avatare zur
+Auswahl“** for the UT2004 recipe, so a participant knows the shelf is populated.
+
+| Dark | Light |
+|---|---|
+| ![UT2004 game page with the installation card reading 6 Avatare zur Auswahl, dark](/docs/screens/game-ut2004-dark.png) | ![UT2004 game page with the installation card reading 6 Avatare zur Auswahl, light](/docs/screens/game-ut2004-light.png) |
+| `GAME · UT2004 · AVATARE · AUSWAHL` | `GAME · UT2004 · LIGHT` |
 
 | Rule | Detail |
 |---|---|
@@ -193,6 +220,14 @@ the package.
 
 The most common "error" is not an error: a pending file is a normal intermediate state. The second is
 a quota cap — the server refuses the upload and the UI says the quota is exhausted.
+
+Files and photos go through the same moderation list, so a pending row and an approved row sit one
+action apart: the amber badge waits, the green badge is visible to plans.
+
+| Dark | Light |
+|---|---|
+| ![Admin Fotos table with one row on Wartet auf Freigabe next to approved rows and a Freigeben action, dark](/docs/screens/admin-event-photos-dark.png) | ![Admin Fotos table with one row on Wartet auf Freigabe next to approved rows and a Freigeben action, light](/docs/screens/admin-event-photos-light.png) |
+| `ADMIN · FOTOS · WARTET AUF FREIGABE · FREIGEBEN` | `ADMIN · FOTOS · LIGHT` |
 
 ## Troubleshooting
 
