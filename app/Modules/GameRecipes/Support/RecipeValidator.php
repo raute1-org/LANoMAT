@@ -31,10 +31,10 @@ final class RecipeValidator
     ];
 
     public const STORE_ID_HINTS = [
-        'steam' => 'digits',
+        'steam' => 'a quoted string of digits',
         'epic' => 'an Epic app name (letters, digits, dot, underscore, hyphen)',
-        'gog' => 'digits',
-        'ubisoft' => 'digits',
+        'gog' => 'a quoted string of digits',
+        'ubisoft' => 'a quoted string of digits',
     ];
 
     /** @param array<string, mixed> $data */

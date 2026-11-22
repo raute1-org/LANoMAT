@@ -154,9 +154,10 @@ it('rejects a store id of the wrong shape, one case per store', function (array 
 
     $this->fail('Expected a RecipeException.');
 })->with([
-    'steam not digits' => [['steam' => 'abc'], 'metadata.store_ids.steam must be digits'],
+    'steam not digits' => [['steam' => 'abc'], 'metadata.store_ids.steam must be a quoted string of digits'],
+    'steam unquoted integer' => [['steam' => 440], 'metadata.store_ids.steam must be a quoted string of digits'],
     'epic with a slash' => [['epic' => 'a/b'], 'metadata.store_ids.epic must be an Epic app name'],
-    'gog with a letter' => [['gog' => '12x'], 'metadata.store_ids.gog must be digits'],
-    'ubisoft empty' => [['ubisoft' => ''], 'metadata.store_ids.ubisoft must be digits'],
+    'gog with a letter' => [['gog' => '12x'], 'metadata.store_ids.gog must be a quoted string of digits'],
+    'ubisoft empty' => [['ubisoft' => ''], 'metadata.store_ids.ubisoft must be a quoted string of digits'],
     'unknown store' => [['origin' => '1'], 'metadata.store_ids.origin is not a known store'],
 ]);

@@ -640,10 +640,41 @@ final class RecipeYamlExporter
             }
         }
 
+        $storeIds = $this->storeIds($metadata['store_ids'] ?? null);
+
+        if ($storeIds !== []) {
+            $out['store_ids'] = $storeIds;
+        }
+
         $launch = $this->launch($metadata['launch'] ?? null);
 
         if ($launch !== null) {
             $out['launch'] = $launch;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Only the four known stores, each with a value of the shape the validator accepts: an
+     * exported file must pass the same gate as a hand-written one.
+     *
+     * @return array<string, string>
+     */
+    private function storeIds(mixed $storeIds): array
+    {
+        if (! is_array($storeIds)) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (RecipeValidator::STORE_ID_PATTERNS as $store => $pattern) {
+            $value = $storeIds[$store] ?? null;
+
+            if (is_string($value) && preg_match($pattern, $value) === 1) {
+                $out[$store] = $value;
+            }
         }
 
         return $out;
