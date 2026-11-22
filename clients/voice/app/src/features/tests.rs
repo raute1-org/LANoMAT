@@ -34,6 +34,7 @@ fn fast() -> FeatureOptions {
         },
         notify: NotifyConfig::default(),
         retry_delays: Some(vec![Duration::ZERO, Duration::from_millis(10)]),
+        legacy_installs_dir: None,
     }
 }
 
@@ -605,5 +606,443 @@ async fn only_the_servers_own_connect_link_may_be_opened() {
     ] {
         let e = r.features.checked_link_url(bad).unwrap_err();
         assert_eq!(e.kind, "usage", "{bad}");
+    }
+}
+
+// ---- games (library) ----
+
+fn game_summary(slug: &str, extra: Value) -> Value {
+    let mut v = json!({
+        "slug": slug, "title": format!("Game {slug}"), "summary": "Shooter", "version": "1.0",
+        "status": "published", "platforms": ["windows", "linux"], "genre": "fps",
+        "players": "2-16", "players_max": 16, "size_bytes": 4096, "installable": true,
+        "launcher_supported": true, "in_lineup": true, "play_url": null,
+        "updated_at": "2026-11-22T11:50:00+00:00"
+    });
+    v.as_object_mut()
+        .unwrap()
+        .extend(extra.as_object().unwrap().clone());
+    v
+}
+
+fn game_plan(slug: &str, on_lan: bool) -> Value {
+    json!({
+        "plan_version": 1,
+        "recipe": {"slug": slug, "title": "T", "launch_targets": []},
+        "os": "linux", "target_dir": "<dir>", "steps": [], "avatars": [],
+        "files": [{
+            "requirement": "base", "label": "Portable archive", "status": if on_lan {"matched"} else {"missing"},
+            "required": true, "source": if on_lan { json!("lan") } else { Value::Null },
+            "name": "game.zip", "size_bytes": 4096, "sha256": "a".repeat(64),
+            "download_url": if on_lan { json!("https://files.example/p?sig=SECRET") } else { Value::Null },
+            "download_expires_at": "2026-11-22T12:00:00+00:00"
+        }],
+        "missing": if on_lan { json!([]) } else { json!(["Portable archive"]) },
+        "generated_at": "2026-11-22T11:50:00+00:00"
+    })
+}
+
+async fn mount_recipes(r: &Rig, recipes: Vec<Value>) {
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/recipes"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"recipes": recipes})))
+        .mount(&r.server)
+        .await;
+}
+
+async fn mount_plan(r: &Rig, slug: &str, status: u16, body: Value) {
+    Mock::given(method("GET"))
+        .and(path(format!("/api/voice-client/v1/recipes/{slug}/plan")))
+        .respond_with(ResponseTemplate::new(status).set_body_json(body))
+        .mount(&r.server)
+        .await;
+}
+
+async fn plan_requests(r: &Rig) -> Vec<String> {
+    r.server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|q| q.url.path().ends_with("/plan"))
+        .map(|q| q.url.query().unwrap_or_default().to_owned())
+        .collect()
+}
+
+#[tokio::test]
+async fn games_state_follows_the_feature_flag_and_the_pairing() {
+    for (features, expected) in [
+        (None, (false, Some("server_too_old"))),
+        (Some(json!({})), (false, Some("server_too_old"))),
+        (
+            Some(json!({"launcher": false})),
+            (false, Some("module_off")),
+        ),
+        (Some(json!({"launcher": true})), (true, None)),
+    ] {
+        let r = rig().await;
+        let mut body = json!({"api_version": 1, "voice_ready": false, "modules": {}});
+        if let Some(f) = features {
+            body["features"] = f;
+        }
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&r.server)
+            .await;
+        let s = r.features.games_state().await.unwrap();
+        assert_eq!((s.enabled, s.reason), expected);
+    }
+
+    // Not paired: no request at all.
+    let r = rig().await;
+    std::fs::remove_file(r.dir.path().join("credentials.json")).unwrap();
+    let s = r.features.games_state().await.unwrap();
+    assert_eq!((s.enabled, s.reason), (false, Some("not_paired")));
+    assert!(r.server.received_requests().await.unwrap().is_empty());
+    let e = r.features.games_list().await.unwrap_err();
+    assert_eq!(e.code.as_deref(), Some("not_paired"));
+}
+
+#[tokio::test]
+async fn the_library_shows_availability_from_dry_run_plans_and_the_local_state() {
+    let r = rig().await;
+    mount_recipes(
+        &r,
+        vec![
+            game_summary("on-lan", json!({})),
+            game_summary("no-files", json!({})),
+            game_summary("not-installable", json!({"installable": false})),
+            game_summary("browser", json!({"play_url": "https://play.example/"})),
+            // An older server: the new fields are absent.
+            json!({"slug": "legacy", "title": "Legacy"}),
+        ],
+    )
+    .await;
+    mount_plan(&r, "on-lan", 200, game_plan("on-lan", true)).await;
+    mount_plan(&r, "no-files", 200, game_plan("no-files", false)).await;
+    mount_plan(&r, "legacy", 200, game_plan("legacy", true)).await;
+    let ready = r.dir.path().join("games").join("on-lan");
+    std::fs::create_dir_all(&ready).unwrap();
+    r.features
+        .installs
+        .begin_install("on-lan", ready.to_str().unwrap(), None, None, None)
+        .unwrap();
+    r.features
+        .installs
+        .set_status("on-lan", launcher_core::state::InstallStatus::Ready)
+        .unwrap();
+
+    let list = r.features.games_list().await.unwrap();
+    let by = |slug: &str| list.recipes.iter().find(|g| g.slug == slug).unwrap();
+
+    assert_eq!(
+        list.recipes
+            .iter()
+            .map(|g| g.slug.as_str())
+            .collect::<Vec<_>>(),
+        ["on-lan", "no-files", "not-installable", "browser", "legacy"],
+        "the server's order"
+    );
+    use voice_core::api::Availability::*;
+    assert_eq!(by("on-lan").availability, OnLan);
+    assert_eq!(by("no-files").availability, Missing);
+    assert_eq!(by("not-installable").availability, Unknown);
+    assert_eq!(by("browser").availability, Unknown);
+    assert_eq!(by("legacy").availability, OnLan);
+    assert_eq!(by("legacy").installable, None, "unknown is not no");
+    assert_eq!(by("legacy").launcher_supported, None);
+    assert!(by("legacy").in_lineup);
+    assert_eq!(by("on-lan").local.status, "ready");
+    assert_eq!(by("on-lan").local.path.as_deref(), ready.to_str());
+    assert_eq!(by("no-files").local.status, "not_installed");
+    assert!(!list.fetched_at.is_empty());
+
+    // Browsing never writes an audit entry: every plan request is a dry run.
+    let plans = plan_requests(&r).await;
+    assert_eq!(
+        plans.len(),
+        3,
+        "no plan for a recipe that cannot be installed"
+    );
+    assert!(
+        plans
+            .iter()
+            .all(|q| q.contains("dry_run=1") && q.contains("os=")),
+        "{plans:?}"
+    );
+
+    // The answer is a plain JSON object with snake_case keys and no signed link in it.
+    let json = serde_json::to_value(&list).unwrap();
+    assert_eq!(json["recipes"][0]["availability"], "on_lan");
+    assert_eq!(json["recipes"][0]["local"]["status"], "ready");
+    assert!(!json.to_string().contains("SECRET"));
+
+    // Asking again within the cache window asks the server nothing more.
+    r.features.games_list().await.unwrap();
+    assert_eq!(plan_requests(&r).await.len(), 3);
+}
+
+#[tokio::test]
+async fn plan_lookups_stay_within_the_budget_and_never_fail_the_list() {
+    let r = rig().await;
+    let slugs: Vec<String> = (0..30).map(|i| format!("game-{i}")).collect();
+    mount_recipes(
+        &r,
+        slugs.iter().map(|s| game_summary(s, json!({}))).collect(),
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(wiremock::matchers::path_regex(
+            r"^/api/voice-client/v1/recipes/game-\d+/plan$",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(game_plan("x", true)))
+        .mount(&r.server)
+        .await;
+
+    let list = r.features.games_list().await.unwrap();
+    assert_eq!(list.recipes.len(), 30);
+    assert_eq!(
+        plan_requests(&r).await.len(),
+        24,
+        "below the server's 30 a minute"
+    );
+    let known = list
+        .recipes
+        .iter()
+        .filter(|g| g.availability == voice_core::api::Availability::OnLan)
+        .count();
+    assert_eq!(known, 24);
+
+    // A throttled server leaves the rest unknown, the list still works.
+    let r = rig().await;
+    mount_recipes(
+        &r,
+        vec![game_summary("a", json!({})), game_summary("b", json!({}))],
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/recipes/a/plan"))
+        .respond_with(
+            ResponseTemplate::new(429)
+                .insert_header("Retry-After", "5")
+                .set_body_json(json!({})),
+        )
+        .mount(&r.server)
+        .await;
+    mount_plan(&r, "b", 500, json!({"message": "boom"})).await;
+    let list = r.features.games_list().await.unwrap();
+    assert!(list
+        .recipes
+        .iter()
+        .all(|g| g.availability == voice_core::api::Availability::Unknown));
+}
+
+#[tokio::test]
+async fn library_errors_carry_the_stable_codes() {
+    // The module is off: the routes are 404.
+    let r = rig().await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/recipes"))
+        .respond_with(ResponseTemplate::new(404).set_body_json(json!({"message": "Not Found"})))
+        .mount(&r.server)
+        .await;
+    let e = r.features.games_list().await.unwrap_err();
+    assert_eq!(e.code.as_deref(), Some("module_off"));
+
+    // Server trouble.
+    let r = rig().await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/recipes"))
+        .respond_with(ResponseTemplate::new(500).set_body_json(json!({"message": "boom"})))
+        .mount(&r.server)
+        .await;
+    let e = r.features.games_list().await.unwrap_err();
+    assert_eq!(
+        (e.code.as_deref(), e.retryable),
+        (Some("server_error"), true)
+    );
+
+    // Unreachable.
+    let r = rig_at(Some("http://127.0.0.1:1".into())).await;
+    let e = r.features.games_list().await.unwrap_err();
+    assert_eq!(
+        (e.code.as_deref(), e.kind, e.retryable),
+        (Some("offline"), "network", true)
+    );
+    let e = r.features.game_detail("any").await.unwrap_err();
+    assert_eq!(e.code.as_deref(), Some("offline"));
+
+    // A rejected token: not paired any more, and every window is told.
+    let r = rig().await;
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/recipes"))
+        .respond_with(
+            ResponseTemplate::new(401).set_body_json(json!({"message": "Unauthenticated."})),
+        )
+        .mount(&r.server)
+        .await;
+    let e = r.features.games_list().await.unwrap_err();
+    assert_eq!((e.code.as_deref(), e.kind), (Some("not_paired"), "auth"));
+    assert_eq!(r.events_named(EVT_AUTH).len(), 1);
+}
+
+#[tokio::test]
+async fn the_detail_has_the_long_fields_and_a_plan_summary() {
+    let r = rig().await;
+    let mut recipe = game_summary("on-lan", json!({}));
+    recipe["description"] = json!("Long text");
+    recipe["aliases"] = json!(["ol"]);
+    recipe["homepage"] = json!("https://game.example/");
+    recipe["license"] = json!("freeware");
+    recipe["portable"] = json!(true);
+    recipe["supports_multiplayer"] = json!(true);
+    Mock::given(method("GET"))
+        .and(path("/api/voice-client/v1/recipes/on-lan"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"recipe": recipe})))
+        .mount(&r.server)
+        .await;
+    let mut plan = game_plan("on-lan", true);
+    plan["files"].as_array_mut().unwrap().push(json!({
+        "requirement": "patch", "name": "patch.zip", "status": "external", "required": false,
+        "source": "external", "download_url": "https://cdn.example/patch.zip"
+    }));
+    mount_plan(&r, "on-lan", 200, plan).await;
+
+    let d = r.features.game_detail("on-lan").await.unwrap();
+    assert_eq!(d.recipe.game.slug, "on-lan");
+    assert_eq!(d.recipe.description.as_deref(), Some("Long text"));
+    assert_eq!(d.recipe.aliases, ["ol"]);
+    assert_eq!(d.recipe.portable, Some(true));
+    assert_eq!(
+        d.recipe.game.availability,
+        voice_core::api::Availability::OnLan
+    );
+    assert_eq!(d.local.status, "not_installed");
+    let ps = d.plan_summary.unwrap();
+    assert_eq!(ps.plan_version, 1);
+    assert_eq!(ps.files.len(), 2);
+    assert_eq!(
+        (
+            ps.files[0].label.as_str(),
+            ps.files[0].source.as_str(),
+            ps.files[0].required,
+            ps.files[0].size_bytes
+        ),
+        ("Portable archive", "lan", true, Some(4096))
+    );
+    assert_eq!(ps.files[1].label, "patch.zip");
+    assert!(plan_requests(&r).await[0].contains("dry_run=1"));
+
+    // The JSON shape for the UI: flat recipe, snake_case, no signed link.
+    let json = serde_json::to_value(r.features.game_detail("on-lan").await.unwrap()).unwrap();
+    assert_eq!(json["recipe"]["slug"], "on-lan");
+    assert_eq!(json["recipe"]["local"]["status"], "not_installed");
+    assert_eq!(json["local"]["path"], Value::Null);
+    assert_eq!(json["plan_summary"]["files"][0]["source"], "lan");
+    assert!(!json.to_string().contains("SECRET"));
+}
+
+#[tokio::test]
+async fn the_detail_survives_a_failed_plan_but_not_a_plan_from_the_future() {
+    let r = rig().await;
+    for slug in ["flaky", "future", "gone"] {
+        let mut recipe = game_summary(slug, json!({}));
+        recipe["description"] = json!("d");
+        Mock::given(method("GET"))
+            .and(path(format!("/api/voice-client/v1/recipes/{slug}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"recipe": recipe})))
+            .mount(&r.server)
+            .await;
+    }
+    mount_plan(&r, "flaky", 500, json!({"message": "x"})).await;
+    let mut future = game_plan("future", true);
+    future["plan_version"] = json!(2);
+    future["files"] = json!("a shape this client does not know");
+    mount_plan(&r, "future", 200, future).await;
+
+    let d = r.features.game_detail("flaky").await.unwrap();
+    assert!(d.plan_summary.is_none());
+    assert_eq!(
+        d.recipe.game.availability,
+        voice_core::api::Availability::Unknown
+    );
+
+    let e = r.features.game_detail("future").await.unwrap_err();
+    assert_eq!(e.code.as_deref(), Some("plan_version_unsupported"));
+    assert!(e.message.contains("Aktualisiere die App"));
+
+    let e = r.features.game_detail("missing-slug").await.unwrap_err();
+    assert_eq!(e.code.as_deref(), Some("not_found"));
+    let e = r.features.game_detail("../x").await.unwrap_err();
+    assert_eq!(e.kind, "usage");
+}
+
+#[tokio::test]
+async fn logging_out_drops_the_cached_availability() {
+    let r = rig().await;
+    mount_recipes(&r, vec![game_summary("a", json!({}))]).await;
+    mount_plan(&r, "a", 200, game_plan("a", true)).await;
+    r.features.games_list().await.unwrap();
+    assert_eq!(plan_requests(&r).await.len(), 1);
+
+    r.features.stop_all();
+    r.features.games_list().await.unwrap();
+    assert_eq!(
+        plan_requests(&r).await.len(),
+        2,
+        "another account starts from scratch"
+    );
+}
+
+#[tokio::test]
+async fn the_first_start_imports_the_old_launcher_installs_but_never_its_token() {
+    let root = tempfile::tempdir().unwrap();
+    let legacy = root.path().join("legacy");
+    std::fs::create_dir_all(&legacy).unwrap();
+    let game = root.path().join("ut2004");
+    std::fs::create_dir_all(&game).unwrap();
+    std::fs::write(
+        legacy.join("installs.json"),
+        json!([{"slug": "unreal-tournament-2004", "target_dir": game.to_str().unwrap()}])
+            .to_string(),
+    )
+    .unwrap();
+    std::fs::write(
+        legacy.join("config.json"),
+        r#"{"token":"old-launcher-token"}"#,
+    )
+    .unwrap();
+
+    let dir = tempfile::tempdir().unwrap();
+    let store = FileTokenStore::new(dir.path().join("credentials.json"));
+    let engine = Engine::new(
+        store,
+        dir.path().join("settings.json"),
+        Arc::new(|_| {}),
+        true,
+    );
+    let features = Features::new(
+        engine,
+        Arc::new(|_, _| {}),
+        Arc::new(Recorder::default()),
+        FeatureOptions {
+            legacy_installs_dir: Some(legacy),
+            ..fast()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        features.installs.local("unreal-tournament-2004").status,
+        "ready"
+    );
+    for entry in std::fs::read_dir(dir.path()).unwrap() {
+        let p = entry.unwrap().path();
+        if p.is_file() {
+            assert!(!std::fs::read_to_string(&p)
+                .unwrap()
+                .contains("old-launcher-token"));
+        }
     }
 }

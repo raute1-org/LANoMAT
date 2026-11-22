@@ -21,10 +21,11 @@ step "cargo fmt --check"
 cargo fmt --check
 
 step "clippy (linux)"
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
+# The workspace covers voice-core, voice-cli, launcher-core (its unit and integration tests) and the app.
 step "tests (linux)"
-cargo test --workspace
+cargo test --locked --workspace
 
 step "release build (linux)"
 cargo build --release -p lanomat-voice-app -p voice-cli

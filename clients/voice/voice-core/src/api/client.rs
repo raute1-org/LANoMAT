@@ -390,6 +390,14 @@ pub(crate) async fn error_from_response(resp: reqwest::Response) -> Error {
     }
 }
 
+/// The body of a successful response, or the mapped failure.
+pub(crate) async fn read_ok_body(resp: reqwest::Response) -> Result<Vec<u8>> {
+    if resp.status().is_success() {
+        return resp.bytes().await.map(|b| b.to_vec()).map_err(net_err);
+    }
+    Err(error_from_response(resp).await)
+}
+
 async fn decode<T: DeserializeOwned>(resp: reqwest::Response) -> Result<T> {
     let status = resp.status();
     if status.is_success() {

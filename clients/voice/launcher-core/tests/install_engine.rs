@@ -1,6 +1,10 @@
 //! Install-engine behaviour that does not need the network: verification,
 //! executable bits, launch, missing-file selection and the patch requirement.
 
+// Some helpers and imports are only used by the `#[cfg(unix)]` tests below: on Windows they would be
+// dead code, and `-D warnings` in `ci/build.sh` (cargo xwin clippy) must stay green.
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+
 use std::path::PathBuf;
 use std::sync::Arc;
 

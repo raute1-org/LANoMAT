@@ -29,7 +29,13 @@ use voice_core::transfer::store::UploadStore;
 use voice_core::Error;
 
 use crate::engine::{german, Engine, UiError};
+use crate::installs::Installs;
 use crate::settings::Settings;
+
+mod games;
+pub use games::{
+    GameDetail, GameDetailRecipe, GameView, GamesList, GamesState, PlanFileView, PlanSummary,
+};
 
 /// Realtime chat events (`ChatEvent`), including link status changes.
 pub const EVT_CHAT: &str = "chat-event";
@@ -51,6 +57,9 @@ pub struct FeatureOptions {
     pub notify: NotifyConfig,
     /// Retry schedule of the transfers (`None`: the web app's).
     pub retry_delays: Option<Vec<std::time::Duration>>,
+    /// The old launcher's config directory: its `installs.json` (and nothing else) is imported
+    /// into the install register on the very first start. `None`: no import.
+    pub legacy_installs_dir: Option<PathBuf>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -118,6 +127,8 @@ pub struct Features {
     notifier: Arc<dyn Notifier>,
     transfers: TransferManager,
     opts: FeatureOptions,
+    installs: Installs,
+    games: Mutex<games::GamesCache>,
     background: Mutex<Option<Background>>,
     chat: Mutex<Option<ChatLink>>,
     me: Mutex<Option<voice_core::api::Me>>,
@@ -211,6 +222,7 @@ impl Features {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
         let store = Arc::new(UploadStore::open(cfg_dir.join("uploads.json")));
+        let installs = Installs::open(&cfg_dir, opts.legacy_installs_dir.as_deref());
         let sink_emit = emit.clone();
         let transfers = TransferManager::new(
             store,
@@ -229,6 +241,8 @@ impl Features {
             notifier,
             transfers,
             opts,
+            installs,
+            games: Mutex::default(),
             background: Mutex::new(None),
             chat: Mutex::new(None),
             me: Mutex::new(None),
@@ -328,6 +342,8 @@ impl Features {
         }
         *lock(&self.chat) = None;
         *lock(&self.me) = None;
+        // Another account (or server) may be next: its library is not this one's.
+        lock(&self.games).clear();
     }
 
     pub fn apply_settings(&self, s: &Settings) {
