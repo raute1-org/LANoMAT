@@ -399,6 +399,28 @@ async fn game_detail(f: Feat<'_>, slug: String) -> Result<features::GameDetail, 
     f.game_detail(&slug).await
 }
 
+// ---- local store library: see `features/library.rs` and "Library" in docs/commands.md ----
+
+#[tauri::command]
+async fn library_list(f: Feat<'_>) -> Result<features::LibraryList, UiError> {
+    f.library_list().await
+}
+
+#[tauri::command]
+async fn library_scan(f: Feat<'_>) -> Result<features::LibraryList, UiError> {
+    f.library_scan().await
+}
+
+#[tauri::command]
+async fn library_launch(f: Feat<'_>, key: String) -> Result<(), UiError> {
+    f.library_launch(&key).await
+}
+
+#[tauri::command]
+async fn library_open_store(f: Feat<'_>, key: String) -> Result<(), UiError> {
+    f.library_open_store(&key).await
+}
+
 // ---- feature commands: thin wrappers over `features::Features` (see docs/commands.md) ----
 
 #[tauri::command]
@@ -1126,7 +1148,11 @@ command_set!(
     get_avatar,
     games_state,
     games_list,
-    game_detail
+    game_detail,
+    library_list,
+    library_scan,
+    library_launch,
+    library_open_store
 );
 
 /// Raises system notifications through `tauri-plugin-notification`. The desktop plugin has no

@@ -33,9 +33,11 @@ use crate::installs::Installs;
 use crate::settings::Settings;
 
 mod games;
+mod library;
 pub use games::{
     GameDetail, GameDetailRecipe, GameView, GamesList, GamesState, PlanFileView, PlanSummary,
 };
+pub use library::{LibraryEntry, LibraryList, StoreGameView};
 
 /// Realtime chat events (`ChatEvent`), including link status changes.
 pub const EVT_CHAT: &str = "chat-event";
@@ -129,6 +131,8 @@ pub struct Features {
     opts: FeatureOptions,
     installs: Installs,
     games: Mutex<games::GamesCache>,
+    library: Mutex<library::LibraryState>,
+    library_env: Mutex<Arc<library::LibraryEnv>>,
     background: Mutex<Option<Background>>,
     chat: Mutex<Option<ChatLink>>,
     me: Mutex<Option<voice_core::api::Me>>,
@@ -243,6 +247,8 @@ impl Features {
             opts,
             installs,
             games: Mutex::default(),
+            library: Mutex::default(),
+            library_env: Mutex::default(),
             background: Mutex::new(None),
             chat: Mutex::new(None),
             me: Mutex::new(None),
@@ -344,6 +350,7 @@ impl Features {
         *lock(&self.me) = None;
         // Another account (or server) may be next: its library is not this one's.
         lock(&self.games).clear();
+        lock(&self.library).clear_recipes();
     }
 
     pub fn apply_settings(&self, s: &Settings) {

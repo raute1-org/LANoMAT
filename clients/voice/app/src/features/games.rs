@@ -16,13 +16,16 @@ use serde::Serialize;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use voice_core::api::{
-    current_os, ApiClient, Availability, RecipeDetail, RecipePlan, RecipeSummary,
+    current_os, ApiClient, Availability, RecipeDetail, RecipePlan, RecipeSummary, StoreIds,
 };
 use voice_core::Error;
 
 use super::{lock, Features};
 use crate::engine::UiError;
 use crate::installs::LocalView;
+
+/// The store scan reads the Windows registry and the stores' folders; stage 1 has no other OS.
+const LOCAL_SCAN: bool = cfg!(windows);
 
 /// Plan requests per minute this client allows itself (the server's limit is 30 per token).
 const PLAN_BUDGET_PER_MINUTE: usize = 24;
@@ -49,6 +52,8 @@ pub struct GamesState {
     pub enabled: bool,
     /// `module_off`, `server_too_old` or `not_paired`; `null` while enabled.
     pub reason: Option<&'static str>,
+    /// This build can scan the PC for store games (stage 1: Windows only).
+    pub local: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -66,6 +71,7 @@ pub struct GameView {
     pub in_lineup: bool,
     pub availability: Availability,
     pub local: LocalView,
+    pub store_ids: StoreIds,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -170,7 +176,7 @@ fn wants_plan(r: &RecipeSummary) -> bool {
     r.installable != Some(false) && r.launcher_supported != Some(false) && r.play_url.is_none()
 }
 
-fn now_rfc3339() -> String {
+pub(super) fn now_rfc3339() -> String {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .unwrap_or_default()
@@ -217,6 +223,7 @@ impl Features {
             in_lineup: r.in_lineup.unwrap_or(true),
             availability,
             local: self.installs.local(&r.slug),
+            store_ids: r.store_ids.clone(),
         }
     }
 
@@ -226,6 +233,7 @@ impl Features {
             return Ok(GamesState {
                 enabled: false,
                 reason: Some("not_paired"),
+                local: LOCAL_SCAN,
             });
         };
         let config = api.config().await.map_err(|e| self.games_error(e, false))?;
@@ -234,14 +242,17 @@ impl Features {
             Some(true) => GamesState {
                 enabled: true,
                 reason: None,
+                local: LOCAL_SCAN,
             },
             Some(false) => GamesState {
                 enabled: false,
                 reason: Some("module_off"),
+                local: LOCAL_SCAN,
             },
             None => GamesState {
                 enabled: false,
                 reason: Some("server_too_old"),
+                local: LOCAL_SCAN,
             },
         })
     }

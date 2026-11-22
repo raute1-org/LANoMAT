@@ -648,7 +648,7 @@ with the next phase. Every error is the usual error object, with one of these st
 
 ### `games_state`
 
-Result `{enabled: bool, reason: null | "module_off" | "server_too_old" | "not_paired"}`. `enabled` is
+Result `{enabled: bool, reason: null | "module_off" | "server_too_old" | "not_paired", local: bool}`. `local` is true on builds that can scan this PC for store games (see Library below; Windows only in this version). `enabled` is
 true only when the device is paired and the server reports `features.launcher` in `GET config`.
 `server_too_old`: the server does not know the flag at all. Hide the Games tab unless `enabled`.
 
@@ -657,7 +657,7 @@ true only when the device is paired and the server reports `features.launcher` i
 Result `{recipes: [game], fetched_at}` in the server's order (the launcher lineup). A `game` is
 `{slug, title, summary, genre, players, players_max, platforms: string[], size_bytes, installable, launcher_supported, in_lineup, availability, local}`:
 `summary`, `genre`, `players` (text such as `"2-16"`), `players_max` and `size_bytes` may be `null`;
-`installable` and `launcher_supported` are `true`, `false` or `null` (null: the server does not say, which is not
+`store_ids` is `{steam, epic, gog, ubisoft}` with each value a string or `null` (the ids a recipe is known by in the stores); `installable` and `launcher_supported` are `true`, `false` or `null` (null: the server does not say, which is not
 "no"); `in_lineup` is a bool; `local` is `{status, path: string | null, last_played_at: RFC 3339 | null}`.
 Availability comes from the install plan with `dry_run=1` (so no audit entry is written on the
 server). The app looks plans up within a budget (at most 24 a minute, 4 at a time) and keeps the
@@ -671,3 +671,53 @@ Args `{slug}`. Result `{recipe, plan_summary, local}`. `recipe` is a `game` (abo
 `plan_summary` is `null` when the recipe has no plan to show or the plan could not be fetched, else
 `{plan_version, files: [{label, size_bytes, source: "lan" | "external" | "manual" | "none", required, status}], missing: string[]}`.
 `local` repeats `recipe.local`. A plan in a newer format rejects with `plan_version_unsupported`.
+
+## Library (store games on this PC)
+
+The local library: Steam, Epic, GOG and Ubisoft games installed on this machine (found through the
+registry and the stores' own folders, read-only, nothing leaves the PC), merged with the server's
+game recipes. A recipe and a store game belong together only through explicit ids (`store_ids` of
+the recipe, never the title). These commands work **without pairing**: the scan is local, and a
+recipe list that cannot be loaded is reported as `recipes_reason`, not as an error. On other
+platforms than Windows the scan finds nothing (`games_state.local` is false).
+
+Starting and store pages take a library **key** only (`steam:10`, `epic:<AppName>`, `gog:<id>`,
+`ubisoft:<id>`, or `recipe:<slug>`), never a URL or a path: the app looks the key up in its cached
+scan or recipe list and refuses anything else with `kind: "usage"`.
+
+### `library_list`
+
+Result `{entries, sources, recipes_reason, scanned_at}`. Scans once when nothing is cached, then reuses
+that scan; it also asks the server for the recipes each time (cheap, see `games_list`).
+
+- `entries`: recipes first, in the server's order, then the store games no recipe claims, in title order.
+  An entry is `{key, title, recipe, store_games, primary}`. `key` is `recipe:<slug>` when a recipe is
+  involved, else the store game's key. `recipe` is a `game` (see `games_list`) or `null`. `store_games` is
+  `[{key, store: "steam" | "epic" | "gog" | "ubisoft", store_id, title, status: "ready" | "updating" | "broken", install_path: string | null}]`;
+  one recipe can hold several (the same game in two stores). `primary` is the one action to offer:
+  `play` (a store game is `ready`: `library_launch`), `install_recipe` (the recipe is `installable` and
+  `launcher_supported`: reserved for the install phase), `open_store` (the recipe has a Steam id and
+  nothing is ready: `library_open_store`), or `none`.
+- `sources`: `[{store, present, found, skipped}]` in the order steam, epic, gog, ubisoft. `present`: the
+  store's launcher was detected; `skipped`: entries that could not be read (counted, never an error).
+- `recipes_reason`: `null` when the recipes loaded, else `not_paired`, `module_off`, `server_too_old`,
+  `offline` or `server_error`. Show it as one line next to the local games, not as a blocking screen.
+- `scanned_at`: RFC 3339, when the scan ran.
+
+### `library_scan`
+
+Scans again, then answers like `library_list`. Use it for a "Neu suchen" button.
+
+### `library_launch`
+
+Args `{key}`. Result `null`. A store key starts that game through its store (Steam `steam://rungameid`,
+Epic launcher link, GOG Galaxy or, without Galaxy, the registered `.exe` when it lies inside the game's
+own folder, Ubisoft `uplay://`). `recipe:<slug>` starts the first ready store game of that recipe. A
+broken install, an unknown key, an invalid id or an `.exe` outside the game folder reject with
+`kind: "usage"` and a German message; a handler that cannot be started rejects with `kind: "local"`.
+
+### `library_open_store`
+
+Args `{key}`. Result `null`. Opens the store page in the store's client: for `recipe:<slug>` the recipe's
+Steam id (`steam://store/<id>`), for a store key that game's page. Only Steam has store pages in this
+version; other stores reject with `kind: "usage"`.

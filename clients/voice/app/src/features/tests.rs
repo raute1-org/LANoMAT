@@ -1046,3 +1046,334 @@ async fn the_first_start_imports_the_old_launcher_installs_but_never_its_token()
         }
     }
 }
+
+// ---- local store library ----
+
+mod library {
+    use launcher_core::store_library::handoff::Handoff;
+    use launcher_core::store_library::testing::{MapFs, MapRegistry};
+    use launcher_core::store_library::{Hive, StoreEnv};
+
+    use super::*;
+    use crate::features::library::{LibraryEnv, Sources};
+
+    type Fixture = fn() -> (MapRegistry, MapFs);
+
+    fn acf(name: &str, dir: &str) -> String {
+        format!("\"AppState\"{{\"name\"\"{name}\"\"StateFlags\"\"4\"\"installdir\"\"{dir}\"}}")
+    }
+
+    fn steam_reg() -> MapRegistry {
+        MapRegistry::new().with_value(
+            Hive::CurrentUser,
+            "Software\\Valve\\Steam",
+            "SteamPath",
+            "C:/Steam",
+        )
+    }
+
+    fn steam_fs() -> MapFs {
+        MapFs::new()
+            .with_file(
+                "C:/Steam/steamapps/appmanifest_10.acf",
+                &acf("Counter-Strike", "Half-Life"),
+            )
+            .with_dir("C:/Steam/steamapps/common/Half-Life")
+    }
+
+    fn steam_only() -> (MapRegistry, MapFs) {
+        (steam_reg(), steam_fs())
+    }
+
+    fn nothing() -> (MapRegistry, MapFs) {
+        (MapRegistry::new(), MapFs::new())
+    }
+
+    fn steam_and_gog() -> (MapRegistry, MapFs) {
+        let gog = "SOFTWARE\\WOW6432Node\\GOG.com\\Games";
+        let reg = steam_reg()
+            .with_subkeys(Hive::LocalMachine, gog, &["1207658924"])
+            .with_value(
+                Hive::LocalMachine,
+                &format!("{gog}\\1207658924"),
+                "gameID",
+                "1207658924",
+            )
+            .with_value(
+                Hive::LocalMachine,
+                &format!("{gog}\\1207658924"),
+                "gameName",
+                "Counter-Strike GOG",
+            )
+            .with_value(
+                Hive::LocalMachine,
+                &format!("{gog}\\1207658924"),
+                "path",
+                "D:/GOG/CS",
+            );
+        (reg, steam_fs().with_dir("D:/GOG/CS"))
+    }
+
+    /// Installs a scan fixture and returns what the opener was asked to open.
+    fn use_sources(r: &Rig, build: Fixture) -> Arc<Mutex<Vec<Handoff>>> {
+        let opened: Arc<Mutex<Vec<Handoff>>> = Arc::default();
+        let rec = opened.clone();
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(move || {
+                let (reg, fs) = build();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(move |h| {
+                rec.lock().unwrap().push(h.clone());
+                Ok(())
+            }),
+        });
+        opened
+    }
+
+    fn unpaired(r: &Rig) {
+        std::fs::remove_file(r.dir.path().join("credentials.json")).unwrap();
+    }
+
+    async fn mount_launcher_config(r: &Rig) {
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "api_version": 1, "voice_ready": false, "modules": {},
+                "features": {"launcher": true}
+            })))
+            .mount(&r.server)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn library_list_without_pairing_has_local_entries() {
+        let r = rig().await;
+        unpaired(&r);
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("not_paired"));
+        assert_eq!(list.entries.len(), 1);
+        let e = &list.entries[0];
+        assert_eq!(e.key, "steam:10");
+        assert_eq!(e.primary, "play");
+        assert!(e.recipe.is_none());
+        assert_eq!(e.store_games[0].title, "Counter-Strike");
+        assert_eq!(list.sources.len(), 4);
+        assert!(r.server.received_requests().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn merge_matches_recipe_by_store_id() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, None);
+        assert_eq!(list.entries.len(), 1);
+        let e = &list.entries[0];
+        assert_eq!(e.key, "recipe:cs16");
+        assert_eq!(e.store_games.len(), 1);
+        assert_eq!(e.store_games[0].key, "steam:10");
+        assert_eq!(e.primary, "play");
+        assert_eq!(e.recipe.as_ref().unwrap().slug, "cs16");
+        let json = serde_json::to_value(&list).unwrap();
+        assert_eq!(json["entries"][0]["store_games"][0]["store"], "steam");
+        assert_eq!(json["entries"][0]["store_games"][0]["status"], "ready");
+        assert_eq!(json["entries"][0]["recipe"]["store_ids"]["steam"], "10");
+    }
+
+    #[tokio::test]
+    async fn merge_attaches_two_stores_to_one_recipe() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "cs16",
+                json!({"store_ids": {"steam": "10", "gog": "1207658924"}}),
+            )],
+        )
+        .await;
+        use_sources(&r, steam_and_gog);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.entries.len(), 1);
+        let keys: Vec<_> = list.entries[0]
+            .store_games
+            .iter()
+            .map(|g| g.key.as_str())
+            .collect();
+        assert_eq!(keys, ["steam:10", "gog:1207658924"]);
+    }
+
+    #[tokio::test]
+    async fn merge_keeps_unmatched_both_sides() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(&r, vec![game_summary("other", json!({}))]).await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        let keys: Vec<_> = list.entries.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(keys, ["recipe:other", "steam:10"]);
+    }
+
+    #[tokio::test]
+    async fn primary_open_store_for_unowned_steam_recipe() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![
+                game_summary(
+                    "portal2",
+                    json!({"installable": false, "store_ids": {"steam": "620"}}),
+                ),
+                game_summary("plain", json!({"installable": false})),
+                game_summary("lan", json!({"store_ids": {"steam": "730"}})),
+            ],
+        )
+        .await;
+        use_sources(&r, nothing);
+        let list = r.features.library_list().await.unwrap();
+        let primary = |k: &str| list.entries.iter().find(|e| e.key == k).unwrap().primary;
+        assert_eq!(primary("recipe:portal2"), "open_store");
+        assert_eq!(primary("recipe:plain"), "none");
+        assert_eq!(primary("recipe:lan"), "install_recipe");
+    }
+
+    #[tokio::test]
+    async fn a_failing_server_becomes_a_reason_not_an_error() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&r.server)
+            .await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("server_error"));
+        assert_eq!(list.entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn launch_unknown_key_is_usage_error() {
+        let r = rig().await;
+        let opened = use_sources(&r, steam_only);
+        // Nothing scanned yet, then a key that is not in the scan: both refuse.
+        for key in ["steam:10", "steam:999", "https://evil.example", "recipe:x"] {
+            if key != "steam:10" {
+                r.features.library_list().await.unwrap();
+            }
+            let e = r.features.library_launch(key).await.unwrap_err();
+            assert_eq!(e.kind, "usage", "{key}");
+        }
+        assert!(opened.lock().unwrap().is_empty());
+        let e = r
+            .features
+            .library_open_store("steam:999")
+            .await
+            .unwrap_err();
+        assert_eq!(e.kind, "usage");
+    }
+
+    #[tokio::test]
+    async fn launch_uses_cached_scan() {
+        let r = rig().await;
+        unpaired(&r);
+        let opened = use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        r.features.library_launch("steam:10").await.unwrap();
+        assert_eq!(
+            *opened.lock().unwrap(),
+            [Handoff::Url("steam://rungameid/10".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn launch_by_recipe_key_picks_the_ready_store_game() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        let opened = use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        r.features.library_launch("recipe:cs16").await.unwrap();
+        assert_eq!(
+            *opened.lock().unwrap(),
+            [Handoff::Url("steam://rungameid/10".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn open_store_takes_the_steam_id_of_a_recipe() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "portal2",
+                json!({"store_ids": {"steam": "620"}}),
+            )],
+        )
+        .await;
+        let opened = use_sources(&r, nothing);
+        r.features.library_list().await.unwrap();
+        r.features
+            .library_open_store("recipe:portal2")
+            .await
+            .unwrap();
+        assert_eq!(
+            *opened.lock().unwrap(),
+            [Handoff::Url("steam://store/620".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn scan_refreshes_the_cache() {
+        let r = rig().await;
+        unpaired(&r);
+        use_sources(&r, nothing);
+        assert!(r.features.library_list().await.unwrap().entries.is_empty());
+        use_sources(&r, steam_only);
+        // The cached scan stays until a rescan is asked for.
+        assert!(r.features.library_list().await.unwrap().entries.is_empty());
+        assert_eq!(r.features.library_scan().await.unwrap().entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn games_state_reports_local() {
+        let r = rig().await;
+        unpaired(&r);
+        let s = r.features.games_state().await.unwrap();
+        assert_eq!(s.local, cfg!(windows));
+        assert_eq!(serde_json::to_value(&s).unwrap()["local"], cfg!(windows));
+    }
+
+    #[test]
+    fn verbatim_prefixes_are_stripped_for_spawning() {
+        use crate::features::library::strip_verbatim;
+        use std::path::{Path, PathBuf};
+        let cases = [
+            (r"\\?\C:\Games\a.exe", r"C:\Games\a.exe"),
+            (r"\\?\UNC\srv\share\a.exe", r"\\srv\share\a.exe"),
+            (r"C:\Games\a.exe", r"C:\Games\a.exe"),
+            ("/usr/bin/a", "/usr/bin/a"),
+        ];
+        for (input, want) in cases {
+            assert_eq!(strip_verbatim(Path::new(input)), PathBuf::from(want));
+        }
+    }
+}

@@ -50,7 +50,7 @@ pub use presence::{
 };
 pub use recipes::{
     current_os, Availability, LaunchTarget, PlanFile, PlanRecipe, PlanStep, RecipeDetail,
-    RecipePlan, RecipeSummary, SUPPORTED_PLAN_VERSION,
+    RecipePlan, RecipeSummary, StoreIds, SUPPORTED_PLAN_VERSION,
 };
 pub use store::{FileTokenStore, StoredCredentials, TokenStore};
 pub use types::{
