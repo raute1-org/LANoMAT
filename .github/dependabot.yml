@@ -44,3 +44,12 @@ updates:
       npm:
         patterns:
           - "*"
+    # Held back until the tooling catches up (checked on PR #148): eslint-plugin-import has no eslint 10
+    # support yet (npm ci fails with ERESOLVE), and typescript-eslint and vue-tsc do not support TypeScript 7.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
