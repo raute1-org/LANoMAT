@@ -45,7 +45,7 @@ for (const f of fs
     }
 }
 
-for (const t of ['jetzt', 'sprache', 'spielen', 'essen', 'mehr']) {
+for (const t of ['jetzt', 'sprache', 'spielen', 'spiele', 'essen', 'mehr']) {
     if (!S.help[t] || !S.tabs[t]) {
         console.log('missing tab strings', t);
         bad++;

@@ -22,6 +22,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 - Native client API: `GET /api/voice-client/v1/recipes`, `recipes/{slug}` and `recipes/{slug}/plan` give the voice token the game library and the install plan (published recipes only, exact slug, GameRecipes module gated); the plan carries `plan_version` and signed file-host links minted through the file policy (`InstallPlanUrls` strategy: the agent API keeps `mcp.files.download`); `GET config` reports `features.launcher`. `api_version` stays 1
 - Native client (all-in-one, phase 1): game library core in `clients/voice`: `voice-core` recipe/plan client (`api/recipes.rs`, `plan_version` check, `features.launcher`), the install register with status automaton, quarantine and one-time import of the old launcher's `installs.json` (never its token) in `launcher-core`/`app`, and the Tauri commands `games_state`, `games_list`, `game_detail` (availability from `dry_run=1` plans, budgeted and cached)
+- Native client UI: the "Spiele" tab, a read-only game library in the Signalpult design (cards with availability on the LAN host and local state, search, genre and ready/installable filters, lineup-first sorting, detail view with plan summary and missing files; install and start are an explained placeholder until phase 2). Shown only when `games_state` says so; pure logic covered by `node --test app/tests/games-model.test.mjs`
 
 ## 2026-11-21
 

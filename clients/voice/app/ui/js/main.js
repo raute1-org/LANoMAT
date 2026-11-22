@@ -2,6 +2,7 @@
 // screens and bridges the events of the Rust side into the UI.
 import * as connect from './connect.js';
 import * as food from './food.js';
+import * as games from './games.js';
 import * as more from './more.js';
 import {
     buildTabs,
@@ -44,12 +45,14 @@ function init() {
     now.init($('screen-jetzt'));
     voice.init($('screen-sprache'));
     play.init($('screen-spielen'));
+    games.init($('screen-spiele'));
     food.init($('screen-essen'));
     more.init($('screen-mehr'), { logout });
     settings.init();
     registerScreen('jetzt', now);
     registerScreen('sprache', voice);
     registerScreen('spielen', play);
+    registerScreen('spiele', games);
     registerScreen('essen', food);
     registerScreen('mehr', more);
 
