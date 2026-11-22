@@ -341,9 +341,16 @@ impl Features {
         {
             return;
         }
+        // Cleared on every way out of the task, a panic included.
+        struct Running(Arc<Features>);
+        impl Drop for Running {
+            fn drop(&mut self) {
+                self.0.plan_fill_running.store(false, Ordering::SeqCst);
+            }
+        }
         tokio::spawn(async move {
+            let _running = Running(this.clone());
             this.fill_plan_cache(&api, &recipes).await;
-            this.plan_fill_running.store(false, Ordering::SeqCst);
         });
     }
 
