@@ -682,7 +682,7 @@ registry and the stores' own folders, read-only, nothing leaves the PC), merged 
 game recipes. A recipe and a store game belong together only through explicit ids (`store_ids` of
 the recipe, never the title). These commands work **without pairing**: the scan is local, and a
 recipe list that cannot be loaded is reported as `recipes_reason`, not as an error. The recipe side
-gets 3 seconds: a server that does not answer in time is `offline`, and the last good recipe list
+gets 3 seconds, `games_state` included (its config request is bounded the same way and answers `offline`): a server that does not answer in time is `offline`, and the last good recipe list
 stays (a logout or a module that is off clears it). On other platforms than Windows the scan finds
 nothing (`games_state.local` is false).
 

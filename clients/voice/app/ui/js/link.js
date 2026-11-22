@@ -47,9 +47,11 @@ export const LOCAL_COMMANDS = new Set([
 
 // After "Abmelden" there is no session left to lose: a request that was still on its way (a poll
 // of the Jetzt feed) fails with an auth error, and that must not throw the signed-out library
-// back to the connect screen with "Sitzung abgelaufen".
-export const ignoresAuthLoss = (status) =>
-    Boolean(status) && status.state === 'signed_out';
+// back to the connect screen with "Sitzung abgelaufen". The same holds in the signed-out library
+// mode ("Meine Spiele ohne Anmeldung"), also for an expired token whose credentials are still
+// stored: the server part of the library may answer 401 there, and that is not news.
+export const ignoresAuthLoss = (status, offlineMode = false) =>
+    offlineMode === true || (Boolean(status) && status.state === 'signed_out');
 
 // Where the setup after a reconnect lands. Every retry of the setup ends by showing a screen; a
 // retry must not pull the person away from the tab they opened meanwhile. While setup still fails

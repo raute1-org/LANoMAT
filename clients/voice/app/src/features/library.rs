@@ -264,7 +264,7 @@ impl Features {
         *lock(&self.library_env) = Arc::new(env);
     }
 
-    fn library_env(&self) -> Arc<LibraryEnv> {
+    pub(super) fn library_env(&self) -> Arc<LibraryEnv> {
         lock(&self.library_env).clone()
     }
 

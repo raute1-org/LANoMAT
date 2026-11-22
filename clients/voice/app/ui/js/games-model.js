@@ -446,8 +446,18 @@ export const gamesTabWanted = (s) =>
 // need the server: with `local` on, the library lists the games on this PC even signed out or
 // with the server down, and the recipes' own reason becomes one line (`recipesNote`) instead of
 // a blocking screen.
-export async function loadLibrary(call, { rescan = false } = {}) {
-    const st = await call('games_state');
+export async function loadLibrary(
+    call,
+    { rescan = false, offline = false } = {},
+) {
+    // Signed-out mode ("Meine Spiele ohne Anmeldung"): the state is known (this PC scans) and
+    // asking the server about it is exactly what must not happen, it may answer 401.
+    const st = offline
+        ? {
+              ok: true,
+              value: { enabled: false, reason: 'not_paired', local: true },
+          }
+        : await call('games_state');
 
     if (!st.ok && isAuthError(st.error)) {
         return { phase: 'error', error: errorInfo(st.error) };

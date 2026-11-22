@@ -45,6 +45,9 @@ test('server commands prove the server is reachable', () => {
 
 test('a lost session is ignored while signed out', () => {
     assert.equal(ignoresAuthLoss({ state: 'signed_out' }), true);
+    // The signed-out library mode ignores it for any status, an expired token included.
+    assert.equal(ignoresAuthLoss({ state: 'expired' }, true), true);
+    assert.equal(ignoresAuthLoss(null, true), true);
     for (const st of [
         null,
         undefined,

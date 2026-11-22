@@ -553,7 +553,7 @@ scan and refuses everything else.
 
 **Signed out and offline.** The local part needs no pairing, no server and no network. The tab shows
 installed store games and starts them when the client is signed out, and when it is paired but the
-server does not answer: the recipe side gets three seconds (`library_list` then reports
+server does not answer: the server side gets three seconds (the state check of `games_state` and the recipe fetch; plan lookups run in the background and never hold the tab back; `library_list` then reports
 `recipes_reason: "offline"`) and the last good recipe list stays until a logout. The server's recipes
 are optional: when they cannot be loaded, the tab shows the reason (`recipes_reason`) as one line next
 to the local games. Opening the tab scans again; "Neu einlesen" does the same on demand. Steam ownership of games not installed yet is a later stage (see the spec).

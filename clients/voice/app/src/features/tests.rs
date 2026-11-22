@@ -1555,6 +1555,75 @@ mod library {
         assert_eq!(plan_requests(&r).await.len(), 1);
     }
 
+    fn fast_bound(r: &Rig, bound: Duration) {
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(|| {
+                let (reg, fs) = steam_only();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(|_| Ok(())),
+            recipe_timeout: bound,
+        });
+    }
+
+    #[tokio::test]
+    async fn a_server_that_drops_packets_does_not_hold_games_state_back() {
+        let r = rig().await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(3))
+                    .set_body_json(json!({
+                        "api_version": 1, "voice_ready": false, "modules": {},
+                        "features": {"launcher": true}
+                    })),
+            )
+            .mount(&r.server)
+            .await;
+        fast_bound(&r, Duration::from_millis(150));
+        let started = std::time::Instant::now();
+        let s = r.features.games_state().await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!((s.enabled, s.reason), (false, Some("offline")));
+        assert_eq!(s.local, cfg!(windows));
+    }
+
+    #[tokio::test]
+    async fn a_fill_that_outlives_a_logout_writes_nothing() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "on-lan",
+                json!({"store_ids": {"steam": "10"}}),
+            )],
+        )
+        .await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes/on-lan/plan"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(600))
+                    .set_body_json(game_plan("on-lan", true)),
+            )
+            .mount(&r.server)
+            .await;
+        use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        // Logged out while the lookup is on its way.
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        assert_eq!(plan_requests(&r).await.len(), 1);
+        r.features.stop_all();
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        assert_eq!(r.features.plans_cached(), 0);
+    }
+
     #[tokio::test]
     async fn the_last_good_recipes_survive_a_failed_load_but_not_a_logout() {
         let r = rig().await;

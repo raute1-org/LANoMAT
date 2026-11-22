@@ -144,8 +144,9 @@ pub struct Features {
     last_target: Mutex<Option<(std::time::Instant, Target)>>,
     /// Itself, for work that outlives a call (the detached plan fill of the library).
     this: std::sync::Weak<Features>,
-    /// A detached plan fill is running: at most one at a time.
-    plan_fill_running: AtomicBool,
+    /// The cache generation (+1) of the detached plan fill that is running, 0 for none: at most one
+    /// fill per generation.
+    plan_fill_running: std::sync::atomic::AtomicU64,
 }
 
 /// How long a delivered notification's target stays claimable by the UI.
@@ -246,7 +247,7 @@ impl Features {
         )?;
         Ok(Arc::new_cyclic(|this| Self {
             this: this.clone(),
-            plan_fill_running: AtomicBool::new(false),
+            plan_fill_running: std::sync::atomic::AtomicU64::new(0),
             engine,
             emit,
             notifier,

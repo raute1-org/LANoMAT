@@ -176,7 +176,7 @@ async function load({ rescan = false } = {}) {
     clear(body);
     body.append(skeleton(4));
     body.setAttribute('aria-busy', 'true');
-    lib = await loadLibrary(call, { rescan });
+    lib = await loadLibrary(call, { rescan, offline: offlineMode() });
 
     if (mine !== seq) {
         return;

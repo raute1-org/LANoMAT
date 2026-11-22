@@ -32,6 +32,14 @@ pub(super) fn local_scan() -> bool {
     LOCAL_SCAN_PLATFORM || super::library::fixture_scan().is_some()
 }
 
+impl Features {
+    /// Test seam: how many plan answers the cache holds.
+    #[cfg(test)]
+    pub(super) fn plans_cached(&self) -> usize {
+        lock(&self.games).plans.len()
+    }
+}
+
 /// Whether this build can scan the PC for store games. Local only: no pairing, no network.
 #[must_use]
 pub fn local_scan_available() -> bool {
@@ -140,10 +148,14 @@ pub(super) struct GamesCache {
     plans: HashMap<String, PlanEntry>,
     /// When the plan requests of the last minute were made.
     requests: VecDeque<Instant>,
+    /// Bumped by `clear` (logout, another account): a plan lookup that started before it must
+    /// not write its answer into the new account's cache.
+    generation: u64,
 }
 
 impl GamesCache {
     pub(super) fn clear(&mut self) {
+        self.generation += 1;
         self.plans.clear();
         self.requests.clear();
     }
@@ -248,14 +260,23 @@ impl Features {
                 local: local_scan(),
             });
         };
-        let config = match api.config().await {
-            Ok(config) => config,
+        // A server that drops packets must not hold the tab for the client's 10-20 s timeouts.
+        let bound = self.library_env().recipe_timeout;
+        let config = match tokio::time::timeout(bound, api.config()).await {
+            Err(_) => {
+                return Ok(GamesState {
+                    enabled: false,
+                    reason: Some("offline"),
+                    local: local_scan(),
+                });
+            }
+            Ok(Ok(config)) => config,
             // A rejected token is the session's problem (and every window is told); anything
             // else only means the library has no server today: the local part still works.
-            Err(e @ (Error::NotLoggedIn | Error::Unauthorized)) => {
+            Ok(Err(e @ (Error::NotLoggedIn | Error::Unauthorized))) => {
                 return Err(self.games_error(e, false));
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 let reason = if matches!(e, Error::Network(_)) {
                     "offline"
                 } else {
@@ -334,29 +355,40 @@ impl Features {
         let Some(this) = self.this.upgrade() else {
             return;
         };
-        if this
-            .plan_fill_running
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
+        // The running fill is tracked by generation (+1, 0 = none): after a logout the new
+        // account's first fill must not be blocked by the old one still winding down.
+        let generation = lock(&this.games).generation + 1;
+        let running = &this.plan_fill_running;
+        let previous = running.load(Ordering::SeqCst);
+        if previous == generation
+            || running
+                .compare_exchange(previous, generation, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
         {
             return;
         }
-        // Cleared on every way out of the task, a panic included.
-        struct Running(Arc<Features>);
+        // Cleared on every way out of the task, a panic included, unless a newer generation has
+        // taken the slot meanwhile.
+        struct Running(Arc<Features>, u64);
         impl Drop for Running {
             fn drop(&mut self) {
-                self.0.plan_fill_running.store(false, Ordering::SeqCst);
+                let _ = self.0.plan_fill_running.compare_exchange(
+                    self.1,
+                    0,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
             }
         }
         tokio::spawn(async move {
-            let _running = Running(this.clone());
+            let _running = Running(this.clone(), generation);
             this.fill_plan_cache(&api, &recipes).await;
         });
     }
 
     /// Looks up the plans (`dry_run=1`) of recipes that have no fresh answer, within the budget.
     async fn fill_plan_cache(&self, api: &ApiClient, recipes: &[RecipeSummary]) {
-        let wanted: Vec<String> = {
+        let (generation, wanted): (u64, Vec<String>) = {
             let now = Instant::now();
             let mut cache = lock(&self.games);
             let budget = cache.budget(now);
@@ -370,7 +402,7 @@ impl Features {
             for _ in &wanted {
                 cache.requests.push_back(now);
             }
-            wanted
+            (cache.generation, wanted)
         };
         if wanted.is_empty() {
             return;
@@ -416,7 +448,11 @@ impl Features {
                     availability: Availability::Unknown,
                 },
             };
-            lock(&self.games).plans.insert(slug, entry);
+            let mut cache = lock(&self.games);
+            // The account changed while this lookup ran: its answer is not for this cache.
+            if cache.generation == generation {
+                cache.plans.insert(slug, entry);
+            }
         }
     }
 

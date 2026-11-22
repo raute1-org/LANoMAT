@@ -10,6 +10,7 @@ import {
     currentTab,
     go,
     initHeader,
+    offlineMode,
     paintQuiet,
     registerScreen,
     resetNav,
@@ -136,7 +137,7 @@ function refreshWho() {
 }
 
 function authLost(error) {
-    if (authBusy || ignoresAuthLoss(state.status)) {
+    if (authBusy || ignoresAuthLoss(state.status, offlineMode())) {
         return;
     }
 

@@ -239,6 +239,24 @@ test('a paired client with the server down still lists the local games', async (
     assert.equal(r.recipesNote, S.games.recipesNote.offline);
 });
 
+test('signed-out mode never asks the server for the state', async () => {
+    const asked = [];
+    const call = async (cmd) => {
+        asked.push(cmd);
+
+        return cmd === 'library_scan'
+            ? ok(lib([entry()], { recipes_reason: 'not_paired' }))
+            : fail({ kind: 'auth', message: 'not_paired' });
+    };
+    const r = await m.loadLibrary(call, { rescan: true, offline: true });
+    assert.deepEqual(asked, ['library_scan']);
+    assert.equal(r.phase, 'ready');
+    assert.equal(r.recipesNote, S.games.recipesNote.not_paired);
+    asked.length = 0;
+    await m.loadLibrary(call, { offline: true });
+    assert.deepEqual(asked, ['library_list']);
+});
+
 test('a rejected session is an error, the library is not asked for', async () => {
     let asked = false;
     const r = await m.loadLibrary(
