@@ -78,6 +78,8 @@ class VoiceClientApiController extends Controller
             'audio' => (array) config('webvoice.audio'),
             // Which optional modules this deployment runs, so the client can hide what the event does not use.
             'modules' => $this->modules(),
+            // Capability flags, additive: what this deployment can do for the client beyond voice.
+            'features' => ['launcher' => app(Modules::class)->enabled(Module::GameRecipes)],
             'realtime' => $this->realtime(),
             'client' => $this->clientInfo($builds),
         ]);

@@ -24,9 +24,12 @@ final class BuildInstallPlan
 {
     public function __construct(private readonly RecipeFileMatcher $matcher) {}
 
+    private InstallPlanUrls $urls;
+
     /** @return array<string, mixed> */
-    public function handle(GameRecipe $recipe, User $viewer, string $os, ?Event $event = null, bool $record = true): array
+    public function handle(GameRecipe $recipe, User $viewer, string $os, ?Event $event = null, bool $record = true, ?InstallPlanUrls $urls = null): array
     {
+        $this->urls = $urls ?? new McpInstallPlanUrls;
         $os = $this->normalizeOs($os);
         $matches = $this->matcher->matchesFor($recipe, $viewer, $event);
 
@@ -45,7 +48,7 @@ final class BuildInstallPlan
             $shared = $matches[$entry->id] ?? null;
 
             if ($shared instanceof SharedFile) {
-                $files[] = $this->fileDto($entry, $shared, 'lan');
+                $files[] = $this->fileDto($entry, $shared, 'lan', $viewer);
 
                 continue;
             }
@@ -103,7 +106,7 @@ final class BuildInstallPlan
             'steps' => $steps,
             'files' => $files,
             'downloads' => $downloads,
-            'avatars' => $this->avatars($recipe, $matches),
+            'avatars' => $this->avatars($recipe, $matches, $viewer),
             'missing' => array_values(array_unique($missing)),
             'generated_at' => now()->toIso8601String(),
         ];
@@ -209,8 +212,10 @@ final class BuildInstallPlan
     }
 
     /** @return array<string, mixed> */
-    private function fileDto(GameRecipeFile $entry, SharedFile $file, string $source): array
+    private function fileDto(GameRecipeFile $entry, SharedFile $file, string $source, User $viewer): array
     {
+        $link = $this->urls->forFile($file, $viewer);
+
         return [
             'recipe_file_id' => $entry->id,
             'requirement' => $entry->role->value,
@@ -227,9 +232,9 @@ final class BuildInstallPlan
             // launcher can verify every matched LAN file, not just pinned ones.
             'sha256' => $entry->sha256 ?? $file->sha256,
             'shared_file_id' => $file->id,
-            'download_url' => route('mcp.files.download', ['sharedFile' => $file->id], true),
+            'download_url' => $link['url'],
             'fallback_url' => $entry->url,
-        ];
+        ] + ($link['expires_at'] === null ? [] : ['download_expires_at' => $link['expires_at']]);
     }
 
     /** @return array<string, mixed> */
@@ -269,7 +274,7 @@ final class BuildInstallPlan
      * @param  array<int, SharedFile>  $matches
      * @return list<array<string, mixed>>
      */
-    private function avatars(GameRecipe $recipe, array $matches): array
+    private function avatars(GameRecipe $recipe, array $matches, User $viewer): array
     {
         $avatars = [];
 
@@ -291,7 +296,7 @@ final class BuildInstallPlan
                 'sha256' => $entry->sha256 ?? $shared?->sha256,
                 'match_name' => SafeText::fileName($shared?->original_name),
                 'download_url' => $shared instanceof SharedFile
-                    ? route('mcp.files.download', ['sharedFile' => $shared->id], true)
+                    ? $this->urls->forFile($shared, $viewer)['url']
                     : null,
                 'available_on_lan' => $shared instanceof SharedFile,
             ];

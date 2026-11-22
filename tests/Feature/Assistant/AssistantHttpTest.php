@@ -5,6 +5,7 @@ use App\Modules\Assistant\Agents\LanomatAssistant;
 use App\Modules\Assistant\Models\AssistantAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Models\Conversation;
 use Laravel\Ai\Models\ConversationMessage;
 use Symfony\Component\Process\Process;
@@ -157,4 +158,33 @@ it('answers the real client with JSON errors instead of redirects', function () 
 
     auth()->logout();
     $this->withHeaders($headers)->postJson('/orga/assistant/chat', ['message' => 'hi'])->assertStatus(401);
+});
+
+it('pins the event-stream headers a proxy and the browser reader rely on', function () {
+    LanomatAssistant::fake(['Hallo'])->preventStrayPrompts();
+
+    $response = $this->actingAs($this->orga)->post('/orga/assistant/chat', ['message' => 'Hallo']);
+    $body = $response->streamedContent();
+
+    expect($response->headers->get('Content-Type'))->toStartWith('text/event-stream')
+        ->and($response->headers->get('Cache-Control'))->toContain('no-cache')->toContain('no-transform')
+        ->and($response->headers->get('X-Accel-Buffering'))->toBe('no')
+        ->and($response->headers->get('X-Vercel-Ai-Ui-Message-Stream'))->toBe('v1')
+        ->and($response->headers->get('Content-Encoding'))->toBeNull()
+        ->and($body)->toStartWith('data: {"type":"start"')->toEndWith("data: [DONE]\n\n")->not->toContain("\r");
+});
+
+it('logs a failed run without the prompt or any key', function () {
+    LanomatAssistant::fake([fn () => throw new RuntimeException('upstream said Bearer sk-abcdefghijklmnop for geheimer Prompt')])->preventStrayPrompts();
+
+    Log::spy();
+    $this->actingAs($this->orga)->post('/orga/assistant/chat', ['message' => 'geheimer Prompt'])->streamedContent();
+
+    Log::shouldHaveReceived('warning')->withArgs(function (string $message, array $context) {
+        return $message === 'Assistant run failed.'
+            && $context['exception'] === RuntimeException::class
+            && $context['user_id'] === $this->orga->id
+            && ! str_contains(json_encode($context), 'sk-abcdefghijklmnop')
+            && ! str_contains(json_encode($context), 'Bearer sk');
+    })->once();
 });

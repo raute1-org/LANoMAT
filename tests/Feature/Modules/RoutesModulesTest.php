@@ -23,3 +23,13 @@ it('registers the same routes under full as before the toggles', function () {
 
     expect($routes)->toContain('jukebox.index', 'voice.setup', 'discord.interactions', 'telemetry.cs2', 'friends.index');
 });
+
+it('drops the native client recipe routes with the GameRecipes module', function () {
+    $on = modulesReport('full')['routes'];
+    $off = modulesReport('full', ['MODULE_GAME_RECIPES' => 'false'])['routes'];
+
+    expect($on)->toContain('voice-client.v1.recipes.index', 'voice-client.v1.recipes.plan')
+        ->and($off)->not->toContain('voice-client.v1.recipes.index')
+        ->and($off)->not->toContain('voice-client.v1.recipes.show')
+        ->and($off)->not->toContain('voice-client.v1.recipes.plan');
+});

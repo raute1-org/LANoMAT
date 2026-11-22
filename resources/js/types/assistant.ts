@@ -67,7 +67,7 @@ export type AssistantProps = {
     conversationId: string | null;
     messages: UiMessage[];
     pending: PendingCard[];
-    provider: { name: string };
+    provider: { name: string; label: string; model: string | null };
 };
 
 export type Decision = 'approve' | 'reject';

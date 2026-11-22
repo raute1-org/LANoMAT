@@ -49,3 +49,19 @@ it('exposes a pending card preview built by the server, not model text', functio
 
     expect(AssistantAction::query()->count())->toBe(1);
 });
+
+it('shows the real provider with a German label and the model name', function (string $provider, string $label) {
+    config(['assistant.provider' => $provider, 'assistant.model' => 'gpt-6.2-sol', 'assistant.ollama_model' => 'qwen3:8b']);
+
+    $this->actingAs(User::factory()->orga()->create())
+        ->get('/orga/assistant')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('provider.name', $provider)
+            ->where('provider.label', $label)
+            ->where('provider.model', $provider === 'ollama' ? 'qwen3:8b' : 'gpt-6.2-sol'));
+})->with([
+    ['anthropic', 'Claude (Cloud)'],
+    ['openai', 'OpenAI (Cloud)'],
+    ['ollama', 'Ollama (lokal)'],
+    ['mistral', 'mistral'],
+]);

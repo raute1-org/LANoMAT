@@ -21,7 +21,8 @@ export function parseSseChunk(buffer: string): {
     rest: string;
     done: boolean;
 } {
-    const events = buffer.split('\n\n');
+    // CRLF is valid SSE framing; normalise so a proxy that rewrites line ends cannot hide every event.
+    const events = buffer.replace(/\r\n?/g, '\n').split('\n\n');
     const rest = events.pop() ?? '';
     const parts: StreamPart[] = [];
     let done = false;
@@ -98,22 +99,43 @@ export async function streamRequest(
         throw new AssistantRequestError(message, response.status);
     }
 
+    let received = false;
+    // A part the page cannot handle must never abort the turn: the saved history is authoritative.
+    const deliver = (part: StreamPart): void => {
+        received = true;
+
+        try {
+            onPart(part);
+        } catch {
+            // ignored on purpose
+        }
+    };
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
-    for (;;) {
-        const { value, done } = await reader.read();
+    try {
+        for (;;) {
+            const { value, done } = await reader.read();
 
-        if (value) {
-            buffer += decoder.decode(value, { stream: !done });
-            const parsed = parseSseChunk(buffer);
-            buffer = parsed.rest;
-            parsed.parts.forEach(onPart);
+            if (value) {
+                buffer += decoder.decode(value, { stream: true });
+                const parsed = parseSseChunk(buffer);
+                buffer = parsed.rest;
+                parsed.parts.forEach(deliver);
+            }
+
+            if (done) {
+                // A final event without the blank line (a cut or [DONE]-less stream) is still read.
+                buffer += decoder.decode();
+                parseSseChunk(`${buffer}\n\n`).parts.forEach(deliver);
+                break;
+            }
         }
-
-        if (done) {
-            break;
+    } catch (error) {
+        // A connection that drops after the answer started is not an error: the server keeps running and the history reload shows the rest.
+        if (!received) {
+            throw error;
         }
     }
 

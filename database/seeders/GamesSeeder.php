@@ -25,6 +25,7 @@ class GamesSeeder extends Seeder
             ['name' => 'Rocket League', 'slug' => 'rocket-league', 'min_team_size' => 3, 'max_team_size' => 3],
             ['name' => 'League of Legends', 'slug' => 'league-of-legends', 'min_team_size' => 5, 'max_team_size' => 5],
             ['name' => "Garry's Mod", 'slug' => 'garrys-mod', 'min_team_size' => 1, 'max_team_size' => 1],
+            ['name' => 'Mordhau', 'slug' => 'mordhau', 'min_team_size' => 1, 'max_team_size' => 1],
         ];
 
         foreach ($games as $game) {
@@ -54,6 +55,9 @@ class GamesSeeder extends Seeder
         $this->addPreset('garrys-mod', $this->propHunt());
         $this->addPreset('counter-strike-2', $this->cs2GunGame());
         $this->addPreset('minecraft', $this->minecraftPaper());
+        $this->addPreset('mordhau', $this->mordhau('horde', 'Horde', 'Grad/HRD_Grad', 'Horde-Modus (kooperativ gegen KI-Gegner). KI-Gegner belegen Server-Plätze, deshalb stehen 32 Slots als Standard: mit sehr wenigen Slots meldet der Server schon bei zwei echten Spielern "Server is full".'));
+        $this->addPreset('mordhau', $this->mordhau('deathmatch', 'Deathmatch', 'Grad/FFA_Grad', 'Free-For-All: jeder gegen jeden.'));
+        $this->addPreset('mordhau', $this->mordhau('frontline', 'Frontline', 'Grad/FL_Grad', 'Frontline: Teams kämpfen um Kontrollpunkte (Standardmodus des Eggs).'));
     }
 
     private function addPreset(string $slug, ServerPreset $preset): void
@@ -204,6 +208,33 @@ class GamesSeeder extends Seeder
                 contentType: 'none',
             ),
             eggName: 'Paper',
+        );
+    }
+
+    /**
+     * Mordhau on the community egg. Fixed ports outside the pool (UT2004 holds 7777 on the same
+     * host): the game registers per IP:port at PlayFab, and after a restart the old registration
+     * blocks the same address for about two minutes, so the address must stay stable.
+     */
+    private function mordhau(string $key, string $mode, string $map, string $modeText): ServerPreset
+    {
+        return new ServerPreset(
+            key: $key,
+            name: "Mordhau ({$mode})",
+            description: $modeText.' Beitritt im Spiel: Konsole öffnen (Taste ~ oder ^) und `open <IP>:<Port>` eingeben. Der Server braucht Internet (PlayFab-Anmeldung) und ist nach einem Neustart etwa zwei Minuten nicht erreichbar.',
+            config: new ServerConfig(
+                maxPlayers: 32,
+                memoryMb: 4096,
+                diskMb: 30720,
+                cpuPercent: 400,
+                environment: ['SERVER_NAME' => "raute1 LAN Mordhau {$mode}", 'DEFAULT_MAP' => $map, 'MAX_PLAYERS' => '32'],
+                overridable: ['SERVER_NAME', 'DEFAULT_MAP', 'MAX_PLAYERS'],
+                fixedPorts: ['main' => 17777, 'QUERY_PORT' => 17778, 'BEACON_PORT' => 17779],
+                connectTemplate: '{ip}:{port}',
+                contentType: 'none',
+            ),
+            eggUuid: RepositoryEggs::MORDHAU_UUID,
+            eggName: 'Mordhau',
         );
     }
 }

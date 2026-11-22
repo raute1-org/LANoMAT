@@ -13,6 +13,12 @@ final class NativeClientConfig
      */
     public const API_VERSION = 1;
 
+    /**
+     * Version of the install-plan document (`GET recipes/{slug}/plan`). Additive changes keep it;
+     * a breaking plan format raises it, and a client refuses a plan newer than it knows.
+     */
+    public const PLAN_VERSION = 1;
+
     public static function codeTtlSeconds(): int
     {
         return (int) config('webvoice.native.code_ttl');

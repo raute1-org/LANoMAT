@@ -1,0 +1,38 @@
+data: {"type":"start","messageId":"01m804bfcx49ygpq1jjahfbcy8"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-available","toolCallId":"call_1","toolName":"events_list","input":[]}
+
+data: {"type":"tool-output-available","toolCallId":"call_1","output":"{\"events\":[]}"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"01m804bfd377c02gqbvkcf99f9"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":"Es"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" gibt"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" zwei"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" Events:"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" Gr\u00f6\u00dfe"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" \u2713"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" und"}
+
+data: {"type":"text-delta","id":"01m804bfd377c02gqbvkcf99f9","delta":" mehr."}
+
+data: {"type":"text-end","id":"01m804bfd377c02gqbvkcf99f9"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop","messageMetadata":{"usage":{"inputTokens":0,"outputTokens":0,"totalTokens":0,"reasoningTokens":null,"cachedInputTokens":null}}}
+
+data: [DONE]
+

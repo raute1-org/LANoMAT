@@ -18,11 +18,15 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 ### Changed
 
 - Docs/spike: all-in-one client phase 0 (decision record, workspace-merge and deep-link spike, download-engine comparison, recipe inventory); spike code in `clients/voice` is not for production
+### Added
+
+- Native client API: `GET /api/voice-client/v1/recipes`, `recipes/{slug}` and `recipes/{slug}/plan` give the voice token the game library and the install plan (published recipes only, exact slug, GameRecipes module gated); the plan carries `plan_version` and signed file-host links minted through the file policy (`InstallPlanUrls` strategy: the agent API keeps `mcp.files.download`); `GET config` reports `features.launcher`. `api_version` stays 1
 
 ## 2026-11-21
 
 ### Added
 
+- Mordhau: the community egg (`resources/pelican-eggs/mordhau.json`, MIT, now also read by `RepositoryEggs`), seeded `horde`/`deathmatch`/`frontline` presets (32 slots, 4 GB) and the new preset field `fixed_ports` (fixed node ports instead of pool ports; missing allocations are created, a port held by another server is refused with a readable error; editable in the game form). Docs: `docs/infra/mordhau.md`
 - Preflight: the AI assistant probe now knows the `openai` provider (`GET /models` with the bearer key; 401/403 down, unreachable warn, configured model missing from the account warn); docs and `.env.example` list `OPENAI_API_KEY`
 - Game sharing: participants share a ready-to-run game on `/games/share` ("Spiel teilen" on `/games`, on an own archive under Dateien, and in the launcher): pick an uploaded `.zip` or `.tar.bz2`, name the start file, and a draft portable recipe with that file pinned is created; "Deine geteilten Spiele" shows file, review and catalogue state. The orga approves the pinned file and publishes in one panel action ("Dateien freigeben und veröffentlichen"), sees every launch command before publishing, and a published shared game joins the players' list through the new `game_recipes.in_lineup` switch ("In der Spieleliste zeigen") without a config change. A participant holds at most `RECIPES_MAX_DRAFTS_PER_USER` drafts (default 20). Guide: `docs-site/pages/guides/share-a-game.mdx`
 - Launcher support is decided in one place (`LauncherSupport`): every recipe with `metadata.portable: true` and the portable shape (required base archive, a file check, a launch target) is installable by the launcher, next to the UT2004 pilot, NFSU2 and browser recipes; `metadata.launcher_supported` is the orga's override ("Automatisch entscheiden / Immer anbieten / Nie anbieten" in the panel)
@@ -78,6 +82,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Fixed
 
+- AI assistant: the chat showed "Der Assistent antwortet gerade nicht" although the server had answered. The page fed Vue reactive state to `structuredClone`, which throws a DataCloneError on a Proxy, so the first stream part aborted the turn; the reducer now copies safely, the stream reader tolerates unknown parts, CRLF, a missing `[DONE]` and a connection drop after the answer started, and failed runs are logged (masked) in the server log. The page header shows the real provider and model (OpenAI is no longer labelled "Claude"). The Caddyfile excludes the assistant stream endpoints from compression. Answers render a safe Markdown subset (bold, italic, code, lists, paragraphs, http(s)/relative links) instead of raw asterisks; the parser builds typed nodes and Vue elements, never HTML strings.
 - Recipes: `lanomat:recipes:sync --only=<slug> --prune` deleted every other recipe of the source, and `--prune` on an empty or unreadable source deleted all of them; a recipe that still has a directory in the source is never pruned now
 - Recipes: a recipe title could reach a shell through the install folder, which is substituted into quoted command arguments; found in review, before any release
 - Recipes: editing a contributed draft no longer wipes its launch targets and pinned files; a base file is required by default, as in the YAML parser

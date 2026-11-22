@@ -49,6 +49,11 @@ final class PresetFormMapper
             'cpu_percent' => $config->cpuPercent,
             'environment' => $environment,
             'extra_ports' => $config->extraPorts,
+            'fixed_ports' => array_map(
+                static fn (string $slot, int $port): array => ['slot' => $slot, 'port' => $port],
+                array_keys($config->fixedPorts),
+                array_values($config->fixedPorts),
+            ),
             'readiness_type' => $config->readinessType ?? 'none',
             'readiness_game' => $config->readinessGame,
             'readiness_folder' => $config->readinessFolder,
@@ -82,6 +87,17 @@ final class PresetFormMapper
             }
         }
 
+        $fixedPorts = [];
+
+        foreach (is_array($row['fixed_ports'] ?? null) ? $row['fixed_ports'] : [] as $entry) {
+            $slot = trim((string) ($entry['slot'] ?? ''));
+            $port = self::int($entry['port'] ?? null);
+
+            if ($slot !== '' && $port !== null) {
+                $fixedPorts[$slot] = $port;
+            }
+        }
+
         $readiness = self::text($row['readiness_type'] ?? null);
         $content = self::text($row['content_type'] ?? null);
 
@@ -98,6 +114,7 @@ final class PresetFormMapper
                 environment: $environment,
                 overridable: $overridable,
                 extraPorts: array_values(array_filter(array_map(strval(...), is_array($row['extra_ports'] ?? null) ? $row['extra_ports'] : []), static fn (string $v): bool => $v !== '')),
+                fixedPorts: $fixedPorts,
                 readinessType: $readiness === 'none' ? null : $readiness,
                 readinessGame: self::text($row['readiness_game'] ?? null),
                 readinessFolder: self::text($row['readiness_folder'] ?? null),

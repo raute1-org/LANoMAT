@@ -52,6 +52,7 @@ function presetRow(array $override = []): array
             ['key' => 'SRCDS_MAP', 'value' => 'gm_construct', 'overridable' => true],
         ],
         'extra_ports' => [],
+        'fixed_ports' => [],
         'readiness_type' => 'a2s',
         'readiness_game' => 'Trouble in Terrorist Town',
         'readiness_folder' => 'garrysmod',
@@ -161,3 +162,35 @@ it('creates a game with presets through the create page too', function () {
 
     expect(Game::query()->where('slug', 'gmod')->firstOrFail()->server_presets[0]->key)->toBe('ttt');
 });
+
+it('stores and reloads fixed ports of a preset', function () {
+    bindEggCatalog(null);
+    $game = Game::factory()->create();
+    $rows = [['slot' => 'main', 'port' => 17777], ['slot' => 'QUERY_PORT', 'port' => 17778]];
+
+    Livewire::test(EditGame::class, ['record' => $game->getRouteKey()])
+        ->fillForm(['server_presets' => [presetRow(['fixed_ports' => $rows])]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($game->fresh()->server_presets[0]->config->fixedPorts)->toBe(['main' => 17777, 'QUERY_PORT' => 17778]);
+
+    $component = Livewire::test(EditGame::class, ['record' => $game->getRouteKey()]);
+
+    expect(array_values(array_values($component->get('data.server_presets'))[0]['fixed_ports']))->toBe($rows);
+});
+
+it('refuses duplicate or out-of-range fixed ports in the form', function (array $rows) {
+    bindEggCatalog(null);
+    $game = Game::factory()->create();
+
+    Livewire::test(EditGame::class, ['record' => $game->getRouteKey()])
+        ->fillForm(['server_presets' => [presetRow(['fixed_ports' => $rows])]])
+        ->call('save')
+        ->assertHasFormErrors();
+
+    expect($game->fresh()->server_presets)->toBe([]);
+})->with([
+    'duplicate port' => [[['slot' => 'main', 'port' => 17777], ['slot' => 'QUERY_PORT', 'port' => 17777]]],
+    'too low' => [[['slot' => 'main', 'port' => 80]]],
+]);

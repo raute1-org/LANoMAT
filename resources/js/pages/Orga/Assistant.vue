@@ -56,7 +56,9 @@ const toDelete = ref<ConversationSummary | null>(null);
 
 const cloud = computed(() => props.provider.name !== 'ollama');
 const providerLabel = computed(() =>
-    props.provider.name === 'ollama' ? 'Ollama (lokal)' : 'Claude (Cloud)',
+    props.provider.model
+        ? `${props.provider.label}, Modell ${props.provider.model}`
+        : props.provider.label,
 );
 const pendingCards = computed(() =>
     props.pending.filter(

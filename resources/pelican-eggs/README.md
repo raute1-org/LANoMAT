@@ -2,12 +2,13 @@
 
 Pelican eggs LANoMAT ships and keeps in the repository, so a venue panel can run
 the game server presets without hand-editing eggs. The files are Pelican egg
-exports in `PLCN_v3` YAML. The panel matches an egg by its `uuid`, which is also
+exports in `PLCN_v3` YAML (or the older `PTDL_v2` JSON, `*.json`). The panel matches an egg by its `uuid`, which is also
 how LANoMAT presets reference it (numeric egg ids differ per panel).
 
 | File                      | Egg                  | uuid                                   |
 | ------------------------- | -------------------- | -------------------------------------- |
 | `lanomat-garrys-mod.yaml` | Garrys Mod (LANoMAT) | `7b079b4f-ab83-40ef-98fc-059b4a270688` |
+| `mordhau.json`            | Mordhau              | `bc531988-8d28-45fb-9220-19b7ae2a1988` |
 
 ## Import
 
@@ -51,6 +52,14 @@ Differences to upstream:
 Note: `-authkey` appears on the startup command line and therefore in the server
 console output. Only give console access to people who may see the key.
 
+## Mordhau
+
+`mordhau.json` is the unmodified community egg `mordhau/egg-mordhau.json` from
+`pelican-eggs/games-steamcmd` (PTDL_v2, downloaded 2026-11-21 from
+`https://raw.githubusercontent.com/pelican-eggs/games-steamcmd/main/mordhau/egg-mordhau.json`),
+included under the MIT licence below. It has no `update_url`. Setup and the preset
+notes: [`docs/infra/mordhau.md`](../../docs/infra/mordhau.md).
+
 ## License
 
 The upstream egg repository `pelican-eggs/games-steamcmd` is MIT licensed:
@@ -75,4 +84,4 @@ The upstream egg repository `pelican-eggs/games-steamcmd` is MIT licensed:
 > OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 > DEALINGS IN THE SOFTWARE.
 
-The fork keeps this notice as a header comment in the egg file.
+The fork keeps this notice as a header comment in the egg file; the Mordhau egg is unmodified and covered by the same notice.

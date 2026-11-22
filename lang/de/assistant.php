@@ -2,6 +2,11 @@
 
 return [
     'nav' => 'Assistent',
+    'provider_label' => [
+        'anthropic' => 'Claude (Cloud)',
+        'openai' => 'OpenAI (Cloud)',
+        'ollama' => 'Ollama (lokal)',
+    ],
     'forbidden' => 'Dazu fehlt dir die Berechtigung.',
     'not_found' => 'Nicht gefunden.',
     'not_approved' => 'Diese Aktion wurde nicht freigegeben und wurde deshalb nicht ausgeführt.',
