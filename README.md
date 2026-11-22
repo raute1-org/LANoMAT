@@ -448,6 +448,8 @@ LANoMAT v2 is feature-complete against its roadmap. **All phases M0–M13 are do
 untagged. The first production deployment (the venue's public host, `core` profile) has been live
 since 2026-10-30. What is left is verification on real venue hardware, listed at the end.
 
+The native client's store library is in stage 1 (Windows: installed Steam, Epic, GOG and Ubisoft games next to the LAN's recipes, started through each store's handoff, usable signed out); stages 2 to 4 (Steam ownership, opt-in report, Linux) are planned in [`docs/superpowers/specs/2026-11-22-client-store-library-design.md`](docs/superpowers/specs/2026-11-22-client-store-library-design.md).
+
 ### What the product is
 
 A Laravel 13 monolith (Inertia v2 + Vue 3 participant app, Filament v5 admin panel at `/admin`,
