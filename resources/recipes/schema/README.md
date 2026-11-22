@@ -92,7 +92,7 @@ Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 | `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                                                                                                                                                                           |
 | `requires`    | yes      | File groups; see below. May be empty for pure tools.                                                                                                                                                                            |
 | `steps`       | yes      | 1–20 ordered steps.                                                                                                                                                                                                             |
-| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`, `portable`, `launcher_supported`, `live_url` and the browser recipe's `server` (`name`, `address`, `port`, `connect_url`, optional `players`). |
+| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`, `store_ids` (Steam/Epic/GOG/Ubisoft ids the native client matches on), `portable`, `launcher_supported`, `live_url` and the browser recipe's `server` (`name`, `address`, `port`, `connect_url`, optional `players`). |
 
 ### Metadata
 

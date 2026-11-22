@@ -43,6 +43,7 @@ final class RecipeYamlExporter
         'portable',
         'launcher_supported',
         'launch',
+        'store_ids',
     ];
 
     private const FALLBACK_LICENSE = 'Game files are user-supplied.';

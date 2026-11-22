@@ -128,3 +128,35 @@ it('rejects duplicate step ids and unknown shells', function () {
 
     $this->fail('Expected a RecipeException.');
 });
+
+it('accepts store ids in the shape of each store', function () {
+    $recipe = validRecipe();
+    $recipe['metadata'] = [
+        'store_ids' => ['steam' => '10', 'epic' => 'Fortnite.Test_1', 'gog' => '1207658924', 'ubisoft' => '4'],
+    ];
+
+    app(RecipeValidator::class)->validate($recipe);
+
+    expect(true)->toBeTrue();
+});
+
+it('rejects a store id of the wrong shape, one case per store', function (array $storeIds, string $expected) {
+    $recipe = validRecipe();
+    $recipe['metadata'] = ['store_ids' => $storeIds];
+
+    try {
+        app(RecipeValidator::class)->validate($recipe);
+    } catch (RecipeException $exception) {
+        expect($exception->summary())->toContain($expected);
+
+        return;
+    }
+
+    $this->fail('Expected a RecipeException.');
+})->with([
+    'steam not digits' => [['steam' => 'abc'], 'metadata.store_ids.steam must be digits'],
+    'epic with a slash' => [['epic' => 'a/b'], 'metadata.store_ids.epic must be an Epic app name'],
+    'gog with a letter' => [['gog' => '12x'], 'metadata.store_ids.gog must be digits'],
+    'ubisoft empty' => [['ubisoft' => ''], 'metadata.store_ids.ubisoft must be digits'],
+    'unknown store' => [['origin' => '1'], 'metadata.store_ids.origin is not a known store'],
+]);

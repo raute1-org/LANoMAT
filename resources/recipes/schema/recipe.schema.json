@@ -197,6 +197,33 @@
                     "type": "boolean",
                     "description": "True when the required base archive is a ready-to-run game tree: unpacking it is the whole install. The LANoMAT launcher installs such a recipe on its own (it unpacks, checks the files a step verifies and starts a launch target, and never runs step commands)."
                 },
+                "store_ids": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Ids of this game in the stores the native client reads (Steam, Epic, GOG, Ubisoft). The client matches its installed games to a recipe by these ids, never by title. Omit when the game is in no store.",
+                    "properties": {
+                        "steam": {
+                            "type": "string",
+                            "pattern": "^[0-9]{1,10}$",
+                            "description": "Steam app id, digits."
+                        },
+                        "epic": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9._-]{1,128}$",
+                            "description": "Epic AppName from the game manifest."
+                        },
+                        "gog": {
+                            "type": "string",
+                            "pattern": "^[0-9]{1,20}$",
+                            "description": "GOG game id, digits."
+                        },
+                        "ubisoft": {
+                            "type": "string",
+                            "pattern": "^[0-9]{1,10}$",
+                            "description": "Ubisoft install id, digits."
+                        }
+                    }
+                },
                 "launcher_supported": {
                     "type": "boolean",
                     "description": "Orga override for the launcher: true offers the recipe in the launcher although it does not have the portable shape, false hides it there. Omit to let LANoMAT decide from the recipe."

@@ -226,3 +226,35 @@ it('leaves files of unpublished events out of the plan', function () {
     expect(collect($plan['files'])->pluck('status')->all())->not->toContain('matched')
         ->and(json_encode($plan))->not->toContain('files.fake.test');
 });
+
+it('serves store ids from metadata and from a steam launch target', function () {
+    voiceRecipe(['slug' => 'gog-only', 'title' => 'Gog']);
+    $gog = GameRecipe::query()->where('slug', 'gog-only')->firstOrFail();
+    $gog->update(['metadata' => [...$gog->metadata, 'store_ids' => ['gog' => '1207658924']]]);
+
+    voiceRecipe(['slug' => 'steam-launch', 'title' => 'Steam']);
+    $steam = GameRecipe::query()->where('slug', 'steam-launch')->firstOrFail();
+    $steam->update(['metadata' => [...$steam->metadata, 'launch' => ['kind' => 'steam', 'target' => '10']]]);
+
+    voiceRecipe(['slug' => 'explicit-wins', 'title' => 'Explicit']);
+    $explicit = GameRecipe::query()->where('slug', 'explicit-wins')->firstOrFail();
+    $explicit->update(['metadata' => [...$explicit->metadata,
+        'store_ids' => ['steam' => '440'],
+        'launch' => ['kind' => 'steam', 'target' => '10'],
+    ]]);
+
+    voiceRecipe(['slug' => 'no-ids', 'title' => 'None']);
+
+    $response = $this->getJson('/api/voice-client/v1/recipes', $this->headers)->assertOk();
+    $bySlug = collect($response->json('recipes'))->keyBy('slug');
+
+    expect($bySlug['gog-only']['store_ids'])->toBe(['gog' => '1207658924'])
+        ->and($bySlug['steam-launch']['store_ids'])->toBe(['steam' => '10'])
+        ->and($bySlug['explicit-wins']['store_ids'])->toBe(['steam' => '440'])
+        ->and($bySlug['no-ids']['store_ids'])->toBe([]);
+    expect($response->getContent())->toContain('"store_ids":{}');
+
+    $this->getJson('/api/voice-client/v1/recipes/gog-only', $this->headers)
+        ->assertOk()
+        ->assertJsonPath('recipe.store_ids.gog', '1207658924');
+});

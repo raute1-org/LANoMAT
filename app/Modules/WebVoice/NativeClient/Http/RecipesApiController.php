@@ -130,6 +130,7 @@ class RecipesApiController extends Controller
             'launcher_supported' => $support->supports($recipe),
             'in_lineup' => $recipe->in_lineup,
             'play_url' => $recipe->playUrl($request->getHost()),
+            'store_ids' => (object) $recipe->storeIds(),
             'updated_at' => $recipe->updated_at?->toIso8601String(),
         ];
     }
