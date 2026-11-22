@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:26-alpine
 
 # pi is the optional LLM layer of the Discord agent. It is installed globally
 # (same package as clients/agent) so `pi --print` is on PATH; when it is absent,
