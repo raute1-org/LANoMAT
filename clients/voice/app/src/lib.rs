@@ -8,6 +8,7 @@ pub mod deeplink;
 pub mod deeplink_wiring;
 pub mod engine;
 pub mod features;
+pub mod installs;
 pub mod joinurl;
 pub mod settings;
 pub mod update;
@@ -379,6 +380,23 @@ fn open_in_browser(url: &str) -> std::io::Result<()> {
         .stderr(std::process::Stdio::null())
         .spawn()
         .map(|_| ())
+}
+
+// ---- games (library): see `features/games.rs` and "Games" in docs/commands.md ----
+
+#[tauri::command]
+async fn games_state(f: Feat<'_>) -> Result<features::GamesState, UiError> {
+    f.games_state().await
+}
+
+#[tauri::command]
+async fn games_list(f: Feat<'_>) -> Result<features::GamesList, UiError> {
+    f.games_list().await
+}
+
+#[tauri::command]
+async fn game_detail(f: Feat<'_>, slug: String) -> Result<features::GameDetail, UiError> {
+    f.game_detail(&slug).await
 }
 
 // ---- feature commands: thin wrappers over `features::Features` (see docs/commands.md) ----
@@ -1105,7 +1123,10 @@ command_set!(
     pick_files,
     pick_directory,
     get_download_dir,
-    get_avatar
+    get_avatar,
+    games_state,
+    games_list,
+    game_detail
 );
 
 /// Raises system notifications through `tauri-plugin-notification`. The desktop plugin has no
@@ -1164,7 +1185,10 @@ pub fn run() {
         engine.clone(),
         event_sink,
         Arc::new(TauriNotifier),
-        FeatureOptions::default(),
+        FeatureOptions {
+            legacy_installs_dir: Some(launcher_core::state::config_dir()),
+            ..FeatureOptions::default()
+        },
     )
     .expect("transfer manager");
 

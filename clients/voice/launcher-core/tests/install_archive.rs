@@ -1,6 +1,10 @@
 //! Archive hardening: ISO layout planning and extraction, zip/tar.bz2 patch
 //! extraction with traversal, symlink and zip-bomb guards.
 
+// Some helpers and imports are only used by the `#[cfg(unix)]` tests below: on Windows they would be
+// dead code, and `-D warnings` in `ci/build.sh` (cargo xwin clippy) must stay green.
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};

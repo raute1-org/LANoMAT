@@ -14,6 +14,10 @@
 //! No test touches `$HOME` (the plan's home-relative paths are overridden), no
 //! fixed port (wiremock picks one) and none exceeds a five-second budget.
 
+// Some helpers and imports are only used by the `#[cfg(unix)]` tests below: on Windows they would be
+// dead code, and `-D warnings` in `ci/build.sh` (cargo xwin clippy) must stay green.
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;

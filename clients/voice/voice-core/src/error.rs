@@ -64,6 +64,9 @@ pub enum Error {
     /// such as `ticket_expired`, `too_large`, `host_full`, `upload_lost`, `cancelled`).
     #[error("transfer failed ({code}): {message}")]
     Transfer { code: String, message: String },
+    /// The server's install plan is in a newer format than this client understands.
+    #[error("the install plan is version {found}, this client understands up to {supported}: update the app")]
+    PlanVersionUnsupported { found: u32, supported: u32 },
     #[error("server error (HTTP {status}): {message}")]
     Server { status: u16, message: String },
     #[error("{0}")]
@@ -105,6 +108,7 @@ impl Error {
             | Error::Gone(_)
             | Error::Validation { .. }
             | Error::Transfer { .. }
+            | Error::PlanVersionUnsupported { .. }
             | Error::Server { .. } => ErrorKind::Server,
             Error::Store(_) | Error::Audio(_) | Error::Control(_) | Error::Io { .. } => {
                 ErrorKind::Local
