@@ -32,6 +32,13 @@ import {
 } from './util.js';
 
 const G = S.games;
+
+// `append` turns a null into the text "null": optional children (a missing note, an absent
+// action) are dropped here.
+const put = (parent, ...kids) =>
+    parent.append(
+        ...kids.filter((k) => k !== null && k !== undefined && k !== false),
+    );
 let root = null;
 let listView = null;
 let detailView = null;
@@ -293,7 +300,8 @@ function paintList() {
     const shown = sortEntries(filterEntries(lib.entries, filter));
     clear(body);
     meta.textContent = '';
-    meta.append(
+    put(
+        meta,
         el('span', { text: G.count(shown.length, lib.entries.length) }),
         lib.scannedAt
             ? el('span', {
@@ -506,7 +514,7 @@ async function openDetail(entry) {
     scrollTop();
 
     if (!entry.recipe) {
-        detailView.append(backButton(), ...storeOnlyBody(entry));
+        put(detailView, backButton(), ...storeOnlyBody(entry));
         say(entry.title);
         focusHeading();
 
@@ -532,7 +540,8 @@ async function openDetail(entry) {
             ),
         );
     } else {
-        detailView.append(
+        put(
+            detailView,
             ...detailBody(d, entryCardModel(entry)),
             storeSection(entry),
         );
