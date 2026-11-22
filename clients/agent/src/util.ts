@@ -202,6 +202,17 @@ export function expandHome(input: string, home: string): string {
     return input;
 }
 
+/**
+ * A folder as the user or the server wrote it, with a leading `~` resolved. The server's plan
+ * names `~/Games/<slug>` on Linux and macOS, and a shell never expands `~` inside the quotes a
+ * recipe puts around `{{target}}`: the folder has to be absolute before it is used or substituted.
+ */
+export function expandUserPath(input: string, env: NodeJS.ProcessEnv = process.env): string {
+    const home = env.HOME || env.USERPROFILE || '';
+
+    return home ? expandHome(input, home) : input;
+}
+
 export function resolveUserPath(input: string, cwd = process.cwd(), home?: string): string {
     const expanded = home ? expandHome(input, home) : input;
 

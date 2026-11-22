@@ -119,6 +119,71 @@ describe('command runner', () => {
         expect(substituteVariables('{{unknown}}', {})).toBe('{{unknown}}');
     });
 
+    it('refuses a substituted path that would end the command quoting', () => {
+        expect(() =>
+            applyStepVariables(
+                {
+                    id: 'unpack',
+                    title: 'Unpack',
+                    commands: [{ shell: 'bash', run: 'unzip "{{target}}/game.zip"' }],
+                },
+                { target: "/home/o'brien/Games" },
+                'linux',
+            ),
+        ).toThrow(/single quote/);
+
+        expect(() =>
+            applyStepVariables(
+                {
+                    id: 'unpack',
+                    title: 'Unpack',
+                    commands: [{ shell: 'powershell', run: 'Expand-Archive "{{target}}\\game.zip"' }],
+                },
+                { target: 'C:\\Games\\100%' },
+                'windows',
+            ),
+        ).toThrow(/percent sign/);
+    });
+
+    it('checks before a dry run prints or executes', async () => {
+        const lines: string[] = [];
+        let executed = false;
+
+        await expect(
+            runPlanStep(
+                { id: 'unpack', title: 'Unpack', commands: [{ shell: 'bash', run: 'cat "{{target}}/x"' }] },
+                {
+                    cwd: dir,
+                    variables: { target: '/opt/$cache/game' },
+                    dryRun: true,
+                    executor: async () => {
+                        executed = true;
+
+                        return ok;
+                    },
+                    log: (line) => lines.push(line),
+                },
+            ),
+        ).rejects.toThrow(/dollar sign/);
+
+        expect(executed).toBe(false);
+        expect(lines).toEqual([]);
+    });
+
+    it('keeps working with spaces and parentheses in a path', () => {
+        const step = applyStepVariables(
+            {
+                id: 'copy',
+                title: 'Copy',
+                commands: [{ shell: 'bash', run: 'cp "{{target}}/x" .' }],
+            },
+            { target: '/opt/Program Files (x86)/Tiny Racer' },
+            'linux',
+        );
+
+        expect(step.commands?.[0]?.run).toBe('cp "/opt/Program Files (x86)/Tiny Racer/x" .');
+    });
+
     it('verifies an existing file after a step', async () => {
         await writeFile(join(dir, 'installed.exe'), 'x');
         const result = await runPlanStep(
@@ -295,6 +360,43 @@ describe('per-shell quoting', () => {
 
         expect(bash.script).toBe("'/opt/My Games/run.sh' '--x'");
         expect(bash.args).toEqual(['-c', "'/opt/My Games/run.sh' '--x'"]);
+    });
+});
+
+describe('path quoting evidence in bash', () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await tempDir();
+    });
+
+    afterEach(async () => {
+        await removeDir(dir);
+    });
+
+    it('keeps the accepted path characters literal in both quote styles', async () => {
+        const value = '/opt/Program Files (x86)/D&D; #1 ~x {y} [z] 100%';
+        const doubleQuoted = await defaultExecutor('bash', ['-c', `printf '%s' "${value}"`], { cwd: dir });
+        const singleQuoted = await defaultExecutor('bash', ['-c', `printf '%s' '${value}'`], { cwd: dir });
+
+        expect(doubleQuoted.stdout).toBe(value);
+        expect(singleQuoted.stdout).toBe(value);
+    });
+
+    it('shows the breaks that make $, \\\\ and a trailing backslash refused', async () => {
+        // `$(…)` runs inside double quotes, so a folder named `$(…)` would execute.
+        const dollar = await defaultExecutor('bash', ['-c', 'printf "%s" "/opt/$(printf INJECTED)"'], {
+            cwd: dir,
+        });
+        expect(dollar.stdout).toBe('/opt/INJECTED');
+
+        // bash turns a doubled backslash into one inside double quotes: a different folder.
+        const collapsed = await defaultExecutor('bash', ['-c', 'printf "%s" "a\\\\b"'], { cwd: dir });
+        expect(collapsed.stdout).toBe('a\\b');
+
+        // The trailing backslash escapes the closing quote; bash never sees a complete command.
+        const trailing = await defaultExecutor('bash', ['-c', 'printf "%s" "C:\\Games\\"'], { cwd: dir });
+        expect(trailing.code).not.toBe(0);
     });
 });
 

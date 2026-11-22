@@ -367,6 +367,7 @@ export function buildProgram(): Command {
         .description('Install a LAN game from a LANoMAT recipe')
         .option('--os <os>', 'windows, linux or macos', osForPlatform())
         .option('--event <slug>', 'event context')
+        .option('--target <dir>', 'install dir substituted for {{target}}')
         .option('-y, --yes', 'no prompts; run optional steps and select no avatars')
         .option('--avatar <id>', 'avatar id (repeatable, or "all")', collect)
         .option('--allow-external', 'allow internet fallbacks for files not on the LAN')
@@ -380,6 +381,7 @@ export function buildProgram(): Command {
                 opts: {
                     os: string;
                     event?: string;
+                    target?: string;
                     yes?: boolean;
                     avatar?: string[];
                     allowExternal?: boolean;
@@ -397,6 +399,7 @@ export function buildProgram(): Command {
                     api,
                     slug,
                     os: parseOs(opts.os),
+                    targetDir: opts.target,
                     yes: opts.yes,
                     avatarIds: opts.avatar,
                     allowExternal: opts.allowExternal,

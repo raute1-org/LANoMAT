@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
+import { assertStepPathsSafe, shellsForOs } from './path-quote.js';
 import type { Os, PlanStep, VerifyCheck } from './types.js';
 import { fileExists, isDirectory } from './util.js';
 
@@ -410,6 +411,10 @@ export function applyStepVariables(
     variables: Record<string, string>,
     os?: Os,
 ): PlanStep {
+    // The placeholders are pasted into already-quoted command text, so a path that would end that
+    // quoting is refused here as well as in `install` (which checks before it downloads anything).
+    assertStepPathsSafe(step, variables, shellsForOs(os));
+
     return {
         ...step,
         commands: step.commands

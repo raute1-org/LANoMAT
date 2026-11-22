@@ -4,8 +4,9 @@ import { defaultAvatarsDir } from './config.js';
 import { collectPlanDownloads, missingRequiredFiles, formatPlan, stepAppliesToOs } from './recipes.js';
 import { avatarTasks, downloadAvatars, isAvatarOnLan, parseAvatarSelection, pickAvatars } from './avatars.js';
 import { downloadMany, type DownloadEngineOptions } from './download.js';
+import { assertStepPathsSafe, shellsForOs } from './path-quote.js';
 import { runPlanStep, type CommandExecutor } from './runner.js';
-import { ensureDir, joinUrl, sanitizeName, validateRecipeSlug } from './util.js';
+import { ensureDir, expandUserPath, joinUrl, sanitizeName, validateRecipeSlug } from './util.js';
 
 export interface InstallOptions {
     api: ApiClient;
@@ -147,12 +148,45 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     const steps = plan.steps.filter((step) => stepAppliesToOs(step, options.os));
     const planForDownloads: RecipePlan = { ...plan, steps };
     const avatarDir = avatarDestDir(plan, options, env);
-    const targetDir =
+    const targetDir = expandUserPath(
         options.targetDir ??
-        expandTargetDir(plan.target_dir || process.cwd(), {
-            home: process.env.HOME ?? '',
-            avatars: avatarDir,
-        });
+            expandTargetDir(plan.target_dir || process.cwd(), {
+                home: process.env.HOME ?? '',
+                avatars: avatarDir,
+            }),
+        env,
+    );
+    // The server decides where downloads land (`<target>/.lanomat-downloads`
+    // by default) so the recipe's step commands can address {{downloads}}.
+    const downloadsDir = plan.downloads_dir
+        ? expandUserPath(expandTargetDir(plan.downloads_dir, { home: process.env.HOME ?? '', avatars: avatarDir }), env)
+        : targetDir;
+    const variables: Record<string, string> = {
+        avatars: avatarDir,
+        target: targetDir,
+        target_dir: targetDir,
+        downloads: downloadsDir,
+        host: (() => {
+            try {
+                return new URL(options.api.baseUrl).hostname;
+            } catch {
+                return '';
+            }
+        })(),
+        os: options.os,
+        slug: options.slug,
+        event: options.eventSlug ?? '',
+        recipe_dir: targetDir,
+    };
+
+    // `{{target}}` and the other path placeholders are pasted as text into commands the recipe
+    // already quoted. A folder that would end that quoting is refused here, before a single byte
+    // is downloaded, a folder is created or a command runs — so the player can still choose
+    // another one (see `path-quote.ts` for the rule and the reason per character).
+    for (const step of steps) {
+        assertStepPathsSafe(step, variables, shellsForOs(options.os));
+    }
+
     const missing = missingRequiredFiles(plan);
     const empty: InstallResult = {
         code: 0,
@@ -186,12 +220,6 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
         return { ...empty, code: 2 };
     }
 
-    // The server decides where downloads land (`<target>/.lanomat-downloads`
-    // by default) so the recipe's step commands can address {{downloads}}.
-    const downloadsDir = plan.downloads_dir
-        ? expandTargetDir(plan.downloads_dir, { home: process.env.HOME ?? '', avatars: avatarDir })
-        : targetDir;
-
     const files = fileTasks({
         api: options.api,
         plan: planForDownloads,
@@ -208,24 +236,6 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     if (files.external.length > 0 && options.allowExternal) {
         warn(`EXTERNAL download(s) enabled: ${files.external.join(', ')} (not from the LAN).`);
     }
-
-    const variables: Record<string, string> = {
-        avatars: avatarDir,
-        target: targetDir,
-        target_dir: targetDir,
-        downloads: downloadsDir,
-        host: (() => {
-            try {
-                return new URL(options.api.baseUrl).hostname;
-            } catch {
-                return '';
-            }
-        })(),
-        os: options.os,
-        slug: options.slug,
-        event: options.eventSlug ?? '',
-        recipe_dir: targetDir,
-    };
 
     if (options.dryRun) {
         log('');

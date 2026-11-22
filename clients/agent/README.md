@@ -350,11 +350,24 @@ lanomat-agent install ut2004 --os windows
    substitutes `{{target}}`, `{{target_dir}}`, `{{downloads}}` (the download directory),
    `{{host}}` (the LANoMAT host name), `{{avatars}}`, `{{os}}`, `{{slug}}`, `{{event}}` and
    `{{recipe_dir}}`, asks before optional steps unless `--yes`, and runs the `verify` checks after
-   each step;
+   each step. `{{server_host}}`/`{{server_port}}` are not the agent's: the server fills them into
+   the plan before it leaves LANoMAT, so the agent sees final text;
 6. `--dry-run` prints the plan and every command without downloading or executing.
 
 `--allow-external` is required for files that are not on the LAN. Such files are marked `EXTERNAL`
 in the plan and in the installer output. Only LAN files are downloaded by default.
+
+`--target <dir>` chooses the install folder (the default comes from the plan); `launch` takes the
+same flag plus `--avatars <dir>`. The folder is pasted as text into commands the recipe already
+quoted, so the agent refuses a folder whose name would end that quoting before it downloads or
+runs anything: a quote, `$`, a backtick, a control character, `;`, `&`, `|`, `<` and `>` (a
+shell splits or redirects on them when a recipe uses the placeholder without quotes), a trailing
+backslash, two backslashes in a row on Linux/macOS, and — on Windows — curly quotes (PowerShell
+reads them as quotation marks), `%`, `!` and `^` (cmd expands them). Spaces, dots, umlauts,
+parentheses and `#` are fine (`C:\Program Files (x86)\Tiny Racer` works). A leading `~/` is
+resolved to the home directory first, for `--target` and for the folder the plan names.
+The error names the character and the folder. A user name with an apostrophe is the usual case; a
+folder outside the home directory such as `C:\Games\<name>` or `/opt/games/<name>` avoids it.
 
 Recipe slugs (`plan`, `install`, `launch`, `open`, `avatars --recipe`) are validated before any
 request: letters, digits, `.`, `_` and `-`, at most 64 characters, starting with a letter or digit.
@@ -474,7 +487,7 @@ and passes that path to step commands as `{{avatars}}`. This is the UT2004+VRM p
 | `skills sync [--dest] [--prune]` | one pi sub-skill per published recipe |
 | `recipes [--json]` | published recipe list |
 | `plan <slug> [--os] [--event] [--json]` | readable plan |
-| `install <slug> [--os] [--yes] [--avatar …] [--allow-external] [--dry-run] [--jobs] [--chat]` | installer |
+| `install <slug> [--os] [--target] [--yes] [--avatar …] [--allow-external] [--dry-run] [--jobs] [--chat]` | installer |
 | `launch <slug> [--os] [--target] [--avatars] [--variant <id>] [--dry-run]` | play_url browser or a local launch target (`--variant` picks one) |
 | `open <lanomat://…>` | deep-link handler for install/launch/play |
 | `register [--yes]` | register the `lanomat://` scheme (Linux .desktop / Windows reg) |
@@ -538,15 +551,16 @@ defensive where the contract leaves room:
 ```bash
 npm run build     # tsc
 npm run lint      # eslint
-npm test          # vitest, 108 tests, no network
+npm test          # vitest, 219 tests, no network
 npm run check     # lint + test + build (what CI runs per Node row)
 ```
 
 Tests cover config permissions, device-flow states, MCP merge, skills idempotence/prune, plan
 rendering, non-TTY avatar selection, resumable downloads, sha mismatches, parallel job caps,
-never-overwrite, manifests, command dry-run, model precedence, models.json/settings merge, key
-resolution, role merge, Venice offline fallback, tool-call probe, ask argv, deep links, browser
-open, Windows launch and desktop registration.
+never-overwrite, manifests, command dry-run, path quoting (the character rule per shell, `~/`
+resolution, plus a real bash run behind the rule), model precedence, models.json/settings merge, key resolution, role
+merge, Venice offline fallback, tool-call probe, ask argv, deep links, browser open, Windows
+launch and desktop registration.
 
 The test suite is offline. A live smoke test is optional:
 

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ApiClient } from '../src/http.js';
@@ -59,6 +59,39 @@ describe('install', () => {
         expect(result.code).toBe(2);
         expect(result.missing).toEqual(['ut2004.iso']);
         expect(warnings.join('\n')).toContain('Ask the Orga');
+    });
+
+    it('resolves the plan\'s ~/ folder before it is used or substituted', async () => {
+        // The server names `~/Games/<slug>` on Linux and macOS, and no shell expands `~`
+        // inside the quotes a recipe puts around {{target}}.
+        const lines: string[] = [];
+        const home = process.env.HOME;
+        process.env.HOME = dir;
+
+        try {
+            await runInstall({
+                api: apiFor(
+                    plan({
+                        target_dir: '~/Games/tiny-racer',
+                        downloads_dir: '~/Games/tiny-racer/.lanomat-downloads',
+                        steps: [{ id: 's', title: 'Unpack', commands: [{ shell: 'bash', run: 'ls "{{target}}" "{{downloads}}"' }] }],
+                    }),
+                ),
+                slug: 'tiny-racer',
+                os: 'linux',
+                dryRun: true,
+                interactive: false,
+                log: (line) => lines.push(line),
+            });
+        } finally {
+            process.env.HOME = home;
+        }
+
+        const out = lines.join('\n');
+
+        expect(out).toContain(`[dry-run] Target dir: ${join(dir, 'Games', 'tiny-racer')}`);
+        expect(out).toContain(`ls "${join(dir, 'Games', 'tiny-racer')}" "${join(dir, 'Games', 'tiny-racer', '.lanomat-downloads')}"`);
+        expect(out).not.toContain('ls "~/');
     });
 
     it('prints a dry-run plan without downloading or executing', async () => {
@@ -261,6 +294,249 @@ describe('install', () => {
             'Invalid recipe slug "../../etc/passwd": path traversal is not allowed',
         );
         expect(planned).toBe(false);
+    });
+
+    it('refuses an install folder with a quote before downloading, creating or running anything', async () => {
+        const target = join(dir, "O'Brien", 'UT2004');
+        const executed: string[] = [];
+        let fetched = false;
+
+        const install = runInstall({
+            api: apiFor(
+                plan({
+                    target_dir: target,
+                    files: [
+                        {
+                            requirement: 'game.iso',
+                            status: 'matched',
+                            name: 'game.iso',
+                            download_url: 'http://lan.local/api/v1/files/1/download',
+                        },
+                    ],
+                    steps: [
+                        {
+                            id: 'unpack',
+                            title: 'Unpack',
+                            commands: [
+                                { shell: 'bash', run: 'unzip -o "{{downloads}}/game.iso" -d "{{target}}"' },
+                            ],
+                            verify: [{ type: 'dir_exists', path: '{{target}}' }],
+                        },
+                    ],
+                }),
+            ),
+            slug: 'ut2004',
+            os: 'linux',
+            yes: true,
+            interactive: false,
+            executor: async () => {
+                executed.push('ran');
+
+                return { code: 0, stdout: '', stderr: '' };
+            },
+            fetchImpl: async () => {
+                fetched = true;
+
+                return new Response('x');
+            },
+            log: () => undefined,
+            warn: () => undefined,
+        });
+
+        await expect(install).rejects.toThrow(/single quote/);
+        await expect(install).rejects.toThrow(/--target <folder>/);
+        expect(fetched).toBe(false);
+        expect(executed).toEqual([]);
+        expect(await readdir(dir)).toEqual([]);
+    });
+
+    it('refuses the same folder in a dry run, before printing a plan', async () => {
+        const lines: string[] = [];
+        let fetched = false;
+        const target = join(dir, 'a"b');
+
+        await expect(
+            runInstall({
+                api: apiFor(
+                    plan({
+                        target_dir: target,
+                        files: [
+                            {
+                                requirement: 'game.iso',
+                                status: 'matched',
+                                name: 'game.iso',
+                                download_url: 'http://lan.local/api/v1/files/1/download',
+                            },
+                        ],
+                        steps: [
+                            {
+                                id: 'unpack',
+                                title: 'Unpack',
+                                commands: [{ shell: 'bash', run: 'unzip "{{target}}/game.iso"' }],
+                            },
+                        ],
+                    }),
+                ),
+                slug: 'ut2004',
+                os: 'linux',
+                dryRun: true,
+                yes: true,
+                interactive: false,
+                fetchImpl: async () => {
+                    fetched = true;
+
+                    return new Response('x');
+                },
+                log: (line) => lines.push(line),
+                warn: () => undefined,
+            }),
+        ).rejects.toThrow(/double quote/);
+
+        expect(fetched).toBe(false);
+        expect(lines.join('\n')).not.toContain('[dry-run]');
+    });
+
+    it('refuses a download folder it cannot quote, before downloading', async () => {
+        let fetched = false;
+
+        await expect(
+            runInstall({
+                api: apiFor(
+                    plan({
+                        target_dir: join(dir, 'game'),
+                        downloads_dir: join(dir, '$cache'),
+                        files: [
+                            {
+                                requirement: 'game.iso',
+                                status: 'matched',
+                                name: 'game.iso',
+                                download_url: 'http://lan.local/api/v1/files/1/download',
+                            },
+                        ],
+                        steps: [
+                            {
+                                id: 'unpack',
+                                title: 'Unpack',
+                                commands: [{ shell: 'bash', run: 'unzip -o "{{downloads}}/game.iso"' }],
+                            },
+                        ],
+                    }),
+                ),
+                slug: 'ut2004',
+                os: 'linux',
+                yes: true,
+                interactive: false,
+                fetchImpl: async () => {
+                    fetched = true;
+
+                    return new Response('x');
+                },
+                log: () => undefined,
+                warn: () => undefined,
+            }),
+        ).rejects.toThrow(/download folder.*dollar sign/);
+
+        expect(fetched).toBe(false);
+        expect(await readdir(dir)).toEqual([]);
+    });
+
+    it('refuses a --target folder even when the plan folder is fine', async () => {
+        await expect(
+            runInstall({
+                api: apiFor(
+                    plan({
+                        target_dir: join(dir, 'game'),
+                        steps: [
+                            {
+                                id: 'unpack',
+                                title: 'Unpack',
+                                commands: [{ shell: 'bash', run: 'unzip "{{target}}/game.zip"' }],
+                            },
+                        ],
+                    }),
+                ),
+                slug: 'ut2004',
+                os: 'linux',
+                targetDir: join(dir, 'O\'Brien', 'game'),
+                yes: true,
+                interactive: false,
+                log: () => undefined,
+                warn: () => undefined,
+            }),
+        ).rejects.toThrow(/O'Brien.*single quote/);
+
+        expect(await readdir(dir)).toEqual([]);
+    });
+
+    it('refuses cmd metacharacters in a Windows install folder', async () => {
+        let executed = false;
+
+        await expect(
+            runInstall({
+                api: apiFor(
+                    plan({
+                        os: 'windows',
+                        target_dir: 'C:\\Games\\100%',
+                        steps: [
+                            {
+                                id: 'copy',
+                                title: 'Copy',
+                                commands: [{ shell: 'cmd', run: 'xcopy "{{downloads}}\\a.zip" "{{target}}"' }],
+                            },
+                        ],
+                    }),
+                ),
+                slug: 'ut2004',
+                os: 'windows',
+                yes: true,
+                interactive: false,
+                executor: async () => {
+                    executed = true;
+
+                    return { code: 0, stdout: '', stderr: '' };
+                },
+                log: () => undefined,
+                warn: () => undefined,
+            }),
+        ).rejects.toThrow(/percent sign/);
+
+        expect(executed).toBe(false);
+    });
+
+    it('still installs into an ordinary folder with spaces and parentheses', async () => {
+        const target = join(dir, 'Program Files (x86)', 'Tiny Racer');
+        const scripts: string[] = [];
+        const result = await runInstall({
+            api: apiFor(
+                plan({
+                    target_dir: target,
+                    steps: [
+                        {
+                            id: 'copy',
+                            title: 'Copy',
+                            commands: [
+                                { shell: 'bash', run: 'echo "{{target}}"' },
+                                { shell: 'powershell', run: 'Write-Host "{{target}}"' },
+                            ],
+                        },
+                    ],
+                }),
+            ),
+            slug: 'ut2004',
+            os: 'linux',
+            yes: true,
+            interactive: false,
+            executor: async (command, args) => {
+                scripts.push(args.at(-1) ?? command);
+
+                return { code: 0, stdout: '', stderr: '' };
+            },
+            log: () => undefined,
+            warn: () => undefined,
+        });
+
+        expect(result.code).toBe(0);
+        expect(scripts).toEqual([`echo "${target}"`]);
     });
 
     it('selects no avatars with --yes unless --avatar is given', async () => {

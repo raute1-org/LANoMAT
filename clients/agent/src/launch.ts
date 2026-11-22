@@ -2,8 +2,9 @@ import type { ApiClient } from './http.js';
 import type { LaunchTarget, Os, RecipeDetail, RecipePlan } from './types.js';
 import { openBrowser } from './auth.js';
 import { defaultAvatarsDir } from './config.js';
+import { assertSubstitutableVariables, shellsForOs } from './path-quote.js';
 import { runPlanStep, substituteVariables, type CommandExecutor } from './runner.js';
-import { validateRecipeSlug } from './util.js';
+import { expandUserPath, validateRecipeSlug } from './util.js';
 
 export interface LaunchOptions {
     api: ApiClient;
@@ -191,15 +192,27 @@ export async function launchRecipe(options: LaunchOptions): Promise<LaunchResult
         });
     }
 
-    const targetDir = options.targetDir ?? plan?.target_dir ?? process.cwd();
-    const avatarDir = options.avatarsDir ?? plan?.avatars_dir ?? defaultAvatarsDir({ env: process.env });
-    const target = substituteVariables(rawTarget, {
+    // `~/Games/<slug>` is what the plan names on Linux and macOS; no shell expands `~` inside
+    // the quotes around {{target}}, so it is resolved here (as in install).
+    const targetDir = expandUserPath(options.targetDir ?? plan?.target_dir ?? process.cwd());
+    const avatarDir = expandUserPath(options.avatarsDir ?? plan?.avatars_dir ?? defaultAvatarsDir({ env: process.env }));
+    const variables: Record<string, string> = {
         target: targetDir,
         avatars: avatarDir,
-        downloads: plan?.downloads_dir ?? targetDir,
+        downloads: plan?.downloads_dir ? expandUserPath(plan.downloads_dir) : targetDir,
         slug: options.slug,
         os: options.os,
-    });
+    };
+    // Same rule as install: a folder that would end the quoting of the launch command is refused
+    // before the command is built, printed or started.
+    const shells = shellsForOs(options.os);
+
+    if (fields.shell && !shells.includes(fields.shell)) {
+        shells.push(fields.shell);
+    }
+
+    assertSubstitutableVariables(rawTarget, variables, shells);
+    const target = substituteVariables(rawTarget, variables);
     const command = buildLaunchCommand(options.os, target, fields.shell);
 
     if (options.dryRun) {

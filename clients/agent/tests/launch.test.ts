@@ -114,6 +114,77 @@ describe('launch', () => {
         expect(calls[0]?.cwd).toBe('/tmp/ut2004');
     });
 
+    it('refuses an install folder it cannot quote, before building or running the launch command', async () => {
+        const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+
+        await expect(
+            launchRecipe({
+                api: apiFor(
+                    {
+                        slug: 'ut2004',
+                        title: 'UT2004',
+                        launch_target: 'wine "{{target}}/System/UT2004.exe"',
+                    },
+                    plan({ target_dir: "/tmp/O'Brien/UT2004" }),
+                ),
+                slug: 'ut2004',
+                os: 'linux',
+                executor: captureExecutor(calls),
+            }),
+        ).rejects.toThrow(/O'Brien.*single quote/);
+
+        expect(calls).toEqual([]);
+    });
+
+    it('refuses it in a launch dry run too', async () => {
+        const lines: string[] = [];
+        const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+
+        await expect(
+            launchRecipe({
+                api: apiFor(
+                    {
+                        slug: 'ut2004',
+                        title: 'UT2004',
+                        launch_target: 'wine "{{target}}/System/UT2004.exe"',
+                    },
+                    plan({ target_dir: '/tmp/$cache/UT2004' }),
+                ),
+                slug: 'ut2004',
+                os: 'linux',
+                dryRun: true,
+                executor: captureExecutor(calls),
+                log: (line) => lines.push(line),
+            }),
+        ).rejects.toThrow(/dollar sign/);
+
+        expect(calls).toEqual([]);
+        expect(lines).toEqual([]);
+    });
+
+    it('refuses an avatar folder it cannot quote when the target uses it', async () => {
+        const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+
+        await expect(
+            launchRecipe({
+                api: apiFor(
+                    {
+                        slug: 'ut2004',
+                        title: 'UT2004',
+                        launch_target: 'wine "{{target}}/UT2004.exe" --avatar "{{avatars}}/Marcus.vrm"',
+                    },
+                    plan({ target_dir: '/tmp/ut2004' }),
+                ),
+                slug: 'ut2004',
+                os: 'linux',
+                avatarsDir: "/home/o'brien/avatars",
+                executor: captureExecutor(calls),
+            }),
+        ).rejects.toThrow(/avatar folder.*single quote/);
+
+        expect(calls).toEqual([]);
+    });
+
     it('prints the command in dry-run without executing it', async () => {
         const lines: string[] = [];
         let executed = false;
