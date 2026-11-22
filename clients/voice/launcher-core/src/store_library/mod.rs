@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod epic;
 pub mod gog;
+pub mod handoff;
 pub mod steam;
 pub mod ubisoft;
 pub mod vdf;
