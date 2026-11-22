@@ -1,10 +1,17 @@
-// Navigation shell: the five tabs (adapted to the modules that run), badges, the connection
+// Navigation shell: the tabs (adapted to the modules that run), badges, the connection
 // indicator, the offline banner, the Ruhe toggle and the help sheet of every tab.
 import { S } from './strings.js';
 import { paintUpdate } from './update.js';
 import { $, call, clear, el, emit, on, say, state } from './util.js';
 
-export const TAB_IDS = ['jetzt', 'sprache', 'spielen', 'essen', 'mehr'];
+export const TAB_IDS = [
+    'jetzt',
+    'sprache',
+    'spielen',
+    'spiele',
+    'essen',
+    'mehr',
+];
 
 // A tab is shown when one of its modules runs. A module key that is missing means "unknown":
 // show the feature (see docs/commands.md).
@@ -19,7 +26,18 @@ let current = null;
 
 export const moduleOn = (key) => state.config.modules[key] !== false;
 
+// Tabs that exist only when their own probe says so (see optional.js), not by module key alone.
+const gates = { spiele: false };
+
+export function setTabGate(id, open) {
+    gates[id] = Boolean(open);
+}
+
 export function tabVisible(id) {
+    if (id in gates) {
+        return gates[id];
+    }
+
     const need = TAB_MODULES[id];
 
     return !need || need.some(moduleOn);
@@ -169,9 +187,9 @@ function paintBadges() {
     }
 }
 
-// Left/right move between the tabs, Alt+1 to Alt+5 jump.
+// Left/right move between the tabs, Alt+1 to Alt+6 jump.
 document.addEventListener('keydown', (e) => {
-    if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-5]$/.test(e.key)) {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-6]$/.test(e.key)) {
         if (!$('tabs').hidden) {
             e.preventDefault();
             go(TAB_IDS[Number(e.key) - 1]);

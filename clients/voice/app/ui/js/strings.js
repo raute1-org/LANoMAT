@@ -22,6 +22,7 @@ export const S = {
         jetzt: 'Jetzt',
         sprache: 'Sprache',
         spielen: 'Spielen',
+        spiele: 'Spiele',
         essen: 'Essen',
         mehr: 'Mehr',
     },
@@ -86,6 +87,13 @@ export const S = {
             lines: [
                 'Matches: Ergebnis melden, bestätigen oder anfechten, Check-in und der passende Sprachraum.',
                 'Turniere: Wo du angemeldet bist. Server: Event-Server und dauerhafte Server mit Beitreten und Adresse kopieren.',
+            ],
+        },
+        spiele: {
+            title: 'Spiele',
+            lines: [
+                'Die Bibliothek zeigt alle Spiele, die der Orga für dieses LAN bereitstellt, und ob ihre Dateien im LAN bereitliegen.',
+                'Tippe auf ein Spiel für die Details: welche Dateien dazugehören, wie groß sie sind und was noch fehlt. Installieren und Starten folgt mit einer späteren Version der App.',
             ],
         },
         essen: {
@@ -815,5 +823,146 @@ export const S = {
         openMode: 'Mikrofon immer offen',
         openModeHint:
             'Praktisch mit Headset. Andere hören dich, sobald du einem Raum beitrittst.',
+    },
+
+    // ---- Spiele (Bibliothek, nur lesen) ----
+    games: {
+        title: 'Spiele',
+        sections: 'Bibliothek filtern',
+        search: 'Spiel suchen',
+        searchPlaceholder: 'Titel oder Genre',
+        genre: 'Genre',
+        allGenres: 'Alle Genres',
+        filter: {
+            all: 'Alle',
+            ready: 'Bereit',
+            installable: 'Installierbar',
+        },
+        count: (shown, total) =>
+            shown === total
+                ? `${total} ${total === 1 ? 'Spiel' : 'Spiele'}`
+                : `${shown} von ${total} Spielen`,
+        fetchedAt: (t) => `Stand ${t}`,
+        refresh: 'Aktualisieren',
+        lineup: 'Im Lineup',
+        players: (min, max) =>
+            min && max && min !== max
+                ? `${min} bis ${max} Spieler`
+                : `${max || min} Spieler`,
+        playersUnknown: 'Spielerzahl offen',
+        sizeUnknown: 'Größe offen',
+        lastPlayed: (t) => `Zuletzt gespielt ${t}`,
+        platform: {
+            linux: 'Linux',
+            windows: 'Windows',
+            macos: 'macOS',
+            browser: 'Browser',
+        },
+        platformsUnknown: 'Plattform offen',
+        availability: {
+            on_lan: 'Dateien auf dem LAN-Host',
+            missing: 'Dateien fehlen',
+            unknown: 'Verfügbarkeit unbekannt',
+        },
+        local: {
+            not_installed: 'Nicht installiert',
+            installing: 'Wird installiert',
+            ready: 'Bereit',
+            repair_needed: 'Reparatur nötig',
+            broken: 'Defekt',
+            offline: 'Offline',
+        },
+        installable: {
+            yes: 'Installierbar',
+            no: 'Nicht installierbar',
+            unknown: 'Installierbarkeit unbekannt',
+        },
+        open: (title) => `Details zu ${title}`,
+        empty: {
+            title: 'Noch keine Spiele in der Bibliothek',
+            hint: 'Sobald der Orga Spiele bereitstellt, erscheinen sie hier.',
+        },
+        noMatch: {
+            title: 'Kein Spiel passt zu deiner Auswahl',
+            hint: 'Lösche die Suche oder wähle einen anderen Filter.',
+            reset: 'Filter zurücksetzen',
+        },
+        disabled: {
+            module_off: {
+                title: 'Die Spiele-Bibliothek ist ausgeschaltet',
+                hint: 'Der Orga hat sie für dieses LAN nicht aktiviert.',
+            },
+            server_too_old: {
+                title: 'Der Server kennt die Bibliothek noch nicht',
+                hint: 'Der Server braucht ein Update, bevor Spiele hier erscheinen. Sag dem Orga Bescheid.',
+            },
+            not_paired: {
+                title: 'Dieses Gerät ist nicht verbunden',
+                hint: 'Verbinde es neu, dann zeigt die Bibliothek die Spiele.',
+            },
+            other: {
+                title: 'Die Bibliothek ist gerade nicht verfügbar',
+                hint: 'Versuche es später noch einmal.',
+            },
+        },
+        errors: {
+            title: 'Die Bibliothek lässt sich nicht laden',
+            offline:
+                'Ohne Verbindung zum Server gibt es keine Bibliothek. Prüfe das Netzwerk und versuche es erneut.',
+            server_error:
+                'Der Server antwortet nicht richtig. Versuche es gleich noch einmal. Bleibt es so, sag dem Orga Bescheid.',
+            plan_version_unsupported:
+                'Diese App ist zu alt für den Installationsplan des Servers. Aktualisiere LANoMAT, dann geht es weiter.',
+            not_paired:
+                'Dieses Gerät ist nicht mehr verbunden. Verbinde es neu, dann geht es weiter.',
+            generic: 'Das hat nicht geklappt. Versuche es noch einmal.',
+            detailTitle: 'Die Details lassen sich nicht laden',
+        },
+        detail: {
+            back: 'Zur Bibliothek',
+            about: 'Über das Spiel',
+            facts: 'Eckdaten',
+            genre: 'Genre',
+            players: 'Spieler',
+            platforms: 'Plattformen',
+            size: 'Größe',
+            license: 'Lizenz',
+            homepage: 'Webseite',
+            aliases: 'Auch bekannt als',
+            multiplayer: 'Mehrspieler',
+            multiplayerYes: 'Ja',
+            multiplayerNo: 'Nein',
+            portable: 'Portable Version',
+            portableYes: 'Ohne Installer, Dateien werden nur entpackt',
+            portableNo: 'Mit Installationsschritten',
+            local: 'Auf diesem Gerät',
+            path: 'Ordner',
+            lastPlayed: 'Zuletzt gespielt',
+            plan: 'Installationsplan',
+            planVersion: (v) => `Planversion ${v}`,
+            files: 'Dateien',
+            noPlan: {
+                title: 'Für dieses Spiel gibt es noch keinen Installationsplan',
+                hint: 'Der Orga hat noch keine Dateien hinterlegt. Schau später noch einmal vorbei.',
+            },
+            missingTitle: 'Diese Dateien fehlen auf dem LAN-Host',
+            missingHint:
+                'Ohne sie lässt sich das Spiel nicht installieren. Sag dem Orga Bescheid.',
+            required: 'Pflicht',
+            optional: 'Optional',
+            source: {
+                lan: 'LAN-Host',
+                external: 'Externer Download',
+            },
+            fileStatus: {
+                available: 'Vorhanden',
+                present: 'Vorhanden',
+                ok: 'Vorhanden',
+                missing: 'Fehlt',
+            },
+            installSoon: 'Installation folgt',
+            installSoonWhy:
+                'Installieren und Starten kommt mit einer späteren Version der App. Bis dahin ist die Bibliothek nur zum Ansehen.',
+        },
     },
 };
