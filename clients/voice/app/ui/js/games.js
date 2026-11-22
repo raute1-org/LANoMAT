@@ -2,6 +2,7 @@
 // the LAN, merged by the Rust side. Cards with one action, search and filters, a detail view.
 // It works signed out: the local scan needs no server, the recipes' reason is one muted line.
 import {
+    cardModel,
     entryCardModel,
     filterEntries,
     FILTERS,
@@ -48,6 +49,7 @@ let lib = null; // result of loadLibrary
 const filter = { query: '', genre: '', only: 'all', source: 'all' };
 let lastKey = null;
 let seq = 0;
+const RELAUNCH_MS = 2500;
 
 function seg(label, ids, labelOf, key) {
     const box = el('div', { class: 'seg', role: 'group', 'aria-label': label });
@@ -134,7 +136,9 @@ export function init(section) {
 export async function show() {
     signIn.hidden = !offlineMode();
     closeDetail();
-    await load();
+    // Opening the tab looks at the disk again: a game that finished updating, a new install or a
+    // removed folder shows at once, not after "Neu einlesen" or a restart.
+    await load({ rescan: true });
 }
 
 export function focus() {
@@ -194,6 +198,9 @@ function paintLibrary() {
         );
     } else if (lib.phase === 'disabled') {
         body.append(emptyState(lib.info.title, lib.info.hint));
+    } else if (lib.phase === 'empty' && !lib.local) {
+        // No scan on this platform: the PC's source lines would only say "nicht erkannt".
+        body.append(emptyState(G.emptyLan.title, G.emptyLan.hint));
     } else if (lib.phase === 'empty') {
         body.append(
             emptyState(
@@ -368,15 +375,9 @@ function action(m) {
         return null;
     }
 
+    // Installing from the app is not there yet: no dead button on the card, the detail says why.
     if (p.id === 'install_recipe') {
-        return el('button', {
-            class: 'btn small-btn',
-            type: 'button',
-            text: p.label,
-            title: G.detail.installSoonWhy,
-            'aria-disabled': 'true',
-            onclick: (e) => e.preventDefault(),
-        });
+        return null;
     }
 
     const play = p.id === 'play';
@@ -392,19 +393,29 @@ function action(m) {
             const r = play
                 ? await call('library_launch', { key: m.launchKey })
                 : await call('library_open_store', { key: m.key });
-            b.disabled = false;
 
             if (r.ok) {
                 say(`${p.label}: ${m.title}`);
-            } else {
-                toast(r.error.message || G.actions.failed, 'error');
+                // The handoff returns at once while the game takes seconds to appear: a second
+                // click in that time would start it twice.
+                setTimeout(() => (b.disabled = false), RELAUNCH_MS);
+
+                return;
             }
+
+            b.disabled = false;
+            toast(
+                r.error.message ||
+                    (play ? G.actions.failed : G.actions.storeFailed),
+                'error',
+            );
         },
     });
 }
 
 function card(entry) {
     const m = entryCardModel(entry);
+    const act = action(m);
     const r = m.recipe;
     const sz = r && size(r.sizeBytes);
     const facts = r ? [r.genre, r.players, r.platforms].filter(Boolean) : [];
@@ -461,7 +472,7 @@ function card(entry) {
                 ),
             ),
         ),
-        action(m) ? el('div', { class: 'game-actions' }, action(m)) : null,
+        act ? el('div', { class: 'game-actions' }, act) : null,
     );
 }
 
@@ -521,7 +532,10 @@ async function openDetail(entry) {
             ),
         );
     } else {
-        detailView.append(...detailBody(d), storeSection(entry));
+        detailView.append(
+            ...detailBody(d, entryCardModel(entry)),
+            storeSection(entry),
+        );
         say(d.recipe.title);
     }
 
@@ -588,7 +602,9 @@ function storeOnlyBody(entry) {
                 m.status ? tag(m.status.label, m.status.tone) : null,
             ),
         ),
-        el('p', { class: 'game-about', text: G.storeDetail.note }),
+        lib && lib.recipesNote
+            ? null
+            : el('p', { class: 'game-about', text: G.storeDetail.note }),
         storeSection(entry),
         act ? el('div', { class: 'game-actions' }, act) : null,
     ];
@@ -605,8 +621,9 @@ function fact(label, value, mono = false) {
         : null;
 }
 
-function detailBody({ recipe: r, plan }) {
+function detailBody({ recipe: r, plan }, entryModel) {
     const m = cardModel(r);
+    const act = action(entryModel);
     const D = G.detail;
     const yesNo = (v, yes, no) => (v === true ? yes : v === false ? no : '');
     const sz = size(r.sizeBytes);
@@ -624,6 +641,8 @@ function detailBody({ recipe: r, plan }) {
                 tag(m.local.label, m.local.tone),
             ),
         ),
+        // The same one action as on the card, so a matched game can be started from here too.
+        act ? el('div', { class: 'game-actions' }, act) : null,
         r.description || r.summary
             ? el('p', { class: 'game-about', text: r.description || r.summary })
             : null,
@@ -665,7 +684,8 @@ function detailBody({ recipe: r, plan }) {
                 : null,
         ),
         planSection(plan, m),
-        installNote(),
+        // Only while there is no installed copy to start: the placeholder says why not yet.
+        entryModel.launchKey ? null : installNote(),
     ];
 }
 

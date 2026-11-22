@@ -545,16 +545,18 @@ A game whose folder is gone shows as `broken` ("defekt"), it is not hidden. The 
 
 - Steam: `steam://rungameid/<appid>` (digits only); the store page `steam://store/<appid>` is the only store page in this version.
 - Epic: `com.epicgames.launcher://apps/<namespace>%3A<catalogItemId>%3A<appName>?action=launch&silent=true`.
-- GOG: `goggalaxy://openGameView/<id>` when GOG Galaxy is registered; without Galaxy the registered `.exe` is started directly, with its install folder as working directory, and only if that `.exe` lies inside the game's own folder (canonicalised). Anything else is refused.
+- GOG: `goggalaxy://openGameView/<id>` when GOG Galaxy is registered (this opens the game's view in Galaxy, where one more click starts it: the handoff the spec fixes, `GalaxyClient.exe /command=runGame` is not used); without Galaxy the registered `.exe` is started directly, with its install folder as working directory, and only if that `.exe` lies inside the game's own folder (canonicalised). Anything else is refused.
 - Ubisoft: `uplay://launch/<id>/0`.
 
 The frontend passes a library key only, never a URL or a path; the app looks the key up in its cached
 scan and refuses everything else.
 
 **Signed out and offline.** The local part needs no pairing, no server and no network. The tab shows
-installed store games and starts them even when the client is signed out. The server's recipes are
-optional: when they cannot be loaded, the tab shows the reason (`recipes_reason`) as one line next to the
-local games. Steam ownership of games not installed yet is a later stage (see the spec).
+installed store games and starts them when the client is signed out, and when it is paired but the
+server does not answer: the recipe side gets three seconds (`library_list` then reports
+`recipes_reason: "offline"`) and the last good recipe list stays until a logout. The server's recipes
+are optional: when they cannot be loaded, the tab shows the reason (`recipes_reason`) as one line next
+to the local games. Opening the tab scans again; "Neu einlesen" does the same on demand. Steam ownership of games not installed yet is a later stage (see the spec).
 
 **Debug fixture (debug builds only).** `LANOMAT_STORE_LIBRARY_FIXTURE=<dir>` makes a debug build read
 `<dir>/scan.json` (a serialized scan with made-up games) instead of the real scan, for headless

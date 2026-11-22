@@ -1,6 +1,7 @@
 // Screens that exist only when the Rust side has their commands and the server runs their
 // module: Freunde, Profil and the "Personen" view (where is everybody). Nothing is faked: an
 // entry stays hidden unless its command answers.
+import { gamesTabWanted } from './games-model.js';
 import { moduleOn, setTabGate } from './nav.js';
 import { invoke, isUnknownCommand, normalizeError, state } from './util.js';
 
@@ -25,18 +26,11 @@ async function probe(cmd, args) {
     }
 }
 
-// The Spiele tab: shown while the library is on, this PC can list its own games, or the tab can
-// say why it is not usable (old server, device not paired). `module_off` and a missing command keep it hidden, like any optional tab.
+// The Spiele tab: see `gamesTabWanted`. A missing command keeps it hidden, like any optional
+// tab; a failing `games_state` does not (the local list can still work).
 async function probeGames() {
     try {
-        const s = await invoke('games_state');
-
-        return (
-            Boolean(s) &&
-            (s.enabled === true ||
-                s.local === true ||
-                s.reason !== 'module_off')
-        );
+        return gamesTabWanted(await invoke('games_state'));
     } catch (e) {
         const err = normalizeError(e);
 

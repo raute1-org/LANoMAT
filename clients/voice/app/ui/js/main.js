@@ -3,7 +3,7 @@
 import * as connect from './connect.js';
 import * as food from './food.js';
 import * as games from './games.js';
-import { singleFlightRetry } from './link.js';
+import { ignoresAuthLoss, singleFlightRetry } from './link.js';
 import * as more from './more.js';
 import {
     buildTabs,
@@ -135,7 +135,7 @@ function refreshWho() {
 }
 
 function authLost(error) {
-    if (authBusy) {
+    if (authBusy || ignoresAuthLoss(state.status)) {
         return;
     }
 
@@ -143,6 +143,8 @@ function authLost(error) {
     setupDone = false;
     resume.reset();
     update.stop();
+    now.stop();
+    state.event = null;
     resetNav();
     connect.open({
         title: S.errors.authTitle,
@@ -167,6 +169,8 @@ async function logout() {
     setupDone = false;
     resume.reset();
     update.stop();
+    now.stop();
+    state.event = null;
     resetNav();
     connect.open({ url: state.status.server_url });
     say(S.account.loggedOut);

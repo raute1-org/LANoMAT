@@ -844,8 +844,6 @@ export const S = {
             shown === total
                 ? `${total} ${total === 1 ? 'Spiel' : 'Spiele'}`
                 : `${shown} von ${total} Spielen`,
-        fetchedAt: (t) => `Stand ${t}`,
-        refresh: 'Aktualisieren',
         lineup: 'Im Lineup',
         players: (min, max) =>
             min && max && min !== max
@@ -853,7 +851,6 @@ export const S = {
                 : `${max || min} Spieler`,
         playersUnknown: 'Spielerzahl offen',
         sizeUnknown: 'Größe offen',
-        lastPlayed: (t) => `Zuletzt gespielt ${t}`,
         platform: {
             linux: 'Linux',
             windows: 'Windows',
@@ -884,6 +881,10 @@ export const S = {
             title: 'Keine Spiele gefunden',
             hint: 'LANoMAT liest Steam, Epic Games, GOG Galaxy und Ubisoft Connect auf diesem PC und die Spiele, die der Orga bereitstellt. Installiere ein Spiel und lies dann neu ein.',
         },
+        emptyLan: {
+            title: 'Noch keine Spiele im LAN',
+            hint: 'Der Orga hat noch keine Spiele bereitgestellt. Schau später noch einmal vorbei.',
+        },
         recipesNote: {
             not_paired:
                 'Nicht angemeldet: Hier stehen nur die Spiele auf diesem PC. Mit Anmeldung kommen die Spiele des LANs dazu.',
@@ -900,8 +901,8 @@ export const S = {
             play: 'Spielen',
             openStore: 'Im Shop öffnen',
             scan: 'Neu einlesen',
-            scanning: 'Lese ein …',
             failed: 'Das Spiel ließ sich nicht starten.',
+            storeFailed: 'Die Shop-Seite ließ sich nicht öffnen.',
         },
         source: {
             all: 'Alle',
@@ -928,7 +929,7 @@ export const S = {
             store: 'Shop',
             path: 'Ordner',
             status: 'Zustand',
-            note: 'Dieses Spiel gehört (noch) zu keinem Spiel des LANs. Es läuft über seinen Shop.',
+            note: 'Für dieses Spiel hat das LAN (noch) kein Rezept. Es startet über seinen Shop.',
         },
         noMatch: {
             title: 'Kein Spiel passt zu deiner Auswahl',

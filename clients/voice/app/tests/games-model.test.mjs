@@ -226,12 +226,119 @@ test('errors: codes from a string, unknown stays generic, never raw text', () =>
     assert.equal(m.errorInfo({ raw: 'offline' }).retryable, true);
 });
 
-test('state errors surface as an error phase', async () => {
+test('a paired client with the server down still lists the local games', async () => {
+    // games_state fails for a reason that is not the session: the local list is still asked for.
     const r = await m.loadLibrary(
-        mock({ games_state: fail({ message: 'offline' }) }),
+        mock({
+            games_state: fail({ kind: 'network', message: 'offline' }),
+            library_list: ok(lib([entry()], { recipes_reason: 'offline' })),
+        }),
+    );
+    assert.equal(r.phase, 'ready');
+    assert.equal(r.entries.length, 1);
+    assert.equal(r.recipesNote, S.games.recipesNote.offline);
+});
+
+test('a rejected session is an error, the library is not asked for', async () => {
+    let asked = false;
+    const r = await m.loadLibrary(
+        mock({
+            games_state: fail({ kind: 'auth', message: 'not_paired' }),
+            library_list: () => {
+                asked = true;
+
+                return ok(lib([entry()]));
+            },
+        }),
+    );
+    assert.equal(r.phase, 'error');
+    assert.equal(asked, false);
+});
+
+test('without a state and without any local source the state error is shown', async () => {
+    const r = await m.loadLibrary(
+        mock({
+            games_state: fail({ kind: 'network', message: 'offline' }),
+            library_list: ok(
+                lib([], {
+                    recipes_reason: 'offline',
+                    sources: [
+                        {
+                            store: 'steam',
+                            present: false,
+                            found: 0,
+                            skipped: 0,
+                        },
+                    ],
+                }),
+            ),
+        }),
     );
     assert.equal(r.phase, 'error');
     assert.equal(r.error.code, 'offline');
+    const both = await m.loadLibrary(
+        mock({
+            games_state: fail({ kind: 'network', message: 'offline' }),
+            library_list: fail({ message: 'server_error' }),
+        }),
+    );
+    assert.equal(both.phase, 'error');
+});
+
+test('a platform without a local scan shows the recipes reason, not an empty scan', async () => {
+    const off = ok({ enabled: false, reason: 'offline', local: false });
+    const r = await m.loadLibrary(
+        mock({
+            games_state: off,
+            library_list: ok(
+                lib([], { recipes_reason: 'offline', sources: [] }),
+            ),
+        }),
+    );
+    assert.equal(r.phase, 'error');
+    assert.equal(r.error.code, 'offline');
+    // Nothing listed and no reason: an empty library without the PC's source lines.
+    const on = ok({ enabled: true, reason: null, local: false });
+    const e = await m.loadLibrary(
+        mock({ games_state: on, library_list: ok(lib([], { sources: [] })) }),
+    );
+    assert.equal(e.phase, 'empty');
+    assert.equal(e.local, false);
+    const w = await m.loadLibrary(
+        mock({
+            games_state: ok({ enabled: true, reason: null, local: true }),
+            library_list: ok(lib([])),
+        }),
+    );
+    assert.equal(w.local, true);
+});
+
+test('the Spiele tab is wanted when the PC can scan, even with the module off', () => {
+    assert.equal(
+        m.gamesTabWanted({ enabled: false, reason: 'module_off', local: true }),
+        true,
+    );
+    assert.equal(
+        m.gamesTabWanted({
+            enabled: false,
+            reason: 'module_off',
+            local: false,
+        }),
+        false,
+    );
+    assert.equal(
+        m.gamesTabWanted({ enabled: true, reason: null, local: false }),
+        true,
+    );
+    assert.equal(
+        m.gamesTabWanted({
+            enabled: false,
+            reason: 'not_paired',
+            local: false,
+        }),
+        true,
+    );
+    assert.equal(m.gamesTabWanted(null), false);
 });
 
 test('normalising is defensive: nulls mean unknown', () => {
@@ -255,11 +362,6 @@ test('normalising is defensive: nulls mean unknown', () => {
     assert.equal(
         m.normalizeRecipe({ slug: 's', cover_url: 'https://x/y.png' }).coverUrl,
         'https://x/y.png',
-    );
-    assert.deepEqual(m.normalizeList(null).recipes, []);
-    assert.equal(
-        m.normalizeList({ recipes: [{ title: 'no slug' }] }).recipes.length,
-        0,
     );
 });
 
@@ -303,53 +405,11 @@ test('cards: a label and a tone for every availability and local status', () => 
     assert.equal(m.installableLabel(null), S.games.installable.unknown);
 });
 
-const sample = () =>
-    [
-        recipe({ slug: 'b', title: 'Beta', genre: 'Rennen', in_lineup: false }),
-        recipe({
-            slug: 'a',
-            title: 'Äther',
-            genre: 'Shooter',
-            in_lineup: false,
-            local: { status: 'ready' },
-        }),
-        recipe({
-            slug: 'c',
-            title: 'Charlie',
-            genre: 'Shooter',
-            in_lineup: true,
-            availability: 'missing',
-            installable: false,
-        }),
-        recipe({
-            slug: 'd',
-            title: 'Delta',
-            genre: '',
-            in_lineup: true,
-            installable: null,
-            availability: 'unknown',
-        }),
-    ].map(m.normalizeRecipe);
-
-test('sorting puts the lineup first, then titles with German collation', () => {
-    assert.deepEqual(
-        m.sortRecipes(sample()).map((r) => r.slug),
-        ['c', 'd', 'a', 'b'],
+test('genres of the entries are unique and sorted', () => {
+    const rs = ['Shooter', 'Rennen', '', 'Shooter'].map((genre, i) =>
+        m.normalizeRecipe(recipe({ slug: `r${i}`, genre })),
     );
-});
-
-test('filtering: search, genre, ready and installable', () => {
-    const all = sample();
-    const slugs = (f) => m.filterRecipes(all, f).map((r) => r.slug);
-    assert.deepEqual(slugs({}), ['b', 'a', 'c', 'd']);
-    assert.deepEqual(slugs({ query: 'äth' }), ['a']);
-    assert.deepEqual(slugs({ query: '  CHAR ' }), ['c']);
-    assert.deepEqual(slugs({ genre: 'Shooter' }), ['a', 'c']);
-    assert.deepEqual(slugs({ only: 'ready' }), ['a']);
-    // installable: files on the LAN host, installable, not yet ready; null is not "yes"
-    assert.deepEqual(slugs({ only: 'installable' }), ['b']);
-    assert.deepEqual(slugs({ query: 'nix' }), []);
-    assert.deepEqual(m.genresOf(all), ['Rennen', 'Shooter']);
+    assert.deepEqual(m.genresOf(rs), ['Rennen', 'Shooter']);
 });
 
 test('detail: with a plan, missing files flagged', async () => {

@@ -13,6 +13,8 @@ const LOCAL = [
     'offline',
 ];
 const REASONS = ['module_off', 'server_too_old', 'not_paired'];
+// Why the library has no server today, from `games_state`: not a reason to hide the tab.
+const SERVER_DOWN = ['offline', 'server_error'];
 const ERROR_CODES = [
     'not_paired',
     'server_error',
@@ -79,15 +81,6 @@ export function normalizeRecipe(r) {
         portable: triState(o.portable),
         supportsMultiplayer: triState(o.supports_multiplayer),
     };
-}
-
-export function normalizeList(v) {
-    const o = v && typeof v === 'object' ? v : {};
-    const recipes = Array.isArray(o.recipes)
-        ? o.recipes.map(normalizeRecipe).filter((r) => r.slug)
-        : [];
-
-    return { recipes, fetchedAt: text(o.fetched_at) || null };
 }
 
 export function normalizeDetail(v) {
@@ -208,51 +201,6 @@ export const FILTERS = ['all', 'ready', 'installable'];
 export function genresOf(recipes) {
     return [...new Set(recipes.map((r) => r.genre).filter(Boolean))].sort(
         (a, b) => a.localeCompare(b, 'de'),
-    );
-}
-
-export function filterRecipes(
-    recipes,
-    { query = '', genre = '', only = 'all' },
-) {
-    const q = query.trim().toLocaleLowerCase('de');
-
-    return recipes.filter((r) => {
-        if (genre && r.genre !== genre) {
-            return false;
-        }
-
-        if (only === 'ready' && r.local.status !== 'ready') {
-            return false;
-        }
-
-        if (
-            only === 'installable' &&
-            !(
-                r.installable === true &&
-                r.availability === 'on_lan' &&
-                r.local.status !== 'ready'
-            )
-        ) {
-            return false;
-        }
-
-        if (!q) {
-            return true;
-        }
-
-        return [r.title, r.genre, r.summary, r.slug, ...r.aliases].some((t) =>
-            t.toLocaleLowerCase('de').includes(q),
-        );
-    });
-}
-
-// Lineup first, then by title.
-export function sortRecipes(recipes) {
-    return [...recipes].sort(
-        (a, b) =>
-            Number(b.inLineup) - Number(a.inLineup) ||
-            a.title.localeCompare(b.title, 'de'),
     );
 }
 
@@ -482,20 +430,37 @@ export function sortEntries(entries) {
 export const genresOfEntries = (entries) =>
     genresOf(entries.filter((e) => e.recipe).map((e) => e.recipe));
 
+// A rejected session is not "the server is down": it is the one failure the library cannot work
+// around (the windows are told, the device must pair again).
+const isAuthError = (e) =>
+    Boolean(e) && (e.kind === 'auth' || errorCode(e) === 'not_paired');
+
+// Whether the Spiele tab exists at all: the library is on, this PC can list its own games, or
+// the tab can say why it is not usable. Only `module_off` keeps it hidden, and not on a PC that
+// can scan: the local games do not depend on the module.
+export const gamesTabWanted = (s) =>
+    Boolean(s) &&
+    (s.enabled === true || s.local === true || s.reason !== 'module_off');
+
 // `call` is util.call: resolves {ok, value} or {ok: false, error}. The local scan does not
-// need the server: with `local` on, the library lists the games on this PC even signed out, and
-// the recipes' own reason becomes one line (`recipesNote`) instead of a blocking screen.
+// need the server: with `local` on, the library lists the games on this PC even signed out or
+// with the server down, and the recipes' own reason becomes one line (`recipesNote`) instead of
+// a blocking screen.
 export async function loadLibrary(call, { rescan = false } = {}) {
     const st = await call('games_state');
 
-    if (!st.ok) {
+    if (!st.ok && isAuthError(st.error)) {
         return { phase: 'error', error: errorInfo(st.error) };
     }
 
-    const s = st.value || {};
+    // `null`: the state could not be read (an older app, a failure that is not the session).
+    const s = st.ok ? st.value || {} : null;
 
-    if (s.enabled !== true && s.local !== true) {
-        return { phase: 'disabled', info: disabledInfo(s.reason) };
+    if (s && s.enabled !== true && s.local !== true) {
+        // No server and nothing to scan here: say which of the two it is.
+        return SERVER_DOWN.includes(s.reason)
+            ? { phase: 'error', error: errorInfo({ raw: s.reason }) }
+            : { phase: 'disabled', info: disabledInfo(s.reason) };
     }
 
     const res = await call(rescan ? 'library_scan' : 'library_list');
@@ -505,16 +470,32 @@ export async function loadLibrary(call, { rescan = false } = {}) {
     }
 
     const l = normalizeLibrary(res.value);
-    const base = {
+    const local = s ? s.local === true : null;
+    const found = l.entries.length > 0;
+
+    if (!found && local === false && l.recipesReason) {
+        // Nothing local to show and no recipes: the reason is the whole story.
+        return SERVER_DOWN.includes(l.recipesReason)
+            ? { phase: 'error', error: errorInfo({ raw: l.recipesReason }) }
+            : { phase: 'disabled', info: disabledInfo(l.recipesReason) };
+    }
+
+    if (!found && !s && !l.sources.some((x) => x.present)) {
+        // No state and no local source found: this is not an empty library, it is a failure.
+        return { phase: 'error', error: errorInfo(st.error) };
+    }
+
+    return {
+        phase: found ? 'ready' : 'empty',
         entries: l.entries,
         sources: l.sources,
         scannedAt: l.scannedAt,
+        // Unknown counts as "this PC scans": the sources lines are then true or at least honest.
+        local: local !== false,
         recipesNote: l.recipesReason
             ? S.games.recipesNote[l.recipesReason]
             : null,
     };
-
-    return { phase: l.entries.length ? 'ready' : 'empty', ...base };
 }
 
 export async function loadDetail(call, slug) {

@@ -10,7 +10,7 @@ const dir = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '../ui/js',
 );
-const { provesOnline, singleFlightRetry } = await import(
+const { ignoresAuthLoss, provesOnline, singleFlightRetry } = await import(
     path.join(dir, 'link.js')
 );
 
@@ -21,6 +21,13 @@ test('local commands do not prove the server is reachable', () => {
         'get_room_view',
         'load_settings',
         'take_notification_target',
+        // The store library never needs the server: its success must not flip the header.
+        'library_local_available',
+        'library_list',
+        'library_scan',
+        'library_launch',
+        'library_open_store',
+        'games_state',
     ]) {
         assert.equal(provesOnline(cmd), false, cmd);
     }
@@ -34,6 +41,18 @@ test('server commands prove the server is reachable', () => {
         'now_feed',
     ]) {
         assert.equal(provesOnline(cmd), true, cmd);
+    }
+});
+
+test('a lost session is ignored while signed out', () => {
+    assert.equal(ignoresAuthLoss({ state: 'signed_out' }), true);
+    for (const st of [
+        null,
+        undefined,
+        { state: 'connected' },
+        { state: 'expired' },
+    ]) {
+        assert.equal(ignoresAuthLoss(st), false);
     }
 });
 

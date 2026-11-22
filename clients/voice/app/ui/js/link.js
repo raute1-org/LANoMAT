@@ -7,6 +7,7 @@
 // the offline banner while the server was unreachable).
 export const LOCAL_COMMANDS = new Set([
     'get_update_status',
+    'library_local_available',
     'library_list',
     'library_scan',
     'library_launch',
@@ -43,6 +44,12 @@ export const LOCAL_COMMANDS = new Set([
     'get_download_dir',
     'games_state',
 ]);
+
+// After "Abmelden" there is no session left to lose: a request that was still on its way (a poll
+// of the Jetzt feed) fails with an auth error, and that must not throw the signed-out library
+// back to the connect screen with "Sitzung abgelaufen".
+export const ignoresAuthLoss = (status) =>
+    Boolean(status) && status.state === 'signed_out';
 
 // True when a successful answer to `cmd` shows the server is reachable.
 export const provesOnline = (cmd) => !LOCAL_COMMANDS.has(cmd);

@@ -145,8 +145,10 @@ function paintOffline() {
 }
 
 async function probeLocal() {
-    const r = await call('games_state');
-    localScan = r.ok && Boolean(r.value) && r.value.local === true;
+    // Local only: asking the server here would raise "session lost" for an expired token and
+    // hide the offer from exactly the people who need it.
+    const r = await call('library_local_available');
+    localScan = r.ok && r.value === true;
     paintOffline();
 }
 
