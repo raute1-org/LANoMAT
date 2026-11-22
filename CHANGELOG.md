@@ -17,7 +17,6 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Changed
 
-- Docs: coding-agent VM on the venue Proxmox (`docs/infra/agents-vm.md`); `ops/vm-session/bootstrap.sh` no longer installs `software-properties-common`, which does not exist on Debian 13
 - Docs/spike: all-in-one client phase 0 (decision record, workspace-merge and deep-link spike, download-engine comparison, recipe inventory); spike code in `clients/voice` is not for production
 ### Added
 
