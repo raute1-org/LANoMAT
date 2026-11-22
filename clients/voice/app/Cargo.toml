@@ -15,6 +15,11 @@ path = "src/main.rs"
 
 [dependencies]
 voice-core = { path = "../voice-core", features = ["cpal-audio"] }
+# SPIKE (all-in-one client, phase 0): launcher-core joins the workspace; the app only uses its
+# `types::is_allowed_join_url` for the lanomat:// parser so far.
+launcher-core = { path = "../launcher-core" }
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-global-shortcut = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "signal"] }

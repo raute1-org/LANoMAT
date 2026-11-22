@@ -15,6 +15,9 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ## 2026-11-22
 
+### Changed
+
+- Docs/spike: all-in-one client phase 0 (decision record, workspace-merge and deep-link spike, download-engine comparison, recipe inventory); spike code in `clients/voice` is not for production
 ### Added
 
 - Native client API: `GET /api/voice-client/v1/recipes`, `recipes/{slug}` and `recipes/{slug}/plan` give the voice token the game library and the install plan (published recipes only, exact slug, GameRecipes module gated); the plan carries `plan_version` and signed file-host links minted through the file policy (`InstallPlanUrls` strategy: the agent API keeps `mcp.files.download`); `GET config` reports `features.launcher`. `api_version` stays 1

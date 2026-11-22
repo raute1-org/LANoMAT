@@ -1,12 +1,12 @@
 # Reproducible build and test environment for the native voice client.
-# Stages (base image pinned to rust:1.91-bookworm):
+# Stages (base image pinned to rust:1.96-bookworm; libmkiso, used by launcher-core, needs rustc 1.96):
 #   core  CLI and library:  docker build --target core -t lanomat-voice-dev -f Dockerfile.dev .
 #   app   + Tauri desktop shell and the headless smoke tools:
 #                           docker build --target app -t lanomat-voice-app-dev -f Dockerfile.dev .
 #
 # The prebuilt libwebrtc that the LiveKit SDK links needs clang 21 or newer (its hermetic
 # libc++ check fails with Debian bookworm's clang 14), so clang comes from apt.llvm.org.
-FROM rust:1.91-bookworm AS core
+FROM rust:1.96-bookworm AS core
 
 ARG LLVM_VERSION=21
 
