@@ -3,6 +3,7 @@
 import * as connect from './connect.js';
 import * as food from './food.js';
 import * as games from './games.js';
+import { singleFlightRetry } from './link.js';
 import * as more from './more.js';
 import {
     buildTabs,
@@ -27,6 +28,22 @@ import * as voice from './voice.js';
 
 let setupDone = false;
 let authBusy = false;
+
+// Setting up after a (re)connect: never twice at once, and while the server stays unreachable
+// it tries again with growing pauses instead of in a tight loop.
+const resume = singleFlightRetry(async () => {
+    if (!state.status || state.status.state === 'signed_out' || authBusy) {
+        return;
+    }
+
+    await afterConnect({ fresh: false });
+
+    if (setupDone) {
+        resume.reset();
+    } else {
+        resume.retryLater();
+    }
+});
 
 function init() {
     initHeader();
@@ -95,7 +112,7 @@ function init() {
         setOnline(true);
 
         if (!setupDone && state.status && state.status.state !== 'signed_out') {
-            await afterConnect({ fresh: false });
+            await resume.kick();
         } else if (setupDone) {
             now.refresh();
         }
@@ -123,6 +140,7 @@ function authLost(error) {
 
     authBusy = true;
     setupDone = false;
+    resume.reset();
     update.stop();
     resetNav();
     connect.open({
@@ -146,6 +164,7 @@ async function logout() {
     state.view = null;
     state.status = { ...state.status, state: 'signed_out' };
     setupDone = false;
+    resume.reset();
     update.stop();
     resetNav();
     connect.open({ url: state.status.server_url });
@@ -216,7 +235,7 @@ async function boot() {
     state.status = status;
 
     if (status.state === 'connected' || status.state === 'unreachable') {
-        await afterConnect({ fresh: false });
+        await resume.kick();
 
         // Only a real connection failure is "offline": a 503 is the server being busy.
         if (status.state === 'unreachable' && !state.online) {
