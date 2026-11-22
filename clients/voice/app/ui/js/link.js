@@ -7,6 +7,11 @@
 // the offline banner while the server was unreachable).
 export const LOCAL_COMMANDS = new Set([
     'get_update_status',
+    'library_local_available',
+    'library_list',
+    'library_scan',
+    'library_launch',
+    'library_open_store',
     'get_status',
     'connect_cancel',
     'set_talking',
@@ -39,6 +44,23 @@ export const LOCAL_COMMANDS = new Set([
     'get_download_dir',
     'games_state',
 ]);
+
+// After "Abmelden" there is no session left to lose: a request that was still on its way (a poll
+// of the Jetzt feed) fails with an auth error, and that must not throw the signed-out library
+// back to the connect screen with "Sitzung abgelaufen". The same holds in the signed-out library
+// mode ("Meine Spiele ohne Anmeldung"), also for an expired token whose credentials are still
+// stored: the server part of the library may answer 401 there, and that is not news.
+export const ignoresAuthLoss = (status, offlineMode = false) =>
+    offlineMode === true || (Boolean(status) && status.state === 'signed_out');
+
+// Where the setup after a reconnect lands. Every retry of the setup ends by showing a screen; a
+// retry must not pull the person away from the tab they opened meanwhile. While setup still fails
+// (`setupDone` false) the open screen is left alone; once it works the same screen is shown again
+// so its data reloads. No tab open yet: Jetzt. (`go` falls back to Jetzt for a hidden tab.)
+export const resumeTab = (current, setupDone) => ({
+    tab: current || 'jetzt',
+    force: Boolean(current) && setupDone === true,
+});
 
 // True when a successful answer to `cmd` shows the server is reachable.
 export const provesOnline = (cmd) => !LOCAL_COMMANDS.has(cmd);

@@ -284,6 +284,69 @@ class GameRecipe extends Model
         return $targets[0]['command'] ?? null;
     }
 
+    /**
+     * The store ids the native client matches installed games on. `metadata.store_ids`
+     * is authoritative per store; a missing `steam` id falls back to a steam launch
+     * target whose target is plain digits (`metadata.launch`, else the first steam
+     * entry of `metadata.launch_targets`). Only the four known keys are ever returned.
+     *
+     * @return array{steam?: string, epic?: string, gog?: string, ubisoft?: string}
+     */
+    public function storeIds(): array
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $declared = is_array($metadata['store_ids'] ?? null) ? $metadata['store_ids'] : [];
+
+        $ids = [];
+
+        foreach (['epic', 'gog', 'ubisoft', 'steam'] as $store) {
+            $value = $declared[$store] ?? null;
+
+            if (is_string($value) && trim($value) !== '') {
+                $ids[$store] = trim($value);
+            }
+        }
+
+        if (! isset($ids['steam'])) {
+            $steam = $this->steamLaunchAppId($metadata);
+
+            if ($steam !== null) {
+                $ids['steam'] = $steam;
+            }
+        }
+
+        return [
+            ...(isset($ids['steam']) ? ['steam' => $ids['steam']] : []),
+            ...(isset($ids['epic']) ? ['epic' => $ids['epic']] : []),
+            ...(isset($ids['gog']) ? ['gog' => $ids['gog']] : []),
+            ...(isset($ids['ubisoft']) ? ['ubisoft' => $ids['ubisoft']] : []),
+        ];
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function steamLaunchAppId(array $metadata): ?string
+    {
+        $candidates = [$metadata['launch'] ?? null];
+
+        foreach ((array) ($metadata['launch_targets'] ?? []) as $entry) {
+            $candidates[] = $entry;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate) || ($candidate['kind'] ?? null) !== 'steam') {
+                continue;
+            }
+
+            $target = is_string($candidate['target'] ?? null) ? trim($candidate['target']) : '';
+
+            if (preg_match('/^[0-9]{1,10}$/D', $target) === 1) {
+                return $target;
+            }
+        }
+
+        return null;
+    }
+
     /** Flatten the string or `{kind, target, args}` form into one command. */
     private function launchCommandFrom(mixed $launch): ?string
     {

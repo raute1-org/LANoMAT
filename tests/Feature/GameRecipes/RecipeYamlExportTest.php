@@ -523,6 +523,29 @@ it('exports a contributed draft that re-parses and carries no instance data', fu
     File::deleteDirectory($dir);
 });
 
+it('exports valid store ids and drops invalid or unknown ones', function () {
+    $user = User::factory()->create();
+    $recipe = GameRecipe::factory()->contributedBy($user)->portable('lan-test-racer.zip', 'LanTestRacer.exe')->create([
+        'slug' => 'store-id-export',
+        'title' => 'Store Id Export',
+    ]);
+    $recipe->update(['metadata' => [
+        ...(array) $recipe->metadata,
+        'store_ids' => ['steam' => '10', 'epic' => 'Kinglet', 'gog' => '12x', 'origin' => '1', 'ubisoft' => 4],
+    ]]);
+
+    $data = Yaml::parse(app(RecipeYamlExporter::class)->export($recipe->fresh())['yaml']);
+
+    expect($data['metadata']['store_ids'])->toBe(['steam' => '10', 'epic' => 'Kinglet']);
+    app(RecipeValidator::class)->validate($data, 'exported');
+
+    // Nothing valid left: the key is omitted, not written empty.
+    $recipe->update(['metadata' => [...(array) $recipe->metadata, 'store_ids' => ['gog' => 'x']]]);
+    $data = Yaml::parse(app(RecipeYamlExporter::class)->export($recipe->fresh())['yaml']);
+
+    expect($data['metadata'])->not->toHaveKey('store_ids');
+});
+
 it('exports a factory-contributed portable draft and honours honest defaults', function () {
     $user = User::factory()->create();
     $recipe = GameRecipe::factory()->contributedBy($user)->portable('lan-test-racer.zip', 'LanTestRacer.exe')->create([

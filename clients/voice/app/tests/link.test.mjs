@@ -10,9 +10,8 @@ const dir = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '../ui/js',
 );
-const { provesOnline, singleFlightRetry } = await import(
-    path.join(dir, 'link.js')
-);
+const { ignoresAuthLoss, provesOnline, resumeTab, singleFlightRetry } =
+    await import(path.join(dir, 'link.js'));
 
 test('local commands do not prove the server is reachable', () => {
     for (const cmd of [
@@ -21,6 +20,13 @@ test('local commands do not prove the server is reachable', () => {
         'get_room_view',
         'load_settings',
         'take_notification_target',
+        // The store library never needs the server: its success must not flip the header.
+        'library_local_available',
+        'library_list',
+        'library_scan',
+        'library_launch',
+        'library_open_store',
+        'games_state',
     ]) {
         assert.equal(provesOnline(cmd), false, cmd);
     }
@@ -35,6 +41,31 @@ test('server commands prove the server is reachable', () => {
     ]) {
         assert.equal(provesOnline(cmd), true, cmd);
     }
+});
+
+test('a lost session is ignored while signed out', () => {
+    assert.equal(ignoresAuthLoss({ state: 'signed_out' }), true);
+    // The signed-out library mode ignores it for any status, an expired token included.
+    assert.equal(ignoresAuthLoss({ state: 'expired' }, true), true);
+    assert.equal(ignoresAuthLoss(null, true), true);
+    for (const st of [
+        null,
+        undefined,
+        { state: 'connected' },
+        { state: 'expired' },
+    ]) {
+        assert.equal(ignoresAuthLoss(st), false);
+    }
+});
+
+test('a reconnect retry keeps the open tab', () => {
+    assert.deepEqual(resumeTab(null, false), { tab: 'jetzt', force: false });
+    assert.deepEqual(resumeTab(null, true), { tab: 'jetzt', force: false });
+    assert.deepEqual(resumeTab('spiele', false), {
+        tab: 'spiele',
+        force: false,
+    });
+    assert.deepEqual(resumeTab('spiele', true), { tab: 'spiele', force: true });
 });
 
 test('a running task is not started a second time', async () => {

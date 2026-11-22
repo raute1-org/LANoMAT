@@ -21,8 +21,17 @@ const TAB_MODULES = {
 };
 
 const screens = new Map();
+// Signed out with only the local library open ("Meine Spiele ohne Anmeldung"): no tab bar, no
+// account header, the way back is the "Anmelden" button in the Spiele header.
+let offline = false;
 const badges = Object.fromEntries(TAB_IDS.map((t) => [t, 0]));
 let current = null;
+
+export const offlineMode = () => offline;
+
+export function setOfflineMode(on) {
+    offline = Boolean(on);
+}
 
 export const moduleOn = (key) => state.config.modules[key] !== false;
 
@@ -55,12 +64,13 @@ export function showScreen(name) {
     }
 
     $('screen-boot').setAttribute('aria-busy', String(name === 'boot'));
-    const signedIn = TAB_IDS.includes(name);
+    const signedIn = TAB_IDS.includes(name) && !offline;
     $('tabs').hidden = !signedIn;
     $('who').hidden = !signedIn;
     $('quiet').hidden = !signedIn;
 
     if (!signedIn) {
+        // `offline` also covers the Spiele screen of the signed-out mode.
         $('dock').hidden = true;
         $('offline-banner').hidden = true;
     }

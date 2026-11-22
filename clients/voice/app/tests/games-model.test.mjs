@@ -38,10 +38,39 @@ const mock = (map) => async (cmd) => {
     return typeof v === 'function' ? v() : v;
 };
 
-test('library: each disabled reason has its own text', async () => {
+const sg = (o = {}) => ({
+    key: 'steam:10',
+    store: 'steam',
+    store_id: '10',
+    title: 'Counter-Strike',
+    status: 'ready',
+    install_path: 'C:\\Games\\Steam\\steamapps\\common\\cs',
+    ...o,
+});
+const entry = (o = {}) => ({
+    key: 'steam:10',
+    title: 'Counter-Strike',
+    recipe: null,
+    store_games: [sg()],
+    primary: 'play',
+    ...o,
+});
+const lib = (entries, o = {}) => ({
+    entries,
+    sources: [
+        { store: 'steam', present: true, found: entries.length, skipped: 0 },
+    ],
+    recipes_reason: null,
+    scanned_at: '2026-11-22T10:00:00Z',
+    ...o,
+});
+
+test('library: each disabled reason has its own text (no local scan)', async () => {
     for (const reason of ['module_off', 'server_too_old', 'not_paired']) {
         const r = await m.loadLibrary(
-            mock({ games_state: ok({ enabled: false, reason }) }),
+            mock({
+                games_state: ok({ enabled: false, reason, local: false }),
+            }),
         );
         assert.equal(r.phase, 'disabled');
         assert.equal(r.info.reason, reason);
@@ -54,32 +83,131 @@ test('library: each disabled reason has its own text', async () => {
     assert.equal(odd.info.reason, 'other');
 });
 
-test('library: empty, normal and a failing list', async () => {
-    const on = ok({ enabled: true, reason: null });
-    assert.equal(
-        (
-            await m.loadLibrary(
-                mock({ games_state: on, games_list: ok(list([])) }),
-            )
-        ).phase,
-        'empty',
-    );
+test('library: signed out with a local scan lists the games and a one-line note', async () => {
     const r = await m.loadLibrary(
-        mock({ games_state: on, games_list: ok(list([recipe()])) }),
+        mock({
+            games_state: ok({
+                enabled: false,
+                reason: 'not_paired',
+                local: true,
+            }),
+            library_list: ok(lib([entry()], { recipes_reason: 'not_paired' })),
+        }),
     );
     assert.equal(r.phase, 'ready');
-    assert.equal(r.recipes.length, 1);
-    assert.equal(r.fetchedAt, '2026-11-22T10:00:00Z');
+    assert.equal(r.entries.length, 1);
+    assert.equal(r.recipesNote, S.games.recipesNote.not_paired);
+});
+
+test('library: empty, normal and a failing list', async () => {
+    const on = ok({ enabled: true, reason: null, local: true });
+    const e0 = await m.loadLibrary(
+        mock({ games_state: on, library_list: ok(lib([])) }),
+    );
+    assert.equal(e0.phase, 'empty');
+    assert.equal(e0.sources.length, 1);
+    const r = await m.loadLibrary(
+        mock({ games_state: on, library_list: ok(lib([entry()])) }),
+    );
+    assert.equal(r.phase, 'ready');
+    assert.equal(r.recipesNote, null);
+    assert.equal(r.scannedAt, '2026-11-22T10:00:00Z');
     const e = await m.loadLibrary(
         mock({
             games_state: on,
-            games_list: fail({ message: 'server_error: 500' }),
+            library_list: fail({ message: 'server_error: 500' }),
         }),
     );
     assert.equal(e.phase, 'error');
     assert.equal(e.error.code, 'server_error');
     assert.equal(e.error.text, S.games.errors.server_error);
     assert.equal(e.error.retryable, true);
+});
+
+test('normalizeLibrary drops keyless entries and unknown primaries become none', () => {
+    const n = m.normalizeLibrary(
+        lib([
+            entry({ primary: 'format_disk' }),
+            { title: 'no key', store_games: [] },
+            entry({ key: 'gog:5', store_games: [sg({ key: '' })] }),
+        ]),
+    );
+    assert.equal(n.entries.length, 2);
+    assert.equal(n.entries[0].primary, 'none');
+    assert.equal(n.entries[1].storeGames.length, 0);
+    assert.deepEqual(m.normalizeLibrary(null).entries, []);
+});
+
+test('entryCardModel: store badges in a fixed order, primary label, launch key', () => {
+    const e = m.normalizeLibrary(
+        lib([
+            entry({
+                key: 'recipe:hl',
+                recipe: recipe({ slug: 'hl', title: 'Half-Life' }),
+                store_games: [
+                    sg({ key: 'ubisoft:1', store: 'ubisoft', status: 'ready' }),
+                    sg({ key: 'steam:10', store: 'steam', status: 'broken' }),
+                    sg({ key: 'epic:Ab', store: 'epic', status: 'ready' }),
+                ],
+            }),
+        ]),
+    ).entries[0];
+    const c = m.entryCardModel(e);
+    assert.deepEqual(
+        c.badges.map((b) => b.store),
+        ['steam', 'epic', 'ubisoft'],
+    );
+    assert.equal(c.primary.id, 'play');
+    assert.equal(c.primary.label, S.games.actions.play);
+    assert.equal(c.launchKey, 'epic:Ab');
+    assert.equal(c.status.id, 'ready');
+    assert.ok(c.recipe);
+    const shop = m.entryCardModel(
+        m.normalizeLibrary(
+            lib([entry({ primary: 'open_store', store_games: [] })]),
+        ).entries[0],
+    );
+    assert.equal(shop.primary.label, S.games.actions.openStore);
+    assert.equal(shop.launchKey, null);
+    assert.equal(shop.status, null);
+});
+
+test('filterEntries by source, query and ready; sortEntries lineup first', () => {
+    const es = m.normalizeLibrary(
+        lib([
+            entry(),
+            entry({
+                key: 'epic:A',
+                title: 'Alpha',
+                store_games: [sg({ key: 'epic:A', store: 'epic' })],
+            }),
+            entry({
+                key: 'recipe:ut',
+                title: 'Unreal',
+                recipe: recipe({ in_lineup: true, title: 'Unreal' }),
+                store_games: [],
+                primary: 'install_recipe',
+            }),
+        ]),
+    ).entries;
+    const f = (o) => m.filterEntries(es, o).map((e) => e.key);
+    assert.deepEqual(f({ source: 'steam' }), ['steam:10']);
+    assert.deepEqual(f({ source: 'lan' }), ['recipe:ut']);
+    assert.deepEqual(f({ source: 'all' }).length, 3);
+    assert.deepEqual(f({ query: 'alp' }), ['epic:A']);
+    assert.deepEqual(f({ filter: 'ready' }), ['steam:10', 'epic:A']);
+    assert.deepEqual(
+        m.sortEntries(es).map((e) => e.key),
+        ['recipe:ut', 'epic:A', 'steam:10'],
+    );
+    assert.deepEqual(m.SOURCES, [
+        'all',
+        'steam',
+        'epic',
+        'gog',
+        'ubisoft',
+        'lan',
+    ]);
 });
 
 test('errors: codes from a string, unknown stays generic, never raw text', () => {
@@ -98,12 +226,137 @@ test('errors: codes from a string, unknown stays generic, never raw text', () =>
     assert.equal(m.errorInfo({ raw: 'offline' }).retryable, true);
 });
 
-test('state errors surface as an error phase', async () => {
+test('a paired client with the server down still lists the local games', async () => {
+    // games_state fails for a reason that is not the session: the local list is still asked for.
     const r = await m.loadLibrary(
-        mock({ games_state: fail({ message: 'offline' }) }),
+        mock({
+            games_state: fail({ kind: 'network', message: 'offline' }),
+            library_list: ok(lib([entry()], { recipes_reason: 'offline' })),
+        }),
+    );
+    assert.equal(r.phase, 'ready');
+    assert.equal(r.entries.length, 1);
+    assert.equal(r.recipesNote, S.games.recipesNote.offline);
+});
+
+test('signed-out mode never asks the server for the state', async () => {
+    const asked = [];
+    const call = async (cmd) => {
+        asked.push(cmd);
+
+        return cmd === 'library_scan'
+            ? ok(lib([entry()], { recipes_reason: 'not_paired' }))
+            : fail({ kind: 'auth', message: 'not_paired' });
+    };
+    const r = await m.loadLibrary(call, { rescan: true, offline: true });
+    assert.deepEqual(asked, ['library_scan']);
+    assert.equal(r.phase, 'ready');
+    assert.equal(r.recipesNote, S.games.recipesNote.not_paired);
+    asked.length = 0;
+    await m.loadLibrary(call, { offline: true });
+    assert.deepEqual(asked, ['library_list']);
+});
+
+test('a rejected session is an error, the library is not asked for', async () => {
+    let asked = false;
+    const r = await m.loadLibrary(
+        mock({
+            games_state: fail({ kind: 'auth', message: 'not_paired' }),
+            library_list: () => {
+                asked = true;
+
+                return ok(lib([entry()]));
+            },
+        }),
+    );
+    assert.equal(r.phase, 'error');
+    assert.equal(asked, false);
+});
+
+test('without a state and without any local source the state error is shown', async () => {
+    const r = await m.loadLibrary(
+        mock({
+            games_state: fail({ kind: 'network', message: 'offline' }),
+            library_list: ok(
+                lib([], {
+                    recipes_reason: 'offline',
+                    sources: [
+                        {
+                            store: 'steam',
+                            present: false,
+                            found: 0,
+                            skipped: 0,
+                        },
+                    ],
+                }),
+            ),
+        }),
     );
     assert.equal(r.phase, 'error');
     assert.equal(r.error.code, 'offline');
+    const both = await m.loadLibrary(
+        mock({
+            games_state: fail({ kind: 'network', message: 'offline' }),
+            library_list: fail({ message: 'server_error' }),
+        }),
+    );
+    assert.equal(both.phase, 'error');
+});
+
+test('a platform without a local scan shows the recipes reason, not an empty scan', async () => {
+    const off = ok({ enabled: false, reason: 'offline', local: false });
+    const r = await m.loadLibrary(
+        mock({
+            games_state: off,
+            library_list: ok(
+                lib([], { recipes_reason: 'offline', sources: [] }),
+            ),
+        }),
+    );
+    assert.equal(r.phase, 'error');
+    assert.equal(r.error.code, 'offline');
+    // Nothing listed and no reason: an empty library without the PC's source lines.
+    const on = ok({ enabled: true, reason: null, local: false });
+    const e = await m.loadLibrary(
+        mock({ games_state: on, library_list: ok(lib([], { sources: [] })) }),
+    );
+    assert.equal(e.phase, 'empty');
+    assert.equal(e.local, false);
+    const w = await m.loadLibrary(
+        mock({
+            games_state: ok({ enabled: true, reason: null, local: true }),
+            library_list: ok(lib([])),
+        }),
+    );
+    assert.equal(w.local, true);
+});
+
+test('the Spiele tab is wanted when the PC can scan, even with the module off', () => {
+    assert.equal(
+        m.gamesTabWanted({ enabled: false, reason: 'module_off', local: true }),
+        true,
+    );
+    assert.equal(
+        m.gamesTabWanted({
+            enabled: false,
+            reason: 'module_off',
+            local: false,
+        }),
+        false,
+    );
+    assert.equal(
+        m.gamesTabWanted({ enabled: true, reason: null, local: false }),
+        true,
+    );
+    assert.equal(
+        m.gamesTabWanted({
+            enabled: false,
+            reason: 'not_paired',
+            local: false,
+        }),
+        true,
+    );
+    assert.equal(m.gamesTabWanted(null), false);
 });
 
 test('normalising is defensive: nulls mean unknown', () => {
@@ -127,11 +380,6 @@ test('normalising is defensive: nulls mean unknown', () => {
     assert.equal(
         m.normalizeRecipe({ slug: 's', cover_url: 'https://x/y.png' }).coverUrl,
         'https://x/y.png',
-    );
-    assert.deepEqual(m.normalizeList(null).recipes, []);
-    assert.equal(
-        m.normalizeList({ recipes: [{ title: 'no slug' }] }).recipes.length,
-        0,
     );
 });
 
@@ -175,53 +423,11 @@ test('cards: a label and a tone for every availability and local status', () => 
     assert.equal(m.installableLabel(null), S.games.installable.unknown);
 });
 
-const sample = () =>
-    [
-        recipe({ slug: 'b', title: 'Beta', genre: 'Rennen', in_lineup: false }),
-        recipe({
-            slug: 'a',
-            title: 'Äther',
-            genre: 'Shooter',
-            in_lineup: false,
-            local: { status: 'ready' },
-        }),
-        recipe({
-            slug: 'c',
-            title: 'Charlie',
-            genre: 'Shooter',
-            in_lineup: true,
-            availability: 'missing',
-            installable: false,
-        }),
-        recipe({
-            slug: 'd',
-            title: 'Delta',
-            genre: '',
-            in_lineup: true,
-            installable: null,
-            availability: 'unknown',
-        }),
-    ].map(m.normalizeRecipe);
-
-test('sorting puts the lineup first, then titles with German collation', () => {
-    assert.deepEqual(
-        m.sortRecipes(sample()).map((r) => r.slug),
-        ['c', 'd', 'a', 'b'],
+test('genres of the entries are unique and sorted', () => {
+    const rs = ['Shooter', 'Rennen', '', 'Shooter'].map((genre, i) =>
+        m.normalizeRecipe(recipe({ slug: `r${i}`, genre })),
     );
-});
-
-test('filtering: search, genre, ready and installable', () => {
-    const all = sample();
-    const slugs = (f) => m.filterRecipes(all, f).map((r) => r.slug);
-    assert.deepEqual(slugs({}), ['b', 'a', 'c', 'd']);
-    assert.deepEqual(slugs({ query: 'äth' }), ['a']);
-    assert.deepEqual(slugs({ query: '  CHAR ' }), ['c']);
-    assert.deepEqual(slugs({ genre: 'Shooter' }), ['a', 'c']);
-    assert.deepEqual(slugs({ only: 'ready' }), ['a']);
-    // installable: files on the LAN host, installable, not yet ready; null is not "yes"
-    assert.deepEqual(slugs({ only: 'installable' }), ['b']);
-    assert.deepEqual(slugs({ query: 'nix' }), []);
-    assert.deepEqual(m.genresOf(all), ['Rennen', 'Shooter']);
+    assert.deepEqual(m.genresOf(rs), ['Rennen', 'Shooter']);
 });
 
 test('detail: with a plan, missing files flagged', async () => {

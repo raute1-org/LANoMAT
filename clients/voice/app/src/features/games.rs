@@ -16,13 +16,35 @@ use serde::Serialize;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use voice_core::api::{
-    current_os, ApiClient, Availability, RecipeDetail, RecipePlan, RecipeSummary,
+    current_os, ApiClient, Availability, RecipeDetail, RecipePlan, RecipeSummary, StoreIds,
 };
 use voice_core::Error;
 
 use super::{lock, Features};
 use crate::engine::UiError;
 use crate::installs::LocalView;
+
+/// The store scan reads the Windows registry and the stores' folders; stage 1 has no other OS.
+const LOCAL_SCAN_PLATFORM: bool = cfg!(windows);
+
+/// Whether this build can scan: Windows, or a debug build run with a scan fixture (screenshots).
+pub(super) fn local_scan() -> bool {
+    LOCAL_SCAN_PLATFORM || super::library::fixture_scan().is_some()
+}
+
+impl Features {
+    /// Test seam: how many plan answers the cache holds.
+    #[cfg(test)]
+    pub(super) fn plans_cached(&self) -> usize {
+        lock(&self.games).plans.len()
+    }
+}
+
+/// Whether this build can scan the PC for store games. Local only: no pairing, no network.
+#[must_use]
+pub fn local_scan_available() -> bool {
+    local_scan()
+}
 
 /// Plan requests per minute this client allows itself (the server's limit is 30 per token).
 const PLAN_BUDGET_PER_MINUTE: usize = 24;
@@ -47,8 +69,11 @@ pub mod code {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GamesState {
     pub enabled: bool,
-    /// `module_off`, `server_too_old` or `not_paired`; `null` while enabled.
+    /// `module_off`, `server_too_old`, `not_paired`, `offline` or `server_error`; `null` while
+    /// enabled.
     pub reason: Option<&'static str>,
+    /// This build can scan the PC for store games (stage 1: Windows only).
+    pub local: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -66,6 +91,7 @@ pub struct GameView {
     pub in_lineup: bool,
     pub availability: Availability,
     pub local: LocalView,
+    pub store_ids: StoreIds,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -122,10 +148,14 @@ pub(super) struct GamesCache {
     plans: HashMap<String, PlanEntry>,
     /// When the plan requests of the last minute were made.
     requests: VecDeque<Instant>,
+    /// Bumped by `clear` (logout, another account): a plan lookup that started before it must
+    /// not write its answer into the new account's cache.
+    generation: u64,
 }
 
 impl GamesCache {
     pub(super) fn clear(&mut self) {
+        self.generation += 1;
         self.plans.clear();
         self.requests.clear();
     }
@@ -170,7 +200,7 @@ fn wants_plan(r: &RecipeSummary) -> bool {
     r.installable != Some(false) && r.launcher_supported != Some(false) && r.play_url.is_none()
 }
 
-fn now_rfc3339() -> String {
+pub(super) fn now_rfc3339() -> String {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .unwrap_or_default()
@@ -217,6 +247,7 @@ impl Features {
             in_lineup: r.in_lineup.unwrap_or(true),
             availability,
             local: self.installs.local(&r.slug),
+            store_ids: r.store_ids.clone(),
         }
     }
 
@@ -226,32 +257,79 @@ impl Features {
             return Ok(GamesState {
                 enabled: false,
                 reason: Some("not_paired"),
+                local: local_scan(),
             });
         };
-        let config = api.config().await.map_err(|e| self.games_error(e, false))?;
+        // A server that drops packets must not hold the tab for the client's 10-20 s timeouts.
+        let bound = self.library_env().recipe_timeout;
+        let config = match tokio::time::timeout(bound, api.config()).await {
+            Err(_) => {
+                return Ok(GamesState {
+                    enabled: false,
+                    reason: Some("offline"),
+                    local: local_scan(),
+                });
+            }
+            Ok(Ok(config)) => config,
+            // A rejected token is the session's problem (and every window is told); anything
+            // else only means the library has no server today: the local part still works.
+            Ok(Err(e @ (Error::NotLoggedIn | Error::Unauthorized))) => {
+                return Err(self.games_error(e, false));
+            }
+            Ok(Err(e)) => {
+                let reason = if matches!(e, Error::Network(_)) {
+                    "offline"
+                } else {
+                    "server_error"
+                };
+                return Ok(GamesState {
+                    enabled: false,
+                    reason: Some(reason),
+                    local: local_scan(),
+                });
+            }
+        };
 
         Ok(match config.launcher_feature() {
             Some(true) => GamesState {
                 enabled: true,
                 reason: None,
+                local: local_scan(),
             },
             Some(false) => GamesState {
                 enabled: false,
                 reason: Some("module_off"),
+                local: local_scan(),
             },
             None => GamesState {
                 enabled: false,
                 reason: Some("server_too_old"),
+                local: local_scan(),
             },
         })
     }
 
     /// The catalogue with availability and local state, in the server's order.
     pub async fn games_list(&self) -> Result<GamesList, UiError> {
+        self.games_list_with(true).await
+    }
+
+    /// How the library asks: only the recipe list is awaited. The plan lookups run detached
+    /// (`spawn_plan_fill`), so slow ones neither hold the list back nor are cut off by its time
+    /// bound; the next list shows what they found.
+    pub(super) async fn games_list_detached(&self) -> Result<GamesList, UiError> {
+        self.games_list_with(false).await
+    }
+
+    async fn games_list_with(&self, inline_fill: bool) -> Result<GamesList, UiError> {
         let api = self.games_api()?;
         let recipes = api.recipes().await.map_err(|e| self.games_error(e, true))?;
 
-        self.fill_plan_cache(&api, &recipes).await;
+        if inline_fill {
+            self.fill_plan_cache(&api, &recipes).await;
+        } else {
+            self.spawn_plan_fill(api, recipes.clone());
+        }
 
         let now = Instant::now();
         let cache = lock(&self.games);
@@ -271,9 +349,46 @@ impl Features {
         })
     }
 
+    /// Starts the plan fill in the background, unless one is already running. Same budget and
+    /// parallelism as the inline fill.
+    fn spawn_plan_fill(&self, api: ApiClient, recipes: Vec<RecipeSummary>) {
+        let Some(this) = self.this.upgrade() else {
+            return;
+        };
+        // The running fill is tracked by generation (+1, 0 = none): after a logout the new
+        // account's first fill must not be blocked by the old one still winding down.
+        let generation = lock(&this.games).generation + 1;
+        let running = &this.plan_fill_running;
+        let previous = running.load(Ordering::SeqCst);
+        if previous == generation
+            || running
+                .compare_exchange(previous, generation, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+        {
+            return;
+        }
+        // Cleared on every way out of the task, a panic included, unless a newer generation has
+        // taken the slot meanwhile.
+        struct Running(Arc<Features>, u64);
+        impl Drop for Running {
+            fn drop(&mut self) {
+                let _ = self.0.plan_fill_running.compare_exchange(
+                    self.1,
+                    0,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
+            }
+        }
+        tokio::spawn(async move {
+            let _running = Running(this.clone(), generation);
+            this.fill_plan_cache(&api, &recipes).await;
+        });
+    }
+
     /// Looks up the plans (`dry_run=1`) of recipes that have no fresh answer, within the budget.
     async fn fill_plan_cache(&self, api: &ApiClient, recipes: &[RecipeSummary]) {
-        let wanted: Vec<String> = {
+        let (generation, wanted): (u64, Vec<String>) = {
             let now = Instant::now();
             let mut cache = lock(&self.games);
             let budget = cache.budget(now);
@@ -287,7 +402,7 @@ impl Features {
             for _ in &wanted {
                 cache.requests.push_back(now);
             }
-            wanted
+            (cache.generation, wanted)
         };
         if wanted.is_empty() {
             return;
@@ -333,7 +448,11 @@ impl Features {
                     availability: Availability::Unknown,
                 },
             };
-            lock(&self.games).plans.insert(slug, entry);
+            let mut cache = lock(&self.games);
+            // The account changed while this lookup ran: its answer is not for this cache.
+            if cache.generation == generation {
+                cache.plans.insert(slug, entry);
+            }
         }
     }
 

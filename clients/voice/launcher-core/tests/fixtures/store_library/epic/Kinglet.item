@@ -1,0 +1,9 @@
+{
+  "FormatVersion": 0,
+  "bIsIncompleteInstall": false,
+  "AppName": "Kinglet",
+  "DisplayName": "Example Game",
+  "CatalogNamespace": "ns1",
+  "CatalogItemId": "item1",
+  "InstallLocation": "D:\\Games\\Example Game"
+}

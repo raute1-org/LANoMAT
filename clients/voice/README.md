@@ -521,6 +521,51 @@ dc sh app/tests/smoke-features.sh                         # Xvfb, stand-in, app;
 
 It needs no LiveKit server. The feature is for tests only and is never part of a release build.
 
+## Store library (Windows, stage 1)
+
+The "Spiele" tab lists the games installed on this PC through Steam, Epic, GOG and Ubisoft, next to
+the LAN's recipe games. The scan is read-only and local: nothing about the library leaves the PC, and
+the client never asks for or stores a store login or token. Pure readers sit behind a `Registry` and a
+`FileSystem` trait (`launcher-core/src/store_library/`), so a malformed entry is skipped and counted
+(`sources[].skipped`), never a crash or an error for the whole scan. On other platforms the scan finds
+nothing.
+
+| Source | Where it reads (Windows) | Reads |
+|---|---|---|
+| Steam | `SteamPath` under `HKCU\Software\Valve\Steam` (fallback `HKLM\SOFTWARE\WOW6432Node\Valve\Steam\InstallPath`), then `steamapps/libraryfolders.vdf` and each library's `appmanifest_<appid>.acf` | app id, name, install dir, state. A library folder that no longer exists (removed drive) is skipped, the others still list; the same app id in two libraries is listed once |
+| Epic | `%ProgramData%\Epic\EpicGamesLauncher\Data\Manifests\*.item` (JSON) | `AppName`, namespace, catalog item id, display name, install location |
+| GOG | `HKLM\SOFTWARE\WOW6432Node\GOG.com\Games\<id>` | game id, name, path, exe |
+| Ubisoft | `HKLM\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs\<id>` | install id and install dir; the name comes from the folder |
+
+A game whose folder is gone shows as `broken` ("defekt"), it is not hidden. The library key is
+`<store>:<store_id>`. A recipe and a store game belong together only through explicit ids: the recipe's
+`metadata.store_ids` (or a `steam` launch target with an app id), never through the title.
+
+**Handoffs.** Starting goes through each store's own URL, built and validated per store:
+
+- Steam: `steam://rungameid/<appid>` (digits only); the store page `steam://store/<appid>` is the only store page in this version.
+- Epic: `com.epicgames.launcher://apps/<namespace>%3A<catalogItemId>%3A<appName>?action=launch&silent=true`.
+- GOG: `goggalaxy://openGameView/<id>` when GOG Galaxy is registered (this opens the game's view in Galaxy, where one more click starts it: the handoff the spec fixes, `GalaxyClient.exe /command=runGame` is not used); without Galaxy the registered `.exe` is started directly, with its install folder as working directory, and only if that `.exe` lies inside the game's own folder (canonicalised). Anything else is refused.
+- Ubisoft: `uplay://launch/<id>/0`.
+
+The frontend passes a library key only, never a URL or a path; the app looks the key up in its cached
+scan and refuses everything else.
+
+**Signed out and offline.** The local part needs no pairing, no server and no network. The tab shows
+installed store games and starts them when the client is signed out, and when it is paired but the
+server does not answer: the server side gets three seconds (the state check of `games_state` and the recipe fetch; plan lookups run in the background and never hold the tab back; `library_list` then reports
+`recipes_reason: "offline"`) and the last good recipe list stays until a logout. The server's recipes
+are optional: when they cannot be loaded, the tab shows the reason (`recipes_reason`) as one line next
+to the local games. Opening the tab scans again; "Neu einlesen" does the same on demand. Steam ownership of games not installed yet is a later stage (see the spec).
+
+**Debug fixture (debug builds only).** `LANOMAT_STORE_LIBRARY_FIXTURE=<dir>` makes a debug build read
+`<dir>/scan.json` (a serialized scan with made-up games) instead of the real scan, for headless
+screenshots. Release builds ignore it. Never point it at a real library.
+
+The command contract is in [`docs/commands.md`](docs/commands.md) (section "Library"). The owner's
+Windows check list is [`docs/store-library-windows-check.md`](docs/store-library-windows-check.md).
+Spec: [`../../docs/superpowers/specs/2026-11-22-client-store-library-design.md`](../../docs/superpowers/specs/2026-11-22-client-store-library-design.md).
+
 ## Architecture notes
 
 - `audio::AudioSource` / `AudioSink` are the seams. Everything speaks 48 kHz mono, 10 ms frames.

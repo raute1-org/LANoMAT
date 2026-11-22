@@ -1,16 +1,19 @@
 // Verbinden: pair this device with the account (device code flow). Unchanged in behaviour.
-import { showScreen } from './nav.js';
+import { resetNav, setOfflineMode, setTabGate, showScreen } from './nav.js';
 import { S } from './strings.js';
 import { button, call, el, say, state } from './util.js';
 
 let onConnected = () => {};
+let onOfflineGames = () => {};
+let localScan = false;
 let token = 0;
 let countdownTimer = null;
 const ui = {};
 let verifyUrlComplete = '';
 
-export function init(section, { connected }) {
+export function init(section, { connected, offlineGames }) {
     onConnected = connected;
+    onOfflineGames = offlineGames;
     ui.error = el('div', { class: 'error', role: 'alert', hidden: true });
     ui.errorTitle = el('strong');
     ui.errorText = el('span');
@@ -110,6 +113,19 @@ export function init(section, { connected }) {
             },
         }),
     );
+    // Secondary: the local library needs no account. Shown only on builds that can scan.
+    ui.offline = el(
+        'div',
+        { class: 'stack-sm', hidden: true },
+        el('button', {
+            class: 'btn block',
+            type: 'button',
+            id: 'connect-offline',
+            text: S.connect.offlineGames,
+            onclick: () => onOfflineGames(),
+        }),
+        el('div', { class: 'small muted', text: S.connect.offlineGamesHint }),
+    );
     section.append(
         el(
             'div',
@@ -120,10 +136,35 @@ export function init(section, { connected }) {
         ui.error,
         ui.form,
         ui.wait,
+        ui.offline,
     );
 }
 
+function paintOffline() {
+    ui.offline.hidden = !localScan || !ui.wait.hidden;
+}
+
+async function probeLocal() {
+    // Local only: asking the server here would raise "session lost" for an expired token and
+    // hide the offer from exactly the people who need it.
+    const r = await call('library_local_available');
+    localScan = r.ok && r.value === true;
+    paintOffline();
+}
+
+// The signed-out library: tab gate open, tabs hidden, then the Spiele screen. Pairing stays
+// reachable through "Anmelden" (see games.js), which comes back through `open`.
+export function enterOfflineGames(go) {
+    setOfflineMode(true);
+    setTabGate('spiele', true);
+    resetNav();
+
+    return go('spiele');
+}
+
 export function open({ title, text, url } = {}) {
+    setOfflineMode(false);
+    resetNav();
     reset();
     ui.error.hidden = true;
 
@@ -136,6 +177,7 @@ export function open({ title, text, url } = {}) {
     }
 
     showScreen('connect');
+    probeLocal();
     ui.url.focus({ preventScroll: true });
 }
 
@@ -151,6 +193,7 @@ function reset() {
     ui.form.hidden = false;
     ui.submit.disabled = false;
     ui.submit.textContent = S.connect.submit;
+    paintOffline();
 }
 
 async function submit(ev) {
@@ -188,6 +231,7 @@ async function submit(ev) {
     ui.device.textContent = s.device_name;
     ui.form.hidden = true;
     ui.wait.hidden = false;
+    paintOffline();
     say(S.connect.codeSaid(s.user_code));
     countdown(s.expires_in);
     poll(++token, s.next_in_ms);

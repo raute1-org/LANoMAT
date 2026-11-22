@@ -8,6 +8,7 @@ pub mod auth;
 pub mod download;
 pub mod install;
 pub mod state;
+pub mod store_library;
 pub mod types;
 
 pub use install::{InstallEngine, InstallOptions, InstallOutcome, InstallPhase, InstallProgress};

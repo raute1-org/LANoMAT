@@ -1046,3 +1046,652 @@ async fn the_first_start_imports_the_old_launcher_installs_but_never_its_token()
         }
     }
 }
+
+// ---- local store library ----
+
+mod library {
+    use launcher_core::store_library::handoff::Handoff;
+    use launcher_core::store_library::testing::{MapFs, MapRegistry};
+    use launcher_core::store_library::{Hive, LocalStatus, StoreEnv};
+
+    use super::*;
+    use crate::features::library::{LibraryEnv, Sources};
+
+    type Fixture = fn() -> (MapRegistry, MapFs);
+
+    fn acf(name: &str, dir: &str) -> String {
+        acf_flags(name, dir, "4")
+    }
+
+    fn acf_flags(name: &str, dir: &str, flags: &str) -> String {
+        format!(
+            "\"AppState\"{{\"name\"\"{name}\"\"StateFlags\"\"{flags}\"\"installdir\"\"{dir}\"}}"
+        )
+    }
+
+    /// Steam game 10 whose install folder is gone.
+    fn steam_broken() -> (MapRegistry, MapFs) {
+        (
+            steam_reg(),
+            MapFs::new().with_file(
+                "C:/Steam/steamapps/appmanifest_10.acf",
+                &acf("Counter-Strike", "Half-Life"),
+            ),
+        )
+    }
+
+    /// Steam game 10 mid-download.
+    fn steam_updating() -> (MapRegistry, MapFs) {
+        (
+            steam_reg(),
+            MapFs::new()
+                .with_file(
+                    "C:/Steam/steamapps/appmanifest_10.acf",
+                    &acf_flags("Counter-Strike", "Half-Life", "1030"),
+                )
+                .with_dir("C:/Steam/steamapps/common/Half-Life"),
+        )
+    }
+
+    fn steam_reg() -> MapRegistry {
+        MapRegistry::new().with_value(
+            Hive::CurrentUser,
+            "Software\\Valve\\Steam",
+            "SteamPath",
+            "C:/Steam",
+        )
+    }
+
+    fn steam_fs() -> MapFs {
+        MapFs::new()
+            .with_file(
+                "C:/Steam/steamapps/appmanifest_10.acf",
+                &acf("Counter-Strike", "Half-Life"),
+            )
+            .with_dir("C:/Steam/steamapps/common/Half-Life")
+    }
+
+    fn steam_only() -> (MapRegistry, MapFs) {
+        (steam_reg(), steam_fs())
+    }
+
+    fn nothing() -> (MapRegistry, MapFs) {
+        (MapRegistry::new(), MapFs::new())
+    }
+
+    fn steam_and_gog() -> (MapRegistry, MapFs) {
+        let gog = "SOFTWARE\\WOW6432Node\\GOG.com\\Games";
+        let reg = steam_reg()
+            .with_subkeys(Hive::LocalMachine, gog, &["1207658924"])
+            .with_value(
+                Hive::LocalMachine,
+                &format!("{gog}\\1207658924"),
+                "gameID",
+                "1207658924",
+            )
+            .with_value(
+                Hive::LocalMachine,
+                &format!("{gog}\\1207658924"),
+                "gameName",
+                "Counter-Strike GOG",
+            )
+            .with_value(
+                Hive::LocalMachine,
+                &format!("{gog}\\1207658924"),
+                "path",
+                "D:/GOG/CS",
+            );
+        (reg, steam_fs().with_dir("D:/GOG/CS"))
+    }
+
+    /// Installs a scan fixture and returns what the opener was asked to open.
+    fn use_sources(r: &Rig, build: Fixture) -> Arc<Mutex<Vec<Handoff>>> {
+        let opened: Arc<Mutex<Vec<Handoff>>> = Arc::default();
+        let rec = opened.clone();
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(move || {
+                let (reg, fs) = build();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(move |h| {
+                rec.lock().unwrap().push(h.clone());
+                Ok(())
+            }),
+            ..LibraryEnv::default()
+        });
+        opened
+    }
+
+    fn unpaired(r: &Rig) {
+        std::fs::remove_file(r.dir.path().join("credentials.json")).unwrap();
+    }
+
+    async fn mount_launcher_config(r: &Rig) {
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "api_version": 1, "voice_ready": false, "modules": {},
+                "features": {"launcher": true}
+            })))
+            .mount(&r.server)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn library_list_without_pairing_has_local_entries() {
+        let r = rig().await;
+        unpaired(&r);
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("not_paired"));
+        assert_eq!(list.entries.len(), 1);
+        let e = &list.entries[0];
+        assert_eq!(e.key, "steam:10");
+        assert_eq!(e.primary, "play");
+        assert!(e.recipe.is_none());
+        assert_eq!(e.store_games[0].title, "Counter-Strike");
+        assert_eq!(list.sources.len(), 4);
+        assert!(r.server.received_requests().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn merge_matches_recipe_by_store_id() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, None);
+        assert_eq!(list.entries.len(), 1);
+        let e = &list.entries[0];
+        assert_eq!(e.key, "recipe:cs16");
+        assert_eq!(e.store_games.len(), 1);
+        assert_eq!(e.store_games[0].key, "steam:10");
+        assert_eq!(e.primary, "play");
+        assert_eq!(e.recipe.as_ref().unwrap().slug, "cs16");
+        let json = serde_json::to_value(&list).unwrap();
+        assert_eq!(json["entries"][0]["store_games"][0]["store"], "steam");
+        assert_eq!(json["entries"][0]["store_games"][0]["status"], "ready");
+        assert_eq!(json["entries"][0]["recipe"]["store_ids"]["steam"], "10");
+    }
+
+    #[tokio::test]
+    async fn merge_attaches_two_stores_to_one_recipe() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "cs16",
+                json!({"store_ids": {"steam": "10", "gog": "1207658924"}}),
+            )],
+        )
+        .await;
+        use_sources(&r, steam_and_gog);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.entries.len(), 1);
+        let keys: Vec<_> = list.entries[0]
+            .store_games
+            .iter()
+            .map(|g| g.key.as_str())
+            .collect();
+        assert_eq!(keys, ["steam:10", "gog:1207658924"]);
+    }
+
+    #[tokio::test]
+    async fn merge_keeps_unmatched_both_sides() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(&r, vec![game_summary("other", json!({}))]).await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        let keys: Vec<_> = list.entries.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(keys, ["recipe:other", "steam:10"]);
+    }
+
+    #[tokio::test]
+    async fn primary_open_store_for_unowned_steam_recipe() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![
+                game_summary(
+                    "portal2",
+                    json!({"installable": false, "store_ids": {"steam": "620"}}),
+                ),
+                game_summary("plain", json!({"installable": false})),
+                game_summary("lan", json!({"store_ids": {"steam": "730"}})),
+            ],
+        )
+        .await;
+        use_sources(&r, nothing);
+        let list = r.features.library_list().await.unwrap();
+        let primary = |k: &str| list.entries.iter().find(|e| e.key == k).unwrap().primary;
+        assert_eq!(primary("recipe:portal2"), "open_store");
+        assert_eq!(primary("recipe:plain"), "none");
+        assert_eq!(primary("recipe:lan"), "install_recipe");
+    }
+
+    #[tokio::test]
+    async fn a_failing_server_becomes_a_reason_not_an_error() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&r.server)
+            .await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("server_error"));
+        assert_eq!(list.entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn launch_before_any_scan_is_usage_error() {
+        let r = rig().await;
+        let opened = use_sources(&r, steam_only);
+        let e = r.features.library_launch("steam:10").await.unwrap_err();
+        assert_eq!(e.kind, "usage");
+        assert!(opened.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn launch_unknown_key_is_usage_error() {
+        let r = rig().await;
+        let opened = use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        for key in ["steam:999", "https://evil.example", "recipe:x", ""] {
+            let e = r.features.library_launch(key).await.unwrap_err();
+            assert_eq!(e.kind, "usage", "{key}");
+        }
+        assert!(opened.lock().unwrap().is_empty());
+        let e = r
+            .features
+            .library_open_store("steam:999")
+            .await
+            .unwrap_err();
+        assert_eq!(e.kind, "usage");
+    }
+
+    #[tokio::test]
+    async fn a_broken_game_is_not_opened() {
+        let r = rig().await;
+        unpaired(&r);
+        let opened = use_sources(&r, steam_broken);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.entries[0].store_games[0].status, LocalStatus::Broken);
+        assert_eq!(list.entries[0].primary, "none");
+        let e = r.features.library_launch("steam:10").await.unwrap_err();
+        assert_eq!(e.kind, "usage");
+        assert!(opened.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_recipe_key_needs_a_ready_store_game() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        let opened = use_sources(&r, steam_updating);
+        let list = r.features.library_list().await.unwrap();
+        assert_ne!(list.entries[0].primary, "play");
+        let e = r.features.library_launch("recipe:cs16").await.unwrap_err();
+        assert_eq!(e.kind, "usage");
+        assert!(opened.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn launch_uses_cached_scan() {
+        let r = rig().await;
+        unpaired(&r);
+        let opened = use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        r.features.library_launch("steam:10").await.unwrap();
+        assert_eq!(
+            *opened.lock().unwrap(),
+            [Handoff::Url("steam://rungameid/10".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn launch_by_recipe_key_picks_the_ready_store_game() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        let opened = use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        r.features.library_launch("recipe:cs16").await.unwrap();
+        assert_eq!(
+            *opened.lock().unwrap(),
+            [Handoff::Url("steam://rungameid/10".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn open_store_takes_the_steam_id_of_a_recipe() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "portal2",
+                json!({"store_ids": {"steam": "620"}}),
+            )],
+        )
+        .await;
+        let opened = use_sources(&r, nothing);
+        r.features.library_list().await.unwrap();
+        r.features
+            .library_open_store("recipe:portal2")
+            .await
+            .unwrap();
+        assert_eq!(
+            *opened.lock().unwrap(),
+            [Handoff::Url("steam://store/620".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn scan_refreshes_the_cache() {
+        let r = rig().await;
+        unpaired(&r);
+        use_sources(&r, nothing);
+        assert!(r.features.library_list().await.unwrap().entries.is_empty());
+        use_sources(&r, steam_only);
+        // The cached scan stays until a rescan is asked for.
+        assert!(r.features.library_list().await.unwrap().entries.is_empty());
+        assert_eq!(r.features.library_scan().await.unwrap().entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn games_state_answers_offline_with_the_local_flag() {
+        // Server unreachable: an answer, not an error.
+        let r = rig_at(Some("http://127.0.0.1:1".into())).await;
+        let s = r.features.games_state().await.unwrap();
+        assert_eq!((s.enabled, s.reason), (false, Some("offline")));
+        assert_eq!(s.local, cfg!(windows));
+
+        // Server trouble: the same.
+        let r = rig().await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&r.server)
+            .await;
+        let s = r.features.games_state().await.unwrap();
+        assert_eq!((s.enabled, s.reason), (false, Some("server_error")));
+        assert_eq!(s.local, cfg!(windows));
+
+        // A rejected token stays an error: the windows are told.
+        let r = rig().await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(
+                ResponseTemplate::new(401).set_body_json(json!({"message": "Unauthenticated."})),
+            )
+            .mount(&r.server)
+            .await;
+        let e = r.features.games_state().await.unwrap_err();
+        assert_eq!(e.kind, "auth");
+        assert_eq!(r.events_named(EVT_AUTH).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_paired_client_with_the_server_down_lists_its_local_games() {
+        let r = rig_at(Some("http://127.0.0.1:1".into())).await;
+        use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("offline"));
+        assert_eq!(list.entries.len(), 1);
+        assert_eq!(list.entries[0].primary, "play");
+    }
+
+    #[tokio::test]
+    async fn a_slow_server_does_not_hold_the_local_list_back() {
+        let r = rig().await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(3))
+                    .set_body_json(json!({
+                        "api_version": 1, "voice_ready": false, "modules": {},
+                        "features": {"launcher": true}
+                    })),
+            )
+            .mount(&r.server)
+            .await;
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(|| {
+                let (reg, fs) = steam_only();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(|_| Ok(())),
+            recipe_timeout: Duration::from_millis(150),
+        });
+        let started = std::time::Instant::now();
+        let list = r.features.library_list().await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(list.recipes_reason, Some("offline"));
+        assert_eq!(list.entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn slow_plan_lookups_run_detached_and_show_on_the_next_list() {
+        use voice_core::api::Availability;
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "on-lan",
+                json!({"store_ids": {"steam": "10"}}),
+            )],
+        )
+        .await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes/on-lan/plan"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(1500))
+                    .set_body_json(game_plan("on-lan", true)),
+            )
+            .mount(&r.server)
+            .await;
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(|| {
+                let (reg, fs) = steam_only();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(|_| Ok(())),
+            recipe_timeout: Duration::from_millis(500),
+        });
+        let availability =
+            |l: &super::super::LibraryList| l.entries[0].recipe.as_ref().unwrap().availability;
+        let started = std::time::Instant::now();
+        let list = r.features.library_list().await.unwrap();
+        assert!(started.elapsed() < Duration::from_millis(1200));
+        assert_eq!(list.recipes_reason, None);
+        assert_eq!(list.entries[0].key, "recipe:on-lan");
+        assert_eq!(availability(&list), Availability::Unknown);
+
+        // The fill finishes in the background; the next list has the answer.
+        let mut filled = false;
+        for _ in 0..100 {
+            let next = r.features.library_list().await.unwrap();
+            if availability(&next) == Availability::OnLan {
+                filled = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        assert!(filled, "availability never arrived");
+        // One fill, not one per list while it was running.
+        assert_eq!(plan_requests(&r).await.len(), 1);
+    }
+
+    fn fast_bound(r: &Rig, bound: Duration) {
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(|| {
+                let (reg, fs) = steam_only();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(|_| Ok(())),
+            recipe_timeout: bound,
+        });
+    }
+
+    #[tokio::test]
+    async fn a_server_that_drops_packets_does_not_hold_games_state_back() {
+        let r = rig().await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/config"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(3))
+                    .set_body_json(json!({
+                        "api_version": 1, "voice_ready": false, "modules": {},
+                        "features": {"launcher": true}
+                    })),
+            )
+            .mount(&r.server)
+            .await;
+        fast_bound(&r, Duration::from_millis(150));
+        let started = std::time::Instant::now();
+        let s = r.features.games_state().await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!((s.enabled, s.reason), (false, Some("offline")));
+        assert_eq!(s.local, cfg!(windows));
+    }
+
+    #[tokio::test]
+    async fn a_fill_that_outlives_a_logout_writes_nothing() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary(
+                "on-lan",
+                json!({"store_ids": {"steam": "10"}}),
+            )],
+        )
+        .await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes/on-lan/plan"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(600))
+                    .set_body_json(game_plan("on-lan", true)),
+            )
+            .mount(&r.server)
+            .await;
+        use_sources(&r, steam_only);
+        r.features.library_list().await.unwrap();
+        // Logged out while the lookup is on its way.
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        assert_eq!(plan_requests(&r).await.len(), 1);
+        r.features.stop_all();
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        assert_eq!(r.features.plans_cached(), 0);
+    }
+
+    #[tokio::test]
+    async fn the_last_good_recipes_survive_a_failed_load_but_not_a_logout() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        let opened = use_sources(&r, steam_only);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.entries[0].key, "recipe:cs16");
+
+        // The server goes bad: the recipe stays, with the reason, and its key still starts.
+        r.server.reset().await;
+        mount_launcher_config(&r).await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&r.server)
+            .await;
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("server_error"));
+        assert_eq!(list.entries[0].key, "recipe:cs16");
+        r.features.library_launch("recipe:cs16").await.unwrap();
+        assert_eq!(opened.lock().unwrap().len(), 1);
+
+        // Signed out: the server's recipes are gone, the machine's scan stays.
+        unpaired(&r);
+        let list = r.features.library_list().await.unwrap();
+        assert_eq!(list.recipes_reason, Some("not_paired"));
+        assert_eq!(list.entries[0].key, "steam:10");
+    }
+
+    #[tokio::test]
+    async fn games_state_reports_local() {
+        let r = rig().await;
+        unpaired(&r);
+        let s = r.features.games_state().await.unwrap();
+        assert_eq!(s.local, cfg!(windows));
+        assert_eq!(serde_json::to_value(&s).unwrap()["local"], cfg!(windows));
+    }
+
+    #[test]
+    fn verbatim_prefixes_are_stripped_for_spawning() {
+        use crate::features::library::strip_verbatim;
+        use std::path::{Path, PathBuf};
+        let cases = [
+            (r"\\?\C:\Games\a.exe", r"C:\Games\a.exe"),
+            (r"\\?\UNC\srv\share\a.exe", r"\\srv\share\a.exe"),
+            (r"C:\Games\a.exe", r"C:\Games\a.exe"),
+            ("/usr/bin/a", "/usr/bin/a"),
+            // Not a drive or UNC path: the verbatim form is all there is.
+            (
+                r"\\?\Volume{0b1c}\Games\a.exe",
+                r"\\?\Volume{0b1c}\Games\a.exe",
+            ),
+        ];
+        for (input, want) in cases {
+            assert_eq!(strip_verbatim(Path::new(input)), PathBuf::from(want));
+        }
+        // Too long for the classic API once stripped: keep the verbatim prefix.
+        let long = format!(r"\\?\C:\{}\a.exe", "d".repeat(260));
+        assert_eq!(strip_verbatim(Path::new(&long)), PathBuf::from(&long));
+        let short = format!(r"\\?\C:\{}\a.exe", "d".repeat(200));
+        assert_eq!(
+            strip_verbatim(Path::new(&short)),
+            PathBuf::from(short.trim_start_matches(r"\\?\"))
+        );
+    }
+}

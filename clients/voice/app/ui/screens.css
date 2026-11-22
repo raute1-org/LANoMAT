@@ -1036,16 +1036,55 @@ textarea:disabled {
 .card.game {
     display: flex;
     flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+.card.game:hover {
+    border-color: var(--foreground);
+}
+.game-open {
+    appearance: none;
+    display: flex;
+    flex: 1;
     gap: 12px;
     align-items: flex-start;
     width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: calc(var(--radius) - 2px);
     text-align: left;
     font: inherit;
     color: inherit;
     cursor: pointer;
 }
-.card.game:hover {
-    border-color: var(--foreground);
+.game-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.game-stores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.store-chip {
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+}
+.games-note {
+    margin: 0;
+    max-width: 70ch;
+}
+.btn[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 .game-cover {
     flex: none;
@@ -1164,7 +1203,7 @@ textarea:disabled {
     .tab {
         font-size: 0.76rem;
     }
-    .card.game {
+    .game-open {
         flex-direction: column;
     }
 }

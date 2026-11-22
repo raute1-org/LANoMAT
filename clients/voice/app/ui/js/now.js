@@ -37,6 +37,7 @@ let error = null;
 let lastJson = '';
 let showAll = false;
 let timer = null;
+let stopped = false;
 const done = new Map(); // card id -> {title, lines, until}
 const voiceCard = {};
 
@@ -66,14 +67,23 @@ export function hide() {
 }
 
 export function start() {
+    stopped = false;
     schedule();
+}
+
+// Signed out or session lost: no more polling (a poll without a session only raises "session
+// lost" again), and no event to poll for.
+export function stop() {
+    stopped = true;
+    clearTimeout(timer);
+    timer = null;
 }
 
 // Calm polling: 30 s while Jetzt is shown, 60 s for the badges elsewhere, nothing while hidden.
 function schedule() {
     clearTimeout(timer);
 
-    if (document.visibilityState !== 'visible' || !state.status) {
+    if (stopped || document.visibilityState !== 'visible' || !state.status) {
         return;
     }
 

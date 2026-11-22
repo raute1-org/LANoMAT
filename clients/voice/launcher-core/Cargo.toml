@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "Auth, install plan, download and archive engine for the LANoMAT launcher"
 
+[features]
+# In-memory Registry/FileSystem doubles for the app crate's tests.
+test-doubles = []
+
 [dependencies]
 bzip2 = "0.6"
 directories = "6"
@@ -24,3 +28,6 @@ zip = { version = "6", default-features = false, features = ["deflate", "bzip2",
 libmkiso = { version = "0.1.5", features = ["native-writer"] }
 tempfile = "3"
 wiremock = "0.6"
+
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.100"

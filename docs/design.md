@@ -175,6 +175,7 @@ Menus are **grouped client-side by name prefix**: `Kategorie: Gericht` (prefix b
 | `/app` | the first build of the first section that has one (`primaryName`) | OS tabs, the other builds and "Zur Spiele-Bibliothek" outline/quiet |
 | `/games/share` | "Spiel teilen" | the upload pick button is outline, the archive rows are radios, the quota gauge neutral (never `warn` text) |
 | `/games` | "Installieren" on a card | "Spiel teilen" outline, the "nur auf der LAN" filter `secondary`, share invites quiet |
+| Client "Spiele" (desktop app, `clients/voice`) | "Spielen" on a card (an installed store game) | "Im Shop öffnen", "Neu einlesen", "Anmelden": quiet. No button for a recipe the app cannot install yet; the detail explains why |
 | `/games/{slug}` | "Installieren" (or the `lanomat://` install when no build) | "Spielen"/"Starten", per-server launcher join, "Anders verbinden", "Runde ankündigen": outline/ghost |
 
 **Share a game (`Games/Share`, `/games/share`).** One page, `default` width, `PageContainer` with `:back` to `/games`, in the order of the work — three numbered sections, no modal wizard: **01 Archiv** (the upload surface of the current LAN with the quota gauge, the viewer's own archives as a radio list), **02 Spiel** (title, platforms, start file, Linux runner, summary, version, players, multiplayer, homepage) and **03 Deine geteilten Spiele** (the viewer's shares). Rules:

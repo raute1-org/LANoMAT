@@ -37,6 +37,7 @@ time = { version = "0.3", features = ["parsing", "std"] }
 tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
+launcher-core = { path = "../launcher-core", features = ["test-doubles"] }
 wiremock = "0.6"
 tempfile = "3"
 

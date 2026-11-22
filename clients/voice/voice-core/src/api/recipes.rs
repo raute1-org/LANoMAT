@@ -15,6 +15,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use super::{seg, ApiClient};
@@ -33,6 +34,26 @@ pub fn current_os() -> &'static str {
     } else {
         "linux"
     }
+}
+
+/// The store ids a recipe is known by (`metadata.store_ids`): the explicit link between a recipe
+/// and a game installed through a store. Absent or malformed means no link.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct StoreIds {
+    pub steam: Option<String>,
+    pub epic: Option<String>,
+    pub gog: Option<String>,
+    pub ubisoft: Option<String>,
+}
+
+/// A server that sends `[]` (an empty PHP array) or anything but an object has no store ids.
+fn lenient_store_ids<'de, D>(d: D) -> std::result::Result<StoreIds, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = Value::deserialize(d)?;
+    Ok(serde_json::from_value(v).unwrap_or_default())
 }
 
 /// One catalogue entry (`GET recipes`) and the head of a [`RecipeDetail`].
@@ -61,6 +82,8 @@ pub struct RecipeSummary {
     /// A browser recipe's entry point; it has nothing to install.
     pub play_url: Option<String>,
     pub updated_at: Option<String>,
+    #[serde(deserialize_with = "lenient_store_ids")]
+    pub store_ids: StoreIds,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
@@ -404,6 +427,27 @@ mod tests {
         ApiClient::new(&server.uri())
             .unwrap()
             .with_token("lvc_secret")
+    }
+
+    #[test]
+    fn recipe_summary_parses_store_ids() {
+        let mut v = summary_json();
+        v["store_ids"] = json!({"steam": "10", "gog": "1207658924"});
+        let s: RecipeSummary = serde_json::from_value(v).unwrap();
+        assert_eq!(s.store_ids.steam.as_deref(), Some("10"));
+        assert_eq!(s.store_ids.gog.as_deref(), Some("1207658924"));
+        assert_eq!(s.store_ids.epic, None);
+    }
+
+    #[test]
+    fn recipe_summary_without_store_ids_defaults_empty() {
+        let s: RecipeSummary = serde_json::from_value(summary_json()).unwrap();
+        assert_eq!(s.store_ids, StoreIds::default());
+        // An empty PHP array arrives as `[]`: still no ids, never a parse failure.
+        let mut v = summary_json();
+        v["store_ids"] = json!([]);
+        let s: RecipeSummary = serde_json::from_value(v).unwrap();
+        assert_eq!(s.store_ids, StoreIds::default());
     }
 
     #[tokio::test]

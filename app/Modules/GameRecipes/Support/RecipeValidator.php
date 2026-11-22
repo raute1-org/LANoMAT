@@ -22,6 +22,21 @@ final class RecipeValidator
 
     public const SKILL_NAME_PATTERN = '/^[a-z0-9]+(-[a-z0-9]+)*$/';
 
+    /** Shape of each store id in `metadata.store_ids`, matching the recipe schema. */
+    public const STORE_ID_PATTERNS = [
+        'steam' => '/^[0-9]{1,10}$/D',
+        'epic' => '/^[A-Za-z0-9._-]{1,128}$/D',
+        'gog' => '/^[0-9]{1,20}$/D',
+        'ubisoft' => '/^[0-9]{1,10}$/D',
+    ];
+
+    public const STORE_ID_HINTS = [
+        'steam' => 'a quoted string of digits',
+        'epic' => 'an Epic app name (letters, digits, dot, underscore, hyphen)',
+        'gog' => 'a quoted string of digits',
+        'ubisoft' => 'a quoted string of digits',
+    ];
+
     /** @param array<string, mixed> $data */
     public function validate(array $data, string $origin = 'recipe'): void
     {
@@ -256,6 +271,28 @@ final class RecipeValidator
 
             if ($targetOs !== null && ! in_array($targetOs, ['windows', 'linux', 'macos', 'any'], true)) {
                 $problems[] = "{$origin}: launch_targets[{$index}].os must be windows, linux, macos or any";
+            }
+        }
+
+        $storeIds = is_array($data['metadata'] ?? null) ? ($data['metadata']['store_ids'] ?? null) : null;
+
+        if ($storeIds !== null) {
+            if (! is_array($storeIds)) {
+                $problems[] = "{$origin}: metadata.store_ids must be a map";
+            } else {
+                foreach ($storeIds as $store => $storeId) {
+                    $pattern = self::STORE_ID_PATTERNS[$store] ?? null;
+
+                    if ($pattern === null) {
+                        $problems[] = "{$origin}: metadata.store_ids.{$store} is not a known store";
+
+                        continue;
+                    }
+
+                    if (! is_string($storeId) || preg_match($pattern, $storeId) !== 1) {
+                        $problems[] = "{$origin}: metadata.store_ids.{$store} must be ".self::STORE_ID_HINTS[$store];
+                    }
+                }
             }
         }
 

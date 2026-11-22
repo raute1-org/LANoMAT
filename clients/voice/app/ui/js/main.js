@@ -3,12 +3,14 @@
 import * as connect from './connect.js';
 import * as food from './food.js';
 import * as games from './games.js';
-import { singleFlightRetry } from './link.js';
+import { ignoresAuthLoss, resumeTab, singleFlightRetry } from './link.js';
 import * as more from './more.js';
 import {
     buildTabs,
+    currentTab,
     go,
     initHeader,
+    offlineMode,
     paintQuiet,
     registerScreen,
     resetNav,
@@ -57,6 +59,7 @@ function init() {
     $('screen-boot').setAttribute('aria-label', S.loading);
     connect.init($('screen-connect'), {
         connected: () => afterConnect({ fresh: true }),
+        offlineGames: () => connect.enterOfflineGames(go),
     });
     onboarding.init($('screen-onboarding'), { done: finishOnboarding });
     now.init($('screen-jetzt'));
@@ -134,7 +137,7 @@ function refreshWho() {
 }
 
 function authLost(error) {
-    if (authBusy) {
+    if (authBusy || ignoresAuthLoss(state.status, offlineMode())) {
         return;
     }
 
@@ -142,6 +145,8 @@ function authLost(error) {
     setupDone = false;
     resume.reset();
     update.stop();
+    now.stop();
+    state.event = null;
     resetNav();
     connect.open({
         title: S.errors.authTitle,
@@ -166,6 +171,8 @@ async function logout() {
     setupDone = false;
     resume.reset();
     update.stop();
+    now.stop();
+    state.event = null;
     resetNav();
     connect.open({ url: state.status.server_url });
     say(S.account.loggedOut);
@@ -213,7 +220,9 @@ async function afterConnect({ fresh }) {
         return;
     }
 
-    await go('jetzt');
+    // A retry of the setup must not reset the tab the person is on.
+    const next = resumeTab(currentTab(), setupDone);
+    await go(next.tab, { force: next.force });
 }
 
 async function finishOnboarding() {
