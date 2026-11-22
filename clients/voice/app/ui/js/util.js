@@ -1,5 +1,6 @@
 // Shared helpers: DOM building, calling the Rust side, formatting, the tiny store and event bus.
 // Every dynamic string goes in through textContent, never innerHTML.
+import { provesOnline } from './link.js';
 import { S } from './strings.js';
 
 const tauri = window.__TAURI__;
@@ -112,7 +113,9 @@ export async function call(cmd, args) {
     try {
         const value = await invoke(cmd, args);
 
-        if (!state.online) {
+        // Only an answer from the server proves the connection; a local command (settings,
+        // quiet, room view) succeeds offline too and must not flip the state back.
+        if (!state.online && provesOnline(cmd)) {
             state.online = true;
             emit('online');
         }
