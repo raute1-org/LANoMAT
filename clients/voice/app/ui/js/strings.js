@@ -757,6 +757,8 @@ export const S = {
         placeholder: 'https://lan.example.org',
         addressHint: 'Die Adresse, unter der du LANoMAT im Browser öffnest.',
         submit: 'Verbinden',
+        offlineGames: 'Meine Spiele ohne Anmeldung',
+        offlineGamesHint: 'Zeigt die Spiele auf diesem PC, ohne Konto.',
         connecting: 'Verbinde …',
         confirmTitle: 'Code bestätigen',
         confirmText:
@@ -879,8 +881,54 @@ export const S = {
         },
         open: (title) => `Details zu ${title}`,
         empty: {
-            title: 'Noch keine Spiele in der Bibliothek',
-            hint: 'Sobald der Orga Spiele bereitstellt, erscheinen sie hier.',
+            title: 'Keine Spiele gefunden',
+            hint: 'LANoMAT liest Steam, Epic Games, GOG Galaxy und Ubisoft Connect auf diesem PC und die Spiele, die der Orga bereitstellt. Installiere ein Spiel und lies dann neu ein.',
+        },
+        recipesNote: {
+            not_paired:
+                'Nicht angemeldet: Hier stehen nur die Spiele auf diesem PC. Mit Anmeldung kommen die Spiele des LANs dazu.',
+            module_off:
+                'Der Orga hat die Spiele-Bibliothek nicht aktiviert. Hier stehen nur die Spiele auf diesem PC.',
+            server_too_old:
+                'Der Server kennt die Bibliothek noch nicht. Hier stehen nur die Spiele auf diesem PC.',
+            offline:
+                'Keine Verbindung zum Server: Hier stehen nur die Spiele auf diesem PC.',
+            server_error:
+                'Der Server antwortet nicht richtig: Hier stehen nur die Spiele auf diesem PC.',
+        },
+        actions: {
+            play: 'Spielen',
+            openStore: 'Im Shop öffnen',
+            scan: 'Neu einlesen',
+            scanning: 'Lese ein …',
+            failed: 'Das Spiel ließ sich nicht starten.',
+        },
+        source: {
+            all: 'Alle',
+            steam: 'Steam',
+            epic: 'Epic',
+            gog: 'GOG',
+            ubisoft: 'Ubisoft',
+            lan: 'LAN',
+        },
+        sources: 'Quelle',
+        storeStatus: {
+            ready: 'Installiert',
+            updating: 'Wird aktualisiert',
+            broken: 'Defekt',
+        },
+        sourceState: (label, present, found, skipped) =>
+            !present && !found
+                ? `${label}: nicht erkannt`
+                : `${label}: ${found} ${found === 1 ? 'Spiel' : 'Spiele'}${skipped ? `, ${skipped} nicht lesbar` : ''}`,
+        scannedAt: (t) => `Eingelesen ${t}`,
+        signIn: 'Anmelden',
+        storeDetail: {
+            about: 'Auf diesem PC',
+            store: 'Shop',
+            path: 'Ordner',
+            status: 'Zustand',
+            note: 'Dieses Spiel gehört (noch) zu keinem Spiel des LANs. Es läuft über seinen Shop.',
         },
         noMatch: {
             title: 'Kein Spiel passt zu deiner Auswahl',

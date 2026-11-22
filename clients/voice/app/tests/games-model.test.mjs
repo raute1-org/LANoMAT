@@ -38,10 +38,39 @@ const mock = (map) => async (cmd) => {
     return typeof v === 'function' ? v() : v;
 };
 
-test('library: each disabled reason has its own text', async () => {
+const sg = (o = {}) => ({
+    key: 'steam:10',
+    store: 'steam',
+    store_id: '10',
+    title: 'Counter-Strike',
+    status: 'ready',
+    install_path: 'C:\\Games\\Steam\\steamapps\\common\\cs',
+    ...o,
+});
+const entry = (o = {}) => ({
+    key: 'steam:10',
+    title: 'Counter-Strike',
+    recipe: null,
+    store_games: [sg()],
+    primary: 'play',
+    ...o,
+});
+const lib = (entries, o = {}) => ({
+    entries,
+    sources: [
+        { store: 'steam', present: true, found: entries.length, skipped: 0 },
+    ],
+    recipes_reason: null,
+    scanned_at: '2026-11-22T10:00:00Z',
+    ...o,
+});
+
+test('library: each disabled reason has its own text (no local scan)', async () => {
     for (const reason of ['module_off', 'server_too_old', 'not_paired']) {
         const r = await m.loadLibrary(
-            mock({ games_state: ok({ enabled: false, reason }) }),
+            mock({
+                games_state: ok({ enabled: false, reason, local: false }),
+            }),
         );
         assert.equal(r.phase, 'disabled');
         assert.equal(r.info.reason, reason);
@@ -54,32 +83,131 @@ test('library: each disabled reason has its own text', async () => {
     assert.equal(odd.info.reason, 'other');
 });
 
-test('library: empty, normal and a failing list', async () => {
-    const on = ok({ enabled: true, reason: null });
-    assert.equal(
-        (
-            await m.loadLibrary(
-                mock({ games_state: on, games_list: ok(list([])) }),
-            )
-        ).phase,
-        'empty',
-    );
+test('library: signed out with a local scan lists the games and a one-line note', async () => {
     const r = await m.loadLibrary(
-        mock({ games_state: on, games_list: ok(list([recipe()])) }),
+        mock({
+            games_state: ok({
+                enabled: false,
+                reason: 'not_paired',
+                local: true,
+            }),
+            library_list: ok(lib([entry()], { recipes_reason: 'not_paired' })),
+        }),
     );
     assert.equal(r.phase, 'ready');
-    assert.equal(r.recipes.length, 1);
-    assert.equal(r.fetchedAt, '2026-11-22T10:00:00Z');
+    assert.equal(r.entries.length, 1);
+    assert.equal(r.recipesNote, S.games.recipesNote.not_paired);
+});
+
+test('library: empty, normal and a failing list', async () => {
+    const on = ok({ enabled: true, reason: null, local: true });
+    const e0 = await m.loadLibrary(
+        mock({ games_state: on, library_list: ok(lib([])) }),
+    );
+    assert.equal(e0.phase, 'empty');
+    assert.equal(e0.sources.length, 1);
+    const r = await m.loadLibrary(
+        mock({ games_state: on, library_list: ok(lib([entry()])) }),
+    );
+    assert.equal(r.phase, 'ready');
+    assert.equal(r.recipesNote, null);
+    assert.equal(r.scannedAt, '2026-11-22T10:00:00Z');
     const e = await m.loadLibrary(
         mock({
             games_state: on,
-            games_list: fail({ message: 'server_error: 500' }),
+            library_list: fail({ message: 'server_error: 500' }),
         }),
     );
     assert.equal(e.phase, 'error');
     assert.equal(e.error.code, 'server_error');
     assert.equal(e.error.text, S.games.errors.server_error);
     assert.equal(e.error.retryable, true);
+});
+
+test('normalizeLibrary drops keyless entries and unknown primaries become none', () => {
+    const n = m.normalizeLibrary(
+        lib([
+            entry({ primary: 'format_disk' }),
+            { title: 'no key', store_games: [] },
+            entry({ key: 'gog:5', store_games: [sg({ key: '' })] }),
+        ]),
+    );
+    assert.equal(n.entries.length, 2);
+    assert.equal(n.entries[0].primary, 'none');
+    assert.equal(n.entries[1].storeGames.length, 0);
+    assert.deepEqual(m.normalizeLibrary(null).entries, []);
+});
+
+test('entryCardModel: store badges in a fixed order, primary label, launch key', () => {
+    const e = m.normalizeLibrary(
+        lib([
+            entry({
+                key: 'recipe:hl',
+                recipe: recipe({ slug: 'hl', title: 'Half-Life' }),
+                store_games: [
+                    sg({ key: 'ubisoft:1', store: 'ubisoft', status: 'ready' }),
+                    sg({ key: 'steam:10', store: 'steam', status: 'broken' }),
+                    sg({ key: 'epic:Ab', store: 'epic', status: 'ready' }),
+                ],
+            }),
+        ]),
+    ).entries[0];
+    const c = m.entryCardModel(e);
+    assert.deepEqual(
+        c.badges.map((b) => b.store),
+        ['steam', 'epic', 'ubisoft'],
+    );
+    assert.equal(c.primary.id, 'play');
+    assert.equal(c.primary.label, S.games.actions.play);
+    assert.equal(c.launchKey, 'epic:Ab');
+    assert.equal(c.status.id, 'ready');
+    assert.ok(c.recipe);
+    const shop = m.entryCardModel(
+        m.normalizeLibrary(
+            lib([entry({ primary: 'open_store', store_games: [] })]),
+        ).entries[0],
+    );
+    assert.equal(shop.primary.label, S.games.actions.openStore);
+    assert.equal(shop.launchKey, null);
+    assert.equal(shop.status, null);
+});
+
+test('filterEntries by source, query and ready; sortEntries lineup first', () => {
+    const es = m.normalizeLibrary(
+        lib([
+            entry(),
+            entry({
+                key: 'epic:A',
+                title: 'Alpha',
+                store_games: [sg({ key: 'epic:A', store: 'epic' })],
+            }),
+            entry({
+                key: 'recipe:ut',
+                title: 'Unreal',
+                recipe: recipe({ in_lineup: true, title: 'Unreal' }),
+                store_games: [],
+                primary: 'install_recipe',
+            }),
+        ]),
+    ).entries;
+    const f = (o) => m.filterEntries(es, o).map((e) => e.key);
+    assert.deepEqual(f({ source: 'steam' }), ['steam:10']);
+    assert.deepEqual(f({ source: 'lan' }), ['recipe:ut']);
+    assert.deepEqual(f({ source: 'all' }).length, 3);
+    assert.deepEqual(f({ query: 'alp' }), ['epic:A']);
+    assert.deepEqual(f({ filter: 'ready' }), ['steam:10', 'epic:A']);
+    assert.deepEqual(
+        m.sortEntries(es).map((e) => e.key),
+        ['recipe:ut', 'epic:A', 'steam:10'],
+    );
+    assert.deepEqual(m.SOURCES, [
+        'all',
+        'steam',
+        'epic',
+        'gog',
+        'ubisoft',
+        'lan',
+    ]);
 });
 
 test('errors: codes from a string, unknown stays generic, never raw text', () => {

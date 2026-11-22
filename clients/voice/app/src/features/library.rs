@@ -225,6 +225,20 @@ fn open_handoff(h: &Handoff) -> Result<(), String> {
     }
 }
 
+/// Debug builds only: `LANOMAT_STORE_LIBRARY_FIXTURE=<dir>` replaces the scan with the `Scan`
+/// JSON in `<dir>/scan.json` (made-up games for screenshots). Release builds have no such hook.
+#[cfg(debug_assertions)]
+pub(super) fn fixture_scan() -> Option<Scan> {
+    let dir = std::env::var_os("LANOMAT_STORE_LIBRARY_FIXTURE")?;
+    let text = std::fs::read_to_string(Path::new(&dir).join("scan.json")).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+#[cfg(not(debug_assertions))]
+pub(super) fn fixture_scan() -> Option<Scan> {
+    None
+}
+
 impl Features {
     /// Test seam: replaces where the scan reads from and how handoffs are opened.
     #[cfg(test)]
@@ -240,6 +254,9 @@ impl Features {
     async fn library_rescan(&self) -> Result<(), UiError> {
         let env = self.library_env();
         let scanned = tokio::task::spawn_blocking(move || {
+            if let Some(fixture) = fixture_scan() {
+                return fixture;
+            }
             let s = (env.sources)();
             scan(&*s.reg, &*s.fs, &s.env)
         })

@@ -25,7 +25,12 @@ use crate::engine::UiError;
 use crate::installs::LocalView;
 
 /// The store scan reads the Windows registry and the stores' folders; stage 1 has no other OS.
-const LOCAL_SCAN: bool = cfg!(windows);
+const LOCAL_SCAN_PLATFORM: bool = cfg!(windows);
+
+/// Whether this build can scan: Windows, or a debug build run with a scan fixture (screenshots).
+fn local_scan() -> bool {
+    LOCAL_SCAN_PLATFORM || super::library::fixture_scan().is_some()
+}
 
 /// Plan requests per minute this client allows itself (the server's limit is 30 per token).
 const PLAN_BUDGET_PER_MINUTE: usize = 24;
@@ -233,7 +238,7 @@ impl Features {
             return Ok(GamesState {
                 enabled: false,
                 reason: Some("not_paired"),
-                local: LOCAL_SCAN,
+                local: local_scan(),
             });
         };
         let config = api.config().await.map_err(|e| self.games_error(e, false))?;
@@ -242,17 +247,17 @@ impl Features {
             Some(true) => GamesState {
                 enabled: true,
                 reason: None,
-                local: LOCAL_SCAN,
+                local: local_scan(),
             },
             Some(false) => GamesState {
                 enabled: false,
                 reason: Some("module_off"),
-                local: LOCAL_SCAN,
+                local: local_scan(),
             },
             None => GamesState {
                 enabled: false,
                 reason: Some("server_too_old"),
-                local: LOCAL_SCAN,
+                local: local_scan(),
             },
         })
     }

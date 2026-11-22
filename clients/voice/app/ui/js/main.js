@@ -57,6 +57,7 @@ function init() {
     $('screen-boot').setAttribute('aria-label', S.loading);
     connect.init($('screen-connect'), {
         connected: () => afterConnect({ fresh: true }),
+        offlineGames: () => connect.enterOfflineGames(go),
     });
     onboarding.init($('screen-onboarding'), { done: finishOnboarding });
     now.init($('screen-jetzt'));

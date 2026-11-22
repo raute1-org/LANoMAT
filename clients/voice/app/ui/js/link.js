@@ -7,6 +7,10 @@
 // the offline banner while the server was unreachable).
 export const LOCAL_COMMANDS = new Set([
     'get_update_status',
+    'library_list',
+    'library_scan',
+    'library_launch',
+    'library_open_store',
     'get_status',
     'connect_cancel',
     'set_talking',

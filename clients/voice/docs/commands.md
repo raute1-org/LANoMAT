@@ -721,3 +721,9 @@ broken install, an unknown key, an invalid id or an `.exe` outside the game fold
 Args `{key}`. Result `null`. Opens the store page in the store's client: for `recipe:<slug>` the recipe's
 Steam id (`steam://store/<id>`), for a store key that game's page. Only Steam has store pages in this
 version; other stores reject with `kind: "usage"`.
+
+### Debug-only scan fixture
+
+Debug builds (never release) read `LANOMAT_STORE_LIBRARY_FIXTURE=<dir>`: when `<dir>/scan.json` holds a
+serialized `Scan` (`{"games": [...], "sources": [...]}`), the library uses it instead of the real scan,
+and `games_state.local` is `true`. It exists for headless screenshots with made-up games only.

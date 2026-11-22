@@ -292,32 +292,229 @@ export function disabledInfo(reason) {
     return { reason: key, ...S.games.disabled[key] };
 }
 
-// `call` is util.call: resolves {ok, value} or {ok: false, error}.
-export async function loadLibrary(call) {
+// ---- the merged library (store games on this PC + recipes) ----
+
+export const STORES = ['steam', 'epic', 'gog', 'ubisoft'];
+export const SOURCES = ['all', ...STORES, 'lan'];
+const PRIMARY = ['play', 'install_recipe', 'open_store', 'none'];
+const STORE_STATUS = ['ready', 'updating', 'broken'];
+const STORE_STATUS_TONE = { ready: 'ok', updating: 'live', broken: 'down' };
+const RECIPE_REASONS = [
+    'not_paired',
+    'module_off',
+    'server_too_old',
+    'offline',
+    'server_error',
+];
+
+export function normalizeStoreGame(g) {
+    const o = g && typeof g === 'object' ? g : {};
+    const store = STORES.includes(o.store) ? o.store : '';
+
+    return {
+        key: text(o.key),
+        store,
+        storeId: text(o.store_id),
+        title: text(o.title),
+        status: STORE_STATUS.includes(o.status) ? o.status : 'broken',
+        installPath: text(o.install_path) || null,
+    };
+}
+
+export function normalizeEntry(e) {
+    const o = e && typeof e === 'object' ? e : {};
+    const recipe =
+        o.recipe && typeof o.recipe === 'object'
+            ? normalizeRecipe(o.recipe)
+            : null;
+    const storeGames = (Array.isArray(o.store_games) ? o.store_games : [])
+        .map(normalizeStoreGame)
+        .filter((g) => g.key && g.store);
+
+    return {
+        key: text(o.key),
+        title: text(o.title) || (recipe && recipe.title) || '',
+        recipe,
+        storeGames,
+        primary: PRIMARY.includes(o.primary) ? o.primary : 'none',
+    };
+}
+
+export function normalizeLibrary(v) {
+    const o = v && typeof v === 'object' ? v : {};
+
+    return {
+        entries: (Array.isArray(o.entries) ? o.entries : [])
+            .map(normalizeEntry)
+            .filter((e) => e.key),
+        sources: (Array.isArray(o.sources) ? o.sources : [])
+            .filter((x) => x && STORES.includes(x.store))
+            .map((x) => ({
+                store: x.store,
+                present: x.present === true,
+                found: num(x.found) ?? 0,
+                skipped: num(x.skipped) ?? 0,
+            })),
+        recipesReason: RECIPE_REASONS.includes(o.recipes_reason)
+            ? o.recipes_reason
+            : null,
+        scannedAt: text(o.scanned_at) || null,
+    };
+}
+
+export const sourceLabel = (s) => S.games.source[s] || s;
+export const storeStatusLabel = (s) => S.games.storeStatus[s] || '';
+
+const byStoreOrder = (a, b) =>
+    STORES.indexOf(a.store) - STORES.indexOf(b.store);
+
+// The best state of the installed copies: any ready copy means the game can start.
+function bestStatus(storeGames) {
+    for (const s of STORE_STATUS) {
+        if (storeGames.some((g) => g.status === s)) {
+            return {
+                id: s,
+                label: storeStatusLabel(s),
+                tone: STORE_STATUS_TONE[s],
+            };
+        }
+    }
+
+    return null;
+}
+
+export const firstReady = (e) =>
+    [...e.storeGames].sort(byStoreOrder).find((g) => g.status === 'ready') ||
+    null;
+
+// What a library card shows. `launchKey` is the store game "Spielen" starts, `null` when there is
+// none; the action only exists when the Rust side said so (`primary`), the UI never guesses it.
+export function entryCardModel(e) {
+    const ready = firstReady(e);
+    const label = {
+        play: S.games.actions.play,
+        install_recipe: S.games.detail.installSoon,
+        open_store: S.games.actions.openStore,
+    }[e.primary];
+
+    return {
+        key: e.key,
+        title: e.title,
+        recipe: e.recipe ? cardModel(e.recipe) : null,
+        inLineup: Boolean(e.recipe && e.recipe.inLineup),
+        badges: [...e.storeGames].sort(byStoreOrder).map((g) => ({
+            store: g.store,
+            label: sourceLabel(g.store),
+        })),
+        status: bestStatus(e.storeGames),
+        launchKey: ready ? ready.key : null,
+        primary:
+            e.primary === 'none' || !label ? null : { id: e.primary, label },
+    };
+}
+
+const isReady = (e) =>
+    e.storeGames.some((g) => g.status === 'ready') ||
+    Boolean(e.recipe && e.recipe.local.status === 'ready');
+
+export function filterEntries(
+    entries,
+    { query = '', source = 'all', genre = '', filter = 'all' },
+) {
+    const q = query.trim().toLocaleLowerCase('de');
+
+    return entries.filter((e) => {
+        if (source === 'lan' && !e.recipe) {
+            return false;
+        }
+
+        if (
+            STORES.includes(source) &&
+            !e.storeGames.some((g) => g.store === source)
+        ) {
+            return false;
+        }
+
+        if (genre && !(e.recipe && e.recipe.genre === genre)) {
+            return false;
+        }
+
+        if (filter === 'ready' && !isReady(e)) {
+            return false;
+        }
+
+        if (
+            filter === 'installable' &&
+            !(
+                e.recipe &&
+                e.recipe.installable === true &&
+                e.recipe.availability === 'on_lan' &&
+                !isReady(e)
+            )
+        ) {
+            return false;
+        }
+
+        if (!q) {
+            return true;
+        }
+
+        const r = e.recipe;
+        const hay = [
+            e.title,
+            ...e.storeGames.map((g) => g.title),
+            ...(r ? [r.genre, r.summary, r.slug, ...r.aliases] : []),
+        ];
+
+        return hay.some((t) => t.toLocaleLowerCase('de').includes(q));
+    });
+}
+
+// Lineup first, then by title.
+export function sortEntries(entries) {
+    const lineup = (e) => Number(Boolean(e.recipe && e.recipe.inLineup));
+
+    return [...entries].sort(
+        (a, b) => lineup(b) - lineup(a) || a.title.localeCompare(b.title, 'de'),
+    );
+}
+
+export const genresOfEntries = (entries) =>
+    genresOf(entries.filter((e) => e.recipe).map((e) => e.recipe));
+
+// `call` is util.call: resolves {ok, value} or {ok: false, error}. The local scan does not
+// need the server: with `local` on, the library lists the games on this PC even signed out, and
+// the recipes' own reason becomes one line (`recipesNote`) instead of a blocking screen.
+export async function loadLibrary(call, { rescan = false } = {}) {
     const st = await call('games_state');
 
     if (!st.ok) {
         return { phase: 'error', error: errorInfo(st.error) };
     }
 
-    if (!st.value || st.value.enabled !== true) {
-        return {
-            phase: 'disabled',
-            info: disabledInfo(st.value && st.value.reason),
-        };
+    const s = st.value || {};
+
+    if (s.enabled !== true && s.local !== true) {
+        return { phase: 'disabled', info: disabledInfo(s.reason) };
     }
 
-    const list = await call('games_list');
+    const res = await call(rescan ? 'library_scan' : 'library_list');
 
-    if (!list.ok) {
-        return { phase: 'error', error: errorInfo(list.error) };
+    if (!res.ok) {
+        return { phase: 'error', error: errorInfo(res.error) };
     }
 
-    const { recipes, fetchedAt } = normalizeList(list.value);
+    const l = normalizeLibrary(res.value);
+    const base = {
+        entries: l.entries,
+        sources: l.sources,
+        scannedAt: l.scannedAt,
+        recipesNote: l.recipesReason
+            ? S.games.recipesNote[l.recipesReason]
+            : null,
+    };
 
-    return recipes.length
-        ? { phase: 'ready', recipes, fetchedAt }
-        : { phase: 'empty' };
+    return { phase: l.entries.length ? 'ready' : 'empty', ...base };
 }
 
 export async function loadDetail(call, slug) {

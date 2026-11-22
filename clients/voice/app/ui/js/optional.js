@@ -25,13 +25,18 @@ async function probe(cmd, args) {
     }
 }
 
-// The Spiele tab: shown while the library is on or can say why it is not usable (old server,
-// device not paired). `module_off` and a missing command keep it hidden, like any optional tab.
+// The Spiele tab: shown while the library is on, this PC can list its own games, or the tab can
+// say why it is not usable (old server, device not paired). `module_off` and a missing command keep it hidden, like any optional tab.
 async function probeGames() {
     try {
         const s = await invoke('games_state');
 
-        return Boolean(s) && (s.enabled === true || s.reason !== 'module_off');
+        return (
+            Boolean(s) &&
+            (s.enabled === true ||
+                s.local === true ||
+                s.reason !== 'module_off')
+        );
     } catch (e) {
         const err = normalizeError(e);
 

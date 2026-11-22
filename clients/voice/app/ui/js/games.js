@@ -1,16 +1,20 @@
-// Spiele: the library of game recipes, read only. Cards with availability on the LAN host and the
-// local state, search and filters, and a detail view with the plan summary. Installing and
-// starting arrive in a later phase: the detail only says so.
+// Spiele: one library of the games on this PC (Steam, Epic, GOG, Ubisoft) and the game recipes of
+// the LAN, merged by the Rust side. Cards with one action, search and filters, a detail view.
+// It works signed out: the local scan needs no server, the recipes' reason is one muted line.
 import {
-    cardModel,
-    filterRecipes,
+    entryCardModel,
+    filterEntries,
     FILTERS,
-    genresOf,
+    genresOfEntries,
     loadDetail,
     loadLibrary,
-    sortRecipes,
+    SOURCES,
+    sortEntries,
+    sourceLabel,
+    storeStatusLabel,
 } from './games-model.js';
-import { pageHeader } from './nav.js';
+import * as connect from './connect.js';
+import { offlineMode, pageHeader } from './nav.js';
 import { S } from './strings.js';
 import {
     bytes,
@@ -22,6 +26,8 @@ import {
     errorState,
     say,
     skeleton,
+    state,
+    toast,
 } from './util.js';
 
 const G = S.games;
@@ -32,12 +38,39 @@ let body = null;
 let toolbar = null;
 let search = null;
 let genreSel = null;
+let genreField = null;
 let segBox = null;
+let sourceBox = null;
+let signIn = null;
+let note = null;
 let meta = null;
 let lib = null; // result of loadLibrary
-const filter = { query: '', genre: '', only: 'all' };
-let lastSlug = null;
+const filter = { query: '', genre: '', only: 'all', source: 'all' };
+let lastKey = null;
 let seq = 0;
+
+function seg(label, ids, labelOf, key) {
+    const box = el('div', { class: 'seg', role: 'group', 'aria-label': label });
+
+    for (const id of ids) {
+        box.append(
+            el('button', {
+                class: 'seg-btn',
+                type: 'button',
+                'data-id': id,
+                text: labelOf(id),
+                'aria-pressed': String(id === filter[key]),
+                onclick: () => {
+                    filter[key] = id;
+                    paintSeg();
+                    paintList();
+                },
+            }),
+        );
+    }
+
+    return box;
+}
 
 export function init(section) {
     root = section;
@@ -58,29 +91,14 @@ export function init(section) {
             paintList();
         },
     });
-    segBox = el('div', {
-        class: 'seg',
-        role: 'group',
-        'aria-label': G.sections,
-    });
-
-    for (const f of FILTERS) {
-        segBox.append(
-            el('button', {
-                class: 'seg-btn',
-                type: 'button',
-                'data-filter': f,
-                text: G.filter[f],
-                'aria-pressed': String(f === filter.only),
-                onclick: () => {
-                    filter.only = f;
-                    paintSeg();
-                    paintList();
-                },
-            }),
-        );
-    }
-
+    genreField = el(
+        'div',
+        { class: 'field' },
+        el('label', { for: 'games-genre', text: G.genre }),
+        genreSel,
+    );
+    segBox = seg(G.sections, FILTERS, (f) => G.filter[f], 'only');
+    sourceBox = seg(G.sources, SOURCES, sourceLabel, 'source');
     toolbar = el(
         'div',
         { class: 'games-tools' },
@@ -90,22 +108,31 @@ export function init(section) {
             el('label', { for: 'games-search', text: G.search }),
             search,
         ),
-        el(
-            'div',
-            { class: 'field' },
-            el('label', { for: 'games-genre', text: G.genre }),
-            genreSel,
-        ),
+        genreField,
+        sourceBox,
         segBox,
     );
+    note = el('p', { class: 'games-note small muted', role: 'status' });
     meta = el('div', { class: 'games-meta small muted', role: 'status' });
     body = el('div', { class: 'stack' });
-    listView = el('div', { class: 'stack' }, toolbar, meta, body);
+    listView = el('div', { class: 'stack' }, toolbar, note, meta, body);
     detailView = el('div', { class: 'stack', hidden: true });
-    root.append(pageHeader('spiele', G.title), listView, detailView);
+    // Signed out the way back to pairing is in the header, never hidden in a menu.
+    signIn = el('button', {
+        class: 'btn small-btn',
+        type: 'button',
+        text: G.signIn,
+        hidden: true,
+        onclick: () =>
+            connect.open({
+                url: state.status && state.status.server_url,
+            }),
+    });
+    root.append(pageHeader('spiele', G.title, signIn), listView, detailView);
 }
 
 export async function show() {
+    signIn.hidden = !offlineMode();
     closeDetail();
     await load();
 }
@@ -117,22 +144,28 @@ export function focus() {
 }
 
 function paintSeg() {
-    for (const b of segBox.children) {
-        b.setAttribute(
-            'aria-pressed',
-            String(b.dataset.filter === filter.only),
-        );
+    for (const [box, key] of [
+        [segBox, 'only'],
+        [sourceBox, 'source'],
+    ]) {
+        for (const b of box.children) {
+            b.setAttribute(
+                'aria-pressed',
+                String(b.dataset.id === filter[key]),
+            );
+        }
     }
 }
 
-async function load() {
+async function load({ rescan = false } = {}) {
     const mine = ++seq;
     toolbar.hidden = true;
     meta.hidden = true;
+    note.hidden = true;
     clear(body);
     body.append(skeleton(4));
     body.setAttribute('aria-busy', 'true');
-    lib = await loadLibrary(call);
+    lib = await loadLibrary(call, { rescan });
 
     if (mine !== seq) {
         return;
@@ -142,10 +175,14 @@ async function load() {
     paintLibrary();
 }
 
+const rescan = () => load({ rescan: true });
+
 function paintLibrary() {
     clear(body);
-    toolbar.hidden = lib.phase !== 'ready';
-    meta.hidden = lib.phase !== 'ready';
+    const ready = lib.phase === 'ready';
+    toolbar.hidden = !ready;
+    meta.hidden = !ready;
+    paintNote();
 
     if (lib.phase === 'error') {
         body.append(
@@ -158,26 +195,87 @@ function paintLibrary() {
     } else if (lib.phase === 'disabled') {
         body.append(emptyState(lib.info.title, lib.info.hint));
     } else if (lib.phase === 'empty') {
-        body.append(emptyState(G.empty.title, G.empty.hint));
+        body.append(
+            emptyState(
+                G.empty.title,
+                G.empty.hint,
+                el(
+                    'div',
+                    { class: 'stack-sm' },
+                    el(
+                        'ul',
+                        { class: 'plain-list small muted' },
+                        ...lib.sources.map((x) =>
+                            el('li', {
+                                text: G.sourceState(
+                                    sourceLabel(x.store),
+                                    x.present,
+                                    x.found,
+                                    x.skipped,
+                                ),
+                            }),
+                        ),
+                    ),
+                    el('button', {
+                        class: 'btn small-btn align-start',
+                        type: 'button',
+                        text: G.actions.scan,
+                        onclick: rescan,
+                    }),
+                ),
+            ),
+        );
     } else {
         fillGenres();
+        fillSources();
         paintList();
     }
 }
 
+// One muted line above the list: the recipes are missing, the local games are not.
+function paintNote() {
+    const text = lib && lib.recipesNote;
+    note.hidden = !text || lib.phase === 'disabled' || lib.phase === 'error';
+    note.textContent = text || '';
+}
+
 function fillGenres() {
     const keep = filter.genre;
+    const genres = genresOfEntries(lib.entries);
     clear(genreSel);
     genreSel.append(el('option', { value: '', text: G.allGenres }));
 
-    for (const g of genresOf(lib.recipes)) {
+    for (const g of genres) {
         genreSel.append(el('option', { value: g, text: g }));
     }
 
-    genreSel.value = [...genreSel.options].some((o) => o.value === keep)
-        ? keep
-        : '';
+    genreSel.value = genres.includes(keep) ? keep : '';
     filter.genre = genreSel.value;
+    genreField.hidden = !genres.length;
+    segBox.hidden = !lib.entries.some((e) => e.recipe);
+}
+
+// A source chip only exists when it would show something.
+function fillSources() {
+    const has = (id) =>
+        id === 'all' ||
+        (id === 'lan'
+            ? lib.entries.some((e) => e.recipe)
+            : lib.entries.some((e) =>
+                  e.storeGames.some((g) => g.store === id),
+              ));
+
+    for (const b of sourceBox.children) {
+        b.hidden = !has(b.dataset.id);
+    }
+
+    if (!has(filter.source)) {
+        filter.source = 'all';
+    }
+
+    sourceBox.hidden =
+        [...sourceBox.children].filter((b) => !b.hidden).length < 3;
+    paintSeg();
 }
 
 function paintList() {
@@ -185,23 +283,21 @@ function paintList() {
         return;
     }
 
-    const shown = sortRecipes(filterRecipes(lib.recipes, filter));
+    const shown = sortEntries(filterEntries(lib.entries, filter));
     clear(body);
     meta.textContent = '';
     meta.append(
-        el('span', { text: G.count(shown.length, lib.recipes.length) }),
-        lib.fetchedAt
+        el('span', { text: G.count(shown.length, lib.entries.length) }),
+        lib.scannedAt
             ? el('span', {
-                  text: ` · ${G.fetchedAt(dayTime(lib.fetchedAt))}`,
+                  text: ` · ${G.scannedAt(dayTime(lib.scannedAt))}`,
               })
             : null,
-    );
-    meta.append(
         el('button', {
             class: 'btn ghost small-btn',
             type: 'button',
-            text: G.refresh,
-            onclick: load,
+            text: G.actions.scan,
+            onclick: rescan,
         }),
     );
 
@@ -218,6 +314,7 @@ function paintList() {
                         filter.query = '';
                         filter.genre = '';
                         filter.only = 'all';
+                        filter.source = 'all';
                         search.value = '';
                         genreSel.value = '';
                         paintSeg();
@@ -234,7 +331,7 @@ function paintList() {
         el(
             'ul',
             { class: 'games-grid', 'aria-label': G.title },
-            ...shown.map((r) => el('li', {}, card(cardModel(r)))),
+            ...shown.map((e) => el('li', {}, card(e))),
         ),
     );
 }
@@ -249,11 +346,11 @@ const tag = (label, tone = '') =>
 
 const size = (n) => (n ? bytes(n) : null);
 
-function cover(m, cls) {
-    return m.coverUrl
+function cover(url, cls) {
+    return url
         ? el('img', {
               class: cls,
-              src: m.coverUrl,
+              src: url,
               alt: '',
               width: 96,
               height: 54,
@@ -263,51 +360,108 @@ function cover(m, cls) {
         : null;
 }
 
-function card(m) {
-    const sz = size(m.sizeBytes);
+// The one action of a card. "Spielen" is the amber one; everything else stays quiet.
+function action(m) {
+    const p = m.primary;
+
+    if (!p) {
+        return null;
+    }
+
+    if (p.id === 'install_recipe') {
+        return el('button', {
+            class: 'btn small-btn',
+            type: 'button',
+            text: p.label,
+            title: G.detail.installSoonWhy,
+            'aria-disabled': 'true',
+            onclick: (e) => e.preventDefault(),
+        });
+    }
+
+    const play = p.id === 'play';
+
+    return el('button', {
+        class: play ? 'btn primary small-btn' : 'btn small-btn',
+        type: 'button',
+        text: p.label,
+        'aria-label': `${p.label}: ${m.title}`,
+        onclick: async (e) => {
+            const b = e.currentTarget;
+            b.disabled = true;
+            const r = play
+                ? await call('library_launch', { key: m.launchKey })
+                : await call('library_open_store', { key: m.key });
+            b.disabled = false;
+
+            if (r.ok) {
+                say(`${p.label}: ${m.title}`);
+            } else {
+                toast(r.error.message || G.actions.failed, 'error');
+            }
+        },
+    });
+}
+
+function card(entry) {
+    const m = entryCardModel(entry);
+    const r = m.recipe;
+    const sz = r && size(r.sizeBytes);
+    const facts = r ? [r.genre, r.players, r.platforms].filter(Boolean) : [];
 
     return el(
-        'button',
-        {
-            class: 'card game',
-            type: 'button',
-            'data-slug': m.slug,
-            'aria-label': G.open(m.title),
-            onclick: () => openDetail(m.slug),
-        },
-        cover(m, 'game-cover'),
+        'article',
+        { class: 'card game' },
         el(
-            'span',
-            { class: 'game-body' },
-            el('span', { class: 'game-title', text: m.title }),
-            m.inLineup
-                ? el('span', { class: 'game-lineup', text: G.lineup })
-                : null,
-            m.summary
-                ? el('span', { class: 'game-summary', text: m.summary })
-                : null,
-            el('span', {
-                class: 'game-facts small muted',
-                text: [m.genre, m.players, m.platforms]
-                    .filter(Boolean)
-                    .join(' · '),
-            }),
+            'button',
+            {
+                class: 'game-open',
+                type: 'button',
+                'data-key': m.key,
+                'aria-label': G.open(m.title),
+                onclick: () => openDetail(entry),
+            },
+            cover(r && r.coverUrl, 'game-cover'),
             el(
                 'span',
-                { class: 'game-state' },
-                tag(m.availability.label, m.availability.tone),
-                tag(m.local.label, m.local.tone),
-                sz
-                    ? el('span', { class: 'mono small muted', text: sz })
-                    : el('span', { class: 'small muted', text: G.sizeUnknown }),
+                { class: 'game-body' },
+                el('span', { class: 'game-title', text: m.title }),
+                m.inLineup
+                    ? el('span', { class: 'game-lineup', text: G.lineup })
+                    : null,
+                m.badges.length
+                    ? el(
+                          'span',
+                          { class: 'game-stores' },
+                          ...m.badges.map((b) =>
+                              el('span', {
+                                  class: `store-chip store-${b.store}`,
+                                  text: b.label,
+                              }),
+                          ),
+                      )
+                    : null,
+                r && r.summary
+                    ? el('span', { class: 'game-summary', text: r.summary })
+                    : null,
+                facts.length
+                    ? el('span', {
+                          class: 'game-facts small muted',
+                          text: facts.join(' · '),
+                      })
+                    : null,
+                el(
+                    'span',
+                    { class: 'game-state' },
+                    m.status ? tag(m.status.label, m.status.tone) : null,
+                    r ? tag(r.availability.label, r.availability.tone) : null,
+                    sz
+                        ? el('span', { class: 'mono small muted', text: sz })
+                        : null,
+                ),
             ),
-            m.lastPlayedAt
-                ? el('span', {
-                      class: 'small muted',
-                      text: G.lastPlayed(dayTime(m.lastPlayedAt)),
-                  })
-                : null,
         ),
+        action(m) ? el('div', { class: 'game-actions' }, action(m)) : null,
     );
 }
 
@@ -323,7 +477,7 @@ function closeDetail() {
 function backToList() {
     closeDetail();
     const c =
-        lastSlug && body.querySelector(`[data-slug="${CSS.escape(lastSlug)}"]`);
+        lastKey && body.querySelector(`[data-key="${CSS.escape(lastKey)}"]`);
 
     if (c) {
         c.focus();
@@ -332,15 +486,24 @@ function backToList() {
     }
 }
 
-async function openDetail(slug) {
+async function openDetail(entry) {
     const mine = ++seq;
-    lastSlug = slug;
+    lastKey = entry.key;
     listView.hidden = true;
     detailView.hidden = false;
     clear(detailView);
-    detailView.append(backButton(), skeleton(3));
     scrollTop();
-    const d = await loadDetail(call, slug);
+
+    if (!entry.recipe) {
+        detailView.append(backButton(), ...storeOnlyBody(entry));
+        say(entry.title);
+        focusHeading();
+
+        return;
+    }
+
+    detailView.append(backButton(), skeleton(3));
+    const d = await loadDetail(call, entry.recipe.slug);
 
     if (mine !== seq) {
         return;
@@ -353,12 +516,12 @@ async function openDetail(slug) {
         detailView.append(
             errorState(
                 { message: d.error.text },
-                d.error.retryable ? () => openDetail(slug) : null,
+                d.error.retryable ? () => openDetail(entry) : null,
                 G.errors.detailTitle,
             ),
         );
     } else {
-        detailView.append(...detailBody(d));
+        detailView.append(...detailBody(d), storeSection(entry));
         say(d.recipe.title);
     }
 
@@ -384,6 +547,51 @@ function focusHeading() {
         h.tabIndex = -1;
         h.focus();
     }
+}
+
+// The installed copies of a game, one block per store, the folder in mono.
+function storeSection(entry) {
+    if (!entry.storeGames.length) {
+        return null;
+    }
+
+    const D = G.storeDetail;
+
+    return el(
+        'section',
+        { class: 'stack-sm', 'aria-labelledby': 'g-stores' },
+        el('h3', { id: 'g-stores', text: D.about }),
+        ...entry.storeGames.map((g) =>
+            el(
+                'dl',
+                { class: 'facts' },
+                fact(D.store, sourceLabel(g.store)),
+                fact(D.status, storeStatusLabel(g.status)),
+                fact(D.path, g.installPath, true),
+            ),
+        ),
+    );
+}
+
+function storeOnlyBody(entry) {
+    const m = entryCardModel(entry);
+    const act = action(m);
+
+    return [
+        el(
+            'header',
+            { class: 'stack-sm' },
+            el('h2', { text: entry.title }),
+            el(
+                'div',
+                { class: 'game-state' },
+                m.status ? tag(m.status.label, m.status.tone) : null,
+            ),
+        ),
+        el('p', { class: 'game-about', text: G.storeDetail.note }),
+        storeSection(entry),
+        act ? el('div', { class: 'game-actions' }, act) : null,
+    ];
 }
 
 function fact(label, value, mono = false) {
