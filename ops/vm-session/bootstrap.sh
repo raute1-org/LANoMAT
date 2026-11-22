@@ -35,7 +35,7 @@ log "Base packages"
 apt-get update -y
 apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg git tmux jq unzip rsync openssh-client sudo \
-    lsb-release software-properties-common apt-transport-https \
+    lsb-release apt-transport-https \
     dnsutils netcat-openbsd
 
 log "User '${CLAUDE_USER}'"
