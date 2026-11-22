@@ -15,7 +15,8 @@ fn root(hive: Hive) -> &'static Key {
 
 impl Registry for OsRegistry {
     fn string(&self, hive: Hive, path: &str, name: &str) -> Option<String> {
-        // `get_string` reads REG_SZ and REG_EXPAND_SZ (expanded).
+        // `get_string` reads REG_SZ and REG_EXPAND_SZ as stored: it does not expand `%VAR%`. The
+        // four stores write REG_SZ paths, so an unexpanded value would show up as `broken`.
         root(hive).open(path).ok()?.get_string(name).ok()
     }
 

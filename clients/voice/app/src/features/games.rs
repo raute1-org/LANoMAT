@@ -28,8 +28,14 @@ use crate::installs::LocalView;
 const LOCAL_SCAN_PLATFORM: bool = cfg!(windows);
 
 /// Whether this build can scan: Windows, or a debug build run with a scan fixture (screenshots).
-fn local_scan() -> bool {
+pub(super) fn local_scan() -> bool {
     LOCAL_SCAN_PLATFORM || super::library::fixture_scan().is_some()
+}
+
+/// Whether this build can scan the PC for store games. Local only: no pairing, no network.
+#[must_use]
+pub fn local_scan_available() -> bool {
+    local_scan()
 }
 
 /// Plan requests per minute this client allows itself (the server's limit is 30 per token).
@@ -55,7 +61,8 @@ pub mod code {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GamesState {
     pub enabled: bool,
-    /// `module_off`, `server_too_old` or `not_paired`; `null` while enabled.
+    /// `module_off`, `server_too_old`, `not_paired`, `offline` or `server_error`; `null` while
+    /// enabled.
     pub reason: Option<&'static str>,
     /// This build can scan the PC for store games (stage 1: Windows only).
     pub local: bool,
@@ -241,7 +248,26 @@ impl Features {
                 local: local_scan(),
             });
         };
-        let config = api.config().await.map_err(|e| self.games_error(e, false))?;
+        let config = match api.config().await {
+            Ok(config) => config,
+            // A rejected token is the session's problem (and every window is told); anything
+            // else only means the library has no server today: the local part still works.
+            Err(e @ (Error::NotLoggedIn | Error::Unauthorized)) => {
+                return Err(self.games_error(e, false));
+            }
+            Err(e) => {
+                let reason = if matches!(e, Error::Network(_)) {
+                    "offline"
+                } else {
+                    "server_error"
+                };
+                return Ok(GamesState {
+                    enabled: false,
+                    reason: Some(reason),
+                    local: local_scan(),
+                });
+            }
+        };
 
         Ok(match config.launcher_feature() {
             Some(true) => GamesState {

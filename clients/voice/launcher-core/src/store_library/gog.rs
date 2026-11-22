@@ -47,14 +47,15 @@ fn parse(id: &str, reg: &dyn Registry, fs: &dyn FileSystem) -> Option<LocalGame>
 }
 
 pub fn read(reg: &dyn Registry, fs: &dyn FileSystem) -> (Vec<LocalGame>, SourceReport) {
+    let mut keys = reg.subkeys(Hive::LocalMachine, GAMES);
+    keys.sort();
+    // Games from the offline installer leave registry keys without Galaxy being there.
     let mut report = SourceReport {
         store: Store::Gog,
-        present: galaxy_installed(reg),
+        present: galaxy_installed(reg) || !keys.is_empty(),
         found: 0,
         skipped: 0,
     };
-    let mut keys = reg.subkeys(Hive::LocalMachine, GAMES);
-    keys.sort();
     let mut games: Vec<LocalGame> = Vec::new();
     for key in keys {
         let Some(game) = parse(&key, reg, fs) else {
@@ -123,6 +124,15 @@ mod tests {
         let (games, rep) = read(&reg_game("abc", Some("D:\\X")), &MapFs::new());
         assert!(games.is_empty());
         assert_eq!(rep.skipped, 1);
+    }
+
+    #[test]
+    fn gog_is_present_with_games_but_without_galaxy() {
+        let p = "D:\\GOG Games\\Example Classic";
+        let (_, rep) = read(&reg_game("1207658924", Some(p)), &MapFs::new());
+        assert!(rep.present);
+        let (_, rep) = read(&MapRegistry::new(), &MapFs::new());
+        assert!(!rep.present);
     }
 
     #[test]

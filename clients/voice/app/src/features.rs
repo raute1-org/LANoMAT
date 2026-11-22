@@ -34,6 +34,7 @@ use crate::settings::Settings;
 
 mod games;
 mod library;
+pub use games::local_scan_available;
 pub use games::{
     GameDetail, GameDetailRecipe, GameView, GamesList, GamesState, PlanFileView, PlanSummary,
 };

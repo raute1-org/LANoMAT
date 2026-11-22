@@ -9,6 +9,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use launcher_core::store_library::gog::galaxy_installed;
 use launcher_core::store_library::handoff::{self, Handoff};
@@ -33,11 +34,15 @@ pub(super) struct Sources {
 /// Opens a validated handoff; the error is the system's text.
 pub(super) type Opener = Box<dyn Fn(&Handoff) -> Result<(), String> + Send + Sync>;
 
-/// The seams of the library: where the scan reads from, and how a handoff is opened. Tests
-/// replace both; the defaults are the real machine.
+/// How long the recipe side may take before the list shows the local games alone.
+const RECIPE_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// The seams of the library: where the scan reads from, how a handoff is opened, and how long
+/// the server gets. Tests replace them; the defaults are the real machine.
 pub(super) struct LibraryEnv {
     pub sources: Box<dyn Fn() -> Sources + Send + Sync>,
     pub opener: Opener,
+    pub recipe_timeout: Duration,
 }
 
 impl Default for LibraryEnv {
@@ -49,6 +54,7 @@ impl Default for LibraryEnv {
                 env: StoreEnv::from_os(),
             }),
             opener: Box::new(open_handoff),
+            recipe_timeout: RECIPE_TIMEOUT,
         }
     }
 }
@@ -197,16 +203,28 @@ fn unknown_game() -> UiError {
 }
 
 /// `\\?\C:\x` to `C:\x` and `\\?\UNC\srv\x` to `\\srv\x`: `std::fs::canonicalize` on Windows
-/// returns the verbatim form, which not every game launcher copes with.
+/// returns the verbatim form, which not every game launcher copes with. Only plain drive and UNC
+/// paths are stripped, and not when the plain form would be over the 259 characters the classic
+/// API takes (the rule of the `dunce` crate): then the verbatim form is the one that works.
 pub(super) fn strip_verbatim(p: &Path) -> PathBuf {
+    const MAX_PLAIN: usize = 259;
     let s = p.to_string_lossy();
-    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
-        PathBuf::from(format!(r"\\{rest}"))
+    let plain = if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
     } else if let Some(rest) = s.strip_prefix(r"\\?\") {
-        PathBuf::from(rest)
+        let b = rest.as_bytes();
+        let drive = b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && b[2] == b'\\';
+        if !drive {
+            return p.to_path_buf();
+        }
+        rest.to_string()
     } else {
-        p.to_path_buf()
+        return p.to_path_buf();
+    };
+    if plain.chars().count() > MAX_PLAIN {
+        return p.to_path_buf();
     }
+    PathBuf::from(plain)
 }
 
 /// Opens a validated handoff: a URL through the system's handler, an `.exe` as a plain process
@@ -269,8 +287,17 @@ impl Features {
         Ok(())
     }
 
-    /// The server's recipes, or the one reason they are not there. Never fails.
-    async fn library_recipes(&self) -> (Vec<GameView>, Option<&'static str>) {
+    /// The server's recipes, or the one reason they are not there. Never fails, and never takes
+    /// longer than `recipe_timeout`: the local games must not wait for a dead server.
+    async fn library_recipes(&self) -> (Option<Vec<GameView>>, Option<&'static str>) {
+        let bound = self.library_env().recipe_timeout;
+        match tokio::time::timeout(bound, self.library_recipes_unbounded()).await {
+            Ok(answer) => answer,
+            Err(_) => (None, Some("offline")),
+        }
+    }
+
+    async fn library_recipes_unbounded(&self) -> (Option<Vec<GameView>>, Option<&'static str>) {
         let reason = |e: UiError| match e.code.as_deref() {
             Some("not_paired") => "not_paired",
             Some("offline") => "offline",
@@ -279,22 +306,33 @@ impl Features {
         };
         let state = match self.games_state().await {
             Ok(s) => s,
-            Err(e) => return (Vec::new(), Some(reason(e))),
+            Err(e) => return (None, Some(reason(e))),
         };
         if !state.enabled {
-            return (Vec::new(), state.reason.or(Some("server_error")));
+            return (None, state.reason.or(Some("server_error")));
         }
         match self.games_list().await {
-            Ok(list) => (list.recipes, None),
-            Err(e) => (Vec::new(), Some(reason(e))),
+            Ok(list) => (Some(list.recipes), None),
+            Err(e) => (None, Some(reason(e))),
         }
     }
 
     async fn library_view(&self) -> Result<LibraryList, UiError> {
-        let (recipes, recipes_reason) = self.library_recipes().await;
+        let (loaded, recipes_reason) = self.library_recipes().await;
         let mut state = lock(&self.library);
-        state.recipes = recipes;
-        let cached = state.scan.as_ref().ok_or_else(unknown_game)?;
+        match loaded {
+            Some(recipes) => state.recipes = recipes,
+            // The server is only unreachable or in trouble: the last good list stays (its keys
+            // keep resolving). Anything else (signed out, module off) means there is none.
+            None if matches!(recipes_reason, Some("offline" | "server_error")) => {}
+            None => state.recipes.clear(),
+        }
+        let cached = state.scan.as_ref().ok_or_else(|| {
+            UiError::new(
+                "local",
+                "Die Spiele wurden noch nicht gesucht. Suche erneut.",
+            )
+        })?;
         Ok(LibraryList {
             entries: merge(&cached.scan, &state.recipes),
             sources: cached.scan.sources.clone(),
@@ -344,7 +382,7 @@ impl Features {
         .await
         .map_err(|_| UiError::new("local", "Das Spiel konnte nicht gestartet werden."))?
         .map_err(|e| usage(&e.to_string()))?;
-        self.library_open(&handoff)
+        self.library_open(&handoff, "Das Spiel konnte nicht geöffnet werden.")
     }
 
     /// Opens the store page of a game: of an installed store game, or of a recipe's Steam id.
@@ -364,15 +402,18 @@ impl Features {
             from_scan.or(from_recipe).ok_or_else(unknown_game)?
         };
         let url = handoff::store_page(store, &id).map_err(|e| usage(&e.to_string()))?;
-        self.library_open(&Handoff::Url(url))
+        self.library_open(
+            &Handoff::Url(url),
+            "Die Shop-Seite konnte nicht geöffnet werden.",
+        )
     }
 
-    fn library_open(&self, h: &Handoff) -> Result<(), UiError> {
+    /// The system's own error text is English more often than not and says little to a player:
+    /// it goes to the log, the window gets `message`.
+    fn library_open(&self, h: &Handoff, message: &str) -> Result<(), UiError> {
         (self.library_env().opener)(h).map_err(|e| {
-            UiError::new(
-                "local",
-                format!("Das Spiel konnte nicht geöffnet werden ({e})."),
-            )
+            tracing::warn!(target: "lanomat::library", error = %e, "handoff could not be opened");
+            UiError::new("local", message)
         })
     }
 }

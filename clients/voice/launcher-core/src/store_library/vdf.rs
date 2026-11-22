@@ -198,7 +198,9 @@ mod tests {
 
     #[test]
     fn vdf_deep_nesting_is_rejected_not_a_panic() {
-        let s = "\"a\" {".repeat(1000);
-        assert!(parse(&s).is_none());
+        // Balanced, so only the depth cap can refuse it.
+        let deep = |n: usize| format!("{}{}", "\"a\" {".repeat(n), "}".repeat(n));
+        assert!(parse(&deep(MAX_DEPTH - 1)).is_some());
+        assert!(parse(&deep(1000)).is_none());
     }
 }

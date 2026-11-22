@@ -16,6 +16,25 @@ struct Manifest {
     install_location: Option<String>,
     #[serde(default, rename = "bIsIncompleteInstall")]
     is_incomplete_install: bool,
+    /// Set on DLC: the `AppName` of the game it belongs to.
+    main_game_app_name: Option<String>,
+    /// Unreal Engine plugins carry `plugins` or `plugins/engine`.
+    app_categories: Option<Vec<String>>,
+}
+
+impl Manifest {
+    /// DLC and engine plugins are no games of their own.
+    fn is_not_a_game(&self) -> bool {
+        let dlc = self
+            .main_game_app_name
+            .as_deref()
+            .is_some_and(|main| !main.is_empty() && main != self.app_name);
+        let plugin = self.app_categories.iter().flatten().any(|c| {
+            let c = c.trim().to_ascii_lowercase();
+            c == "plugins" || c == "plugins/engine"
+        });
+        dlc || plugin
+    }
 }
 
 fn valid_app_name(s: &str) -> bool {
@@ -24,8 +43,14 @@ fn valid_app_name(s: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
 }
 
-fn parse(text: &str, fs: &dyn FileSystem) -> Option<LocalGame> {
+/// `None`: malformed. `Some(None)`: well-formed, but DLC or a plugin.
+fn parse(text: &str, fs: &dyn FileSystem) -> Option<Option<LocalGame>> {
+    // Windows tools write a byte order mark now and then; serde_json refuses it.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let m: Manifest = serde_json::from_str(text).ok()?;
+    if m.is_not_a_game() {
+        return Some(None);
+    }
     let title = m.display_name.trim();
     if !valid_app_name(&m.app_name)
         || title.is_empty()
@@ -48,7 +73,7 @@ fn parse(text: &str, fs: &dyn FileSystem) -> Option<LocalGame> {
         }
         _ => LocalStatus::Broken,
     };
-    Some(LocalGame {
+    Some(Some(LocalGame {
         store: Store::Epic,
         store_id: m.app_name.clone(),
         title: title.to_string(),
@@ -60,7 +85,7 @@ fn parse(text: &str, fs: &dyn FileSystem) -> Option<LocalGame> {
             catalog_item_id: m.catalog_item_id,
             app_name: m.app_name,
         }),
-    })
+    }))
 }
 
 pub fn read(fs: &dyn FileSystem, program_data: &Path) -> (Vec<LocalGame>, SourceReport) {
@@ -87,8 +112,11 @@ pub fn read(fs: &dyn FileSystem, program_data: &Path) -> (Vec<LocalGame>, Source
         if file.extension().and_then(|e| e.to_str()) != Some("item") {
             continue;
         }
-        let Some(game) = fs.read_to_string(&file).and_then(|t| parse(&t, fs)) else {
+        let Some(parsed) = fs.read_to_string(&file).and_then(|t| parse(&t, fs)) else {
             report.skipped += 1;
+            continue;
+        };
+        let Some(game) = parsed else {
             continue;
         };
         if games.iter().any(|g| g.store_id == game.store_id) {
@@ -174,6 +202,56 @@ mod tests {
         let (games, rep) = read(&fs, Path::new(PD));
         assert_eq!(games.len(), 1);
         assert_eq!((rep.found, rep.skipped), (1, 2));
+    }
+
+    #[test]
+    fn epic_skips_dlc_and_engine_plugins() {
+        let with = |app: &str, extra: &str| {
+            format!(
+                r#"{{"AppName":"{app}","DisplayName":"Example Game","CatalogNamespace":"ns1","CatalogItemId":"item1","InstallLocation":"D:/G"{extra}}}"#
+            )
+        };
+        let fs = MapFs::new()
+            .with_file(
+                manifests().join("A.item"),
+                &with(
+                    "Kinglet",
+                    r#","MainGameAppName":"Kinglet","AppCategories":["public","games"]"#,
+                ),
+            )
+            .with_file(
+                manifests().join("B.item"),
+                &with("KingletDlc", r#","MainGameAppName":"Kinglet""#),
+            )
+            .with_file(
+                manifests().join("C.item"),
+                &with(
+                    "SomePlugin",
+                    r#","AppCategories":["plugins","plugins/engine"]"#,
+                ),
+            )
+            .with_file(
+                manifests().join("D.item"),
+                &with("OtherPlugin", r#","AppCategories":["plugins/engine"]"#),
+            )
+            .with_dir("D:/G");
+        let (games, rep) = read(&fs, Path::new(PD));
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].key(), "epic:Kinglet");
+        assert_eq!((rep.found, rep.skipped), (1, 0));
+    }
+
+    #[test]
+    fn epic_reads_a_manifest_with_a_byte_order_mark() {
+        let fs = MapFs::new()
+            .with_file(
+                manifests().join("A.item"),
+                &format!("\u{feff}{}", item("Kinglet", "D:/G", false)),
+            )
+            .with_dir("D:/G");
+        let (games, rep) = read(&fs, Path::new(PD));
+        assert_eq!(games.len(), 1);
+        assert_eq!(rep.skipped, 0);
     }
 
     #[test]

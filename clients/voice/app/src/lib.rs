@@ -401,6 +401,13 @@ async fn game_detail(f: Feat<'_>, slug: String) -> Result<features::GameDetail, 
 
 // ---- local store library: see `features/library.rs` and "Library" in docs/commands.md ----
 
+/// Whether this PC can be scanned for store games at all: answers without the server or any
+/// credentials, so the connect screen can offer the local library to a signed-out person.
+#[tauri::command]
+fn library_local_available() -> bool {
+    features::local_scan_available()
+}
+
 #[tauri::command]
 async fn library_list(f: Feat<'_>) -> Result<features::LibraryList, UiError> {
     f.library_list().await
@@ -1149,6 +1156,7 @@ command_set!(
     games_state,
     games_list,
     game_detail,
+    library_local_available,
     library_list,
     library_scan,
     library_launch,

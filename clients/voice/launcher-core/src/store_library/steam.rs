@@ -58,6 +58,17 @@ fn app_id_from_file_name(name: &str) -> Option<Option<String>> {
     Some(valid.then(|| id.to_string()))
 }
 
+/// Steam apps that are tools, not games: the redistributables every install carries, SteamVR
+/// and the compatibility layers.
+const TOOL_APP_IDS: &[&str] = &[
+    "228980",  // Steamworks Common Redistributables
+    "250820",  // SteamVR
+    "1070560", // Steam Linux Runtime
+    "1391110", // Steam Linux Runtime (soldier)
+    "1493710", // Proton Experimental
+    "1628350", // Steam Linux Runtime (sniper)
+];
+
 fn safe_dir_name(s: &str) -> bool {
     !s.is_empty() && s != "." && s != ".." && !s.contains(['/', '\\', ':'])
 }
@@ -75,18 +86,23 @@ fn parse_manifest(
     if title.is_empty() || !safe_dir_name(dir) {
         return None;
     }
-    let flags: u64 = state
+    let flags: Option<u64> = state
         .get("StateFlags")
         .and_then(Node::str)
-        .and_then(|f| f.trim().parse().ok())
-        .unwrap_or(0);
+        .and_then(|f| f.trim().parse().ok());
     let install = steamapps.join("common").join(dir);
     let status = if !fs.is_dir(&install) {
         LocalStatus::Broken
-    } else if flags & 4 != 0 && flags & (2 | 1024) == 0 {
-        LocalStatus::Ready
     } else {
-        LocalStatus::Updating
+        match flags {
+            // No flags but an install folder: Steam will sort it out when the game starts.
+            None => LocalStatus::Ready,
+            // Fully installed (4) and no download running (1024 update running, 256 started):
+            // "update required" (2) alone does not keep the game from starting, Steam updates
+            // first. Anything else is an install or update in progress.
+            Some(f) if f & 4 != 0 && f & (1024 | 256) == 0 => LocalStatus::Ready,
+            Some(_) => LocalStatus::Updating,
+        }
     };
     Some(LocalGame {
         store: Store::Steam,
@@ -126,6 +142,9 @@ pub fn read(reg: &dyn Registry, fs: &dyn FileSystem) -> (Vec<LocalGame>, SourceR
             let Some(id) = app_id_from_file_name(name) else {
                 continue;
             };
+            if id.as_deref().is_some_and(|id| TOOL_APP_IDS.contains(&id)) {
+                continue;
+            }
             let game = id.and_then(|id| {
                 let text = fs.read_to_string(&file)?;
                 parse_manifest(&text, &id, &steamapps, fs)
@@ -209,13 +228,20 @@ mod tests {
             "InstallPath",
             ROOT,
         );
-        let fs = base_fs().with_file(
-            apps(ROOT).join("appmanifest_10.acf"),
-            &acf("Counter-Strike", "Half-Life", "4"),
-        );
+        let fs = base_fs()
+            .with_file(
+                apps(ROOT).join("appmanifest_10.acf"),
+                &acf("Counter-Strike", "Half-Life", "4"),
+            )
+            .with_dir(apps(ROOT).join("common").join("Half-Life"));
         let (games, rep) = read(&r, &fs);
         assert!(rep.present);
         assert_eq!(games.len(), 1);
+        assert_eq!(games[0].key(), "steam:10");
+        assert_eq!(
+            games[0].install_path,
+            Some(apps(ROOT).join("common").join("Half-Life"))
+        );
     }
 
     #[test]
@@ -253,8 +279,57 @@ mod tests {
                     .join("Half-Life")
             )
         );
+        // Flag 6: fully installed, update required, nothing downloading: still playable.
         let g620 = games.iter().find(|g| g.key() == "steam:620").unwrap();
-        assert_eq!(g620.status, LocalStatus::Updating);
+        assert_eq!(g620.status, LocalStatus::Ready);
+    }
+
+    fn status_of(flags: Option<&str>) -> LocalStatus {
+        let text = match flags {
+            Some(f) => acf("Portal 2", "Portal 2", f),
+            None => "\"AppState\"{\"name\"\"Portal 2\"\"installdir\"\"Portal 2\"}".to_string(),
+        };
+        let fs = base_fs()
+            .with_file(apps(ROOT).join("appmanifest_620.acf"), &text)
+            .with_dir(apps(ROOT).join("common").join("Portal 2"));
+        read(&reg(), &fs).0[0].status
+    }
+
+    #[test]
+    fn steam_status_follows_the_state_flags() {
+        assert_eq!(status_of(Some("4")), LocalStatus::Ready);
+        // Update required but no download running.
+        assert_eq!(status_of(Some("6")), LocalStatus::Ready);
+        // An active download (1024) or a started one (256).
+        assert_eq!(status_of(Some("1030")), LocalStatus::Updating);
+        assert_eq!(status_of(Some("260")), LocalStatus::Updating);
+        // Not installed (yet).
+        assert_eq!(status_of(Some("2")), LocalStatus::Updating);
+        // No StateFlags at all, but the install folder exists.
+        assert_eq!(status_of(None), LocalStatus::Ready);
+    }
+
+    #[test]
+    fn steam_skips_tool_app_ids() {
+        let fs = base_fs()
+            .with_file(
+                apps(ROOT).join("appmanifest_228980.acf"),
+                &acf(
+                    "Steamworks Common Redistributables",
+                    "Steamworks Shared",
+                    "4",
+                ),
+            )
+            .with_dir(apps(ROOT).join("common").join("Steamworks Shared"))
+            .with_file(
+                apps(ROOT).join("appmanifest_10.acf"),
+                &acf("Counter-Strike", "Half-Life", "4"),
+            )
+            .with_dir(apps(ROOT).join("common").join("Half-Life"));
+        let (games, rep) = read(&reg(), &fs);
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].key(), "steam:10");
+        assert_eq!((rep.found, rep.skipped), (1, 0));
     }
 
     #[test]

@@ -79,6 +79,11 @@ fn direct_exe(game: &LocalGame, fs: &dyn FileSystem) -> Result<Handoff, HandoffE
     if !canon_exe.starts_with(&canon_install) {
         return Err(HandoffError::ExeOutsideInstall);
     }
+    // The registry string said `.exe`; the file it resolves to must be one too (a link to a
+    // batch file would run through `cmd`).
+    if !has_exe_extension(&canon_exe) {
+        return Err(HandoffError::NotLaunchable);
+    }
     Ok(Handoff::Exe {
         program: canon_exe,
         cwd: install.clone(),
@@ -284,6 +289,42 @@ mod tests {
         assert_eq!(
             launch(&gog_with_exe(Some(exe)), false, &fs),
             Err(HandoffError::ExeOutsideInstall)
+        );
+    }
+
+    #[test]
+    fn gog_relative_exe_escaping_with_dotdot_is_refused() {
+        let rel = "../../Windows/System32/cmd.exe";
+        let joined = PathBuf::from(GOG_INSTALL).join(rel);
+        let fs = MapFs::new()
+            .with_dir(GOG_INSTALL)
+            .with_canonical(GOG_INSTALL, GOG_INSTALL)
+            .with_canonical(joined, "D:/Windows/System32/cmd.exe");
+        assert_eq!(
+            launch(&gog_with_exe(Some(rel)), false, &fs),
+            Err(HandoffError::ExeOutsideInstall)
+        );
+    }
+
+    #[test]
+    fn gog_sibling_folder_with_the_same_prefix_is_refused() {
+        let exe = "D:/GOG Games/Example Classic2/game.exe";
+        assert_eq!(
+            launch(&gog_with_exe(Some(exe)), false, &fs_inside(exe)),
+            Err(HandoffError::ExeOutsideInstall)
+        );
+    }
+
+    #[test]
+    fn gog_exe_that_resolves_to_a_batch_file_is_refused() {
+        let exe = "D:/GOG Games/Example Classic/game.exe";
+        let fs = MapFs::new()
+            .with_dir(GOG_INSTALL)
+            .with_canonical(GOG_INSTALL, GOG_INSTALL)
+            .with_canonical(exe, "D:/GOG Games/Example Classic/run.bat");
+        assert_eq!(
+            launch(&gog_with_exe(Some(exe)), false, &fs),
+            Err(HandoffError::NotLaunchable)
         );
     }
 
