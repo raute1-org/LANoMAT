@@ -184,7 +184,7 @@ under "Verbundene Geräte" until they are disconnected.
 | `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
 | `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |
 | `RECIPES_MAX_DRAFTS_PER_USER` | `20` | How many drafts one participant may have waiting for review at the same time (shared games, MCP and REST contributions together). The orga is not limited |
-| `LAUNCHER_DIST_PATH` | `clients-dist/launcher` | Where the published launcher builds and `manifest.json` live; read by `/launcher` and the Preflight `launcher_build` check |
+| `LAUNCHER_DIST_PATH` | `clients-dist/launcher` | Where the published launcher builds and `manifest.json` live; read by `/app` and the Preflight `launcher_build` check |
 | `LAUNCHER_LINEUP` | `unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser` | Comma-separated recipe allowlist for the launcher catalogue, `/games`, the home chat cards, MCP `recipes_list` and the install link next to a server; the lineup players see is this list **plus** every recipe with `game_recipes.in_lineup = true` (the panel toggle **In der Spieleliste zeigen**). Empty = unrestricted: the whole visible catalogue is shown and the flag changes nothing |
 
 Malformed entries in `LAUNCHER_LINEUP` are ignored, so a typo never hides the catalogue. The flag is

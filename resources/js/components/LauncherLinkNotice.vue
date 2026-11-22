@@ -64,10 +64,10 @@ const emit = defineEmits<{
 
         <span class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <Link
-                href="/launcher"
+                href="/app"
                 class="inline-flex min-h-8 items-center rounded-sm font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none pointer-coarse:min-h-11"
             >
-                Launcher herunterladen
+                App herunterladen
             </Link>
             <Button
                 type="button"

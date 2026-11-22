@@ -468,8 +468,8 @@ deliberately not built):
 - Push-to-talk through a control socket (`lanomat-voice ptt down|up|toggle|status`; a named pipe on
   Windows), which also works on Wayland, plus a best-effort global shortcut (not on Wayland), a tray
   icon and a speaking overlay. A CLI and a headless latency test are included.
-- **Download and version matching:** participants get the client inside LANoMAT (sidebar "Desktop-App",
-  `/app`, `/talk/client`). The server only offers a build whose `manifest.json` `app_version` equals its
+- **Download and version matching:** participants get the client inside LANoMAT (sidebar and header "App herunterladen",
+  the unified page `/app`; `/talk/client` and `/launcher` redirect there). The server only offers a build whose `manifest.json` `app_version` equals its
   own `config('app.version')` (the string from `git describe --tags --always --dirty`, produced by
   `scripts/ops/lib/version.sh` for both the server image and the client build) and says "version does
   not match" otherwise. `scripts/ops/build-client.sh` builds the Linux files into `clients-dist/`; the

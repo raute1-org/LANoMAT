@@ -43,34 +43,42 @@ afterEach(function () {
     }
 });
 
-it('sends guests to the login for the page and the file', function () {
+it('sends guests to the login for the page, the old URL and the file', function () {
     [, $name] = publishedClient();
 
+    $this->get('/app')->assertRedirect('/login');
     $this->get('/talk/client')->assertRedirect('/login');
     $this->get("/talk/client/download/$name")->assertRedirect('/login');
 });
 
-it('shows a logged-in user the current build with its facts', function () {
+it('keeps the old download page URL alive and sends logged-in users to the unified page', function () {
     publishedClient();
 
-    $this->actingAs($this->user)->get('/talk/client')->assertOk()->assertInertia(
-        fn ($page) => $page->component('WebVoice/ClientDownload')
-            ->where('state', 'current')
-            ->where('release.version', 'v1')
-            ->has('builds', 1)
-            ->where('builds.0.os', 'linux')
-            ->where('builds.0.kind', 'app')
-            ->where('builds.0.url', '/talk/client/download/lanomat-voice-app-v1-linux-x86_64.tar.gz')
-            ->has('builds.0.sha256')
+    $this->actingAs($this->user)->get('/talk/client')->assertStatus(302)->assertRedirect('/app');
+});
+
+it('shows a logged-in user the current build with its facts as the voice download', function () {
+    publishedClient();
+
+    $this->actingAs($this->user)->get('/app')->assertOk()->assertInertia(
+        fn ($page) => $page->component('App/Download')
+            ->where('downloads.0.key', 'voice')
+            ->where('downloads.0.state', 'current')
+            ->where('downloads.0.release.version', 'v1')
+            ->has('downloads.0.builds', 1)
+            ->where('downloads.0.builds.0.os', 'linux')
+            ->where('downloads.0.builds.0.kind', 'app')
+            ->where('downloads.0.builds.0.url', '/talk/client/download/lanomat-voice-app-v1-linux-x86_64.tar.gz')
+            ->has('downloads.0.builds.0.sha256')
             ->where('server.version', 'v1')
-            ->where('labels.title', 'Desktop-App herunterladen'),
+            ->where('labels.title', 'LANoMAT-App'),
     );
 });
 
 it('preselects the visitor operating system from the user agent', function (string $agent, ?string $os) {
     publishedClient();
 
-    $this->actingAs($this->user)->withHeader('User-Agent', $agent)->get('/talk/client')
+    $this->actingAs($this->user)->withHeader('User-Agent', $agent)->get('/app')
         ->assertInertia(fn ($page) => $page->where('detectedOs', $os));
 })->with([
     ['Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0', 'linux'],
@@ -83,32 +91,32 @@ it('preselects the visitor operating system from the user agent', function (stri
 it('offers a build for another server version when it speaks the same API', function () {
     publishedClient(version: 'v0');
 
-    $this->actingAs($this->user)->get('/talk/client')->assertInertia(
-        fn ($page) => $page->where('state', 'current')->where('exact', false)->where('release.version', 'v0')->where('server.version', 'v1')->has('builds', 1),
+    $this->actingAs($this->user)->get('/app')->assertInertia(
+        fn ($page) => $page->where('downloads.0.state', 'current')->where('downloads.0.exact', false)->where('downloads.0.release.version', 'v0')->where('server.version', 'v1')->has('downloads.0.builds', 1),
     );
 });
 
 it('marks a build for exactly this server version as exact', function () {
     publishedClient();
 
-    $this->actingAs($this->user)->get('/talk/client')->assertInertia(
-        fn ($page) => $page->where('state', 'current')->where('exact', true),
+    $this->actingAs($this->user)->get('/app')->assertInertia(
+        fn ($page) => $page->where('downloads.0.state', 'current')->where('downloads.0.exact', true),
     );
 });
 
 it('warns when the build speaks another native-client API version', function () {
     publishedClient(api: 2);
 
-    $this->actingAs($this->user)->get('/talk/client')->assertInertia(
-        fn ($page) => $page->where('state', 'mismatch')->where('exact', true)->where('release.apiVersion', 2)->has('builds', 1),
+    $this->actingAs($this->user)->get('/app')->assertInertia(
+        fn ($page) => $page->where('downloads.0.state', 'mismatch')->where('downloads.0.exact', true)->where('downloads.0.release.apiVersion', 2)->has('downloads.0.builds', 1),
     );
 });
 
 it('says so when nothing is published', function () {
     config(['webvoice.native.dist_path' => sys_get_temp_dir().'/lanomat-none-'.bin2hex(random_bytes(4))]);
 
-    $this->actingAs($this->user)->get('/talk/client')->assertOk()->assertInertia(
-        fn ($page) => $page->where('state', 'none')->where('release', null)->has('builds', 0),
+    $this->actingAs($this->user)->get('/app')->assertOk()->assertInertia(
+        fn ($page) => $page->where('downloads.0.state', 'none')->where('downloads.0.release', null)->has('downloads.0.builds', 0),
     );
 });
 

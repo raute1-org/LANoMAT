@@ -176,8 +176,10 @@ const PUBLIC_ROUTES = [
 const SELF_SERVICE_ROUTES = [
     'GET checkin/{token}', 'POST checkin/{token}', 'GET chat', 'GET dashboard', 'GET events',
     'GET friends', 'POST friends/request', 'GET stats/leaderboard', 'POST teams', 'GET servers', 'GET servers/all', 'GET servers/permanent',
-    // The launcher page and its binaries sit behind the Discord login; {filename} is no
-    // bound model, it is only compared against the validated manifest (LauncherBuilds).
+    // `app` is the unified download page (AppDownloadController, auth middleware, no user data beyond the
+    // viewer's own UA); `launcher` and `talk/client` only redirect to it. The launcher binaries sit behind
+    // the Discord login; {filename} is no bound model, it is only compared against the validated manifest
+    // (LauncherBuilds).
     'GET launcher', 'GET launcher/download-latest', 'GET launcher/download/{filename}',
     'GET voice/setup', 'GET app', 'GET talk', 'GET talk/client', 'GET talk/connect', 'POST talk/connect', 'GET mcp/connect', 'POST mcp/connect', 'GET games', 'GET games/share', 'POST games/share', 'POST talk/latency-test/token', 'GET settings', 'GET settings/appearance', 'GET settings/connections',
     'GET settings/profile', 'PATCH settings/profile', 'DELETE settings/profile',

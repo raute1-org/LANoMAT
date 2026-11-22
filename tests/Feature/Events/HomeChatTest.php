@@ -292,7 +292,7 @@ it('marks a portable published recipe as launcher-supported in the chat card', f
     );
 });
 
-it('points the install action at /launcher when a build is published', function () {
+it('points the install action at /app when a build is published', function () {
     $dir = sys_get_temp_dir().'/lanomat-home-chat-'.bin2hex(random_bytes(6));
     mkdir($dir);
 
@@ -321,7 +321,7 @@ it('points the install action at /launcher when a build is published', function 
     try {
         $this->actingAs(User::factory()->create())->get('/')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('chat.games.0.launcher_url', '/launcher')
+                ->where('chat.games.0.launcher_url', '/app')
                 ->where('chat.games.0.launcher_supported', true)
                 ->where('chat.games.0.install_deeplink', 'lanomat://install/unreal-tournament-2004')
             );
@@ -387,6 +387,8 @@ it('keeps the guest welcome page a login gate without a chat or launcher link', 
     expect($source)
         ->not->toContain('<HomeChat')
         ->not->toContain('/launcher')
+        ->not->toContain('/app')
+        ->not->toContain('App herunterladen')
         ->not->toContain('Launcher herunterladen')
         ->toContain('data-test="welcome-login-discord"');
 });

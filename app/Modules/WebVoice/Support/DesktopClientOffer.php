@@ -30,7 +30,7 @@ final class DesktopClientOffer
         $offer = $this->builds->offer();
 
         return [
-            'url' => route('webvoice.client', absolute: false),
+            'url' => route('app.download', absolute: false),
             'version' => $offer['version'],
             'os' => $os,
             'available' => $offer['current'] && $os !== null && in_array($os, $offer['oses'], true) && ! VisitorPlatform::isMobile($agent),

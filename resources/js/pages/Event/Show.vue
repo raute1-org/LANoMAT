@@ -227,7 +227,7 @@ function pad(value: number): string {
                 <h2
                     class="text-lg font-semibold tracking-tight text-foreground"
                 >
-                    LANoMAT Launcher
+                    LANoMAT-App
                 </h2>
                 <p class="mt-1 text-sm text-muted-foreground">
                     Unreal Tournament 2004 installieren, starten und mit dem
@@ -239,7 +239,7 @@ function pad(value: number): string {
                 as-child
                 size="lg"
             >
-                <Link href="/launcher">Launcher herunterladen</Link>
+                <Link href="/app">App herunterladen</Link>
             </Button>
         </section>
 

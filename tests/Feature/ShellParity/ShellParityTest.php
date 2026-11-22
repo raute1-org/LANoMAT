@@ -113,21 +113,29 @@ it('marks the admin area (badge + stripe) and offers an always-visible way back'
         ->and($back)->toContain('Zur App');
 });
 
-it('offers the desktop app in both shells under the same label and URL', function () {
-    // Participant sidebar (Vue) ...
+it('offers the one app download entry in both shells under the same label and URL', function () {
+    // Participant sidebar (Vue): ONE entry, no separate desktop-app/launcher items ...
     $sidebar = ShellParity::read('resources/js/components/AppSidebar.vue');
-    expect($sidebar)->toContain("title: 'Desktop-App'")->toContain("has('web_voice')");
+    expect($sidebar)->toContain("title: '".ShellParity::APP_DOWNLOAD_LABEL."'")
+        ->toContain("href: '/app'")
+        ->toContain("has('web_voice') || has('game_recipes')")
+        ->not->toContain("title: 'Desktop-App'")
+        ->not->toContain("title: 'Launcher'");
 
-    // ... and the Filament navigation item, visible while the WebVoice module has routes.
+    expect(substr_count($sidebar, ShellParity::APP_DOWNLOAD_LABEL))->toBe(1);
+
+    // ... and the Filament navigation item, visible while WebVoice or GameRecipes has routes.
     Filament::setCurrentPanel('admin');
     $this->actingAs(User::factory()->make());
+    $labels = collect(Filament::getPanel('admin')->getNavigationItems())->map(fn ($item) => $item->getLabel())->all();
     $items = collect(Filament::getPanel('admin')->getNavigationItems())
-        ->filter(fn ($item) => $item->getLabel() === 'Desktop-App');
+        ->filter(fn ($item) => $item->getLabel() === ShellParity::APP_DOWNLOAD_LABEL);
 
     expect($items)->toHaveCount(1)
+        ->and($labels)->not->toContain('Desktop-App')->not->toContain('Launcher')
         ->and($items->first()->getUrl())->toBe('/app')
         ->and($items->first()->isVisible())->toBeTrue()
-        ->and(route('client.download.short', absolute: false))->toBe('/app');
+        ->and(route('app.download', absolute: false))->toBe('/app');
 });
 
 it('offers the AI assistant in both shells under the same label and URL', function () {
@@ -147,33 +155,18 @@ it('offers the AI assistant in both shells under the same label and URL', functi
         ->and(route('orga.assistant.index', absolute: false))->toBe('/orga/assistant');
 });
 
-it('offers the launcher download in both shells under the same label and URL', function () {
-    // Participant sidebar (Vue) ...
-    $sidebar = ShellParity::read('resources/js/components/AppSidebar.vue');
-    expect($sidebar)->toContain("title: 'Launcher'")->toContain("href: '/launcher'");
-
-    // ... and the Filament navigation item, visible while GameRecipes has routes.
-    Filament::setCurrentPanel('admin');
-    $this->actingAs(User::factory()->make());
-    $items = collect(Filament::getPanel('admin')->getNavigationItems())
-        ->filter(fn ($item) => $item->getLabel() === 'Launcher');
-
-    expect($items)->toHaveCount(1)
-        ->and($items->first()->getUrl())->toBe('/launcher')
-        ->and($items->first()->isVisible())->toBeTrue()
-        ->and(route('launcher.index', absolute: false))->toBe('/launcher');
-});
-
-it('keeps the prominent launcher download in the top-right of both shells', function () {
-    // Participant app: the one shell action above the page content.
+it('keeps the prominent app download in the top-right of both shells', function () {
+    // Participant app: the one shell action above the page content, short form on narrow headers.
     $header = ShellParity::read('resources/js/components/AppSidebarHeader.vue');
     expect($header)
-        ->toContain('data-test="header-launcher"')
-        ->toContain('href="/launcher/download-latest"')
-        ->toContain('Launcher herunterladen')
-        ->toContain("has('game_recipes')");
+        ->toContain('data-test="header-app-download"')
+        ->toContain('href="/app"')
+        ->toContain('<span class="hidden sm:inline">'.ShellParity::APP_DOWNLOAD_LABEL.'</span>')
+        ->toContain('<span class="sm:hidden">'.ShellParity::APP_DOWNLOAD_SHORT_LABEL.'</span>')
+        ->toContain("has('web_voice') || has('game_recipes')")
+        ->not->toContain('Launcher herunterladen');
 
-    // Admin panel: the same label and target in the topbar.
+    // Admin panel: the same label, short form and target in the topbar.
     Filament::setCurrentPanel('admin');
     Filament::bootCurrentPanel();
     $this->actingAs(User::factory()->make());
@@ -181,13 +174,15 @@ it('keeps the prominent launcher download in the top-right of both shells', func
     $topbar = FilamentView::renderHook(PanelsRenderHook::TOPBAR_END)->toHtml();
 
     expect($topbar)
-        ->toContain('data-shell="launcher-download"')
-        ->toContain('href="/launcher/download-latest"')
-        ->toContain('Launcher herunterladen')
+        ->toContain('data-shell="app-download"')
+        ->toContain('href="/app"')
+        ->toContain(ShellParity::APP_DOWNLOAD_LABEL)
+        ->toContain('>'.ShellParity::APP_DOWNLOAD_SHORT_LABEL.'<')
+        ->not->toContain('Launcher herunterladen')
         ->and(route('launcher.download.latest', absolute: false))->toBe('/launcher/download-latest');
 });
 
-it('hides the Filament launcher download while the GameRecipes module is off', function () {
+it('hides the Filament app download while both WebVoice and GameRecipes are off', function () {
     $this->app->instance(Modules::class, new Modules('core'));
 
     Filament::setCurrentPanel('admin');
@@ -195,19 +190,24 @@ it('hides the Filament launcher download while the GameRecipes module is off', f
     $this->actingAs(User::factory()->make());
 
     expect(FilamentView::renderHook(PanelsRenderHook::TOPBAR_END)->toHtml())
-        ->not->toContain('data-shell="launcher-download"');
+        ->not->toContain('data-shell="app-download"');
+
+    $item = collect(Filament::getPanel('admin')->getNavigationItems())
+        ->first(fn ($item) => $item->getLabel() === ShellParity::APP_DOWNLOAD_LABEL);
+
+    // Navigation items are registered at boot; visibility is resolved at render time.
+    expect($item)->not->toBeNull()->and($item->isVisible())->toBeFalse();
 });
 
-it('hides the Filament launcher item while the GameRecipes module is off', function () {
-    $this->app->instance(Modules::class, new Modules('core'));
+it('keeps the Filament app download while only one of the two modules is on', function () {
+    $this->app->instance(Modules::class, new Modules('full', ['web_voice' => false]));
 
     Filament::setCurrentPanel('admin');
     $this->actingAs(User::factory()->make());
     $item = collect(Filament::getPanel('admin')->getNavigationItems())
-        ->first(fn ($item) => $item->getLabel() === 'Launcher');
+        ->first(fn ($item) => $item->getLabel() === ShellParity::APP_DOWNLOAD_LABEL);
 
-    // Navigation items are registered at boot; visibility is resolved at render time.
-    expect($item)->not->toBeNull()->and($item->isVisible())->toBeFalse();
+    expect($item->isVisible())->toBeTrue();
 });
 
 it('labels the mcp entry the same in both shells, device-neutral', function () {
@@ -221,17 +221,6 @@ it('labels the mcp entry the same in both shells, device-neutral', function () {
 
     expect($action->getLabel())->toBe('Geräte & MCP')
         ->and($action->getUrl())->toBe('/mcp/connect');
-});
-
-it('hides the Filament desktop-app item while the WebVoice module is off', function () {
-    $this->app->instance(Modules::class, new Modules('full', ['web_voice' => false]));
-
-    Filament::setCurrentPanel('admin');
-    $this->actingAs(User::factory()->make());
-    $item = collect(Filament::getPanel('admin')->getNavigationItems())
-        ->first(fn ($item) => $item->getLabel() === 'Desktop-App');
-
-    expect($item)->not->toBeNull()->and($item->isVisible())->toBeFalse();
 });
 
 it('keeps the admin marker out of the participant app', function () {

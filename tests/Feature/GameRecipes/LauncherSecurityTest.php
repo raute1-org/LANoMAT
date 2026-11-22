@@ -89,9 +89,8 @@ it('treats a manifest name that could break an HTTP header as nothing published'
     // a CR/LF pair or a space can never reach a response header.
     launcherSecurityManifest([$name]);
 
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->where('state', 'none')
-        ->has('builds', 0));
+    $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('downloads', fn ($downloads) => collect($downloads)->firstWhere('key', 'launcher')['state'] === 'none'));
 
     $this->get('/launcher/download/'.rawurlencode($name))->assertNotFound();
 })->with([
@@ -109,9 +108,8 @@ it('offers a listed name only when it is a regular file and matches byte for byt
     unlink($dir.'/lanomat-launcher-v1-linux-x86_64.tar.gz');
     mkdir($dir.'/lanomat-launcher-v1-linux-x86_64.tar.gz');
 
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->where('state', 'none')
-        ->has('builds', 0));
+    $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('downloads', fn ($downloads) => collect($downloads)->firstWhere('key', 'launcher')['state'] === 'none'));
 
     $this->get('/launcher/download/lanomat-launcher-v1-linux-x86_64.tar.gz')->assertNotFound();
 });
@@ -127,6 +125,6 @@ it('does not take the pairing address from an untrusted Host header', function (
     Config::set('app.url', 'http://lanomat.test');
     launcherSecurityManifest(['lanomat-launcher-v1-linux-x86_64.tar.gz']);
 
-    $this->get('http://evil.example/launcher')->assertOk()->assertInertia(fn ($page) => $page
+    $this->get('http://evil.example/app')->assertOk()->assertInertia(fn ($page) => $page
         ->where('server.url', 'http://lanomat.test'));
 });

@@ -102,6 +102,8 @@ class VoiceClientApiController extends Controller
             'min_client_version' => NativeClientConfig::minClientVersion(),
             // Only a build with files on disk counts as offered.
             'latest_client_version' => $manifest !== null && $manifest->builds !== [] ? $manifest->appVersion : null,
+            // Stays `/talk/client` (it redirects to the unified `/app` page): shipped clients accept exactly this path
+            // (voice-core `DOWNLOAD_PATH`) and refuse any other.
             'download_path' => route('webvoice.client', absolute: false),
         ];
     }

@@ -338,7 +338,7 @@ it('loads the recipe catalogue once for a browser of ten servers', function () {
         ->and($rows[0]['install']['recipeSlug'] ?? null)->toBe('game-0');
 });
 
-it('offers the one-click launcher join on the launcher page for a shared portable game', function () {
+it('offers the one-click launcher join in the server browser for a shared portable game', function () {
     Config::set('launcher.lineup', 'unreal-tournament-2004');
 
     GameRecipe::factory()->published()->inLineup()->portable()->create([
@@ -351,12 +351,9 @@ it('offers the one-click launcher join on the launcher page for a shared portabl
     installLinksServer($game, $event);
 
     $this->actingAs(User::factory()->create())
-        ->get('/launcher')
+        ->get('/servers/all')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Launcher/Index')
             ->has('servers', 1)
-            ->where('servers.0.game', 'Tiny Racer')
-            ->where('servers.0.join.launcher', true)
-            ->where('servers.0.join.href', 'lanomat://join/tiny-racer?url='.rawurlencode('steam://connect/203.0.113.5:7777')));
+            ->where('servers.0.install.launcherJoinUrl', 'lanomat://join/tiny-racer?url='.rawurlencode('steam://connect/203.0.113.5:7777')));
 });

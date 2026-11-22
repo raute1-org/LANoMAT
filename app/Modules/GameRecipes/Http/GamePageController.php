@@ -762,7 +762,7 @@ class GamePageController extends Controller
             // this is the fallback the card offers when it is not. `null` means no
             // build is published, so the page must not link to an empty download page.
             'launcher_available' => $launcherAvailable,
-            'launcher_url' => $launcherAvailable ? route('launcher.index', absolute: false) : null,
+            'launcher_url' => $launcherAvailable ? route('app.download', absolute: false) : null,
             // The one class that decides `launcher_supported`: the shipped
             // launcher build installs the pilot/generic engine and portable
             // recipes, and can open a browser recipe's play_url; the rest keep

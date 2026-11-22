@@ -226,7 +226,7 @@ symptom). `deploy.sh` does the right thing and also exports `APP_VERSION` / `APP
 build by hand, `source scripts/ops/lib/version.sh` and export `APP_VERSION="$(lanomat_version .)"` and
 `APP_COMMIT="$(lanomat_commit .)"` first, otherwise the images report `dev`.
 
-**Native voice client download (Linux and Windows).** The Desktop-App is offered inside LANoMAT (`/talk/client`),
+**Native voice client download (Linux and Windows).** The app is offered inside LANoMAT on the unified download page `/app` (`/talk/client` redirects there; the download files stay under `/talk/client/download/<file>`),
 always in the version that matches the server. The Windows files are built by the GitHub workflow
 `release-client.yml` (about 25 minutes, no Windows machine needed); the server only offers files whose
 manifest carries exactly the deployed version AND commit. The sequence for a deploy:
@@ -269,8 +269,8 @@ tells users how to click through the SmartScreen warning. The Preflight check `c
 ("Die Orga muss den Client neu bauen") whenever the published client does not match the deployed version, so
 repeat the fetch (or the build) after every deploy that changes the version.
 
-**LANoMAT Launcher download (Linux and Windows).** `/launcher` is the download page (behind the
-Discord login, like the rest of the participant UI) for the desktop launcher that installs UT2004
+**LANoMAT Launcher download (Linux and Windows).** The launcher is listed on the unified download page `/app` (behind the
+Discord login, like the rest of the participant UI; `/launcher` redirects there, the files stay under `/launcher/download/<file>`) for the desktop launcher that installs UT2004
 from the LAN with one button (guide:
 <https://lan.raute1.org/docs/guides/launcher>). It needs `MODULE_GAME_RECIPES=true` — and
 `MODULE_FILES=true` (recipes find their ISO/patch uploads through Files) and `MODULE_MCP=true` (the

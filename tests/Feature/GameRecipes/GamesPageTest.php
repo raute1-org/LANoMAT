@@ -866,7 +866,7 @@ it('offers the launcher download as the fallback beside the deep link', function
                 ->where('games.0.installable', true)
                 ->where('games.0.launcher_supported', true)
                 ->where('games.0.launcher_available', true)
-                ->where('games.0.launcher_url', '/launcher'));
+                ->where('games.0.launcher_url', '/app'));
 
         $this->actingAs($user)
             ->get('/games/unreal-tournament-2004')
@@ -879,7 +879,7 @@ it('offers the launcher download as the fallback beside the deep link', function
                 ->where('game.install_deeplink', 'lanomat://install/unreal-tournament-2004')
                 ->where('game.launcher_supported', true)
                 ->where('game.launcher_available', true)
-                ->where('game.launcher_url', '/launcher'));
+                ->where('game.launcher_url', '/app'));
     } finally {
         File::deleteDirectory($dir);
     }
@@ -1153,12 +1153,12 @@ it('marks only the launcher pilot recipe as launcher-supported', function () {
                 ->where('games.0.slug', 'unreal-tournament-2004')
                 ->where('games.0.launcher_supported', true)
                 ->where('games.0.launcher_available', true)
-                ->where('games.0.launcher_url', '/launcher')
+                ->where('games.0.launcher_url', '/app')
                 ->where('games.1.slug', 'zulu-racer')
                 ->where('games.1.launcher_supported', false)
                 // `launcher_url` stays the download page for the shell even
                 // when this game is not installable by it.
-                ->where('games.1.launcher_url', '/launcher'));
+                ->where('games.1.launcher_url', '/app'));
     } finally {
         File::deleteDirectory($dir);
     }

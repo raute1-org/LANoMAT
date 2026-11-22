@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppDownloadController;
 use App\Http\Controllers\DevLoginController;
 use App\Http\Controllers\HomeController;
 use App\Modules\Assistant\Http\AssistantController;
@@ -60,14 +61,21 @@ use Illuminate\Support\Facades\Route;
 
 $modules = app(Modules::class);
 
+if ($modules->routable(Module::WebVoice) || $modules->routable(Module::GameRecipes)) {
+    // The one download page of the LANoMAT app: the desktop (voice) app and the launcher side by side
+    // while both builds exist. Guests are sent to the login by `auth`. The old page URLs
+    // (`/launcher`, `/talk/client`) redirect here; their file routes stay.
+    Route::get('app', [AppDownloadController::class, 'show'])->middleware('auth')->name('app.download');
+}
+
 if ($modules->routable(Module::GameRecipes)) {
     // The LANoMAT Launcher stays behind the Discord login so no launcher content appears
     // before login; the page carries no user data. The set of files is exactly what
     // clients-dist/launcher/manifest.json lists (LauncherBuilds validates it).
     Route::middleware(['auth'])->group(function () {
-        Route::get('/launcher', [LauncherPageController::class, 'index'])->name('launcher.index');
-        // The shell's prominent top-right button starts the best build for the
-        // visitor's system directly; the page stays the explanation and fallback.
+        Route::get('/launcher', [AppDownloadController::class, 'legacy'])->name('launcher.index');
+        // Starts the best build for the visitor's system directly (the page `/app` is the
+        // explanation and fallback); kept for bookmarks and direct links.
         Route::get('/launcher/download-latest', [LauncherPageController::class, 'latest'])
             ->middleware('throttle:20,1')
             ->name('launcher.download.latest');
@@ -477,14 +485,11 @@ if ($modules->routable(Module::Voice)) {
 if ($modules->routable(Module::WebVoice)) {
     // Browser voice + text chat. Not event-scoped (general channels are installation-wide);
     // every endpoint authorizes through WebVoiceChannelPolicy inside its action.
-    // Short stable alias for printed material and the Discord bot: guests are sent to the login
-    // by `auth`, logged-in users on to the real download page (which keeps its /talk/client URL).
-    Route::get('app', fn () => redirect()->route('webvoice.client'))->middleware('auth')->name('client.download.short');
-
     Route::middleware(['auth'])->prefix('talk')->name('webvoice.')->group(function () {
         Route::get('/', [WebVoiceController::class, 'index'])->name('index');
         // Native client download: the files come from the validated manifest only (ClientBuilds).
-        Route::get('client', [ClientDownloadController::class, 'show'])->name('client');
+        // The page itself moved to `/app`; the old URL redirects there.
+        Route::get('client', [AppDownloadController::class, 'legacy'])->name('client');
         Route::get('client/download/{file}', [ClientDownloadController::class, 'download'])
             ->where('file', '[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
             ->middleware('throttle:20,1')

@@ -19,7 +19,7 @@ per-match team rooms.
 
 - `/talk` — channels, participants, chat, join/leave.
 - `/talk/connect` — diagnostics, self-test, headset mode.
-- `/talk/client` and `/app` — download the native client in the server's own version.
+- `/app` — the unified download page for the LANoMAT app (native client in the server's own version, plus the launcher while it is a separate build); `/talk/client` redirects there.
 - Filament **Web voice channels** — create, archive, moderate.
 
 | Dark | Light |

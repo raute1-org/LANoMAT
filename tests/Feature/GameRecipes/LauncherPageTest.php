@@ -3,13 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
-use App\Modules\Events\Models\Event;
-use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherBuilds;
-use App\Modules\Games\Models\Game;
-use App\Modules\GameServers\Domain\JoinInfo;
-use App\Modules\GameServers\Enums\ServerLinkStatus;
-use App\Modules\GameServers\Models\ServerLink;
 use App\Support\Modules\InvalidModuleConfiguration;
 use App\Support\Modules\Module;
 use App\Support\Modules\Modules;
@@ -105,31 +99,36 @@ it('sends guests to the login for the page and the download', function () {
         ->assertRedirect(route('login'));
 });
 
-it('shows the published builds, one primary download per OS', function () {
+it('shows the published launcher builds as one download of the unified app page', function () {
     launcherRelease();
 
     $this->withHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0')
-        ->get('/launcher')
+        ->get('/app')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Launcher/Index')
-            ->where('state', 'published')
-            ->where('release.version', 'v1')
-            ->where('release.commit', 'abc123def456')
-            ->has('builds', 2)
-            ->where('builds.0.os', 'linux')
-            ->where('builds.0.kind', 'app')
-            ->where('builds.0.url', '/launcher/download/lanomat-launcher-v1-linux-x86_64.tar.gz')
-            ->has('builds.0.sha256')
-            ->has('builds.0.size')
-            ->where('builds.1.os', 'windows')
-            ->where('builds.1.variant', 'installer')
-            ->has('files', 3)
+            ->component('App/Download')
+            ->where('downloads', fn ($downloads) => collect($downloads)->pluck('key')->contains('launcher'))
+            ->where('downloads', function ($downloads) {
+                $launcher = collect($downloads)->firstWhere('key', 'launcher');
+
+                return $launcher['state'] === 'current'
+                    && $launcher['release']['version'] === 'v1'
+                    && $launcher['release']['commit'] === 'abc123def456'
+                    && count($launcher['builds']) === 3
+                    && $launcher['builds'][0]['os'] === 'linux'
+                    && $launcher['builds'][0]['url'] === '/launcher/download/lanomat-launcher-v1-linux-x86_64.tar.gz'
+                    && isset($launcher['builds'][0]['sha256'], $launcher['builds'][0]['size']);
+            })
             ->where('server.name', 'LANoMAT')
-            // The address the request was made on — what the launcher has to be pointed at.
+            // The address the request was made on, what the launcher has to be pointed at.
             ->where('server.url', rtrim((string) config('app.url'), '/'))
-            ->where('server.version', 'v1')
             ->where('detectedOs', 'linux'));
+});
+
+it('keeps the old launcher URL alive and sends it to the unified page', function () {
+    launcherRelease();
+
+    $this->get('/launcher')->assertRedirect('/app');
 });
 
 it('sends the shell download button straight to the build for the visitor', function () {
@@ -146,110 +145,39 @@ it('sends the shell download button straight to the build for the visitor', func
     // A known system without a build falls back to the page that names the gap.
     $this->withHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)')
         ->get('/launcher/download-latest')
-        ->assertRedirect('/launcher');
+        ->assertRedirect('/app');
 
     // Without a published build the page explains the empty state, never a 404.
     Config::set('launcher.dist_path', sys_get_temp_dir().'/lanomat-launcher-none-'.bin2hex(random_bytes(4)));
 
-    $this->get('/launcher/download-latest')->assertRedirect('/launcher');
+    $this->get('/launcher/download-latest')->assertRedirect('/app');
 });
 
-it('lists every live server with the one-click action that joins it', function () {
-    launcherRelease();
-
-    // UT2004 has a published launcher recipe: the row links into the launcher
-    // with the server address, so the install wizard and the launch happen in
-    // one flow. The browser recipe keeps its own https entry point.
-    GameRecipe::factory()->published()->create([
-        'slug' => 'unreal-tournament-2004',
-        'title' => 'Unreal Tournament 2004',
-    ]);
-
-    $ut = Game::factory()->create([
-        'slug' => 'unreal-tournament-2004',
-        'name' => 'Unreal Tournament 2004',
-    ]);
-
-    $event = Event::factory()->live()->create(['name' => 'Raute1 LAN']);
-
-    ServerLink::factory()->create([
-        'event_id' => $event->id,
-        'game_id' => $ut->id,
-        'title' => 'Raute1 DM',
-        'status' => ServerLinkStatus::Ready,
-        'join_info' => new JoinInfo(address: '203.0.113.9', port: 7777),
-        'query_info' => [
-            'name' => 'Raute1 DM',
-            'map' => 'DM-CORRUPTION',
-            'players' => 4,
-            'max_players' => 16,
-        ],
-        'queried_at' => now(),
-    ]);
-
-    $browser = Game::factory()->create([
-        'slug' => 'need-for-speed-underground-2-browser',
-        'name' => 'Need for Speed: Underground 2 (Browser)',
-    ]);
-
-    ServerLink::factory()->permanent()->create([
-        'game_id' => $browser->id,
-        'title' => 'NFSU2 (Browser)',
-        'status' => ServerLinkStatus::Ready,
-        'join_info' => new JoinInfo(
-            address: 'nfsu2.xyz',
-            port: 443,
-            connectString: 'https://nfsu2.xyz/',
-        ),
-    ]);
-
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->component('Launcher/Index')
-        ->has('servers', 2)
-        // The projection sorts by game, so the browser recipe leads here.
-        ->where('servers.0.title', 'NFSU2 (Browser)')
-        ->where('servers.0.join.launcher', false)
-        ->where('servers.0.join.href', 'https://nfsu2.xyz/')
-        ->where('servers.1.title', 'Raute1 DM')
-        ->where('servers.1.game', 'Unreal Tournament 2004')
-        ->where('servers.1.gameSlug', 'unreal-tournament-2004')
-        ->where('servers.1.players', 4)
-        ->where('servers.1.maxPlayers', 16)
-        ->where('servers.1.map', 'DM-CORRUPTION')
-        ->where('servers.1.address', '203.0.113.9:7777')
-        ->where('servers.1.event.name', 'Raute1 LAN')
-        ->where('servers.1.join.launcher', true)
-        ->where('servers.1.join.href', 'lanomat://join/unreal-tournament-2004?address='.rawurlencode('203.0.113.9:7777')));
-});
-
-it('keeps the launcher start page honest without a running server', function () {
-    launcherRelease();
-
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->has('servers', 0));
-});
-
-it('prefers the app over a CLI build and the installer over portable and archive', function () {
+it('lists every file of the manifest, the installer first', function () {
     launcherDist([
         ['name' => 'lanomat-launcher-v1-windows-x86_64-portable.exe', 'os' => 'windows', 'arch' => 'x86_64', 'kind' => 'app', 'variant' => 'portable'],
         ['name' => 'lanomat-launcher-v1-windows-x86_64-cli.zip', 'os' => 'windows', 'arch' => 'x86_64', 'kind' => 'cli'],
         ['name' => 'lanomat-launcher-v1-windows-x86_64-setup.exe', 'os' => 'windows', 'arch' => 'x86_64', 'kind' => 'app', 'variant' => 'installer'],
     ]);
 
-    $this->get('/launcher')->assertInertia(fn ($page) => $page
-        ->has('builds', 1)
-        ->where('builds.0.variant', 'installer')
-        ->has('files', 3));
+    $this->get('/app')->assertInertia(fn ($page) => $page
+        ->where('downloads', function ($downloads) {
+            $launcher = collect($downloads)->firstWhere('key', 'launcher');
+
+            return count($launcher['builds']) === 3
+                && collect($launcher['builds'])->pluck('variant')->contains('installer');
+        }));
 });
 
 it('says so when nothing is published', function () {
     Config::set('launcher.dist_path', sys_get_temp_dir().'/lanomat-launcher-none-'.bin2hex(random_bytes(4)));
 
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->where('state', 'none')
-        ->where('release', null)
-        ->has('builds', 0)
-        ->has('files', 0));
+    $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('downloads', function ($downloads) {
+            $launcher = collect($downloads)->firstWhere('key', 'launcher');
+
+            return $launcher['state'] === 'none' && $launcher['release'] === null && $launcher['builds'] === [];
+        }));
 });
 
 it('treats a malformed or unsafe manifest as nothing published', function (string $case) {
@@ -270,9 +198,8 @@ it('treats a malformed or unsafe manifest as nothing published', function (strin
 
     file_put_contents($dir.'/manifest.json', (string) $broken);
 
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->where('state', 'none')
-        ->has('builds', 0));
+    $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('downloads', fn ($downloads) => collect($downloads)->firstWhere('key', 'launcher')['state'] === 'none'));
 })->with(['json', 'traversal', 'no-version', 'bad-sha', 'unknown-os', 'manifest-entry']);
 
 it('streams a listed file with its checksum, name and type', function () {
@@ -409,9 +336,9 @@ it('serves the page with its whole requires closure on top of core', function ()
         ->and($modules->enabled(Module::Files))->toBeTrue()
         ->and($modules->enabled(Module::Mcp))->toBeTrue();
 
-    $this->get('/launcher')->assertOk()->assertInertia(fn ($page) => $page
-        ->component('Launcher/Index')
-        ->where('state', 'published'));
+    $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page
+        ->component('App/Download')
+        ->where('downloads', fn ($downloads) => collect($downloads)->firstWhere('key', 'launcher')['state'] === 'current'));
 });
 
 it('is unreachable when the GameRecipes module is off', function () {
@@ -436,23 +363,25 @@ PHP;
         ->and($probe->getOutput())->toContain('STATUS 404');
 });
 
-it('is reachable: layout entry, sidebar entry and both homepage tiles exist', function () {
+it('is reachable: layout entry, one sidebar entry, header action and homepage tiles all lead to /app', function () {
     expect((string) file_get_contents(base_path('resources/js/lib/pageLayouts.ts')))
-        ->toContain("'Launcher/':");
+        ->toContain("'App/':");
 
-    expect((string) file_get_contents(base_path('resources/js/components/AppSidebar.vue')))
-        ->toContain("href: '/launcher'");
+    $sidebar = (string) file_get_contents(base_path('resources/js/components/AppSidebar.vue'));
+    expect($sidebar)->toContain("href: '/app'")
+        ->and(substr_count($sidebar, "title: 'App herunterladen'"))->toBe(1)
+        ->and($sidebar)->not->toContain("href: '/launcher'");
 
     // The download is the one shell action above everything: prominent in the
     // top-right of every authenticated page, not only in the sidebar.
     expect((string) file_get_contents(base_path('resources/js/components/AppSidebarHeader.vue')))
-        ->toContain('data-test="header-launcher"')
-        ->toContain('href="/launcher/download-latest"')
+        ->toContain('data-test="header-app-download"')
+        ->toContain('href="/app"')
         ->toContain("has('game_recipes')");
 
     expect((string) file_get_contents(base_path('resources/js/pages/Event/Show.vue')))
-        ->toContain('href="/launcher"');
+        ->toContain('href="/app"');
 
     expect((string) file_get_contents(base_path('resources/js/pages/Event/Index.vue')))
-        ->toContain('href="/launcher"');
+        ->toContain('href="/app"');
 });
