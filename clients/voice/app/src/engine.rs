@@ -107,6 +107,9 @@ pub fn german(e: &Error) -> String {
             }
         }
         Error::Transfer { code, message } => transfer_german(code, message),
+        Error::PlanVersionUnsupported { .. } => {
+            "Dieser Server nutzt ein neueres Installationsformat. Aktualisiere die App.".into()
+        }
         Error::Server { status, .. } => format!("Der Server meldet einen Fehler (HTTP {status})."),
         Error::Usage(m) => m.clone(),
         Error::Store(_) => "Die lokalen Zugangsdaten sind nicht lesbar. Verbinde neu.".into(),

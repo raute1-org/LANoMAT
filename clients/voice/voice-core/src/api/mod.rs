@@ -1,5 +1,5 @@
 //! Client side of `docs/infra/native-voice-client-api.md`: device-code pairing, bearer API v1
-//! (voice, events, play, polls, catering, files, chat, notifications, profile, connections, friends, people) and credential storage.
+//! (voice, events, play, polls, catering, files, chat, notifications, profile, connections, friends, people, recipes) and credential storage.
 //!
 //! Every HTTP failure goes through one mapping (`client::error_from_response`): 401 to
 //! [`Error::Unauthorized`] (log in again), 403 `Forbidden`, 404 `NotFound`, 409 `Conflict` (stale
@@ -19,6 +19,7 @@ mod play;
 mod poll;
 mod polls;
 mod presence;
+mod recipes;
 mod store;
 mod types;
 
@@ -46,6 +47,10 @@ pub use polls::{PollDetail, PollOption, PollSummary, PollsList};
 pub use presence::{
     FollowJoin, FollowTargets, FollowUser, FollowVoice, People, PeopleQuery, Person, PersonGame,
     PersonVoice,
+};
+pub use recipes::{
+    current_os, Availability, LaunchTarget, PlanFile, PlanRecipe, PlanStep, RecipeDetail,
+    RecipePlan, RecipeSummary, SUPPORTED_PLAN_VERSION,
 };
 pub use store::{FileTokenStore, StoredCredentials, TokenStore};
 pub use types::{

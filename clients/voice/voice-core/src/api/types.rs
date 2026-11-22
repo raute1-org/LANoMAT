@@ -96,12 +96,25 @@ pub struct ClientConfig {
     /// feature as available then.
     #[serde(default)]
     pub modules: std::collections::BTreeMap<String, bool>,
+    /// Capability flags (additive, `api_version` stays 1), e.g. `launcher` while the GameRecipes
+    /// module runs. Empty (the key is absent) with a server that predates the map: see
+    /// [`ClientConfig::launcher_feature`].
+    #[serde(default)]
+    pub features: std::collections::BTreeMap<String, bool>,
     /// Reverb connection info; `None` when realtime is not configured (poll the REST routes).
     #[serde(default)]
     pub realtime: Option<RealtimeConfig>,
     /// Version and download facts for the update check; `None` with an older server.
     #[serde(default)]
     pub client: Option<ClientInfo>,
+}
+
+impl ClientConfig {
+    /// Whether the server offers the recipe routes (`features.launcher`). `None` means the server
+    /// does not know the flag (an older build): unknown, which is not "no".
+    pub fn launcher_feature(&self) -> Option<bool> {
+        self.features.get("launcher").copied()
+    }
 }
 
 /// `config.client`: which server this is and which client builds it offers. Every field is

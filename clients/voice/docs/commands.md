@@ -624,3 +624,50 @@ list follows only the room directory). Starts the realtime link on first use; ev
 ### `chat_unsubscribe`
 
 Stops the realtime link.
+
+## Games (library)
+
+The game library of the app: what the server offers, whether the files are on the LAN file host
+and what is installed on this machine. Read-only in this version; installing and starting come
+with the next phase. Every error is the usual error object, with one of these stable `code`s set
+(`kind` and `message` are as everywhere else):
+
+| `code`                     | Meaning                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| `not_paired`               | the device is not connected, or the server rejected the token (`auth-expired`)   |
+| `offline`                  | the server is unreachable (`retryable`)                                          |
+| `server_error`             | any other server failure                                                         |
+| `plan_version_unsupported` | the server's install plan is newer than this app understands: "update the app"   |
+| `module_off`               | `games_list` only: the server answers 404, the game library module is off        |
+| `not_found`                | `game_detail` only: unknown slug, or a draft                                     |
+
+`local.status` is one of `not_installed`, `installing`, `ready`, `repair_needed`, `broken`,
+`offline` (the install folder is on a drive that is not there right now). `availability` is
+`on_lan` (every required file is on the LAN file host), `missing` (a required file is not) or
+`unknown` (no plan yet, files from outside the LAN, a recipe without files, or an older server).
+
+### `games_state`
+
+Result `{enabled: bool, reason: null | "module_off" | "server_too_old" | "not_paired"}`. `enabled` is
+true only when the device is paired and the server reports `features.launcher` in `GET config`.
+`server_too_old`: the server does not know the flag at all. Hide the Games tab unless `enabled`.
+
+### `games_list`
+
+Result `{recipes: [game], fetched_at}` in the server's order (the launcher lineup). A `game` is
+`{slug, title, summary, genre, players, players_max, platforms: string[], size_bytes, installable, launcher_supported, in_lineup, availability, local}`:
+`summary`, `genre`, `players` (text such as `"2-16"`), `players_max` and `size_bytes` may be `null`;
+`installable` and `launcher_supported` are `true`, `false` or `null` (null: the server does not say, which is not
+"no"); `in_lineup` is a bool; `local` is `{status, path: string | null, last_played_at: RFC 3339 | null}`.
+Availability comes from the install plan with `dry_run=1` (so no audit entry is written on the
+server). The app looks plans up within a budget (at most 24 a minute, 4 at a time) and keeps the
+answers for five minutes; recipes it did not get to are `unknown`, so call `games_list` again after a
+moment to fill them in. It is cheap to call again.
+
+### `game_detail`
+
+Args `{slug}`. Result `{recipe, plan_summary, local}`. `recipe` is a `game` (above) plus
+`{description, aliases: string[], homepage, license, portable, supports_multiplayer}` (each may be `null`).
+`plan_summary` is `null` when the recipe has no plan to show or the plan could not be fetched, else
+`{plan_version, files: [{label, size_bytes, source: "lan" | "external" | "manual" | "none", required, status}], missing: string[]}`.
+`local` repeats `recipe.local`. A plan in a newer format rejects with `plan_version_unsupported`.
