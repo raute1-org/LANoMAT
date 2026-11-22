@@ -293,16 +293,21 @@ impl Features {
         self.games_list_with(true).await
     }
 
-    /// `fill_plans` off: only the recipe list is fetched and availability comes from what the
-    /// cache already holds (else `unknown`). The library uses this so slow plan lookups never
-    /// hold it back or get cut off by its time bound; a later `games_list` or `game_detail`
-    /// fills the gaps.
-    pub(super) async fn games_list_with(&self, fill_plans: bool) -> Result<GamesList, UiError> {
+    /// How the library asks: only the recipe list is awaited. The plan lookups run detached
+    /// (`spawn_plan_fill`), so slow ones neither hold the list back nor are cut off by its time
+    /// bound; the next list shows what they found.
+    pub(super) async fn games_list_detached(&self) -> Result<GamesList, UiError> {
+        self.games_list_with(false).await
+    }
+
+    async fn games_list_with(&self, inline_fill: bool) -> Result<GamesList, UiError> {
         let api = self.games_api()?;
         let recipes = api.recipes().await.map_err(|e| self.games_error(e, true))?;
 
-        if fill_plans {
+        if inline_fill {
             self.fill_plan_cache(&api, &recipes).await;
+        } else {
+            self.spawn_plan_fill(api, recipes.clone());
         }
 
         let now = Instant::now();
@@ -321,6 +326,25 @@ impl Features {
             recipes: views,
             fetched_at: now_rfc3339(),
         })
+    }
+
+    /// Starts the plan fill in the background, unless one is already running. Same budget and
+    /// parallelism as the inline fill.
+    fn spawn_plan_fill(&self, api: ApiClient, recipes: Vec<RecipeSummary>) {
+        let Some(this) = self.this.upgrade() else {
+            return;
+        };
+        if this
+            .plan_fill_running
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return;
+        }
+        tokio::spawn(async move {
+            this.fill_plan_cache(&api, &recipes).await;
+            this.plan_fill_running.store(false, Ordering::SeqCst);
+        });
     }
 
     /// Looks up the plans (`dry_run=1`) of recipes that have no fresh answer, within the budget.

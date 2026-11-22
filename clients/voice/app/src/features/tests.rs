@@ -1498,20 +1498,24 @@ mod library {
     }
 
     #[tokio::test]
-    async fn slow_plan_lookups_do_not_hold_the_library_back() {
+    async fn slow_plan_lookups_run_detached_and_show_on_the_next_list() {
+        use voice_core::api::Availability;
         let r = rig().await;
         mount_launcher_config(&r).await;
         mount_recipes(
             &r,
-            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+            vec![game_summary(
+                "on-lan",
+                json!({"store_ids": {"steam": "10"}}),
+            )],
         )
         .await;
         Mock::given(method("GET"))
-            .and(path("/api/voice-client/v1/recipes/cs16/plan"))
+            .and(path("/api/voice-client/v1/recipes/on-lan/plan"))
             .respond_with(
                 ResponseTemplate::new(200)
-                    .set_delay(Duration::from_secs(3))
-                    .set_body_json(json!({})),
+                    .set_delay(Duration::from_millis(1500))
+                    .set_body_json(game_plan("on-lan", true)),
             )
             .mount(&r.server)
             .await;
@@ -1527,12 +1531,28 @@ mod library {
             opener: Box::new(|_| Ok(())),
             recipe_timeout: Duration::from_millis(500),
         });
+        let availability =
+            |l: &super::super::LibraryList| l.entries[0].recipe.as_ref().unwrap().availability;
         let started = std::time::Instant::now();
         let list = r.features.library_list().await.unwrap();
-        assert!(started.elapsed() < Duration::from_secs(2));
+        assert!(started.elapsed() < Duration::from_millis(1200));
         assert_eq!(list.recipes_reason, None);
-        assert_eq!(list.entries[0].key, "recipe:cs16");
-        assert!(plan_requests(&r).await.is_empty());
+        assert_eq!(list.entries[0].key, "recipe:on-lan");
+        assert_eq!(availability(&list), Availability::Unknown);
+
+        // The fill finishes in the background; the next list has the answer.
+        let mut filled = false;
+        for _ in 0..100 {
+            let next = r.features.library_list().await.unwrap();
+            if availability(&next) == Availability::OnLan {
+                filled = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        assert!(filled, "availability never arrived");
+        // One fill, not one per list while it was running.
+        assert_eq!(plan_requests(&r).await.len(), 1);
     }
 
     #[tokio::test]

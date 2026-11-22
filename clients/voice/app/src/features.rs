@@ -142,6 +142,10 @@ pub struct Features {
     focused: AtomicBool,
     /// Where the latest system notification leads (see `take_notification_target`).
     last_target: Mutex<Option<(std::time::Instant, Target)>>,
+    /// Itself, for work that outlives a call (the detached plan fill of the library).
+    this: std::sync::Weak<Features>,
+    /// A detached plan fill is running: at most one at a time.
+    plan_fill_running: AtomicBool,
 }
 
 /// How long a delivered notification's target stays claimable by the UI.
@@ -240,7 +244,9 @@ impl Features {
                 .unwrap_or_else(default_retry_delays),
             vec![cfg_dir],
         )?;
-        Ok(Arc::new(Self {
+        Ok(Arc::new_cyclic(|this| Self {
+            this: this.clone(),
+            plan_fill_running: AtomicBool::new(false),
             engine,
             emit,
             notifier,
