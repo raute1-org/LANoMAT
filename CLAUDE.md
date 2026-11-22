@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+@AGENTS.md
+
+The shared essentials for every coding agent (how to run, check and change the code, the safety rules, and the
+setup guide for your own LAN) are in `AGENTS.md`. This file adds the working method and the operational history
+of this repository's own deployment.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project

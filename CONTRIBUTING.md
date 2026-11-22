@@ -60,6 +60,10 @@ Details zum Stack und den Kommandos: [`CLAUDE.md`](CLAUDE.md) und
 ### Konventionen
 
 - **Conventional Commits**: `feat(scope): …`, `fix(scope): …`, `docs: …` usw.
+- **Setup-Anleitung aktuell halten**: Ändert ein PR ein Modul, eine Umgebungsvariable, einen Dienst, Port oder
+  ein Skript, das die Einrichtung betrifft, gehört die Anpassung von
+  [`docs/setup/agent-setup.md`](docs/setup/agent-setup.md) in denselben PR (ein Architekturtest prüft Module,
+  Links und Pfade).
 - **Sprache**: Code, Kommentare, Commits und Doku auf **Englisch**; UI-Texte auf
   **Deutsch** über `lang/de/*.php` (keine hartkodierten Strings in Komponenten).
 - **Modularer Monolith**: `app/Modules/<Name>/{Models,Actions,Policies,Filament,Jobs,Events,Contracts}`;

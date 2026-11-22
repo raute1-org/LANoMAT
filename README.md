@@ -9,6 +9,18 @@ See [`docs/architecture.md`](docs/architecture.md) for the module convention and
 and [`docs/superpowers/specs/2026-07-13-lanomat-v2-rebuild-design.md`](docs/superpowers/specs/2026-07-13-lanomat-v2-rebuild-design.md)
 for the full design rationale.
 
+## Set it up for your own LAN with a coding agent
+
+LANoMAT is open source (MIT). The quickest way to your own instance is a coding agent such as Claude Code,
+Codex or Gemini CLI: clone the repository, start the agent in it and tell it
+
+> Set up LANoMAT for my LAN. Follow `docs/setup/agent-setup.md`, ask me before every decision, and never
+> print or commit a secret.
+
+The guide ([`docs/setup/agent-setup.md`](docs/setup/agent-setup.md)) lists the decisions the agent must ask
+for (domain, Discord, server, features), the steps for a local trial and for a server, and the pitfalls.
+Agents read [`AGENTS.md`](AGENTS.md) first.
+
 ## Requirements
 
 - PHP 8.4 with the `pgsql`, `redis`, `sodium`, `intl`, and `gd` extensions (`gd` is
