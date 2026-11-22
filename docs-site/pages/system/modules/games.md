@@ -19,14 +19,17 @@ and team-size range stay stable across LANs, so stats and history accumulate.
 - Tournament create/edit — game picker; the tournament inherits team-size defaults.
 
 Participants meet the catalogue through the games library at `/games`: one card per published recipe
-the lineup allows, with a LAN badge when the content is already on the file host. A card offers
-**Installieren** (the launcher download when the launcher can install the recipe, else the deep
-link), **Im Launcher öffnen** when a build exists, **Spielen** for a browser game, and **Details**
-when there is nothing to install. The game page's server rows put **Im Launcher beitreten** first
-(it installs the game when needed and starts it on that server), with the game's own ways under
-**Anders verbinden**; a row without a launcher link keeps its own join action. **Spiel teilen** sits
-in the library header and, on a game's own page, at the bottom of the sidebar. Only a published,
-lineup-allowed recipe gets here.
+the lineup allows, with a LAN badge when the content is already on the file host or a server of the
+game is listed. A card offers **Installieren** — the `/app` download page when a build is
+published and the launcher can install the recipe, otherwise the game's own page with the deep link,
+the command and the file list — **Im Launcher öffnen** beside it in the first case, **Spielen** for a
+browser game, and **Details** when there is nothing to install. The game page's server rows put the
+launcher action first — **Im Launcher beitreten** when the link names the server, **Im Launcher
+starten** when it cannot — with the game's own ways under **Anders verbinden**; a row without a
+launcher link keeps its own join action. **Spiel teilen** sits in the library header and, on a game's
+own page, at the bottom of the sidebar. Only a published, lineup-allowed recipe gets here. The page
+names the event the rest of the app treats as current and prefixes **● LIVE** only while that event is
+live.
 
 | Dark | Light |
 |---|---|
@@ -57,6 +60,10 @@ meet.
 - `pelican_egg_id` is optional: a game without an egg can still run a tournament, just without
   automatic server provisioning.
 - Server presets are stored as typed domain objects, not raw JSON in the UI.
+- The games library's **LAN** badge and **Nur LAN-Spiele** filter mean "playable here": a required
+  file on the LAN **or** a listed server of the game. The install block next to a server answers a
+  narrower question (`lanReady`: can a fresh install work right now) — a running server does not make
+  that true.
 - Icons go to Laravel Storage; no Base64 in the database.
 - Provider ownership hints (`games.provider`, `provider_app_id`) are advisory only.
 

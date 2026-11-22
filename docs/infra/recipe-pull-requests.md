@@ -72,7 +72,8 @@ It never:
 - Text the repository's own validator accepts (§7). The share page produces it; a bare MCP or panel
   recipe usually does not until its `SKILL.md` and steps are filled in: a `SKILL.md` must be 60 to 150
   lines with YAML front matter, and a **draft** needs 3 to 6 steps and a sentence that says it needs
-  verification on the LAN.
+  verification on the LAN. The MCP tool takes `skill_markdown`, and its answer names the open points,
+  so an assistant can complete the text too — the panel preview shows the same list before publishing.
 - A GitHub token with write access to that repository (§3).
 
 ## 3. The token
@@ -276,13 +277,37 @@ the pull request body: line 4: an e-mail address jo[REDACTED len=18].
 
 Where the admin sees it:
 
+- **before anything is sent:** the recipe's edit page has the read-only section **Katalog (Pull
+  Request)** with the block **Textprüfung für den Katalog** whenever pull requests are configured and
+  the pipeline would take the recipe — also before the first proposal. As a draft it lists what the
+  catalogue wants from a draft *and* what would still be missing once published (the default trigger
+  decides at publishing, so the second list is the important one); as a published recipe it lists
+  what blocks it now; empty means one line that the text is ready. It calls
+  `ProposeRecipe::preview()`: no repository call, no state. Both publish confirmations ("Veröffentlichen"
+  and "Dateien freigeben und veröffentlichen") carry one warning line with the number of open points.
+  Publishing is never blocked by it — a refused pull request is `blocked`, not a failed publish;
 - the recipe list (`/admin/recipes`) has a **Pull Request** badge column and a matching filter; the
-  `pr_state` badge is a warning colour for `blocked`, red for `failed`, and links to the pull request
-  only for states that exist in the repository;
+  `pr_state` badge is a warning colour for `blocked`, red for `failed`, links to the pull request
+  only for states that exist in the repository, and shows the first line of `pr_error` as the
+  column's description — so the reason of "Nicht gesendet" / "Fehlgeschlagen" is readable without
+  opening the recipe;
 - the recipe's edit page has the read-only section **Katalog (Pull Request)** with the state badge, the
   pull request link, the `pr_error` text in danger colour, and "Zuletzt abgeglichen: …" (or "Noch nicht
   mit dem Repository abgeglichen");
 - the share page shows the state as the third step of "Deine geteilten Spiele", under **Katalog**.
+
+A contribution made through the MCP tool or `POST /api/v1/recipes` can be finished without the
+panel: `recipe_contribute` takes `skill_markdown` (the tool schema names the 60–150 line rule, the
+front matter and the 20–1024 character `skill_description`), and both contribution answers carry
+`catalog.problems` (what the catalogue refuses now) and `catalog.problems_when_published`. An
+assistant calls the tool again with the fixed fields until `problems` is empty; a second call for
+the same slug **replaces** the draft, so it must send the complete recipe — a field left out is
+cleared. That turns a contribution into catalogue-ready text, but still not into a published recipe.
+
+Editing a contribution keeps its file rows (the ids a launcher plan stores), but an admin's file pin
+on a requirement survives only while the requirement still names the same file — same `match`
+patterns and same `sha256`. A renamed or duplicated requirement starts without a pin, so the old
+file is never attached under a new description.
 
 To fix and re-propose: edit the recipe so the offending text is gone (a title, summary, step command or
 requirement label — the finding names the file and line; a readiness finding names the rule), save, then
@@ -305,8 +330,8 @@ see the reason immediately. The next proposal overwrites `pr_error` and the stat
 
 **A blocked or failed attempt never erases a pull request that exists.** If the recipe's current
 `pr_state` is `open`, `merged` or `closed` (`PullRequestState::existsRemotely()`), the attempt writes
-only `pr_error` and `pr_synced_at` and keeps the state, so the branch, the panel link and the hourly sync
-stay. The command says so:
+`pr_error` — and, for a refusal, `pr_synced_at`; a repository failure keeps the old timestamp — and
+keeps the state, so the branch, the panel link and the hourly sync stay. The command says so:
 
 ```console
 $ php artisan lanomat:recipes:propose my-shared-game

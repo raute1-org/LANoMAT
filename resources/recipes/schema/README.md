@@ -63,7 +63,9 @@ When the installer implements the contract:
 - treat `match: []` as user-supplied and skip the share search;
 - filter steps by the host OS and, inside a step, commands by `shell`
   (`powershell`/`cmd` on Windows, `bash` on Linux) before running them in order;
-- resolve `{{target}}`, `{{downloads}}` and `{{os}}` before `verify`.
+- resolve `{{target}}`, `{{downloads}}` and `{{os}}` before `verify`; the plan
+  already carries final text for `{{server_host}}`/`{{server_port}}`, so do not
+  expect those placeholders in a plan at all.
 
 Regression coverage for rules 9–10 exists only in the validator today; the
 backend tests should cover a case-folded folder dump (`CUSA00207`) and an
@@ -73,24 +75,24 @@ Node 20+ is enough. `node_modules/` is git-ignored; commit `package-lock.json`.
 
 ## Shape
 
-| Key           | Required | Notes                                                                                                              |
-| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `schema`      | yes      | Always `lanomat.recipe/v1`.                                                                                        |
-| `slug`        | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                                                             |
-| `title`       | yes      | Display name; quote it if it contains `: `.                                                                        |
-| `aliases`     | yes      | Chat phrases that resolve to this recipe; unique.                                                                  |
-| `version`     | yes      | String. Patch, port or release the recipe targets.                                                                 |
-| `status`      | yes      | `draft`, `published` or `archived`.                                                                                |
-| `platforms`   | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                                                   |
-| `summary`     | yes      | One sentence, ≤ 200 chars.                                                                                         |
-| `description` | yes      | Multi-line markdown: what it is, why LAN, what the files are.                                                      |
-| `homepage`    | no       | URI (official project/emulator page).                                                                              |
-| `license`     | yes      | Who owns the game; what the user supplies; mod license.                                                            |
-| `cover`       | no       | Docs image name; may be empty.                                                                                     |
-| `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                                                              |
-| `requires`    | yes      | File groups; see below. May be empty for pure tools.                                                               |
-| `steps`       | yes      | 1–20 ordered steps.                                                                                                |
-| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`, `portable`, `launcher_supported`. |
+| Key           | Required | Notes                                                                                                                                                                                                                           |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema`      | yes      | Always `lanomat.recipe/v1`.                                                                                                                                                                                                     |
+| `slug`        | yes      | `^[a-z0-9]+(-[a-z0-9]+)*$`, equals the directory name.                                                                                                                                                                          |
+| `title`       | yes      | Display name; quote it if it contains `: `.                                                                                                                                                                                     |
+| `aliases`     | yes      | Chat phrases that resolve to this recipe; unique.                                                                                                                                                                               |
+| `version`     | yes      | String. Patch, port or release the recipe targets.                                                                                                                                                                              |
+| `status`      | yes      | `draft`, `published` or `archived`.                                                                                                                                                                                             |
+| `platforms`   | yes      | Non-empty subset of `windows`, `linux`, `macos`.                                                                                                                                                                                |
+| `summary`     | yes      | One sentence, ≤ 200 chars.                                                                                                                                                                                                      |
+| `description` | yes      | Multi-line markdown: what it is, why LAN, what the files are.                                                                                                                                                                   |
+| `homepage`    | no       | URI (official project/emulator page).                                                                                                                                                                                           |
+| `license`     | yes      | Who owns the game; what the user supplies; mod license.                                                                                                                                                                         |
+| `cover`       | no       | Docs image name; may be empty.                                                                                                                                                                                                  |
+| `skill`       | yes      | `name` (slug rules, ≤ 64) and `description` (≤ 1024).                                                                                                                                                                           |
+| `requires`    | yes      | File groups; see below. May be empty for pure tools.                                                                                                                                                                            |
+| `steps`       | yes      | 1–20 ordered steps.                                                                                                                                                                                                             |
+| `metadata`    | yes      | `genre`, `players`, `lan_recommended`, `tags`; optional `players_max`, `launch`, `portable`, `launcher_supported`, `live_url` and the browser recipe's `server` (`name`, `address`, `port`, `connect_url`, optional `players`). |
 
 ### Metadata
 
@@ -142,6 +144,28 @@ depend on it.
 `{{target}}` install directory, `{{downloads}}` download directory, `{{os}}`
 detected platform. The installer resolves them; the schema only stores the
 strings.
+
+`{{server_host}}` and `{{server_port}}` name this installation's server, so a
+recipe never carries that address (the one exception is a browser recipe's own
+public server in `metadata.server` — the game's deployment, not the LAN's).
+LANoMAT fills both in when it builds a plan, from a server of the game the
+viewer may see — but only when that server's game carries **exactly** the
+recipe's slug (no alias, no name resemblance; the browser twin of a native game
+never qualifies) and the server is `ready` or at least `not_responding`.
+Ranking: a server that answers first, then a permanent one, then the lowest id.
+Both are final in the plan **and in the recipe detail** (REST, MCP and the
+native client fill them too, so an agent never reads a raw placeholder):
+`BuildInstallPlan` substitutes them in step commands, step checks and launch
+targets before the plan leaves the server, because the clients substitute their
+own set (`{{target}}`, `{{downloads}}`, `{{avatars}}` and a few more) and would
+pass an unknown placeholder through literally. No client resolves
+`{{server_host}}`/`{{server_port}}`. `{{server_host}}` keeps letters, digits, dot and hyphen only (at
+most 253 characters), `{{server_port}}` digits 1–65535; anything else — and "no
+such server" — is the empty string. A step must therefore handle the case
+where it did not get a host: the NFSU2 step leaves the game's `host` line as
+the file carries it and says in its `detail` that the address is on the server
+list (`/servers`) or with the Orga. An IPv6 literal is empty too (the contract
+has no colons).
 
 ## Design rules
 

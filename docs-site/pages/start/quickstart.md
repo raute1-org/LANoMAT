@@ -53,9 +53,10 @@ the UI is not empty.
 composer run dev
 ```
 
-That starts `php artisan serve`, the queue worker and Vite together. Open
-<http://localhost:8000/login>. Under `APP_ENV=local` the login page shows **Demo-Teilnehmer** and
-**Demo-Orga** buttons; the backing route `POST /dev/login/{role}` 404s in every other environment.
+That starts the app server, the queue worker and Vite together. Open
+<http://localhost:8000/login>. Under `APP_ENV=local` the login page shows the buttons **„Als
+Demo-Teilnehmer“** and **„Als Demo-Orga“**; the backing route `POST /dev/login/{role}` 404s in every
+other environment.
 
 <div class="live">LIVE 17:42 · local dev · queue worker up</div>
 
@@ -117,9 +118,9 @@ approve it on `/mcp/connect` while signed in.
 
 ## 8. Optional: the desktop launcher
 
-The LANoMAT Launcher is the no-terminal path: one download, one pairing code, one button for every
-game the launcher can install — the UT2004 pilot, the hand-verified NFSU2 recipe, browser games and
-portable archives that participants share. The server offers the Linux and Windows builds on
+The LANoMAT Launcher is the no-terminal path: one download page, one pairing code, one button for
+every game the launcher can install — the UT2004 pilot, the hand-verified NFSU2 recipe, browser games
+and portable archives that participants share. The server offers the Linux and Windows builds on
 `/app` (sidebar entry **App herunterladen**), with size and SHA-256; the token it stores is 0600. Read
 [One-click launcher](/docs/guides/launcher) for the download, the pairing and what happens when a
 disc image or patch is missing on the LAN. On the server, `scripts/ops/build-launcher.sh` builds and
@@ -145,8 +146,8 @@ of the LAN with their game and the way onto them.
 
 | Dark | Light |
 |---|---|
-| ![Games library with lineup recipes and the LAN filter, dark](/screens/games-dark.png) | ![Games library with lineup recipes and the LAN filter, light](/screens/games-light.png) |
-| `GAMES · DARK` — lineup recipes, LAN dot, running tournaments | `GAMES · LIGHT` |
+| ![Games library with the LIVE banner, the LAN filter and the install actions, dark](/screens/games-dark.png) | ![The same games library in light](/screens/games-light.png) |
+| `GAMES · DARK` — LIVE banner, LAN dots, Installieren | `GAMES · LIGHT` |
 
 | Dark | Light |
 |---|---|

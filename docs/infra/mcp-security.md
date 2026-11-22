@@ -3,8 +3,11 @@
 **Scope:** the `Mcp` module (`/mcp`, `/api/v1/*`, `/api/mcp/*`, `/mcp/connect`), the
 `GameRecipes` module (`recipe_contribute`, recipe sync from SMB/git, install plans, avatars)
 and the parts of the agent (`clients/agent`) that consume them.
-**Audited:** 2026-11-21 (card 16, agent swarm). Code, tests and this document are the record;
-a finding that is only documented here is listed under *Residual risks*.
+**Audited:** 2026-11-21 (card 16, agent swarm); re-audited 2026-11-22 for the gap round (plan
+variables, occupants, `lanReady`, the catalogue preview, the agent's path rule) and again after the
+two reviews and the first real-browser run of the journey (`927776ae`, `9323ad48`, `64ccae49`). Code,
+tests and this document are the record; a finding that is only documented here is listed under
+*Residual risks*.
 
 Related documents: [`native-voice-client-api.md`](native-voice-client-api.md) (the bearer-token
 pattern this API copies), [`file-host.md`](file-host.md) (storage, signed URLs, quota),
@@ -47,7 +50,7 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
 | T1 | A participant overwrites (and unpublishes) an orga-published recipe by reusing its slug through `recipe_contribute` | **High** | `ContributeRecipe` now authorizes updates through `GameRecipePolicy::update`; a foreign published recipe is a 403, a foreign draft too | fixed |
 | T2 | Anonymous rate-limit bypass on the device flow by forging `X-Forwarded-For` (all proxies are trusted → `$request->ip()` is client-chosen), plus a fresh `mcp_device_codes` row per call | **High** | `DeviceFlowController` adds a second throttle keyed on the **rightmost** `X-Forwarded-For` hop (the one Traefik appended, `McpClientAddress`); `StartDeviceAuthorization` prunes expired rows on every start | fixed |
 | T3 | Approved file of a **draft** event downloadable by guessing its sequential id | **Medium** | `AccessibleFiles::ensureVisible` on both the download route and `file_download_url` (uploader + orga exempt, others 404); pinned recipe matches are filtered to non-draft events | fixed |
-| T4 | Prompt injection through an uploaded **file name** (newlines, fake instruction lines, unbounded length) surfacing in `files_list`, install plans, avatars, recipe detail | **Medium** | `GameRecipes\Support\SafeText` flattens control characters to one bounded line and reduces names to a base name in every agent-facing projection | mitigated |
+| T4 | Prompt injection through an uploaded **file name** (newlines, fake instruction lines, unbounded length) surfacing in `files_list`, install plans, avatars, recipe detail | **Medium** | `App\Support\SafeText` (re-exported to the MCP module as `App\Modules\Mcp\Support\SafeText`) flattens control characters to one bounded line and reduces names to a base name in every agent-facing projection; both upload paths store a cleaned name (`Files\Support\UploadFileName`) | mitigated |
 | T5 | Tool errors echo raw exception text (SQL, absolute paths, caller-authored slugs) into the model's context | **Medium** | `LanomatTool` returns a fixed message for unexpected throwables, a sanitized one-liner for `RecipeException`/domain errors | fixed |
 | T6 | A recipe `url` uses a non-HTTP scheme (`file://`, `javascript:`, `data:`), which the agent fetches on the player's machine | **Medium** | `RecipeValidator` accepts only `http`/`https` for `requirement.url`; empty is allowed (LAN-only recipe) | fixed |
 | T7 | A poll of a draft event is votable by id through `poll_vote` | **Low–Medium** | `PollVoteTool` resolves the poll through a non-draft event (404 otherwise) | fixed |
@@ -67,12 +70,22 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
 | T21 | A `lanomat://join/<slug>?url=…` link weaponised to make a launcher open an arbitrary URL | **Low–Medium** | `LauncherJoinLink` builds the link server-side, only when `LauncherSupport::supports()`; `?url=` is `rawurlencode`d and accepted only through `JoinLinkTemplates::isAllowedUrl` (`steam`, `ut2004`, `http`, `https`; no control characters, quotes, `<>` or `\`); UT2004's `?address=` is a validated `host:port`; the Vue components render only a value starting with `lanomat://join/` | mitigated |
 | T22 | The GitHub token leaking through an error message, a log line or the panel | **Low** | `GitHubRecipeRepository::oneLine()` replaces the token with `***` and caps the message before it becomes a `RecipeRepositoryException` message, a `pr_error` value or a log line; the bearer never appears in a URL | fixed |
 | T23 | A shared **title** reaches a shell: the install folder is built from the title and substituted into the quoted arguments of step and launch commands (`Tiny Racers $(calc.exe)`) | **High** | `BuildInstallPlan::targetDir` keeps only `A-Za-z0-9 ._-` after `Str::ascii()` (Windows), `Str::slug()` of that on Linux/macOS; collapses dot runs, trims dots/spaces. Nothing that means anything to PowerShell, cmd or a POSIX shell survives | fixed |
-| T24 | The **archive file name** reaches printed commands and Markdown: a backtick ends a code span, a control character a line, `*`/`?` turn the pinned glob into another archive's pattern | **Medium** | `PortableRecipeBuilder::hasUnsafeArchiveName()` (backtick, `*`, `?`, control characters) refuses the file with a German "rename it" message; commands are single-quoted literals (`powershellLiteral()`, `bashLiteral()`), `SKILL.md` prints the same strings the steps run, prose escapes backticks (`markdownText()`/`markdownCode()`) | fixed |
+| T24 | The **archive file name** reaches printed commands and Markdown: a backtick ends a code span, a control character a line, `*`/`?` turn the pinned glob into another archive's pattern | **Medium** | `PortableRecipeBuilder::hasUnsafeArchiveName()` refuses a backtick, `*`, `?`, control characters **and** the characters the installing client rewrites (`: " < > |`, a leading dot, a `..`), with a German "rename it" message; commands are single-quoted literals (`powershellLiteral()`, `bashLiteral()`), `SKILL.md` prints the same strings the steps run, prose escapes backticks (`markdownText()`/`markdownCode()`). The share page carries the precise reason per row (`GameShareController::unusableReason`) | fixed |
 | T25 | Launch commands invisible at review: `metadata.launch_targets`, `play_url`, `portable` and each step's `verify` had no form field, so an orga released commands nobody saw | **Medium** | The edit page's read-only **Start und Launcher** section (`LauncherReview`) names the `LauncherSupport` rule, the portable flag with its missing conditions, `play_url` as plain text and every launch command verbatim (including commands derived from `metadata.launch`); the step's `verify` entries are listed; both publish confirmations print the launch commands and say they run on players' PCs | fixed |
 | T26 | Flooding the repository with branches and pull requests from one participant or device | **Medium** | The automatic path calls `ProposeRecipe::limitReason()`: a rate limiter per contributor (`RECIPES_PR_PER_USER_HOURLY`, default 6/h) and a ceiling of open pull requests (`RECIPES_PR_MAX_OPEN`, default 30, an update of an open one exempt). Over a budget the job is skipped with `recipes.pull_request_skipped` and no state is written. Drafts are bounded separately (`RECIPES_MAX_DRAFTS_PER_USER`). The orga's manual propose is not limited | mitigated |
 | T27 | Markdown in the public pull request: an image that phones home, `@team` mentions, `Fixes #12` | **Low** | The title and commit message are cleaned plain text (`PublicSafeText::plain()`); the body is escaped Markdown (`::markdown()`, every metacharacter escaped, one line, capped); the safety gate checks the **raw** text, so escaping cannot hide an address | fixed |
 | T28 | Front-matter injection through participant text in the generated `SKILL.md` (a line break ends the front matter, a colon or a leading dash breaks the YAML) | **Medium** | `PortableRecipeBuilder::yamlFrontMatter()` writes it with `Yaml::dump`; title, summary, version, players and aliases must be one line (`ShareGameRequest`, `ContributeRecipe`); `SKILL.md` prose has backticks escaped | fixed |
 | T29 | A too-broad `match` pattern claims another participant's archive once the pin is gone (`[a].zip` → `*.zip`) | **Medium** | `PortableRecipeBuilder::hasReliableMatchPattern()` requires at least three literal letters or digits after the extension and turns brackets into `*`; `CatalogReadiness` refuses a glob with a path separator | fixed |
+| T30 | An admin-written **server address** reaches a player's shell through `{{server_host}}` / `{{server_port}}` | **Medium** | `PlanServerAddress` takes the address from a `Ready`/`NotResponding` `ServerLink` whose game carries **exactly** the recipe's slug, that the viewer may see anyway (`ServerListProjection`, behind `viewPermanent`); the host must match `[A-Za-z0-9.-]{1,253}` and the port lie in 1..65535, otherwise the value is the empty string (never trimmed or repaired); one `strtr()` pass, so an inserted value is never re-scanned for placeholders | mitigated |
+| T31 | The **occupants** line turns into a stalking aid: who is on which server, and who is not | **Low–Medium** | Two gates: the audience is the event's people list (`EventPolicy::viewPeople` — a non-cancelled participant of that event, or orga; an account alone gets `null`), and Presence's visibility rule (`share_location`, blocks either way; the viewer always sees themselves) decides the people and the `more` count. At most eight named accounts; filled only on authenticated server pages; `null` on every bearer API | mitigated |
+| T32 | `lanReady` tells a viewer something about uploads they may not see | **Low** | The rule is viewer-independent by design: every required base/disc image needs an approved upload of a non-draft event (pinned or pattern-matched) or an external URL. It never names a file, a pin or an event and never counts an optional requirement; "ready" only means "a fresh install has a source" | mitigated |
+| T33 | The contribution answer's **`catalog`** object reveals catalogue or instance state the contributor did not write | **Low** | `ContributionCatalog` calls `ProposeRecipe::preview()`, which clones the recipe, exports its own text and runs `CatalogReadiness` + `PublicSafeText` — no repository call, no state write. The only non-authored value is one boolean, `pull_requests_enabled` (`RecipeRepository::isConfigured()`) | mitigated |
+| T34 | A contributor's **`skill_markdown`** travels verbatim into the public repository and to every player's assistant | **Medium** | Stored as sent (newlines, carriage return and tab are the only control characters allowed; `ContributeRecipe` and the MCP tool both enforce it), exported as the SKILL.md body, and scanned by `CatalogReadiness` (60–150 lines, front matter whose `name` is the slug) and `PublicSafeText` (addresses, e-mails, key material, tokens) before anything is sent | mitigated |
+| T35 | A plan writes the **wrong server** into a game's configuration: the recipe matcher tolerates an alias or a name resemblance, so without a native server the browser twin's public front end landed in the native game's config | **High** | `PlanServerAddress` is stricter than the install links: the server's game must carry **exactly** the recipe slug (no alias, no name match), the link must be `Ready` or `NotResponding` (never offline/failed/provisioning), and the ranking is answers first, then permanent, then lowest id. The recipe detail (`RecipeController::show`, `RecipeGetTool`, the native `RecipesApiController::show`) fills the same variables, so no client receives a raw placeholder (found by both gap-round reviewers) | fixed |
+| T36 | The **occupant line is shown to any account** that can open the server page, not only to the event's people | **Low–Medium** | `PresenceServerOccupants::mayViewPeople()` asks `Gate::…->allows('viewPeople', $event)` once per event and viewer; `EventPolicy::viewPeople` is a non-cancelled participant of that event or orga, otherwise `null`. The global browser hands its viewer in explicitly; the projection no longer reads the session, and the download page `/app` builds no server rows at all | fixed |
+| T37 | A contribution edit **inherits a pin** under a renamed or duplicated requirement, so an orga's file choice sticks to a requirement that now asks for something else | **Medium** | `ContributeRecipe` keeps a row's pin only while the requirement still names the same file: the match-pattern set (order/case-insensitive) and the digest are unchanged. A requirement that is new by role and label starts with no pin (only one from the payload counts), and no pin is handed out twice; the duplicate-file-row test covers it | fixed |
+| T38 | An archive name the **installing client renames** (`: " < > |`, a leading dot, a `..`) is printed into commands that then cannot find the file | **Medium** | `PortableRecipeBuilder::hasUnsafeArchiveName()` refuses exactly those characters/shapes (plus backtick, `*`, `?`, control characters), so a share cannot pin them; the archive list says the same reason per row instead of calling it "no archive" | fixed |
+| T39 | Upload names stored **before the cleaning** break a download (`Content-Disposition` refuses a path separator or control character) | **Low** | `UploadFileName::clean()` now also removes C1 controls, line/paragraph separators, zero-width characters, the byte-order mark and bidirectional formatting; `UploadFileName::forDownload()` cleans an old name again when it is offered and falls back to `file`; the resumable path refuses a name that cleans to nothing with its own message | fixed |
 
 ---
 
@@ -142,7 +155,18 @@ Severity is the pre-fix rating. "Fixed" means changed in this card with a regres
   the policy (T1). Drafts are only visible to their contributor and to orga.
 - `SafeText::line()` / `SafeText::fileName()` project user-authored text into agent output:
   control characters become spaces, one line, bounded length, file names reduced to a base
-  name (no `..`, no `/`, no `\`).
+  name (no `..`, no `/`, no `\`). The class is `App\Support\SafeText`; the MCP module's
+  `App\Modules\Mcp\Support\SafeText` is a one-line subclass so a module imports its own namespace.
+- `Files\Support\UploadFileName::clean()` runs on **both** upload paths — the resumable ticket
+  (`IssueUploadTicket`) and the multipart form (`UploadSharedFile`) — so a stored
+  `original_name` no longer depends on how the bytes arrived. It removes C0 and C1 control
+  characters, the line and paragraph separators, zero-width characters, the byte-order mark and the
+  bidirectional formatting overrides, everything before the last path separator, and anything past
+  255 characters. It deliberately keeps a backtick, `*`, `?` and a leading dot: a name a shared game
+  cannot quote is refused by the recipe builder, not silently rewritten (see residual risk 18). A
+  name that cleans to nothing is refused as an upload (`files.errors.invalid_name`, both paths), and
+  `forDownload()` cleans a name stored before this rule when it is offered (`LocalFileStore`,
+  `RemoteHostFileStore`).
 - `LanomatTool` never echoes raw exception messages: unknown throwables become one fixed
   sentence (and are `report()`ed); `RecipeException` problems and domain exceptions are
   flattened to one line.
@@ -188,8 +212,11 @@ The MCP tool and the REST controller forward those fields.
   when the name is a shareable archive.
 - **A pin is not recipe text.** `ContributeRecipe` strips `shared_file_id` from the stored
   requirement and keeps it on the `game_recipe_files` row, keyed by role and label; a sync never
-  overwrites it. One writer per slug (a Postgres advisory lock held until commit) makes two people
-  sharing the same title take turns instead of each other's draft.
+  overwrites it. On a contributor's edit an existing pin survives only while the requirement still
+  names the same file — same match-pattern set, same digest — so a renamed requirement cannot keep
+  the orga's old file under a new description, and a new row never inherits a pin (T37). One writer
+  per slug (a Postgres advisory lock held until commit) makes two people sharing the same title take
+  turns instead of each other's draft.
 - **The share page's generated text is quoted, not concatenated.** `PortableRecipeBuilder` prints the
   archive path as a PowerShell or POSIX single-quoted literal, writes the `SKILL.md` front matter with
   `Yaml::dump`, and escapes backticks in participant prose.
@@ -203,6 +230,68 @@ The MCP tool and the REST controller forward those fields.
 - **The pull request workflow gets no secrets.** `.github/workflows/recipes.yml` runs on plain
   `pull_request` (not `pull_request_target`) with `permissions: contents: read` and only validates
   `resources/recipes`; the token lives in LANoMAT's environment, not in the repository.
+- **A file name is cleaned once, at the door.** `UploadFileName::clean()` is the single rule for
+  both upload paths (control characters out, path prefix out, 255-character cap). Everything a
+  shared game prints is still quoted or refused (`PortableRecipeBuilder`), because cleaning is
+  not quoting.
+
+### 3.9 Server rows: plan variables, occupants, `lanReady`
+
+- **`{{server_host}}` / `{{server_port}}`** (`GameRecipes\Support\PlanServerAddress`): the
+  recipe never names this installation's server. The server's game must carry **exactly** the
+  recipe's slug — no alias, no name resemblance; the browser twin of a native game never
+  qualifies — and the link must be `Ready` or `NotResponding` (never offline, failed or still
+  provisioning), among the servers the viewer may see anyway (`viewPermanent`). Ranking: a server
+  that answers first, then a permanent server, then the lowest id (the earlier order put the exact
+  slug and a permanent server ahead of a ready one). `variablesFor()` asks for the
+  servers as models (`linksForGlobalBrowser()`, `linksForEventViewedBy()`, `gameOf()`) and is
+  used by the plan and by the recipe detail of the REST API, the MCP tool and the native client,
+  so no client receives a raw placeholder. The helpers (`variablesFor`, `text`, `check`, `step`,
+  `launchTargets`) are public for that. `BuildInstallPlan` substitutes in step commands, step
+  checks and launch targets with one `strtr()` pass. The host must match
+  `[A-Za-z0-9.-]{1,253}`; the port 1..65535; anything else, and "no such server the viewer may
+  see", is the empty string, so the step leaves the game's configuration alone. An IPv6 literal
+  is empty by the same rule (the contract has no colons). A recipe without either placeholder
+  costs no server query.
+- **`occupants`** (`GameServers\Contracts\ServerOccupants`): GameServers owns the question, the
+  Presence read model answers through `WebVoice\Support\PresenceServerOccupants` (the one place
+  that already names both optional modules), and `NullServerOccupants` answers `null` while
+  Presence is off. The audience is the event's people list: `EventPolicy::viewPeople` (a
+  non-cancelled participant of that event, or orga) is asked once per event and viewer; anyone
+  else gets `null`, however many accounts they have. Within that audience Presence's visibility
+  rule applies; the list can be shorter than the server's own player count (people without an
+  account, name matches that miss, people who hide their location). `ServerListProjection` takes
+  the viewer explicitly — the global browser no longer reads the session — so a caller without a
+  viewer gets no people. The event is the list's own event, except that the
+  global browser and permanent servers use the current event. One resolver per routed web
+  request (`ServerListProjection::perRequest()`): one location-snapshot read and one visibility
+  computation per page, fresh in a queue worker or a console command.
+- **`lanReady`** (`GameRecipes\Support\RecipeInstallLinks`): `true` when every required `base` or
+  `iso` requirement of the matched recipe has an approved upload of a non-draft event (pinned,
+  or matched by name) or an external URL. Viewer-independent and event-independent on purpose;
+  `launcherJoinUrl` and `launcherSupported` do not depend on it, so a player who already owns
+  the game can still join a row whose archive is gone. The answer is cautious about platforms (a
+  Windows-only base missing on a Linux plan still makes it `false`), which is why the website says a
+  fresh install **can** fail. The game card's `lan_ready` badge is a different fact: "playable
+  here", which counts a running server even without the install file.
+
+### 3.10 The catalogue preview and the contribution answer
+
+- **One readiness answer.** `ProposeRecipe::preview(GameRecipe, ?RecipeStatus)` is what the
+  panel's `CatalogPreview` and the contribution answer (`Mcp\Support\ContributionCatalog`) both
+  ask. It clones the recipe for a hypothetical status, exports its own text and runs
+  `CatalogReadiness` (the repository validator's rules) and `PublicSafeText`; no repository
+  call, no write, empty list means ready. What it cannot do is guarantee the repository stays
+  happy: it is a hand-written mirror of `resources/recipes/schema/validate.mjs`, so a rule
+  added to the validator has to be added here too (residual risk 20).
+- **The contribution answer.** `recipe_contribute` and `POST /api/v1/recipes` answer with
+  `{catalog: {pull_requests_enabled, problems, problems_when_published}}`; problems are
+  sentences from the preview over the contributor's own text. A second call with the same slug
+  **replaces** the stored draft, so the caller must send the complete recipe (the answer, the tool
+  description and the how-to say so); `skill_markdown` is part of it, refuses control characters
+  other than newline, carriage return and tab, and the 20–1024-character `skill_description` rule
+  is named in the schema. `lanomat://skills/contribute-recipe` (`RecipeContributeSkillResource`) is
+  the how-to, generated from the same skeleton and example payload the tests contribute with.
 
 ---
 
@@ -240,15 +329,18 @@ The MCP tool and the REST controller forward those fields.
 8. **`throttle:mcp-api` still keys on `$request->ip()`.** Rotating the header multiplies the
    per-IP buckets, but the limiter also keys on the token hash, so an authenticated caller gets
    at most `240/min × IPs` — bounded by their own token.
-9. **SMB credentials on the command line.** `smbclient -U user%password` is visible to `ps` for
-   the duration of the sync (seconds, on the app host, by the app user). Mounting the share or
-   using an authentication file would remove this; sshd-style hardening is out of scope.
+9. **SMB credentials fall back to the command line.** `RecipeSourceLocator::smbCommand()` writes a
+   0600 `-A` credentials file into the private temp dir and passes that; only when the file cannot
+   be written does it use `smbclient -U user%password`, which is visible to `ps` for the duration
+   of the sync (seconds, on the app host, by the app user). The temp dir is removed afterwards.
+   Mounting the share removes the fallback entirely.
 10. **No download quota.** Uploads are quota-limited; a client can pull the same 50 GB ISO as
     often as the throttle allows. Bandwidth policing belongs to Traefik/the file host.
-11. **File names are stored raw on one upload path.** `UploadSharedFile` (multipart) keeps
-    `getClientOriginalName()` as-is, unlike `IssueUploadTicket::cleanName()`. The agent surface
-    sanitizes on read (`SafeText`), but the Files module should normalize on write too (owned by
-    the `Files` module, not this card).
+11. **A cleaned name is not a quoted name.** Both upload paths now store
+    `UploadFileName::clean()` (control characters removed, path prefix removed, 255-character
+    cap), so the same upload no longer reads differently depending on its transport. What
+    survives cleaning is still authored text: a backtick, `*`, `?`, parentheses, spaces and a
+    leading dot. Every consumer quotes it or refuses it; the files page shows it as stored.
 12. **`config('mcp.allowed_origins')` is unset.** Only `APP_URL` and localhost are accepted. If
     the same installation is reachable under several host names (LAN IP + DNS name), add them —
     see the checklist.
@@ -271,23 +363,76 @@ The MCP tool and the REST controller forward those fields.
     requests there. LANoMAT itself never merges, but a token with *Contents* write can merge through
     the API, so the token is scoped to that one repository, has an expiry and is revoked after the
     event.
-17. **`{{target}}` and `{{downloads}}` are substituted as text into the command.** `clients/agent/src/install.ts`
-    and `runner.ts` replace the placeholders in the already-written command string
-    (`substituteVariables()`), then hand it to the shell; the quotes around the value are part of the
-    recipe, not applied afterwards. The folder the **server** proposes is sanitised
-    (`BuildInstallPlan::targetDir`), but `--target` on the agent is free: a player who picks an
-    install path containing a `"` (or a `$(`) breaks their own command. It breaks that player's own
-    install (their own choice of path), not anyone else's; the fix belongs in the agent (quote after
-    substitution).
-18. **A form upload keeps the browser's file name unsanitised.** `app/Modules/Files/Actions/UploadSharedFile.php`
-    stores `getClientOriginalName()` as-is (the tus path cleans it). That is why the share action
-    refuses a backtick, `*`, `?` or a control character in an archive name instead of "fixing" it: the
-    name is printed into commands and Markdown. A file shared under such a name can still be
-    downloaded from the files page; it just cannot become a recipe.
-19. **Nothing here ran against the real GitHub API or on real hardware.** The client, the readiness
-    gate and the public-safety check are tested with `Http::fake`/`fakeRecipeRepository()` and unit
-    tests. The first real branch, the first real review and the first real merge are the pre-LAN
+17. **`{{target}}` and the other path variables are still substituted as text.** The **agent**
+    refuses a path it cannot quote, before anything is downloaded, created or run:
+    `clients/agent/src/path-quote.ts` is called from `install.ts` (every step up front),
+    `runner.ts` (`applyStepVariables`, again before substitution) and `launch.ts` (the launch
+    target), for the shells the OS can actually run. It refuses a quote (`'`, `"`, and on Windows
+    the curly quotation marks PowerShell also reads as quotes), a backtick, `$`, a control
+    character, the shell operators `;`, `&`, `|`, `<`, `>` (on every platform: a recipe may use the
+    placeholder unquoted), a trailing backslash, a doubled backslash when bash is in the set, and —
+    on Windows — `%`, `!`, `^`. A leading `~/` in the plan's folder or in `--target` is resolved to
+    the home directory before substitution (`expandUserPath`); it was pasted literally into the
+    quoted commands before. What it does **not** cover: an unquoted `{{target}}` in a recipe (a
+    space already split the argument before the rule applies); the characters that are harmless
+    inside the recipe's quotes but not outside (`(`, `)`, `#`, `*`, `?`, `[`, `]`, `~`, `,`, `=`),
+    except for the shell operators above; a path pasted into a larger word; and a path produced by
+    a caller that bypasses the check. The rule rests on the shells' documentation (PowerShell
+    `about_Quoting_Rules`, cmd, bash) and on a real bash run in the tests; PowerShell and cmd were
+    not run on a real Windows machine (residual risk 19).
+
+    The **launcher** is unchanged: `clients/launcher/launcher-core/src/install.rs`
+    (`launch_plan_command`, `mark_plan_executable`) does a plain
+    `command.replace("{{target}}", &target_dir.to_string_lossy())` — no quoting, no refusal. A
+    target containing `"` or `` ` `` would end the recipe's quoting and make that player's own
+    launch/verify command wrong. In the shipped app this is not reachable through a chosen path:
+    `clients/launcher/app/src/lib.rs` always calls `InstallEngine::install` with
+    `target_dir: None`, so the target is the plan's `BuildInstallPlan::targetDir()` value (letters,
+    digits, space, dot, underscore, hyphen). Only a future caller that sets
+    `InstallOptions.target_dir` (the core's repair/portable override) re-opens it.
+18. **An unsafe archive name is still refused by the share action, after cleaning.** The name is
+    now cleaned on both upload paths (residual risk 11), but cleaning keeps a backtick, `*` and
+    `?` on purpose: they would end a Markdown code span or turn the pinned glob into another
+    archive's pattern. The share action also refuses `: " < > |`, a leading dot and a `..`, because
+    the installing client stores the download under a name it rewrites — a command that still names
+    the original would never find the file. It refuses a name whose match pattern would not reliably
+    name it (`PortableRecipeBuilder::hasReliableMatchPattern`), with a German "rename it" message;
+    a file shared under such a name can still be downloaded from the files page, it just cannot
+    become a recipe, and the list says why.
+19. **What is verified, and what is not.** The journey was driven once in headless Chromium (the
+    only browser installed here): a form upload, the share page's refusals, review and publish, the
+    server row's actions and the missing-files line, and the launcher link without a handler (no
+    navigation, no dialog, no loss of focus; "Öffne den Launcher …", the notice after 2.5 s, retry
+    and dismiss, modified clicks start nothing, a simulated loss of focus shows the "opened"
+    confirmation). **Not verified:** a real launcher taking over, any other browser, the resumable
+    upload path, real hardware, Windows with a real PowerShell or cmd, the NFSU2 step on game
+    hardware, and the real GitHub API. The client, readiness gate and public-safety check run
+    against `Http::fake`/`fakeRecipeRepository()` and unit tests; the agent's rule is exercised with
+    Node tests and a real bash run in them; the first real branch, review and merge stay the pre-LAN
     checks in [`../pre-lan-acceptance-checklist.md`](../pre-lan-acceptance-checklist.md) §12.
+20. **The readiness gate is a second implementation.** `CatalogReadiness` mirrors
+    `resources/recipes/schema/validate.mjs` in PHP; nothing shares the rules. A rule added to the
+    validator alone makes `preview()` say "ready" for a pull request the workflow will reject
+    (red instead of `blocked`). The reverse is harmless (a stricter preview). Keep the two files
+    in step; the preview is not a promise.
+21. **`skill_markdown` travels verbatim.** A contributor's full SKILL.md is stored as sent
+    (control characters excepted), exported as the SKILL.md body and served to every player's
+    assistant (`GET /api/v1/recipes/{slug}/skill`, `skills sync`). `PublicSafeText` catches
+    addresses, e-mails and tokens, but not a person's name, an internal host name in prose, a
+    Markdown image that phones home, an `@team` mention or HTML. It is also an instruction channel
+    for other players' assistants — the prompt-injection residual risk 4 applies to it as much as
+    to step commands. Only the orga's review stands between the stored text and the public
+    repository; a second `recipe_contribute` call replaces the draft, it does not merge into it.
+    Read a contributed SKILL.md before merging its pull request.
+22. **A helper can choose a match server's address.** `SetManualJoinInfo` is authorised by
+    `TournamentPolicy::setManualJoinInfo` (`isHelper()`: admin, orga or helper) and writes a
+    human-typed `JoinInfo` onto the match's `ServerLink` as `Ready`. `PlanServerAddress` ranks an
+    answering server first, and the global browser includes match servers of public events, so a
+    helper who types an address for a match whose game carries exactly a recipe's slug can make
+    that host the `{{server_host}}` written into the plans of players who can see the match (and of
+    anyone planning without an event). It stays inside the same trust level as the recipe text —
+    helpers run the live show — and the value is still shell-safe, but it is a manual input into
+    players' game configurations, not only a join hint.
 
 ---
 
@@ -318,6 +463,14 @@ The MCP tool and the REST controller forward those fields.
 - [ ] A blocked proposal shows a **redacted** reason in the panel (`line …, an e-mail address
       jo[REDACTED len=…]`), never the value; a proposal over a budget is visible only as
       `recipes.pull_request_skipped` in the queue log.
+- [ ] `NFS_SERVER_HOST` has no built-in default: set it before `php artisan db:seed
+      --class=LauncherLineupSeeder` or the seeder registers no native NFSU2 server and says so.
+      A recipe never names this installation's server; `{{server_host}}`/`{{server_port}}` are
+      filled in per viewer and are empty without a server whose game carries exactly the recipe's
+      slug. A helper who types a match server's address can thereby choose that value (residual 22).
+- [ ] Every server page needs a logged-in viewer *who may see that event's people* for the occupant
+      line (`EventPolicy::viewPeople`: a participant of the event, or orga); the bearer APIs never
+      carry people. `share_location` and blocks decide who inside that audience is visible.
 - [ ] Keep the file host's signed-URL secret (`FILES_HOST_SECRET`, ≥ 32 chars) and the file host
       firewall LAN-only; the MCP token is not what protects the file host.
 - [ ] `php artisan lanomat:doctor` (or the Preflight panel) green for files, voice, Discord.
@@ -351,7 +504,16 @@ The MCP tool and the REST controller forward those fields.
 | Title→shell folder, hostile archive names, one-line rule, draft budget (T18/T23/T24/T28/T29) | `tests/Feature/GameRecipes/GameShareTest.php`, `tests/Feature/GameRecipes/GameSharingFoundationTest.php`, `tests/Unit/GameRecipes/PortableRecipeBuilderTest.php` |
 | Launch commands visible at review (T25) | `tests/Feature/GameRecipes/RecipeResourceTest.php` |
 | Git client: branch/path validation, one open pull request, token redaction (T20/T22) | `tests/Feature/GameRecipes/GitHubRecipeRepositoryTest.php` |
-| `lanomat://join` link rules (T21) | `tests/Feature/GameServers/ServerInstallLinksTest.php` |
+| `lanomat://join` link rules, `lanReady` (T21/T32) | `tests/Feature/GameServers/ServerInstallLinksTest.php` |
+| Plan variables: exact slug only, Ready/NotResponding, ranking, host/port characters, empty fallbacks, recipe-detail fill (T30/T35) | `tests/Feature/GameRecipes/InstallPlanServerVariablesTest.php`, `tests/Feature/GameRecipes/Nfsu2PlanTest.php` |
+| Occupant line: audience (`viewPeople`), visibility, blocks, event scope, `null`, one read per page (T31/T36) | `tests/Feature/GameServers/ServerOccupantsTest.php`, `tests/Feature/GameServers/ServerCatalogueReadsTest.php` |
+| Agent refuses an unquotable path and shell operators; `~/` resolution; bash quoting evidence (residual 17) | `clients/agent/tests/path-quote.test.ts`, `install.test.ts`, `launch.test.ts`, `runner.test.ts` |
+| Contribution answer's `catalog`, `skill_markdown`, control characters, 422, replacement wording (T33/T34) | `tests/Feature/Mcp/RecipeContributionCatalogTest.php`, `tests/Feature/GameRecipes/RecipeCatalogPreviewTest.php` |
+| Cleaned file name on both upload paths and on download, C1/zero-width/bidi, shareable-archive and rename rules (T4/T18/T38/T39) | `tests/Feature/Files/UploadFileNameTest.php`, `tests/Feature/Files/ShareableArchiveLinkTest.php`, `tests/Unit/GameRecipes/PortableRecipeBuilderTest.php` |
+| Pin survival and non-inheritance on an edit (T37) | `tests/Feature/GameRecipes/ContributionFileRowsTest.php` |
+| The two launcher labels (`joinLinkNamesServer`) | `tests/js/launcherJoin.test.ts` |
+| The unified download page `/app`, its file routes and the `/launcher`/`/talk/client` redirects | `tests/Feature/GameRecipes/LauncherPageTest.php`, `tests/Feature/App/AppDownloadPageTest.php` |
+| Published shared text loses its draft wording | `tests/Feature/GameRecipes/PublishRecipeTest.php` |
 
 Run them with:
 
@@ -365,9 +527,11 @@ docker compose run --rm app php vendor/bin/pest tests/Feature/Mcp tests/Feature/
 
 | Item | Owner |
 |---|---|
-| Normalize `original_name` in `UploadSharedFile` (multipart path) with `cleanName()` | `Files` module |
-| Quote `{{target}}`/`{{downloads}}` after substitution instead of relying on the quotes inside the command (residual risk 17) | `clients/agent` |
+| Quote or refuse a target path in the launcher's own `{{target}}` substitution (`launcher-core/src/install.rs`), the way the agent does (residual risk 17) | `clients/launcher` / the merged client |
+| One source for the catalogue rules (`validate.mjs` ↔ `CatalogReadiness`, residual risk 20) | `GameRecipes` / `R1` |
 | Agent-side safe archive extraction (zip-slip) and private-IP block for external URLs | agent cards 6/8 |
+| Run the agent's path rule on real Windows PowerShell 5.1 and cmd (residual risk 19) | pre-LAN hardware check |
+| Repeat the journey in a second browser and with a real launcher taking over (`scripts/smoke/game-sharing-smoke.mjs` is manual, headless Chromium only) | pre-LAN hardware/browser check |
 | Absolute token lifetime / rotation policy | MCP follow-up |
 | `config/mcp.php` `allowed_origins` for multi-host installs | ops/deployment |
-| Regenerate `tests/Architecture/module-dependencies.php` (GameRecipes → GameServers/Lfg/Tournaments pre-exist from `GamePageController`) | games-page card 5 |
+| The occupant adapter lives in `WebVoice` while its binding depends only on GameServers + Presence; move it if WebVoice ever stops being the bridge | `GameServers` / `WebVoice` |

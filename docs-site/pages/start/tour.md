@@ -44,14 +44,15 @@ spots remain. The countdown is a display-only payload, recomputed on every load.
 | ![Countdown, dark](/screens/countdown-dark.png) | ![Countdown, light](/screens/countdown-light.png) |
 | `COUNTDOWN · DARK` — hype mode before the LAN | `COUNTDOWN · LIGHT` |
 
-The event page also carries the servers for the evening: address, port, estimated demand, the launcher
-one-click for a published recipe, and a join that copies the address for the game client. The
-cross-event server browser lives at `/servers`.
+The event page links to the servers for the evening (`/servers?event=<slug>`); the server browser
+shows address, port, estimated demand, the launcher one-click when the game's recipe is published,
+and a join that copies the address for the game client. The same browser without the event filter is
+`/servers`; `/servers/all` lists every server of the installation.
 
 | Dark | Light |
 |---|---|
-| ![Event server block with UT2004 DM-Antalus, address and join, dark](/screens/event-servers-dark.png) | ![Event server block with UT2004 DM-Antalus, address and join, light](/screens/event-servers-light.png) |
-| `EVENT SERVERS · DARK` — address, port, estimated demand | `EVENT SERVERS · LIGHT` |
+| ![Serverbrowser with the UT2004 row expanded: BEREIT, the Hier-spielen line, the join actions and the address to copy, dark](/screens/servers-dark.png) | ![The same serverbrowser row in light](/screens/servers-light.png) |
+| `SERVERS · DARK` — address, port, estimated demand, join actions | `SERVERS · LIGHT` |
 
 ### Seating, schedule, tournaments
 
@@ -213,7 +214,7 @@ from the LAN disc.
 | Dark | Light |
 |---|---|
 | ![Games library with the LAN-only filter active, dark](/screens/games-filter-dark.png) | ![Games library with the LAN-only filter active, light](/screens/games-filter-light.png) |
-| `GAMES · DARK` — LAN-only filter, two recipes left | `GAMES · LIGHT` |
+| `GAMES · DARK` — LAN-only filter, the LAN games in the sidebar | `GAMES · LIGHT` |
 
 A recipe opens onto its game page: the server with its join link, the install steps the agent runs,
 and the files and avatars that come from the LAN. The server browser at `/servers` answers the same

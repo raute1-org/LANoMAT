@@ -1,7 +1,8 @@
 # NFSU2 — Betriebs-Runbook (NFS: Underground 2)
 
-Stand: **2026-11-21**. Dieses Runbook ist der Einstieg für Need for Speed:
-Underground 2 auf der LAN. Es bündelt das native Spiel (portables
+Stand: **2026-11-22** (Tests vom 2026-11-21; die Rezept-Variablen seit dem
+22.11. gegen den Code geprüft). Dieses Runbook ist der Einstieg für Need for
+Speed: Underground 2 auf der LAN. Es bündelt das native Spiel (portables
 Windows-Tree + NFS-Online), den Browser-Port `nfsu2.xyz`, den LAN-Server und
 die Hosting-Entscheidung. Die Detail-Runbooks stehen am Ende.
 
@@ -11,8 +12,10 @@ Wine/Proton. Der LAN-Online-Teil kommt vom Community-Server
 20921–20923/tcp, 13505/tcp, 20000–20005/udp). Der Browser-Port
 `https://nfsu2.xyz` ist ein unabhängiger Zero-Install-Fallback, **nicht**
 unser Server. Das Rezept heißt `need-for-speed-underground-2`; es liegt im
-Repo auf `published`, ist live aber noch **draft** und deshalb noch nicht als
-Launcher-Karte sichtbar.
+Repo auf `published`. Seit **2026-11-22** nennt es **keine Adresse mehr**: die
+Schritte tragen `{{server_host}}`, das LANoMAT beim Bau des Installationsplans
+aus einer Serverzeile füllt, die der Spieler sehen darf. Die Adresse ist damit
+eine Einstellung (`NFS_SERVER_HOST` bzw. die Serverzeile), kein Rezepttext.
 
 ## 1. Ziel und Scope
 
@@ -71,9 +74,10 @@ SHA-256 `51ff8090fd73df83cc18a1957d3d56f73adebf8c9a056653d7cdead3b3498a03`).
 Das ist **nicht** unser geprüfter Loader. Für das LAN-Paket wird sie durch
 die 10.0.4-Version ersetzt; der Name bleibt `dinput8.dll`.
 
-Hashes im Rezept: Die `requires`-Einträge haben derzeit `sha256: ''`, weil das
-portable ZIP pro Build neu gepackt wird. Die Werte oben gelten für **diesen**
-Download; ein neues Paket muss neu gehasht werden. Keine erfundenen Hashes.
+Hashes im Rezept: Die Basis- und Patch-Einträge haben `sha256: ''`, weil das
+portable ZIP pro Build neu gepackt wird; nur der optionale Split-Screen-Mod
+trägt seinen Release-Hash. Die Werte oben gelten für **diesen** Download; ein
+neues Paket muss neu gehasht werden. Keine erfundenen Hashes.
 
 ## 4. Serverports
 
@@ -139,6 +143,16 @@ muss nach einer Host-Änderung **neu gestartet** werden, sonst kündigt er noch
 die alte Adresse an. Für Online außerhalb des LANs einen DNS-Namen statt der
 IP eintragen und `PUBLIC_HOST` identisch setzen.
 
+**Wer die INI schreibt:** Bei einer Installation durch LANoMAT (Agent-Plan)
+setzt der Rezept-Schritt beide `host`-Zeilen auf `{{server_host}}` — den Host
+einer Serverzeile, deren Spiel **genau** `need-for-speed-underground-2` ist
+(der Browser-Zwilling `need-for-speed-underground-2-browser` zählt nicht) und
+die der Spieler sehen darf; ohne solche Zeile bleibt die Datei unverändert.
+Der Launcher führt keine Rezept-Schritte aus, deshalb gilt dort der Host, der
+im `scripts/net_u2.ini` des portablen Archivs steckt (gebaut mit
+`make_package.sh --server`, siehe [`nfsu2-package.md`](nfsu2-package.md)). Von
+Hand: die Adresse aus `/servers` nehmen, nicht aus einer Datei im Repo.
+
 ## 6. Hosting-Entscheidung
 
 | Host | Adresse | Rolle | Bewertung |
@@ -163,19 +177,32 @@ latency-kritisch. Details, Compose und Firewall:
 | Rezept | `resources/recipes/need-for-speed-underground-2/{recipe.yaml,SKILL.md}` |
 | Repo-Status | `published`, Version `1.2 + NFS Online` |
 | Plattformen | `windows`, `linux` |
-| Launcher-Support | in `RecipeController::LAUNCHER_SUPPORTED_SLUGS` enthalten |
-| Browser-Variante | `need-for-speed-underground-2-browser` (Repo `published`, live noch nicht gelistet, `play_url: https://nfsu2.xyz/`) |
+| Serveradresse | **keine im Rezept**; `{{server_host}}` füllt der Installationsplan aus einer Serverzeile mit **genau diesem Spiel-Slug** (`NFS_SERVER_HOST` → `LauncherLineupSeeder`); der Browser-Zwilling zählt nie |
+| Launcher-Support | `LauncherSupport::VERIFIED_SLUGS` — der Launcher bietet es ohne weiteren Schalter an; `metadata.launcher_supported` kann es übersteuern |
+| Browser-Variante | `need-for-speed-underground-2-browser` (Repo `published`, `play_url: https://nfsu2.xyz/`) |
 | Lineup | `config/launcher.php` bzw. `LAUNCHER_LINEUP` enthält beide NFSU2-Slugs |
 
-**Live-Stand 2026-11-21 16:18:** Der native Slug ist über die API sichtbar,
-aber `status: draft`, `version: null`, `launch_targets: []` und
-`installable: false`. Deshalb zeigt die Launcher-Bibliothek noch **keine**
-NFSU2-Karte; sichtbar sind nur UT2004 und Apocalypse. Nach Publish/Sync
-(04:15) muss die Karte erscheinen. Die Live-Dateien haben noch keine
-`lan_match`-Treffer; die portable ZIP muss zuerst auf den Dateihost.
+**Serverzeile statt Rezepttext (seit 2026-11-22):** `NFS_SERVER_HOST` hat keinen
+Default; ohne den Wert registriert `LauncherLineupSeeder` keinen nativen
+NFSU2-Server und sagt das auf der Konsole — eine Serverzeile aus einem
+früheren Lauf lässt er unverändert, und deren (alte) Adresse nennen die Pläne
+weiter, bis du den Host setzt und neu seedest oder die Zeile im Panel
+bearbeitest. Die Schritte des Rezepts schreiben beide `host`-Zeilen der
+`net_u2.ini` nur, wenn der Plan einen Host trägt; den nimmt er **nur** von
+einem Server, dessen Spiel genau dieser Slug ist — der Browser-Zwilling
+`need-for-speed-underground-2-browser` (Adresse `nfsu2.xyz`) nie. Das war der
+Fehler, den die Reviews fanden: ohne nativen Server landete die öffentliche
+Browser-Adresse in der Spielkonfiguration. Sonst bleibt die Datei, wie sie
+ist, und die Adresse steht in `/servers` oder bei der Orga. Die Schritte
+selbst musst du nie mehr anfassen. Schritt für Schritt:
+[`ADMIN-HANDOFF.md`](ADMIN-HANDOFF.md), Abschnitt 9.
 
-Der Browser-Slug ist noch nicht live. Er hat keine `requires`-Dateien und
-würde als „Im Browser starten“ erscheinen.
+**Live-Stand 2026-11-21 16:18:** Der native Slug war über die API sichtbar,
+aber `status: draft`, `version: null`, `launch_targets: []` und
+`installable: false`. Deshalb zeigte die Launcher-Bibliothek noch **keine**
+NFSU2-Karte; sichtbar waren nur UT2004 und Apocalypse. Nach Publish/Sync
+(04:15) muss die Karte erscheinen. Die Live-Dateien hatten noch keine
+`lan_match`-Treffer; die portable ZIP muss zuerst auf den Dateihost.
 
 ## 8. Install und Start
 
@@ -243,11 +270,13 @@ dann „Stopped“, obwohl die Ports lauschen. Für die Prüfung zusätzlich
 
 ## 9. Bekannte Blocker
 
-1. **Keine NFSU2-Karte im Launcher.** Das Rezept ist live `draft`
+1. **Keine NFSU2-Karte im Launcher.** Das Rezept war live `draft`
    (`version: null`, `launch_targets: []`), und die live installierte App
-   meldet zusätzlich `launcher_supported: false` — sie ist älter als der
-   Repo-Code. Erst nach Deploy, Publish und Datei-Match erscheint die Karte;
-   der Screenshot unten zeigt den Zustand ohne NFSU2.
+   meldete zusätzlich `launcher_supported: false`, weil sie älter war als der
+   Repo-Code. Mit diesem Stand entscheidet `LauncherSupport` (NFSU2 steht in
+   `VERIFIED_SLUGS`), also genügen Deploy, `lanomat:recipes:sync`,
+   Veröffentlichen und die Lineup bzw. „In der Spieleliste zeigen“; der
+   Screenshot unten zeigt den Zustand ohne NFSU2.
 2. **Das portable ZIP war bis 2026-11-21 das rohe Archiv.** Erledigt: das
    flache Paket `nfsu2-portable.zip` (2.602.084.719 B, SHA-256 `0d702898…7219`)
    liegt mit Loader 10.0.4, `scripts/net_u2.asi`/`net_u2.ini`, README und
@@ -291,7 +320,7 @@ Skalierung 1.6, `grim`).
 
 | Datei | Zeigt |
 | --- | --- |
-| [`launcher-library.png`](../screenshots/nfsu2/launcher-library.png) | Launcher-Bibliothek mit UT2004 + Apocalypse; **NFSU2-Karte fehlt noch** (Rezept draft) |
+| [`launcher-library.png`](../screenshots/nfsu2/launcher-library.png) | Launcher-Bibliothek mit UT2004 + Apocalypse; **NFSU2-Karte fehlt noch** (damaliger Stand: Rezept draft) |
 | [`nfs-online-server-status.png`](../screenshots/nfsu2/nfs-online-server-status.png) | `nfs_online.py status`, Prozess, TCP/UDP-Ports, HTTP 200 auf `/news` und `/tos` |
 | [`nfsu2-archive-facts.png`](../screenshots/nfsu2/nfsu2-archive-facts.png) | `ls`, SHA-256, 1.393 Dateien und `SPEED2.EXE`-Hash des Downloads |
 | [`nfsu2-native-title.png`](../screenshots/nfsu2/nfsu2-native-title.png) | NFSU2-Titelbild nativ über Proton („Press Enter Key“, ExOpts-Hinweis) |
@@ -328,20 +357,29 @@ Skalierung 1.6, `grim`).
 
 ## 12. Offene Punkte
 
-- [ ] Rezept live auf `published` setzen und Version/`launch_targets` prüfen;
-      danach Launcher-Karte erneut screenshotten.
+- [ ] Rezept live auf `published` setzen (und `lanomat:recipes:sync --only=need-for-speed-underground-2`),
+      Version/`launch_targets` prüfen; danach Launcher-Karte erneut screenshotten.
 - [x] `nfsu2-portable.zip` als flaches LANoMAT-Paket bauen (Wrapper strippen,
       Loader 10.0.4, `scripts/net_u2.asi` + `net_u2.ini`, README/Startskript),
       hashen — erledigt, Test unter Proton Experimental bestanden.
 - [ ] `nfsu2-portable.zip` auf den Dateihost hochladen und `sha256` ins
       Rezept eintragen.
-- [ ] `lan_match` im Rezept prüfen; `installable` muss `true` werden.
+- [ ] `NFS_SERVER_HOST` setzen, App neu erstellen, `LauncherLineupSeeder`
+      laufen lassen; `installable` muss mit der Datei `true` werden.
+- [ ] Einen Installationsplan (`need-for-speed-underground-2`, Windows und
+      Linux) prüfen: `host = <Server>` in beiden `net_u2.ini`-Schritten, und
+      einmal ohne native Serverzeile (nur der Browser-Zwilling steht dann da:
+      die `host`-Zeilen müssen bleiben, wie sie sind). Der Schritt lief noch
+      auf keinem PC — weder PowerShell noch bash, weder Windows noch
+      Wine/Proton.
 - [ ] Server auf `10.23.0.12` neu starten und die angekündigte Adresse im
       Log verifizieren (`advertised as 10.23.0.12`).
 - [ ] Zwei echte U2-Clients: Login, Lobby, Race über UDP 20000–20005.
 - [ ] Windows-Client mit `dinput8.dll` + `net_u2.asi` end-to-end testen.
 - [ ] Split-Screen allein und in Kombination mit Online testen (ASI-Konflikt).
-- [ ] Browser-Rezept veröffentlichen oder bewusst draft lassen.
+- [ ] Browser-Rezept auf der Instanz veröffentlichen (Repo-Status ist `published`
+      und die `LAUNCHER_LINEUP` nennt den Slug; der Live-Datensatz kommt mit dem
+      Sync).
 
 ## 13. Split-Screen (optional, Stand 2026-11-21)
 

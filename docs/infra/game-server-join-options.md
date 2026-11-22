@@ -2,9 +2,10 @@
 
 A server can offer several ways to join. Each option has a key, a label, a URL and a short hint.
 They are not stored: `App\Modules\GameServers\Support\JoinLinkTemplates` builds them from the
-server's validated `join_info` (address and port) and the game's slug, and the server list
-(`/servers`, `/events/{event}/servers`) and the match page carry them as `joinOptions`. Servers of
-games without templates have an empty list and behave as before (plain `connectString`).
+server's validated `join_info` (address and port) and the game's slug, and the server lists
+(`/servers` with `?event=<slug>`, `/servers/all`) and the match page carry them as `joinOptions`.
+`/events/{event}/servers` is kept alive as a redirect into the one overview. Servers of games
+without templates have an empty list and behave as before (plain `connectString`).
 
 ## Unreal Tournament 2004
 

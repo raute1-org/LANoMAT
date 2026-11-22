@@ -31,11 +31,18 @@ feeds the participant page, the "Wo ist wer" panel in the native client and a be
 
 - The projection is viewer-agnostic; `isFriend` is added only by the presence page controller for
   the current viewer.
+- Visibility is one rule (`PresenceVisibility::visibleParticipants`): the event's non-cancelled
+  participants, minus everybody who switched `share_location` off and everybody who blocked the
+  viewer (either way); the viewer always sees themselves when they are a participant. The server
+  rows' **„Hier spielen“** line reads the same rule, so a hidden account is neither listed nor counted
+  there — and only the event's own people list may see that line at all (`EventPolicy::viewPeople`: a
+  registered participant of that event or orga; an account alone learns nothing).
 - Broadcasts carry an **empty** payload on the public channel; the authorized page re-fetches.
 - The beamer scene never receives the participant roster with ids, e-mail or network data.
 - Voice sources are resolved through each provider's read-model; a provider being down degrades the
   entry to "unknown", not to a 500.
-- Location snapshots are refreshed by a queued job, not on every request.
+- Location snapshots are refreshed by a queued job (`RefreshLocationSnapshotJob`, built inline on a
+  cold cache) and by the scheduled `presence:refresh-locations`, not on every request.
 
 ## Docs for agents
 

@@ -2,7 +2,7 @@
 
 Zentrales Runbook: [`nfsu2.md`](nfsu2.md). Event-Server: [`nfsu2-server.md`](nfsu2-server.md).
 
-Stand: **2026-11-21**. Getestet wurde der Community-Server
+Stand: **2026-11-22** (Messungen vom 2026-11-21). Getestet wurde der Community-Server
 NFS-Online-Server 1.1.3 (Python, `--games u2`; Quelle
 `/home/reneil1337/Downloads/nfsu2/NFS-Online-Server`) als Container auf dem
 Homelab. **Kein Commit, kein dauerhafter Dienst**: der
@@ -191,6 +191,17 @@ inject_server = true
 Die Ports bleiben bei allen Varianten gleich; nur `host` (in beiden Blöcken)
 ändert sich. `python nfs_online.py configure --public-host <host>` schreibt
 `config/server.toml` **und** die drei Client-INIs konsistent.
+
+**Und in LANoMAT:** Das native Rezept nennt seit 2026-11-22 keine Adresse mehr.
+Setze `NFS_SERVER_HOST` (in `/opt/lanomat/.env`, dann die App neu erstellen) auf
+**genau den Host, den der Server als `PUBLIC_HOST` ankündigt**, und registriere
+die Serverzeile einmal mit `php artisan db:seed --class=LauncherLineupSeeder --force`.
+Ein Installationsplan schreibt dann diesen Host in beide `host`-Zeilen — nur,
+wenn die Serverzeile genau dieses Spiel trägt (der Browser-Zwilling nicht); ohne
+solche Zeile bleibt die `net_u2.ini` unverändert. Ein Launcher-Install führt
+keine Rezept-Schritte aus und nimmt den Host aus dem portablen Archiv — siehe
+[`nfsu2-package.md`](nfsu2-package.md) und
+[`ADMIN-HANDOFF.md`](ADMIN-HANDOFF.md), Abschnitt 9.
 
 ## 6. Alternativen im Vergleich
 

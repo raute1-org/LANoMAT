@@ -129,6 +129,9 @@ A participant may hold `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review a
 by default; the orga is exempt). The share page, the MCP tool and `POST /api/v1/recipes` all count
 against the same budget.
 
+Publishing a contributed recipe also rewrites the generated text it proposes: the description, the
+steps and the SKILL.md no longer call the game a draft that still needs verification.
+
 The proposal is opened at one of two moments, chosen by the operator: on the orga's publish by
 default (`RECIPES_PR_TRIGGER=publish`, so the repository only sees reviewed text), or right after
 the share when the operator opts into `contribute`. Publishing a contributed or panel recipe always
@@ -150,6 +153,22 @@ hand.
 
 Read [Share a game](/docs/guides/share-a-game) for the participant side.
 
+### Contributing from an assistant
+
+A paired MCP client can create the same draft without the share page. The `recipe_contribute` tool
+takes the YAML shape plus `skill_markdown` (the full SKILL.md; a non-empty value replaces the
+generated text). Its answer carries a `catalog` object next to the recipe: `pull_requests_enabled`
+(whether this installation can open pull requests at all), `problems` (what the catalogue would
+refuse for the stored draft) and `problems_when_published` (the same check as a published recipe).
+Empty problem lists mean the text is ready; non-empty ones are the catalogue's own English sentences,
+so the assistant can fix the fields and call the tool again. A second call with the same slug
+replaces the draft: send the **complete** recipe each time, not just the changed fields.
+
+The how-to resource `lanomat://skills/contribute-recipe` is the reference for that: the tool fields,
+a SKILL.md skeleton of 60–150 lines, the draft and command rules, how to pin a LAN file, and how to
+read the `catalog` answer. Its text is generated from the same methods the tests contribute with, so
+it does not drift from the gate.
+
 ## 5. Review checklist
 
 - [ ] `node validate.mjs` is green, including the `_catalog.md` row.
@@ -168,8 +187,8 @@ the optional avatar picks all come from the YAML you just wrote.
 
 | Dark | Light |
 |---|---|
-| ![UT2004 game page with Install, Launch, server join and avatar selection from the recipe, dark](/screens/game-ut2004-dark.png) | ![UT2004 game page with Install, Launch, server join and avatar selection from the recipe, light](/screens/game-ut2004-light.png) |
-| `GAME · UT2004 · INSTALL · SERVER · AVATARS` | `GAME · LIGHT` |
+| ![UT2004 game page with Installieren, Im Launcher öffnen and Starten, the agent commands, the server row and the installation steps, dark](/screens/game-ut2004-dark.png) | ![The same UT2004 game page in light](/screens/game-ut2004-light.png) |
+| `GAME · UT2004 · INSTALLIEREN · SERVER · INSTALLATION` | `GAME · LIGHT` |
 
 <div class="callout-live">
   <strong>Test on a clean machine.</strong> A recipe that only works on the author's PC is a note,

@@ -1,6 +1,6 @@
 ---
 title: The system
-description: LANoMAT's 34 modules, the module contract, and how core and optional modules fit together.
+description: LANoMAT's 36 modules, the module contract, and how core and optional modules fit together.
 sidebar_icon: layout-dashboard
 ---
 
@@ -9,9 +9,9 @@ LANoMAT is a **modular monolith**. Every domain lives in `app/Modules/<Name>/` w
 Laravel events and explicit contracts; no module reaches into another module's tables.
 
 <div class="stat-row">
-  <div class="stat"><span>Modules</span><strong>34</strong></div>
+  <div class="stat"><span>Modules</span><strong>36</strong></div>
   <div class="stat"><span>Core</span><strong>9</strong></div>
-  <div class="stat"><span>Optional</span><strong>25</strong></div>
+  <div class="stat"><span>Optional</span><strong>27</strong></div>
   <div class="stat"><span>Database</span><strong>Postgres 16</strong></div>
   <div class="stat"><span>Realtime</span><strong>Reverb</strong></div>
 </div>
@@ -57,6 +57,7 @@ Hard dependencies (`Module::requires()`, enforced at boot):
 |---|---|
 | CustomServers, Lancache | Hosts |
 | Provisioning | Hosts, Lancache |
+| GameRecipes | Files, Mcp |
 | Recap | Gallery, Jukebox, Voting, Presence |
 | News | Gallery |
 | Gallery | Files |
@@ -108,7 +109,7 @@ tournament result is already attached to the people and games that played it.
 | ![Cross-event leaderboard with wins, tournament wins and podiums](/screens/leaderboard-dark.png) | ![Cross-event leaderboard in light mode](/screens/leaderboard-light.png) |
 | `LEADERBOARD · DARK` — wins, titles, podiums across LANs | `LEADERBOARD · LIGHT` — same ranking |
 
-## The 34 modules
+## The 36 modules
 
 The group pages below are the map. Each module page has purpose, who uses it, key screens, the
 guards that matter and — where one exists — the MCP tool an agent can call.
@@ -117,9 +118,9 @@ guards that matter and — where one exists — the MCP tool an agent can call.
   identity, notifications, schedule, catering, LFG, voting, presence, recap, news.
 - **[Competition](/docs/system/competition)** — tournaments, games, game servers, stats, casting.
 - **[Site & ops](/docs/system/site-ops)** — game recipes, hosts, custom servers, LanCache,
-  provisioning, preflight, room audio.
+  provisioning, preflight, room audio, lighting.
 - **[Media](/docs/system/media)** — gallery, files, jukebox, infoscreen.
-- **[Integrations](/docs/system/integrations)** — Discord, Mumble voice, web voice, MCP.
+- **[Integrations](/docs/system/integrations)** — Discord, Mumble voice, web voice, MCP, assistant.
 
 The participant-facing **[games library](/docs/system/games-library)** at `/games` is a view over
 the recipe catalogue, file host, server links and tournaments: install, launch, join a live server

@@ -42,13 +42,13 @@ The recipe's requirements:
 
 | Role | Label | Required | Match |
 |---|---|---|---|
-| `iso` | Ridge Racer Type 4 (USA) disc image | **yes** | `*ridge*racer*4*.bin`, `*R4*.cue`, `*ridge*racer*4*.chd`, `R4.chd` |
-| `base` | PlayStation BIOS (scph5501.bin, NTSC-U) | yes, recommended | `scph5501.bin`, `scph*.bin` |
+| `iso` | Ridge Racer Type 4 (USA) disc image | **yes** | `r4.chd`, `R4.chd`, `*R4*.cue`, `*R4*.chd`, `*Ridge*Racer*4*.cue`, `*Ridge*Racer*4*.chd`, `*R4*.bin`, `*Ridge*Racer*4*.bin` |
+| `base` | PlayStation BIOS (scph5501.bin, optional — OpenBIOS is bundled) | no | `scph5501.bin`, `scph*.bin` |
 | `tool` | Node.js 20 or newer | **yes** | none — checked on the machine |
-| `tool` | Ridge Racer 4 Recomp (native bundle) | no | `Ridge_Racer_4_Recomp_Windows*.zip`, `RidgeRacer4Recomp*.zip` |
+| `tool` | Ridge Racer 4 Recomp (optional native bundle, Windows or Linux) | no | `Ridge_Racer_4_Recomp_Windows*.zip`, `Ridge_Racer_4_Recomp-v1.0.0-linux-x86_64.AppImage`, `RidgeRacer4Recomp*.zip` |
 
-The BIOS entry is marked required but its notes say the cabinet can boot with OpenBIOS/HLE. Treat a
-real NTSC-U dump as the recommended baseline and a fully supported fallback as absent by design;
+The BIOS entry is optional, not required: the cabinet ships OpenBIOS and PCSX-Rearmed falls back to
+HLE, so the browser path boots without a retail dump. A real NTSC-U dump is the recommended baseline;
 `?bios=hle` forces the built-in path.
 
 Those entries are the recipe's own fields, not a docs invention. `/admin` → **Spielrezepte** lists
@@ -77,7 +77,7 @@ orga uploaded them; Node has no LAN file and is checked locally.
 ```text
 LANoMAT install plan: Ridge Racer Type 4 (ridge-racer-type-4)
 Version: 1.0.0   OS: windows
-Install dir: C:\Games\RidgeRacer4
+Install dir: C:\Games\Ridge Racer Type 4
 
 Files:
   [LAN] r4.chd · 341 MB
@@ -96,6 +96,9 @@ A missing disc is a hard stop; a missing BIOS is not, because of OpenBIOS.
 
 `install --dry-run` shows the same plan plus the resolved downloads and every command it would run.
 Read the `[LAN]` lines first — one `[MISSING]` line there stops a real install before it starts.
+`install --target <folder>` overrides the recipe's install folder, which is handy when the default
+(`C:\Games\Ridge Racer Type 4`) sits on a drive with too little space; the agent refuses a folder
+whose characters would break the quoting of the recipe's commands and names the character.
 
 | Dark | Light |
 |---|---|
@@ -122,13 +125,13 @@ The repository is a Node 20+ Express app. There is **no build step** for the bro
 files in `_server/` are served as they are. Verification is `_server/package.json`.
 
 The app's own entry point is `/games`: the Ridge Racer Type 4 card carries **Installieren**, which
-hands the same recipe to your paired agent. **Starten** sits next to it as soon as the game page has a
+hands the same recipe to your paired agent. **Spielen** sits next to it because the recipe has a
 `play_url`, and it opens the cabinet in the browser.
 
 | Dark | Light |
 |---|---|
-| ![Games library with the Ridge Racer Type 4 card, Installieren and Starten, dark](/docs/screens/games-dark.png) | ![Games library with the Ridge Racer Type 4 card, Installieren and Starten, light](/docs/screens/games-light.png) |
-| `GAMES · RIDGE RACER TYPE 4 · INSTALL · START` | `GAMES · LIGHT` |
+| ![Games library with the LAN-only filter active; the sidebar lists Ridge Racer Type 4 with a LAN marker next to the other LAN games, dark](/docs/screens/games-filter-dark.png) | ![The same LAN-filtered library in light](/docs/screens/games-filter-light.png) |
+| `GAMES · NUR LAN-SPIELE · RIDGE RACER TYPE 4` | `GAMES · LIGHT` |
 
 ## 3. Place the disc
 
@@ -251,9 +254,11 @@ Expand-Archive -Path "{{downloads}}/Ridge_Racer_4_Recomp_Windows.zip" -Destinati
 - Run **one** native instance at a time. Two instances fight over the same disc and settings.
 - Verification: `RidgeRacer4Recomp/Ridge_Racer_4_Recompiled.exe`.
 
-The recipe's metadata names the recomp as the launch target
-(`RidgeRacer4Recomp\Ridge_Racer_4_Recompiled.exe`) and the cabinet as `play_url`
-(`http://localhost:8080/`). The game page's **Starten** button opens the web URL when it exists.
+The recipe carries no launch target and no installable archive: its `play_url` is
+`http://{{host}}:8080/play?game=r4`, where `{{host}}` is replaced with the address a viewer reached
+the page on. `LauncherSupport` therefore counts the recipe as launcher-supported (a browser recipe)
+and the launcher card offers **Spielen**, not **Installieren**. The game page's **Spielen** button
+opens the same URL.
 
 ## 8. Verify before the LAN night
 

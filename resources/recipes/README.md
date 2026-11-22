@@ -31,10 +31,16 @@ SHA-256 or a download URL to make a draft look finished.
 ## How a recipe is used
 
 1. The installer resolves `requires` against the LAN file host (`SharedFiles`)
-   using each entry's `match` globs. `required: true` blocks; optional entries
-   are offered as a multi-select.
-2. The user picks a target folder (`{{target}}`) and the download folder
-   (`{{downloads}}`). `{{os}}` is the detected platform.
+   using each entry's `match` globs. `required: true` blocks until a match
+   exists; an optional entry that matches is downloaded like any other file
+   (only `role: avatar` entries are a multi-select, see below).
+2. The install folder (`{{target}}`) comes from the plan; the agent's `--target`
+   overrides it, and the download folder is `{{downloads}}`. `{{os}}` is the
+   detected platform. The folder is pasted as text into commands the recipe
+   already quoted, so the agent refuses a folder whose name would end that
+   quoting before anything is downloaded or run (see `clients/agent/README.md`).
+   A leading `~/` in the plan's folder or in `--target` is resolved to the home
+   directory first.
 3. Steps run in order for the matching `os` (`windows`, `linux`, or `any`).
    Optional steps (`optional: true`) are offered, never forced.
 4. `verify` entries check the result (`file_exists`, `dir_exists`, `command`).
@@ -60,8 +66,8 @@ validator enforces the parts that are visible in the YAML.
   folder name, not its contents.
 - `match: []` is a user-supplied requirement: the installer never matches it
   on the share and asks for the file (or an already-installed copy) instead.
-- A required entry blocks until one match exists; an optional entry is a
-  multi-select over all matches and may stay empty.
+- A required entry blocks until one match exists; an optional entry may stay
+  empty. Only `role: avatar` entries are a multi-select over all matches.
 
 **Platform-specific files (`requires[].os`)**
 
@@ -126,8 +132,10 @@ directory by hand:
 3. `.github/workflows/recipes.yml` runs the validator on every pull request that
    touches these files: schema, SKILL.md contract, unique slugs/aliases, and the
    catalog row.
-4. A maintainer reviews the diff and merges. The next `lanomat:recipes:sync`
-   makes the game appear on `/games` and in the launcher.
+4. A maintainer reviews the diff and merges. The game already appeared on
+   `/games` and in the launcher when the orga published it; the merge is what
+   puts its text into the repository, and the next `lanomat:recipes:sync`
+   (or `--only=<slug>`) adopts the merged row on another installation.
 
 Machine-written `recipe.yaml` and `SKILL.md` files are exempt from Prettier
 (`.prettierignore`); the schema validator is their formatting gate.
@@ -160,7 +168,13 @@ finds the recipe ("ut2k4", "ut 2k4", "unreal tournament" all point at
 ## Template variables and commands
 
 The installer resolves `{{target}}` (install dir), `{{downloads}}` (download
-dir) and `{{os}}`. Commands are one per entry, with no `&&` chains; use
+dir) and `{{os}}`. LANoMAT itself fills `{{server_host}}` and `{{server_port}}`
+into commands, checks and launch targets when it builds an install plan — and in
+the recipe detail an agent reads — from a server whose game carries **exactly**
+the recipe's slug and that answers or is known to run; without one both are
+empty, so a step that uses them must leave the game's configuration alone in that
+case. A browser twin, a sequel or a name match never supplies the value. A
+recipe never names an installation's server address. Commands are one per entry, with no `&&` chains; use
 `powershell` on Windows, `bash` on Linux, `cmd` only when a tool requires it.
 Keep commands idempotent and safe to re-run.
 

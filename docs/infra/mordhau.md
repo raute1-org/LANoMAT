@@ -17,8 +17,10 @@ placeholders.
 2. Seed the game and its presets (never overwrites presets that already exist):
 
     ```bash
-    php artisan db:seed --class=GamesSeeder
+    php artisan db:seed --class=GamesSeeder --force
     ```
+
+    (`--force` because `db:seed` asks for confirmation in production and cancels without a TTY.)
 
 3. Create the server in the admin panel (permanent servers) or from an event, pick
    the game "Mordhau" and one of the presets. SteamCMD downloads the server

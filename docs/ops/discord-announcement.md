@@ -20,7 +20,7 @@ Die Datei ist die Quelle; Änderungen dort und hier gemeinsam machen.
 🏁 **First Lineup ist da**
 
 **https://lan.raute1.org** – ab jetzt ist alles an einem Ort:
-• **/launcher**: LANoMAT-Launcher für Windows und Linux.
+• **/app**: LANoMAT-App herunterladen (der Launcher für Windows und Linux).
 • **/games**: Spiele, Rezepte und Installation.
 • **/servers**: Serverbrowser mit allen Dauerservern.
 
@@ -37,8 +37,8 @@ Fragen? Ab in den Chat.
 
 Inhaltliche Leitplanken:
 
-- `https://lan.raute1.org` ist die LANoMAT-Website; `/launcher`, `/games` und
-  `/servers` sind ihre Seiten.
+- `https://lan.raute1.org` ist die LANoMAT-Website; `/app`, `/games` und
+  `/servers` sind ihre Seiten (`/launcher` leitet auf `/app` um).
 - `10.23.0.40:7777` ist **unser** UT2004-Server (UT2004 VRM, Raute1 LAN).
 - `nfsu2.xyz` ist der **Community-Port** „Underground 2 Revived“ (inoffizielles
   Fan-Projekt, nicht von EA) — **nicht unser Server** und nicht der
@@ -192,8 +192,8 @@ Wortgrenzen; die Teile bekommen Präfixe `[1/2] …`, `[2/2] …`. Mit
 1. Zielkanal und Webhook stehen fest; die URL liegt in der Umgebung oder in
    einer `0600`-Datei.
 2. `--dry-run` gegen die finale Textdatei: Payload und Länge prüfen.
-3. UT2004 erreichbar (`10.23.0.40:7777`) und `https://lan.raute1.org/launcher`
-   lädt.
+3. UT2004 erreichbar (`10.23.0.40:7777`) und `https://lan.raute1.org/app`
+   lädt (`/launcher` leitet dorthin um).
 4. `nfsu2.xyz` öffnet im Browser mit WebGPU; der Text nennt es weiterhin
    „Community-Port“, nicht „unser Server“.
 5. Posten, im Kanal einmal gegenlesen (Links, keine Vorschau-Überraschung).

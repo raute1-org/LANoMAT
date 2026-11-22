@@ -31,10 +31,13 @@ next step.
 
 ## What it checks
 
-Database, Redis, queue heartbeat, scheduler heartbeat, storage writability, backup marker freshness,
-Discord gateway, Mumble/TeamSpeak sidecars, LiveKit, file host, desktop client download version,
-launcher builds (`launcher_build`), certificate expiry, LanCache (optional), room audio (optional),
-pinned image updates, recipe pull requests (`recipe_repository`, optional).
+Database, Redis, storage writability, failed jobs, Reverb, queue heartbeat, scheduler heartbeat,
+backup marker freshness, pinned image updates. When their module is enabled: the Discord API and
+Gateway sidecar, the Mumble/TeamSpeak sidecars, LiveKit and the desktop client download version, the
+file host (nginx signature check, tusd and the certificate it serves), launcher builds
+(`launcher_build`) and recipe pull requests (`recipe_repository`), Pelican, Music Assistant (jukebox),
+the room-audio receiver, the light server and the assistant's model provider. Each optional probe is
+registered only while its module is on.
 
 ### Recipe pull requests (`recipe_repository`)
 
@@ -58,6 +61,20 @@ A `skipped` row is not a failure: an installation without a catalogue link is no
 answers whether the *link* works: a single recipe can still be **Nicht gesendet** because the
 readiness check (repository validator rules) or the public-safety check refused its text, and an
 automatic proposal can be skipped by `RECIPES_PR_PER_USER_HOURLY` or `RECIPES_PR_MAX_OPEN`.
+
+### Launcher download (`launcher_build`)
+
+Shown as **Launcher-Download**. It reads the published manifest (through `LauncherBuilds`, the same
+validation the `/app` download page uses):
+
+| Result | When | Message |
+|---|---|---|
+| `warn` | No manifest at all | „Kein Launcher-Build veröffentlicht. Die Orga muss den Launcher bauen: scripts/ops/build-launcher.sh.“ |
+| `down` | The manifest is unreadable/incomplete, or a listed file is missing | „Das Launcher-Manifest ist unlesbar, unvollständig oder verweist auf fehlende Dateien. …“ |
+| `down` | A published file no longer matches its size or SHA-256 | „Die Launcher-Datei(en) :files passen nicht mehr zum Manifest (Größe oder Prüfsumme). …“ |
+| `warn` | Only one of Linux/Windows has an app build | „Der Launcher ist nur für :have veröffentlicht; für :missing fehlt der App-Build. …“ |
+| `warn` | The build is older than 30 days | „Der Launcher-Build :version ist älter als 30 Tage (gebaut am :date). …“ |
+| `ok` | Both systems, files intact, recent | „Launcher :version für Linux und Windows, gebaut am :date.“ |
 
 ## Guards and rules
 

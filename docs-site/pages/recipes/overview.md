@@ -125,8 +125,18 @@ steps:
 ```
 
 `{{target}}` is the install folder, `{{downloads}}` the staging folder the installer filled from the
-LAN file host. Verification types are `file_exists`, `dir_exists` and `command`. A plan that ends
-without a verification is a guess.
+LAN file host. Two more variables are filled by LANoMAT itself: `{{server_host}}` and
+`{{server_port}}`. A server qualifies only when its game carries **exactly** the recipe's slug (a
+look-alike name, a browser twin or a sequel never does) and it answers or is at least known to run —
+never one that is switched off or still being set up. Among the rest, a server that answers ranks
+before one that does not, a permanent server before an event or match server, then the lowest id.
+`{{server_host}}` keeps letters, digits, dot and hyphen only (at most 253 characters),
+`{{server_port}}` digits 1–65535; anything else — and "no such server" — is the empty string, so a
+step that uses them must leave the game's configuration alone then. A recipe never names this installation's server address. Both values are final before they
+leave the server: `BuildInstallPlan` substitutes them in the plan's step commands, step checks and
+launch targets, and the recipe detail an agent reads (REST, the MCP tool, the native client) fills the
+same variables, because a client substitutes only the path variables. Verification types are
+`file_exists`, `dir_exists` and `command`. A plan that ends without a verification is a guess.
 
 ## What the installer does with it
 
@@ -227,8 +237,8 @@ last update, so a draft and a published recipe stay distinguishable before anyon
 
 | Dark | Light |
 |---|---|
-| ![Admin recipe list showing slug, version, draft or published status and file count per recipe, dark](/screens/admin-recipes-dark.png) | ![Admin recipe list showing slug, version, draft or published status and file count per recipe, light](/screens/admin-recipes-light.png) |
-| `ADMIN · RECIPES · SLUG · STATUS · UPDATED` | `ADMIN · LIGHT` |
+| ![Admin Spielrezepte filtered to shared games: title, draft or published status, the pinned file's state, the pull-request state and the file count per row, dark](/screens/admin-recipes-dark.png) | ![The same filtered Spielrezepte list in light](/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · STATUS · DATEI · PULL REQUEST · DATEIEN` | `ADMIN · LIGHT` |
 
 The bundled catalogue's published entries are UT2004, Need for Speed: Underground 2 (the portable
 tree and the browser variant) and Ridge Racer Type 4. Everything else is a draft — from F-Zero X VR

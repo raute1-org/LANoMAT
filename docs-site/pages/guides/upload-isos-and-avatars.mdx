@@ -59,7 +59,11 @@ page itself is a login gate: guests see the event-free landing, every event page
 ## 2. Upload
 
 **Small files (default path).** Choose a file under **„Datei hochladen“** and press **„Hochladen“**.
-The form posts one file; the row appears with **„Wartet auf Freigabe“**.
+The form posts one file; the row appears with **„Wartet auf Freigabe“**. The stored name is cleaned
+first: path parts, control characters and the invisible and bidirectional formatting characters
+(zero-width, byte order mark, right-to-left overrides) are removed and the name is cut to 255
+characters (the same rule the resumable path applies). A name that keeps nothing readable is refused with „Der Dateiname
+enthält keine lesbaren Zeichen. Bitte benenne die Datei um und lade sie noch einmal hoch.“
 
 **Large files (resumable).** When the file host runs with tus, the page shows a drop area:
 
@@ -94,13 +98,15 @@ Dateiserver übertragen und machen nach einer Unterbrechung an derselben Stelle 
 
 A rejected file's bytes are gone. To try again, upload it anew — an old row cannot be resurrected.
 
-The list is the page every participant sees: the Ridge Racer `.chd`, five `.vrm` avatars, the UT2004
-ISO and its OldUnreal patch — all allowed types, all approved and therefore visible.
+The list is the page a participant sees: the event's approved files plus their own pending ones.
+Here that is the Ridge Racer `.chd`, five `.vrm` avatars, the UT2004 ISO and its OldUnreal patch, and
+one archive of the viewer's own that still waits for approval; every `.zip` and `.tar.bz2` row
+carries the quiet **Als Spiel teilen** link.
 
 | Dark | Light |
 |---|---|
-| ![Event Files list with a .chd disc image, five .vrm avatars, the UT2004 ISO and patch, dark](/docs/screens/files-dark.png) | ![Event Files list with a .chd disc image, five .vrm avatars, the UT2004 ISO and patch, light](/docs/screens/files-light.png) |
-| `FILES · CHD · VRM · ISO · PATCH` | `FILES · LIGHT` |
+| ![Event Files list: quota, an archive waiting for approval, an approved archive with Als Spiel teilen, the .chd, five .vrm avatars, the UT2004 ISO and patch, dark](/docs/screens/files-dark.png) | ![The same file list in light](/docs/screens/files-light.png) |
+| `FILES · KONTINGENT · ALS SPIEL TEILEN · CHD · VRM · ISO` | `FILES · LIGHT` |
 
 ### Sharing an archive as a game
 
@@ -109,7 +115,8 @@ other file, and describe it on `/games/share`. On your own archive's row the Fil
 **Als Spiel teilen** link; it opens `/games/share?file=<id>` with that archive already selected.
 
 - Only `.zip` and `.tar.bz2` can back a shared game. A `.7z`, `.rar` or `.iso` uploads fine but its
-  row has no **Als Spiel teilen** link.
+  row has no **Als Spiel teilen** link. The same holds for an archive whose name the share page would
+  refuse (`: " < > |`, a backtick, `*`, `?`, a leading dot, two dots in a row, control characters).
 - The link appears on **your own** archives, and only while the `game_recipes` module is enabled.
 - The file still needs the orga's approval, and the game needs the orga's publish, before anyone
   sees it on `/games`.
@@ -153,7 +160,7 @@ matches each glob against the **original filename of approved `SharedFile` rows*
 
 | Part | Example | Meaning |
 |---|---|---|
-| `role` | `iso`, `patch`, `mod`, `tool`, `avatar`, `content`, `config` | What the file is for; only `avatar` is selectable |
+| `role` | `iso`, `patch`, `mod`, `tool`, `avatar`, `content`, `config` | What the file is for; `avatar` and `content` are the selectable roles |
 | `match` | `ut2004*.iso` | Glob against the original name; `*` spans any characters |
 | `required` | `true` | A plan without it is invalid |
 | `size_bytes` / `sha256` | optional | Verification when present; an empty hash is allowed |
@@ -169,7 +176,8 @@ Practical rules:
   needs the orga step before a plan can see it.
 - **Base required, extras optional.** A recipe must install with its `required: true` entries alone.
   Mods and avatars never block the base install.
-- **Avatars are multi-select.** Every matching `.vrm` is offered as one choice list; zero is valid.
+- **Avatars are multi-select.** Every `avatar` (and `content`) requirement is offered as one choice
+  list; zero is valid.
 
 ### Pinning one file instead of a glob
 
@@ -188,17 +196,19 @@ matching; a deleted or rejected file leaves the requirement unmatched again.
 
 ## 6. Avatars (`.vrm`)
 
-Avatars are ordinary files with `role: avatar` on the recipe. The UT2004 recipe repeats one entry per
-catalogue avatar (Ayla, Brutus, Kestrel, Mako, Sable) plus a broad `*.vrm`; the installer shows every
-LAN match as one multi-select.
+Avatars are ordinary files with `role: avatar` on the recipe. One requirement is one selectable
+entry: the matcher picks the largest LAN file that fits the glob, and the installer shows it in the
+multi-select with its label, author if the metadata names one, and size. Several avatars need one
+`avatar` entry each; the UT2004 recipe carries one broad `*.vrm` requirement.
 
-The game page states the count before the agent runs: the installation card reads **„6 Avatare zur
-Auswahl“** for the UT2004 recipe, so a participant knows the shelf is populated.
+The game page states the count of avatar requirements before the agent runs: for the UT2004 recipe
+the installation card reads **„1 Avatar zur Auswahl“** (one requirement, however many `.vrm` files it
+matches).
 
 | Dark | Light |
 |---|---|
-| ![UT2004 game page with the installation card reading 6 Avatare zur Auswahl, dark](/docs/screens/game-ut2004-dark.png) | ![UT2004 game page with the installation card reading 6 Avatare zur Auswahl, light](/docs/screens/game-ut2004-light.png) |
-| `GAME · UT2004 · AVATARE · AUSWAHL` | `GAME · UT2004 · LIGHT` |
+| ![UT2004 game page: Installieren, Im Launcher öffnen and Starten, the agent commands, the server with Im Launcher beitreten and the installation step list, dark](/docs/screens/game-ut2004-dark.png) | ![The same UT2004 game page in light](/docs/screens/game-ut2004-light.png) |
+| `GAME · UT2004 · INSTALLIEREN · SERVER · INSTALLATION` | `GAME · UT2004 · LIGHT` |
 
 | Rule | Detail |
 |---|---|

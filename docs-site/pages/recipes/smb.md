@@ -98,7 +98,7 @@ the panel's status.
 
 | Dark | Light |
 |---|---|
-| ![Admin recipe list with draft and published recipes after a sync, dark](/screens/admin-recipes-dark.png) | ![Admin recipe list with draft and published recipes after a sync, light](/screens/admin-recipes-light.png) |
+| ![Admin Spielrezepte filtered to shared games, with draft and published rows, the pinned file's state and the pull-request state, dark](/screens/admin-recipes-dark.png) | ![The same filtered Spielrezepte list in light](/screens/admin-recipes-light.png) |
 | `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` | `SPIELREZEPTE · LIGHT` |
 
 ## Import rules

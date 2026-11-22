@@ -71,7 +71,10 @@ What it cannot set:
 | `pr_*` | The pull request pipeline (see below) |
 
 A pinned file is not recipe text: it lives on the file row and never in the stored requirement, so a
-contribution can never be used to learn about or reach somebody else's pending upload.
+contribution can never be used to learn about or reach somebody else's pending upload. A second call
+with the same slug **replaces** the draft, and a pin the orga set on a file row survives that edit
+only while the requirement still names the same file (same patterns and digest); a renamed or
+duplicated requirement starts without a pin.
 
 ## Recipe pull requests
 
@@ -84,10 +87,11 @@ request body carries requirement labels, never file-host URLs or ids.
 
 A draft only becomes proposable when its exported text would pass the repository's own validator:
 `SKILL.md` with front matter and 60–150 lines, 3–6 steps for a draft plus the sentence that it needs
-verification on the LAN, one command per entry, OS-matching shells and base-name globs. The MCP tool
-has no `skill_markdown` field, so its skill is rendered from the fields; a rendered skill that stays
-short keeps the proposal blocked until the orga completes `SKILL.md` in the panel and proposes again
-(the REST endpoint accepts `skill_markdown`). Then the
+verification on the LAN, one command per entry, OS-matching shells and base-name globs. The tool and
+the REST endpoint both accept a full `skill_markdown`; without one the skill is rendered from the
+fields, and a rendered skill that stays short keeps the proposal blocked until somebody completes
+`SKILL.md` (the panel, or another `recipe_contribute` call with the same slug and a longer text — the
+answer's `catalog.problems` names what is missing). Then the
 public-safety check runs — the same rules as `scripts/ops/check-public-safe.sh`: private, public and
 link-local IPv4 addresses (also split or as a numeric URL host), IPv6 addresses, e-mail addresses,
 private keys, SSH keys and bearer, cloud or chat tokens block the proposal. A refused recipe is never
@@ -145,8 +149,8 @@ Treat an unreviewed recipe from an untrusted share like an untrusted shell scrip
 `/api/v1/files/{id}/download` and is **bearer-only, not signed**: the agent must fetch it with the
 same `Authorization: Bearer lmcp_…` header. It is scoped to one file and checked against the
 `download` policy on every request, so a URL alone is useless without the token and a token cannot
-reach a file its user may not see. The route is LAN-only by design: an agent outside the venue cannot
-fetch it, even with a valid token.
+reach a file its user may not see. With the file-host store the answer is a redirect to the LAN file
+host, which is reachable on the venue network only; a locally stored file is streamed by the app.
 
 ## Rate limits and abuse
 

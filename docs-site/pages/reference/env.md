@@ -109,12 +109,19 @@ key mismatch shows up as an empty channel list, not as a server error.
 |---|---|
 | `FILES_STORE` | `local` (default) or `host` |
 | `FILES_HOST_ID` | The `RemoteHost` id for the file host |
+| `FILES_HOST_PATH` | Directory on that host, as the SFTP account sees it (default `/data`) |
 | `FILES_HOST_URL` | `https://files.<domain>:8443`; LAN-only |
 | `FILES_HOST_SECRET` | ≥ 32 chars, same as nginx's |
 | `FILES_TUS_URL` | Enables resumable tus uploads through tusd |
 | `FILES_TUS_HOOK_SECRET` | ≥ 32 chars, same as tusd/nginx |
+| `FILES_TUS_TICKET_TTL_SECONDS` | Upload-ticket lifetime, default `600` |
+| `FILES_TUS_UPLOAD_TTL_HOURS` | How long a started upload may take before it counts as abandoned, default `24` |
+| `FILES_TUS_DATA_DIR` | Where tusd writes finished files, as tusd sees it (default `/data`) |
+| `FILES_TUS_CHUNK_MB` | Browser chunk size per PATCH, default `64` |
+| `FILES_TUS_TICKETS_PER_MINUTE` | Upload tickets one user may request per minute, default `20` |
 | `FILES_PER_USER_QUOTA_MB` | Default 100 GB per person per event |
 | `FILES_MAX_FILE_GB` | Default 50 GB; keep equal to tusd `-max-size` |
+| `FILES_MAX_UPLOAD_MB` | Single-upload cap of the form upload, default `200` |
 | `FILES_URL_TTL_SECONDS` | Signed download lifetime, default 300 |
 | `GALLERY_MAX_UPLOAD_MB` / `_MAX_EDGE` / `_THUMB_WIDTH` / `_JPEG_QUALITY` | Upload pipeline |
 | `IMAGE_DRIVER` | Leave empty for GD; GD's re-encode strips EXIF/GPS |
@@ -182,10 +189,11 @@ under "Verbundene Geräte" until they are disconnected.
 | `MODULE_GAME_RECIPES` | profile | Enable the module (`GameRecipes` requires `Files` and `Mcp`) |
 | `RECIPES_SOURCE` | `resources/recipes` | Directory, `smb://host/share[/path]` or `git+https://…`; used by the daily sync |
 | `RECIPES_SMB_USER` / `RECIPES_SMB_PASSWORD` | empty | Optional SMB credentials; keep the file `0600` |
-| `RECIPES_PREFER_LAN` | `true` | LAN copies first; external URLs only with the agent's `--allow-external` |
+| `RECIPES_PREFER_LAN` | `true` | Configured but read by no code path today: the plan always prefers a LAN match, and the agent needs its `--allow-external` flag for an external fallback |
 | `RECIPES_MAX_DRAFTS_PER_USER` | `20` | How many drafts one participant may have waiting for review at the same time (shared games, MCP and REST contributions together). The orga is not limited |
 | `LAUNCHER_DIST_PATH` | `clients-dist/launcher` | Where the published launcher builds and `manifest.json` live; read by `/app` and the Preflight `launcher_build` check |
 | `LAUNCHER_LINEUP` | `unreal-tournament-2004,need-for-speed-underground-2,need-for-speed-underground-2-browser` | Comma-separated recipe allowlist for the launcher catalogue, `/games`, the home chat cards, MCP `recipes_list` and the install link next to a server; the lineup players see is this list **plus** every recipe with `game_recipes.in_lineup = true` (the panel toggle **In der Spieleliste zeigen**). Empty = unrestricted: the whole visible catalogue is shown and the flag changes nothing |
+| `NFS_SERVER_HOST` | empty (no default) | The host `LauncherLineupSeeder` registers as the permanent NFSU2 server. Without it the seeder registers no native NFSU2 server (or leaves the one an earlier run registered as it is) and says so on the console; a recipe never names this installation's server — plans and the recipe detail fill `{{server_host}}`/`{{server_port}}` from a server whose game carries exactly the recipe's slug, that is Ready or NotResponding and visible to the viewer |
 
 Malformed entries in `LAUNCHER_LINEUP` are ignored, so a typo never hides the catalogue. The flag is
 the only way a shared game reaches the players without a deploy: publishing a contributed recipe in

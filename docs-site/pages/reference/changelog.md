@@ -8,7 +8,36 @@ LANoMAT has no versioned releases after the `m13` tag; work lands on `main` and 
 repository's [`CHANGELOG.md`](https://github.com/raute1-org/LANoMAT/blob/main/CHANGELOG.md). The
 phase tags `m0`–`m13` mark the MVP history.
 
-<div class="live">LIVE 17:42 · main · last merge 2026-11-20</div>
+<div class="live">LIVE 17:42 · main · last merge 2026-11-22</div>
+
+## 2026-11-22
+
+**Added**
+
+- Server rows say who of the LANoMAT accounts is on them (**„Hier spielen“**, from the Presence
+  read model under its `share_location`/block rule, and only for the event's own people: registered
+  participants and orga); the bearer APIs carry `occupants: null`.
+- The install block answers `lanReady`: whether the game's archive is on the LAN right now, so a row
+  can say that a fresh install can fail while an existing one still joins.
+- The panel and every contribution answer show **„Textprüfung für den Katalog“** — what would block
+  a recipe pull request, as a draft and once published.
+- Install plans and the recipe detail fill `{{server_host}}` and `{{server_port}}` from a server whose
+  game carries exactly the recipe's slug; the NFSU2 recipe and the launcher no longer carry a built-in
+  server address (`NFS_SERVER_HOST`).
+- `recipe_contribute` and `POST /api/v1/recipes` take a full `skill_markdown` and answer a `catalog`
+  object; the new resource `lanomat://skills/contribute-recipe` is the how-to behind it.
+- The native client's read-only **Spiele** tab: the published lineup, a game's detail and its install
+  plan (`/api/voice-client/v1/recipes`, `…/{slug}`, `…/{slug}/plan`).
+
+**Changed**
+
+- One download page: `/app` (**App herunterladen**) lists the desktop voice app and the launcher as a
+  list of downloads; `/launcher` and `/talk/client` redirect there and the file routes stay. The
+  launcher page's live server list is gone — the servers live on `/servers`, and their rows keep the
+  launcher action (**Im Launcher beitreten** when the link names the server, **Im Launcher starten**
+  when it cannot).
+- Both upload paths store the same cleaned file name; a contribution's file rows keep their ids
+  across an edit. The files page asks the server which archives can be shared (**Als Spiel teilen**).
 
 ## 2026-11-20
 

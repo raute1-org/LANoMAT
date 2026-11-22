@@ -1,6 +1,8 @@
 # Launcher ↔ Agent ↔ Web: Integration der ersten Lineup
 
-Stand: **2026-11-21**. Beschreibt den gemeinsamen Vertrag von Launcher,
+Stand: **2026-11-22** (Nachtrag aus der Gap-Runde: `lanReady`, Plan-Variablen,
+`skill_markdown` und die Katalog-Antwort; Serverzeilen tragen zusätzlich
+`occupants`). Beschreibt den gemeinsamen Vertrag von Launcher,
 `/api/v1/recipes`, Web `/games`, Home-Chat und MCP. Keine Secrets, keine
 Live-Änderung.
 
@@ -20,12 +22,11 @@ Angewendet wird sie in:
 
 | Oberfläche | Stelle |
 | --- | --- |
-| Launcher/API | `RecipeController::index` |
+| Launcher/API | `App\Modules\Mcp\Http\Api\RecipeController::index` |
 | Web `/games` + `/games/{slug}` | `GamePageController::publishedRecipes()` |
 | Home-Chat | `HomeChatData::games()` |
 | MCP `recipes_list` | `RecipesListTool::run()` |
 | Serverzeilen (Install-Block) | `RecipeInstallLinks::candidates()` |
-| `/launcher` „Jetzt live“ | `LauncherPageController::liveServers()` (über den Install-Block) |
 
 Direkte Admin-/Sync-Pfade und `recipe_get` bleiben unverändert. Die Rezepte
 liegen weiter in der DB.
@@ -126,6 +127,34 @@ oder eine freigegebene; nie eine abgelehnte), und zählt gegen
 Standard `RECIPES_PR_TRIGGER=publish` entsteht der Pull Request in diesem
 Moment; `contribute` öffnet ihn schon beim Teilen.
 
+Neu in der Gap-Runde:
+
+- `recipe_contribute` nimmt zusätzlich **`skill_markdown`** (das vollständige
+  SKILL.md, höchstens 65 535 Zeichen; erlaubt sind nur druckbare Zeichen,
+  Zeilenumbruch, Wagenrücklauf und Tabulator) und nennt die
+  `skill_description`-Regel (20 bis 1024 Zeichen) im Schema. Ein
+  schema-ungültiges Rezept ist auf `POST /api/v1/recipes` eine **422** mit den
+  Problemen unter `recipe`; das Tool antwortet lesbar mit denselben Problemen.
+- Beide Antworten tragen **`catalog`**:
+  ```jsonc
+  "catalog": {
+    "pull_requests_enabled": true,       // RecipeRepository::isConfigured()
+    "problems": ["SKILL.md has 19 lines; …"],
+    "problems_when_published": []
+  }
+  ```
+  Das ist `ProposeRecipe::preview()` (für den gespeicherten bzw. den
+  veröffentlichten Status), ohne Repository-Aufruf und ohne Zustandsänderung.
+  Ein Assistent arbeitet die Liste ab und ruft `recipe_contribute` mit
+  demselben Slug und dem **vollständigen** Rezept erneut auf, bis `problems`
+  leer ist: ein Aufruf **ersetzt** den gespeicherten Entwurf, ein weggelassenes
+  Feld (Kurzfassung, Version, Aliase, Plattformen, …) wird geleert, nicht
+  behalten. Antwort, Tool-Beschreibung und die Anleitung sagen das.
+- Die Anleitung dazu ist die Ressource **`lanomat://skills/contribute-recipe`**
+  (`RecipeContributeSkillResource`), nicht ein neues Tool: Rumpf-SKILL.md und
+  Beispiel-Payload werden aus denselben Methoden erzeugt, mit denen die Tests
+  beitragen. Tool-Zahl bleibt 29; Ressourcen 3, Prompts 2.
+
 ## 5. Serverbrowser
 
 Jede Serverzeile trägt jetzt den **Install-Block** aus der Serverprojektion
@@ -137,7 +166,8 @@ Jede Serverzeile trägt jetzt den **Install-Block** aus der Serverprojektion
   "title": "Unreal Tournament 2004",
   "pageUrl": "/games/unreal-tournament-2004",
   "launcherSupported": true,
-  "launcherJoinUrl": "lanomat://join/unreal-tournament-2004?address=lan.example%3A7777"
+  "launcherJoinUrl": "lanomat://join/unreal-tournament-2004?address=lan.example%3A7777",
+  "lanReady": true
 }
 ```
 
@@ -153,16 +183,64 @@ Jede Serverzeile trägt jetzt den **Install-Block** aus der Serverprojektion
   erlaubte Join-URL, ist `launcherJoinUrl` `null`; die Zeile behält ihre
   eigene Verbindung. Nur bei `LauncherSupport::supports()` wird überhaupt ein
   Link gebaut.
-- Die Zeile zeigt dann „Im Launcher beitreten“, „Spiel installieren“ (→
-  `pageUrl`) und „Mitspieler suchen“ (→ `pageUrl#zusammen-spielen`). Amber
-  bleibt bei „Verbinden“ der eigenen Match-Zeile.
-- UT2004: bestehender Server `10.23.0.40:7777`, unverändert.
-- NFSU2: ein manueller/ext. Dauerserver, siehe
+- `lanReady` sagt, ob eine **Neuinstallation** gerade von der LAN möglich ist:
+  jedes erforderliche `base`/`iso`-Requirement hat eine freigegebene Datei
+  eines Nicht-Entwurf-Events (gepinnt oder per Name gematcht) oder eine
+  externe URL. Die Antwort ist zuschauerunabhängig; `launcherJoinUrl` und
+  `launcherSupported` hängen nicht davon ab, denn wer das Spiel schon hat,
+  tritt trotzdem bei. Optionales (Patches, Tools, Mods, Avatare) zählt nicht.
+  Die Plan-Details können enger sein: ein Plan sieht nur die Uploads seines
+  Events und überspringt eine Basis für ein anderes OS.
+- `occupants` (neben `install`, nicht darin) nennt höchstens acht Konten, die
+  der Betrachter sehen darf, plus `more`; `null` ohne angemeldeten Betrachter,
+  für ein Konto, das nicht zur Personenliste des Events gehört
+  (`EventPolicy::viewPeople`: Teilnehmer des Events oder Orga), und auf jeder
+  Bearer-API. Auf `/servers`, `/servers/all` und einer Event-Serverliste ist
+  das der Presence-Stand des Events (global und Dauerserver: des laufenden
+  Events). Die Liste kann kürzer sein als die Spielerzahl der Server-Abfrage:
+  Konten ohne Account, verpasste Namenszuordnungen und Leute, die ihren
+  Standort verbergen, fehlen; nichts unterscheidet sie.
+- Die Zeile zeigt dann den Launcher-Einstieg, „Spiel installieren“ (→
+  `pageUrl`) und „Mitspieler suchen“ (→ `pageUrl#zusammen-spielen`). Der
+  Einstieg heißt nur dann **„Im Launcher beitreten“**, wenn der Link den
+  Server nennt (`?address=` oder `?url=`); der nackte
+  `lanomat://join/<slug>` heißt **„Im Launcher starten“** mit eigenem Hinweis
+  (`joinLinkNamesServer` in `resources/js/lib/launcherJoin.ts`, dieselbe
+  Entscheidung auf den Serverzeilen und der Spielseite). Bei
+  `lanReady: false` steht eine stille Zeile darunter, dass nicht alle Dateien
+  auf der LAN liegen und eine Neuinstallation deshalb **scheitern kann**, der
+  Beitritt aber schon geht. Amber bleibt bei „Verbinden“ der eigenen
+  Match-Zeile.
+- UT2004: der bestehende Server der Installation, unverändert — die Adresse
+  steht in der Serverzeile, nicht im Rezept.
+- NFSU2: ein manueller/externer Dauerserver, siehe
   `docs/ops/launcher-lineup.md` (`LauncherLineupSeeder`): `NFSU2 (Browser)`,
-  `nfsu2.xyz:443`, Connect `https://nfsu2.xyz/`.
+  `nfsu2.xyz:443`, Connect `https://nfsu2.xyz/`. Der native NFS-Online-Server
+  kommt nur mit gesetztem `NFS_SERVER_HOST`; es gibt keine eingebaute Adresse
+  mehr, und das Rezept schreibt seinen Host über `{{server_host}}`.
 
 Ein echter `ServerLink` gewinnt gegen die Rezept-Ableitung; die Spielseite
 zeigt den Server dann nicht doppelt. Der Install-Block ist davon unabhängig.
+
+### 5.1 Plan-Variablen `{{server_host}}` / `{{server_port}}`
+
+Ein Rezept nennt nie den Server dieser Installation. `PlanServerAddress` wählt
+beim Planbau einen Server, den der Betrachter ohnehin sehen darf
+(`ServerListProjection`, `viewPermanent`) — aber **nur, wenn dessen Spiel genau
+den Rezept-Slug trägt**: kein Alias, keine Namensähnlichkeit (der Browser-Zwilling
+eines nativen Spiels qualifiziert nie), und nur `Ready` oder `NotResponding`
+(nie offline, fehlgeschlagen oder im Aufbau). Rangfolge: ein antwortender
+Server zuerst, dann ein Dauerserver, dann die kleinste Id. Dieselben Variablen
+füllt auch die Rezept-Detailansicht (`RecipeController::show`, `recipe_get`,
+`/api/voice-client/v1/recipes/{slug}`), weil ein Agent seine Launch-Targets
+dort liest: kein Client bekommt einen rohen Platzhalter. `{{server_host}}`
+behält nur Buchstaben, Ziffern, Punkt und Bindestrich (höchstens 253 Zeichen),
+`{{server_port}}` nur 1–65535; alles andere — und „kein solcher Server“ — ist
+der leere String, dann lässt der Schritt die Konfiguration des Spiels in Ruhe.
+IPv6 ist aus demselben Grund leer. Die Ersetzung läuft in einem
+`strtr()`-Durchgang; die Clients ersetzen weiterhin nur `{{target}}`/`{{downloads}}`
+(und der Agent zusätzlich `{{target_dir}}`, `{{recipe_dir}}`, `{{avatars}}`,
+`{{host}}`, `{{os}}`, `{{slug}}`, `{{event}}`).
 
 ## 6. Änderungen an der Lineup
 
@@ -268,8 +346,8 @@ größerer Katalog nicht wieder abgeschnitten wird.
 
 ### 7.4 Live-Status und Deploy-Version
 
-Am 2026-11-21 gegen `https://lan.raute1.org/mcp` mit dem Launcher-Token
-geprüft (der Baum hatte damals 24 Tools):
+Am 2026-11-21 gegen den `/mcp`-Endpunkt der Test-Installation mit dem
+Launcher-Token geprüft (der Baum hatte damals 24 Tools):
 
 - Live lief `m12-768-ge8de9dad` (23 Commits hinter HEAD
   `m12-791-gd82d29be`).
@@ -306,7 +384,7 @@ erreichbar. `McpToolPaginationTest` prüft alle 29 Tools mit
 ```bash
 TOKEN=$(jq -r .token ~/.config/lanomat-launcher/config.json)
 
-curl -sS https://lan.raute1.org/mcp \
+curl -sS "https://<LAN_DOMAIN>/mcp" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \

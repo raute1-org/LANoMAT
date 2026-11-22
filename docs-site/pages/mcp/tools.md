@@ -4,10 +4,12 @@ description: The MCP tool catalogue, recipe resources, prompts and argument exam
 sidebar_icon: list
 ---
 
-The MCP surface is deliberately explicit: **29 tools**, **two prompts** (`install-game`, `import-menu`) and **two
-resources** (the template `lanomat://recipes/{slug}/skill` and `lanomat://skills/import-menu`). The table below is the contract — it matches
-what the served server registers in `app/Modules/Mcp/Server/LanomatServer.php`. If a tool is not in
-this table, the server does not have it.
+The MCP surface is deliberately explicit: **29 tools**, **two prompts** (`install-game`, `import-menu`)
+and **three resources** (the template `lanomat://recipes/{slug}/skill` and the two how-tos
+`lanomat://skills/import-menu` and `lanomat://skills/contribute-recipe`). The table below is the
+contract — it matches what the served server registers in
+`app/Modules/Mcp/Server/LanomatServer.php`. If a tool is not in this table, the server does not have
+it.
 
 ## Tool catalogue
 
@@ -25,7 +27,7 @@ this table, the server does not have it.
 | `games_search` | `query?` | Games catalogue (name, slug, team size) | — |
 | `files_list` | `event_slug`, `query?` | Files with size, visibility and download URL | `GET /api/v1/files` |
 | `file_download_url` | `file_id` | Bearer download URL for one file | `GET /api/v1/files/{file}/download` |
-| `servers_list` | `event_slug?` | Permanent or per-event game servers | — |
+| `servers_list` | `event_slug?` | Permanent or per-event game servers | `GET /api/v1/servers` |
 | `schedule_list` | `event_slug` | Schedule items in order | — |
 | `polls_list` | `event_slug` | Polls, options and my vote | — |
 | `poll_vote` | `poll_id`, `option_id` | Cast vote | — |
@@ -38,20 +40,23 @@ this table, the server does not have it.
 | `lfg_list` | `event_slug` | Active looking-for-group posts | — |
 | `lfg_create` | `event_slug`, `title`, `game`, `body?`, `slots_needed?` | The created post | — |
 | `recipes_list` | `query?`, `platform?` | Recipe summaries with `in_lineup` and the caller's own `pull_request` | `GET /api/v1/recipes` |
-| `recipe_get` | `slug`, `include_skill?` | Full recipe, requirements, steps, file matches, `launcher_supported`, `portable`, `pull_request`, `play_url` | `GET /api/v1/recipes/{slug}` |
-| `recipe_install_plan` | `slug`, `os?`, `event_slug?` | Install plan (pure, no download) | `POST /api/v1/recipes/{slug}/plan` |
+| `recipe_get` | `slug`, `include_skill?` | Full recipe, requirements, steps, file matches, `launcher_supported`, `portable`, `pull_request`, `play_url`; `launch_target`, `launch_targets[].command` and the steps' commands/checks carry the filled `{{server_host}}`/`{{server_port}}` | `GET /api/v1/recipes/{slug}` |
+| `recipe_install_plan` | `slug`, `os?`, `event_slug?`, `dry_run?` | Install plan (pure, no download; `dry_run` skips the audit row) | `POST /api/v1/recipes/{slug}/plan` |
 | `recipe_avatars` | `slug?`, `query?` | Avatar/content packs with LAN status | `GET /api/v1/recipes/{slug}/avatars` |
-| `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `version?`, `homepage?`, `license?`, `platforms?`, `aliases?`, `requires?` (with `shared_file_id` per entry), `steps?`, `launch_targets?`, `play_url?`, `portable?`, `skill_description?` | Draft recipe with `launcher_supported` and `pull_request` | `POST /api/v1/recipes` |
+| `recipe_contribute` | `slug`, `title`, `summary?`, `description?`, `version?`, `homepage?`, `license?`, `platforms?`, `aliases?`, `requires?` (with `shared_file_id` per entry), `steps?`, `launch_targets?`, `play_url?`, `portable?`, `skill_description?`, `skill_markdown?` | Draft recipe with `launcher_supported`, `pull_request` and the `catalog` answer | `POST /api/v1/recipes` |
 
 Every tool is read-only except `event_register`, `match_result`, `poll_vote`, `lfg_create`,
-`recipe_contribute` and `catering_menu_import`; `recipe_contribute` and `catering_menu_import` only create or
-change **drafts** (a round is never opened by the tool). Nothing in the catalogue
-publishes, deletes or edits an event.
+`tournament_checkin`, `recipe_contribute`, `catering_menu_import` and `catering_round_create`;
+`recipe_contribute` and `catering_menu_import` only create or change **drafts**, and a round is never
+opened by the tool. `recipe_install_plan` reads but records the request in the install audit unless
+`dry_run` is set. Nothing in the catalogue publishes, deletes or edits an event.
 
 The recipe tools carry the launcher's view of a recipe. `recipes_list` returns `in_lineup` and the
 caller's own `pull_request`; `recipe_get` returns `launcher_supported`, `portable`, `pull_request`
-and `play_url`. The REST catalogue and the REST contribution answer with the same fields, and a
-participant never sees somebody else's `pull_request`.
+and `play_url`; `recipe_contribute` returns the draft's `status`, `launcher_supported`,
+`pull_request` and a `catalog` object (see [Limits](#limits)). The REST catalogue and the REST
+contribution answer with the same fields, and a participant never sees somebody else's
+`pull_request`.
 
 A tool result carries the same values the participant app renders — event state, ticket, seat and
 teams:
@@ -118,7 +123,15 @@ The plan result is a structured object, not prose:
 (Abbreviated: every entry also carries its ids, hash and fallback URL.)
 
 A missing required file is listed in `missing` by label; the matching `files[]` entry has
-`"status": "missing"` and the requirement's glob patterns.
+`"status": "missing"` and the requirement's role and label. The requirement's glob patterns come
+from `recipe_get` and `GET /api/v1/recipes/{slug}/files`.
+
+A recipe never names this installation's server: `{{server_host}}` and `{{server_port}}` are filled
+before the answer leaves the server — in the plan, and in `recipe_get`'s launch targets and step
+commands/checks — from a server whose game carries **exactly** the recipe's slug (no alias or name
+match), that is Ready or NotResponding and that the viewer may see; a server that answers ranks
+first, then a permanent one, then the lowest id. Without one both placeholders are the empty string,
+which leaves the game's configuration alone.
 
 An agent prints that plan in its own terminal, downloads included:
 
@@ -129,12 +142,14 @@ An agent prints that plan in its own terminal, downloads included:
 
 ## Resources
 
-Resources are read with `resources/read` and a URI. The server registers exactly one resource
-template: the recipe's `SKILL.md`.
+Resources are read with `resources/read` and a URI. The server registers two resource templates and
+one static resource.
 
-| URI template | MIME | Content |
+| URI | MIME | Content |
 |---|---|---|
 | `lanomat://recipes/{slug}/skill` | `text/markdown` | The recipe's `SKILL.md` |
+| `lanomat://skills/import-menu` | `text/markdown` | The menu-import how-to (Catering) |
+| `lanomat://skills/contribute-recipe` | `text/markdown` | The how-to for a catalogue-ready contribution: fields, a `SKILL.md` skeleton of 60 to 150 lines, the draft and command rules, pinning a LAN file, and how to read the `catalog` answer (GameRecipes) |
 
 ```json
 {
@@ -154,11 +169,12 @@ A URI for an unpublished or unknown slug returns an error, not an empty document
 
 ## Prompts
 
-The server registers one prompt.
+The server registers two prompts.
 
 | Prompt | Arguments | What it does |
 |---|---|---|
 | `install-game` | `game` | Resolves the recipe, reads the skill, plans and asks for confirmation |
+| `import-menu` | `restaurant`, `source?` | Reads a menu, previews it, asks the human, then imports it |
 
 ```json
 {
@@ -181,24 +197,35 @@ client exposes it.
 
 ## Limits
 
-- `recipes_list` returns at most 100 summaries; narrow with `query`.
+- `recipes_list` returns the whole published, lineup-allowed catalogue (no paging), the same list
+  `/games` shows; a draft outside the lineup is still readable through `recipe_get` by slug. Narrow
+  with `query` or `platform`. `tools/list` itself fits in one page (29 of 50).
 - `files_list` returns the visible files of one event (no cursor paging).
 - `file_download_url` returns a bearer-authenticated URL: fetch it with the same token, not a browser.
 - `recipe_contribute` creates a draft and validates it against the schema: at least one step and at
   most 50, at most 50 requirements, 3 platforms, 20 aliases, 10 launch targets and 20 000 bytes of
-  metadata; unknown keys rejected. `version` (max 40), `homepage` (http(s), max 500) and `license`
+  metadata; unknown keys rejected. A second call with the slug of your own draft **replaces** that
+  draft — send the complete recipe, a field left out is cleared, not kept. `version` (max 40),
+  `homepage` (http(s), max 500) and `license`
   (max 200) are the recipe fields; `launch_targets` holds up to 10 start commands; `play_url` makes a
   browser recipe launcher-supported without an install. `portable: true` marks a ready-to-run archive
   (one required `base` requirement, a file check, a launch target) and becomes `metadata.portable`. A
   `requires[]` entry may carry `shared_file_id` to pin a LAN file the caller may download — their own
   upload or an approved file of a public event; a foreign pending file or a rejected one is refused.
+  A pin the orga set on the row survives an edit only while the requirement still names the same file
+  (same patterns and digest).
   A participant may hold `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review (20 by default, the
-  orga is exempt). The result names `status`, `launcher_supported` and `pull_request`;
-  `pull_request` is null for anyone who is not the contributor. The MCP schema has no
-  `skill_markdown` field, so the skill is rendered from the fields; to become a pull request later,
-  the draft needs a `SKILL.md` of 60–150 lines and 3–6 steps. When the rendered skill is shorter, the
-  orga completes `SKILL.md` in the panel and proposes from there; otherwise the proposal is **Nicht
-  gesendet** with the reasons. (`POST /api/v1/recipes` additionally accepts `skill_markdown`.)
+  orga is exempt). The result names `status`, `launcher_supported`, `pull_request` — null for anyone
+  who is not the contributor — and a `catalog` object: `pull_requests_enabled`, `problems` (what the
+  catalogue would refuse for the stored status) and `problems_when_published`. `skill_markdown` takes
+  a full `SKILL.md` (max 65 535 characters; newline, carriage return and tab are the only control
+  characters allowed); without it the skill is rendered from the fields. To become a pull request
+  later, the text needs a `SKILL.md` of 60–150 lines and, as a draft, 3–6 steps plus the sentence
+  that it needs verification on the LAN. Read `lanomat://skills/contribute-recipe` for a skeleton that
+  passes, then fix what `catalog.problems` names and call the tool again with the same slug and the
+  complete recipe; otherwise
+  the proposal is **Nicht gesendet** with the reasons. (`POST /api/v1/recipes` takes the same fields
+  and answers the same `catalog` object; a second call replaces the draft there too.)
 - Rate limit: 240 MCP API requests per minute per token and IP, `429` beyond that.
 
 The draft waits in the Filament admin until an orga reviews it:

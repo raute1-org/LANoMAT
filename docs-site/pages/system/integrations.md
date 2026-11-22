@@ -1,6 +1,6 @@
 ---
 title: Integrations
-description: Discord, Mumble, web voice over LiveKit, and the MCP server for agents.
+description: Discord, Mumble, web voice over LiveKit, the MCP server for agents, and the orga assistant.
 sidebar_icon: plug
 ---
 
@@ -15,6 +15,7 @@ The app never calls a real Discord, Mumble, Pelican, LiveKit or Music Assistant 
 | [Voice](/docs/system/modules/voice) | Mumble and TeamSpeak channel orchestration via admin sidecars, join links | Teilnehmer, Orga |
 | [WebVoice](/docs/system/modules/webvoice) | Browser voice + chat on self-hosted LiveKit, native client bearer API | Teilnehmer |
 | [Mcp](/docs/system/modules/mcp) | Streamable HTTP MCP server, device pairing, tools/resources/prompts | Agents, developers |
+| [Assistant](/docs/system/modules/assistant) | Orga-only AI chat; read tools, approval cards for tournament and server changes | Orga |
 
 ## Inbound and outbound are separate
 

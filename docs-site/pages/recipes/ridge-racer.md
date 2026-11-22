@@ -12,13 +12,14 @@ Windows recomp.
 
 <div class="live">LIVE 17:42 · cabinet up :8080 · 2P lounge · 12 drivers waiting</div>
 
-The recipe is published, so the games library lists it with a LAN badge, an install button and a start
-button that opens the cabinet.
+The recipe is published, so the games library lists it with an install button and a **Spielen** button
+that opens the cabinet; the LAN badge appears once the disc or BIOS is matched on the file host (or a
+server of the game runs).
 
 | Dark | Light |
 |---|---|
-| ![Games library filtered to LAN games, with Ridge Racer Type 4 and UT2004 install buttons, dark](/screens/games-filter-dark.png) | ![Games library filtered to LAN games, with Ridge Racer Type 4 and UT2004 install buttons, light](/screens/games-filter-light.png) |
-| `GAMES · NUR LAN-SPIELE · R4 · INSTALLIEREN · STARTEN` | `GAMES · LIGHT` |
+| ![Games library with the LAN-only filter active; the sidebar lists Ridge Racer Type 4 with a LAN marker, dark](/screens/games-filter-dark.png) | ![The same LAN-filtered library in light](/screens/games-filter-light.png) |
+| `GAMES · NUR LAN-SPIELE · RIDGE RACER TYPE 4` | `GAMES · LIGHT` |
 
 ## What the cabinet is
 
@@ -46,34 +47,34 @@ platforms: [windows, linux]
 requires:
   - role: iso
     label: "Ridge Racer Type 4 (USA) disc image"
-    match: ["*ridge*racer*4*.bin", "*R4*.cue", "*ridge*racer*4*.chd", "R4.chd"]
+    match: ["r4.chd", "R4.chd", "*R4*.cue", "*R4*.chd", "*Ridge*Racer*4*.cue", "*Ridge*Racer*4*.chd", "*R4*.bin", "*Ridge*Racer*4*.bin"]
     required: true
   - role: base
-    label: "PlayStation BIOS (scph5501.bin, NTSC-U)"
+    label: "PlayStation BIOS (scph5501.bin, optional — OpenBIOS is bundled)"
     match: ["scph5501.bin", "scph*.bin"]
-    required: true
+    required: false
   - role: tool
     label: "Node.js 20 or newer"
     match: []
     required: true
   - role: tool
-    label: "Ridge Racer 4 Recomp (optional native bundle)"
-    match: ["Ridge_Racer_4_Recomp_Windows*.zip"]
+    label: "Ridge Racer 4 Recomp (optional native bundle, Windows or Linux)"
+    match: ["Ridge_Racer_4_Recomp_Windows*.zip", "Ridge_Racer_4_Recomp-v1.0.0-linux-x86_64.AppImage", "RidgeRacer4Recomp*.zip"]
     required: false
 ```
 
-The BIOS entry is marked required but the notes say the cabinet can boot with OpenBIOS/HLE. That is
-intentional: a real NTSC-U dump is the recommended baseline, while the installer knows the fallback.
-Node.js is a tool requirement with no LAN match — it is checked on the machine, not downloaded.
+The BIOS entry is **optional**: the cabinet ships OpenBIOS and PCSX-Rearmed falls back to HLE, so a
+browser session boots without a retail dump. A real NTSC-U dump is the recommended baseline. Node.js
+is a tool requirement with no LAN match — it is checked on the machine, not downloaded.
 
-In the panel the same recipe is one row: version, status, the number of required files and the last
-sync. Ridge Racer Type 4 sits next to UT2004 as **Veröffentlicht**; the drafts around it are the rest
+In the panel the same recipe is one row: title, slug, version, status, the number of files and the
+last update. Ridge Racer Type 4 sits next to UT2004 as **Veröffentlicht**; the drafts around it are the rest
 of the library.
 
 | Dark | Light |
 |---|---|
-| ![Admin recipe list with Ridge Racer Type 4 published among draft recipes, dark](/screens/admin-recipes-dark.png) | ![Admin recipe list with Ridge Racer Type 4 published among draft recipes, light](/screens/admin-recipes-light.png) |
-| `ADMIN · SPIELREZEPTE · R4 · VERÖFFENTLICHT · ENTWURF` | `SPIELREZEPTE · LIGHT` |
+| ![Admin Spielrezepte filtered to shared games: draft and published rows with the pinned file's state and the pull-request state, dark](/screens/admin-recipes-dark.png) | ![The same filtered Spielrezepte list in light](/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT · DATEI` | `SPIELREZEPTE · LIGHT` |
 
 ## Install in six steps
 

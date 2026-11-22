@@ -28,7 +28,7 @@ rules").
 | [permanent-server-settings.md](permanent-server-settings.md) | Settings page for the permanent CS2 servers: adopting external servers into Pelican, startup variables, power, live map change, GunGame plugin config. |
 | [arcade-terminals.md](arcade-terminals.md) | The launcher fleet: pairing a gaming terminal, the 30 s heartbeat contract (`POST /api/v1/terminals/heartbeat`), offline derivation after 90 s, the orga monitor. |
 | [mordhau.md](mordhau.md) | Mordhau on Pelican: community egg, horde/deathmatch/frontline presets, fixed ports, joining, PlayFab and restart quirks. |
-| [recipe-pull-requests.md](recipe-pull-requests.md) | Shared games into the git recipe catalogue: fine-grained token, `RECIPES_PR_*` switches (trigger default `publish`, per-user and open-pull-request budgets), branch and pull request content, the catalogue readiness and public-safety gates, state sync, Preflight check, troubleshooting. |
+| [recipe-pull-requests.md](recipe-pull-requests.md) | Shared games into the git recipe catalogue: fine-grained token, `RECIPES_PR_*` switches (trigger default `publish`, per-user and open-pull-request budgets), branch and pull request content, the catalogue readiness and public-safety gates, the panel's readiness preview ("Textprüfung für den Katalog"), completing an MCP contribution with `skill_markdown`, state sync, Preflight check, troubleshooting. |
 
 ## Suggested reading order
 

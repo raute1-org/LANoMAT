@@ -19,7 +19,12 @@ per-match team rooms.
 
 - `/talk` — channels, participants, chat, join/leave.
 - `/talk/connect` — diagnostics, self-test, headset mode.
-- `/app` — the unified download page for the LANoMAT app (native client in the server's own version, plus the launcher while it is a separate build); `/talk/client` redirects there.
+- `/app` — the unified download page for the LANoMAT app (**App herunterladen**: the native client in
+  the server's own version, plus the launcher while it is a separate build); `/talk/client` and
+  `/launcher` redirect there.
+- Native client **Spiele** — read-only: the published, lineup-allowed recipes, a game's detail and
+  its install plan (`/api/voice-client/v1/recipes`, `…/recipes/{slug}`,
+  `…/recipes/{slug}/plan`); installing and starting follow with a later version of the app.
 - Filament **Web voice channels** — create, archive, moderate.
 
 | Dark | Light |
@@ -37,6 +42,9 @@ per-match team rooms.
 - Chat is persisted; channel visibility is policy-checked on every fetch.
 - The native API is bearer-authenticated; pairing is a device-code flow. Every route is in the
   route authorization matrix test.
+- The native client's recipe routes (`/api/voice-client/v1/recipes`, `…/{slug}`, `…/{slug}/plan`)
+  exist only while `GameRecipes` is routable and read published recipes only: the lineup, an exact
+  slug (aliases are an agent convenience), and the installer's plan with signed file-host links.
 - The client sends `X-Client-Version`; the server answers `X-Server-Version`. A build is offered
   only when its version equals the server's. `VOICE_CLIENT_MIN_VERSION` can refuse old clients.
 - All four app services must be built together, or the version match for the download breaks.

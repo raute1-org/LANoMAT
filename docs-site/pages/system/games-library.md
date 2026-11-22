@@ -8,7 +8,7 @@ The games library is the participant-facing front door to the recipe catalogue. 
 questions in one place: *what can I install, what is running right now, and who wants to play?*
 
 Open it at `/games`; a game has its own page at `/games/<slug>`, for example
-`https://lan.raute1.org/games/ut2k4`.
+`https://lan.example/games/ut2k4`.
 
 <div class="live">LIVE 17:42 · UT2004 server up · 6 players · CS 1.6 tournament in round 2</div>
 
@@ -24,17 +24,22 @@ Open it at `/games`; a game has its own page at `/games/<slug>`, for example
 The left sidebar lists every **published** recipe the lineup allows, with a LAN dot when the game is
 ready to play on this LAN. The main area has a search field and one filter:
 
-- **Nur LAN-Spiele** — shows only games whose required files are already on the LAN file host, or
-  that have a live LAN server. This is the "what can we actually play tonight?" switch.
+- **Nur LAN-Spiele** — shows only games with a required file already on the LAN file host (one is
+  enough) or with a listed LAN server. This is the "what can we actually play tonight?" switch.
 
 The list is intentionally not a store. A recipe without LAN content is still installable from a
-supplied disc, but the LAN dot tells you whether the fast path exists.
+supplied disc, but the LAN dot tells you whether the fast path exists. Above the grid the page names
+the event the rest of the app treats as current; it prefixes **● LIVE** only while that event is live.
 
 | Element | Meaning |
 |---|---|
 | LAN dot | Required content is present on the file host and/or a server is live |
-| Search | Title, alias, genre and tags ("ut2k4", "racing", "vr") |
-| Nur LAN-Spiele | Hide everything that would need a download from the internet |
+| Search | Title, summary and slug — "unreal" and "tournament" both match UT2004; aliases, genre and tags are not searched |
+| Nur LAN-Spiele | Hide games with neither a required file on the LAN file host nor a listed server |
+
+The LAN dot is the "playable here" question. A server's own install block asks a narrower one —
+whether a fresh install can work right now (`lanReady`) — so a running server can light the dot while
+the row next to it says a fresh install may fail.
 
 | Dark | Light |
 |---|---|
@@ -48,23 +53,35 @@ supplied disc, but the LAN dot tells you whether the fast path exists.
 | ![UT2004 game page, dark](/screens/game-ut2004-dark.png) | ![UT2004 game page, light](/screens/game-ut2004-light.png) |
 | `Spiel · DARK` — Install/Start, join string, "Runde ankündigen", install steps | `Spiel · LIGHT` |
 
+A game a participant shared looks the same once the orga has published it: the recipe's **● AUF DER
+LAN** badge, **Installieren** and **Im Launcher öffnen**, **Starten**, the install and start commands,
+the server card with the launcher action and **Runde ankündigen** / **Sprachchat** beside it. A game
+whose required file is not on the LAN and has no listed server says **NOCH NICHT AUF DER LAN**.
+
+| Dark | Light |
+|---|---|
+| ![Published shared game page in dark theme: "AUF DER LAN" badge, "Installieren", "Im Launcher öffnen", "Starten", both agent commands, the server card with the launcher join, and the "Runde ankündigen" and "Sprachchat" buttons](/screens/game-shared-dark.png) | ![The same shared game page in light mode](/screens/game-shared-light.png) |
+| `SHARED GAME · DARK` — published share, launcher actions, server card | `SHARED GAME · LIGHT` — same page |
+
 ### Install
 
-The primary action is **Installieren**. Its target depends on whether the launcher can install the
-recipe and whether a launcher build is published for your OS:
+The primary action is **Installieren**. Its target depends on whether a launcher build is published
+and whether the launcher can install the recipe:
 
-- Both yes: **Installieren** opens the launcher download page on a fresh PC, and a quiet „Launcher
-  schon da? **Im Launcher öffnen**“ uses the deep link `lanomat://install/<slug>`.
-- Otherwise: **Installieren** fires the deep link itself, which opens the installed launcher; without
-  one, the page's notice says what that usually means and links the download.
+- Both yes: **Installieren** opens the `/app` download page on a fresh PC, and a quiet
+  **Im Launcher öffnen** beside it uses the deep link `lanomat://install/<slug>`; a line underneath
+  says „Noch kein Launcher auf diesem PC? „Installieren“ führt zur Seite App herunterladen. …“.
+- Otherwise: **Installieren** fires the deep link itself, which opens an installed launcher, and the
+  notice under the buttons says „Ist der LANoMAT Launcher schon auf diesem PC, öffnet der Klick die
+  Installation. Sonst gelten die manuellen Schritte unten — Installationsbefehl und Dateien stehen
+  direkt darunter.“ There is no download link in that state, because no build is published.
 
 A browser game with a `play_url` shows **Spielen** instead; there is nothing to install.
 
 The launcher unpacks a portable recipe's archive, checks the start file and starts the game — it
 never runs the recipe's step commands. The agent path (`lanomat-agent install <slug>`, for a
 terminal or a script) is still there and reads the skill, including the questions about optional
-content. The game page's hint says the same in German: „Noch kein Launcher auf diesem PC?
-„Installieren“ führt zum Launcher-Download“.
+content.
 
 ### Launch
 
@@ -82,9 +99,11 @@ start, with no server section and a **Solo** badge.
 If LANoMAT knows a running server for the game, the page lists it with map and player count, and one
 honest action per row, in this order:
 
-1. A launcher join link (`lanomat://join/<slug>?address=<host>:<port>`, or `?url=<urlencoded url>`)
-   makes **Im Launcher beitreten** the first action, with the sentence „Der Launcher installiert das
-   Spiel bei Bedarf und startet direkt auf diesem Server.“
+1. A launcher link is the first action: **Im Launcher beitreten** when the link names the server
+   (`lanomat://join/<slug>?address=<host>:<port>`, or `?url=<urlencoded url>`), with the sentence
+   „Der Launcher installiert das Spiel bei Bedarf und startet direkt auf diesem Server.“; **Im
+   Launcher starten** for the bare `lanomat://join/<slug>`, with „Der Launcher installiert das Spiel
+   bei Bedarf und startet es. Den Server wählst du dann im Spiel; seine Adresse steht oben.“
 2. **Anders verbinden** keeps the direct ways for a PC that already has the game: the game's own
    join options (a `ut2004://` or `steam://` form), an allowlisted connect link, or the address as
    copyable mono text.
@@ -92,9 +111,10 @@ honest action per row, in this order:
    link, or **Adresse kopieren** — never a guessed `steam://connect/…`.
 
 The same recipe actions appear wherever a server row knows its game. On `/servers` and
-`/servers/all` a card offers **Im Launcher beitreten** with the hint „Der Launcher installiert das
-Spiel, falls es fehlt, und startet es auf diesem Server.“, **Spiel installieren** (or **Zum Spiel**
-in a narrow row) and **Mitspieler suchen**, which opens the page's „Zusammen spielen“ card.
+`/servers/all` a row offers the launcher action (**Im Launcher beitreten** with the hint „Der
+Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“, or **Im Launcher
+starten** with its own hint), **Spiel installieren** (or **Zum Spiel** in a narrow row) and
+**Mitspieler suchen**, which opens the page's „Zusammen spielen“ card.
 
 ### Running tournaments
 
@@ -105,15 +125,15 @@ view. A draft recipe is not listed to participants until it is published.
 
 ### Runde ankündigen
 
-One click creates an LFG post for this game and links straight to the event voice chat at `/talk`.
-It is the shortest path from "we should play" to "everyone is in the room":
+One click creates an LFG post for this game, titled „Runde <Spiel>“, with the recipe's
+`players_max` (or 5) as the open slots. A toast answers „Runde angekündigt. Schau in den
+Sprachchat.“, and the **Sprachchat** button beside it opens `/talk` — the page stays where it is, so
+the announcement never loses the install or server actions. The post expires like every LFG post
+(three hours by default) and the orga can remove it.
 
-1. The post names the game, the event and the open slots.
-2. The voice link opens the event's general room.
-3. The post expires like every LFG post; the orga can remove it.
-
-The action requires a non-cancelled event registration, like every LFG post. It does not create a
-tournament, start a server or reserve a seat.
+Any logged-in user can use it while the LFG module is on and an event is current — an LFG post needs
+no registration (unlike a tournament entry). It does not create a tournament, start a server or
+reserve a seat.
 
 ### Spiel teilen
 
@@ -133,15 +153,19 @@ publishes the game; publishing a contributed recipe sets `game_recipes.in_lineup
 here, in the launcher and next to its servers like any other game (the orga can switch the toggle
 off again). Read [Share a game](/docs/guides/share-a-game).
 
-## Same list, same words, in the launcher
+## Same list, on every client
 
-The desktop launcher opens on **Spiele** with the same published recipes, the same **LAN** badge and
-the same action words (**Installieren**, **Starten**) as this page — and the start-page chat at `/`
-renders its game and server cards from the same read models, so the three doors never disagree. The
-launcher's **Zuletzt gespielt** entry (the newest verified install, with target folder and verified
-files) is the equivalent of the first row here; a game is only "installed" because the launcher
-verified it, never because a recipe exists — and only on that terminal, since every machine pairs
-its own launcher. Read
+The desktop launcher opens on **Spiele** with the same published recipes in **Spiele vom Server**,
+the same **LAN** badge and the same action words (**Installieren**, **Starten**) as this page. The
+native voice app has a **read-only Spiele tab**: it lists the published lineup
+(`GET /api/voice-client/v1/recipes`), opens a game's detail with its install plan
+(`…/recipes/{slug}` and `…/recipes/{slug}/plan`, exact slug) and says that installing and starting
+follow with a later app version. The start-page chat at `/` renders its game and server cards from
+the same read models, so the surfaces never disagree. In the launcher, **Meine Bibliothek** lists
+this device's own installs with target folder and the number of verified files; a game is only
+"installed" because the launcher verified it on that terminal, never because a recipe exists — every
+machine pairs its own launcher. The one download page for both clients is `/app` (**App
+herunterladen**; `/launcher` and `/talk/client` redirect there). Read
 [One-click launcher](/docs/guides/launcher) for the download, the one-time pairing and the phase
 list with percent, speed and ETA, and
 [Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door-after-login--pilot)

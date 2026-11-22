@@ -48,9 +48,9 @@ MODULE_GAME_RECIPES=true
 ```
 
 - `GameRecipes` **requires** `Files` and `Mcp` (`Module::requires()`): recipes list and plan without
-  `Files`, but their LAN files can never be matched; and the `/launcher` page pairs through the MCP
-  device flow (`api/mcp/device|token`) and hands out `mcp.files.download` URLs. `lanomat:modules`
-  fails the boot when a hard requirement is off.
+  `Files`, but their LAN files can never be matched; and the launcher pairs through the MCP
+  device flow (`api/mcp/device|token`) and its install plans hand out `mcp.files.download` URLs
+  (`/app` links to it). `lanomat:modules` fails the boot when a hard requirement is off.
 - `Mcp` has no hard requirement, but the tool catalogue silently shrinks when modules are off — for
   example `files_*` tools disappear without `Files`, `recipes_*` without `GameRecipes`.
 - After changing the profile, **recreate** the containers (`docker compose --profile prod up -d`), do
@@ -85,6 +85,16 @@ RECIPES_PR_TOKEN=<fine-grained token: Contents + Pull requests, read and write>
 With the default `publish`, the pull request is opened (or updated) when the orga publishes; `contribute`
 opens it as soon as a participant shares. The automatic path is budgeted (per contributor per hour, and
 a ceiling of open pull requests); the panel action and `lanomat:recipes:propose` are not.
+
+What the text must look like is visible before anything is sent: the recipe's panel section
+"Katalog (Pull Request)" shows **Textprüfung für den Katalog** (what a draft is missing and what
+would still be missing once published) and both publish confirmations warn when the catalogue would
+refuse the text. A contribution through `recipe_contribute` can be completed by the assistant that
+made it: the tool takes `skill_markdown`, and its answer carries `catalog.problems` and
+`catalog.problems_when_published`; repeat the call until `problems` is empty. A second call for the
+same slug **replaces** the draft — send the complete recipe, because a field left out is cleared
+(the tool description and the `lanomat://skills/contribute-recipe` resource say so). The orga still
+reviews and publishes.
 
 The proposal is queued, so the **queue worker must run**; without it a recipe keeps `pr_state = null`, and
 a proposal skipped for a budget is visible only as `recipes.pull_request_skipped` in the queue log.
@@ -190,11 +200,27 @@ docker compose exec -T app php artisan lanomat:recipes:sync --json
 | `--only=slug` | update only this recipe; the others still count as present, so `--prune` keeps them |
 | `--json`      | machine-readable `{source, created, updated, pruned, skipped[]}`       |
 
-The default source is `RECIPES_SOURCE`. The bundled directory (`resources/recipes` in the image) is
-the fallback. `--prune` is only safe when the source is complete — never prune a half-mounted share
-or a partial checkout. `--only` narrows what is **updated**, never what counts as present: a recipe
-that still has a directory in the source is kept even when it was not selected or its file failed
-validation, and an empty source prunes nothing.
+The default source is `config('recipes.source')` = `RECIPES_SOURCE`; without the variable it is the
+bundled directory (`resources/recipes` in the image). `--prune` is only safe when the source is
+complete — never prune a half-mounted share or a partial checkout. `--only` narrows what is
+**updated**, never what counts as present: a recipe that still has a directory in the source is kept
+even when it was not selected or its file failed validation, and an empty source prunes nothing.
+
+### What the sync does to a recipe that changed
+
+The YAML is the authority. For every recipe directory the command overwrites the row from the file:
+slug, title, aliases, version, platforms, summary, description, homepage, licence, the skill text,
+`requirements` and `steps`. It keeps what a file cannot express: the moderation status (a local
+`status` that differs from the YAML is not overwritten), the admin's file pins (`shared_file_id`,
+keyed by role and label), the row's and file rows' ids, and `in_lineup`, `contributor_user_id` and
+the `pr_*` columns, which the parser never produces. That is why a recipe edit on disk (or a new
+image with changed recipe text) reaches the panel and the install plans only through this command.
+
+A per-file validation error is a **warning**: the file lands in `skipped[]`, its slug still counts
+as present, and every other recipe is imported (exit code `0`). Only a source that cannot be
+materialised at all (missing directory, `smbclient` failure, failed clone) throws — then the command
+prints the reason, exits non-zero and imports nothing. `--prune` on an unchanged catalogue changes
+nothing; the sync is safe to repeat.
 
 ### Suggested cron entry
 
@@ -207,42 +233,40 @@ The scheduler already runs the sync at 04:15. The host cron entry is only for an
 ```
 
 Keep the output (`--json`) in a log: the Preflight and the docs have no recipe-sync probe, so the
-log plus the exit code is the only history. A failed sync exits non-zero and changes nothing
-(validation errors land in `skipped[]`, not as a partial import).
-
-The sync is idempotent: recipes are keyed by slug, files by path, and an unchanged folder updates
-nothing.
+log plus the exit code is the only history. Only a source that cannot be materialised at all exits
+non-zero and imports nothing; a file that fails validation is a warning in `skipped[]` while the
+other recipes are imported.
 
 ### Source: local mount vs `smb://`
 
-`smbclient` is **not** installed in the app image. Two ways to use the NAS share:
+`smbclient` **is** installed in the app image (`docker/Dockerfile` installs `smbclient` and `git` for
+exactly this), so `RECIPES_SOURCE=smb://<NAS_HOST>/<SHARE>/<subdir>` works without any change. The
+sync copies the share into a temporary directory with `smbclient -N` (guest) or an
+`-A` credentials file, imports it and removes the copy.
 
-1. **Preferred — mount it on the host and sync from the local path** (no tooling change, and the
-   mount handles credentials once):
+Alternative — mount the share on the host and sync from the local path (the mount handles
+credentials and caching once; useful when `smbclient` from the container cannot reach the NAS):
 
-   ```bash
-   sudo mkdir -p /mnt/<SHARE>
-   sudo mount -t cifs //<NAS_HOST>/<SHARE> /mnt/<SHARE> \
-     -o username=lanomat,uid=$(id -u),gid=$(id -g),vers=3.0,ro
-   # then, in .env (or the compose override):
-   # RECIPES_SOURCE=/mnt/<SHARE>/recipes
-   ```
+```bash
+sudo mkdir -p /mnt/<SHARE>
+sudo mount -t cifs //<NAS_HOST>/<SHARE> /mnt/<SHARE> \
+  -o username=lanomat,uid=$(id -u),gid=$(id -g),vers=3.0,ro
+# then, in .env (or the compose override):
+# RECIPES_SOURCE=/mnt/<SHARE>/recipes
+```
 
-   Mount it read-only, and mount it into the `app` container at the same path
-   (`volumes: - /mnt/<SHARE>:/mnt/<SHARE>:ro`) — the sync runs inside the container, not on the
-   host.
-
-2. **`smb://` directly** — only after adding `smbclient` to the image (Debian:
-   `apt-get install --no-install-recommends smbclient`) or running the command in a container that
-   has it. `RECIPES_SOURCE=smb://<NAS_HOST>/<SHARE>/` then works without a mount.
+Mount it read-only, and mount it into the `app` container at the same path
+(`volumes: - /mnt/<SHARE>:/mnt/<SHARE>:ro`) — the sync runs inside the container, not on the host.
 
 Guest-readable share: leave `RECIPES_SMB_USER` and `RECIPES_SMB_PASSWORD` empty; the sync calls
 `smbclient -N`. A password with `%`, spaces or `$` is fine: the arguments are passed escaped, never
 through a shell string.
 
-`RECIPES_PREFER_LAN=true` (default) makes the installer look for a file on the LANoMAT file host
-before it considers a recipe's external URL; external downloads additionally need
-`--allow-external` on the agent. Turning it off is a debugging step, not a deployment choice.
+`RECIPES_PREFER_LAN` is read into `config('recipes.prefer_lan')` and **nothing else reads it**
+(2026-11-22: `grep` finds the key only in `config/recipes.php`). The plan prefers a LAN match by
+itself: a requirement with a matched upload is offered as a LAN file, and only a requirement without
+one carries the recipe's external URL — the agent downloads those with `--allow-external`. Do not
+expect the switch to change a plan today.
 
 ### Verify a sync
 

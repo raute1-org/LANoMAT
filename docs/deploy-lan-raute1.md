@@ -81,6 +81,12 @@ Notes:
   container.
 - Leave the Mumble, TeamSpeak, Pelican and Music Assistant keys empty.
   Their modules are off in `core`.
+- Gaming (only when you switch it on, see the launcher and recipe sections below):
+  `MODULE_GAME_RECIPES=true` needs `MODULE_FILES=true` and `MODULE_MCP=true`;
+  `NFS_SERVER_HOST=<host>` registers our native NFSU2 server and has no default (empty means the
+  seeder adds none, and leaves an earlier row as it is); `MODULE_PRESENCE=true` is what makes the
+  "Hier spielen" line appear (to registered participants of a publicly visible event and to orga);
+  the optional `RECIPES_PR_*` block is in `docs/infra/recipe-pull-requests.md`.
 - Compose reads `.env` for interpolation (`APP_DOMAIN`, `ACME_EMAIL`,
   `POSTGRES_*`), and the containers read it through `env_file`. Recreate
   containers after any change (`up -d`). `restart` does not re-read it.
@@ -270,15 +276,16 @@ tells users how to click through the SmartScreen warning. The Preflight check `c
 repeat the fetch (or the build) after every deploy that changes the version.
 
 **LANoMAT Launcher download (Linux and Windows).** The launcher is listed on the unified download page `/app` (behind the
-Discord login, like the rest of the participant UI; `/launcher` redirects there, the files stay under `/launcher/download/<file>`) for the desktop launcher that installs UT2004
+Discord login, like the rest of the participant UI; `/launcher` redirects there, the files stay under `/launcher/download/<file>`) for the desktop launcher that installs a game
 from the LAN with one button (guide:
 <https://lan.raute1.org/docs/guides/launcher>). It needs `MODULE_GAME_RECIPES=true` — and
 `MODULE_FILES=true` (recipes find their ISO/patch uploads through Files) and `MODULE_MCP=true` (the
 launcher pairs and plans through the bearer API; GameRecipes declares both as hard dependencies, so
 enabling it without them fails at boot). None of the three is part of the `core` profile, so set all
-explicitly. The page reads `./clients-dist/launcher/manifest.json`,
-which is the same read-only bind mount as the native client (`./clients-dist:/app/clients-dist:ro` in
-`app` and `scheduler`) — a missing manifest means "no build published", the page still renders.
+explicitly. The page reads `./clients-dist/launcher/manifest.json` (next to the native client's
+manifest, which lists on the same page), from the same read-only bind mount as the native client
+(`./clients-dist:/app/clients-dist:ro` in `app` and `scheduler`) — a missing manifest means "no
+launcher build published", the page still renders and says so.
 
 ```bash
 scripts/ops/build-launcher.sh          # Linux x86_64; refuses a dirty tree, publishes atomically
@@ -288,7 +295,8 @@ scripts/ops/build-launcher.sh --help   # --allow-dirty, --version, --out, --rebu
 The script compiles `cargo build --locked --release` in `clients/launcher/Dockerfile.dev` (there is no
 Rust toolchain on the host) and packages; it does **not** run fmt/clippy/tests — that gate is
 `clients/launcher/ci/build.sh` (fmt, clippy, `cargo test --workspace`), which the release workflow
-runs (PR CI has no launcher job yet). It refuses a
+runs. Pull requests run the "Frontend guards" workflow, which covers the launcher's static UI contract
+(`clients/launcher/app/ui/check-ui.mjs`) but not the Rust gate. It refuses a
 working tree that is not clean: a tracked change anywhere, or an untracked file outside
 `clients-dist/`, `clients/launcher/{target,dist}/`, `.ci-cache/`, `node_modules/`, `vendor/`.
 `--allow-dirty` accepts both and marks the version `-dirty`. The toolchain image is labelled with the
@@ -327,8 +335,9 @@ session.
 launcher download as its primary action only when a build manifest exists and the recipe is
 launcher-supported; otherwise `Installieren` is the `lanomat://install/<slug>` agent deep link, and a PC
 without a registered handler installs nothing — the page says so under the actions, and the click ends
-in the launcher-link notice. Publishing `clients-dist/launcher/manifest.json` (and the files it lists)
-is what turns the button into a download and adds "Im Launcher öffnen" next to it.
+in the launcher-link notice (which offers **"App herunterladen"**, i.e. `/app`). Publishing
+`clients-dist/launcher/manifest.json` (and the files it lists)
+is what turns the button into that path to `/app` and adds "Im Launcher öffnen" next to it.
 
 **Recipe pull requests (optional, off by default).** A recipe a participant shares can be proposed to
 the repository as a pull request (`recipes/<slug>` with `recipe.yaml`, `SKILL.md` and a `_catalog.md`
@@ -342,6 +351,39 @@ validator or the public-safety check would refuse. The token never enters the re
 files never leave the LAN file host. Step by step, including the token menu, triggers, budgets, states,
 the Preflight check **Rezept-Katalog (Pull Requests)** and troubleshooting:
 [`infra/recipe-pull-requests.md`](infra/recipe-pull-requests.md).
+
+**Recipe text lives in the database; a deploy alone does not update it.** The image ships
+`resources/recipes`, but the panel, the game pages and the install plans read the `game_recipes`
+rows. `lanomat:recipes:sync` (daily at 04:15 while `GameRecipes` is on) overwrites a row from its
+YAML — title, summary, description, steps, requirements, skill text — and keeps the moderation
+status, the file pins, `in_lineup` and the `pr_*` columns. Run it by hand after a deploy that
+changes a recipe, or the change arrives at the next 04:15 run (and if `RECIPES_SOURCE` points at a
+NAS copy, that copy must carry the new `recipe.yaml` first, or the sync restores the old text):
+
+```bash
+docker compose --profile prod exec -T app php artisan lanomat:recipes:sync --json
+# one recipe only:
+docker compose --profile prod exec -T app php artisan lanomat:recipes:sync /app/resources/recipes --only=<slug> --json
+```
+
+The NFSU2 recipe (2026-11-22) needs this: its Windows and Linux steps now carry `{{server_host}}`
+instead of an address, and `config/launcher.php` has no built-in host. `NFS_SERVER_HOST` (in
+`/opt/lanomat/.env`; there is no default) plus one run of
+`php artisan db:seed --class=LauncherLineupSeeder --force` registers our native NFSU2 server; an install
+plan then fills the host from a server whose game is **exactly** `need-for-speed-underground-2`
+(the browser twin never qualifies), and without one the step leaves `net_u2.ini` alone. **On an
+upgrade**, a native NFSU2 row registered by an earlier run is left as it is while `NFS_SERVER_HOST`
+is empty — it keeps the old test address, and plans keep using it — so set the host and re-seed (or
+edit the row in the panel) before players install. The portable archive built with
+`make_package.sh --server` still carries the host inside its `net_u2.ini`, and the launcher (which
+runs no step commands) installs exactly that — see `docs/ops/nfsu2-package.md` and
+`docs/ops/ADMIN-HANDOFF.md` section 9. Because the container reads `.env` only when it is created,
+recreate `app` after changing the value:
+
+```bash
+docker compose --profile prod up -d app queue scheduler reverb-prod
+docker compose --profile prod exec -T app php artisan db:seed --class=LauncherLineupSeeder --force
+```
 
 Every terminal pairs its own device: the catalogue is shared, the installs are local, and the same
 account can run the launcher on any number of machines without copying a config file. Arcade

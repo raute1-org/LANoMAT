@@ -28,7 +28,8 @@ export VENICE_API_KEY="…"
 lanomat-agent model setup
 ```
 
-`model setup` writes `~/.pi/agent/models.json` with a `venice` provider and a default model:
+`model setup` writes `~/.pi/agent/models.json` with a `venice` provider and `~/.pi/agent/settings.json`
+with the default selection:
 
 ```json
 {
@@ -44,14 +45,21 @@ lanomat-agent model setup
         }
       ]
     }
-  },
-  "defaultModel": "venice/e2ee-deepseek-v4-1-flash-1017-abliterated"
+  }
+}
+```
+
+and, separately, in `settings.json`:
+
+```json
+{
+  "defaultProvider": "venice",
+  "defaultModel": "e2ee-deepseek-v4-1-flash-1017-abliterated"
 }
 ```
 
 The provider reads the key from the environment; `$VENICE_API_KEY` is a reference, not the secret.
-The model list is fetched live on `model setup`; the JSON above only records the
-selection.
+The model list is fetched live on `model setup`; the JSON above only records the selection.
 
 | Dark | Light |
 |---|---|

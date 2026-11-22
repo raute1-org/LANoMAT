@@ -34,8 +34,8 @@ port and estimated footprint before the match starts.
 
 | Dark | Light |
 |---|---|
-| ![Event game server card with address, port and ready state](/screens/event-servers-dark.png) | ![Event game server card in light mode](/screens/event-servers-light.png) |
-| `GAME SERVER · DARK` — address, port, footprint, connect | `GAME SERVER · LIGHT` — same ready card |
+| ![Server overview in dark theme with the ready UT2004 row expanded: map, player count, the in-game player list, the LANoMAT accounts on it, the launcher actions and the estimated footprint](/screens/servers-dark.png) | ![Server overview in light theme with the same expanded ready row](/screens/servers-light.png) |
+| `SERVER · DARK` — ready row: address, players, footprint, join | `SERVER · LIGHT` — same row |
 
 ## Modules in this group
 

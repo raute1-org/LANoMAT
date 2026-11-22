@@ -35,7 +35,7 @@ The guide assumes a **participant PC**, not the game-server host. A dedicated UT
 | Paired device | `lanomat-agent login` + approval under `/mcp/connect` |
 | LAN file host | Reachable from the venue network; the recipe's bytes come from there |
 | UT2004 DVD 1 image or existing install | `ut2004*.iso`, `ut2004*dvd*.iso`, `UT2004*.iso`, or a GOG/Steam folder |
-| OldUnreal patch 3374 | `OldUnreal-UT2004Patch3374-Windows-*.zip` or `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2` |
+| OldUnreal patch 3374 | `OldUnreal-UT2004Patch3374-Windows-*.zip`, `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2` or `OldUnreal-UT2004Patch3374-macOS*.dmg` |
 | Disk | About **5 GB** for the game, plus the staging copy in `<target>/.lanomat-downloads/` |
 | OS | Windows 10/11, or Linux through Wine/Proton |
 | VR (optional) | Windows 10/11, SteamVR, a headset with motion controllers, `UT2004VR-*.zip` |
@@ -45,11 +45,15 @@ The recipe's `requires` block is the authority, not this table:
 
 | Role | Label | Required | Match |
 |---|---|---|---|
-| `iso` | UT2004 DVD 1 (or GOG/Steam install) | **yes** | `ut2004*.iso`, `ut2004*dvd*.iso`, `UT2004*.iso` |
-| `patch` | OldUnreal UT2004 patch 3374 | **yes** | `OldUnreal-UT2004Patch3374-*.zip`, `OldUnreal-UT2004Patch3374-*.tar.bz2` |
+| `iso` | UT2004 DVD 1 (or an existing GOG/Steam install) | **yes** | `ut2004*.iso`, `UT2004*.iso`, `*ut2004*dvd*.iso`, `*UT2004*DVD*.iso`, `*ut2004*base*.zip`, `ut2004-portable*.zip` |
+| `base` | UT2004 portable 3374, one entry per OS | no | `ut2004-portable-3374.zip`, `ut2004-portable-3374-linux*`, `ut2004-portable-3374-macos*` |
+| `patch` | OldUnreal UT2004 patch 3374 | **yes** | `OldUnreal-UT2004Patch3374-Windows-*.zip`, `OldUnreal-UT2004Patch3374-Linux-*.tar.bz2`, `OldUnreal-UT2004Patch3374-macOS*.dmg` |
 | `mod` | UT2004VR (optional SteamVR mod) | no | `UT2004VR-*.zip` |
 | `tool` | vrm2ut2004 (avatar bridge) | no | no LAN match; built on the LAN server |
-| `avatar` | VRM avatars | no, multi-select | `*.vrm` plus per-name examples |
+| `avatar` | VRM avatars | no, multi-select | `*.vrm`, `*.VRM` |
+
+The `iso` entry also carries an internet fallback URL; only `--allow-external` uses it. A matched
+portable `base` wins over the ISO and skips the patch step.
 
 <div class="callout-live">
   <strong>No game files ship with LANoMAT.</strong> The disc, the patch and every avatar are
@@ -72,9 +76,15 @@ The command prints a short code and opens `/mcp/connect` in the browser. On that
 3. Press **„Verbinden“**. The terminal continues with `Signed in as …`.
 
 ```text
-Device code: K7QF-2M9R
-Open:        https://lan.example/mcp/connect
-Waiting for approval… done. Token stored for lan.example.
+Sign in to https://lan.example
+Open https://lan.example/mcp/connect in your browser
+and enter the code: K7QF-2M9R
+
+Waiting for approval…
+Signed in as Rene. Config written to /home/rene/.config/lanomat/agent.json
+Next: lanomat-agent mcp install
+      lanomat-agent skills sync
+      lanomat-agent model setup
 ```
 
 The token is valid for **90 days** and slides on use. It is stored in
@@ -96,9 +106,9 @@ the link to `/games`. The dashboard is the participant view; the admin panel is 
 | `MCP CONNECT · CODE · DEVICE · APPROVE` | `MCP CONNECT · LIGHT` |
 
 **Four states on this page.** *Normal:* the code resolves and the device is named. *Empty:* no device
-is paired yet — the list says „Noch kein Agent verbunden.“ *Loading:* the agent prints
-`still waiting… (n)` while it polls. *Error:* „Dieser Code ist unbekannt, abgelaufen oder schon
-benutzt.“ — start `login` again; the old code is gone.
+is paired yet — the list says „Noch kein Gerät verbunden.“ *Loading:* the agent prints
+`still waiting… (n)` while it polls. *Error:* „Dieser Code ist unbekannt, abgelaufen oder schon benutzt. Starte die Verbindung im
+Gerät neu.“ — start `login` again; the old code is gone.
 
 ## 2. Sync the catalogue and read the recipe list
 
@@ -111,9 +121,9 @@ lanomat-agent recipes
 `recipes` prints one row per **published** recipe:
 
 ```text
-SLUG                        TITLE                      PLATFORMS        VERSION  STATUS
-unreal-tournament-2004      Unreal Tournament 2004     windows, linux   3374     published
-ridge-racer-type-4          Ridge Racer Type 4         windows, linux   1.0.0    published
+SLUG                        TITLE                      PLATFORMS                VERSION    STATUS
+unreal-tournament-2004      Unreal Tournament 2004     windows, linux, macos    3374-rc3   published
+ridge-racer-type-4          Ridge Racer Type 4         windows, linux           1.0.0      published
 ```
 
 If UT2004 is not in the list, the recipe is a draft or the catalogue is empty on this server:
@@ -122,12 +132,13 @@ If UT2004 is not in the list, the recipe is a draft or the catalogue is empty on
 
 That list has a source: `/admin` → **Spielrezepte**. Look at the **Status** column — `Veröffentlicht`
 is what makes a recipe visible to `recipes` — and at **Dateien**, the number of files the recipe
-resolves.
+resolves. With the **Geteilte Spiele** filter, the same table narrows to the recipes participants
+shared; the **Datei** and **Pull Request** columns then show their review and catalogue state.
 
 | Dark | Light |
 |---|---|
-| ![Admin recipe list with Unreal Tournament 2004 published at version 3374 and ten files, dark](/docs/screens/admin-recipes-dark.png) | ![Admin recipe list with Unreal Tournament 2004 published at version 3374 and ten files, light](/docs/screens/admin-recipes-light.png) |
-| `RECIPES · STATUS · VERSION · FILES` | `RECIPES · LIGHT` |
+| ![Admin Spielrezepte filtered to shared games: a draft whose file waits, a published game with an open pull request and a published game whose catalogue entry was refused, dark](/docs/screens/admin-recipes-dark.png) | ![The same filtered Spielrezepte list in light](/docs/screens/admin-recipes-light.png) |
+| `SPIELREZEPTE · GETEILTE SPIELE · STATUS · DATEI · PULL REQUEST` | `SPIELREZEPTE · LIGHT` |
 
 `skills sync` writes `~/.agents/skills/lanomat-unreal-tournament-2004/` with `SKILL.md`,
 `recipe.json` and a `.lanomat-source` marker. The skill is the agent's instructions for this recipe —
@@ -145,8 +156,8 @@ of lines you must read:
 
 ```text
 LANoMAT install plan: Unreal Tournament 2004 (unreal-tournament-2004)
-Version: 3374   OS: windows
-Install dir: C:\Games\UT2004
+Version: 3374-rc3   OS: windows
+Install dir: C:\Games\Unreal Tournament 2004
 
 Files:
   [LAN] ut2004.iso · 4.2 GB
@@ -198,6 +209,7 @@ following flags exist on `install` (and on `open` for a deep link):
 | `-y, --yes` | No prompts: run optional steps, select no avatars |
 | `--allow-external` | Permit internet fallbacks; without it they are skipped and listed |
 | `--dry-run` | Print the plan and commands; download and execute nothing |
+| `--target <dir>` | Install folder substituted for `{{target}}`; refused before any download when its characters would break the quoting of the recipe's commands |
 | `--jobs <n>` | Parallel downloads (default 4) |
 | `--chat` | Open pi after a successful install (`--model` for that session) |
 
@@ -210,17 +222,16 @@ list yet.
 | ![Event files page listing the UT2004 DVD ISO, the OldUnreal patch archive and five VRM avatars with sizes, dark](/docs/screens/files-dark.png) | ![Event files page listing the UT2004 DVD ISO, the OldUnreal patch archive and five VRM avatars with sizes, light](/docs/screens/files-light.png) |
 | `FILES · ISO · PATCH · AVATARS` | `FILES · LIGHT` |
 
-The recipe's first step mounts the image and starts `Setup.exe`:
+The recipe's Windows base step mounts the image and copies every disc folder except `System/`:
 
 ```powershell
-Mount-DiskImage -ImagePath "{{downloads}}/ut2004.iso"
-Start-Process "D:\Setup.exe"
+$iso = (Get-ChildItem "{{downloads}}/ut2004*.iso" | Where-Object { $_.Name -notmatch "(dvd|disc|cd)[ _-]?2" } | Select-Object -First 1).FullName
+$drive = (Mount-DiskImage -ImagePath $iso -PassThru | Get-Volume).DriveLetter
+Get-ChildItem "$($drive):\" -Directory | Where-Object { $_.Name -ne 'System' } | ForEach-Object { Copy-Item $_.FullName -Destination "{{target}}" -Recurse -Force }
 ```
 
-Install to a **short path without spaces**, for example `C:\Games\UT2004`. The example command assumes
-the mounted drive is `D:`; use the letter Windows assigned. Disc 1 is the complete game — Disc 2 only
-adds maps and bonus content. Keep the image mounted until the patch is applied: the retail install
-still asks for the disc.
+`Setup.exe` from the disc also works, but it installs whatever version the disc carries and then
+needs the 3369 update and the ECE bonus pack before the manual patch; the asset copy avoids that.
 
 **Linux:** run the same `Setup.exe` through Wine/Proton and point it at `~/Games/UT2004`, or copy a
 working GOG/Steam install into the target folder. The recipe verifies
@@ -232,8 +243,8 @@ patch and the verification still apply.
 ## 5. Apply OldUnreal patch 3374 (required)
 
 The patch is **not optional** on modern systems. It is the 64-bit build, removes the disc check and
-is the version UT2004VR expects. The recipe pins `version: "3374"`; the current release tag is
-`3374-rc3` (2026-11-03) and the asset hash suffix changes per release.
+is the version UT2004VR expects. The recipe's `version` is the patch release, `3374-rc3`
+(2026-11-03); the asset hash suffix in a file name changes per release.
 
 Windows: extract the zip and copy its tree over the target.
 
@@ -289,27 +300,30 @@ Expand-Archive -Path (Get-ChildItem "{{downloads}}/UT2004VR-*.zip" | Select-Obje
 - If it stutters, lower `RenderScale` in `System\UT2004VR_proxy.ini` (for example `0.7`).
 - Antivirus may flag `d3d9.dll`; it is the SteamVR bridge from the mod repository, not a virus.
 
-The recipe's metadata also names a VR launch target: `C:\Games\Unreal Tournament 2004\System\Play-VR.bat`.
-`lanomat-agent launch ut2004` uses the recipe's launch path; start VR through the shortcut when you
-want the headset.
+The recipe's `launch_targets` also name a VR start: the Windows target `vr-windows` runs
+`{{target}}/System/Play-VR.bat` (with „VR in a SteamVR headset (Windows)“ as its label) next to the
+default flat targets. `lanomat-agent launch ut2004` uses the recipe's first target for the OS; start
+VR through the shortcut when you want the headset.
 
 ## 7. Optional: avatars (multi-select)
 
 Avatars are `role: avatar` requirements, matched as `.vrm` files on the LAN file host. They are
-**multi-select**: pick any number, or none. The interactive prompt lists every LAN match with size:
+**multi-select**: pick any number, or none. One requirement is one selectable entry (the matcher
+picks the largest matching file), so the prompt lists as many entries as the recipe declares; the
+UT2004 recipe declares one broad one:
 
 ```text
-? Which avatars should I install? (space selects, enter confirms, none is valid)
-  [x] VRM avatar · Ayla (agile scout) — 18 MB
-  [x] VRM avatar · Brutus (heavy assault) — 21 MB
-  [ ] VRM avatar · Kestrel (shock rifle) — 17 MB
-  [ ] VRM avatar · Mako (arena duelist) — 19 MB
-  [ ] VRM avatar · Sable (night ops) — 20 MB
+LANoMAT avatars  (space toggle · a all · enter confirm · q cancel)
+> [x] VRM avatars (every .vrm file on the LAN file host) (unknown, 18.0 MB)
+1 selected
 ```
+
+A recipe with one entry per avatar lists one line each; `--avatar` takes the entry's id, label or
+matched file name.
 
 | Non-interactive flag | Effect |
 |---|---|
-| `--avatar ayla --avatar brutus` | Exactly these ids; unknown ids are warned and skipped |
+| `--avatar 1 --avatar 3` | Exactly these entries (id, label or matched file name); unknown ids are warned and skipped |
 | `--avatar all` | Every avatar with a LAN copy |
 | `-y` | No avatars |
 
@@ -332,16 +346,18 @@ section lists every known UT2004 server with map, player count and the join stri
 string is a plain `address:port`, shown as a copyable mono value — not a dead button.
 
 A registered server shows a `BEREIT` badge and lists its address and port separately; **Kopieren**
-copies `lan.example:7777`, **Verbinden** hands it to the registered `unreal://` scheme.
+copies `lan.example:7777`. The server row's direct join options are the templates LANoMAT builds for
+this game: `steam://run/13230//lan.example:7777` (Steam starts UT2004 with the address) and
+`ut2004://lan.example:7777` (the scheme the retail installer registers).
 
 | Dark | Light |
 |---|---|
-| ![Spielserver page with the UT2004 DM-Antalus server at lan.example port 7777 marked ready, dark](/docs/screens/event-servers-dark.png) | ![Spielserver page with the UT2004 DM-Antalus server at lan.example port 7777 marked ready, light](/docs/screens/event-servers-light.png) |
-| `SERVERS · UT2004 · ADDRESS · 7777 · READY` | `SERVERS · LIGHT` |
+| ![Serverbrowser with the UT2004 row expanded: BEREIT, the Hier-spielen line, Im Launcher beitreten, Spiel installieren and Mitspieler suchen, Steam/Nativ and the address to copy, dark](/docs/screens/servers-dark.png) | ![The same serverbrowser row in light](/docs/screens/servers-light.png) |
+| `SERVERS · UT2004 · BEREIT · IM LAUNCHER BEITRETEN · ADRESSE KOPIEREN` | `SERVERS · LIGHT` |
 
 | Path | How |
 |---|---|
-| Browser / launcher | `unreal://lan.example:7777` (UT2004 registers the scheme when installed) |
+| Browser / launcher | `steam://run/13230//lan.example:7777` or `ut2004://lan.example:7777` |
 | In-game console | `~` opens the console, then `open lan.example:7777` |
 | Game page | Copy the plain address from the server row |
 
@@ -377,8 +393,8 @@ running on this recipe.
 
 | Dark | Light |
 |---|---|
-| ![UT2004 game page, dark](/docs/screens/game-ut2004-dark.png) | ![UT2004 game page, light](/docs/screens/game-ut2004-light.png) |
-| `GAME · UT2004 · INSTALL · SERVERS · TOURNAMENTS` | `GAME · LIGHT` |
+| ![UT2004 game page with Installieren, Im Launcher öffnen and Starten, the agent commands, the server row with Im Launcher beitreten and the installation step list, dark](/docs/screens/game-ut2004-dark.png) | ![The same UT2004 game page in light](/docs/screens/game-ut2004-light.png) |
+| `GAME · UT2004 · INSTALLIEREN · SERVER · INSTALLATION` | `GAME · LIGHT` |
 
 ## The four states of an install
 
@@ -420,7 +436,7 @@ removes the VR step.
 | Avatar prompt lists nothing | No approved `.vrm` on the LAN | Orga uploads avatars; zero is valid, continue |
 | `Unknown or unavailable avatar: x` | Id not in the catalogue or not on the LAN | Use an id from the prompt, or `--avatar all` |
 | Server list empty | No `ServerLink` for the game on this event | Orga starts/registers a server; local bot match still works |
-| `unreal://` opens nothing | Scheme not registered on this Windows install | Use the in-game console: `open host:port` |
+| `ut2004://` opens nothing | Scheme not registered on this Windows install | Use the Steam form (`steam://run/13230//host:port`) or the in-game console: `open host:port` |
 | Re-run downloads everything again | Target or downloads folder changed | Keep the target stable; re-runs verify and skip present files |
 
 ## Checklist
@@ -434,7 +450,7 @@ removes the VR step.
 - [ ] Smoke test: DM-Rankin with 4 bots — video, audio, mouse.
 - [ ] Optional: UT2004VR installed, `d3d9.dll` backed up, SteamVR test passed.
 - [ ] Optional: avatars selected (or deliberately none); packages on the client.
-- [ ] LAN server joined from `/games/ut2004` with `unreal://` or the plain address.
+- [ ] LAN server joined from `/games/ut2004` with `steam://run/13230//…`, `ut2004://…` or the plain address.
 - [ ] Token still valid on the day (90 days, sliding); rent a new one only if revoked.
 
 ## Related

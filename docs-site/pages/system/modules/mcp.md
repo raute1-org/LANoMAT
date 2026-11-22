@@ -5,7 +5,9 @@ sidebar_icon: bot
 ---
 
 `Mcp` is the module behind `/mcp`. It exposes LANoMAT to agents over the Model Context Protocol:
-streamable HTTP, bearer tokens, device-code pairing, 29 tools, the `install-game` and `import-menu` prompts, each recipe's `SKILL.md` and the menu-import how-to as resources.
+streamable HTTP, bearer tokens, device-code pairing, 29 tools, the `install-game` and `import-menu`
+prompts, and three resources — each recipe's `SKILL.md`, the menu-import how-to and the
+contribution how-to (`lanomat://skills/import-menu`, `lanomat://skills/contribute-recipe`).
 
 <div class="live">LIVE 17:42 · MCP session · 2 tools in flight</div>
 
@@ -38,7 +40,7 @@ streamable HTTP, bearer tokens, device-code pairing, 29 tools, the `install-game
 - The device code expires; the token exchange answers `authorization_pending` until approved.
 - A token is scoped to the user who approved it. Revoking it invalidates the session.
 - The server never exposes another user's private data; tools are read-mostly and policy-checked.
-- Each recipe's `SKILL.md` is served as the resource `lanomat://recipes/{slug}/skill`; the YAML facts come through `recipe_get`.
+- Each recipe's `SKILL.md` is served as the resource `lanomat://recipes/{slug}/skill`; the YAML facts come through `recipe_get`. `lanomat://skills/contribute-recipe` is the how-to for a catalogue-ready contribution and `lanomat://skills/import-menu` the one for a menu import.
 - The MCP server is optional: off in `core` unless `MODULE_MCP=true`.
 
 ## Docs for agents

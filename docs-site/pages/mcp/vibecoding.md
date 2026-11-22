@@ -127,15 +127,18 @@ Validate the shape and submit it as a draft.
 base is a ready-to-run archive that only needs unpacking, and pass `launch_targets` so the launcher
 can start it; `play_url` marks a browser game that needs no install. A `requires[]` entry with
 `shared_file_id` pins a LAN file you may download (your own upload or an approved file of a public
-event). The answer carries the draft's `status`, `launcher_supported` and its `pull_request` — null
-for anyone but the contributor. The orga reviews it, runs the JSON Schema validator and publishes.
+event). The answer carries the draft's `status`, `launcher_supported`, its `pull_request` — null for
+anyone but the contributor — and a `catalog` object that names what the catalogue would still refuse.
+The orga reviews it, runs the JSON Schema validator and publishes.
 
 One participant may hold `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review at a time (20 by
 default; the orga is exempt). If the orga enabled recipe pull requests, the draft's text is proposed
 on the publish by default (`RECIPES_PR_TRIGGER=publish`); for that, the `SKILL.md` must be 60–150
 lines and a draft must have 3–6 steps plus the sentence that it needs verification on the LAN —
-otherwise the proposal is **Nicht gesendet** with the exact reasons. The tool has no
-`skill_markdown`; when the rendered skill is too short, the orga completes it in the panel.
+otherwise the proposal is **Nicht gesendet** with the exact reasons. Pass a full `skill_markdown` (or
+read `lanomat://skills/contribute-recipe` for a skeleton) and fix what `catalog.problems` names until
+it is empty, instead of leaving the text to the orga. Call the tool again with the same slug **and the
+complete recipe**: a call replaces the stored draft, so a field you leave out is cleared.
 
 | Dark | Light |
 |---|---|

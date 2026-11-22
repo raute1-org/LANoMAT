@@ -127,8 +127,8 @@ image first, then the required patch, then optional mods and avatars.
 | UT2004VR | `UT2004VR-1.4.0.zip` | `mod`, optional |
 | Avatars | `ayla.vrm`, `brutus.vrm`, … | `avatar`, optional, multi-select |
 | Ridge Racer disc | `r4.chd` (or CUE/BIN) | `iso`, required |
-| PlayStation BIOS | `scph5501.bin` | `base`, recommended |
-| CS 1.6 | `cstrike.zip`, `half-life.iso` | `base` + `mod` |
+| PlayStation BIOS | `scph5501.bin` | `base`, optional (OpenBIOS ships with the cabinet) |
+| Counter-Strike 1.6 | `Counter-Strike 1.6.zip`, `cstrike.zip` | `iso` + `content`, both optional |
 
 Names are the contract. Keep the upstream name and let the recipe's glob do the work; rename only
 when the recipe expects a specific name (`r4.chd`), and rename **before** approval.
@@ -180,8 +180,13 @@ Before publishing a draft:
 
 | Dark | Light |
 |---|---|
-| ![Admin recipe list with draft and published rows, dark](/docs/screens/admin-recipes-dark.png) | ![Admin recipe list with draft and published rows, light](/docs/screens/admin-recipes-light.png) |
-| `ADMIN · SPIELREZEPTE · ENTWURF · VERÖFFENTLICHT` | `SPIELREZEPTE · LIGHT` |
+| ![Admin Spielrezepte filtered to shared games: a draft whose file waits, a published game with an open pull request and a published game whose catalogue entry was refused, dark](/docs/screens/admin-recipes-dark.png) | ![The same filtered list in light](/docs/screens/admin-recipes-light.png) |
+| `ADMIN · SPIELREZEPTE · GETEILTE SPIELE · DATEI · PULL REQUEST` | `SPIELREZEPTE · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![A shared recipe's requirement with its pinned LAN-Datei-ID and Pflicht switch, and the read-only Start und Launcher section with the launcher decision, launch command and Launcher-Freigabe, dark](/docs/screens/admin-recipe-contributed-dark.png) | ![The same requirement and Start und Launcher section in light](/docs/screens/admin-recipe-contributed-light.png) |
+| `ADMIN · REZEPT · LAN-DATEI-ID · START UND LAUNCHER` | `ADMIN · LIGHT` |
 
 Pinning a file in the requirement (**LAN-Datei-ID**) is the escape hatch when a glob is too broad. It
 is per requirement and wins over matching; a removed file leaves the requirement unmatched.
@@ -203,11 +208,20 @@ orga is exempt), so a full queue is not a bug. Your part:
    binary). The recipe's step commands are prose and manual fallback; the launcher never runs them.
 4. Test the base install on one machine per claimed platform, as in the section below.
 5. **Dateien freigeben und veröffentlichen** approves the pinned archive and publishes the recipe in
-   one action, all or nothing. The button appears only while a pinned file waits (or a rejected one
-   blocks it); if the file was approved earlier, **Veröffentlichen** is enough.
+   one action, all or nothing. The confirmation lists the files it releases and the commands the
+   players will get. The button appears only while a pinned file waits (or a rejected one blocks it);
+   if the file was approved earlier, **Veröffentlichen** is enough.
+
+   | Dark | Light |
+   |---|---|
+   | ![Publish confirmation: the files it releases, the warning that the pull request is not sent, and the launch commands under Das wird veröffentlicht, dark](/docs/screens/admin-recipe-publish-confirm-dark.png) | ![The same publish confirmation in light](/docs/screens/admin-recipe-publish-confirm-light.png) |
+   | `ADMIN · DATEIEN FREIGEBEN UND VERÖFFENTLICHEN · DAS WIRD VERÖFFENTLICHT` | `ADMIN · LIGHT` |
+
 6. Publishing a contributed recipe sets **In der Spieleliste zeigen** (`game_recipes.in_lineup`), so
    it reaches `/games`, the launcher and the server browser without a config change. Switch the
-   toggle off to publish a game without a player-facing link. The lineup is the configured
+   toggle off to publish a game without a player-facing link. The publish also rewrites the generated
+   text: the description, the steps and the SKILL.md no longer call the game a draft that still needs
+   verification. The lineup is the configured
    `LAUNCHER_LINEUP` **plus** every recipe with that flag (`LauncherLineup::slugs()`); an empty
    `LAUNCHER_LINEUP` means no curation, and the whole published catalogue is shown anyway.
 7. The catalogue entry follows as a pull request against `resources/recipes/`. When recipe pull
@@ -217,7 +231,14 @@ orga is exempt), so a full queue is not a bug. Your part:
    automatic budgets). The **Katalog (Pull Request)** section shows the state: **Pull Request offen**,
    **Im Katalog**, **Pull Request geschlossen**, **Nicht gesendet** (the readiness or public-safety
    check refused the text, with the reason) or **Fehlgeschlagen**. Game files stay on the file host.
-   A recipe that already had an open pull request keeps it even when a new attempt is refused.
+   A recipe that already had an open pull request keeps it even when a new attempt is refused. The
+   **Textprüfung für den Katalog** above the state lists, in English, what the catalogue would refuse
+   as a draft and after publishing — fix the text until both lists are empty.
+
+   | Dark | Light |
+   |---|---|
+   | ![Katalog (Pull Request) section: the readiness check as a draft and once published, with the catalogue's English reasons, dark](/docs/screens/admin-recipe-catalog-dark.png) | ![The same readiness check in light](/docs/screens/admin-recipe-catalog-light.png) |
+   | `ADMIN · KATALOG (PULL REQUEST) · TEXTPRÜFUNG FÜR DEN KATALOG` | `ADMIN · LIGHT` |
 
 The participant-facing half of this is [Share a game](/docs/guides/share-a-game).
 

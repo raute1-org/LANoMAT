@@ -1,6 +1,7 @@
 # UT2004-One-Click-Pilot — Betriebs-Runbook
 
-Stand: **2026-11-21**. Gilt für den Pilot **Unreal Tournament 2004, flat**, auf
+Stand: **2026-11-22** (Live-Stand vom 2026-11-21; am 22.11. gegen den Code
+geprüft und um die Agent-Pfadregel ergänzt). Gilt für den Pilot **Unreal Tournament 2004, flat**, auf
 Windows, Linux und macOS. Ein Klick heißt: Launcher paired einmal, danach
 installiert und startet er das Spiel ohne Terminal, ohne Steam, ohne
 DVD-Mount und ohne Wine.
@@ -15,7 +16,7 @@ jedem Live-Eingriff ein Dump davor und ein Plan-Check danach.
 | Ziel | Umsetzung |
 | --- | --- |
 | Ein Spiel, ein Modus | `unreal-tournament-2004`, flat; VR ist nicht Teil des Piloten |
-| Ein Klick | Website `/games` → **Installieren**; ohne Launcher wird **Launcher herunterladen** daraus |
+| Ein Klick | Website `/games` → **Installieren**; ohne veröffentlichten Launcher-Build führt es nach `/app` („App herunterladen“) |
 | Drei Betriebssysteme | Windows x64, Linux x64, macOS (Intel + Apple Silicon) |
 | Bevorzugte Quelle | portables 3374-Archiv für das Ziel-OS, bereits gepatcht |
 | Fallback | UT2004-DVD-ISO bzw. Full-Game-ZIP + OldUnreal-Patch 3374 für das OS |
@@ -354,7 +355,7 @@ restaurieren.
 
 ### 5.4 Launcher installieren
 
-Der reguläre Weg ist die Website: `https://lan.raute1.org/launcher`, ein
+Der reguläre Weg ist die Website: `https://lan.raute1.org/app`, ein
 Build für das OS, SHA-256 daneben. Linux:
 
 ```bash
@@ -602,10 +603,11 @@ xattr -dr com.apple.quarantine "$HOME/Applications/UT2004.app"
 einem macOS-Host mit Xcode Command Line Tools und Rust:
 
 ```bash
-cd clients/launcher
+# im Repo-Wurzelverzeichnis; das Skript erkennt macOS selbst und baut .app + .dmg
 scripts/ops/build-launcher.sh
+LANOMAT_LAUNCHER_MACOS_TARGET=aarch64-apple-darwin scripts/ops/build-launcher.sh
 # oder direkt:
-cd app
+cd clients/launcher/app
 cargo tauri build --target universal-apple-darwin --bundles app,dmg
 ```
 
@@ -634,7 +636,7 @@ spctl -a -vvv -t install "LANoMAT Launcher.app"
 ```
 
 Bis die Secrets existieren, bleibt der Build `signed: false`; die
-`/launcher`-Seite und das Manifest sagen das ehrlich. Ohne macOS-Build im
+`/app`-Seite und das Manifest sagen das ehrlich. Ohne macOS-Build im
 Manifest gibt es keinen macOS-Launcher-Download; die macOS-Installation
 läuft dann über Rezept/Agent.
 
@@ -679,11 +681,12 @@ unset TOKEN LANOMAT_ADMIN_COOKIES
 | 7.2 | `files.lan.raute1.org:8443` (<LAN_FILEHOST_IP>) aus `<OFFICE_SUBNET>` nicht erreichbar | Client im WG-Netz bekommt keinen Download | vom 10.23-Netz laden/servieren oder Route/Firewall fixen; kein zweiter Upload | Infra | `curl -sSI https://files.lan.raute1.org:8443/` antwortet aus beiden Netzen |
 | 7.3 | Live m12-768 filtert `os` nicht: eine Patch-Zeile ohne `os`, Linux-URL | Windows/macOS bekommen den Linux-Patch; falsches `System/` | HEAD deployen (drei OS-Patches, drei OS-Basen) und YAML synchronisieren; bis dahin kein Windows-/macOS-Go | Backend | `plan --os windows/linux/macos` zeigt je den passenden Patch |
 | 7.4 | macOS-Launcher fehlt im Manifest; `.app`/`.dmg` braucht macOS + Sign/Notarization | Kein macOS-One-Click-Download | macOS-Installation über Rezept/Agent; Release auf `macos-15` (arm64) / `macos-15-intel` mit Apple-Secrets | Release | `.dmg` im Manifest, `spctl` akzeptiert |
-| 7.5 | `metadata.launch_targets` geht nicht über `recipe_contribute` (`RecipeContributeTool` hat kein `metadata`-Feld; `ContributeRecipe` setzt Default `{contributed_via: mcp}`) — **erledigt (2026-11-21)** | Eine Contribution ersetzte `metadata` und verlor Launch-Targets | `RecipeContributeTool` und `POST /api/v1/recipes` reichen jetzt `launch_targets`, `play_url` und `portable` durch; `ContributeRecipe` übernimmt top-level `launch_targets`/`play_url`, lässt vorhandene `metadata` stehen, wenn der Payload keine schickt, und nur die Orga setzt `launcher_supported` | Backend | `launch_targets` nach Contribution unverändert |
+| 7.5 | `metadata.launch_targets` geht nicht über `recipe_contribute` (`RecipeContributeTool` hat kein `metadata`-Feld; `ContributeRecipe` setzt Default `{contributed_via: mcp}`) — **erledigt (2026-11-21)** | Eine Contribution ersetzte `metadata` und verlor Launch-Targets | `RecipeContributeTool` und `POST /api/v1/recipes` reichen jetzt `launch_targets`, `play_url` und `portable` durch; `ContributeRecipe` übernimmt top-level `launch_targets`/`play_url`, lässt vorhandene `metadata` stehen, wenn der Payload keine schickt, und nur die Orga setzt `launcher_supported`. **Seit 2026-11-22** nimmt der Tool zusätzlich `skill_markdown` (60–150 Zeilen, Front Matter) und beide Antworten tragen `catalog.problems` / `catalog.problems_when_published`; ein Agent kann den Text also ohne Panel katalogreif machen (ein zweiter Aufruf ersetzt den Entwurf — vollständig senden), veröffentlichen tut weiterhin die Orga | Backend | `launch_targets` nach Contribution unverändert |
 | 7.6 | 04:15-Sync überschreibt Panel-Änderungen | Manueller Live-Fix ist nach einem Tag weg | YAML ist Quelle; `--only`-Sync nach Deploy (aktualisiert nur dieses Rezept, die übrigen zählen weiter als vorhanden); `--prune` löscht nur Rezepte ohne Verzeichnis in der Quelle, ein leeres/unlesbares Verzeichnis löscht nichts (seit 2026-11-21); Dump vor Panel-Edit | Backend | Sync idempotent, Panel-Diff leer |
 | 7.7 | `ut2k4+keygen.zip` ist nosTEAM-Installer | Kein portabler Baum, Setup.exe/ISO statt Spiel | nicht als `base` matchen; `extract-archive.sh tree` zur Inspektion | Ops | Base kommt aus `ut2004-portable-3374-*` |
 | 7.8 | Keine `base`-Zeilen live, keine portablen Archive hochgeladen | Jeder Plan fällt auf ISO + Patch zurück | portables Archiv bauen/hochladen; danach Base-Match prüfen | Orga | `base` erscheint als `matched` im Plan |
 | 7.9 | Live-ISO-URL kann auf `127.0.0.1:8099` zeigen (Smoke-Rest) | Client kann die Base nicht laden | `live-recipe.mjs show`, dann `set --iso-url <richtig>` oder `restore` | Ops | `show` zeigt archive.org oder lokalen, erreichbaren Server |
+| 7.10 | Ein Installationsordner, den die Rezept-Befehle nicht zitieren können, baute einen kaputten Befehl — **erledigt (2026-11-22)** | Absturz oder falscher Ordner beim Install auf einem PC, dessen Pfad ein `'`, `"`, `$`, Backtick, Steuerzeichen, `; & \| < >` oder einen abschließenden Backslash enthält (Windows zusätzlich die typografischen Anführungszeichen und `% ! ^`); ein führendes `~/` landete wörtlich im zitierten Befehl | Der Node-Agent prüft die Pfad-Platzhalter vor Download, Ordneranlage und Befehl und verweigert den Ordner mit Zeichen und Pfad; `install` hat dafür `--target`, und ein führendes `~/` löst er für den Plan-Ordner und `--target` auf. Der UT2004-Pilot nutzt `C:\Games\…` und ist nicht betroffen; der Launcher (Rust) hat diese Prüfung noch nicht | Agent | `install --target` mit `…/O'Brien/Games` verweigert, `…/Games/UT2004` installiert, `'~/Games/UT2004'` landet im Home |
 
 ### HEAD deployen (für 7.3)
 

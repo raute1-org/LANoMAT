@@ -179,9 +179,10 @@ to `library` on error/cancel and to `ready` on success.
   takes the primary role; every other launch error stays a plain error with the repair still
   available. Empty when no record.
 - **Footer**: the running build (`get_environment`, mono, decorative for support reports) and,
-  when the server publishes a newer launcher build, one link to the launcher page
-  (`check_launcher_update` + `open_url`). Both are best-effort: a failing command leaves the
-  footer quiet, never a screen error.
+  when the server publishes a newer launcher build, one link to the server's download page
+  (`check_launcher_update` + `open_url`; the shell reads the `/launcher` URL, which the server
+  redirects to `/app`). Both are best-effort: a failing command leaves the footer quiet, never a
+  screen error.
 - **Header**: `Dieses Gerät: <host>` from `get_environment.host` (mono, tooltip explains the
   rules below). Visible before pairing too, so a room full of launchers can be told apart.
 
@@ -208,6 +209,12 @@ a valid base the entry (and its hint) stays hidden. The launcher never packs, ha
 the share page does that, the orga checks the archive, and the published recipe then arrives
 through the normal `list_games` catalogue. The empty catalogue and the empty local library invite
 the same action instead of only stating emptiness.
+
+Packing or uploading a game **inside** the launcher is decided but not built: it would add an
+upload engine to `launcher-core`, which the all-in-one client copies and then retires
+(`docs/superpowers/decisions/2026-11-22-all-in-one-client-adr.md`). The entry stays a browser
+handoff, and the voice client's resumable uploader is where the merged app starts from. Nothing in
+this UI claims an upload it cannot do.
 
 `Starten` on the library card opens Ready and launches immediately, so the button's label is
 true. Ready's own `Starten` repeats the launch. `Reparieren` and `Neu installieren` never touch

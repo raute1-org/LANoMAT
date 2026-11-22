@@ -39,18 +39,19 @@ in; the chat on the start page is the shortest way in.
 
 1. **Start page chat** — after the Discord login, `/` opens with the chat. Ask what is playable on
    this LAN; it answers with inline game and server cards, not a link list.
-2. **Games** — the card's quiet "Seite öffnen" (or the **Spiele verwalten** tile) leads to
-   `/games`, the published catalogue the lineup allows.
-3. **Zuletzt gespielt** — the first row on `/games` is what this device installed or launched
-   before; it is absent until there is something to show, never an empty frame.
+2. **Games** — the sidebar entry **Spiele** (or a chat card's quiet **Ansehen**) leads to `/games`,
+   the published catalogue the lineup allows.
+3. **Zuletzt gespielt** — the first row on `/games` is what ran on the LAN most recently, by server
+   activity (not this device's installs); it is absent until there is something to show, never an
+   empty frame.
 4. **Installieren** — the game page offers one primary action. With a published launcher build that
-   can install this recipe, **Installieren** leads to the launcher download and the quiet **Im
-   Launcher öffnen** fires `lanomat://install/<slug>`; without a build, **Installieren** itself is
-   that deep link and needs the launcher already installed.
-5. **Launcher download and pairing** — one file for your OS, one **Anmeldecode**, approved once in
-   the browser on `/mcp/connect`.
-6. **The same Games UX** — the launcher opens on **Spiele**, the same list, the same German action
-   words, the same LAN badge. No second catalogue, no second truth.
+   can install this recipe, **Installieren** leads to the App download page (`/app`) and the quiet
+   **Im Launcher öffnen** fires `lanomat://install/<slug>`; without a build, **Installieren** itself
+   is that deep link and needs the launcher already installed.
+5. **App download and pairing** — the launcher's builds for your OS on `/app`, one **Anmeldecode**,
+   approved once in the browser on `/mcp/connect`.
+6. **The same Games UX** — the launcher's **Spiele** tab is the same list, with the same German
+   action words and the same LAN badge. No second catalogue, no second truth.
 7. **Percentages** — one click on **Installieren** runs the six phases (Planen, Herunterladen,
    Entpacken, Patchen, Prüfen, Fertig) with percent, bytes, speed and ETA, resumable and cancellable.
 8. **Install and launch** — **Starten** opens the game; the **Serverbrowser** button opens your
@@ -59,69 +60,79 @@ in; the chat on the start page is the shortest way in.
 ## First visit: the demo conversation
 
 The start-page chat greets with deterministic copy (it works without a model key) and answers with
-cards built from the same catalogue data as `/games`. A first visit to the start page after login
-reads roughly like this — the German strings are the ones the UI uses:
+cards built from the same catalogue data as `/games`. A first visit after login reads roughly like
+this — the German strings are the ones the UI uses:
 
-> **LANoMAT** — Willkommen auf der LAN. Du kannst hier Spiele installieren, Server finden und
-> Sprache chatten.
+> **LANoMAT** — Hi! Willkommen bei Lan Raute 1. Frage mich nach Spielen oder laufenden Servern.
 >
-> **Du** — Was kann ich hier tun?
+> `[Welche Spiele laufen?]` `[Welche Server laufen?]`
 >
-> **LANoMAT** — Auf dieser LAN läuft Unreal Tournament 2004, und der Server „Raute1 LAN" ist offen.
-> Wenn du willst, installiere ich es dir.
+> **Du** — Welche Spiele laufen?
 >
-> `[Spielkarte]` **Unreal Tournament 2004** · LAN · *Installieren* · Seite öffnen
+> **LANoMAT** — Diese Spiele laufen gerade:
 >
-> **Du** — Installier mir UT2004.
+> `[Spielkarte]` **Unreal Tournament 2004** · LAN · `v3374-rc3 · 1 Server` · *Installieren* · *Im
+> Launcher öffnen*
 >
-> **LANoMAT** — Der Launcher holt die DVD und den Patch aus dem LAN file host, entpackt beides und
-> prüft die Installation. Danach kannst du direkt starten.
+> **Du** — Welche Server laufen?
 >
-> `[Installationskarte]` **Launcher herunterladen** — danach führen „Installieren" und „Starten"
-> direkt ans Ziel.
+> **LANoMAT** — Diese Server laufen gerade:
 >
-> **Du** — Wer ist auf dem Server?
->
-> **LANoMAT** — Auf „Raute1 LAN" sind 6 von 16 Plätzen belegt, Karte DM-CORRUPTION.
->
-> `[Serverkarte]` **Raute1 LAN** · DM-CORRUPTION · `6/16` · *Beitreten*
+> `[Serverkarte]` **Raute1 LAN** · *Läuft* · Unreal Tournament 2004 · DM-CORRUPTION · `6/16` ·
+> *Beitreten*
 
-The chat never invents a card: without recipe, server or install data it answers in prose and
-offers the tiles. The typewriter in the empty input (and its reduced-motion behaviour) is specified
-in the design system, [Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door-after-login--pilot).
+Without an event the greeting is „Hi! Ich bin der LANoMAT-Assistent. Frage mich nach Spielen oder
+laufenden Servern.“ The two chips are „Welche Spiele laufen?“ and „Welche Server laufen?“; with no
+answer to show, the same sentence comes without cards („Gerade läuft kein Spiel.“, „Gerade läuft kein
+Server.“). The autoplay types exactly those two questions and then shows both card sets. The
+typewriter in the empty input (and its reduced-motion behaviour) is specified in the design system,
+[Start-page chat](https://github.com/raute1-org/LANoMAT/blob/main/docs/design.md#start-page-chat-the-front-door-after-login--pilot).
+
+A game card's actions depend on the recipe: **Installieren** (to the App download page when a build
+is published, else the deep link) with a quiet **Im Launcher öffnen**, **Spielen** for a browser
+recipe, or a quiet **Ansehen** to the game page. A server card offers **Beitreten** when the server
+has a join URL, otherwise **Zum Server** / **Alle Server**.
 
 ## Download
 
-After the Discord login, open the **App herunterladen** entry in the sidebar, the same button in
-the top-right of every page or on **Jetzt** (the start page after login), or the page directly at
-`/app` — for example [lan.raute1.org/app](https://lan.raute1.org/app). The old `/launcher` address
-still works and redirects there. The page lists the launcher under **Spiele (Launcher)**, next to the
-desktop app for voice and chat. Guests see the login gate at
-`/` (and the public team/profile pages), so the launcher and its downloads are reached after
-login. The primary build for each OS
-is listed with its size, its SHA-256 and the steps for that file; extra files appear further down
-under **Weitere Dateien**:
+After the Discord login, open **App herunterladen** — the sidebar entry, the same button in the
+top-right of every page while the server publishes a build, or the link on **Jetzt** (the start page
+after login) — or go to `/app` directly, for example [lan.raute1.org/app](https://lan.raute1.org/app).
+The old `/launcher` and `/talk/client` addresses redirect there, so bookmarks and older posts keep
+working. Guests see the login gate at `/` (and the public team/profile pages), so the page is reached
+after login.
 
-| Dark | Light |
-|---|---|
-| ![Launcher download page, dark](/screens/launcher-page-dark.png) | ![Launcher download page, light](/screens/launcher-page-light.png) |
-| `LAUNCHER · DARK` — per-OS build, size, SHA-256, steps | `LAUNCHER · LIGHT` — same builds, paper tokens |
+The page is titled **LANoMAT-App** and lists every build this server publishes as separate
+downloads — here **Sprache und Chat (Desktop-App)** and **Spiele (Launcher)**; the launcher is the
+section this guide is about. A platform switch at the top (**Windows**, **Linux**, **macOS**)
+selects the platform and preselects the one the browser reports (**Erkannt: Linux**); when the
+browser reports none it starts on **Windows**. Every build below belongs to the selected platform.
+Each build shows its type — on Windows **Installer (empfohlen)**, **Portable EXE (ohne
+Installation)** or **Archiv**, elsewhere the app's own label — its architecture and size, a
+**Herunterladen** button, its install steps and the **SHA-256-Prüfsumme** with **Kopieren**. The
+first build of the first section is the page's one amber action; every other build is an outline
+button.
+
+An unsigned Windows build adds **Diese Windows-Datei ist nicht signiert** and says to compare the
+SHA-256 before running it; the desktop app's Windows download adds the WebView2 note. A section
+without a build for the selected platform says so in its own line (for the launcher **Für Linux gibt
+es noch keinen Launcher-Build.**, and the same for Windows and macOS); when nothing is published at
+all the page says **Noch keine App veröffentlicht**; a launcher section without a published build
+links **Zur Spiele-Bibliothek**.
 
 | OS | File | Notes |
 |---|---|---|
 | Linux x86_64 | `lanomat-launcher-<version>-linux-x86_64.tar.gz` | Extract the tarball, then run `./lanomat-launcher` inside the extracted `lanomat-launcher-<version>-linux-x86_64/` folder (it holds the binary, `install-desktop.sh`, `install-terminal.sh`, `LIESMICH.txt`, the desktop entry and the icon); WebKitGTK 4.1 is required |
 | Windows x86_64 | `lanomat-launcher-<version>-windows-x86_64-portable.exe` | Portable exe, no installation; `install-desktop.ps1` and `install-terminal.ps1` ship in the same release artifact (they are not manifest entries, so the page offers only the exe). Unsigned at first: SmartScreen → "Weitere Informationen" → "Trotzdem ausführen" |
 
-Each primary build has a **Herunterladen** button and a **Kopieren** button for its SHA-256.
-**Weitere Dateien** (for example a portable exe next to an archive) lists the additional files with
-their name and size, each with its own download button. The `/app` page reads
-`clients-dist/launcher/manifest.json`; a file that is not in that manifest is not offered, and the
-page says "Es ist noch kein Launcher-Build veröffentlicht" when the Orga has not copied one. The
-Preflight check `launcher_build` watches exactly that manifest: it warns when nothing is published,
-when only one OS is there and when the build is older than 30 days; a file that no longer matches
-its size or SHA-256 turns the check **down**. On the client side a matched LAN file is always
-hash-checked against the digest the server stored with it; a recipe pin, when present, wins over
-the stored digest. The shipped UT2004 patch pins its upstream GitHub file.
+The launcher section of `/app` reads `clients-dist/launcher/manifest.json`; a file that is not in
+that manifest is not offered, and with no manifest the section says **Noch kein Launcher
+veröffentlicht.** and links to the games library. The Preflight check `launcher_build` watches
+exactly that manifest: it warns when nothing is published, when only one OS is there and when the
+build is older than 30 days; a file that no longer matches its size or SHA-256 turns the check
+**down**. On the client side a matched LAN file is always hash-checked against the digest the server
+stored with it; a recipe pin, when present, wins over the stored digest. The shipped UT2004 patch
+pins its upstream GitHub file.
 
 ## Pair once
 
@@ -131,7 +142,7 @@ the stored digest. The shipped UT2004 patch pins its upstream GitHub file.
 | `LAUNCHER · VERBINDEN · DARK` — server address, then code + browser approval |
 
 1. Start the launcher.
-2. Enter the address of this server — the one you reached `/launcher` on. The field suggests
+2. Enter the address of this server — the one you reached `/app` on. The field suggests
    `https://lan.raute1.org`; at the venue use the LAN name the venue uses, for example
    `http://lanomat.local`.
 3. Press **Verbinden**. The launcher shows an **Anmeldecode** and a **Browser öffnen** button that
@@ -155,7 +166,7 @@ install record shows on the card: target folder, verified files, and either **In
 | Dark |
 |---|
 | ![Launcher library with the UT2004 card, dark](/screens/launcher-library-dark.png) |
-| `LAUNCHER · SPIELE · DARK` — paired server, LAN badge, Installieren/Starten |
+| `LAUNCHER · SPIELE · DARK` — paired server, one LAN recipe, **Installieren** |
 
 The newest installed game is one `Starten` away. A game that is not installed shows
 **Installieren** only; nothing claims to be installed that the launcher has not verified.
@@ -168,18 +179,22 @@ Press **Installieren** and the launcher shows the plan it got from the server, t
 it happens:
 
 1. The server builds the install plan from the recipe and the files approved for the event.
-2. The launcher downloads the DVD image and the OldUnreal 3374 patch from the LAN file host.
-   Downloads resume after a dropped connection; if the Orga pinned a SHA-256 for a file, it is
-   checked before the file is used.
+2. The launcher downloads the DVD image and the OldUnreal 3374 patch from the LAN file host, or
+   from the recipe's pinned upstream URL when the LAN has no copy (the launcher has no
+   `--allow-external` switch; the plan decides). Downloads resume after a dropped connection; if a
+   SHA-256 is pinned for the file, it is checked before the file is used.
 3. The disc payload is extracted without `System/` (the patch supplies the complete 64-bit System
    tree), then the patch is extracted over the target.
 4. The launcher checks `System/Build.ini` and the 64-bit executable, then offers **Starten**.
 
 For a portable recipe the phases are shorter, because the archive is the install: download the one
-base archive, unpack it into the target folder (`Expand-Archive` on Windows, `bsdtar -xf` for `.zip`
-and `tar -xjf` for `.tar.bz2` on Linux), lift one wrapper folder when the checked file is not at the
-top level, check the start file and start the launch target — the `.exe` through `Start-Process`,
-the native Linux binary directly, or the Windows `.exe` through Wine.
+base archive, unpack it into the target folder with the launcher's own extractor (ZIP and `.tar.bz2`;
+the recipe's manual commands name the same tools, `Expand-Archive` on Windows and `bsdtar -xf` for
+`.zip` / `tar -xjf` for `.tar.bz2` on Linux), lift one wrapper folder when the checked file is not at
+the top level, check the start file and start the launch target — the `.exe` through `Start-Process`,
+the native Linux binary directly, or the Windows `.exe` through Wine. The phase rail for this path
+reads **Planen, Archiv laden, Entpacken, Ergänzen, Prüfen, Fertig** instead of the pilot's **Planen,
+Herunterladen, Entpacken, Patchen, Prüfen, Fertig**.
 
 | Dark |
 |---|
@@ -215,28 +230,59 @@ same server list the chat card and the website use — so a fresh PC goes from d
 without typing an address. `lanomat://install/<slug>` and `lanomat://launch/<slug>` do the same from
 a browser once the launcher is installed; the `.desktop` entry registers the scheme.
 
-The one-click join is not tied to the download page. Wherever a server row knows its recipe, the row
-offers it:
+The one-click join lives on the server rows: `/app` carries no server list, `/servers` and
+`/servers/all` do. Wherever a server row knows its recipe it offers it, and the first action keeps
+one name per outcome: **Im Launcher beitreten** when the link names the server, **Im Launcher
+starten** when it cannot.
 
-- the live servers are listed on `/servers` (the download page no longer carries a server list);
-- on `/servers` and `/servers/all`, a server card offers **Im Launcher beitreten** first, with the
-  hint „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“, then
-  **Spiel installieren** and **Mitspieler suchen** (a compact row keeps only the quiet **Zum Spiel**);
-- on the game page, each server row puts **Im Launcher beitreten** first with the sentence „Der
-  Launcher installiert das Spiel bei Bedarf und startet direkt auf diesem Server.“ A PC that already
-  has the game keeps every direct way under **Anders verbinden** — the game's own join options, an
-  allowlisted link, or the address to copy.
+- on `/servers` and `/servers/all`, a server card offers the launcher action first, then **Spiel
+  installieren** and **Mitspieler suchen** (a compact row keeps only the quiet **Zum Spiel**). When
+  the link names the server, the button reads **Im Launcher beitreten** with the hint „Der Launcher
+  installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“; when it cannot, it reads
+  **Im Launcher starten** with „Der Launcher installiert das Spiel, falls es fehlt, und startet es.
+  Den Server wählst du dann im Spiel; seine Adresse steht in dieser Zeile.“ When the game's files are
+  not all on the LAN right now, one calm line says so: „Für dieses Spiel liegen gerade nicht alle
+  Dateien auf dem LAN-Server; eine Neuinstallation kann deshalb scheitern. Wer das Spiel schon hat,
+  kann trotzdem beitreten — die Orga hilft, wenn etwas fehlt.“ The actions stay: an existing install
+  still joins. These pages also carry the quiet **„Hier spielen“** line: up to five avatars of
+  LANoMAT accounts that are on the server right now, the names where the row has room, and a **+N**
+  for the rest (read out as „:count weitere“). It is shown to the event's people — its registered
+  participants and orga — and only for people who share their location;
+- on the game page, each server row puts the same launcher action first with, for a named server,
+  „Der Launcher installiert das Spiel bei Bedarf und startet direkt auf diesem Server.“, else „Der
+  Launcher installiert das Spiel bei Bedarf und startet es. Den Server wählst du dann im Spiel; seine
+  Adresse steht oben.“ A PC that already has the game keeps every direct way under **Anders
+  verbinden** — the game's own join options, an allowlisted link, or the address to copy.
+
+| Dark | Light |
+|---|---|
+| ![Serverbrowser filtered to one game: a ready row with the Hier-spielen line, Im Launcher beitreten, Spiel installieren and Mitspieler suchen, dark](/screens/servers-all-dark.png) | ![The same serverbrowser card in light](/screens/servers-all-light.png) |
+| `SERVERBROWSER · HIER SPIELEN · IM LAUNCHER BEITRETEN · SPIEL INSTALLIEREN` | `SERVERBROWSER · LIGHT` |
+
+| Dark | Light |
+|---|---|
+| ![A server card with the missing-files line under the actions and the address to copy, dark](/screens/servers-all-lan-missing-dark.png) | ![The same card in light, same missing-files line](/screens/servers-all-lan-missing-light.png) |
+| `SERVERBROWSER · DATEIEN FEHLEN AUF DEM LAN · ADRESSE KOPIEREN` | `SERVERBROWSER · LIGHT` |
 
 The link is `lanomat://join/<slug>`. UT2004 carries the server as `?address=<host>:<port>` and
 starts already on it; every other recipe launches normally and then opens the server's own join URL
-as `?url=<urlencoded url>`. A server with neither an address nor an accepted join URL gets no
-launcher link, so the row keeps its own fallback action.
+as `?url=<urlencoded url>`. A server with an address but no join URL the launcher could open gets the
+bare `lanomat://join/<slug>`: the launcher installs and starts the game, and the player picks the
+server inside it — that is the **Im Launcher starten** case. A server with neither an address nor an
+accepted join URL gets no launcher link, so the row keeps its own fallback action.
 
 A click that nobody answers does not fail silently: after about 2.5 seconds without the page losing
-focus, the same spot asks **„Kein Launcher-Fenster aufgegangen?“** and offers **App
-herunterladen** (`/app`) and **Nochmal versuchen**. When something did take over, a short
-confirmation reads **„Launcher geöffnet. Schau in die Taskleiste, falls du kein Fenster siehst.“**
-and disappears after a few seconds — the page cannot know more than that.
+focus, the same spot asks **„Kein Launcher-Fenster aufgegangen?“**, names the usual reason and offers
+**App herunterladen** (`/app`) and **Nochmal versuchen**; the notice can be dismissed. When
+something did take over, a short confirmation reads **„Launcher geöffnet. Schau in die Taskleiste,
+falls du kein Fenster siehst.“** and disappears after a few seconds — the page cannot know more than
+that. The first real-browser run drove exactly this state: no handler installed, the notice after
+2.5 seconds, retry and dismiss working. A real launcher taking over is not verified.
+
+| Dark | Light |
+|---|---|
+| ![The unanswered-launcher notice under a launcher action on the server browser: the question, the likely reason and the two actions, dark](/screens/launcher-notice-dark.png) | ![The same notice in light](/screens/launcher-notice-light.png) |
+| `SERVERBROWSER · KEIN LAUNCHER-FENSTER AUFGEGANGEN? · APP HERUNTERLADEN · NOCHMAL VERSUCHEN` | `SERVERBROWSER · LIGHT` |
 
 The footer of the launcher window names the build it is running (`Launcher <version> · <commit>`) —
 handy when something has to be reported. When the server publishes a different build, one link

@@ -135,8 +135,15 @@ Then open `/login` and pick a demo role.
 
 LANoMAT ships its own **MCP server** so the LAN party can be driven from an AI client:
 
-- `POST /mcp` — streamable HTTP MCP endpoint (bearer token), tools for events, teams, tournaments,
-  matches, files, servers, schedule, polls, catering and LFG, plus the game recipes.
+- `POST /mcp` — streamable HTTP MCP endpoint (bearer token): **29 tools**, **3 resources** (the
+  per-recipe `lanomat://recipes/{slug}/skill` template and the two how-tos
+  `lanomat://skills/import-menu` and `lanomat://skills/contribute-recipe`) and **2 prompts**
+  (`install-game`, `import-menu`) for events, teams, tournaments, matches, files, servers,
+  schedule, polls, catering and LFG, plus the game recipes.
+  `recipe_contribute` takes a full `skill_markdown` and answers with the catalogue readiness
+  (`catalog.problems` / `catalog.problems_when_published`); a second call with the same slug replaces
+  the draft, so it must carry the complete recipe. The counts live in `LanomatServer::$tools`,
+  `$resources` and `$prompts`; the tool list is guarded by `tests/Feature/Mcp/McpToolPaginationTest.php`.
 - `POST /api/mcp/device` + `POST /api/mcp/token` — OAuth-style device pairing; approve the code at
   `/mcp/connect`, the agent stores the token.
 - `lanomat:mcp-token <user>` mints a token headlessly.
@@ -168,8 +175,9 @@ while `MODULE_GAME_RECIPES` is on.
 **Sharing a game** needs no recipe author: upload a ready-to-run `.zip`/`.tar.bz2` to the LAN file
 host, describe it on `/games/share`, and the orga approves the file and publishes the game in one
 panel action. A published share appears on `/games`, in the launcher and next to its servers without a
-config change; matching server rows offer **"Im Launcher beitreten"** (`lanomat://join/<slug>`) and
-"Spiel installieren". The rule that decides whether the launcher can install a recipe and the lineup
+config change; matching server rows offer a launcher handoff (`lanomat://join/<slug>`: "Im Launcher
+beitreten" when it names the server, otherwise "Im Launcher starten") and "Spiel installieren". The
+rule that decides whether the launcher can install a recipe and the lineup
 rule (configured list plus the `in_lineup` flag) are in
 [`docs/launcher-agent-integration.md`](docs/launcher-agent-integration.md) and
 [`docs/ops/launcher-lineup.md`](docs/ops/launcher-lineup.md).
@@ -282,7 +290,13 @@ npm run lint:check      # eslint
 npm run format:check    # prettier --check
 npm run types:check     # vue-tsc --noEmit
 npm run build           # vite build
+npm run test:js         # node --test tests/js (frontend unit tests, no loader)
+node clients/launcher/app/ui/check-ui.mjs   # launcher UI contract (ids, copy, commands, tokens)
 ```
+
+`.github/workflows/frontend-guards.yml` runs the last two (plus nothing else) for changes to
+`tests/js`, `resources/js/lib|composables|types` and `clients/launcher/app/ui`; both commands also
+stand in `ci.yml`'s frontend job for when CI is switched back on.
 
 Auto-fix formatting/lint issues locally with `composer run lint` (pint) and `npm run lint`
 (eslint --fix) / `npm run format` (prettier --write).
@@ -401,12 +415,26 @@ Committed output (captured against the local production stack —
 
 </details>
 
+The gaming surfaces the 2026 sharing rounds changed, captured by the same pipeline (light thumbnails;
+each has a `-dark` file next to it, and `games-share-shares` also a `-mobile` pair):
+
+| Screen | What it shows |
+|---|---|
+| Share a game — archive | <a href="docs/screenshots/games-share-light.png"><img src="docs/screenshots/games-share-light.png" width="380" alt="Share page, archive step, light mode"></a><br>The archive step with the quota gauge and the viewer's own archives; the selected one fills the description next. |
+| Share a game — description | <a href="docs/screenshots/games-share-form-light.png"><img src="docs/screenshots/games-share-form-light.png" width="380" alt="Share page, filled description, light mode"></a><br>The filled description: title, platforms, the start file, runner and the submit state. |
+| Your shared games | <a href="docs/screenshots/games-share-shares-light.png"><img src="docs/screenshots/games-share-shares-light.png" width="380" alt="Shared games list, light mode"></a><br>Each share as three steps — file review, orga review, catalogue — with a waiting, a published and an archive-gone entry. |
+| A shared game's page | <a href="docs/screenshots/game-shared-light.png"><img src="docs/screenshots/game-shared-light.png" width="380" alt="A shared game's page, light mode"></a><br>`/games/<slug>` for a participant's share instead of a bundled recipe, with its server column. |
+| Server overview | <a href="docs/screenshots/servers-light.png"><img src="docs/screenshots/servers-light.png" width="380" alt="Server overview with one row expanded, light mode"></a><br>One row expanded: player list, "Hier spielen", the recipe actions and the server's other ways in. |
+| Server browser — files missing | <a href="docs/screenshots/servers-all-lan-missing-light.png"><img src="docs/screenshots/servers-all-lan-missing-light.png" width="380" alt="Server browser card whose files are not on the LAN, light mode"></a><br>The missing-files line: a fresh install can fail, an existing install still joins; the launcher label says whether it starts on this server. |
+| Launcher link without a handler | <a href="docs/screenshots/launcher-notice-light.png"><img src="docs/screenshots/launcher-notice-light.png" width="380" alt="Launcher link notice under a server action, light mode"></a><br>The notice under a launcher action on the server browser, after 2.5 s: what to check, the app download and "Nochmal versuchen" — no error claim. |
+| Admin one-step publish | <a href="docs/screenshots/admin-recipe-publish-confirm-light.png"><img src="docs/screenshots/admin-recipe-publish-confirm-light.png" width="380" alt="Publish confirmation in the admin panel, light mode"></a><br>The confirmation before the orga approves the pending archive and publishes, with the step and launch commands that run on players' PCs. |
+
 ## Project state
 
 LANoMAT v2 is feature-complete against its roadmap. **All phases M0–M13 are done and tagged**
 (`m0`–`m13`, plus `m10-presence` and `friends`); everything after the tags is merged to `main`
-untagged. The first production deployment (`lan.raute1.org`, `core` profile) has been live since
-2026-10-30. What is left is verification on real venue hardware, listed at the end.
+untagged. The first production deployment (the venue's public host, `core` profile) has been live
+since 2026-10-30. What is left is verification on real venue hardware, listed at the end.
 
 ### What the product is
 
@@ -444,12 +472,20 @@ people present) and collapsible groups Mehr, Voice and Orga. All game servers (m
 event, permanent) are on one page, `/servers`. `/dashboard` redirects to `/`.
 
 **Games and the launcher:** `/games` is the library, `/games/{slug}` the install page with the honest
-order — launcher download, `lanomat://` install/launch, the manual command with a copy button. Any
+order — app download (`/app`), `lanomat://` install/launch, the manual command with a copy button. Any
 participant can **share a game** on `/games/share` (an archive from the LAN file host plus a short
 description); the orga approves the file and publishes it in one panel action, and the game appears on
-`/games`, in the launcher and next to its servers. Matching server rows carry "Im Launcher beitreten"
-(`lanomat://join/<slug>`), "Spiel installieren" and "Mitspieler suchen". A published share can travel
-back into the git catalogue as a **recipe pull request** (recipe text only)
+`/games`, in the launcher and next to its servers. Matching server rows carry a launcher handoff,
+"Spiel installieren" and "Mitspieler suchen"; the handoff is **"Im Launcher beitreten"** only when the
+link names the server, otherwise **"Im Launcher starten"** (it installs and starts, the player picks the
+server). When not all game files are on the LAN right now they add one quiet line saying a fresh install
+can fail (`lanReady`), and the launcher handoff still works for a PC that already has the game. A server
+row also says which LANoMAT accounts are playing on it ("Hier spielen", from Presence; only for a
+participant of that event or orga — website only, the bearer APIs carry no people). Recipes never name
+this installation's server: `{{server_host}}`/`{{server_port}}` are filled in when the plan is built,
+from a running server whose game carries **exactly** the recipe's slug (a browser twin or a sequel never
+supplies it). A published share can travel back into the git catalogue as a **recipe pull request**
+(recipe text only)
 ([`docs/infra/recipe-pull-requests.md`](docs/infra/recipe-pull-requests.md),
 [`docs/launcher-agent-integration.md`](docs/launcher-agent-integration.md),
 [`docs/design.md`](docs/design.md)).
@@ -460,11 +496,12 @@ deliberately not built):
 - It pairs with the server through the device-code flow (the participant approves a code in the
   browser) and then uses a revocable bearer API under `/api/voice-client/v1`
   ([`docs/infra/native-voice-client-api.md`](docs/infra/native-voice-client-api.md)).
-- Five tabs: **Jetzt** (what needs me now: match, vote, order, notifications), **Sprache** (web voice
+- Six tabs: **Jetzt** (what needs me now: match, vote, order, notifications), **Sprache** (web voice
   rooms, text chat, "Wo ist wer" with follow-into-room), **Spielen** (my matches with result reporting,
-  tournaments, game servers), **Essen** (catering orders) and **Mehr** (polls, shared files with
-  resumable transfers, notifications, friends, profile and linked accounts, settings). A first-run guide
-  checks the headset.
+  tournaments, game servers), **Spiele** (read-only game library: the catalogue the orga provides, each
+  game's plan availability and what is installed on this machine; installing and starting follow in a
+  later version), **Essen** (catering orders) and **Mehr** (polls, shared files with resumable transfers,
+  notifications, friends, profile and linked accounts, settings). A first-run guide checks the headset.
 - Push-to-talk through a control socket (`lanomat-voice ptt down|up|toggle|status`; a named pipe on
   Windows), which also works on Wayland, plus a best-effort global shortcut (not on Wayland), a tray
   icon and a speaking overlay. A CLI and a headless latency test are included.
@@ -567,15 +604,25 @@ the infra runbooks, web voice, the file host and the native client. The dated li
 
 ### Not verified on real hardware yet
 
-Everything above is tested against fakes, headless containers or a test VM. Still open before the LAN
-(the roadmap's PRE-LAN-CHECKLISTE has the full table):
+Everything above is tested against fakes, headless containers or a test VM — except the shared-game
+journey, which was driven once in headless Chromium (the only browser installed here): a form upload,
+the share page's refusals, review and publish, the server row's actions and the missing-files line, and
+the launcher link without a handler (no navigation, no dialog, no loss of focus; "Öffne den Launcher …",
+the notice after 2.5 s, retry and dismiss, modified clicks start nothing, a simulated loss of focus shows
+the "opened" confirmation). Still open before the LAN (the roadmap's PRE-LAN-CHECKLISTE has the full
+table):
 
 - the native client with a real microphone and speakers on Linux and on Windows; tray, overlay and the
   global shortcut on Wayland; the Windows SmartScreen dialog; Steam presence with linked accounts;
   Mumble/TeamSpeak name matching; a latency comparison against a third recording;
 - real Pelican/Wings and LanCache on the venue server, real Mumble, TeamSpeak and Music Assistant,
   the Discord guild gate with a real non-member, camera scan on real phones, beamer and OBS overlays;
-- the production `REVERB_ALLOWED_ORIGINS` value, the CSP `enforce` decision, an active WireGuard tunnel.
+- the production `REVERB_ALLOWED_ORIGINS` value, the CSP `enforce` decision, an active WireGuard tunnel;
+- the shared-game journey with a real launcher taking over, in another browser, through the resumable
+  upload path and on two real PCs (share, approve and publish, install from the LAN, join through
+  `?address=`/`?url=`), a real portable `.zip`/`.tar.bz2` through the launcher's generic engine on Linux
+  and Windows, the recipe pull request against the real GitHub API, and the agent's path rule on real
+  Windows PowerShell 5.1 and cmd (its PowerShell/cmd characters rest on their documentation).
 
 **Deliberately not built:** an offline login QR (a Discord outage means no login; risk accepted), a
 load test (about 50 participants do not need one), macOS builds of the client, and a Tauri auto-updater.

@@ -16,8 +16,13 @@ lives in `clients/voice/`, the agent in `clients/agent/`.
 ```text
 lanomat-agent
 ├── login      device pairing against LANoMAT, token stored locally
+├── mcp        write the LANoMAT MCP server into pi's mcp.json
 ├── ask        one prompt, with the LANoMAT MCP server attached
-├── skills     sync / list recipe skills from the catalogue
+├── recipes    list the published recipes (the skills come from `skills sync`)
+├── skills     sync the recipe skills; there is no `skills list`
+├── install    one-shot install: plan → download → steps → verify
+├── launch     start an installed game
+├── avatars    browse and download the avatar catalogue
 ├── model      choose the model provider, including Venice
 └── doctor     check token, MCP, tool calling, disk, LAN file host
 ```
@@ -25,7 +30,8 @@ lanomat-agent
 Under the hood it is pi: the same tools, the same MCP client, the same model providers. LANoMAT adds
 three things:
 
-1. **A server preset** for `https://lan.example/mcp` with the paired token.
+1. **A server preset** for the paired server's `/mcp`, written by `lanomat-agent mcp install`, with
+   the token in an `Authorization: Bearer ${LANOMAT_TOKEN}` header.
 2. **Skills sync** so every published recipe is available as a skill, offline.
 3. **A model default** that works on the LAN (Venice), with any pi provider still allowed.
 
@@ -40,31 +46,36 @@ three things:
 | "Find the UT2004 ISO." | `files_list` |
 | "Draft a recipe for Trackmania." | `lanomat://recipes/{slug}/skill` as template, `recipe_contribute` |
 
-It does not register you for a tournament, claim a seat, vote or change an event. Those remain
-human actions in the app.
+It can also act with your token: `event_register`, `tournament_checkin`, `match_result`,
+`poll_vote`, `lfg_create` and `recipe_contribute` are MCP tools like the read ones, each behind its
+policy. Claiming a seat and editing an event stay app actions; there is no tool for them.
 
 ## Quickstart
 
 ```bash
-# 1. Install (see Install & login for the platform details)
-curl -fsSL https://lan.example/install-agent.sh | sh
+# 1. Install (see Install & login; Node 22.12+, from the repository or the tarball)
+cd LANoMAT/clients/agent && npm ci && npm run build && npm link
 
 # 2. Pair this PC with your LANoMAT account
 lanomat-agent login --url https://lan.example
 
-# 3. Set up the model (Venice is the default)
+# 3. Wire the MCP server into pi
+lanomat-agent mcp install
+
+# 4. Set up the model (Venice is the default)
 lanomat-agent model setup
 
-# 4. Sync the recipe skills
+# 5. Sync the recipe skills
 lanomat-agent skills sync
 
-# 5. Ask for the thing you actually want
+# 6. Ask for the thing you actually want
 lanomat-agent ask "install ut2004 for me on my pc"
 ```
 
 The login prints a code and opens the browser; approve the device while logged in. The token is
-stored in the agent's config (`~/.config/lanomat-agent/config.json` on Linux,
-`%APPDATA%\lanomat-agent\config.json` on Windows) with user-only permissions.
+stored in the agent's config (`~/.config/lanomat/agent.json` on Linux,
+`%USERPROFILE%\.config\lanomat\agent.json` on Windows, or under `$XDG_CONFIG_HOME` when it is set)
+with user-only permissions.
 
 | Dark | Light |
 |---|---|
@@ -81,7 +92,8 @@ After pairing, the dashboard is the participant's home — event, ticket, seat a
 | ![Dashboard after pairing with the live LAN, ticket, seat A3-1 and teams, dark](/screens/dashboard-dark.png) | ![Dashboard after pairing with the live LAN, ticket, seat A3-1 and teams, light](/screens/dashboard-light.png) |
 | `DASHBOARD · LAN · TICKET · SEAT` | `DASHBOARD · LIGHT` |
 
-The agent reads events, teams and files through MCP; changing them stays a human action.
+The agent reads events, teams and files through MCP, and the write tools act with the paired
+account's own permissions.
 
 ## Models and fuel
 

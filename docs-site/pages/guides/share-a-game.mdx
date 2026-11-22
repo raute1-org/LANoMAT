@@ -57,11 +57,13 @@ cd "$HOME/Games/Skyline Rally" && zip -r "$HOME/skyline-rally.zip" .
 tar -cjf "$HOME/skyline-rally.tar.bz2" -C "$HOME/Games/Skyline Rally" .
 ```
 
-Keep the archive name simple. It becomes the file name the recipe pins, the label of its required
-`base` entry, and the launcher looks for exactly that name in your download folder. The page refuses
-a name with a backtick, `*`, `?` or a control character (they would break the shell, the Markdown
-code span or the glob), and a name that keeps fewer than three letters or digits once `[` and `]`
-become `*` — such a pattern would also match somebody else's archive.
+Keep the archive name simple. It becomes the pinned file's name in the recipe's required `base`
+requirement (its `match` pattern) and the name the launcher looks for in your download folder; the
+requirement's label is your title plus „(portable archive)“. The page refuses a name with a backtick,
+`*`, `?`, `:` or one of `"` `<` `>` `|`, a control character, a leading dot or two dots in a row:
+the installing client rewrites those characters, so a command that still names the original file
+would never find it. It also refuses a name that keeps fewer than three letters or digits once `[`
+and `]` become `*` — such a pattern would also match somebody else's archive.
 
 ## The page: three sections
 
@@ -78,30 +80,49 @@ vor der Freigabe.“
 Under **„Datei auswählen“** you either upload a new archive or pick one you already uploaded for
 the current LAN:
 
-- The pick button is an outline button in both modes (the page's one amber action is the **Spiel
+- The pick control is an outline button in both modes (the page's one amber action is the **Spiel
   teilen** submit button). With resumable uploads it reads **„Dateien auswählen“** and the hint is the
   files page's: „Auch große Spiele sind möglich, bis 50 GB pro Datei. Sie werden in Teilen direkt zum
   Dateiserver übertragen und machen nach einer Unterbrechung an derselben Stelle weiter. Lass diese
   Seite während des Uploads offen. Jede Datei wartet danach auf die Freigabe durch das Orga-Team.“
-  (the size is `FILES_MAX_FILE_GB`). On the plain form path it reads
-  **„Keine Datei ausgewählt“** until you pick one, then the file name, and the hint says: „Erlaubt
-  sind .zip und .tar.bz2, bis 200 MB pro Datei. Nach dem Hochladen erscheint die Datei unten in der
-  Liste — wähle sie dort aus.“ (the size is `FILES_MAX_UPLOAD_MB`).
+  (the size is `FILES_MAX_FILE_GB`, rendered as „50,0 GB“). On the plain form path the button reads
+  **„Datei auswählen“**, the line next to it reads **„Noch keine Datei zum Hochladen gewählt“** until
+  you pick one and then the file name, and a second outline button **„Hochladen“** posts the file.
+  Its hint says:
+  „Erlaubt sind .zip und .tar.bz2, bis 200,0 MB pro Datei. Nach dem Hochladen ist die Datei unten
+  ausgewählt.“ (the size is `FILES_MAX_UPLOAD_MB`).
 - Uploads go through the Files module, so your quota applies. When the file host runs with
-  resumable uploads, a large archive resumes after a broken connection.
+  resumable uploads, a large archive resumes after a broken connection. Under the upload control a
+  **„Kontingent“** gauge shows used and cap bytes; from 90 % it gains a warn dot, full-strength
+  numbers and the sentence „Fast voll — bald passt kein weiteres Archiv mehr.“
+- Both upload paths store a cleaned name: path parts, control characters and the invisible and
+  bidirectional formatting characters (zero-width, byte order mark, right-to-left overrides) are
+  removed, and the name is cut to 255 characters. A name that keeps nothing readable is refused with
+  „Der Dateiname enthält keine lesbaren Zeichen. Bitte benenne die Datei um und lade sie noch einmal
+  hoch.“
 - The list shows your own files of the current event, newest first, at most 50, each with its size
   and **„Wartet auf Freigabe“** or **„Freigegeben“**.
-- **Nothing is preselected** unless `?file=<id>` names one of those files *and* it is a usable
-  archive. A `.iso` in the link selects nothing.
+- On arrival **nothing is preselected** unless `?file=<id>` names one of those files *and* it is a
+  usable archive. A `.iso` in the link selects nothing. The one exception is your own upload on this
+  page: when it finishes, the archive that just arrived is selected for you, in both upload modes;
+  after a successful share the next upload is selected the same way. A file you picked by hand,
+  before or during the upload, is never replaced, and a new file the server cannot use changes
+  nothing.
 - A file whose name does not end in `.zip` or `.tar.bz2` stays visible but cannot be selected; its
   name is struck through and it says: „Kein Archiv — lade den entpackten Spielordner als .zip oder
-  .tar.bz2 hoch.“
+  .tar.bz2 hoch.“ A real archive that only fails the name rules says why instead, in the same words
+  the form would refuse it with (the troubleshooting table at the end lists both messages).
 - Without a current LAN, the upload area says „Der Upload öffnet mit der nächsten LAN. Ein Archiv,
   das schon auf dem Dateiserver liegt, kannst du trotzdem auswählen — die Liste zeigt es unten.“ (or,
   with an empty list, „…; in deiner Liste liegt noch keins.“).
 - An empty list reads „Noch kein Archiv hochgeladen — lade oben eins hoch, es erscheint dann hier.“
   with an open event, and „Noch kein Archiv auf dem Dateiserver. Sobald eins da ist, kannst du es
   hier auswählen.“ without one.
+
+| Dark | Light |
+|---|---|
+| ![Share page section 01: the form upload control, the quota gauge and the archive list with a pending and an approved archive, dark](/screens/games-share-dark.png) | ![Share page section 01 in light, same controls and list](/screens/games-share-light.png) |
+| `SPIEL TEILEN · 01 ARCHIV · KONTINGENT · DATEILISTE` | `SPIEL TEILEN · LIGHT` |
 
 The pinned file must be one you may download: your own upload (pending or approved) or an approved
 file of a public event. A rejected upload is refused; somebody else's pending file is refused with the
@@ -122,7 +143,7 @@ Ordner, den du hochgeladen hast.“
 | **Kurzbeschreibung** | Optional, at most 200 characters, one line, one or two sentences for the library. Empty is fine; a generic sentence is generated then. |
 | **Version** | Optional, at most 40 characters, one line. Empty means `1.0`. |
 | **Spieleranzahl** | Optional, at most 20 characters, one line, a human string such as `2-8`. Empty means `1+`. |
-| **Mehrspieler** | A checkbox, checked by default. Untick it for a single-player-only game; the games page then leaves out servers and rounds. |
+| **Mehrspieler** | A checkbox, checked by default. Untick it for a single-player-only game; the game page then carries the **Solo** badge and its empty server block says the game is playable solo or at your own PC. |
 | **Homepage** | Optional, an `http(s)` URL, at most 500 characters. Only when there is an official page. |
 
 The submit button reads **„Spiel teilen“** and, while it posts, **„Wird geteilt …“**. It stays
@@ -130,6 +151,11 @@ disabled until a usable archive, a title, the start file and — for a native Li
 start file are there; one line under the button says what is still missing, for example „Es fehlt
 noch: ein Archiv und ein Titel.“ After a successful share there is one success toast, and the
 description fields are cleared (the archive stays selected for the next game).
+
+| Dark | Light |
+|---|---|
+| ![Share page section 02: title, platforms, start file, Linux start, summary, version, players, multiplayer, dark](/screens/games-share-form-dark.png) | ![Share page section 02 in light, same fields](/screens/games-share-form-light.png) |
+| `SPIEL TEILEN · 02 SPIEL · PLATTFORMEN · STARTDATEI` | `SPIEL TEILEN · LIGHT` |
 
 ### A worked example
 
@@ -172,6 +198,11 @@ A published game also shows **„Zum Spiel“** when the lineup allows it and th
 Spieleliste“** marker when it is switched on for the library. Each row ends with „Aktualisiert …“ and
 the display time.
 
+| Dark | Light |
+|---|---|
+| ![Section 03: three shared games — one draft whose file waits, one published with a pull request, one published with a missing file, dark](/screens/games-share-shares-dark.png) | ![Section 03 in light, same three rows](/screens/games-share-shares-light.png) |
+| `SPIEL TEILEN · 03 DEINE GETEILTEN SPIELE · DATEI · PRÜFUNG · KATALOG` | `SPIEL TEILEN · LIGHT` |
+
 ## What happens next
 
 1. You submit. The page shows the flash: „Entwurf für „Skyline Rally“ gespeichert. Die Orga prüft
@@ -184,11 +215,21 @@ the display time.
    `/games`, in the launcher's **Spiele** list and in the server browser next to every server that
    runs it. The orga can switch the toggle off again; the recipe then stays in the database without a
    player-facing link (unless no lineup is configured at all — then every published recipe shows).
+   Publishing also rewrites the generated text: the description, the steps and the SKILL.md no
+   longer call the game a draft that still needs verification.
 5. The catalogue entry follows as a pull request against the recipe catalogue. When the orga has
    enabled recipe pull requests, it is opened on the publish by default
    (`RECIPES_PR_TRIGGER=publish`), or right after the share when the operator opted into
    `contribute`. The **Katalog** column tells you where it stands; see
    [Contributing](/docs/recipes/contributing) for that side.
+
+The published game has its own page: install and launch, the LAN marker, the server that runs it and
+the agent commands. That is the page the **„Zum Spiel“** link and the library open.
+
+| Dark | Light |
+|---|---|
+| ![A published shared game's page: Installieren, Im Launcher öffnen and Starten, the agent install command, its server and the installation step list, dark](/screens/game-shared-dark.png) | ![The same shared game page in light](/screens/game-shared-light.png) |
+| `SPIEL · BUNKER BASH DELUXE · INSTALLIEREN · SERVER · INSTALLATION` | `SPIEL · LIGHT` |
 
 A published game outside the lineup stays in the database but has no player-facing link. The
 lineup is the configured `LAUNCHER_LINEUP` plus every recipe the orga switched on; an empty
@@ -200,10 +241,10 @@ game.
 
 The launcher downloads your archive from the LAN file host and then:
 
-1. Unpacks it into the target folder — `Expand-Archive` on Windows, `bsdtar -xf` for `.zip` and
-   `tar -xjf` for `.tar.bz2` on Linux. The folder is derived from the title and keeps only letters,
-   digits, spaces, dots, underscores and hyphens: `C:\Games\<Titel>` on Windows,
-   `~/Games/<titel>` on Linux.
+1. Unpacks it into the target folder with its own extractor (ZIP and `.tar.bz2`; the recipe's manual
+   commands name the same tools, `Expand-Archive` on Windows and `bsdtar -xf` / `tar -xjf` on Linux).
+   The folder is derived from the title and keeps only letters, digits, spaces, dots, underscores and
+   hyphens: `C:\Games\<Titel>` on Windows, `~/Games/<titel>` on Linux.
 2. Lifts **one** wrapper folder when the checked files are not at the top level.
 3. Checks that the start file you named exists: `{{target}}/<Startdatei>` on Windows and
    `{{target}}/<Linux-Startdatei>` on Linux.
@@ -231,7 +272,7 @@ These are the messages the page can show, and what each one means:
 | Message or symptom | What it means | What to do |
 |---|---|---|
 | „Nur .zip- und .tar.bz2-Archive können als Spiel geteilt werden.“ | The file's name does not end in an accepted extension, so it cannot be a portable archive — `.7z`, `.rar`, `.iso` and `.exe` all land here. | Repack the installed folder as `.zip` or `.tar.bz2` and upload it again. |
-| „Bitte benenne die Datei um: Ein Backtick, ein Steuerzeichen, ein Sternchen oder ein Fragezeichen im Dateinamen macht das Rezept unsicher.“ | The archive name carries a backtick, `*`, `?` or a control character — any of them would break the shell command, the Markdown code span or the pinned glob. | Rename the archive (`skyline-rally.zip`) and upload it again. |
+| „Bitte benenne die Datei um: Der Dateiname darf keinen Backtick, kein Steuerzeichen und keines der Zeichen * ? : " < > \| enthalten, nicht mit einem Punkt beginnen und keine zwei Punkte hintereinander haben.“ | The archive name carries one of those characters or dot patterns; the installing client rewrites them, so the recipe's command would not find the file. | Rename the archive (`skyline-rally.zip`) and upload it again. |
 | „Bitte benenne die Datei um: Der Name enthält zu wenige Buchstaben oder Ziffern, das Dateimuster würde auch fremde Archive treffen.“ | Once brackets become `*`, fewer than three letters or digits remain before the extension. | Rename with a real name, for example `skyline-rally.zip` instead of `[x].zip`. |
 | „Der Titel „Share“ ist für die Teilen-Seite reserviert. Wähle einen anderen Titel.“ | The title's slug is `share` (or the title produced no slug at all), and `/games/share` already owns that address. | Pick a title with letters and digits. |
 | „Ein Spiel mit diesem Titel gibt es schon. Wähle einen anderen Titel.“ | The slug belongs to another recipe, or to your own game that is no longer a draft. Only your own draft may be re-submitted. | Pick another title, or edit the draft you already have. |
@@ -245,6 +286,7 @@ These are the messages the page can show, and what each one means:
 | The submit button stays disabled and the line says „Es fehlt noch: …“ | One of the four requirements is missing: a usable archive, a title, the start file, or the Linux start file for a native Linux build. | Fill what the line names; nothing is guessed or preselected for you. |
 | The launcher stops with a missing file. | The start file is not where the recipe says, or its name differs in case. One wrapper folder is lifted automatically; two nested folders are not. | Repack with the file at the top level or one folder down, and copy its name exactly. |
 | „Der Upload öffnet mit der nächsten LAN.“ | There is no current event, so the upload is closed. | Pick an archive that is already on the file host, or upload once the event is open. |
+| „Der Dateiname enthält keine lesbaren Zeichen. Bitte benenne die Datei um und lade sie noch einmal hoch.“ | The form upload's cleaned name kept no readable character (path parts and control characters are stripped, 255 characters stay). | Rename the file and upload it again. |
 | The file is approved but there is no „Zum Spiel“. | The recipe is still a draft, or the lineup does not allow it. | Wait for the publish, or ask the orga about the lineup. |
 
 The five you will most likely hit first:

@@ -49,10 +49,10 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | LFG (optional) | M4 | Looking-for-group posts per event |
 | Discord (optional) | M2–M3 (cross-cutting) | REST client, Gateway sidecar ingress, Interactions endpoint (dormant fallback), channel orchestration |
 | Voice (Mumble) (optional) | M3 (cross-cutting) | Mumble channel orchestration via Ice REST sidecar |
-| WebVoice (optional) | Web voice | Browser voice (self-hosted LiveKit SFU) and persisted text chat per channel, general + per-match team rooms, admin moderation; orga/admin connection diagnostics and an in-page latency self-test (reserved probe room, never a channel); bearer-token API and device-authorization pairing for the native desktop client (`NativeClient` sub-namespace); see `docs/infra/livekit-web-voice.md` and `docs/infra/native-voice-client-api.md`; the Rust client core, CLI and the Tauri v2 desktop shell (tray, speaking overlay, push-to-talk via control socket and a best-effort global shortcut) live in `clients/voice/` (see its README); the client is downloadable at `/talk/client` in the version that matches the server (`scripts/ops/build-client.sh` publishes `clients-dist/` with a manifest, `ClientBuilds` validates it, `config('app.version')` is the one version string); Linux and Windows builds, signing and the draft-release workflow: `docs/infra/native-client-release.md` |
+| WebVoice (optional) | Web voice | Browser voice (self-hosted LiveKit SFU) and persisted text chat per channel, general + per-match team rooms, admin moderation; orga/admin connection diagnostics and an in-page latency self-test (reserved probe room, never a channel); bearer-token API and device-authorization pairing for the native desktop client (`NativeClient` sub-namespace); see `docs/infra/livekit-web-voice.md` and `docs/infra/native-voice-client-api.md`; the Rust client core, CLI and the Tauri v2 desktop shell (tray, speaking overlay, push-to-talk via control socket and a best-effort global shortcut) live in `clients/voice/` (see its README); the client is downloadable at `/app` in the version that matches the server (`/talk/client` redirects there; shipped clients keep that path; `scripts/ops/build-client.sh` publishes `clients-dist/` with a manifest, `ClientBuilds` validates it, `config('app.version')` is the one version string); Linux and Windows builds, signing and the draft-release workflow: `docs/infra/native-client-release.md` |
 | Infoscreen (optional) | M5 | Fullscreen rotating scenes for the venue projector |
-| GameServers (optional) | M6, post-M12 | Pelican Panel integration, match server provisioning from presets (port pool, A2S readiness), permanent game servers across events (Pelican, Docker or listed only); each server row also answers "how does a player get this game?" through the `GameInstallLinks` contract (the matched recipe and the `lanomat://join` link) |
-| GameRecipes (optional) | M6, post-M12 | Recipe catalogue (YAML + `SKILL.md`), sync from bundled/SMB/git, install plans, avatars, launcher catalogue and lineup; sharing a LAN archive as a portable recipe (`ShareGame`, `PortableRecipeBuilder`, `/games/share`), and the pull-request pipeline that carries recipe text back into the git catalogue (`ProposeRecipe`, `RecipeRepository`) |
+| GameServers (optional) | M6, post-M12 | Pelican Panel integration, match server provisioning from presets (port pool, A2S readiness), permanent game servers across events (Pelican, Docker or listed only); each server row also answers "how does a player get this game?" through the `GameInstallLinks` contract (the matched recipe, the `lanomat://join` link and `lanReady`) and "who of the accounts is on it?" through `ServerOccupants` (a null object while Presence is off) |
+| GameRecipes (optional) | M6, post-M12 | Recipe catalogue (YAML + `SKILL.md`), sync from bundled/SMB/git, install plans, avatars, launcher catalogue and lineup; sharing a LAN archive as a portable recipe (`ShareGame`, `PortableRecipeBuilder`, `/games/share`), and the pull-request pipeline that carries recipe text back into the git catalogue (`ProposeRecipe`, `RecipeRepository`); answers the Files-owned `ShareableGameArchive` question (which uploads can back a shared game) |
 | Mcp (optional) | M6, post-M12 | MCP server at `/mcp` (tools, resources, prompts), the agent REST API under `/api/v1`, device-code pairing plus revocable bearer tokens (`/mcp/connect`) |
 | Notifications (core) | M2 (cross-cutting) | `database` + `discord` notification channels |
 | Stats (optional) | M6 | Cross-event leaderboards and badges |
@@ -63,9 +63,12 @@ Tournaments, Identity, Notifications, Preflight) or **optional** (toggled per de
 | News (optional) | M12 | Global orga news posts on the homepage |
 | Games (core) | M1 | Cross-event game catalog used by tournaments and voting |
 | Preflight (core) | M-Robustness | Health-check registry, `lanomat:preflight` traffic light, Filament tile |
-| Presence (optional) | M10 | Who is online/playing/free per event (projection, beamer scene) |
+| Presence (optional) | M10 | Who is online/playing/free per event (projection, beamer scene); owns the visibility rule (`share_location`, blocks) and the location snapshot that also feeds a server row's `ServerOccupants`, and asks GameServers for its rosters through the `GameServerDirectory` contract |
 | Casting (optional) | M10 | Stream links and no-auth OBS overlays |
-| Files (optional) | M7 | Moderated LAN file-sharing with quota. Any type except browser-executable ones (HTML, SVG, JS); bytes live behind a `FileStore` contract: the private local disk (default) or the LanCache host (SFTP via `Hosts`, nginx download through a signed redirect), see [`infra/file-host.md`](infra/file-host.md). With `FILES_STORE=host` + `FILES_TUS_URL` every upload is a resumable tus upload from the browser to `tusd` on the file host (control plane in the app: `IssueUploadTicket` reserves quota in `file_upload_reservations`; `AuthorizeTusUpload`, `FinalizeTusUpload` and `ReleaseUploadReservation` answer tusd's hooks at `internal/files/tusd-hook`; `lanomat:sweep-file-uploads` cleans abandoned uploads); the legacy form upload remains for `FILES_STORE=local` |
+| Assistant (optional) | post-M12 | Orga AI chat (`/orga/assistant`): conversations, tool cards with an approval step before writes; see `docs/design.md` § "Assistant (orga chat)" |
+| Lighting (optional) | post-M12 | DMX light bridge: scenes and rules driven by game status over the bridge's REST API (`LightingClient`) |
+| RoomAudio (optional) | post-M12 | Venue receiver (Denon) via the `denon-admin` sidecar: state and volume commands (`ReceiverClient`) |
+| Files (optional) | M7 | Moderated LAN file-sharing with quota; both upload paths store `Files\Support\UploadFileName::clean()`, and `ShareableGameArchive` (null while GameRecipes is off) answers whether a row can back a shared game. Any type except browser-executable ones (HTML, SVG, JS); bytes live behind a `FileStore` contract: the private local disk (default) or the LanCache host (SFTP via `Hosts`, nginx download through a signed redirect), see [`infra/file-host.md`](infra/file-host.md). With `FILES_STORE=host` + `FILES_TUS_URL` every upload is a resumable tus upload from the browser to `tusd` on the file host (control plane in the app: `IssueUploadTicket` reserves quota in `file_upload_reservations`; `AuthorizeTusUpload`, `FinalizeTusUpload` and `ReleaseUploadReservation` answer tusd's hooks at `internal/files/tusd-hook`; `lanomat:sweep-file-uploads` cleans abandoned uploads); the legacy form upload remains for `FILES_STORE=local` |
 | Hosts (optional) | M7 | Managed remote hosts (IP + SSH key) behind `RemoteExecutor` |
 | CustomServers (optional) | M7 | Custom Docker game servers on a managed host |
 | Lancache (optional) | M7 | LanCache bootstrap on a separate host |
@@ -290,7 +293,7 @@ flowchart TB
     dist["clients-dist: files and manifest.json, written last"]
     cb["ClientBuilds validates the manifest"]
     match{"app_version equals config app.version?"}
-    page["/talk/client and /app: download offered"]
+    page["/app (old /talk/client redirects): download offered"]
     nomatch["Page says: version does not match this server"]
     pre["Preflight: Desktop-App-Download"]
     conf["GET /api/voice-client/v1/config, client block: server_version, min_client_version, latest_client_version, download_path"]
@@ -325,7 +328,7 @@ lifecycle is `draft → announced → registration → live → finished → arc
 events fall out of the model for free.
 
 ```
-users                (id, discord_id UNIQUE, name, avatar_url, bio, steam_url, profile_color, role, ...)
+users                (id, discord_id UNIQUE, name, avatar_url, bio, steam_url, profile_color, role, share_location, ...)
 events               (id, name, slug, status, location, starts_at, ends_at, max_participants, settings JSONB)
 event_registrations  (id, event_id, user_id, ticket_type, status, paid_at, checked_in_at, qr_token UNIQUE)
 seats                (id, event_id, label, pos_x, pos_y, meta JSONB)
@@ -360,8 +363,14 @@ web_voice_channels   (id, kind[general|match], name, description NULLABLE, game_
 web_voice_channel_user (web_voice_channel_id, user_id, UNIQUE)   -- access list of a match room (roster snapshot)
 web_voice_messages   (id, web_voice_channel_id, user_id, body, created_at) · web_voice_mutes (web_voice_channel_id, user_id, muted_by NULLABLE)
 game_recipes         (id, slug UNIQUE, title, status[draft|published|archived], source[bundled|smb|git|panel|contribution], platforms, requirements/steps/metadata JSONB,
-                      skill_markdown, in_lineup, contributor_user_id NULLABLE,
+                      skill_markdown, in_lineup, contributor_user_id NULLABLE, reviewed_by NULLABLE, reviewed_at NULLABLE,
                       pr_number NULLABLE, pr_url, pr_branch, pr_state[open|merged|closed|blocked|failed] NULLABLE, pr_error, pr_synced_at)
+game_recipe_files    (id, game_recipe_id, role[base|iso|patch|mod|tool|avatar|content|config], label, match_patterns JSONB, size_bytes, sha256, url,
+                      required, sort, metadata JSONB, shared_file_id NULLABLE FK)  -- the LAN pin lives here, never in requirements
+game_recipe_installs (id, game_recipe_id, user_id NULLABLE, os, status, plan JSONB, notes)  -- the audit row of every requested plan
+shared_files         (id, event_id, user_id, disk, path, original_name, size_bytes, sha256 NULLABLE, visibility[pending|approved|rejected], ...)
+file_upload_reservations (id, event_id, user_id, original_name, size_bytes, upload_id, stored_path, ticket_hash UNIQUE,
+                      ticket_expires_at, status, expires_at, shared_file_id NULLABLE)  -- tus quota control plane
 ```
 
 Key decisions (see design doc §7 for full rationale):
@@ -385,30 +394,78 @@ waiting drafts (`RECIPES_MAX_DRAFTS_PER_USER`) and keeps the pin on the file row
 Approval and publishing stay with the orga (`PublishRecipe`).
 
 `BuildInstallPlan::targetDir()` turns the title into the player's install folder with only
-`A-Za-z0-9 ._-` (Windows: `C:\Games\<name>`) or `Str::slug()` of that (Linux and macOS), because the
-folder is substituted into the quoted arguments of the step and launch commands.
+`A-Za-z0-9 ._-` (Windows: `C:\Games\<name>`) or `Str::slug()` of that (Linux), because the folder is
+substituted into the quoted arguments of the step and launch commands. The one exception is the
+UT2004 pilot on macOS, which gets `~/Library/Application Support/UT2004` (the OldUnreal bundle reads
+its assets there).
 
-**Two contracts carry the cross-module questions.** Both are bound in `AppServiceProvider::register()`
-and both have a null object, so a module can ask without importing its neighbour:
+**A recipe never names this installation's server.** Step commands, step checks and launch targets
+may use `{{server_host}}` and `{{server_port}}`; `GameRecipes\Support\PlanServerAddress` fills them
+before the text leaves the server — in the plan (`BuildInstallPlan`) and in the recipe detail that an
+agent reads its launch targets from (`RecipeController::show`, `RecipeGetTool`, the native client's
+`RecipesApiController::show`), so no client ever receives a raw placeholder. **A plan names a server
+only when the server's game carries exactly the recipe's slug** (stricter than the install links,
+which may match by alias or name), and only a `Ready` or `NotResponding` link; a switched-off,
+failed or still-provisioning one never qualifies. Ranking: a server that answers first, then a
+permanent server, then the lowest id. The hosts come from `ServerListProjection` as models
+(`linksForGlobalBrowser()`, `linksForEventViewedBy()`, `gameOf()`), behind `viewPermanent`, so a plan
+costs no row projection. The host keeps `[A-Za-z0-9.-]{1,253}`, the port is 1..65535; anything else,
+and "no such server", is the empty string, so the step leaves the game's configuration alone. An IPv6
+literal is empty (the contract has no colons). Substitution is one `strtr()` pass, so an inserted
+value is never re-scanned.
 
-| Contract | Real implementation | Null implementation | Bound when |
-| --- | --- | --- | --- |
-| `GameServers\Contracts\GameInstallLinks::forServer(?gameSlug, ?gameName, ?address, ?port, ?joinUrl)` | `GameRecipes\Support\RecipeInstallLinks` | `GameServers\Support\NullGameInstallLinks` | the real one while `GameRecipes` is enabled, the null object otherwise |
-| `GameRecipes\Contracts\RecipeRepository` (`isConfigured`, `propose`, `state`, `read`) | `GameRecipes\Support\GitHubRecipeRepository` (GitHub REST) | `GameRecipes\Support\NullRecipeRepository` | the real one only while `recipes.pull_requests.enabled` is true **and** repository and token are set; tests bind `GameRecipes\Testing\FakeRecipeRepository` (`fakeRecipeRepository()`) |
+**Five contracts carry the cross-module questions.** All are bound in `AppServiceProvider::register()`
+and each has a null object, so a module can ask without importing its neighbour:
+
+| Contract | Owner | Real implementation | Null implementation | Bound when |
+| --- | --- | --- | --- | --- |
+| `GameServers\Contracts\GameInstallLinks::forServer(?gameSlug, ?gameName, ?address, ?port, ?joinUrl)` | GameServers | `GameRecipes\Support\RecipeInstallLinks` | `GameServers\Support\NullGameInstallLinks` | the real one while `GameRecipes` is enabled, the null object otherwise |
+| `GameServers\Contracts\ServerOccupants::forServer(int $linkId, Event $event, User $viewer)` | GameServers | `WebVoice\Support\PresenceServerOccupants` | `GameServers\Support\NullServerOccupants` | the real one while `GameServers` **and** `Presence` are enabled, the null object otherwise |
+| `Files\Contracts\ShareableGameArchive::isShareable(SharedFile $file)` | Files | `GameRecipes\Support\RecipeShareableArchives` | `Files\Support\NullShareableGameArchive` | the real one while `GameRecipes` is enabled, the null object otherwise |
+| `GameRecipes\Contracts\RecipeRepository` (`isConfigured`, `propose`, `state`, `read`) | GameRecipes | `GameRecipes\Support\GitHubRecipeRepository` (GitHub REST) | `GameRecipes\Support\NullRecipeRepository` | the real one only while `recipes.pull_requests.enabled` is true **and** repository and token are set; tests bind `GameRecipes\Testing\FakeRecipeRepository` (`fakeRecipeRepository()`) |
+| `Presence\Contracts\GameServerDirectory` (`rosters`, `visibleServers`) | Presence | `WebVoice\NativeClient\Support\NativeGameServerDirectory` | `Presence\Support\NullGameServerDirectory` | the real one while `GameServers` is enabled, the null object otherwise |
+
+`WebVoice` hosts both directions of the GameServers ↔ Presence bridge (`PresenceServerOccupants`
+and `NativeGameServerDirectory`) because it already depends on both modules; GameServers and Presence
+never import each other.
 
 `GameServers` owns the server projection and asks `GameInstallLinks`; the answer is the `install` block
-on every server row (`ServerListProjection`), resolved once per request/fan-out and memoised, so a page
-of fifty servers does not become fifty catalogue queries. `RecipeInstallLinks` loads the published,
-lineup-allowed recipes once, picks the recipe with `RecipeGameMatcher` (exact game slug first, then the
-recipe's `searchTerms()` against the game's slug and name), asks `LauncherSupport` for
-`launcherSupported` and builds `launcherJoinUrl` with `LauncherJoinLink`: `?address=<host>:<port>` for
-UT2004's command-line launch, `?url=<urlencoded join url>` for a server that has an allowlisted join URL,
-the bare `lanomat://join/<slug>` when it has only an address, and `null` when it has neither.
-`install` is `null` when no published recipe matches.
+on every server row (`ServerListProjection`). It carries the matched recipe, `launcherSupported`,
+`launcherJoinUrl` and `lanReady` — whether every required base archive or disc image is an approved
+upload of a non-draft event or an external URL, asked without a viewer. The answer is cautious about
+platforms (one missing base makes it false although another platform's base may exist), so the website
+says a fresh install *can* fail. `RecipeInstallLinks` loads the published, lineup-allowed recipes once,
+picks the recipe with `RecipeGameMatcher` (exact game slug first, then the recipe's `searchTerms()`
+against the game's slug and name), asks `LauncherSupport` for `launcherSupported` and builds
+`launcherJoinUrl` with `LauncherJoinLink`: `?address=<host>:<port>` for UT2004's command-line launch,
+`?url=<urlencoded join url>` for a server that has an allowlisted join URL, the bare
+`lanomat://join/<slug>` when it has only an address, and `null` when it has neither. The bare link
+installs and starts but cannot name the server, so the website labels it "Im Launcher starten"
+(`joinLinkNamesServer`) and keeps "Im Launcher beitreten" for a link with `?address=`/`?url=`.
+`lanReady` never removes the join: a player who owns the game joins anyway. `install` is `null` when no
+published recipe matches.
+
+**The occupant line is the second server-row question.** `ServerOccupants` answers "who of the
+LANoMAT accounts is on it?" from the Presence read model: at most eight named accounts plus a count of
+further visible ones, or `null`. Two gates decide: the **audience** is the event's people list
+(`EventPolicy::viewPeople` — a non-cancelled participant of that event, or orga; any other account gets
+`null`), and Presence's visibility rule decides who inside it appears (`share_location`, blocks either
+way; the viewer always sees themselves). So the list can be shorter than the player count the server's
+own query reports (people without an account, name matches that miss, people who hide their location).
+The event is the list's own event; the global browser and permanent servers use the current event.
+`ServerListProjection` takes the viewer explicitly (the global browser no longer reads the session),
+and no bearer API passes a viewer, so the native client and MCP carry no people.
+
+**The resolver lifetime.** `ServerListProjection::installLinks()` and `::occupants()` go through
+`perRequest()`: inside a routed web request one resolver is kept on the request, so a page's rows and
+the shell's server badge share one catalogue read and one location snapshot; in a queue worker, the
+scheduler or a console command every resolve is fresh (a worker lives for days and must see a recipe
+published later). The contract bindings themselves are plain `bind()`s, so a caller outside a request
+that builds many rows takes the resolver once and hands it down — every builder does.
 
 **`GameRecipes\Support\LauncherSupport` is the single decision for `launcher_supported`.** The
-hard-coded slug lists that used to live in the REST controller, `HomeChatData` and the launcher page are
-gone. `supports()` returns, in this order: a boolean `metadata.launcher_supported` override; true for the
+hard-coded slug lists that used to live in the REST controller, `HomeChatData` and the former launcher
+page are gone. `supports()` returns, in this order: a boolean `metadata.launcher_supported` override; true for the
 UT2004 pilot (`PILOT_SLUG`) and the hand-verified `VERIFIED_SLUGS`; true for a browser recipe with a
 `play_url`; otherwise `isPortable()` — `metadata.portable: true` plus a required `base` requirement, a
 non-optional `file_exists`/`dir_exists` verify step and at least one launch target. The launcher unpacks
@@ -418,12 +475,30 @@ and starts; it never runs a recipe's step commands.
 every recipe with `game_recipes.in_lineup = true`**, deduplicated. The player-facing read paths filter
 through `allows()`/`filter()`: `/api/v1/recipes`, `/games` and `/games/{slug}`,
 `HomeChatData::games()`, MCP `recipes_list` and `RecipeInstallLinks` (which feeds the install block on
-every server row, the `/launcher` live rows included). Publishing
-a contributed recipe sets `in_lineup` (in `PublishRecipe`, including the one-step "approve files and
-publish" action), which is how a shared game appears without a config change. An **empty** configured
-lineup stays "unrestricted" and shows every published recipe; the flag only ever adds to a curated
-lineup. `in_lineup` is fillable (the panel's "In der Spieleliste zeigen" switch), the `pr_*` columns are
-not — only the proposal job and the status sync write them (`forceFill`).
+every server row). A caller that already read the catalogue in
+one query uses the same decision as `allowsSlug($slug, $recipe->in_lineup)`, so a case-sensitive SQL
+`whereIn` can never disagree with it (`RecipeInstallLinks` filters in PHP for exactly that reason).
+Publishing a contributed recipe sets `in_lineup` (in `PublishRecipe`, including the one-step "approve
+files and publish" action), which is how a shared game appears without a config change. An **empty**
+configured lineup stays "unrestricted" and shows every published recipe; the flag only ever adds to a
+curated lineup. `in_lineup` is fillable (the panel's "In der Spieleliste zeigen" switch), the `pr_*`
+columns are not — only the proposal job and the status sync write them (`forceFill`).
+
+**One readiness answer, one catalogue answer.** `ProposeRecipe::preview(GameRecipe, ?RecipeStatus)`
+exports the recipe's own text and runs `CatalogReadiness` and `PublicSafeText` over it; no repository
+call, no write, empty means ready. The panel (`Filament\...\Support\CatalogPreview`) shows it as a
+draft and with `RecipeStatus::Published`, and `Mcp\Support\ContributionCatalog` returns it as the
+`catalog` object of a contribution answer (`pull_requests_enabled`, `problems`,
+`problems_when_published`). `ContributeRecipe` keeps `recipe_file_id`s stable across an edit (role and
+label identify a row; removed rows are deleted after the update), so a stored plan never points at a
+deleted file. A schema-invalid contribution is a `422` with `recipe` problems on `POST
+/api/v1/recipes` and a readable `RecipeException` answer from `recipe_contribute`.
+
+**Uploads and the shareable-archive question.** Both upload paths store
+`Files\Support\UploadFileName::clean()` — control characters, a path prefix and everything past 255
+characters are removed; a backtick, `*`, `?` and a leading dot survive. The files page asks the
+Files-owned `ShareableGameArchive` contract per row, so Vue never re-guesses which uploads can back a
+shared game.
 
 **Events and listeners.** `RecipeContributed($recipe, $userId)` is dispatched by `ContributeRecipe` after
 commit (web share, `recipe_contribute`, `POST /api/v1/recipes`); `RecipePublished($recipe, $reviewerId)`

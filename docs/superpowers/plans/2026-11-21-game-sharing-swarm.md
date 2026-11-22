@@ -181,8 +181,10 @@ wt w03 /tmp/opencode/lanomat-swarm/w03 -- vendor/bin/phpstan analyse --memory-li
 wt w03 /tmp/opencode/lanomat-swarm/w03 -- 'php artisan wayfinder:generate --with-form >/dev/null && npm run types:check'
 ```
 
-The container cannot write to your worktree: run Pint with `--test` to see what it wants, or apply
-the formatting yourself. Do not run the whole Pest suite (the coordinator does); run the test files
+The container cannot write to your worktree: run Pint with `--test` to see what it wants, or let
+the tool rewrite the file inside the container and fetch it with
+`/tmp/opencode/lanomat-swarm/bin/wtpull <name> <worktree> <path>...`. One call per container runs at
+a time; a second call waits. Do not run the whole Pest suite (the coordinator does); run the test files
 and folders your change touches. Do not use `--parallel`. Plain `node` scripts
 (`clients/launcher/app/ui/check-ui.mjs`, `resources/recipes/schema/validate.mjs`) run on the host.
 
@@ -228,7 +230,7 @@ Wave 1 runs in parallel on the foundation commit. Wave 2 starts after wave 1 is 
 | A1 admin-glue | 2 | Filament: lineup, pull request state, approve files and publish, propose |
 | D1..D3 docs | 2 | docs site, repository docs, design rules |
 | T1 story-test | 2 | one feature test that walks the whole journey |
-| R-arch, R-sec, R-test, R-ui, R-docs | 3 | independent reviews of the merged result |
+| R-sec, R-arch, R-ui | 3 | independent reviews of the merged result (security, architecture and correctness, frontend). The planned test and docs reviews did not run in that round; section 8 makes up for them. |
 
 ## 6. Definition of done
 
@@ -261,3 +263,121 @@ changed, so the plan above is read with it:
 Not done, on purpose: quoting `{{target}}` at execution time in the installer (a player who picks
 an install path with a quote in it can break their own command), and anything that needs the real
 GitHub API or real hardware to verify.
+
+## 8. Gap round (2026-11-22)
+
+What section 2 left out on purpose (D12), what the reviews listed as residual, and what the first
+round never verified. Same rules as section 4. `main` moved in between: `clients/launcher`'s core
+now has a copy in `clients/voice/launcher-core` and is being merged into one desktop app
+(`docs/superpowers/decisions/2026-11-22-all-in-one-client-adr.md`).
+
+### 8.1 Decisions
+
+| # | Decision |
+|---|---|
+| G1 | **No Rust in this round.** Packing and uploading a game from inside the launcher would add an upload engine to `clients/launcher/launcher-core`, which the all-in-one plan copies and then retires; the voice client already has resumable uploads. The launcher keeps opening the share page in the browser. The feature belongs to the merged app. |
+| G2 | A server row says who is on it by **account**, from the Presence read model and under its visibility rule (`share_location`, blocks; the viewer always sees themselves). Website only: the bearer APIs do not carry it. |
+| G3 | The install block says when the game's archive is not on the LAN (`lanReady`). The launcher join stays: a player who already has the game can still join. |
+| G4 | A recipe never names this installation's server. Step and launch commands use `{{server_host}}` and `{{server_port}}`, which the server fills in when it builds the plan, from a server of that game the viewer may see; without one they are empty and the step leaves the game's configuration alone. |
+| G5 | A contribution answer says what the catalogue would refuse (`ProposeRecipe::preview()`), and the MCP tool takes `skill_markdown`, so an assistant can finish a recipe without the panel. |
+| G6 | The Node agent refuses an install path it cannot quote, instead of building a broken command from it. |
+
+### 8.2 Frozen contracts
+
+**Preview** (landed before the round): `ProposeRecipe::preview(GameRecipe $recipe, ?RecipeStatus $as = null): list<string>`.
+No repository call, no state. Empty means ready.
+
+**Contribution answer** (`recipe_contribute` and `POST /api/v1/recipes`), one new key:
+
+```jsonc
+"catalog": {
+  "pull_requests_enabled": true,          // RecipeRepository::isConfigured()
+  "problems": ["SKILL.md has 19 lines; …"],  // preview() for the stored status
+  "problems_when_published": []           // preview(…, RecipeStatus::Published)
+}
+```
+
+**Install block** (section 3.1), one new key: `lanReady: bool`. True when every required base or
+disc image of the recipe has an approved file on the LAN (pinned or matched, in an event that is
+not a draft) or an external URL. Viewer-independent. `launcherJoinUrl` does not depend on it.
+
+**Occupants**, a new key on a server row, filled on the server pages (`/servers`, `/servers/all`, an event's servers) and `null` on every other surface:
+
+```ts
+occupants: { people: Array<{ id: number; name: string; avatarUrl: string | null }>; more: number } | null
+```
+
+`null` while Presence is off or there is no logged-in viewer. `people` holds at most 8 accounts the
+viewer may see, by name; `more` counts further *visible* accounts. Somebody who hides their location
+is in neither. Contract `App\Modules\GameServers\Contracts\ServerOccupants` with a null
+implementation (the Presence-backed one lives in WebVoice, which already depends on both), resolved once per web request.
+
+**Plan variables**: `{{server_host}}` (letters, digits, dot, hyphen; at most 253 characters) and
+`{{server_port}}` (digits), substituted by `BuildInstallPlan` in step commands, step checks and
+launch targets before the plan leaves the server. Anything else resolves to an empty string.
+
+### 8.3 Cards
+
+| Card | Scope |
+|---|---|
+| M1 mcp-finish | `recipe_contribute` takes `skill_markdown`; the `catalog` key in both contribution answers; a how-to resource or prompt for a catalogue-ready recipe |
+| A2 panel-preview | the panel shows what would block a pull request, as a draft and once published; a requirement's `os`, `manual`, notes and tags are visible at review |
+| P1 occupants | the `ServerOccupants` contract, its Presence-backed implementation, the `occupants` key, the line on server cards and rows; one catalogue read per request on every server surface |
+| S3 lan-ready | `lanReady` in the install block and its hint; the lineup compares slugs the same way everywhere |
+| N1 server-vars | plan variables; the NFSU2 recipe, `config/launcher.php` and the seeder without a built-in address |
+| AG1 agent-paths | the Node agent refuses install and download paths it cannot quote |
+| Q1 contribution-rows | file rows keep their ids across an edit; a form upload stores a cleaned file name; the files page asks the server which archives can be shared |
+| Q2 frontend-polish | the share page selects the archive just uploaded, the quota gauge, the match page's join, small type leftovers (its launcher page rows were dropped again: see section 9) |
+| C1 js-ci | the JS unit tests and the launcher UI guard run in a workflow |
+| DOC-A1, DOC-A2 | audit of `docs-site/` against the code (participant and operator halves) |
+| DOC-B1, DOC-B2 | audit of `docs/`, `README.md`, `CHANGELOG.md`, the handoff |
+| SCREENS | screenshots of every surface the two rounds changed |
+| E2E | one real-browser run of the journey, including the launcher-link notice |
+| R-sec2, R-corr2 | independent reviews of the gap round |
+
+## 9. What the gap round's reviews, the browser run and the audits changed
+
+Seventeen subagents ran: nine builders (M1, A2, P1, S3, N1, AG1, Q1, Q2, C1), four documentation
+auditors, one screenshot worker, one real-browser tester and two independent reviewers. What they
+changed against section 8, so that section is read with it:
+
+- **A plan names a server only of exactly the recipe's game.** Both reviewers found independently
+  that N1's matcher-based rule wrote the browser twin's public host into the native NFSU2
+  configuration whenever no native server existed, which is the state of a fresh installation.
+  The server's game must carry the recipe's slug; a server that is switched off never qualifies; one
+  that answers ranks first. The recipe detail fills the same variables, because the Node agent reads
+  its launch targets there.
+- **The occupants line follows the event's people list** (`EventPolicy::viewPeople`), not "any
+  account", and the projection takes its viewer explicitly.
+- **"Im Launcher beitreten" is only said when the link names the server.** The browser run showed a
+  bare `lanomat://join/<slug>` under a promise to start "auf diesem Server". A link that cannot name
+  the server is "Im Launcher starten".
+- **The upload selection of Q2 did not work in form mode.** Its pure function was tested; the page
+  around it was not, and only the browser run showed it.
+- **Smaller ones:** a contribution's file row keeps a pin only while it still names the same file;
+  archive names the installing client would rename are refused; old upload names are cleaned when
+  offered as a download; the agent resolves a leading `~/` (it pasted `~/Games/<slug>` literally into
+  quoted commands on Linux and macOS before) and refuses `; & | < >` everywhere; a published shared
+  game stops calling itself a draft; the games pages name the app's current event.
+- **The documentation was not right.** The four audits found well over a hundred statements that
+  were not true of the code, some from the first round and many older: seeder commands that do
+  nothing in production without `--force`, an agent installer that does not exist, an OpenAPI file
+  that described other answers than the controllers give, module and MCP counts. The audits fixed
+  what they could verify from code and listed what they could not.
+- **`main` moved under the round.** The launcher's download page was merged into one `/app` page
+  and its live server list removed while Q2's rows for it were being reviewed. That work was
+  dropped in the merge; the server pages carry the same actions.
+
+Verified in a real browser (headless Chromium only): the journey with a form upload, the refusals,
+the review and one-step publish, the server rows, the occupants line with its privacy cases, the
+missing-files line, and the launcher link without a handler (no navigation, no dialog, no loss of
+focus, the notice after 2.5 seconds, retry and dismiss; a simulated loss of focus shows the
+confirmation). A launcher build of the tree compiles and packages on Linux.
+
+Not done or not verified, on purpose or for lack of means: packing and uploading from inside the
+launcher (G1); a real launcher taking over a link; Firefox and WebKit; the resumable upload path in
+a browser; anything on Windows (the agent's PowerShell and cmd rules rest on documentation); the
+NFSU2 step on a real PC; the real GitHub API. Left as they are: the game page's "AUF DER LAN" badge
+counts a running server (a tested decision that differs from `lanReady`), the config key
+`recipes.prefer_lan` that no code reads, the admin recipe table's width at 1440 pixels, and the
+order of the join ways on an expanded `/servers` row versus a `/servers/all` card.

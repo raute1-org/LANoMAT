@@ -12,7 +12,7 @@ lanomat-agent doctor
 ```
 
 ```text
-✓ config        ~/.config/lanomat-agent/config.json (0600)
+✓ config        ~/.config/lanomat/agent.json (0600)
 ✓ login         lan.example, user rene, expires in 29 days
 ✓ mcp           connected, 29 tools, protocol 2025-06-18
 ✓ model         venice/e2ee-deepseek-v4-1-flash-1017-abliterated
@@ -32,7 +32,7 @@ lanomat-agent doctor
 |---|---|---|
 | `401 unauthorized` | Token expired or revoked | `lanomat-agent login --url https://lan.example` |
 | `authorization_pending` forever | Code not approved in the browser | Open `verification_uri`, compare the code, approve |
-| Browser opens the wrong host | `APP_URL` differs from the address you use | Pass the exact `--server` URL you open in the browser |
+| Browser opens the wrong host | `APP_URL` differs from the address you use | Pass the exact `--url` you open in the browser |
 | Works on the host, not on a laptop | Different network / DNS | Use the venue DNS name, not `localhost` |
 | `device code expired` | Took longer than 10 minutes | Start `login` again |
 
@@ -129,18 +129,21 @@ the current LAN, ticket, seat and teams.
 
 ## Windows SmartScreen
 
-The agent and the voice client are unsigned. "Windows protected your PC" is expected. Compare the
-SHA-256 on the download page, then **More info → Run anyway**. Do not disable SmartScreen globally.
+The agent is a Node CLI, not a signed Windows executable: `agent-v<version>` releases attach an npm
+tarball, and `npm install -g` needs no SmartScreen prompt. The native voice client is a separate
+unsigned Windows build; there, "Windows protected your PC" is expected — **More info → Run anyway**.
+Do not disable SmartScreen globally.
 
 ## Collecting a report
 
 ```bash
 lanomat-agent doctor --json > lanomat-doctor.json
-lanomat-agent ask --debug "plan ut2004" 2> agent-debug.log
+lanomat-agent ask --print-command "plan ut2004"
 ```
 
-The debug log redacts the token and the model key. Attach both to an issue; do not paste a raw
-`config.json` or `models.json` with a literal key.
+The JSON report redacts the token and the model key. Attach it to an issue; do not paste a raw
+`agent.json` or `models.json` with a literal key. For the model-level detail, re-run `ask` without
+`--print-command`. There is no `--debug` flag.
 
 <div class="callout-live">
   <strong>One question at a time.</strong> If the agent does something surprising, ask it to

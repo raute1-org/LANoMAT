@@ -1,7 +1,8 @@
 # NFSU2 im Browser (Underground 2 Revived) — Prüfung und Einordnung
 
-Stand: **2026-11-21**. Nur Recherche: kein Deploy, kein Commit, keine
-Live-Änderung an `lan.raute1.org`, am Homelab oder an `nfsu2.xyz`.
+Stand: **2026-11-22** (Recherche vom 2026-11-21; der Rezept-Abschnitt wurde am
+22.11. gegen das Repo geprüft). Kein Deploy, keine Live-Änderung an
+`lan.raute1.org`, am Homelab oder an `nfsu2.xyz`.
 
 ## 0. Ergebnis in drei Sätzen
 
@@ -240,8 +241,7 @@ Laptops. Das sind die offenen Messpunkte vor einer Zusage.
 
 ## 7. Recipe-Variante im Repo
 
-Angelegt (nicht committet), parallel zum nativen Rezept
-`need-for-speed-underground-2`:
+Im Repo, parallel zum nativen Rezept `need-for-speed-underground-2`:
 
 ```
 resources/recipes/need-for-speed-underground-2-browser/
@@ -253,13 +253,14 @@ resources/recipes/need-for-speed-underground-2-browser/
 | --- | --- |
 | `slug` | `need-for-speed-underground-2-browser` |
 | `title` | `Need for Speed: Underground 2 (Browser)` |
-| `status` | `draft` (Zero-Install-Pfad getestet, LAN-Hardware noch nicht) |
+| `status` | `published` (Zero-Install-Pfad getestet; LAN-Hardware noch nicht) |
+| `version` | `2026-11-21` |
 | `platforms` | `windows`, `linux`, `macos` (Browser, nicht Spiel-OS) |
 | `play_url` | `https://nfsu2.xyz/` |
-| `metadata.live_url` | `https://nfsu2.xyz/` |
+| `metadata.live_url` | `https://nfsu2.xyz/` (nur mitgeführt; keine Oberfläche liest es) |
 | `requires` | `[]` — **keine** Base-/ISO-/Patch-Datei, kein Download, kein Install |
 | `metadata.players_max` | `64` (angezeigte Fahrzeuge; Server kann bis 24.000) |
-| `steps` | 5: Browser/WebGPU prüfen, Seite öffnen, World wählen, Saves/100 %, optional Self-Host |
+| `steps` | 5: Browser/WebGPU prüfen, Seite öffnen, LAN-Gruppe beitreten, Saves/100 %, optional Self-Host |
 
 Damit rendert die Games-Seite „Keine Dateien nötig … läuft direkt im Browser“
 und „Im Browser starten“ statt „Installieren“ (`installable` ist bei leeren
@@ -268,11 +269,10 @@ Für eine Instanz im Event-LAN wird `play_url` auf den dortigen TLS-Namen
 gesetzt, z. B. `https://nfsu2.<LAN_DOMAIN>/`; `{{host}}` wäre hier falsch, weil
 das die Adresse der LANoMAT-App ist, nicht des Spielservers.
 
-**Empfehlung für das native Rezept:** dort zusätzlich
-`metadata.live_url: 'https://nfsu2.xyz/'` setzen, damit die Spielseite den
-Browser-Fallback neben Install/Start anbietet. Das ist eine Ein-Zeilen-Änderung
-am parallel entstandenen Rezept und wurde hier **nicht** gemacht, um die
-laufende Arbeit nicht zu überschreiben.
+**Das native Rezept nennt seit 2026-11-22 keine Adresse mehr** — es trägt
+`{{server_host}}` (siehe [`nfsu2.md`](nfsu2.md) und
+[`ADMIN-HANDOFF.md`](ADMIN-HANDOFF.md), Abschnitt 9). `metadata.live_url` ist
+auch dort **nicht** nötig: die Spielseite liest den Schlüssel nicht.
 
 ## 8. Empfehlung
 
@@ -298,6 +298,8 @@ laufende Arbeit nicht zu überschreiben.
       testen, inkl. `PAGE-NOT-ISOLATED` mit dem normalen Brave-Profil.
 - [ ] Erstlade-Last von 20–30 Clients messen (Uplink vs. LAN-Host).
 - [ ] Entscheiden, ob das öffentliche `nfsu2.xyz` im UI als „Live“ verlinkt
-      wird (`live_url`) oder nur als Fallback in der Skill steht.
+      wird: `metadata.live_url` wird heute von keiner Oberfläche gelesen —
+      dafür bräuchte es erst eine; sonst bleibt der Server nur in der Skill
+      und in der Rezeptbeschreibung genannt.
 - [ ] `llms.txt`-Hinweis beachten: keine Modul-Patches, keine Automatisierung,
       keine Weitergabe des Moduls.

@@ -24,8 +24,10 @@ and optionally adds mods and avatars.
 - `/games/{slug}` — one game: install deep link, launch, server list, tournaments, "Runde ankündigen".
 - `/games/share` — **Spiel teilen**: upload or pick an archive, describe the game, follow your own
   shares. It creates a draft portable recipe with the archive pinned.
-- `/recipes` — recipe catalogue with base/mod badges and last update.
-- `/recipes/{slug}` — content list, avatars, files, install command.
+- `/app` — **App herunterladen**: the one download page, the desktop (voice) app and the launcher as
+  a list of downloads per OS with checksums, install steps and the pairing address; `/launcher` and
+  `/talk/client` redirect here, and their file routes stay. The live servers are not listed here any
+  more — they live on `/servers`.
 - `/admin/recipes` — **Spielrezepte**: the review queue, publish, unpublish, edit metadata, the
   lineup switch and the recipe's pull request.
 
@@ -42,7 +44,7 @@ Spiele, die auf Prüfung warten“**. No badge means the queue is empty.
 | **Beitrag von** | The contributor of a shared game; `—` for a curated recipe |
 | **Datei** | The state of the pinned LAN file: **„Datei wartet auf Freigabe“**, **„Datei abgelehnt“**, **„Datei fehlt“**; `—` when the recipe pins no file |
 | **In der Spieleliste zeigen** | The lineup flag as an icon: a green check or a grey minus |
-| **Pull Request** | The catalogue state (**Pull Request offen**, **Im Katalog**, **Pull Request geschlossen**, **Nicht gesendet**, **Fehlgeschlagen**). Only a state that exists in the repository links to it; a blocked or failed one stays local |
+| **Pull Request** | The catalogue state (**Pull Request offen**, **Im Katalog**, **Pull Request geschlossen**, **Nicht gesendet**, **Fehlgeschlagen**). Only a state that exists in the repository links to it; a blocked or failed one stays local. Under **Nicht gesendet** and **Fehlgeschlagen** the first line of the stored reason follows the badge |
 | **Zuletzt geprüft**, **Dateien**, **Aktualisiert** | Review stamp, file count, last update |
 
 Filters: **Status**, the **Geteilte Spiele** toggle (rows with a contributor), the **Spieleliste**
@@ -51,11 +53,15 @@ list is sorted by **Aktualisiert**, newest first.
 
 | Dark | Light |
 |---|---|
-| ![Game recipes admin table in dark theme with publish state, version, file count and last update](/screens/admin-recipes-dark.png) | ![Game recipes admin table in light theme with publish state, version, file count and last update](/screens/admin-recipes-light.png) |
-| `RECIPES · DARK` — publish state, version, file count, last update | `RECIPES · LIGHT` |
+| ![Game recipes admin table in dark theme with the "Geteilte Spiele" filter active: status, the file state, the pull request state with its stored reason, the file count and the last update](/screens/admin-recipes-dark.png) | ![Game recipes admin table in light theme with the same filtered lists, file states and pull request reasons](/screens/admin-recipes-light.png) |
+| `RECIPES · DARK` — shared games, file state, pull request and its reason | `RECIPES · LIGHT` — same list |
 
 The edit page carries the recipe itself: description, homepage, license, the `SKILL.md` and every
-required file as a typed row with a role and a filename pattern. The header actions are
+required file as a typed row with a role and a filename pattern. The keys the form has no field for —
+a requirement's operating system, the manual flag, notes, author, licence and tags — are shown
+read-only under **Angaben zur Datei** („Nur für Windows“ — the platform's name, not its slug —,
+„Von Hand zu besorgen …“, „Hinweis: …“, „Autor: …“, „Lizenz: …“, „Schlagwörter: …“), so a reviewer
+sees a Windows-only or hand-fetched file before releasing it. The header actions are
 **Veröffentlichen**, **Dateien freigeben und veröffentlichen**, **Pull Request öffnen / aktualisieren**
 and **Archivieren**.
 
@@ -75,8 +81,8 @@ erscheint ohnehin jedes veröffentlichte Rezept.“).
 
 | Dark | Light |
 |---|---|
-| ![Game recipe edit form in dark theme with SKILL.md, license and required ISO and patch rows](/screens/admin-recipe-edit-dark.png) | ![Game recipe edit form in light theme with SKILL.md, license and required ISO and patch rows](/screens/admin-recipe-edit-light.png) |
-| `RECIPE EDIT · DARK` — SKILL.md, license, ISO and patch rows | `RECIPE EDIT · LIGHT` |
+| ![Game recipe edit form in dark theme with the SKILL.md text, the required DVD requirement with its filename patterns and the step editor](/screens/admin-recipe-edit-dark.png) | ![Game recipe edit form in light theme with the same SKILL.md, requirement and step fields](/screens/admin-recipe-edit-light.png) |
+| `RECIPE EDIT · DARK` — SKILL.md, the required DVD with its patterns, the steps | `RECIPE EDIT · LIGHT` — same fields |
 
 ### Start und Launcher
 
@@ -103,19 +109,55 @@ It answers what a reviewer used to release unseen:
   **Automatisch entscheiden**, **Immer anbieten**, **Nie anbieten**. Only `metadata.launcher_supported`
   changes; every other metadata key keeps its value.
 
+| Dark | Light |
+|---|---|
+| ![Contributed recipe edit page: the read-only requirement details ("Nur für windows", note, tags) above the read-only "Start und Launcher" section with the launcher verdict, the portable shape, the launch target and the override](/screens/admin-recipe-contributed-dark.png) | ![The same contributed recipe page in light mode](/screens/admin-recipe-contributed-light.png) |
+| `RECIPE CONTRIBUTED · DARK` — "Angaben zur Datei", "Start und Launcher", override | `RECIPE CONTRIBUTED · LIGHT` — same sections |
+
 Each step in the form also lists its `verify` checks read-only, one line per check
 (`file_exists: <Pfad>`, `dir_exists: <Pfad>`, `command: <Befehl>`) and no heading of its own; an
 OS-specific check ends in „· nur windows“ (or the OS it names). The checks have no editor; they come
 from the recipe.
 
 Both publish confirmations list what lands on the players' PCs: **„Das wird veröffentlicht“**,
-„:steps Schrittbefehle und :launch Startbefehle“, **„Diese Befehle laufen auf den PCs der Spieler.“**
-or **„Keine Startbefehle hinterlegt.“** — with the commands themselves, so the orga sees the shell
-lines before releasing them.
+**„Schrittbefehle: :steps · Startbefehle: :launch“**, **„Diese Befehle laufen auf den PCs der
+Spieler.“** or **„Keine Startbefehle hinterlegt.“** — with the commands themselves, so the orga sees
+the shell lines before releasing them. When the catalogue checks would refuse the pull request at
+that moment, both confirmations also carry the warning **„Der Pull Request wird nicht gesendet“** plus
+the number of open points („ein offener Punkt – der Grund steht im Abschnitt „Katalog (Pull
+Request)““); publishing itself is never blocked by it.
+
+| Dark | Light |
+|---|---|
+| ![Publish confirmation "Dateien freigeben und veröffentlichen": the pull-request warning, the archive that is approved, the "Das wird veröffentlicht" counts and the launch command](/screens/admin-recipe-publish-confirm-dark.png) | ![The same publish confirmation in light mode](/screens/admin-recipe-publish-confirm-light.png) |
+| `PUBLISH · DARK` — PR warning, files, counts, commands | `PUBLISH · LIGHT` — same confirmation |
+
+### Katalog (Pull Request)
+
+The read-only section **„Katalog (Pull Request)“** holds the state, the link, the refusal reason of
+the last attempt and the last sync. With pull requests configured it adds **„Textprüfung für den
+Katalog“** — the same checks the proposal runs, asked without a repository call and without writing
+anything:
+
+- a draft lists what the catalogue wants from a draft (**„Als Entwurf fehlt noch:“**) and what would
+  still be missing once it is published (**„Nach dem Veröffentlichen fehlt noch:“**, with the help line
+  that depends on `RECIPES_PR_TRIGGER`);
+- a published or archived recipe lists only **„Was den Pull Request gerade blockiert:“**;
+- an empty list answers **„Der Text ist bereit für den Katalog – ein Pull Request hätte nichts zu
+  beanstanden.“**
+
+The reasons themselves are the checks' English sentences, shown verbatim.
+
+| Dark | Light |
+|---|---|
+| ![The "Katalog (Pull Request)" section on a draft: "Textprüfung für den Katalog" with the English findings under "Als Entwurf fehlt noch:" and "Nach dem Veröffentlichen fehlt noch:"](/screens/admin-recipe-catalog-dark.png) | ![The same catalogue section in light mode](/screens/admin-recipe-catalog-light.png) |
+| `KATALOG · DARK` — draft and published findings, verbatim | `KATALOG · LIGHT` — same list |
 
 ## Guards and rules
 
-- The **base game is required**; a mod is optional and must declare `requires` on the base.
+- The **base game is the required content**: a published recipe carries one required `base` or `iso`
+  requirement (the catalogue validator warns without one); patches, mods, tools and avatars are
+  optional.
 - `LauncherSupport` is the one place that decides `launcher_supported`: the UT2004 pilot, the
   hand-verified NFSU2 recipe, a browser recipe with `play_url`, or a portable recipe (required
   `base` archive, a file/dir check in a non-optional step, a launch target). The panel's
@@ -124,29 +166,57 @@ lines before releasing them.
   which rule applied. The launcher unpacks, checks and starts; it never runs step commands.
 - The **lineup** is the configured `LAUNCHER_LINEUP` plus every recipe with
   `game_recipes.in_lineup = true`; an empty `LAUNCHER_LINEUP` means no curation. The lineup drives
-  `/games`, the launcher and the server browser. A recipe outside it stays in the database.
-- Every downloadable byte comes from the LAN file host through a bearer-authenticated download URL. No recipe embeds a
-  public internet link as its primary source.
+  `/games`, the launcher, the server browser and the `recipes_list`/`GET /api/v1/recipes` catalogue.
+  A recipe outside it stays in the database and is still readable by slug (`recipe_get`,
+  `GET /api/v1/recipes/{slug}`).
+- An install plan links the LAN copies through a bearer-authenticated download URL; only when a
+  required file has no LAN copy does the plan fall back to the requirement's external URL
+  (`status: external`, or `manual` for a release page), and the agent needs `--allow-external` before
+  it fetches one. That preference is hard-wired; `RECIPES_PREFER_LAN` is configured but read by no
+  code path today.
 - `plan` is pure: it resolves files and sizes but downloads nothing. The agent confirms before the
-  transfer.
+  transfer. A plan carries the recipe's `version` and a `generated_at` stamp; each download carries
+  the `sha256` the launcher verifies before it reuses a file.
+- A recipe never names this installation's server: step commands, step checks and launch targets may
+  use `{{server_host}}` and `{{server_port}}`, which the server fills in before any client sees the
+  text — in the install plan and in the recipe detail (`recipe_get`, `GET /api/v1/recipes/{slug}`,
+  the native client's read-only Spiele tab, which lists the published lineup and fetches
+  `…/recipes/{slug}` and `…/recipes/{slug}/plan` under `/api/voice-client/v1`). The value comes from
+  a server whose game carries exactly the recipe's slug (no
+  alias or name match: the browser twin of a native game never qualifies), that is Ready or
+  NotResponding and that the viewer may see; a server that answers ranks first, then a permanent one,
+  then the lowest id. The host keeps letters, digits, dot and hyphen (at most 253 characters, never
+  trimmed), the port must be 1–65535. Without such a server both are the empty string, and the step
+  leaves the game's configuration alone.
 - Avatars are **multi-select** content: zero or more, each with a size and a target path.
-- A recipe is versioned by `updated_at` and a content hash; the agent refuses a stale plan.
-- Deleting a recipe never deletes files still referenced by another recipe.
+- Deleting a recipe removes its own requirement rows; the uploaded files stay on the file host, so
+  another recipe that pins or matches them keeps working.
 - An install is idempotent: re-running it verifies hashes and skips what is already there.
 
 ## Shared games and the catalogue
 
 A participant packs a ready-to-run game folder as `.zip` or `.tar.bz2`, uploads it to the file host
 and describes it on `/games/share`. `ShareGame` refuses a foreign or rejected file, a file the caller
-may not download, a name that is not an archive, a name that would break the shell/Markdown/pinned
-glob, a taken title and the slug `share`; `ContributeRecipe` refuses the contribution beyond
-`RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for review (20 by default, orga exempt).
+may not download, a name that is not an archive, a name the installing client would store under
+another name (a backtick, `*`, `?`, a control character, `:`, `"`, `<`, `>`, `|`, a leading dot, two
+dots in a row) or that gives too weak a pin glob, a taken title and the slug `share`;
+`ContributeRecipe` refuses the contribution beyond `RECIPES_MAX_DRAFTS_PER_USER` drafts waiting for
+review (20 by default, orga exempt).
 `PortableRecipeBuilder` writes the payload (`metadata.portable: true`, one required `base`
 requirement, file checks, launch targets) and `ContributeRecipe` stores it as the contributor's
 draft. The orga's part is one action plus one switch: **Dateien freigeben und veröffentlichen**
 approves the pinned archive and publishes the recipe, and publishing a contributed recipe sets
-**In der Spieleliste zeigen**. Read [Share a game](/docs/guides/share-a-game) for the participant
-view.
+**In der Spieleliste zeigen** and rewrites the generated sentences that call the text a draft. Read
+[Share a game](/docs/guides/share-a-game) for the participant view.
+
+A contribution made through MCP or REST answers with a `catalog` object next to the recipe:
+`pull_requests_enabled` (whether this installation proposes at all), `problems` (what would block a
+pull request for the stored status) and `problems_when_published`. Both paths accept a full
+`skill_markdown`; without one the skill is rendered from the fields. A second call for the same slug
+**replaces** the stored draft, so the complete recipe has to be sent — a field left out is cleared,
+not kept. A pin the orga set on a file row survives a contributor's edit only while the requirement
+still names the same file (same patterns and digest); a renamed or duplicated requirement starts
+without a pin and never inherits one.
 
 ## Pull requests into the git catalogue
 
@@ -183,7 +253,9 @@ checks the schema, the `SKILL.md` contract, uniqueness, the draft rules and the 
 ## Docs for agents
 
 `recipes_list`, `recipe_get`, `recipe_install_plan`, `recipe_avatars`, `recipe_contribute`;
-the skill itself is the resource `lanomat://recipes/{slug}/skill`.
+the skill itself is the resource `lanomat://recipes/{slug}/skill`, and
+`lanomat://skills/contribute-recipe` is the how-to for a catalogue-ready contribution. The lists
+also appear as REST endpoints under `/api/v1/recipes`.
 
 <div class="callout-live">
   <strong>Read the skill first.</strong> The YAML is metadata; the SKILL.md carries the install

@@ -1,8 +1,9 @@
 # Launcher First Lineup — Betrieb
 
-Stand: **2026-11-21**. Gilt für Launcher, Web-Bibliothek, Home-Chat und den
-MCP-Katalog. Keine Live-Änderung, kein Secret und kein Commit in diesem
-Runbook.
+Stand: **2026-11-22** (Inhalt vom 2026-11-21, gegen den Code geprüft und um das
+`in_lineup`-Flag und den Seeder ohne Default ergänzt). Gilt für Launcher,
+Web-Bibliothek, Home-Chat und den MCP-Katalog. Keine Live-Änderung, kein Secret
+und kein Commit in diesem Runbook.
 
 ## 1. Was die Lineup ist
 
@@ -37,10 +38,11 @@ LAUNCHER_LINEUP=unreal-tournament-2004,need-for-speed-underground-2,need-for-spe
 - **Leer** (`LAUNCHER_LINEUP=`) heißt „keine Kuratierung“: alle sichtbaren
   Rezepte erscheinen wieder. Das ist der Backcompat-Pfad für bestehende
   Installationen.
-- Der Default in `config/launcher.php` und in `LauncherLineup::DEFAULT` sind
-  die drei Slugs oben. Ein Test-Environment setzt die Lineup nicht; einzelne
-  Suites, die den ganzen historischen Katalog prüfen, setzen
-  `launcher.lineup` in ihrem `beforeEach` auf `''`.
+- Der Default steht **nur** in `config/launcher.php` (die drei Slugs oben); eine
+  Konstante `LauncherLineup::DEFAULT` gibt es seit dem 22.11. nicht mehr. Ein
+  Test-Environment setzt die Lineup nicht; einzelne Suites, die den ganzen
+  historischen Katalog prüfen, setzen `launcher.lineup` in ihrem `beforeEach`
+  auf `''`.
 
 ### Geteilte Spiele: das `in_lineup`-Flag
 
@@ -106,25 +108,38 @@ Rezept und wird von der Browser-Recipe nicht überschrieben.
 UT2004 bleibt der bestehende Dauerserver `10.23.0.40:7777`; die Lineup ändert
 ihn nicht.
 
-Für NFSU2 gibt es keinen von LANoMAT gesteuerten Prozess. Der eine manuelle
-Server wird einmalig registriert:
+Für NFSU2 gibt es keinen von LANoMAT gesteuerten Prozess. Zwei manuelle
+Server werden einmalig registriert — der Browser-Port immer, unser nativer
+NFS-Online-Server nur mit gesetztem Host:
 
 ```bash
-php artisan db:seed --class=LauncherLineupSeeder
+php artisan db:seed --class=LauncherLineupSeeder --force   # --force: production asks otherwise
 ```
 
 Der Seeder ist idempotent und legt an:
 
-| Feld | Wert |
-| --- | --- |
-| Titel | `NFSU2 (Browser)` |
-| Adresse | `nfsu2.xyz` |
-| Port | `443` |
-| Connect | `https://nfsu2.xyz/` |
-| Typ | permanent, extern, manuell, `Ready` |
+| Feld | Browser-Port | NFS-Online (nur mit `NFS_SERVER_HOST`) |
+| --- | --- | --- |
+| Titel | `NFSU2 (Browser)` | `NFSU2 (NFS-Online, unser Server)` |
+| Adresse | `nfsu2.xyz` | Wert von `NFS_SERVER_HOST` |
+| Port | `443` | `20922` |
+| Connect | `https://nfsu2.xyz/` | der Host |
+| Typ | permanent, extern, manuell, `Ready` | permanent, extern, manuell, `Ready` |
 
-Der `join`-Button öffnet HTTPS. Der Seeder fasst keinen anderen Server an und
-wird nicht automatisch von `DatabaseSeeder` ausgeführt.
+`NFS_SERVER_HOST` hat **keinen Default**. Ohne den Wert (in `/opt/lanomat/.env`,
+danach die App neu erstellen) legt der Seeder **keinen** nativen Server an und
+schreibt eine Warnung auf die Konsole; eine Serverzeile aus einem früheren Lauf
+lässt er unverändert — deren (alte) Adresse nennen die Installationspläne
+weiter, bis du den Host setzt und neu seedest oder die Zeile im Panel
+bearbeitest. Der `join`-Button des Browser-Servers öffnet HTTPS. Der Seeder
+fasst keinen anderen Server an und wird nicht automatisch von
+`DatabaseSeeder` ausgeführt.
+
+Diese Serverzeile ist auch die Quelle für die Rezept-Variable
+`{{server_host}}`: ein Installationsplan füllt sie nur aus einem Server, dessen
+Spiel **genau** den Rezept-Slug trägt (der Browser-Zwilling
+`need-for-speed-underground-2-browser` nie), den der Spieler sehen darf. Das
+Rezept selbst nennt keine Adresse.
 
 Ohne Seeder bleibt die Web-Spielseite korrekt: sie leitet den einen Server aus
 `metadata.server` + `play_url` ab. Der globale `/servers`-Browser zeigt ihn

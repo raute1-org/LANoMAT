@@ -2,7 +2,7 @@
 
 Zentrales Runbook: [`nfsu2.md`](nfsu2.md).
 
-Stand: **2026-11-21**. Getestet auf dem Laptop `10.23.3.220` mit
+Stand: **2026-11-22** (Server-Tests vom 2026-11-21). Getestet auf dem Laptop `10.23.3.220` mit
 NFS Online Server **1.1.3** (Classic V958, Client 0.2.22), Python 3.14.8,
 Docker 29.9.2 / Compose 5.6.1 und Python 3.12.16 im Container.
 
@@ -252,6 +252,16 @@ drei Client-Configs konsistent zu setzen:
 ```bash
 python3 nfs_online.py configure --public-host 10.23.0.12
 ```
+
+Für LANoMAT-Installationen gilt seit 2026-11-22: das Rezept nennt keine Adresse
+mehr. Setze `NFS_SERVER_HOST` auf **denselben** Host wie `PUBLIC_HOST` und
+registriere die Serverzeile (`db:seed --class=LauncherLineupSeeder --force`); der
+Installationsplan schreibt ihn dann in beide `host`-Zeilen — aber nur, wenn die
+Serverzeile genau das Spiel `need-for-speed-underground-2` trägt (der
+Browser-Zwilling `nfsu2.xyz` zählt nicht). Ein Launcher-Install
+führt keine Rezept-Schritte aus und nimmt den Host aus dem portablen Archiv
+(`nfsu2-portable.zip`, gebaut mit `make_package.sh --server`) — siehe
+[`nfsu2-package.md`](nfsu2-package.md).
 
 Danach Client neu bauen (Abschnitt 4), damit `zig-out/bin/net_u2.ini`
 denselben Host enthält. Für Online außerhalb des LANs stattdessen die

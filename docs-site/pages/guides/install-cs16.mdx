@@ -3,9 +3,10 @@ title: Install Counter-Strike 1.6
 description: Half-Life plus Counter-Strike 1.6 on a LAN PC — Steam apps 70/10/90, the cstrike folder, the LAN config, connecting to the server, and the tournament and LFG path.
 ---
 
-Counter-Strike 1.6 runs on **Half-Life** (GoldSrc). Every player needs the Half-Life base and the
-`cstrike` game folder; the LAN server is a separate install on the game-server host or on a spare PC.
-The recipe is `counter-strike-1-6` (aliases `cs1.6`, `cs 1.6`, `cstrike`, `counter strike`).
+Counter-Strike 1.6 runs on **GoldSrc**. In Steam, Counter-Strike 1.6 (app 10) installs its own
+Half-Life base and the `cstrike` folder; the LAN copy is a Half-Life tree plus a `cstrike` archive.
+The LAN server is a separate install on the game-server host or on a spare PC. The recipe is
+`counter-strike-1-6` (aliases `cs 1.6`, `cs16`, `counter strike 1.6`, `counter-strike 1.6`, `cstrike`).
 
 The repository's recipe is currently **`status: draft`**. It is not on `/games` and not in
 `lanomat-agent recipes` for participants until an orga publishes it
@@ -30,9 +31,9 @@ a Steam download that never finished. The checklist at the end is the short vers
 | Requirement | Value / why |
 |---|---|
 | LANoMAT account + paired agent | The recipe, plan and file matching ([agent guide](/docs/guides/install-the-agent)) |
-| Steam | Half-Life is installed through Steam; CS 1.6 is a Steam app |
-| Half-Life base | **Steam app 70**; retail/GOG also works if the folder contains `hl.exe` |
-| Counter-Strike 1.6 | **Steam app 10**; the recipe's `cstrike*.zip` is the LAN copy |
+| Steam | Counter-Strike 1.6 is a Steam app and brings its own Half-Life base |
+| Counter-Strike 1.6 | **Steam app 10**; the LAN copy is a Half-Life tree plus a `cstrike*.zip` |
+| Half-Life (optional) | **Steam app 70**, for the separate Half-Life game or a manual mod install |
 | Half-Life Dedicated Server (optional) | **Steam app 90**, only for a server on a player PC |
 | Disk | About **1 GB** for Half-Life + CS 1.6 |
 | OS | Windows 10/11; Linux through Proton/Wine |
@@ -43,9 +44,11 @@ The recipe's requirements:
 
 | Role | Label | Required | Match |
 |---|---|---|---|
-| `base` | Half-Life base (Steam/GOG or retail) | **yes** | `half-life*.iso`, `hl*.iso`, `HalfLife*.exe` |
-| `mod` | Counter-Strike 1.6 (cstrike folder or installer) | **yes** | `cstrike*.zip`, `counter-strike*.exe`, `cs16*.exe`, `cstrike*.7z` |
-| `config` | LAN config (autoexec.cfg, server.cfg) | no | `autoexec*.cfg`, `server*.cfg` |
+| `base` | Half-Life base or Counter-Strike 1.6 install (Steam app 10/70 or full LAN copy) | **yes** | none — asked for or detected (Steam installs under `steamapps/common/Half-Life`); fallback URL is the Steam page of app 70 |
+| `iso` | Half-Life base or full Counter-Strike 1.6 LAN archive | no | `Half-Life`, `Half-Life*.iso`, `Half-Life*.7z`, `Half-Life (*`, `Half-Life GOTY*`, `half-life*.iso`, `Counter-Strike*1.6*`, `Counter-Strike*.zip`, `Counter-Strike*.7z` |
+| `content` | Counter-Strike 1.6 cstrike archive | no (Steam app 10 already installs `cstrike`) | `cstrike*.zip`, `Counter-Strike*1.6*.zip` |
+| `tool` | Steam client | no | none — checked on the machine; fallback URL is the Steam download page |
+| `config` | LAN server config | no | `server.cfg`, `autoexec.cfg`, `*cstrike*.cfg` |
 
 <div class="callout-live">
   <strong>Steam app ids.</strong> 70 = Half-Life, 10 = Counter-Strike, 90 = Half-Life Dedicated
@@ -84,7 +87,7 @@ and **Pflicht** on both. A published recipe with an empty pattern matches nothin
 | ![Recipe form with the file role, name patterns and the Pflicht switch, dark](/docs/screens/admin-recipe-edit-dark.png) | ![Recipe form with the file role, name patterns and the Pflicht switch, light](/docs/screens/admin-recipe-edit-light.png) |
 | `RECIPE · FILES · PATTERNS · REQUIRED` | `RECIPE · LIGHT` |
 
-## 2. Install Half-Life (Steam app 70)
+## 2. Install the Half-Life base (Steam app 70, optional)
 
 ```powershell
 Start-Process "steam://install/70"
@@ -127,8 +130,8 @@ your paired agent, and the card is missing entirely while the recipe is still a 
 
 | Dark | Light |
 |---|---|
-| ![Games library with the Counter-Strike 1.6 card and its Installieren button, dark](/docs/screens/games-dark.png) | ![Games library with the Counter-Strike 1.6 card and its Installieren button, light](/docs/screens/games-light.png) |
-| `GAMES · COUNTER-STRIKE 1.6 · INSTALL` | `GAMES · LIGHT` |
+| ![Games library with the LIVE banner, the LAN filter and the install actions of the published recipes, dark](/docs/screens/games-dark.png) | ![The same games library in light](/docs/screens/games-light.png) |
+| `GAMES · LIVE · LAN-FILTER · INSTALLIEREN` | `GAMES · LIGHT` |
 
 ## 4. Start the game with the right game folder
 
@@ -143,8 +146,8 @@ Then choose **Counter-Strike** from the Half-Life menu. The direct equivalent is
 ```
 
 `-game cstrike` is not optional when you start `hl.exe` yourself. Without it you get Half-Life's
-menu, and the console reports no CS maps. The recipe's metadata uses exactly that command as its
-launch target.
+menu, and the console reports no CS maps. The recipe's `metadata.launch` starts the Steam app instead
+(`steam://rungameid/10`); the `hl.exe -game cstrike` form is the portable path without Steam.
 
 ## 5. Apply the LAN config (optional)
 
@@ -182,8 +185,8 @@ for the client hand-off and **Kopieren** for the console. Use it when a teammate
 
 | Dark | Light |
 |---|---|
-| ![Spielserver page with one server row, address, port and Verbinden and Kopieren, dark](/docs/screens/event-servers-dark.png) | ![Spielserver page with one server row, address, port and Verbinden and Kopieren, light](/docs/screens/event-servers-light.png) |
-| `SERVERS · ADDRESS · PORT · CONNECT · COPY` | `SERVERS · LIGHT` |
+| ![Serverbrowser row with BEREIT, map and player count, Im Launcher beitreten, Spiel installieren, the address and Kopieren, dark](/docs/screens/servers-all-dark.png) | ![The same serverbrowser card in light](/docs/screens/servers-all-light.png) |
+| `SERVERS · ADRESSE · SPIELER · IM LAUNCHER BEITRETEN · KOPIEREN` | `SERVERS · LIGHT` |
 
 ## 7. Tournament and LFG
 

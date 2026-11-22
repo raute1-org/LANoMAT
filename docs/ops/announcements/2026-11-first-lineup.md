@@ -1,7 +1,7 @@
 🏁 **First Lineup ist da**
 
 **https://lan.raute1.org** – ab jetzt ist alles an einem Ort:
-• **/launcher**: LANoMAT-Launcher für Windows und Linux.
+• **/app**: LANoMAT-App herunterladen (der Launcher für Windows und Linux).
 • **/games**: Spiele, Rezepte und Installation.
 • **/servers**: Serverbrowser mit allen Dauerservern.
 

@@ -8,7 +8,7 @@ LANoMAT exposes a **Model Context Protocol** server at `/mcp`. It speaks streama
 bearer token, and gives an agent a small, deliberate surface: identity, game recipes, recipe skills,
 files and a contribution draft. It does not expose a generic database or shell.
 
-<div class="live">LIVE 17:42 · MCP connected · 29 tools · 2 resources · 2 prompts</div>
+<div class="live">LIVE 17:42 · MCP connected · 29 tools · 3 resources · 2 prompts</div>
 
 ## Endpoint
 
@@ -18,10 +18,10 @@ https://lan.example/mcp
 
 | Property | Value |
 |---|---|
-| Transport | Streamable HTTP (`POST`; `Accept: application/json, text/event-stream`) |
+| Transport | Streamable HTTP (`POST`; the answer is `application/json`, not an SSE stream) |
 | Auth | `Authorization: Bearer <token>` |
-| Protocol | MCP `2025-06-18` (negotiated on `initialize`) |
-| Session | `Mcp-Session-Id` header returned by `initialize`, echoed on later calls |
+| Protocol | MCP `2025-11-25` — `initialize` echoes `2025-03-26`, `2025-06-18` or `2025-11-25` when asked for one of them and answers `2025-11-25` otherwise; a request that carries `_meta.protocolVersion` must name `2026-07-28` |
+| Session | none: no `Mcp-Session-Id` is issued or required, every call stands alone |
 | Module | `Mcp` — off in `core` unless `MODULE_MCP=true` |
 
 An unauthenticated call answers `401` with `WWW-Authenticate: Bearer`. A bad token is `401`, never
@@ -42,6 +42,7 @@ curl -s https://lan.example/api/mcp/device -X POST
   "device_code": "dc_6f1c…",
   "user_code": "K7QF-2M9R",
   "verification_uri": "https://lan.example/mcp/connect",
+  "verification_uri_complete": "https://lan.example/mcp/connect?code=K7QF-2M9R",
   "expires_in": 600,
   "interval": 5
 }
@@ -139,7 +140,9 @@ curl -s https://lan.example/mcp \
 ```
 
 Then `notifications/initialized`, then `tools/list`, `resources/list`, `prompts/list` and the calls
-themselves. The server answers with `application/json` or an SSE stream, as requested by `Accept`.
+themselves. The answer is `application/json` (the request may carry
+`Accept: application/json, text/event-stream`; this server does not stream). `GET` and `DELETE /mcp`
+answer `405` with `Allow: POST`.
 
 ```json
 {
@@ -163,7 +166,7 @@ themselves. The server answers with `application/json` or an SSE stream, as requ
 | Surface | Count | Examples |
 |---|---|---|
 | Tools | 29 | `lanomat_me`, `recipes_list`, `recipe_install_plan`, `files_list` |
-| Resources | 2 | `lanomat://recipes/{slug}/skill`, `lanomat://skills/import-menu` |
+| Resources | 3 | `lanomat://recipes/{slug}/skill`, `lanomat://skills/import-menu`, `lanomat://skills/contribute-recipe` |
 | Prompts | 2 | `install-game`, `import-menu` |
 
 The full catalogue, argument schemas and examples are on [Tools & resources](/docs/mcp/tools).
@@ -173,7 +176,9 @@ The full catalogue, argument schemas and examples are on [Tools & resources](/do
 - No SQL, no arbitrary file paths, no shell.
 - Writes are limited to your own registration, match result, vote, LFG post and a draft recipe. No seat, event or tournament edits, no publish.
 - No other user's private data: every call is scoped to the token's user and their role.
-- No publish action: a contributed recipe is a **draft** for orga review. A contribution may carry
+- No publish action: a contributed recipe is a **draft** for orga review, and a second
+  `recipe_contribute` call with the same slug **replaces** that draft (send the complete recipe). A
+  contribution may carry
   launch targets, a `play_url`, the `portable` flag and a pin on a LAN file the caller may download;
   `status`, `in_lineup` and `metadata.launcher_supported` stay with the orga. When the operator
   enabled recipe pull requests, the draft's text is proposed to the git repository as a pull request

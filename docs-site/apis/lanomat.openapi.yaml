@@ -10,11 +10,13 @@ info:
     pairing flow (`POST /api/mcp/device`, then `POST /api/mcp/token`). The token belongs to
     the approving user and carries their role. `/mcp` uses the same token.
 
-    The base URL is the LANoMAT host (`https://lan.example` at a LAN). Recipe file bytes are
-    served by the LAN file host over a short-lived signed URL; the API never streams them.
+    The base URL is the LANoMAT host (`https://lan.example` at a LAN). Recipe file bytes live on
+    the LAN file host; with `FILES_STORE=host` the download endpoint answers a short-lived signed
+    redirect, with the default local store the app streams the file itself.
 
     **Recipes** are agent skills: `recipe.yaml` is the machine-readable plan, `SKILL.md` is the
-    guidance an agent reads. The base game is always required; mods and avatars are optional.
+    guidance an agent reads. A published recipe carries one required base or disc image; patches,
+    mods, tools and avatars are optional.
   contact:
     name: LANoMAT
     url: https://github.com/raute1-org/LANoMAT
@@ -75,9 +77,12 @@ paths:
       operationId: startMcpDevicePairing
       summary: Start device pairing
       description: |
-        Creates a device code for an agent. The human opens `verification_uri` while logged in
-        and approves the code. The agent then polls `POST /api/mcp/token` with `device_code`.
-        Codes expire after 10 minutes; the default poll interval is 5 seconds.
+        Creates a device code for an agent. The human opens `verification_uri` (or
+        `verification_uri_complete`, which carries the code) while logged in and approves the code.
+        The agent then polls `POST /api/mcp/token` with `device_code`. Codes expire after
+        `MCP_CODE_TTL` seconds (600 by default); the poll interval is `MCP_POLL_INTERVAL` (5 s).
+        A malformed request answers `400 {"error":"invalid_request"}` (RFC 8628), not a validation
+        error.
       security: []
       requestBody:
         required: false
@@ -87,15 +92,11 @@ paths:
               type: object
               additionalProperties: false
               properties:
-                client_name:
+                device_name:
                   type: string
-                  maxLength: 80
-                  description: A label shown on the approval page, e.g. "pi on gaming-pc".
+                  maxLength: 120
+                  description: A label shown on the approval page, e.g. "pi on gaming-pc". Empty or missing means "LANoMAT agent".
                   examples: ["pi on gaming-pc"]
-                scope:
-                  type: string
-                  default: "lanomat.read lanomat.recipes.contribute"
-                  description: Space-separated scopes. The default is read plus recipe draft.
       responses:
         "200":
           description: Device code created.
@@ -106,9 +107,16 @@ paths:
               example:
                 device_code: dc_6f1c2a9e4b7d
                 user_code: K7QF-2M9R
-                verification_uri: https://lan.example/settings/connections
+                verification_uri: https://lan.example/mcp/connect
+                verification_uri_complete: https://lan.example/mcp/connect?code=K7QF-2M9R
                 expires_in: 600
                 interval: 5
+        "400":
+          description: Malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -119,8 +127,9 @@ paths:
       summary: Exchange device code
       description: |
         Poll this endpoint after starting device pairing. Until the human approves, it answers
-        `400` with `{"error":"authorization_pending"}`. An expired code answers `expired_token`;
-        a denied code answers `access_denied`. The returned token is shown once.
+        `400` with `{"error":"authorization_pending"}`; polling faster than the interval answers
+        `slow_down` and raises the interval. An expired code answers `expired_token`, a denied one
+        `access_denied`, an unknown one `invalid_grant`. The returned token is shown once.
       security: []
       requestBody:
         required: true
@@ -133,6 +142,7 @@ paths:
               properties:
                 device_code:
                   type: string
+                  maxLength: 128
                   description: The `device_code` from `POST /api/mcp/device`.
                   examples: ["dc_6f1c2a9e4b7d"]
       responses:
@@ -143,10 +153,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeviceToken"
               example:
-                access_token: lmt_9b2f4c1d7e6a8f3c5d0b
+                access_token: "lmcp_…"
                 token_type: Bearer
-                expires_in: 2592000
-                scope: lanomat.read lanomat.recipes.contribute
+                expires_in: 7776000
         "400":
           description: Pairing is pending, denied or expired.
           content:
@@ -157,11 +166,15 @@ paths:
                 pending:
                   value:
                     error: authorization_pending
-                    error_description: The user has not approved the device yet.
+                slowDown:
+                  value:
+                    error: slow_down
+                    interval: 10
                 expired:
                   value:
                     error: expired_token
-                    error_description: Start device pairing again.
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /mcp:
     post:
@@ -169,13 +182,17 @@ paths:
       operationId: mcpStreamableHttp
       summary: Streamable HTTP
       description: |
-        JSON-RPC 2.0 over streamable HTTP. Send `Accept: application/json, text/event-stream`.
-        Call `initialize`, then `notifications/initialized`, then `tools/list`,
-        `resources/list` and `prompts/list`.
+        JSON-RPC 2.0 over streamable HTTP. Call `initialize`, then `notifications/initialized`, then
+        `tools/list`, `resources/list` and `prompts/list`. A client may send
+        `Accept: application/json, text/event-stream`; this server answers `application/json`.
+
+        `initialize` echoes `2025-03-26`, `2025-06-18` or `2025-11-25` when asked for one of them and
+        answers `2025-11-25` otherwise. A request that carries `_meta.protocolVersion` must name
+        `2026-07-28`.
 
         The token is the paired device token. A missing, expired or revoked token answers `401`
         with `WWW-Authenticate: Bearer`. The endpoint is **stateless**: no `Mcp-Session-Id` is
-        issued or required. `GET`/`DELETE /mcp` answer `405`.
+        issued or required. `GET`/`DELETE /mcp` answer `405` with `Allow: POST`.
 
         **Tools (29):** `lanomat_me`, `events_list`, `event_get`, `event_register`, `teams_list`,
         `tournament_list`, `tournament_bracket`, `tournament_checkin`, `match_result`,
@@ -183,11 +200,14 @@ paths:
         `polls_list`, `poll_vote`, `catering_menu`, `catering_menu_get`, `catering_menu_preview`,
         `catering_menu_import`, `catering_round_create`, `restaurants_list`, `lfg_list`, `lfg_create`, `recipes_list`,
         `recipe_get`, `recipe_install_plan`, `recipe_avatars`, `recipe_contribute` — the
-        catalogue page is authoritative; the server paginates `tools/list` at 15 per page.
+        catalogue page is authoritative; the whole catalogue fits in one `tools/list` page (the
+        server allows up to 50 per page).
 
-        **Resources:** one template, `lanomat://recipes/{slug}/skill` (Markdown).
+        **Resources:** two templates, `lanomat://recipes/{slug}/skill` and
+        `lanomat://skills/contribute-recipe`, and the static `lanomat://skills/import-menu`
+        (all Markdown).
 
-        **Prompts:** one, `install-game`.
+        **Prompts:** two, `install-game` and `import-menu`.
       requestBody:
         required: true
         content:
@@ -220,7 +240,7 @@ paths:
                       os: windows
       responses:
         "200":
-          description: JSON-RPC response or SSE stream.
+          description: JSON-RPC response.
           content:
             application/json:
               schema:
@@ -232,12 +252,6 @@ paths:
                   content:
                     - type: text
                       text: '{"recipe":{"slug":"unreal-tournament-2004"},"os":"windows","files":[],"missing":[]}'
-            text/event-stream:
-              schema:
-                type: string
-              example: |
-                event: message
-                data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"plan ready"}]}}
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -249,9 +263,9 @@ paths:
       operationId: getMe
       summary: Current user
       description: |
-        The first call an agent makes after pairing. Returns the user's display name, role,
-        avatar URL and the current event (if one exists). No e-mail address or Discord id is
-        returned to a participant token.
+        The first call an agent makes after pairing. Returns the token's user, the server's name,
+        URL, version and API version, the agent's default model and the enabled module keys. No
+        e-mail address or Discord id is returned.
       responses:
         "200":
           description: The current identity.
@@ -264,14 +278,16 @@ paths:
                   id: 42
                   name: rene
                   role: participant
-                  avatar_url: https://lan.example/avatars/42/9f3c
                   is_orga: false
-                current_event:
-                  id: 7
-                  name: Lan Raute 1
-                  slug: lan-raute-1
-                  status: live
-                scopes: [lanomat.read, lanomat.recipes.contribute]
+                server:
+                  name: LANoMAT
+                  url: https://lan.example/
+                  version: 1.4.0
+                  mcp_url: https://lan.example/mcp
+                  api_version: 1
+                agent:
+                  default_model: venice/e2ee-deepseek-v4-1-flash-1017-abliterated
+                modules: [events, game_recipes, game_servers, games, mcp]
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -281,31 +297,22 @@ paths:
       operationId: listRecipes
       summary: List recipes
       description: |
-        Returns recipe summaries, newest first. `q` matches title, slug and aliases. `platform`
-        filters recipes that support the given OS. Drafts are visible only to orga tokens.
+        Returns the viewer's catalogue, narrowed to the launcher lineup exactly like `/games`: the
+        published recipes the lineup allows, plus the viewer's own drafts the lineup allows (an orga
+        sees every status, still through the lineup). `query` is a case-insensitive fragment of a
+        search term (slug, title, alias); there is no paging and no platform filter here
+        (`recipes_list` in MCP has the `platform` filter). A draft outside the lineup is still
+        readable by slug (`GET /api/v1/recipes/{slug}`).
       parameters:
-        - name: q
+        - name: query
           in: query
-          description: Free-text search over title, slug and aliases.
+          description: Free-text fragment of a recipe's search terms (slug, title, alias).
           schema:
             type: string
-            maxLength: 80
           example: ut2004
-        - name: platform
-          in: query
-          description: Only recipes that support this platform.
-          schema:
-            type: string
-            enum: [windows, linux, macos]
-          example: windows
-        - name: cursor
-          in: query
-          description: Opaque page cursor from a previous response.
-          schema:
-            type: string
       responses:
         "200":
-          description: A page of recipe summaries.
+          description: The catalogue.
           content:
             application/json:
               schema:
@@ -314,23 +321,28 @@ paths:
                 data:
                   - slug: unreal-tournament-2004
                     title: Unreal Tournament 2004
-                    aliases: [ut2004, ut2k4, ut 2k4]
-                    version: "3374"
-                    platforms: [windows, linux]
                     summary: Install UT2004 from the LAN disc, patch to OldUnreal 3374, optionally add UT2004VR.
-                    base_required: true
-                    optional_extras: 3
+                    version: "3374"
+                    status: published
+                    platforms: [windows, linux]
+                    installable: true
+                    launcher_supported: true
+                    in_lineup: true
+                    pull_request: null
+                    play_url: null
                     updated_at: "2026-11-18T20:14:00Z"
                   - slug: ridge-racer-type-4
                     title: Ridge Racer Type 4
-                    aliases: [r4, ridge racer 4, rr4]
-                    version: "1.0.0"
-                    platforms: [windows, linux]
                     summary: A self-hosted browser arcade cabinet with 2P netplay and Race Day.
-                    base_required: true
-                    optional_extras: 1
+                    version: "1.0.0"
+                    status: published
+                    platforms: [windows, linux]
+                    installable: false
+                    launcher_supported: true
+                    in_lineup: true
+                    pull_request: null
+                    play_url: https://lan.example/arcade/rr4
                     updated_at: "2026-11-18T18:02:00Z"
-                next: null
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -342,10 +354,13 @@ paths:
         Creates a **draft** recipe from a `recipe.yaml`-shaped body and an optional `SKILL.md`. It
         does not publish. Orga review plus the JSON Schema validator
         (`resources/recipes/schema/validate.mjs`) is the gate. The server validates the same
-        shape: slug, required fields, at most 20 steps and 40 requirements. The keys are sent at
-        the top level of the body (the MCP `recipe_contribute` tool takes the same set);
+        shape: at least one step and at most 50, at most 50 requirements, 3 platforms, 20 aliases,
+        10 launch targets and 20 000 bytes of metadata; unknown keys are rejected. The keys are sent
+        at the top level of the body (the MCP `recipe_contribute` tool takes the same set);
         `requires` and the older `requirements` are both accepted. `via` is always recorded as
-        `api`.
+        `api`. A second call with the slug of the caller's own draft **replaces** that draft — the
+        body has to carry the complete recipe, a field left out is cleared. The answer's `catalog`
+        object says what the git catalogue would refuse.
       requestBody:
         required: true
         content:
@@ -420,16 +435,25 @@ paths:
                   status: draft
                   launcher_supported: true
                   pull_request: null
+                catalog:
+                  pull_requests_enabled: true
+                  problems:
+                    - "SKILL.md has 19 lines; the catalogue needs 60 to 150 lines (add the install guide sections)."
+                    - "The draft has 1 step; the catalogue requires 3 to 6 steps for a draft (split or merge the guide)."
+                  problems_when_published:
+                    - "SKILL.md has 19 lines; the catalogue needs 60 to 150 lines (add the install guide sections)."
         "422":
-          description: Schema validation failed.
+          description: Validation failed — the body's own rules or the recipe schema check (every problem under `errors.recipe`).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ValidationError"
               example:
-                error:
-                  code: recipe_invalid
-                  message: "requires[0].match must contain at least one glob"
+                message: 'requires[0].match must contain at least one glob (and 1 more error)'
+                errors:
+                  recipe:
+                    - 'requires[0].match must contain at least one glob'
+                    - 'steps must be a non-empty list'
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -439,8 +463,17 @@ paths:
       operationId: getRecipe
       summary: Get one recipe
       description: |
-        Returns the parsed `recipe.yaml` as JSON, including the requirement roles, steps,
-        verification checks and metadata. The `skill` block names the Agent Skill.
+        Returns one recipe the viewer may see, keyed under `recipe`: the recipe fields, the authored
+        `requirements` and `steps` (the YAML shape), the launcher flags, the caller's
+        `pull_request` and one entry per requirement with its LAN match (`lan_match`). An alias slug
+        works like the recipe slug.
+
+        The server fills `{{server_host}}` and `{{server_port}}` before the answer leaves:
+        `launch_target`, `launch_targets[].command`, the steps' `commands[].run` and their `verify`
+        entries. The value comes from a server whose game carries exactly this recipe's slug (no
+        alias or name match), that is Ready or NotResponding and that the viewer may see (answering
+        first, then permanent, then the lowest id); without one the placeholders are the empty
+        string. `{{target}}` and `{{downloads}}` stay for the client to substitute.
       parameters:
         - $ref: "#/components/parameters/RecipeSlug"
       responses:
@@ -449,59 +482,58 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Recipe"
+                $ref: "#/components/schemas/RecipeDetail"
               example:
-                slug: unreal-tournament-2004
-                schema: lanomat.recipe/v1
-                title: Unreal Tournament 2004
-                aliases: [ut2004, ut2k4, ut 2k4]
-                version: "3374"
-                status: published
-                platforms: [windows, linux]
-                summary: Install UT2004 from the LAN disc, patch to OldUnreal 3374, optionally add UT2004VR.
-                license: Epic Games; base game files are user-supplied (UT2004VR is MIT)
-                skill:
-                  name: ut2004
-                  description: Install Unreal Tournament 2004 on a LAN PC … Use when the user says install ut2004.
-                  compatibility: Windows 10/11 or Linux (Wine/Proton); ~5 GB disk; VR needs Windows + SteamVR
-                requires:
-                  - role: iso
-                    label: UT2004 DVD 1 (or GOG/Steam install)
-                    match: [ut2004*.iso, UT2004*.iso]
-                    required: true
-                    size_bytes: 4500000000
-                  - role: patch
-                    label: OldUnreal UT2004 patch 3374
-                    match: [OldUnreal-UT2004Patch3374-*.zip]
-                    required: true
-                  - role: mod
-                    label: UT2004VR (optional SteamVR mod)
-                    match: [UT2004VR-*.zip]
-                    required: false
-                  - role: avatar
-                    label: VRM avatars (multi-select)
-                    match: ["*.vrm"]
-                    required: false
-                    tags: [avatar, vrm]
-                steps:
-                  - id: install-base
-                    title: Install the base game from Disc 1
-                    os: windows
-                    optional: false
-                    detail: Mount the DVD image, run Setup.exe and choose a full install.
-                  - id: patch-3374
-                    title: Apply OldUnreal patch 3374
-                    os: windows
-                    optional: false
-                    detail: Merge Help/, Sounds/ and System/ into the target.
-                    verify:
-                      - type: file_exists
-                        path: "{{target}}/System/D3D11Drv.dll"
-                metadata:
-                  genre: arena-shooter
-                  players: 2-32
-                  lan_recommended: true
-                  tags: [fps, vr, classic]
+                recipe:
+                  slug: unreal-tournament-2004
+                  title: Unreal Tournament 2004
+                  summary: Install UT2004 from the LAN disc, patch to OldUnreal 3374, optionally add UT2004VR.
+                  description: The LAN's baseline arena shooter.
+                  version: "3374"
+                  status: published
+                  platforms: [windows, linux]
+                  aliases: [ut2004, ut2k4, ut 2k4]
+                  homepage: https://www.oldunreal.com/
+                  license: Epic Games; base game files are user-supplied (UT2004VR is MIT)
+                  play_url: null
+                  launcher_supported: true
+                  portable: false
+                  pull_request: null
+                  launch_target: Start-Process "{{target}}/System/UT2004.exe"
+                  launch_targets:
+                    - id: flat-windows
+                      label: Flat
+                      os: windows
+                      shell: powershell
+                      command: Start-Process "{{target}}/System/UT2004.exe"
+                      notes: null
+                  supports_multiplayer: true
+                  install_command: lanomat-agent install unreal-tournament-2004
+                  launch_command: lanomat-agent launch unreal-tournament-2004
+                  requirements:
+                    - role: iso
+                      label: UT2004 DVD 1 (or GOG/Steam install)
+                      match: [ut2004*.iso, UT2004*.iso]
+                      required: true
+                  steps:
+                    - id: install-base
+                      title: Install the base game from Disc 1
+                      os: windows
+                      optional: false
+                      detail: Mount the DVD image, run Setup.exe and choose a full install.
+                  files:
+                    - id: 17
+                      role: iso
+                      label: UT2004 DVD 1 (or GOG/Steam install)
+                      os: null
+                      match: [ut2004*.iso, UT2004*.iso]
+                      required: true
+                      sha256: null
+                      url: null
+                      lan_match:
+                        shared_file_id: 9182
+                        name: UT2004-DVD1.iso
+                        size_bytes: 4500000000
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -551,6 +583,12 @@ paths:
         no command runs. A missing required file is not an error: it is listed in `missing`
         (and as `status: missing` in `files`) with HTTP `200`. External entries are release
         pages (`status: manual`) unless they point at a direct asset file.
+
+        `{{server_host}}` and `{{server_port}}` are filled before the answer leaves, from a server
+        whose game carries exactly this recipe's slug (no alias or name match), that is Ready or
+        NotResponding and that the viewer may see — answering first, then permanent, then the lowest
+        id; without one both are the empty string. `{{target}}` and `{{downloads}}` stay for the
+        client to substitute.
       parameters:
         - $ref: "#/components/parameters/RecipeSlug"
       requestBody:
@@ -602,11 +640,13 @@ paths:
                 missing: []
                 generated_at: "2026-11-21T01:00:00+00:00"
         "422":
-          description: Invalid `os`, unknown event or unknown recipe alias. Check `files`/`missing` for content gaps.
+          description: Invalid `os` value (validation answer; content gaps are not errors — they are in `files`/`missing`).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/recipes/{slug}/files:
     get:
@@ -614,9 +654,10 @@ paths:
       operationId: listRecipeFiles
       summary: List a recipe's files
       description: |
-        Lists every file the recipe can use, with role, size, optional hash and whether the
-        file is present on the LAN file host. Optional content is marked. A file that is
-        catalogued but missing has `present: false`.
+        Lists every file the recipe can use, with role, the platform it is authored for, whether it is
+        required, its filename patterns and its state: `matched` (a LAN upload), `external` (the
+        requirement's own URL names a file) or `missing`. A matched entry carries the LAN file's
+        name, size, hash and the bearer download URL.
       parameters:
         - $ref: "#/components/parameters/RecipeSlug"
       responses:
@@ -634,28 +675,28 @@ paths:
                       $ref: "#/components/schemas/RecipeFile"
               example:
                 data:
-                  - role: iso
+                  - id: 17
+                    role: iso
                     label: UT2004 DVD 1
-                    file: ut2004-dvd1.iso
+                    os: null
+                    required: true
+                    match: [ut2004*.iso, UT2004*.iso]
+                    status: matched
+                    name: UT2004-DVD1.iso
                     size_bytes: 4500000000
-                    sha256: ""
-                    required: true
-                    present: true
-                    url: /api/v1/files/9182/download
-                  - role: patch
+                    sha256: null
+                    download_url: https://lan.example/api/v1/files/9182/download
+                  - id: 18
+                    role: patch
                     label: OldUnreal UT2004 patch 3374
-                    file: OldUnreal-UT2004Patch3374-Windows.zip
-                    size_bytes: 183000000
+                    os: windows
                     required: true
-                    present: true
-                    url: /api/v1/files/9183/download
-                  - role: mod
-                    label: UT2004VR
-                    file: UT2004VR.zip
-                    size_bytes: 24000000
-                    required: false
-                    present: true
-                    url: /api/v1/files/9184/download
+                    match: [OldUnreal-UT2004Patch3374-*.zip]
+                    status: missing
+                    name: null
+                    size_bytes: 183000000
+                    sha256: null
+                    download_url: null
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -665,14 +706,14 @@ paths:
       operationId: listRecipeAvatars
       summary: List avatars
       description: |
-        Returns every LAN avatar that matches the recipe's `role: avatar` requirements. The
+        Returns every avatar/content entry of the recipe (`role: avatar` or `content`). The
         installer presents these as one multi-select; zero is valid. An entry with no LAN file
-        is returned with `present: false` and no URL.
+        carries `available_on_lan: false` and no `download_url`.
       parameters:
         - $ref: "#/components/parameters/RecipeSlug"
         - name: query
           in: query
-          description: Free-text filter over the avatar label and author.
+          description: Free-text filter over the label and author.
           schema:
             type: string
         - name: q
@@ -693,35 +734,28 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Avatar"
-                  multiple:
-                    type: boolean
-                    const: true
-                    description: Always true. Avatars are a multi-select.
-                  required:
-                    type: boolean
-                    const: false
               example:
-                multiple: true
-                required: false
                 data:
-                  - slug: ayla
+                  - id: recipe-file-31
+                    recipe_slug: unreal-tournament-2004
                     label: Ayla (agile scout)
-                    file: ayla.vrm
+                    author: LANoMAT
+                    license: CC BY 4.0
                     size_bytes: 18000000
-                    present: true
-                    url: /api/v1/files/9201/download
-                  - slug: brutus
-                    label: Brutus (heavy assault)
-                    file: brutus.vrm
-                    size_bytes: 21000000
-                    present: true
-                    url: /api/v1/files/9202/download
-                  - slug: mako
+                    sha256: null
+                    match_name: ayla.vrm
+                    available_on_lan: true
+                    download_url: https://lan.example/api/v1/files/9201/download
+                  - id: recipe-file-32
+                    recipe_slug: unreal-tournament-2004
                     label: Mako (arena duelist)
-                    file: mako.vrm
+                    author: LANoMAT
+                    license: CC BY 4.0
                     size_bytes: 19000000
-                    present: false
-                    url: null
+                    sha256: null
+                    match_name: null
+                    available_on_lan: false
+                    download_url: null
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -733,9 +767,10 @@ paths:
       description: |
         The launcher's server browser: the servers of every active event, the most recently
         finished event and the permanent servers, in one list. The shape is the public web
-        page's projection with no per-viewer narrowing and no player names, so a launcher can
-        show the whole LAN without exposing user data. A server still starting appears with
-        `status: provisioning` but no join link.
+        page's projection with no per-viewer narrowing and no player names; `occupants` is always
+        `null` here (the bearer API carries no accounts), so a launcher can show the whole LAN
+        without exposing user data. A server still starting appears with `status: provisioning`
+        but no join link.
       responses:
         "200":
           description: The aggregated server browser.
@@ -832,7 +867,7 @@ paths:
                             the recipe catalogue, limited to the lineup (`LAUNCHER_LINEUP` plus the recipes the orga
                             switched on). Null when no such recipe matches the server's game, which is the normal
                             case for a curated game with no recipe or a game outside the lineup.
-                          required: [recipeSlug, title, pageUrl, launcherSupported, launcherJoinUrl]
+                          required: [recipeSlug, title, pageUrl, launcherSupported, launcherJoinUrl, lanReady]
                           properties:
                             recipeSlug:
                               type: string
@@ -855,10 +890,41 @@ paths:
                                 One click: `lanomat://join/<slug>` with `?address=<host>:<port>` (UT2004, which
                                 takes the server on its command line) or `?url=<urlencoded join url>` for the
                                 server's own deep link. With only an address and no join URL the link carries no
-                                query; the launcher installs the game and starts it normally. Null when the
-                                launcher cannot install the recipe, or the server has neither a usable
-                                address+port nor an accepted join URL.
+                                query; the launcher installs the game and starts it, but cannot name the server —
+                                the website labels that shape "Im Launcher starten" and the two query shapes
+                                "Im Launcher beitreten". Null when the launcher cannot install the recipe, or
+                                the server has neither a usable address+port nor an accepted join URL.
                               example: lanomat://join/unreal-tournament-2004?address=203.0.113.9:7777
+                            lanReady:
+                              type: boolean
+                              description: |
+                                Whether the game can be installed fresh from the LAN right now: every required
+                                base archive or disc image of the recipe is an approved upload of a non-draft
+                                event (pinned or matched by file name) or names an external download. It is the
+                                install plan's own rule asked without a viewer and without an event, so it never
+                                depends on who looks. The answer is cautious about platforms: one missing base
+                                makes it false although another platform's base may be there, so a false value
+                                means a fresh install *can* fail, not that it will.
+                                `launcherJoinUrl` and `launcherSupported` do not depend on
+                                it: false only blocks a fresh install, a PC that already has the game joins with
+                                one click.
+                              example: true
+                        occupants:
+                          type: object
+                          nullable: true
+                          description: |
+                            Who of the LANoMAT accounts is on the server, as the website's server rows show
+                            it. Always `null` on this bearer endpoint: the API carries no accounts.
+                          properties:
+                            people:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id: { type: integer }
+                                  name: { type: string }
+                                  avatarUrl: { type: string, nullable: true }
+                            more: { type: integer }
               example:
                 events:
                   - slug: lan-raute-1
@@ -878,6 +944,7 @@ paths:
                     query: { serverName: Survival, map: world, players: 3, maxPlayers: 20 }
                     joinOptions: []
                     install: null
+                    occupants: null
                   - id: 12
                     title: UT2004 Dauerwelt
                     game: Unreal Tournament 2004
@@ -892,6 +959,7 @@ paths:
                       pageUrl: /games/unreal-tournament-2004
                       launcherSupported: true
                       launcherJoinUrl: null
+                      lanReady: true
                   - id: 13
                     title: Skyline Rally Abendrunde
                     game: Skyline Rally
@@ -910,6 +978,7 @@ paths:
                       pageUrl: /games/skyline-rally
                       launcherSupported: true
                       launcherJoinUrl: lanomat://join/skyline-rally
+                      lanReady: true
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -1048,46 +1117,51 @@ paths:
       operationId: listFiles
       summary: List files
       description: |
-        Lists files on the LAN file host, newest first. `q` matches the file name; `type`
-        filters by the recipe role or the file extension. `present` is always true here; a
-        recipe can still catalogue a missing file.
+        Lists the files visible to the token's user in one public event: the approved ones plus the
+        user's own pending ones. `query` filters the file name. There is no paging, and a file of
+        another event or of an unpublished event is not listed.
       parameters:
-        - name: q
+        - name: event
+          in: query
+          required: true
+          description: Event slug.
+          schema:
+            type: string
+            maxLength: 120
+          example: lan-raute-1
+        - name: query
           in: query
           description: Search the file name.
           schema:
             type: string
             maxLength: 120
           example: ut2004
-        - name: type
-          in: query
-          description: Filter by role or extension.
-          schema:
-            type: string
-          example: iso
-        - name: cursor
-          in: query
-          description: Opaque page cursor.
-          schema:
-            type: string
       responses:
         "200":
-          description: A page of files.
+          description: The visible files of the event.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/FileList"
               example:
+                event_slug: lan-raute-1
                 data:
                   - id: 9182
-                    name: ut2004-dvd1.iso
+                    name: UT2004-DVD1.iso
                     size_bytes: 4500000000
-                    type: iso
-                    sha256: ""
+                    visibility: approved
+                    is_approved: true
+                    mine: false
                     uploaded_at: "2026-11-17T19:21:00Z"
-                    uploaded_by: orga
-                    download_url: /api/v1/files/9182/download
-                next: null
+                    download_url: https://lan.example/api/v1/files/9182/download
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: The `event` parameter is missing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1097,9 +1171,11 @@ paths:
       operationId: getFileDownload
       summary: Get download URL
       description: |
-        Returns a `302` redirect to a short-lived signed URL on the LAN file host. The URL is
-        scoped to one file and one expiry; tampering answers `403`, an expired link `410`.
-        The file host is reachable on the venue network only. Fetch the redirect immediately.
+        The file itself, after a visibility check and the `download` policy. With the file-host
+        store (`FILES_STORE=host`) the answer is a `302` to a short-lived signed URL on the LAN file
+        host — scoped to one file and one expiry, tampering answers `403`, an expired link `410`.
+        With the default local store the app streams the bytes (`200`, an opaque attachment). Fetch
+        the URL with the same token; a redirect leads to a host reachable on the venue network.
       parameters:
         - name: file
           in: path
@@ -1110,41 +1186,49 @@ paths:
             format: int64
           example: 9182
       responses:
+        "200":
+          description: The file, streamed by the app (local store).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "302":
-          description: Redirect to the signed LAN file host URL.
+          description: Redirect to the signed LAN file host URL (file-host store).
           headers:
             Location:
               description: Signed URL on the file host.
               schema:
                 type: string
                 format: uri
-              example: https://files.lan.example:8443/data/event-7/9f3c?expires=1763751720&sig=…
+              example: https://files.lan.example:8443/dl/event-7/9f3c?expires=1763751720&md5=…
             Cache-Control:
               description: Never cache a signed redirect.
               schema:
                 type: string
-                example: no-store
+                example: no-store, private
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          description: Signature or path tampered.
+          description: The file exists but the token's user may not download it.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
-        "410":
-          description: The signed URL expired.
 
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: lmt
+      bearerFormat: lmcp
       description: |
         A token from the MCP device pairing flow (`POST /api/mcp/device` →
-        `POST /api/mcp/token`). Send `Authorization: Bearer <token>`. The token carries the
-        approving user's role and expires after 30 days unless revoked.
+        `POST /api/mcp/token`). Send `Authorization: Bearer lmcp_…`. The token carries the
+        approving user's role and expires after `MCP_TOKEN_TTL_DAYS` (90 days by default), slid on
+        use; revoking the device invalidates it immediately.
 
   parameters:
     RecipeSlug:
@@ -1165,27 +1249,23 @@ components:
         WWW-Authenticate:
           schema:
             type: string
-            example: Bearer realm="lanomat"
+            example: Bearer
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
           example:
-            error:
-              code: unauthorized
-              message: A valid bearer token is required.
+            message: Unauthenticated.
     NotFound:
-      description: The recipe or file does not exist.
+      description: The recipe, file, event or server does not exist (or is not visible to the token's user).
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
           example:
-            error:
-              code: not_found
-              message: No published recipe with slug "ut2004".
+            message: Recipe not found.
     TooManyRequests:
-      description: Rate limited.
+      description: Rate limited (240 requests per minute per token and IP on the bearer API).
       headers:
         Retry-After:
           schema:
@@ -1196,14 +1276,12 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
           example:
-            error:
-              code: rate_limited
-              message: 60 tool calls per minute per token.
+            message: Too Many Attempts.
 
   schemas:
     DeviceStart:
       type: object
-      required: [device_code, user_code, verification_uri, expires_in, interval]
+      required: [device_code, user_code, verification_uri, verification_uri_complete, expires_in, interval]
       properties:
         device_code:
           type: string
@@ -1215,33 +1293,35 @@ components:
         verification_uri:
           type: string
           format: uri
-          example: https://lan.example/settings/connections
+          example: https://lan.example/mcp/connect
+        verification_uri_complete:
+          type: string
+          format: uri
+          description: The approval page with the code prefilled.
+          example: https://lan.example/mcp/connect?code=K7QF-2M9R
         expires_in:
           type: integer
-          description: Seconds until the device code expires.
+          description: Seconds until the device code expires (`MCP_CODE_TTL`, 600 by default).
           example: 600
         interval:
           type: integer
-          description: Minimum seconds between token polls.
+          description: Minimum seconds between token polls (`MCP_POLL_INTERVAL`, 5 by default).
           example: 5
 
     DeviceToken:
       type: object
-      required: [access_token, token_type, expires_in, scope]
+      required: [access_token, token_type, expires_in]
       properties:
         access_token:
           type: string
-          description: Bearer token. Shown once.
+          description: Bearer token (`lmcp_…`). Shown once.
         token_type:
           type: string
           const: Bearer
         expires_in:
           type: integer
-          description: Lifetime in seconds (30 days by default).
-          example: 2592000
-        scope:
-          type: string
-          example: lanomat.read lanomat.recipes.contribute
+          description: Lifetime in seconds (`MCP_TOKEN_TTL_DAYS`, 90 days by default; slid on use).
+          example: 7776000
 
     OAuthError:
       type: object
@@ -1249,17 +1329,18 @@ components:
       properties:
         error:
           type: string
-          enum: [authorization_pending, access_denied, expired_token, invalid_grant]
-        error_description:
-          type: string
+          enum: [authorization_pending, slow_down, access_denied, expired_token, invalid_grant, invalid_request]
+        interval:
+          type: integer
+          description: The raised poll interval, on `slow_down` only.
 
     Me:
       type: object
-      required: [user]
+      required: [user, server, agent, modules]
       properties:
         user:
           type: object
-          required: [id, name, role]
+          required: [id, name, role, is_orga]
           properties:
             id:
               type: integer
@@ -1267,52 +1348,55 @@ components:
               type: string
             role:
               type: string
-              enum: [participant, orga, admin]
-            avatar_url:
-              type: string
-              format: uri
-              nullable: true
+              enum: [participant, helper, orga, admin]
             is_orga:
               type: boolean
-        current_event:
+        server:
           type: object
-          nullable: true
+          required: [name, url, version, mcp_url, api_version]
           properties:
-            id:
-              type: integer
-            name:
+            name: { type: string }
+            url: { type: string, format: uri }
+            version: { type: string }
+            mcp_url: { type: string, format: uri }
+            api_version: { type: integer }
+        agent:
+          type: object
+          properties:
+            default_model:
               type: string
-            slug:
-              type: string
-            status:
-              type: string
-              enum: [draft, announced, registration, live, finished, archived]
-        scopes:
+              description: The model the bundled installer configures (`MCP_DEFAULT_MODEL`).
+        modules:
           type: array
+          description: The enabled module keys.
           items:
             type: string
 
     RecipeSummary:
       type: object
-      required: [slug, title, version, platforms, summary]
+      required: [slug, title, status, platforms, installable, launcher_supported, in_lineup]
       properties:
         slug:
           type: string
         title:
           type: string
-        aliases:
-          type: array
-          items:
-            type: string
+        summary:
+          type: string
+          nullable: true
         version:
           type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, published, archived]
         platforms:
           type: array
           items:
             type: string
             enum: [windows, linux, macos]
-        summary:
-          type: string
+        installable:
+          type: boolean
+          description: The entry has requirements, steps and a launch target, so an install is possible.
         launcher_supported:
           type: boolean
           description: |
@@ -1324,15 +1408,15 @@ components:
           description: Pinned to the launcher lineup by the orga, next to the configured lineup.
         pull_request:
           $ref: "#/components/schemas/PullRequest"
-        base_required:
-          type: boolean
-          description: Always true; the base content is required.
-        optional_extras:
-          type: integer
-          description: Number of optional mods/tools/avatars.
+        play_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Browser play URL; `{{host}}` is already substituted.
         updated_at:
           type: string
           format: date-time
+          nullable: true
 
     RecipeList:
       type: object
@@ -1342,105 +1426,113 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RecipeSummary"
-        next:
-          type: string
-          nullable: true
 
-    Recipe:
+    RecipeDetail:
       type: object
-      required: [schema, slug, title, version, status, platforms, summary, skill, requires, steps, metadata]
+      required: [recipe]
       properties:
-        schema:
-          type: string
-          const: lanomat.recipe/v1
-        slug:
-          type: string
-        title:
-          type: string
-        aliases:
-          type: array
-          items:
-            type: string
-        version:
-          type: string
-        status:
-          type: string
-          enum: [draft, published, archived]
-        platforms:
-          type: array
-          items:
-            type: string
-            enum: [windows, linux, macos]
-        summary:
-          type: string
-        description:
-          type: string
-        homepage:
-          type: string
-          format: uri
-        license:
-          type: string
-        cover:
-          type: string
-        play_url:
-          type: string
-          format: uri
-          nullable: true
-          description: Browser play URL (`{{host}}` is replaced with the address the client used).
-        launcher_supported:
-          type: boolean
-          description: The launcher can install or open this recipe (`LauncherSupport`).
-        portable:
-          type: boolean
-          description: A ready-to-run archive the generic engine installs by unpacking and checking one file.
-        pull_request:
-          $ref: "#/components/schemas/PullRequest"
-        launch_targets:
-          type: array
-          maxItems: 10
-          items:
-            $ref: "#/components/schemas/LaunchTarget"
-        skill:
+        recipe:
           type: object
-          required: [name, description]
+          required: [slug, title, status, platforms, requirements, steps, files]
           properties:
-            name:
+            slug:
               type: string
+            title:
+              type: string
+            summary:
+              type: string
+              nullable: true
             description:
               type: string
-            compatibility:
+              nullable: true
+            version:
               type: string
-        requires:
-          type: array
-          items:
-            $ref: "#/components/schemas/Requirement"
-        steps:
-          type: array
-          items:
-            $ref: "#/components/schemas/Step"
-        metadata:
-          type: object
-          properties:
-            genre:
+              nullable: true
+            status:
               type: string
-            players:
-              type: string
-            players_max:
-              type: integer
-            lan_recommended:
-              type: boolean
-            multiplayer:
-              type: boolean
-            portable:
-              type: boolean
-              description: The required base archive only needs unpacking; the launcher's generic engine installs it.
-            launcher_supported:
-              type: boolean
-              description: Orga override for the launcher decision (ignored from a participant contribution).
-            tags:
+              enum: [draft, published, archived]
+            platforms:
               type: array
               items:
                 type: string
+                enum: [windows, linux, macos]
+            aliases:
+              type: array
+              items:
+                type: string
+            homepage:
+              type: string
+              nullable: true
+            license:
+              type: string
+              nullable: true
+            play_url:
+              type: string
+              nullable: true
+              description: Browser play URL (`{{host}}` is replaced with the address the client used).
+            launcher_supported:
+              type: boolean
+              description: The launcher can install or open this recipe (`LauncherSupport`).
+            portable:
+              type: boolean
+              description: A ready-to-run archive the generic engine installs by unpacking and checking one file.
+            pull_request:
+              $ref: "#/components/schemas/PullRequest"
+            launch_target:
+              type: string
+              nullable: true
+              description: The default launch command for the caller's OS with the server variables filled, or null.
+            launch_targets:
+              type: array
+              maxItems: 10
+              description: Launch targets with the server variables filled into their commands.
+              items:
+                $ref: "#/components/schemas/LaunchTarget"
+            supports_multiplayer:
+              type: boolean
+            install_command:
+              type: string
+              description: Human-readable hint (`lanomat-agent install <slug>`), not an executable path.
+            launch_command:
+              type: string
+              description: Human-readable hint (`lanomat-agent launch <slug>`).
+            requirements:
+              type: array
+              description: The authored `requires` list exactly as stored (YAML shape).
+              items:
+                $ref: "#/components/schemas/Requirement"
+            steps:
+              type: array
+              description: The authored steps as stored, with the server variables filled into their `commands[].run` and `verify` entries (titles and `detail` stay as written).
+              items:
+                $ref: "#/components/schemas/Step"
+            files:
+              type: array
+              description: One row per stored requirement, with its LAN match.
+              items:
+                type: object
+                required: [id, role, label, required]
+                properties:
+                  id: { type: integer }
+                  role: { type: string }
+                  label: { type: string }
+                  os:
+                    type: string
+                    nullable: true
+                    description: The platform this file is authored for; null means any.
+                  match:
+                    type: array
+                    items: { type: string }
+                  required: { type: boolean }
+                  sha256: { type: string, nullable: true }
+                  url: { type: string, nullable: true }
+                  lan_match:
+                    type: object
+                    nullable: true
+                    properties:
+                      shared_file_id: { type: integer }
+                      name: { type: string }
+                      size_bytes: { type: integer, format: int64 }
 
     Requirement:
       type: object
@@ -1619,9 +1711,10 @@ components:
             launch_target:
               type: string
               nullable: true
-              description: Default launch command for the OS.
+              description: Default launch command for the OS, with the server variables filled.
             launch_targets:
               type: array
+              description: Launch targets with the server variables filled into their commands.
               items:
                 $ref: "#/components/schemas/LaunchTarget"
             launch_command:
@@ -1716,6 +1809,11 @@ components:
           type: string
           nullable: true
           description: Bearer-authenticated LAN download or direct external asset URL.
+        download_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Present when the link is signed and short-lived (the native client's file-host links).
         fallback_url:
           type: string
           nullable: true
@@ -1731,89 +1829,125 @@ components:
 
     RecipeFile:
       type: object
-      required: [role, label, file, required, present]
+      required: [id, role, label, required, status]
       properties:
+        id:
+          type: integer
+          description: The recipe-file id (stable across a resync and a contribution edit).
         role:
           type: string
+          description: Role such as `base`, `iso`, `patch`, `mod`, `tool`, `avatar`, `content`.
         label:
           type: string
         os:
           type: string
           enum: [windows, linux, macos, any]
           nullable: true
-          description: The platform this file is for; absent means any. Two patches that differ only in os are two entries.
-        file:
+          description: The platform this file is authored for; null means any.
+        required:
+          type: boolean
+        match:
+          type: array
+          items:
+            type: string
+        status:
           type: string
+          enum: [matched, external, missing]
+          description: A LAN upload, the requirement's own file URL, or neither.
+        name:
+          type: string
+          nullable: true
+          description: The LAN file or external asset name; null when nothing matched.
         size_bytes:
           type: integer
           format: int64
+          nullable: true
         sha256:
           type: string
-        required:
-          type: boolean
-        present:
-          type: boolean
-        url:
+          nullable: true
+        download_url:
           type: string
           nullable: true
+          description: The bearer LAN download URL, or the external URL; null when missing.
 
     Avatar:
       type: object
-      required: [slug, label, file, present]
+      required: [id, label, available_on_lan]
       properties:
-        slug:
+        id:
           type: string
+          description: '`recipe-file-<id>`, the same value the install plan uses.'
+        recipe_slug:
+          type: string
+          nullable: true
+          description: Null for an entry of the global avatar library (no recipe).
         label:
           type: string
-        file:
+        author:
           type: string
+          nullable: true
+        license:
+          type: string
+          nullable: true
         size_bytes:
           type: integer
           format: int64
-        present:
-          type: boolean
-        url:
+          nullable: true
+        sha256:
           type: string
           nullable: true
+        match_name:
+          type: string
+          nullable: true
+          description: The LAN file name; null when not uploaded.
+        available_on_lan:
+          type: boolean
+        download_url:
+          type: string
+          nullable: true
+          description: Bearer download URL; null when the entry is not on the LAN.
 
     FileEntry:
       type: object
-      required: [id, name, size_bytes, type]
+      required: [id, name, size_bytes, visibility, is_approved, mine, download_url]
       properties:
         id:
           type: integer
         name:
           type: string
+          description: The file name as the API shows it — control characters flattened, any path stripped, at most 120 characters.
         size_bytes:
           type: integer
           format: int64
-        type:
+        visibility:
           type: string
-        sha256:
-          type: string
+          enum: [pending, approved, rejected]
+        is_approved:
+          type: boolean
+        mine:
+          type: boolean
+          description: The token's user uploaded this file.
         uploaded_at:
           type: string
           format: date-time
-        uploaded_by:
-          type: string
+          nullable: true
         download_url:
           type: string
 
     FileList:
       type: object
-      required: [data]
+      required: [event_slug, data]
       properties:
+        event_slug:
+          type: string
         data:
           type: array
           items:
             $ref: "#/components/schemas/FileEntry"
-        next:
-          type: string
-          nullable: true
 
     RecipeContribution:
       type: object
-      required: [slug, title, requires, steps]
+      required: [slug, title, steps]
       properties:
         slug:
           type: string
@@ -1879,10 +2013,13 @@ components:
             $ref: "#/components/schemas/LaunchTarget"
         metadata:
           type: object
-          description: Only `portable`, `genre`, `players`, `players_max`, `lan_recommended`, `tags` and `multiplayer` are accepted from a contribution.
+          description: Only `portable`, `genre`, `players`, `players_max`, `lan_recommended`, `tags`, `multiplayer` and — for an orga — `launcher_supported` are accepted from a contribution.
           properties:
             portable:
               type: boolean
+            launcher_supported:
+              type: boolean
+              description: Orga-only override of the launcher decision; a participant's value is dropped.
             genre:
               type: string
               maxLength: 80
@@ -1909,11 +2046,16 @@ components:
         skill_markdown:
           type: string
           maxLength: 65535
-          description: The SKILL.md content, including Agent Skills frontmatter.
+          description: |
+            The full SKILL.md, including Agent Skills front matter. A non-empty value replaces the text
+            LANoMAT generates. The catalogue needs 60 to 150 lines (counted by splitting on newlines), front
+            matter with `name` equal to the slug and a non-empty `description` of at most 1024 characters.
+            Stored as sent; newline, carriage return and tab are the only control characters allowed.
+            `lanomat://skills/contribute-recipe` holds a skeleton that passes.
 
     ContributionResult:
       type: object
-      required: [recipe]
+      required: [recipe, catalog]
       properties:
         recipe:
           type: object
@@ -1931,25 +2073,46 @@ components:
               description: Whether the launcher can install the new draft as it stands.
             pull_request:
               $ref: "#/components/schemas/PullRequest"
+        catalog:
+          type: object
+          description: |
+            What the public git catalogue would refuse. Derived from this recipe's text only, so asking
+            opens no pull request and writes no state.
+          required: [pull_requests_enabled, problems, problems_when_published]
+          properties:
+            pull_requests_enabled:
+              type: boolean
+              description: Whether this installation proposes recipes to the git catalogue at all.
+            problems:
+              type: array
+              description: Why the catalogue would refuse the recipe now; an empty list means the text is ready.
+              items:
+                type: string
+            problems_when_published:
+              type: array
+              description: Why it would refuse the recipe once the orga published it, where the draft rules no longer apply.
+              items:
+                type: string
 
     Error:
       type: object
-      required: [error]
+      required: [message]
       properties:
-        error:
+        message:
+          type: string
+
+    ValidationError:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
           type: object
-          required: [code, message]
-          properties:
-            code:
+          additionalProperties:
+            type: array
+            items:
               type: string
-            message:
-              type: string
-            role:
-              type: string
-            match:
-              type: array
-              items:
-                type: string
 
     McpRequest:
       type: object

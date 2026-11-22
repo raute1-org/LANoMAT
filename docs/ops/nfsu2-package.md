@@ -1,6 +1,7 @@
 # NFSU2 — installierbares LANoMAT-Paket
 
-Stand: **2026-11-21**. Arbeitsverzeichnis: `/home/reneil1337/Downloads/nfsu2/`.
+Stand: **2026-11-22** (Paket-Tests vom 2026-11-21; die Host-Wahl seit dem 22.11.
+gegen Rezept und Launcher geprüft). Arbeitsverzeichnis: `/home/reneil1337/Downloads/nfsu2/`.
 Keine Secrets in diesem Dokument (nur LAN-Adressen und Ports).
 
 ## 1. Ergebnis
@@ -106,12 +107,19 @@ udp_trace = false
 * Ports wie im Server (`config/server.toml`): 20921 TCP, 20922 TCP, 20923 TCP,
   13505 TCP, 20000/UDP Race-Relay (Client-seitig ein Port; der Server lauscht
   auf 20000).
-* **Host-Wahl:** Vorgabe ist der Platzhalter `10.23.0.12` (Public-/Dateihost laut
-  Recipe und UT2004-Runbook). Die im Repo veröffentlichten Client-Configs
-  (`clients/underground2/net_u2.ini`) tragen dagegen `10.23.3.220` — das ist die
-  lokale IPv4 dieses Laptops und war zuletzt der tatsächliche Server. Beide Werte
-  sind per `--server` austauschbar; im Zweifel den Wert nehmen, den
-  `python nfs_online.py check` als „Public host“ meldet (aktuell `10.23.0.12`).
+* **Host-Wahl:** Dieser Host ist **im Archiv eingebacken**, nicht im Rezept.
+  `make_package.sh --server <host>` schreibt ihn in `scripts/net_u2.ini`, und
+  der Launcher führt keine Rezept-Schritte aus — er entpackt das Archiv (und
+  kopiert eine passende `net_u2.ini` vom Dateihost, falls eine gematcht wird),
+  also bekommt ein Launcher-Install genau diesen Host. Nur der Agent-Plan
+  ersetzt ihn durch `{{server_host}}` — und nur, wenn eine Serverzeile genau
+  dieses Spiel trägt (der Browser-Zwilling nicht). Deshalb: das Archiv
+  mit dem endgültigen Host bauen und `NFS_SERVER_HOST` auf denselben Wert
+  setzen. Die im Upstream-Repo veröffentlichten Client-Configs
+  (`clients/underground2/net_u2.ini` des NFS-Online-Repos) tragen dagegen
+  `10.23.3.220` — das ist die lokale IPv4 des Testlaptops. Im Zweifel den Wert
+  nehmen, den `python nfs_online.py check` als „Public host“ meldet (aktuell
+  `10.23.0.12`).
 
 ## 6. Reproduktion
 
@@ -200,8 +208,10 @@ TCP-Ports; `nfs_online.py status` meldet dafür „Stopped“, weil
 ## 9. Offene Punkte
 
 1. **Server-Host festlegen:** `10.23.0.12` (Public/Dateihost) vs. `10.23.3.220`
-   (lokale IPv4 des Testlaptops, Wert der veröffentlichten Client-Configs).
-   Der Server muss dieselbe Adresse annoncieren, sonst passt die Lobby nicht.
+   (lokale IPv4 des Testlaptops, Wert der veröffentlichten Upstream-Client-Configs).
+   Der Server muss dieselbe Adresse annoncieren, sonst passt die Lobby nicht; das
+   Archiv wird mit `--server` auf genau diese Adresse gebaut, und `NFS_SERVER_HOST`
+   trägt denselben Wert.
 2. **Zwei-Client-Test** Login → Lobby → Rennen inkl. UDP-Relay 20000.
 3. **Mod-Verträglichkeit:** Unlimiter/ExtraOptions patchen dieselbe Exe wie der
    Online-Client. Bei Abstürzen oder fehlenden LAN-Einträgen die drei
@@ -209,8 +219,8 @@ TCP-Ports; `nfs_online.py status` meldet dafür „Stopped“, weil
    Split-Screen + ASI laut Recipe ungetestet.
 4. **Verteilung:** 2,6-GB-Upload auf den Dateihost (`nfsu2-portable.zip`) und
    Recipe-Veröffentlichung stehen noch aus; das Recipe erwartet `SPEED2.EXE`
-   (deshalb die identische Kopie im Paket) und dokumentiert derzeit noch
-   „raw archive, flat package pending“.
+   (deshalb die identische Kopie im Paket) und beschreibt das flache Paket in
+   seinen Hinweisen.
 5. **Save-Pfad:** WidescreenFix legt Profile unter `SAVE/` im Spielordner ab
    (`CustomUserFilesDirectoryInGameDir = SAVE`) — portabel, aber pro Installation
    getrennt; Profile nicht zwischen Rechnern kopieren, ohne die `.ini` zu kennen.

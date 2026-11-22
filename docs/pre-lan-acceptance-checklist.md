@@ -201,20 +201,22 @@ Klick folgen kann. Alles ist gegen Fakes getestet; echt prüfen:
 
 ## 11. Launcher — one-click UT2004 install (fresh PC)
 
-The LANoMAT Launcher is the no-terminal path for participants: one download from `/launcher`, one
+The LANoMAT Launcher is the no-terminal path for participants: one download from `/app`, one
 pairing code, one **Installieren** button for Unreal Tournament 2004. Verify it on hardware that has
 never seen this LAN. Requires `MODULE_GAME_RECIPES=true`, `MODULE_FILES=true` and `MODULE_MCP=true`
 (the launcher pairs and plans through the bearer API); the page reads
 `clients-dist/launcher/manifest.json` (see the deploy runbook's launcher section and
 [`docs-site/pages/guides/launcher.mdx`](../docs-site/pages/guides/launcher.mdx)).
 
-- [ ] `/launcher` lists **both builds** — Linux x86_64 tarball and Windows x86_64 portable exe — each
-      with size and SHA-256; the page requires the Discord login like the rest of the participant UI.
+- [ ] `/app` lists the **launcher download** — Linux x86_64 tarball and Windows x86_64 portable exe —
+      each with size and SHA-256, next to the desktop app ("Sprache und Chat") when that build is
+      published; the page requires the Discord login like the rest of the participant UI, and every
+      entry point says **"App herunterladen"**. `/launcher` and `/talk/client` redirect there.
 - [ ] **Fresh-PC run:** on a PC with no LANoMAT login, start the launcher, pair with the code shown in
       the browser, install UT2004 from the LAN and press **Starten** — the game reaches the main menu
       without internet and without administrator rights.
 - [ ] **Manifest SHA256 matches:** in `clients-dist/launcher`, `sha256sum -c SHA256SUMS` passes and each
-      value equals the hash printed by the script and shown on `/launcher`; a missing requirement makes
+      value equals the hash printed by the script and shown on `/app`; a missing requirement makes
       the launcher name the file (e.g. "UT2004 DVD 1") instead of failing silently.
 - [ ] **Two terminals, two devices:** pair a second machine at the same time; both appear under
       **Verbundene Geräte** on `/mcp/connect` as separate rows, each with its own token, and revoking
@@ -238,7 +240,11 @@ never seen this LAN. Requires `MODULE_GAME_RECIPES=true`, `MODULE_FILES=true` an
 ## 12. Sharing a game, installing it, and the recipe pull request
 
 The end-to-end gaming journey was built against fakes and a fake repository
-(`fakeRecipeRepository()`); nothing here was run on real hardware or against the real GitHub API.
+(`fakeRecipeRepository()`). On 2026-11-22 a headless Chromium drove the journey once on seeded test
+data (`scripts/smoke/game-sharing-smoke.mjs`); nothing here has run on real hardware, with a real
+launcher takeover, in Firefox or WebKit, or against the real GitHub API. The script is a cheap
+pre-check for a test instance (never production: it starts with `migrate:fresh`), but the checks
+below are the real ones.
 Prerequisites: `MODULE_GAME_RECIPES=true` with `Files` and `Mcp` (hard dependencies), a second PC with
 a browser on the LAN, and — for the last two checks — `RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY` and
 `RECIPES_PR_TOKEN` pointing at the real repository
@@ -249,14 +255,17 @@ a browser on the LAN, and — for the last two checks — `RECIPES_PR_ENABLED`, 
       platforms) and submit. The draft appears under **"Deine geteilten Spiele"** with
       **Datei** "wartet auf Freigabe" and **Prüfung** "Die Orga prüft gerade"; `/admin/recipes`
       lists the row and the navigation badge counts it. The submit stays disabled with a line naming
-      what is missing ("Es fehlt noch: …"); an archive whose name holds a backtick, `*` or `?` cannot
-      be selected.
+      what is missing ("Es fehlt noch: …"); an archive is offered for sharing only when the server
+      would take it — `.zip`/`.tar.bz2`, no backtick, `*`, `?` or `: " < > |`, no leading dot, no two
+      dots in a row, and at least three letters or digits left for the match pattern — and the list
+      says why when a real archive is refused. A form upload selects the new archive by itself.
 - [ ] **Approve and publish in one step:** on the recipe's edit page press
       **"Dateien freigeben und veröffentlichen"**. The confirmation lists the launch commands that will
-      run on players' PCs (the read-only **Start und Launcher** section shows the same). One
-      notification, the file is "freigegeben", the status is `published`, **"In der Spieleliste
-      zeigen"** is on, and the game appears on `/games` and in the launcher catalogue **without** a
-      `LAUNCHER_LINEUP` change or a config-cache clear.
+      run on players' PCs (the read-only **Start und Launcher** section shows the same) and counts
+      them ("Schrittbefehle: N · Startbefehle: M"). One notification, the file is "freigegeben", the
+      status is `published`, **"In der Spieleliste zeigen"** is on, and the game appears on `/games`
+      and in the launcher catalogue **without** a `LAUNCHER_LINEUP` change or a config-cache clear.
+      Its description, step notes and `SKILL.md` no longer call it a draft.
 - [ ] **Install with the launcher on a fresh PC:** pair the launcher on a machine that has never seen
       this LAN, press **Installieren**, and let it download from the LAN file host; **Starten** reaches
       the game without internet. A shared game counts as installable only when the launcher's generic
@@ -264,16 +273,21 @@ a browser on the LAN, and — for the last two checks — `RECIPES_PR_ENABLED`, 
       **Installieren** on the game page is a manual install and the share page is still correct. Try a
       title with brackets or `$` in it and confirm the install folder on disk keeps only letters,
       digits, space, dot, underscore and hyphen (Windows) or their slug form (Linux and macOS).
-- [ ] **Join through the server browser:** a server whose game matches the published recipe shows
-      **"Im Launcher beitreten"** first; the click installs if needed and starts the game on that exact
-      server (UT2004 passes `?address=<host>:<port>`, other games open the server's join URL). The
-      row's own **Verbinden** and the **"Anders verbinden"** disclosure stay usable. On the game page,
-      **Installieren** is the only amber button.
-- [ ] **Launcher-link notice on a PC without the launcher:** click a `lanomat://` action there. After
-      about 2.5 s the notice asks **"Kein Launcher-Fenster aufgegangen?"**, explains the likely reason,
-      and offers **"Launcher herunterladen"** and **"Nochmal versuchen"**; it claims no failure and uses
-      no amber. On a PC with the launcher, **"Launcher geöffnet. Schau in die Taskleiste, falls du kein
-      Fenster siehst."** appears for a few seconds instead.
+- [ ] **Join through the server browser:** a server whose game matches the published recipe shows the
+      launcher handoff first. It says **"Im Launcher beitreten"** when the link names the server
+      (UT2004 passes `?address=<host>:<port>`, another game opens a join URL the launcher may open)
+      and **"Im Launcher starten"** when it cannot — a plain `address:port` server of a non-UT2004
+      game: the launcher then installs and starts the game, and the player picks the server inside
+      it. The row's own **Verbinden** and the **"Anders verbinden"** disclosure stay usable. On the
+      game page, **Installieren** is the only amber button.
+- [ ] **Launcher-link notice on a PC without the launcher:** click a `lanomat://` action there. The
+      browser does not navigate and opens no dialog; the page shows "Öffne den Launcher …" and after
+      2.5 s the notice asks **"Kein Launcher-Fenster aufgegangen?"**, explains the likely reason, and
+      offers **"App herunterladen"**, **"Nochmal versuchen"** and a dismiss; it claims no failure
+      and uses no amber; a Ctrl/middle click starts nothing. On a PC with the launcher, **"Launcher
+      geöffnet. Schau in die Taskleiste, falls du kein Fenster siehst."** appears for about six
+      seconds instead. (The no-handler path was verified in headless Chromium on 2026-11-22; the
+      "opened" path is simulated and needs a real launcher here.)
 - [ ] **Pull request against the real repository:** with the default `RECIPES_PR_TRIGGER=publish`, publish
       the recipe and let the queued job run — or run `php artisan lanomat:recipes:propose <slug>` in the
       foreground. One pull request appears on `recipes/<slug>` with `recipe.yaml`, `SKILL.md` and the
@@ -298,6 +312,41 @@ a browser on the LAN, and — for the last two checks — `RECIPES_PR_ENABLED`, 
       `php artisan lanomat:recipes:sync resources/recipes --only=<slug> --json` on the running instance:
       the recipe is adopted, and the moderation status, the file pins, `in_lineup` and the `pr_*`
       columns survive.
+- [ ] **Catalogue readiness preview** (with pull requests configured): a recipe whose `SKILL.md` is
+      too short shows **Textprüfung für den Katalog** on its edit page with the reason *before*
+      anything is sent, and both publish confirmations carry the one warning line; publishing still
+      works and the pull request stays `"Nicht gesendet"`.
+- [ ] **Contribution finished through MCP:** call `recipe_contribute` with a short `SKILL.md`, read
+      `catalog.problems`, send the **complete** recipe with `skill_markdown` again until the list is
+      empty (a second call replaces the draft; an omitted field is cleared); the panel then shows no
+      open point and the proposal goes out without touching the panel form.
+- [ ] **NFSU2 with a server row (Windows):** `NFS_SERVER_HOST` set and `LauncherLineupSeeder` run,
+      then build the install plan for `need-for-speed-underground-2` on Windows and install it: both
+      `host` lines in `scripts/net_u2.ini` carry the host, and the game reaches the NFS-Online lobby
+      of that server. The plan names a server only when its game is **exactly** this recipe's slug.
+      **Never run before — this is the first real run of the changed step.**
+- [ ] **NFSU2 without a server row:** delete (or never create) the native server row — with only the
+      browser twin's `nfsu2.xyz` server left — and build the plan again: the step must leave the
+      `host` lines exactly as the file carries them (the browser twin must **not** be written in),
+      and the native server's address is with the Orga (the remaining `/servers` row is the browser
+      twin). Also never run before.
+- [ ] **NFSU2 under Linux (Wine or Proton):** the same install through the agent writes the host,
+      `WINEDLLOVERRIDES=dinput8=n,b` loads `net_u2.asi`, and the game reaches the same lobby. (A
+      launcher install runs no step commands and therefore keeps the host baked into
+      `nfsu2-portable.zip`; check that the archive was built with the final host.)
+- [ ] **"Hier spielen":** two registered participants on one server see each other as faces on its
+      row; one switches "Meinen Standort teilen" off and disappears from the faces *and* the count
+      while the viewer still sees themselves. A logged-in account that is not registered for the
+      event sees no line at all (and a draft event shows none, also to the orga). Needs
+      `MODULE_PRESENCE=true`.
+- [ ] **Not all files on the LAN:** reject or delete the archive of a published shared game; its
+      server rows say "Für dieses Spiel liegen gerade nicht alle Dateien auf dem LAN-Server …", the
+      launcher handoff stays, and "Spiel installieren" does not claim a fresh install. Pin another
+      approved archive to clear it.
+- [ ] **Agent refuses an unquotable folder:** `install --target` with a folder like `…/O'Brien/Games`
+      refuses before downloading, names the character and the folder; a folder with `;`, `&`, `|`,
+      `<` or `>` is refused on every platform; `--target '~/Games/test'` installs into the home
+      directory. A plain folder installs.
 
 ---
 

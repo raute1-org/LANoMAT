@@ -45,14 +45,22 @@ These are registered in `routes/console.php` and run via `php artisan schedule:w
 | `lanomat:prune-lfg` | every 5 min | Close expired LFG posts |
 | `lanomat:jukebox-tick` | every minute | Poll Music Assistant and advance the queue |
 | `lanomat:sweep-file-uploads` | every 10 min | Release abandoned tus reservations |
+| `lanomat:files:hash --limit=20` | daily 04:45 | Backfill the SHA-256 of files that arrived without one |
 | `lanomat:refresh-avatars [--all] [--user=<id>] [--pause=150]` | daily 04:30 | Refresh local avatars |
 | `lanomat:recipes:sync [source] [--prune] [--only=<slug>] [--json]` | daily 04:15 | Import recipes from the bundled directory, SMB share or git; updates files in place |
 | `lanomat:recipes:pr-status [--json]` | hourly | Sync the state of open recipe pull requests (quiet when pull requests are off) |
-| `lanomat:files:hash [--event=<id or slug>] [--limit=20] [--force] [--dry-run]` | daily 04:45 | Backfill the SHA-256 of stored files that arrived without one |
-| `presence:refresh-locations` | every minute | Rebuild the "who is where" snapshot |
+| `presence:refresh-locations` | every 30 s, only while an event is `live` | Rebuild the "who is where" snapshot |
 | `webvoice:prune` | daily | Remove old web-voice data |
+| `registration:payment-reminders` | hourly (sends 09:00–21:00 display time) | Remind participants of unpaid tickets |
 | `gameservers:refresh-queries` | every minute | Query running game servers |
 | `gameservers:refresh-permanent` | every minute | Reconcile permanent servers |
+| `lanomat:heartbeat` | every minute | Write the queue heartbeat Preflight reads |
+| `lanomat:health-watch` | every 5 min | Evaluate the checks and notify orga on a transition |
+| `lanomat:check-updates` | every 6 h | Refresh the cached image-update probe |
+| `RefreshExpiringTokensJob` (queued, not a command) | hourly | Refresh Discord tokens that are about to expire |
+
+Each row is registered only while its module is enabled; the Discord, LFG, schedule, jukebox, files,
+recipes, presence, web voice and game-server rows are conditional, the rest always run.
 
 The reminder jobs end up in the participant's bell: event reminders, "starting soon" and change
 alarms are notification categories people can mute per type. The panel below is the empty state on a
@@ -63,13 +71,16 @@ dashboard with no event running.
 | ![Dashboard with the notification bell open and no unread notifications, dark](/screens/notifications-dark.png) | ![Dashboard with the notification bell open and no unread notifications, light](/screens/notifications-light.png) |
 | `DASHBOARD · BELL · NO UNREAD` | `DASHBOARD · LIGHT` |
 
-## Discord
+## Discord, game servers and agents
 
 | Command | What it does |
 |---|---|
 | `discord:register-commands` | Register the slash commands with Discord |
-| `gameservers:pelican-check [--lifecycle] [--egg=] [--node=] [--wait=180]` | Verify the Pelican API; `--lifecycle` creates/starts/stops/deletes a throwaway server |
+| `gameservers:pelican-check [--lifecycle] [--egg=] [--node=] [--owner=] [--start-on-completion] [--wait=180]` | Verify the Pelican API; `--lifecycle` creates/starts/stops/deletes a throwaway server |
 | `gameservers:import-eggs [--check]` | Import or verify the repository eggs on the panel |
+| `gameservers:link-pelican <server> <pelican> [--gungame]` | Link a registered external permanent server to its Pelican panel server |
+| `gameservers:link-remote-docker <server> [--host=] [--container=] [--console=rcon-cli]` | Link a registered external permanent server to its Docker container on a managed remote host |
+| `lanomat:mcp-token <user> [--name=CLI]` | Issue an MCP bearer token for a user (printed once); `<user>` is an id, e-mail or Discord id |
 
 ## Provisioning
 
@@ -91,6 +102,8 @@ All provisioning commands take `--as=<user-id>` when run from the CLI without a 
 | `lanomat:recipes:propose <slug>` | Open or update the one pull request that carries a recipe into the git catalogue, in the foreground; prints the state and either the PR number/URL or the reason it was not sent. Not subject to the automatic per-contributor or open-pull-request limits |
 | `lanomat:recipes:pr-status [--json]` | Ask the repository how the pull requests LANoMAT believes are open are doing and store the answer; one failing request is reported and skipped. Quiet while pull requests are not configured |
 | `node resources/recipes/schema/validate.mjs [dir]` | Validate recipes against `lanomat.recipe/v1` (the bundled catalogue, or an exported set) |
+| `lanomat:files:hash [--event=<id or slug>] [--limit=100] [--force] [--dry-run]` | Backfill the server-side SHA-256 of stored shared files; `--limit=0` means no limit, the nightly run uses `--limit=20` |
+| `lanomat:sweep-file-uploads` | Release expired resumable-upload reservations and delete their leftovers on the file host |
 | `npm run screenshots` (in `docs-site/`) | Copy the app's screenshots into the docs |
 | `npm run check:links` (in `docs-site/`) | Fail on broken internal doc links |
 
@@ -105,6 +118,34 @@ has an open pull request keeps it: the command prints `Pull Request offen (#…)
 `Der Pull Request bleibt …, wurde aber nicht neu gesendet: <reason>` when this run could not update
 it. The command is not subject to `RECIPES_PR_PER_USER_HOURLY` or `RECIPES_PR_MAX_OPEN`. See
 [Recipe pull requests](/docs/system/modules/gamerecipes#pull-requests-into-the-git-catalogue).
+
+## Browser checks (smoke)
+
+Two headless-browser checks cover what Pest cannot: the browser's own JavaScript and the real user
+journey (`scripts/smoke/`). Both need a running app, Postgres and Redis, and a built frontend; they
+are local pre-merge checks, not CI, and they seed their own data with a seeder that refuses to run in
+production.
+
+| Script | What it proves | Fixture |
+|---|---|---|
+| `npm run smoke` (`scripts/smoke/realtime-smoke.mjs`) | Realtime pages (presence, jukebox, the live bracket) render in a browser instead of going blank | `ScreenshotSeeder` |
+| `node scripts/smoke/game-sharing-smoke.mjs` | The game-sharing journey: share, refusals, panel review and publish, the game on `/games`, the server row on `/servers` and `/servers/all`, the `lanomat://` notice, the missing-files line | `GameSharingSmokeSeeder` |
+
+The game-sharing run, from the app container and then from the host:
+
+```bash
+php artisan migrate:fresh --force
+php artisan storage:link
+php artisan db:seed --class=GameSharingSmokeSeeder
+# on the host, with the app running:
+APP_URL=http://127.0.0.1:8000 node scripts/smoke/game-sharing-smoke.mjs
+```
+
+The seeder is opt-in (never in `DatabaseSeeder`), refuses `production`, resets what an earlier run
+created and is safe to run again; it also writes a placeholder launcher build when none is published.
+Form uploads need `FILES_STORE=local` (the default) — the tus path is not driven. Knobs:
+`SMOKE_BROWSER` (`chromium` by default, `firefox`, `webkit`), `CHROMIUM_PATH`, `SMOKE_SHOT_DIR`,
+`SMOKE_STRICT=1` (findings also fail the run). Exit 1 only when a step fails.
 
 ## Deploy
 

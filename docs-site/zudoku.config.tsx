@@ -31,7 +31,7 @@ const moduleDocs = {
     "lighting",
   ],
   media: ["gallery", "files", "jukebox", "infoscreen"],
-  integrations: ["discord", "voice", "webvoice", "mcp"],
+  integrations: ["discord", "voice", "webvoice", "mcp", "assistant"],
 } as const;
 
 const moduleCategory = (label: string, group: keyof typeof moduleDocs, icon: string) => ({
