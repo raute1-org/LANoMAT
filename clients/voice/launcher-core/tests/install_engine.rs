@@ -230,8 +230,14 @@ fn launch_reports_a_missing_executable() {
     std::fs::create_dir_all(dir.path().join("System")).unwrap();
 
     let error = InstallEngine::launch(dir.path()).unwrap_err();
+    // The missing file is named per platform: the Linux binary, or System/UT2004.exe on Windows.
+    let expected = if cfg!(windows) {
+        "UT2004.exe"
+    } else {
+        "ut2004-bin-amd64"
+    };
     assert!(
-        error.to_string().contains("ut2004-bin-amd64"),
+        error.to_string().contains(expected),
         "unexpected error: {error}"
     );
 }

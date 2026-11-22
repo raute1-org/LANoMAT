@@ -1138,6 +1138,8 @@ mod tests {
         );
     }
 
+    // Absolute Unix paths: they are not absolute on Windows, so the import would reject them there.
+    #[cfg(unix)]
     const LEGACY_INSTALLS: &str = r#"[
       {"slug":"ut2004","target_dir":"/definitely/not/here/ut2004","version":"3374",
        "verified":["System/Build.ini"],"launch_command":"System/ut2004.exe",
@@ -1147,6 +1149,7 @@ mod tests {
       {"slug":"known","target_dir":"/legacy/known"}
     ]"#;
 
+    #[cfg(unix)]
     #[test]
     fn importing_the_launcher_register_takes_installs_only_and_never_a_token() {
         let legacy = tempfile::tempdir().unwrap();
