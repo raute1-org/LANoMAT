@@ -197,10 +197,50 @@
       "pages/system/modules/news.md"
     ]
   },
+  "admin-recipe-catalog-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 41596,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
+  },
+  "admin-recipe-catalog-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 41522,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
+  },
+  "admin-recipe-contributed-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 39105,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
+  },
+  "admin-recipe-contributed-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 39026,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
+  },
   "admin-recipe-edit-dark.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 48711,
+    "bytes": 49112,
     "referencedBy": [
       "pages/guides/install-cs16.mdx",
       "pages/guides/install-ridge-racer.mdx",
@@ -215,7 +255,7 @@
   "admin-recipe-edit-light.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 48026,
+    "bytes": 48793,
     "referencedBy": [
       "pages/guides/install-cs16.mdx",
       "pages/guides/install-ridge-racer.mdx",
@@ -227,10 +267,30 @@
       "pages/system/modules/gamerecipes.md"
     ]
   },
+  "admin-recipe-publish-confirm-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 43607,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
+  },
+  "admin-recipe-publish-confirm-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 46700,
+    "referencedBy": [
+      "pages/guides/lan-party-runbook.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gamerecipes.md"
+    ]
+  },
   "admin-recipes-dark.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 47107,
+    "bytes": 33193,
     "referencedBy": [
       "pages/guides/install-cs16.mdx",
       "pages/guides/install-ridge-racer.mdx",
@@ -240,13 +300,14 @@
       "pages/recipes/overview.md",
       "pages/recipes/ridge-racer.md",
       "pages/recipes/smb.md",
+      "pages/start/screenshots.md",
       "pages/system/modules/gamerecipes.md"
     ]
   },
   "admin-recipes-light.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 46976,
+    "bytes": 33129,
     "referencedBy": [
       "pages/guides/install-cs16.mdx",
       "pages/guides/install-ridge-racer.mdx",
@@ -256,6 +317,7 @@
       "pages/recipes/overview.md",
       "pages/recipes/ridge-racer.md",
       "pages/recipes/smb.md",
+      "pages/start/screenshots.md",
       "pages/system/modules/gamerecipes.md"
     ]
   },
@@ -529,6 +591,22 @@
     "bytes": 54454,
     "referencedBy": []
   },
+  "app-download-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 46158,
+    "referencedBy": [
+      "pages/start/screenshots.md"
+    ]
+  },
+  "app-download-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 45366,
+    "referencedBy": [
+      "pages/start/screenshots.md"
+    ]
+  },
   "catering-dark.png": {
     "width": 1440,
     "height": 900,
@@ -721,32 +799,18 @@
     "width": 1440,
     "height": 900,
     "bytes": 25302,
-    "referencedBy": [
-      "pages/guides/install-cs16.mdx",
-      "pages/guides/install-ut2004.mdx",
-      "pages/start/screenshots.md",
-      "pages/start/tour.md",
-      "pages/system/competition.md",
-      "pages/system/modules/gameservers.md"
-    ]
+    "referencedBy": []
   },
   "event-servers-light.png": {
     "width": 1440,
     "height": 900,
     "bytes": 25285,
-    "referencedBy": [
-      "pages/guides/install-cs16.mdx",
-      "pages/guides/install-ut2004.mdx",
-      "pages/start/screenshots.md",
-      "pages/start/tour.md",
-      "pages/system/competition.md",
-      "pages/system/modules/gameservers.md"
-    ]
+    "referencedBy": []
   },
   "files-dark.png": {
     "width": 1440,
-    "height": 2330,
-    "bytes": 76955,
+    "height": 2840,
+    "bytes": 95154,
     "referencedBy": [
       "pages/guides/install-ut2004.mdx",
       "pages/guides/upload-isos-and-avatars.mdx",
@@ -757,8 +821,8 @@
   },
   "files-light.png": {
     "width": 1440,
-    "height": 2330,
-    "bytes": 77737,
+    "height": 2840,
+    "bytes": 97231,
     "referencedBy": [
       "pages/guides/install-ut2004.mdx",
       "pages/guides/upload-isos-and-avatars.mdx",
@@ -841,10 +905,30 @@
       "pages/system/modules/gallery.md"
     ]
   },
+  "game-shared-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 55920,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/games-library.md"
+    ]
+  },
+  "game-shared-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 56400,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/games-library.md"
+    ]
+  },
   "game-ut2004-dark.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 55236,
+    "bytes": 62159,
     "referencedBy": [
       "pages/guides/install-ut2004.mdx",
       "pages/guides/upload-isos-and-avatars.mdx",
@@ -860,7 +944,7 @@
   "game-ut2004-light.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 55593,
+    "bytes": 62307,
     "referencedBy": [
       "pages/guides/install-ut2004.mdx",
       "pages/guides/upload-isos-and-avatars.mdx",
@@ -876,22 +960,21 @@
   "game-ut2004-mobile-dark.png": {
     "width": 375,
     "height": 812,
-    "bytes": 15522,
+    "bytes": 21254,
     "referencedBy": []
   },
   "game-ut2004-mobile-light.png": {
     "width": 375,
     "height": 812,
-    "bytes": 15565,
+    "bytes": 21459,
     "referencedBy": []
   },
   "games-dark.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 53477,
+    "bytes": 57888,
     "referencedBy": [
       "pages/guides/install-cs16.mdx",
-      "pages/guides/install-ridge-racer.mdx",
       "pages/recipes/overview.md",
       "pages/start/introduction.mdx",
       "pages/start/quickstart.md",
@@ -903,8 +986,9 @@
   "games-filter-dark.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 39104,
+    "bytes": 52036,
     "referencedBy": [
+      "pages/guides/install-ridge-racer.mdx",
       "pages/guides/install-ridge-racer.mdx",
       "pages/recipes/ridge-racer.md",
       "pages/start/tour.md",
@@ -914,8 +998,9 @@
   "games-filter-light.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 39227,
+    "bytes": 52517,
     "referencedBy": [
+      "pages/guides/install-ridge-racer.mdx",
       "pages/guides/install-ridge-racer.mdx",
       "pages/recipes/ridge-racer.md",
       "pages/start/tour.md",
@@ -925,28 +1010,97 @@
   "games-filter-mobile-dark.png": {
     "width": 375,
     "height": 812,
-    "bytes": 12490,
+    "bytes": 15886,
     "referencedBy": []
   },
   "games-filter-mobile-light.png": {
     "width": 375,
     "height": 812,
-    "bytes": 12543,
+    "bytes": 16324,
     "referencedBy": []
   },
   "games-light.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 53845,
+    "bytes": 58613,
     "referencedBy": [
       "pages/guides/install-cs16.mdx",
-      "pages/guides/install-ridge-racer.mdx",
       "pages/recipes/overview.md",
       "pages/start/introduction.mdx",
       "pages/start/quickstart.md",
       "pages/start/screenshots.md",
       "pages/system/games-library.md",
       "pages/system/modules/games.md"
+    ]
+  },
+  "games-share-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 38489,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-form-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34312,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-form-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 34137,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 38941,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-shares-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36618,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-shares-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36556,
+    "referencedBy": [
+      "pages/guides/share-a-game.mdx",
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-shares-mobile-dark.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 16493,
+    "referencedBy": [
+      "pages/start/screenshots.md"
+    ]
+  },
+  "games-share-shares-mobile-light.png": {
+    "width": 375,
+    "height": 812,
+    "bytes": 16684,
+    "referencedBy": [
+      "pages/start/screenshots.md"
     ]
   },
   "home-dark.png": {
@@ -1084,21 +1238,37 @@
       "pages/guides/launcher.mdx"
     ]
   },
+  "launcher-notice-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37441,
+    "referencedBy": [
+      "pages/guides/launcher.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
+  },
+  "launcher-notice-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 37707,
+    "referencedBy": [
+      "pages/guides/launcher.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
+  },
   "launcher-page-dark.png": {
     "width": 1440,
     "height": 1164,
     "bytes": 49593,
-    "referencedBy": [
-      "pages/guides/launcher.mdx"
-    ]
+    "referencedBy": []
   },
   "launcher-page-light.png": {
     "width": 1440,
     "height": 1164,
     "bytes": 49939,
-    "referencedBy": [
-      "pages/guides/launcher.mdx"
-    ]
+    "referencedBy": []
   },
   "launcher-ready-light.png": {
     "width": 960,
@@ -1438,21 +1608,69 @@
       "pages/system/modules/seating.md"
     ]
   },
+  "servers-all-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36776,
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/launcher.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
+  },
+  "servers-all-lan-missing-dark.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 43087,
+    "referencedBy": [
+      "pages/guides/launcher.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
+  },
+  "servers-all-lan-missing-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 43272,
+    "referencedBy": [
+      "pages/guides/launcher.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
+  },
+  "servers-all-light.png": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 36996,
+    "referencedBy": [
+      "pages/guides/install-cs16.mdx",
+      "pages/guides/launcher.mdx",
+      "pages/start/screenshots.md",
+      "pages/system/modules/gameservers.md"
+    ]
+  },
   "servers-dark.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 21173,
+    "bytes": 43860,
     "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
       "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/competition.md",
       "pages/system/modules/gameservers.md"
     ]
   },
   "servers-light.png": {
     "width": 1440,
     "height": 900,
-    "bytes": 21146,
+    "bytes": 43697,
     "referencedBy": [
+      "pages/guides/install-ut2004.mdx",
       "pages/start/screenshots.md",
+      "pages/start/tour.md",
+      "pages/system/competition.md",
       "pages/system/modules/gameservers.md"
     ]
   },

@@ -12,6 +12,8 @@ use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Gallery\Models\EventPhoto;
 use App\Modules\GameRecipes\Actions\SyncRecipes;
+use App\Modules\GameRecipes\Enums\PullRequestState;
+use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
@@ -28,6 +30,10 @@ use App\Modules\Mcp\Models\McpDeviceCode;
 use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Support\McpCodes;
 use App\Modules\News\Models\NewsPost;
+use App\Modules\Presence\Domain\GameLocation;
+use App\Modules\Presence\Domain\PersonLocation;
+use App\Modules\Presence\Support\LocationSnapshot;
+use App\Modules\Presence\Support\LocationSnapshotStore;
 use App\Modules\Registration\Models\EventRegistration;
 use App\Modules\Schedule\Models\ScheduleItem;
 use App\Modules\Seating\Actions\GenerateSeatGrid;
@@ -364,6 +370,8 @@ class ScreenshotSeeder extends Seeder
         $this->seedUpcomingEvent();
         $this->seedNews();
         $this->seedGameLibrary();
+        $this->seedSharedGames();
+        $this->seedPresence();
         $this->seedMcpPairing();
     }
 
@@ -690,9 +698,15 @@ class ScreenshotSeeder extends Seeder
         // duplicating recipe content in the seeder.
         app(SyncRecipes::class)->handle((string) config('recipes.source'));
 
+        // Published AND on the lineup: the shipped `LAUNCHER_LINEUP` names two
+        // games, so a recipe the player surfaces should show has to carry the
+        // panel's `in_lineup` flag — how a real orga adds a game to the list.
         GameRecipe::query()
             ->whereIn('slug', self::LIBRARY_SLUGS)
-            ->update(['status' => RecipeStatus::Published->value]);
+            ->update([
+                'status' => RecipeStatus::Published->value,
+                'in_lineup' => true,
+            ]);
 
         $event = Event::query()->where('slug', 'screenshot-demo')->first();
 
@@ -771,6 +785,20 @@ class ScreenshotSeeder extends Seeder
                 'manual' => true,
                 'permanent' => false,
                 'join_info' => new JoinInfo(address: 'lan.example', port: 7777, connectString: 'unreal://lan.example:7777'),
+                // A recent A2S answer, so the row shows its map and players
+                // rather than an empty "–" next to a green dot.
+                'query_info' => [
+                    'name' => 'UT2004 · DM-Antalus',
+                    'map' => 'DM-Antalus',
+                    'players' => 3,
+                    'max_players' => 16,
+                    'player_list' => [
+                        ['name' => 'Teilnehmer 1', 'score' => 21, 'seconds' => 1840],
+                        ['name' => 'Teilnehmer 2', 'score' => 14, 'seconds' => 1710],
+                        ['name' => 'Screenshot Orga', 'score' => 9, 'seconds' => 1620],
+                    ],
+                ],
+                'queried_at' => now()->subMinutes(1),
             ])->save();
         }
     }
@@ -827,6 +855,448 @@ class ScreenshotSeeder extends Seeder
         $entry?->forceFill(['shared_file_id' => $shared->id])->save();
 
         return $shared;
+    }
+
+    /**
+     * The shared-game surfaces (game sharing, Nov 2026): three games the demo
+     * orga shared on `/games/share`, the archives behind them, and the two
+     * published ones as games with an event server of their own.
+     *
+     * One draft still waits for the review queue (its archive is pending), one
+     * is published with its archive approved and on the LAN, and one is
+     * published although its archive is gone — so the library, the server
+     * browser's `lanReady` line, the files page's "Als Spiel teilen" and the
+     * panel's file/PR states each have a row to show. Written directly
+     * (firstOrNew + forceFill) instead of through `ShareGame`/`PublishRecipe`:
+     * those dispatch domain events that queue pull-request and Discord jobs,
+     * which a seeder must not start (see the class docblock).
+     */
+    private function seedSharedGames(): void
+    {
+        $event = Event::query()->where('slug', 'screenshot-demo')->first();
+
+        if (! $event instanceof Event) {
+            return;
+        }
+
+        $orga = $this->seededOrga();
+
+        // A mistyped upload: a real archive whose name the share page refuses
+        // (the colon), so the list can say why it is not selectable instead of
+        // only disabling the row. Seeded first, so it sits below the two
+        // usable archives.
+        $this->seedShareArchive($event, $orga, 'Bunker Bash (alt): Version 1.zip', 121_000_000, FileVisibility::Pending);
+
+        // 1. Published, archive gone: the upload the base row pinned was
+        //    deleted later, so the row has no file ("Datei fehlt"), the server
+        //    card says the files are not on the LAN, and the catalogue proposal
+        //    was refused with a reason. Seeded first, so the share list (newest
+        //    update first) shows it last.
+        $pixel = $this->seedContribution(
+            orga: $orga,
+            slug: 'pixel-rally-99',
+            title: 'Pixel Rally 99',
+            summary: 'Kurze Rennen im geteilten Bildschirm, vier Strecken im Retro-Look.',
+            archive: 'pixel-rally-99.zip',
+            executable: 'PixelRally.exe',
+            status: RecipeStatus::Published,
+            inLineup: true,
+        );
+
+        $gone = $this->seedShareArchive($event, $orga, 'pixel-rally-99.zip', 74_000_000, FileVisibility::Approved);
+        $this->pinContributionArchive($pixel, $gone);
+
+        $pixel->forceFill([
+            'pr_number' => null,
+            'pr_url' => null,
+            'pr_branch' => 'recipes/pixel-rally-99',
+            'pr_state' => PullRequestState::Blocked,
+            // The list shows the first finding in one line: keep a short,
+            // real catalogue message so the queue reads without a cut-off.
+            'pr_error' => 'SKILL.md front matter description is missing.',
+            'pr_synced_at' => now()->subHours(2),
+        ])->save();
+
+        // The orga deleted the upload after the pin: the foreign key clears the
+        // pin, exactly like removing the file on the files page does.
+        $gone->delete();
+
+        $this->seedSharedGameServer(
+            event: $event,
+            slug: 'pixel-rally-99',
+            name: 'Pixel Rally 99',
+            title: 'Pixel Rally · Werkstatt',
+            map: 'pixel_rally_99',
+            address: '203.0.113.21',
+            port: 27016,
+            status: ServerLinkStatus::NotResponding,
+            players: 0,
+        );
+
+        // 2. Published, archive approved: installable from the LAN, with the
+        //    pull request the orga's publish opened.
+        $bunker = $this->seedContribution(
+            orga: $orga,
+            slug: 'bunker-bash-deluxe',
+            title: 'Bunker Bash Deluxe',
+            summary: 'Vier Spieler, ein Bunker, zu viele Granaten. Läuft nach dem Entpacken.',
+            archive: 'bunker-bash-deluxe.tar.bz2',
+            executable: 'BunkerBash.exe',
+            status: RecipeStatus::Published,
+            inLineup: true,
+        );
+
+        $this->pinContributionArchive(
+            $bunker,
+            $this->seedShareArchive($event, $orga, 'bunker-bash-deluxe.tar.bz2', 128_000_000, FileVisibility::Approved),
+        );
+
+        $bunker->forceFill([
+            'pr_number' => 42,
+            'pr_url' => 'https://github.com/example/lanomat/pull/42',
+            'pr_branch' => 'recipes/bunker-bash-deluxe',
+            'pr_state' => PullRequestState::Open,
+            'pr_error' => null,
+            'pr_synced_at' => now()->subMinutes(25),
+        ])->save();
+
+        $this->seedSharedGameServer(
+            event: $event,
+            slug: 'bunker-bash-deluxe',
+            name: 'Bunker Bash Deluxe',
+            title: 'Bunker Bash · Kesselhalle',
+            map: 'bunker_halle',
+            address: '203.0.113.20',
+            port: 27015,
+            status: ServerLinkStatus::Ready,
+            players: 2,
+            // A join URL the launcher may open after the start: the deep link
+            // then names the server (`?url=`), which the website calls
+            // "Im Launcher beitreten". Without it the link is the bare
+            // "Im Launcher starten".
+            joinUrl: 'https://lan.example/play/bunker-bash-deluxe',
+        );
+
+        // 3. Waiting for review: the pending archive is pinned to the draft.
+        //    Seeded last, so the list opens on the game that still needs the
+        //    orga, and its archive is the first row of the file picker.
+        $neon = $this->seedContribution(
+            orga: $orga,
+            slug: 'neon-drift-arena',
+            title: 'Neon Drift Arena',
+            summary: 'Arcade-Driften auf vier Neon-Strecken — entpacken und sofort starten.',
+            archive: 'neon-drift-arena.zip',
+            executable: 'NeonDrift.exe',
+            status: RecipeStatus::Draft,
+            inLineup: false,
+        );
+
+        $this->pinContributionArchive(
+            $neon,
+            $this->seedShareArchive($event, $orga, 'neon-drift-arena.zip', 96_000_000, FileVisibility::Pending),
+        );
+    }
+
+    /**
+     * One shared game as `ShareGame`/`ContributeRecipe` would leave it: a
+     * portable recipe whose single required base is the archive, one step that
+     * checks the start file, a Windows launch target and a deliberately short
+     * SKILL.md (the catalogue preview explains what still blocks it).
+     *
+     * The base file row starts unpinned; {@see pinContributionArchive()} pins
+     * the archive the caller seeded.
+     */
+    private function seedContribution(
+        User $orga,
+        string $slug,
+        string $title,
+        string $summary,
+        string $archive,
+        string $executable,
+        RecipeStatus $status,
+        bool $inLineup,
+    ): GameRecipe {
+        $published = $status === RecipeStatus::Published;
+
+        $recipe = GameRecipe::query()->firstOrNew(['slug' => $slug]);
+
+        $recipe->fill([
+            'title' => $title,
+            'aliases' => null,
+            'version' => '1.0',
+            'status' => $status,
+            'in_lineup' => $inLineup,
+            'source' => GameRecipe::SOURCE_CONTRIBUTION,
+            'source_ref' => 'web',
+            'platforms' => ['windows', 'linux'],
+            'summary' => $summary,
+            'description' => $title.' läuft sofort nach dem Entpacken. Der Upload stammt von '
+                .'einem Teilnehmer der LAN und wurde von der Orga geprüft.',
+            'homepage' => null,
+            'license' => 'Freeware, vom Teilnehmer bereitgestellt.',
+            'skill_markdown' => $this->contributionSkill($slug, $title, $archive, $executable),
+            'requirements' => [[
+                'role' => RecipeFileRole::Base->value,
+                'label' => 'Archiv',
+                'os' => 'windows',
+                'match' => [$archive],
+                'required' => true,
+                'notes' => 'Läuft unter Windows 10 oder neuer; unter Linux über Wine.',
+                'tags' => ['arcade', 'splitscreen'],
+            ]],
+            'steps' => [[
+                'id' => 'unpack',
+                'title' => 'Archiv entpacken',
+                'os' => 'any',
+                'optional' => false,
+                'detail' => 'Entpacke das Archiv in den Zielordner und prüfe die Startdatei.',
+                'verify' => [['type' => 'file_exists', 'path' => '{{target}}/'.$executable]],
+            ]],
+            'metadata' => [
+                'portable' => true,
+                'players' => '2-8',
+                'multiplayer' => true,
+                'launch_targets' => [[
+                    'id' => 'windows',
+                    'label' => 'Windows',
+                    'os' => 'windows',
+                    'command' => '{{target}}/'.$executable,
+                ]],
+            ],
+            'contributor_user_id' => $orga->id,
+            'reviewed_by' => $published ? $orga->id : null,
+            'reviewed_at' => $published ? now() : null,
+        ])->save();
+
+        // One file row per requirement, the way SyncRecipeFilesFromRequirements
+        // keeps them: role + label is the stable key, the pin is a column.
+        $file = GameRecipeFile::query()->firstOrNew([
+            'game_recipe_id' => $recipe->id,
+            'role' => RecipeFileRole::Base->value,
+            'label' => 'Archiv',
+        ]);
+
+        $file->fill([
+            'match_patterns' => [$archive],
+            'required' => true,
+            'sort' => 0,
+            // The same human facts SyncRecipeFilesFromRequirements stores in the
+            // row's metadata, so the panel and the exported YAML agree.
+            'metadata' => [
+                'os' => 'windows',
+                'notes' => 'Läuft unter Windows 10 oder neuer; unter Linux über Wine.',
+                'tags' => ['arcade', 'splitscreen'],
+            ],
+            'shared_file_id' => null,
+        ])->save();
+
+        return $recipe;
+    }
+
+    /** Pins the archive to the recipe's required base row (the install plan's file). */
+    private function pinContributionArchive(GameRecipe $recipe, SharedFile $archive): void
+    {
+        $file = GameRecipeFile::query()
+            ->where('game_recipe_id', $recipe->id)
+            ->where('role', RecipeFileRole::Base->value)
+            ->orderBy('sort')
+            ->orderBy('id')
+            ->first();
+
+        $file?->forceFill(['shared_file_id' => $archive->id])->save();
+    }
+
+    /**
+     * An archive the demo orga uploaded to the event's file host. Created with
+     * the other own files, but after them, so the newest-first lists (share
+     * page, files page) open on the archives the pictures are about.
+     */
+    private function seedShareArchive(
+        Event $event,
+        User $orga,
+        string $name,
+        int $sizeBytes,
+        FileVisibility $visibility,
+    ): SharedFile {
+        $shared = SharedFile::query()->firstOrNew([
+            'event_id' => $event->id,
+            'original_name' => $name,
+        ]);
+
+        $approved = $visibility === FileVisibility::Approved;
+
+        $shared->forceFill([
+            'user_id' => $orga->id,
+            'disk' => 'local',
+            'path' => 'event-'.$event->id.'/screenshot-'.$name,
+            'size_bytes' => $sizeBytes,
+            'mime' => 'application/octet-stream',
+            'visibility' => $visibility,
+            'reviewed_by' => $approved ? $orga->id : null,
+            'reviewed_at' => $approved ? now() : null,
+        ])->save();
+
+        return $shared;
+    }
+
+    /** The shared game's short SKILL.md — honest, but far below the catalogue's 60 lines. */
+    private function contributionSkill(string $slug, string $title, string $archive, string $executable): string
+    {
+        return implode("\n", [
+            '---',
+            'name: '.$slug,
+            'description: Install '.$title.' from the LAN archive.',
+            '---',
+            '',
+            '# '.$title,
+            '',
+            '## Install',
+            '',
+            '1. Download `'.$archive.'` from the LAN file host.',
+            '2. Unpack it into the install folder.',
+            '3. Start `'.$executable.'`.',
+            '',
+        ]);
+    }
+
+    /**
+     * One published shared game as a server row: the game identity its recipe
+     * matches (exact slug) plus the event-level server players join.
+     */
+    private function seedSharedGameServer(
+        Event $event,
+        string $slug,
+        string $name,
+        string $title,
+        string $map,
+        string $address,
+        int $port,
+        ServerLinkStatus $status,
+        int $players,
+        ?string $joinUrl = null,
+    ): ServerLink {
+        $game = Game::query()->updateOrCreate(
+            ['slug' => $slug],
+            ['name' => $name, 'min_team_size' => 1, 'max_team_size' => 8],
+        );
+
+        $link = ServerLink::query()->firstOrNew([
+            'event_id' => $event->id,
+            'title' => $title,
+        ]);
+
+        $link->forceFill([
+            'game_id' => $game->id,
+            'status' => $status,
+            'manual' => true,
+            'permanent' => false,
+            'join_info' => new JoinInfo(
+                address: $address,
+                port: $port,
+                // A join URL the launcher can open, or the plain
+                // `address:port` the player copies.
+                connectString: $joinUrl ?? $address.':'.$port,
+            ),
+            'query_info' => [
+                'name' => $title,
+                'map' => $map,
+                'players' => $players,
+                'max_players' => 16,
+                // The A2S player list a game server answers with; the same two
+                // names Presence places on the Bunker Bash server.
+                'player_list' => $players === 2
+                    ? [
+                        ['name' => 'Teilnehmer 4', 'score' => 12, 'seconds' => 940],
+                        ['name' => 'Teilnehmer 5', 'score' => 7, 'seconds' => 880],
+                    ]
+                    : [],
+            ],
+            // A fresh answer, so the page shows it as a live row rather than a
+            // server whose last answer is hours old.
+            'queried_at' => now()->subMinutes(1),
+        ])->save();
+
+        return $link;
+    }
+
+    /**
+     * Who the demo LAN places on which server, written through Presence's own
+     * read model (`LocationSnapshotStore`) — not into another module's tables.
+     * The server pages fill their "Hier spielen" line from this snapshot: three
+     * accounts on the UT2004 server (the orga included), two on the Bunker Bash
+     * server, and `Teilnehmer 3` opted out with `share_location = false`, so
+     * that person is in neither line nor count.
+     *
+     * The snapshot lives in the cache for {@see LocationSnapshotStore::TTL_SECONDS}
+     * (five minutes) and no scheduler runs next to the capture, so seed right
+     * before capturing.
+     */
+    private function seedPresence(): void
+    {
+        $ut = ServerLink::query()->where('title', 'UT2004 · DM-Antalus')->first();
+        $bunker = ServerLink::query()->where('title', 'Bunker Bash · Kesselhalle')->first();
+
+        if (! $ut instanceof ServerLink || ! $bunker instanceof ServerLink) {
+            return;
+        }
+
+        $orga = $this->seededOrga();
+
+        $participants = User::query()
+            ->whereIn('name', [
+                'Teilnehmer 1', 'Teilnehmer 2', 'Teilnehmer 3', 'Teilnehmer 4', 'Teilnehmer 5',
+            ])
+            ->orderBy('id')
+            ->get()
+            ->keyBy('name');
+
+        $hidden = $participants->get('Teilnehmer 3');
+
+        if ($hidden instanceof User) {
+            $hidden->forceFill(['share_location' => false])->save();
+        }
+
+        $utAddress = $ut->join_info->address ?? 'lan.example';
+        $utPort = $ut->join_info->port ?? 7777;
+        $bunkerAddress = $bunker->join_info->address ?? '203.0.113.20';
+        $bunkerPort = $bunker->join_info->port ?? 27015;
+
+        $place = static function (int $userId, int $minutes, string $game, string $title, string $address, int $port, int $linkId): PersonLocation {
+            return new PersonLocation($userId, [], new GameLocation(
+                GameLocation::SOURCE_QUERY,
+                $game,
+                $title,
+                $address,
+                $port,
+                $linkId,
+                now()->subMinutes($minutes)->toIso8601String(),
+            ));
+        };
+
+        $people = [
+            $orga->id => $place($orga->id, 37, 'Unreal Tournament 2004', 'UT2004 · DM-Antalus', $utAddress, $utPort, $ut->id),
+        ];
+
+        foreach (['Teilnehmer 1', 'Teilnehmer 2', 'Teilnehmer 3'] as $index => $name) {
+            $user = $participants->get($name);
+
+            if ($user instanceof User) {
+                $people[$user->id] = $place($user->id, 18 + $index * 7, 'Unreal Tournament 2004', 'UT2004 · DM-Antalus', $utAddress, $utPort, $ut->id);
+            }
+        }
+
+        foreach (['Teilnehmer 4', 'Teilnehmer 5'] as $index => $name) {
+            $user = $participants->get($name);
+
+            if ($user instanceof User) {
+                $people[$user->id] = $place($user->id, 9 + $index * 4, 'Bunker Bash Deluxe', 'Bunker Bash · Kesselhalle', $bunkerAddress, $bunkerPort, $bunker->id);
+            }
+        }
+
+        app(LocationSnapshotStore::class)->put(new LocationSnapshot(
+            now()->toIso8601String(),
+            $people,
+        ));
     }
 
     /**

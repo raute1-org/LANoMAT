@@ -22,8 +22,8 @@ The participant app is calm on purpose: one primary action per screen, mono only
 | `TOURNAMENTS · DARK` — brackets, check-in, match actions | `TOURNAMENTS · LIGHT` |
 | ![Event schedule with the programme slots and favourites, dark](/screens/schedule-dark.png) | ![Event schedule with the programme slots and favourites, light](/screens/schedule-light.png) |
 | `SCHEDULE · DARK` — programme, now/next, favourites | `SCHEDULE · LIGHT` |
-| ![Event file host with ISOs, patches and avatars plus quota and moderation, dark](/screens/files-dark.png) | ![Event file host with ISOs, patches and avatars plus quota and moderation, light](/screens/files-light.png) |
-| `FILES · DARK` — ISOs, patches, avatars | `FILES · LIGHT` |
+| ![Event file host with ISOs, patches, avatars and the shared game archives, one of them refused by name, dark](/screens/files-dark.png) | ![Event file host with ISOs, patches, avatars and the shared game archives, one of them refused by name, light](/screens/files-light.png) |
+| `FILES · DARK` — ISOs, patches, avatars, "Als Spiel teilen" | `FILES · LIGHT` |
 | ![Catering page with the menu, prices and a placed order, dark](/screens/catering-dark.png) | ![Catering page with the menu, prices and a placed order, light](/screens/catering-light.png) |
 | `CATERING · DARK` — menu, prices, one order per person | `CATERING · LIGHT` |
 | ![Poll page with an open vote and its result bars, dark](/screens/voting-dark.png) | ![Poll page with an open vote and its result bars, light](/screens/voting-light.png) |
@@ -60,10 +60,12 @@ Game servers stay available between events, the event page lists the ones runnin
 
 | Dark | Light |
 |---|---|
-| ![Permanent servers page with the empty state before the first server, dark](/screens/servers-dark.png) | ![Permanent servers page with the empty state before the first server, light](/screens/servers-light.png) |
-| `SERVER OVERVIEW · DARK` — `/servers`, the LAN's servers and the permanent ones | `SERVER OVERVIEW · LIGHT` |
-| ![Event game server card with address, port, memory estimate, ready status and connect button, dark](/screens/event-servers-dark.png) | ![Event game server card with address, port, memory estimate, ready status and connect button, light](/screens/event-servers-light.png) |
-| `EVENT SERVERS · DARK` — UT2004 DM-Antalus, ready, connect | `EVENT SERVERS · LIGHT` |
+| ![Server overview with one row opened: the in-game player list, "Hier spielen" with three accounts, "Im Launcher beitreten", the game's own join ways and the memory estimate, dark](/screens/servers-dark.png) | ![Server overview with one row opened: the in-game player list, "Hier spielen" with three accounts, "Im Launcher beitreten", the game's own join ways and the memory estimate, light](/screens/servers-light.png) |
+| `SERVERS · DARK` — `/servers`, an opened row with its occupant line | `SERVERS · LIGHT` |
+| ![Server browser with one game's card: status, map, players, "Hier spielen" with two accounts, install, launcher join and find-players, dark](/screens/servers-all-dark.png) | ![Server browser with one game's card: status, map, players, "Hier spielen" with two accounts, install, launcher join and find-players, light](/screens/servers-all-light.png) |
+| `SERVER BROWSER · DARK` — `/servers/all`, install and join from the card | `SERVER BROWSER · LIGHT` |
+| ![Server card whose archive is gone: no longer responding, "Im Launcher starten" with its own hint and the line saying not all files are on the LAN, dark](/screens/servers-all-lan-missing-dark.png) | ![Server card whose archive is gone: no longer responding, "Im Launcher starten" with its own hint and the line saying not all files are on the LAN, light](/screens/servers-all-lan-missing-light.png) |
+| `LAN MISSING · DARK` — "starten" when the link cannot name the server | `LAN MISSING · LIGHT` |
 | ![Account connections for Steam and Twitch plus the desktop-app download, dark](/screens/connections-dark.png) | ![Account connections for Steam and Twitch plus the desktop-app download, light](/screens/connections-light.png) |
 | `CONNECTIONS · DARK` — `/settings/connections`, Steam, Twitch, app | `CONNECTIONS · LIGHT` |
 | ![Browser voice page with the empty state before the first team room, dark](/screens/talk-dark.png) | ![Browser voice page with the empty state before the first team room, light](/screens/talk-light.png) |
@@ -75,12 +77,40 @@ Every published recipe, and the pairing flow that connects an agent to the accou
 
 | Dark | Light |
 |---|---|
-| ![Games library with published recipes, the LAN filter and running tournaments, dark](/screens/games-dark.png) | ![Games library with published recipes, the LAN filter and running tournaments, light](/screens/games-light.png) |
-| `GAMES · DARK` — every recipe, LAN dot, the one-click round | `GAMES · LIGHT` |
+| ![Games library with the lineup, two participant-shared games, the LAN filter and "Spiel teilen", dark](/screens/games-dark.png) | ![Games library with the lineup, two participant-shared games, the LAN filter and "Spiel teilen", light](/screens/games-light.png) |
+| `GAMES · DARK` — lineup, shared games, LAN dot, "Spiel teilen" | `GAMES · LIGHT` |
 | ![UT2004 game page with install and launch steps, the live server and LAN files, dark](/screens/game-ut2004-dark.png) | ![UT2004 game page with install and launch steps, the live server and LAN files, light](/screens/game-ut2004-light.png) |
 | `GAME · DARK` — install, launch, live server, LAN files | `GAME · LIGHT` |
 | ![MCP pairing page with the approval prompt for pi · demo-laptop, its code and two paired devices, dark](/screens/mcp-connect-pending-dark.png) | ![MCP pairing page with the approval prompt for pi · demo-laptop, its code and two paired devices, light](/screens/mcp-connect-pending-light.png) |
 | `MCP · DARK` — approve the code from `lanomat-agent login` | `MCP · LIGHT` |
+
+## Sharing a game
+
+Anyone can share a ready-to-run game: an archive on the LAN file host plus a description. The orga approves the archive and publishes the recipe in one panel action, and the game appears in the library, in the launcher and next to its servers.
+
+| Dark | Light |
+|---|---|
+| ![Share page with the archive picked, the uploader, the quota and the participant's files, one archive struck through with the reason its name is refused, dark](/screens/games-share-dark.png) | ![Share page with the archive picked, the uploader, the quota and the participant's files, one archive struck through with the reason its name is refused, light](/screens/games-share-light.png) |
+| `SHARE · DARK` — `/games/share`, the picked archive is the game | `SHARE · LIGHT` |
+| ![The same page's description form, filled in: title, platforms, start file, Linux via Wine, summary, version and players, dark](/screens/games-share-form-dark.png) | ![The same page's description form, filled in: title, platforms, start file, Linux via Wine, summary, version and players, light](/screens/games-share-form-light.png) |
+| `SHARE FORM · DARK` — what others download and start | `SHARE FORM · LIGHT` |
+| !["Deine geteilten Spiele" with one game waiting for review, one with an open catalogue pull request and one whose archive is gone, dark](/screens/games-share-shares-dark.png) | !["Deine geteilten Spiele" with one game waiting for review, one with an open catalogue pull request and one whose archive is gone, light](/screens/games-share-shares-light.png) |
+| `YOUR SHARES · DARK` — waiting, published, archive gone | `YOUR SHARES · LIGHT` |
+| ![The same list at 375 px width, one waiting and one published game, dark](/screens/games-share-shares-mobile-dark.png) | ![The same list at 375 px width, one waiting and one published game, light](/screens/games-share-shares-mobile-light.png) |
+| `YOUR SHARES · 375 PX · DARK` | `YOUR SHARES · 375 PX · LIGHT` |
+| ![A participant-shared game's page: install and launch actions, its server with the launcher join, a round to announce and the archive on the LAN, dark](/screens/game-shared-dark.png) | ![A participant-shared game's page: install and launch actions, its server with the launcher join, a round to announce and the archive on the LAN, light](/screens/game-shared-light.png) |
+| `SHARED GAME · DARK` — one page like any bundled game | `SHARED GAME · LIGHT` |
+
+## App download and the launcher link
+
+One download page for everything a participant installs on their own machine — the voice app and the launcher side by side — and the notice every `lanomat://` action gives when nothing on the machine takes over.
+
+| Dark | Light |
+|---|---|
+| ![LANoMAT-App download page with the platform tabs, the published desktop-app builds and the launcher section below them, dark](/screens/app-download-dark.png) | ![LANoMAT-App download page with the platform tabs, the published desktop-app builds and the launcher section below them, light](/screens/app-download-light.png) |
+| `APP · DARK` — `/app`, the voice app and the launcher as downloads | `APP · LIGHT` |
+| ![Server card after a click on "Im Launcher beitreten": the notice "Kein Launcher-Fenster aufgegangen?" with its "App herunterladen" link and retry action, dark](/screens/launcher-notice-dark.png) | ![Server card after a click on "Im Launcher beitreten": the notice "Kein Launcher-Fenster aufgegangen?" with its "App herunterladen" link and retry action, light](/screens/launcher-notice-light.png) |
+| `LAUNCHER NOTICE · DARK` — what a click says when nobody takes over | `LAUNCHER NOTICE · LIGHT` |
 
 ## Orga: registration and check-in
 
@@ -105,6 +135,21 @@ The Filament panel at `/admin` wears the same mark and the same neutral shell as
 | `ADMIN · DARK` — `/admin`, Preflight traffic light | `ADMIN · LIGHT` |
 | ![Events list with draft, registration open, live and finished events and their public links, dark](/screens/admin-events-dark.png) | ![Events list with draft, registration open, live and finished events and their public links, light](/screens/admin-events-light.png) |
 | `ADMIN EVENTS · DARK` — lifecycle states, public link, start | `ADMIN EVENTS · LIGHT` |
+
+## Admin: the recipe review queue
+
+A shared game reaches the panel as a draft with its archive pinned. The review queue filters the table to contributed recipes, and the edit page shows what runs, which file facts the form has no field for, and what the catalogue checks would refuse.
+
+| Dark | Light |
+|---|---|
+| ![Recipe list filtered to "Geteilte Spiele" with the review-queue badge, the file state, the pull request state and its reason line, dark](/screens/admin-recipes-dark.png) | ![Recipe list filtered to "Geteilte Spiele" with the review-queue badge, the file state, the pull request state and its reason line, light](/screens/admin-recipes-light.png) |
+| `REVIEW QUEUE · DARK` — the badge, the filter, file and pull request state | `REVIEW QUEUE · LIGHT` |
+| ![A contributed recipe's edit page: the requirement's platform, note and tags, and the read-only "Start und Launcher" section with the launch command, dark](/screens/admin-recipe-contributed-dark.png) | ![A contributed recipe's edit page: the requirement's platform, note and tags, and the read-only "Start und Launcher" section with the launch command, light](/screens/admin-recipe-contributed-light.png) |
+| `REVIEW · DARK` — file facts and what the launcher runs | `REVIEW · LIGHT` |
+| ![The same page's "Katalog (Pull Request)" section with "Textprüfung für den Katalog", the three draft findings and the published one, dark](/screens/admin-recipe-catalog-dark.png) | ![The same page's "Katalog (Pull Request)" section with "Textprüfung für den Katalog", the three draft findings and the published one, light](/screens/admin-recipe-catalog-light.png) |
+| `CATALOGUE PREVIEW · DARK` — what the checks would refuse | `CATALOGUE PREVIEW · LIGHT` |
+| ![The "Dateien freigeben und veröffentlichen" confirmation: the pull request warning, the pending archive with its size and the launch command, dark](/screens/admin-recipe-publish-confirm-dark.png) | ![The "Dateien freigeben und veröffentlichen" confirmation: the pull request warning, the pending archive with its size and the launch command, light](/screens/admin-recipe-publish-confirm-light.png) |
+| `APPROVE AND PUBLISH · DARK` — one action, files and recipe | `APPROVE AND PUBLISH · LIGHT` |
 
 ## Admin: people and seats
 

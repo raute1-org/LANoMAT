@@ -20,9 +20,19 @@ left to rot.
     recap page and its beamer scene.
   - `screenshot-upcoming` (registration open): arrival info + a live
     registration count for the pre-LAN countdown/hype on its event page.
+  - On the demo event, the 2026 gaming surfaces: three games the orga shared
+    (`/games/share`), a draft with its pending archive, one published with an
+    approved archive and an open catalogue pull request, and one published
+    although its archive is gone; their event servers (one ready, one not
+    responding, each with an A2S answer), and a Presence snapshot that places
+    the demo participants on two of them (one account hides its location).
+    `/games`, a shared game's page, the server pages, the files page's "Als
+    Spiel teilen", and the panel's review queue and recipe form are captured
+    from those rows.
 - `scripts/screenshots/capture.mjs` — a standalone Playwright script (not
   part of the Vite/app bundle) that logs in as the seeded orga, visits the
-  core screens, and captures both light and dark mode.
+  core screens, and captures both light and dark mode. It prints every console
+  error, page error and failed request as one summary at the end.
 
 ## How to run
 
@@ -98,6 +108,34 @@ pipeline overwrites them in place.
 
 ## Notes
 
+- **Capture a subset.** `ONLY=games-share,games-share-shares,servers npm run
+  screenshots` captures just those routes (the names are the `ROUTES` entries
+  in `capture.mjs`); `SCHEMES=light` limits the colour schemes. Leave the rest
+  of `docs/screenshots/` untouched.
+- **The one download page (`/app`) needs published builds.** It lists the
+  voice app and the launcher, each with its own manifest; `/launcher` and
+  `/talk/client` only redirect there now. `app-download` is captured with both
+  published: `clients-dist/manifest.json` for the voice app (`app_version`,
+  `commit`, `api_version` = the server's API version, `built_at`, `files[]`)
+  and `clients-dist/launcher/manifest.json` for the launcher (`app_version`,
+  `commit`, `built_at`, `files[]`), each `files[]` entry with `name`, `os`,
+  `arch`, `kind`, `variant`, `size`, 64-hex `sha256`, `signed`, and one file
+  per entry whose size matches. Synthetic manifests are enough — the pages
+  validate names and sizes and only hash on a real download. Without them the
+  card says "nichts veröffentlicht"; that is a valid picture too.
+- **The launcher-link notice lives on a server card** (`launcher-notice`):
+  `/servers/all?game=Bunker Bash Deluxe`, a click on "Im Launcher beitreten",
+  then the composable's 2.5 s timeout.
+- **Presence is a cache read.** The "Hier spielen" line comes from the
+  location snapshot, which lives in the cache for five minutes
+  (`LocationSnapshotStore::TTL_SECONDS`) and is normally refreshed by the
+  scheduler. Run `php artisan db:seed --class=ScreenshotSeeder` again right
+  before capturing `servers` and `servers-all`, or those rows are empty.
+- **Pull request states are seeded.** The review queue shows an open pull
+  request (with an invented `https://github.com/example/lanomat/pull/42`) and
+  a refused one with its reason; the edit page's "Katalog (Pull Request)"
+  preview only appears while `RECIPES_PR_ENABLED`, `RECIPES_PR_REPOSITORY` and
+  `RECIPES_PR_TOKEN` are set (fake values are fine — the pages do no request).
 - Login: this app is Discord-OAuth-only in the UI (see
   `resources/js/pages/auth/Login.vue`) — there is no password login form.
   Fortify's underlying `/login` (email+password) route still exists under
