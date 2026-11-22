@@ -36,8 +36,6 @@ docs/ops/nfsu2-browser.md:^.*$
 docs/ops/launcher-lineup.md:^.*$
 docs/launcher-agent-integration.md:^.*$
 docs/ops/discord-agent.md:^.*$
-# The native NFSU2 recipe pins the tested LAN server in its install commands.
-resources/recipes/need-for-speed-underground-2/recipe.yaml:^.*$
 docker/nfs-online/compose.yml:^.*$
 docs/ops/nfsu2-homelab.md:^.*$
 database/seeders/LauncherLineupSeeder.php:^.*$

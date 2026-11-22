@@ -27,7 +27,9 @@ while [ $# -gt 0 ]; do
 done
 
 # Areas that are scanned (everything else is application code covered by gitleaks).
-SCOPE_RE='^(docs/|docs-site/|scripts/|ops/|README\.md$|compose[^/]*\.yml$|docker/|\.github/)'
+# Recipes, config defaults and language files are in: a recipe is published text, and a config
+# default once carried the address of a test machine that nothing here would have noticed.
+SCOPE_RE='^(docs/|docs-site/|scripts/|ops/|resources/recipes/|config/|lang/|README\.md$|compose[^/]*\.yml$|docker/|\.github/)'
 SKIP_RE='(\.lock$|-lock\.json$|lock\.yaml$|\.(png|jpe?g|gif|webp|ico|svg|woff2?|ttf|zip|gz|pdf|mp3|mp4)$)'
 
 # --- patterns (PCRE) --------------------------------------------------------
@@ -101,11 +103,12 @@ list_files() {
     git -C "$ROOT" ls-files -z
   else
     # No git (a tarball, or a container where the repo is not trusted):
-    # prune build output and vendor trees, which are never published source
+    # prune build output and vendor trees (a node_modules at any depth: the
+    # recipe validator has its own), which are never published source
     # and would otherwise make the check depend on whether docs/assets were
     # built before the tests ran.
     (cd "$ROOT" && find . \
-      \( -path ./node_modules -o -path ./vendor -o -path ./public/build \
+      \( -name node_modules -o -path ./vendor -o -path ./public/build \
         -o -path ./docs-site/dist -o -path ./storage -o -path ./.git \) -prune -o \
       -type f -print0 | sed -z 's|^\./||')
   fi
