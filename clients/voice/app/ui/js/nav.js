@@ -220,14 +220,16 @@ document.addEventListener('keydown', (e) => {
 
 export function setWho(tone) {
     const s = state.status || {};
-    $('who-text').textContent = s.user_name || S.header.connected;
-    $('who-dot').className = 'dot ' + tone;
-    $('who').title =
+    const label =
         {
             ok: S.header.connected,
             warn: S.header.reconnecting,
             down: S.header.offline,
         }[tone] || '';
+    // Without a name the text is the state itself, so a red dot never reads "Verbunden".
+    $('who-text').textContent = s.user_name || label || S.header.connected;
+    $('who-dot').className = 'dot ' + tone;
+    $('who').title = label;
 }
 
 export function setOnline(online, detail) {

@@ -49,6 +49,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Fixed
 
+- Native client: no more flicker between "Verbunden" and the offline banner while the server is unreachable. Only server-backed commands mark the app online, and the setup after connecting runs single-flight with backoff (2 s up to 60 s); the old loop also grew the app by about 100 MB a minute. The header shows the connection state when no name is known (#PR)
 - Recipes: the NFSU2 recipe no longer carries a test host address in its steps or metadata; the Windows and Linux steps take `{{server_host}}` instead and only rewrite the host lines of `net_u2.ini` when the plan carried one, so a LANoMAT install on another LAN no longer points the client at a machine that may not exist
 - Recipes: an install plan wrote the browser twin's public front end into a native game's configuration when no native server existed; a plan (and the recipe detail) now takes the host only from a server of exactly the recipe's game
 - Launcher: `NFS_SERVER_HOST` has no default any more (a test machine's private address was baked in), and `LauncherLineupSeeder` registers no native NFSU2 server without it and says so on the console — including that it left an earlier run's server (and its old address) as it is
