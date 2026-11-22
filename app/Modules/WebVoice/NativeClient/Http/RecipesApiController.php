@@ -11,6 +11,7 @@ use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\LauncherSupport;
+use App\Modules\GameRecipes\Support\PlanServerAddress;
 use App\Modules\WebVoice\NativeClient\Support\NativeClientConfig;
 use App\Modules\WebVoice\NativeClient\Support\SignedInstallPlanUrls;
 use App\Support\SafeText;
@@ -37,9 +38,11 @@ class RecipesApiController extends Controller
         ], 200, ['Cache-Control' => 'no-store, private']);
     }
 
-    public function show(Request $request, string $slug, LauncherSupport $support): JsonResponse
+    public function show(Request $request, string $slug, LauncherSupport $support, PlanServerAddress $servers): JsonResponse
     {
         $recipe = $this->find($slug);
+        // No client receives a raw `{{server_host}}`: see PlanServerAddress.
+        $variables = $servers->variablesFor($recipe, $this->user($request));
 
         return response()->json([
             'recipe' => $this->summary($recipe, $support, $request) + [
@@ -49,13 +52,13 @@ class RecipesApiController extends Controller
                 'license' => $recipe->license,
                 'portable' => $support->isPortable($recipe),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
-                'launch_target' => $recipe->launchTarget(),
+                'launch_target' => PlanServerAddress::text($recipe->launchTarget(), $variables),
                 'launch_targets' => array_map(static function (array $target): array {
                     $target['label'] = SafeText::line($target['label']) ?? '';
                     $target['notes'] = SafeText::line($target['notes']) ?: null;
 
                     return $target;
-                }, $recipe->launchTargets()),
+                }, PlanServerAddress::launchTargets($recipe->launchTargets(), $variables)),
             ],
         ], 200, ['Cache-Control' => 'no-store, private']);
     }

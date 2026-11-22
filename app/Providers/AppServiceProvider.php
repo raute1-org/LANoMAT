@@ -29,9 +29,11 @@ use App\Modules\Discord\Support\DiscordVoiceSightings;
 use App\Modules\Events\Events\EventStatusChanged;
 use App\Modules\Events\Models\Event as EventModel;
 use App\Modules\Events\Policies\EventPolicy;
+use App\Modules\Files\Contracts\ShareableGameArchive;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Policies\SharedFilePolicy;
 use App\Modules\Files\Support\FileStores;
+use App\Modules\Files\Support\NullShareableGameArchive;
 use App\Modules\Friends\Models\Friendship;
 use App\Modules\Friends\Policies\FriendshipPolicy;
 use App\Modules\Gallery\Models\EventPhoto;
@@ -48,6 +50,7 @@ use App\Modules\GameRecipes\Policies\LauncherTerminalPolicy;
 use App\Modules\GameRecipes\Support\GitHubRecipeRepository;
 use App\Modules\GameRecipes\Support\NullRecipeRepository;
 use App\Modules\GameRecipes\Support\RecipeInstallLinks;
+use App\Modules\GameRecipes\Support\RecipeShareableArchives;
 use App\Modules\Games\Contracts\EggCatalog;
 use App\Modules\Games\Models\Game;
 use App\Modules\Games\Policies\GamePolicy;
@@ -56,6 +59,7 @@ use App\Modules\GameServers\Contracts\GameInstallLinks;
 use App\Modules\GameServers\Contracts\MinecraftQuery;
 use App\Modules\GameServers\Contracts\PelicanClient;
 use App\Modules\GameServers\Contracts\RemoteDockerControl;
+use App\Modules\GameServers\Contracts\ServerOccupants;
 use App\Modules\GameServers\Contracts\ServerQuery;
 use App\Modules\GameServers\Contracts\Ut2004Query;
 use App\Modules\GameServers\Events\MatchScoreUpdated;
@@ -68,7 +72,9 @@ use App\Modules\GameServers\Listeners\UpdateMatchSurfacesOnServerReady;
 use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\GameServers\Policies\ServerLinkPolicy;
 use App\Modules\GameServers\Support\NullGameInstallLinks;
+use App\Modules\GameServers\Support\NullServerOccupants;
 use App\Modules\GameServers\Support\PelicanEggCatalog;
+use App\Modules\GameServers\Support\ServerListProjection;
 use App\Modules\GameServers\Support\SshRemoteDockerControl;
 use App\Modules\GameServers\Support\TcpMinecraftQuery;
 use App\Modules\GameServers\Support\UdpServerQuery;
@@ -225,6 +231,7 @@ use App\Modules\WebVoice\NativeClient\Support\Now\NullScheduleCardSource;
 use App\Modules\WebVoice\NativeClient\Support\Now\NullVoteCardSource;
 use App\Modules\WebVoice\Policies\WebVoiceChannelPolicy;
 use App\Modules\WebVoice\Support\LiveKitClient;
+use App\Modules\WebVoice\Support\PresenceServerOccupants;
 use App\Modules\WebVoice\Support\WebVoiceSightings;
 use App\Support\DisplayTimezone;
 use App\Support\Modules\Module;
@@ -336,9 +343,32 @@ class AppServiceProvider extends ServiceProvider
 
         // GameServers must not import the recipe catalogue, so a server asks the GameServers-owned
         // GameInstallLinks contract how a player gets its game; GameRecipes answers while it is on.
-        $this->app->bind(GameInstallLinks::class, fn (Application $app): GameInstallLinks => $app->make(Modules::class)->enabled(Module::GameRecipes)
-            ? $app->make(RecipeInstallLinks::class)
-            : new NullGameInstallLinks);
+        // One resolver per routed web request — the page's rows and the shell's server badge ask the
+        // same question — and a fresh one per resolve outside HTTP; see ServerListProjection::perRequest().
+        $this->app->bind(GameInstallLinks::class, fn (Application $app): GameInstallLinks => ServerListProjection::perRequest(
+            GameInstallLinks::class,
+            fn (): GameInstallLinks => $app->make(Modules::class)->enabled(Module::GameRecipes)
+                ? $app->make(RecipeInstallLinks::class)
+                : new NullGameInstallLinks,
+        ));
+
+        // Likewise the occupant line of a server row: GameServers asks its own contract, the
+        // Presence read model answers through its adapter while both modules are on. The same
+        // lifetime means one location-snapshot read and one visibility computation per page.
+        $this->app->bind(ServerOccupants::class, fn (Application $app): ServerOccupants => ServerListProjection::perRequest(
+            ServerOccupants::class,
+            fn (): ServerOccupants => $app->make(Modules::class)->enabled(Module::GameServers)
+                && $app->make(Modules::class)->enabled(Module::Presence)
+                ? $app->make(PresenceServerOccupants::class)
+                : new NullServerOccupants,
+        ));
+
+        // Files must not import the recipe catalogue either: the files page asks the Files-owned
+        // ShareableGameArchive contract which archives can back a shared game; GameRecipes answers
+        // with the share page's own rule while it is on.
+        $this->app->bind(ShareableGameArchive::class, fn (Application $app): ShareableGameArchive => $app->make(Modules::class)->enabled(Module::GameRecipes)
+            ? $app->make(RecipeShareableArchives::class)
+            : new NullShareableGameArchive);
 
         // Shared recipes travel into the git catalogue as pull requests. Off (null object) until
         // the feature is enabled and both the repository and its token are set.

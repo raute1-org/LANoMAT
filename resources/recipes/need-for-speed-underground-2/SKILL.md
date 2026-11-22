@@ -41,9 +41,11 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
 - About 3 GB of disk. On Linux a 32-bit Wine prefix is enough; Proton is an
   optional fallback.
 - The LAN server address. The server host runs bootstrap TCP 20921, lobby TCP
-  20922, web/PREL TCP 20923 and the race relay on UDP 20000. The current LAN
-  host is `10.23.3.220`; use the address the Orga gives you, never `localhost`
-  on a player PC.
+  20922, web/PREL TCP 20923 and the race relay on UDP 20000. When LANoMAT
+  knows a running server of this game that you may see, the plan's commands
+  already carry its address (`{{server_host}}`), so the `net_u2.ini` host
+  lines are set for you. Otherwise the address is on the server list
+  (`/servers`) or with the Orga; never `localhost` on a player PC.
 
 ## Steps
 
@@ -60,8 +62,11 @@ but each game has its own archive, ASI plugin and `net_*.ini`.
 4. **Install the ASI client.** Ensure `{{target}}/scripts/net_u2.asi` exists.
    If the base does not carry it, copy the matched `net_u2.asi` there.
 5. **Configure the server.** Edit `{{target}}/scripts/net_u2.ini` and set the
-   same host in `[network]` and `[lan]`:
-   `host = 10.23.3.220` (or the Orga's address). Keep
+   same host in `[network]` and `[lan]`: `host = <address>`. The plan's
+   commands do that for you when LANoMAT knows a running server of this game
+   that you may see; without one they leave the `host` lines as the file
+   carries them, so take the address from the server list (`/servers`) or
+   from the Orga. Keep
    `inject_server = true`, `patches = true` and `enabled = true`. The client
    talks to the LAN server; it never needs an EA account.
 6. **Check the ASI loader.** `dinput8.dll` must sit next to `SPEED2.EXE` at the

@@ -31,7 +31,9 @@ function matchServer(card: NowCardDto): MatchServer | null {
     return match?.server ?? null;
 }
 
-// The single amber button of the screen: the first ready match with a server.
+// The panel's one amber action: the first ready match with a server. The
+// page's shortcut row above keeps its own accent, so the live page can show
+// two amber buttons at once; this one is the panel's, not the screen's.
 const primaryId = computed<string | null>(() => {
     const card = props.cards.find(
         (c) =>

@@ -181,14 +181,17 @@ steps:
       detail: |
           The portable base normally already has `dinput8.dll` and a
           `scripts/` folder. Copy the matched `net_u2.asi` to
-          `{{target}}/scripts/net_u2.asi` when it is not there, then edit
-          `{{target}}/scripts/net_u2.ini`.
+          `{{target}}/scripts/net_u2.asi` when it is not there, then point
+          `{{target}}/scripts/net_u2.ini` at the LAN server.
 
-          Set the same server host in `[network]` and `[lan]`; the LAN server
-          runs bootstrap 20921, lobby 20922, web 20923 and the race relay on
-          UDP 20000. Keep `inject_server = true` and `patches = true`. On the
-          LAN the host is the game-server address, not `localhost` on a
-          player PC.
+          The plan fills `{{server_host}}` in when LANoMAT knows a running
+          server of this game that you may see; the commands then set the same
+          host in `[network]` and `[lan]`. Without such a server the
+          placeholder is empty, the step leaves the `host` lines as the file
+          carries them and the address is on the server list (`/servers`) or
+          with the Orga. The ports never move: the NFS-Online server software
+          fixes bootstrap 20921, lobby 20922, web 20923 and the race relay on
+          UDP 20000. Keep `inject_server = true` and `patches = true`.
       commands:
           - shell: powershell
             run: |
@@ -203,9 +206,12 @@ steps:
                   if ($src) { Copy-Item $src (Join-Path $scripts 'net_u2.ini') -Force }
                 }
                 $ini = Join-Path $scripts 'net_u2.ini'
+                $serverHost = '{{server_host}}'
                 if (Test-Path $ini) {
                   $lines = Get-Content $ini
-                  $lines = $lines -replace '(?m)^\s*host\s*=.*$', 'host = 10.23.3.220'
+                  if ($serverHost -ne '') {
+                    $lines = $lines -replace '(?m)^\s*host\s*=.*$', ('host = ' + $serverHost)
+                  }
                   $lines = $lines -replace '(?m)^\s*bootstrap_port\s*=.*$', 'bootstrap_port = 20921'
                   $lines = $lines -replace '(?m)^\s*lobby_port\s*=.*$', 'lobby_port = 20922'
                   $lines = $lines -replace '(?m)^\s*control_port\s*=.*$', 'control_port = 20923'
@@ -226,8 +232,15 @@ steps:
       optional: false
       detail: |
           Same client, same `scripts/` layout. Copy `net_u2.asi` into
-          `{{target}}/scripts/` when the base does not carry it, then put the
-          LAN server host into both `host =` lines of `net_u2.ini`.
+          `{{target}}/scripts/` when the base does not carry it, then point
+          `{{target}}/scripts/net_u2.ini` at the LAN server.
+
+          The plan fills `{{server_host}}` in when LANoMAT knows a running
+          server of this game that you may see; the command then sets the same
+          host in `[network]` and `[lan]`. Without such a server the
+          placeholder is empty, the `host` lines stay as the file carries them
+          and the address is on the server list (`/servers`) or with the Orga.
+          The ports stay fixed by the NFS-Online server software.
 
           Wine loads the plugin through `dinput8.dll`; keep the 32-bit DLL at
           the game root. No native Linux replacement is needed.
@@ -237,7 +250,15 @@ steps:
           - shell: bash
             run: 'if [ ! -f "{{target}}/scripts/net_u2.ini" ]; then ini=$(find "{{downloads}}" -iname "net_u2*.ini" -print -quit); if [ -n "$ini" ]; then cp "$ini" "{{target}}/scripts/net_u2.ini"; fi; fi'
           - shell: bash
-            run: 'ini="{{target}}/scripts/net_u2.ini"; if [ -f "$ini" ]; then sed -i -e "s/^[[:space:]]*host[[:space:]]*=.*/host = 10.23.3.220/" -e "s/^[[:space:]]*bootstrap_port[[:space:]]*=.*/bootstrap_port = 20921/" -e "s/^[[:space:]]*lobby_port[[:space:]]*=.*/lobby_port = 20922/" -e "s/^[[:space:]]*control_port[[:space:]]*=.*/control_port = 20923/" -e "s/^[[:space:]]*control_alias_port[[:space:]]*=.*/control_alias_port = 13505/" -e "s/^[[:space:]]*race_port[[:space:]]*=.*/race_port = 20000/" "$ini"; fi'
+            run: |
+                ini="{{target}}/scripts/net_u2.ini"
+                host='{{server_host}}'
+                if [ -f "$ini" ]; then
+                  if [ -n "$host" ]; then
+                    sed -i -e "s/^[[:space:]]*host[[:space:]]*=.*/host = $host/" "$ini"
+                  fi
+                  sed -i -e "s/^[[:space:]]*bootstrap_port[[:space:]]*=.*/bootstrap_port = 20921/" -e "s/^[[:space:]]*lobby_port[[:space:]]*=.*/lobby_port = 20922/" -e "s/^[[:space:]]*control_port[[:space:]]*=.*/control_port = 20923/" -e "s/^[[:space:]]*control_alias_port[[:space:]]*=.*/control_alias_port = 13505/" -e "s/^[[:space:]]*race_port[[:space:]]*=.*/race_port = 20000/" "$ini"
+                fi
       verify:
           - type: file_exists
             path: '{{target}}/scripts/net_u2.asi'
@@ -253,6 +274,13 @@ steps:
           Start the game once and confirm the NFS-Online menu replaces the
           dead EA Online entry. Then open the LAN lobby and check that the
           server directory lists the LAN host.
+
+          When the plan named a server, `net_u2.ini` already carries its host
+          and the lobby should fill in. When it did not (no running server of
+          this game that LANoMAT could see), the host lines still hold what the
+          file shipped with: take the address from the server list (`/servers`)
+          or from the Orga, put it into both `host =` lines and start the game
+          again.
 
           Start `SPEED2.EXE` directly on Windows. On Linux start it through
           Wine (or Proton) with `WINEDLLOVERRIDES=dinput8=n,b`; without the
@@ -295,5 +323,4 @@ metadata:
     players: '2-6'
     players_max: 6
     lan_recommended: true
-    live_url: 'http://10.23.3.220:20923/'
     tags: [racing, nfs, online, lan, wine]

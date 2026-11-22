@@ -49,8 +49,15 @@ function reviewStep(share: GameShareShare): { label: string; tone: Tone } {
     }
 }
 
+/**
+ * The catalogue step. Typed as the five states the server sends, but a value
+ * from a newer server must not break the page: anything unknown (and a share
+ * without a pull request at all) reads as "Wartet auf die Orga".
+ */
 function catalogueStep(share: GameShareShare): { label: string; tone: Tone } {
-    switch (share.pullRequest?.state) {
+    const state: string = share.pullRequest?.state ?? '';
+
+    switch (state) {
         case 'open':
             return { label: 'Wird in den Katalog eingetragen', tone: 'warn' };
         case 'merged':

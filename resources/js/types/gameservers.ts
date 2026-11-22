@@ -37,6 +37,14 @@ export interface ServerInstallDto {
     launcherSupported: boolean;
     /** `lanomat://join/<slug>?address=…` or `?url=…`; only when supported. */
     launcherJoinUrl: string | null;
+    /**
+     * Whether the game's own files are on the LAN right now, so it can be
+     * installed fresh: every required base archive or disc image is an approved
+     * upload or names an external download. False means "install fresh does
+     * not work at the moment"; the launcher join above stays, because a PC that
+     * already has the game can still join.
+     */
+    lanReady: boolean;
 }
 
 /**
@@ -71,6 +79,28 @@ export interface JoinOptionDto {
     hint: string;
 }
 
+/**
+ * One account Presence places on a server right now, as the viewer may see them
+ * (`share_location` on, not blocked, or the viewer themselves).
+ */
+export interface ServerOccupantDto {
+    id: number;
+    name: string;
+    /** The local avatar route the people page renders; null = monogram. */
+    avatarUrl: string | null;
+}
+
+/**
+ * Who of the LANoMAT accounts is on this server, from the Presence read model
+ * (`ServerOccupants`). Absent or `null` while Presence is off or nobody is logged in;
+ * `people` holds at most eight accounts by name and `more` counts further *visible*
+ * accounts. Somebody who hides their location is in neither.
+ */
+export interface ServerOccupantsDto {
+    people: ServerOccupantDto[];
+    more: number;
+}
+
 export interface GameServerDto {
     id: number;
     game: string | null;
@@ -101,6 +131,8 @@ export interface GameServerDto {
     installHint: GameInstallHintDto | null;
     /** The recipe that gets this game onto a machine; null when none matches. */
     install?: ServerInstallDto | null;
+    /** Who of the LANoMAT accounts is on it; null while Presence is off or nobody is logged in. */
+    occupants?: ServerOccupantsDto | null;
     /** Per-game join options; empty for games without templates. */
     joinOptions?: JoinOptionDto[];
     /** Event servers on the overview: the viewer plays the match this server belongs to. */

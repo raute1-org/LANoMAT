@@ -25,11 +25,11 @@ class ServerGameSummary
     /**
      * Groups come out in first-appearance order, unsorted; the consumer sorts them.
      *
-     * @return list<array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null}|null}>
+     * @return list<array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null, lanReady: bool}|null}|null}>
      */
     public static function forEvent(?Event $event, ?GameInstallLinks $install = null): array
     {
-        /** @var array<string, array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null}|null, candidates: list<array<string, mixed>>}> $groups */
+        /** @var array<string, array{game: string, servers: int, players: int, maxPlayers: int, join: array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null, lanReady: bool}|null}|null, candidates: list<array<string, mixed>>}> $groups */
         $groups = [];
 
         foreach (self::liveDtos($event, $install) as $dto) {
@@ -84,9 +84,10 @@ class ServerGameSummary
      */
     private static function liveDtos(?Event $event, ?GameInstallLinks $install = null): array
     {
-        // Own instance per summary: a caller (NavSignals) asks repeatedly with a
-        // fixed query budget, so the catalogue read belongs to this call, not to
-        // a page-wide memo.
+        // Inside a web request this is the request's shared resolver (the page's
+        // rows and the shell's server badge read the catalogue once together);
+        // outside one it is a fresh instance, taken once here and handed to
+        // every row of this summary.
         $install ??= app(GameInstallLinks::class);
 
         $links = $event !== null ? ServerListProjection::linksForEvent($event)->all() : [];
@@ -142,7 +143,7 @@ class ServerGameSummary
      * those without, then the most players, lowest id last.
      *
      * @param  list<array<string, mixed>>  $candidates
-     * @return array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null}|null
+     * @return array{serverId: int, title: string, connectString: string, connectIsLink: bool, address: string|null, port: int|null, players: int, maxPlayers: int, install: array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null, lanReady: bool}|null}|null
      */
     private static function pickJoin(array $candidates): ?array
     {
@@ -158,7 +159,7 @@ class ServerGameSummary
             return null;
         }
 
-        /** @var array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null}|null $install */
+        /** @var array{recipeSlug: string, title: string, pageUrl: string, launcherSupported: bool, launcherJoinUrl: string|null, lanReady: bool}|null $install */
         $install = is_array($best['install'] ?? null) ? $best['install'] : null;
 
         return [

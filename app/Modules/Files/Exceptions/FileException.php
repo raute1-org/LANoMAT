@@ -47,6 +47,11 @@ class FileException extends DomainException
         return new self('This file type could be executed by a browser and is refused.', 'files.errors.blocked_type');
     }
 
+    public static function invalidName(): self
+    {
+        return new self('The file name has no readable character left.', 'files.errors.invalid_name');
+    }
+
     public static function uploadsUnavailable(): self
     {
         return new self('Resumable uploads are not enabled.', 'files.errors.uploads_unavailable');

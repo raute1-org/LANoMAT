@@ -12,6 +12,7 @@ use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Events\RecipePublished;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
+use App\Modules\GameRecipes\Support\PortableRecipeBuilder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -74,6 +75,7 @@ final class PublishRecipe
 
         DB::transaction(function () use ($recipe): void {
             $this->joinLineup($recipe);
+            $this->dropDraftWording($recipe);
             $recipe->save();
         });
 
@@ -114,7 +116,34 @@ final class PublishRecipe
 
         $recipe->forceFill($attributes);
         $this->joinLineup($recipe);
+        $this->dropDraftWording($recipe);
         $recipe->save();
+    }
+
+    /**
+     * A shared game's generated text says "this draft needs verification"
+     * (the catalogue asks a draft to). Published, that is no longer true, and
+     * it is what players read under "Über das Spiel".
+     */
+    private function dropDraftWording(GameRecipe $recipe): void
+    {
+        if (! $recipe->isContribution()) {
+            return;
+        }
+
+        $steps = array_map(static function (array $step): array {
+            if (is_string($step['detail'] ?? null)) {
+                $step['detail'] = PortableRecipeBuilder::publishedText($step['detail']);
+            }
+
+            return $step;
+        }, $recipe->steps ?? []);
+
+        $recipe->forceFill([
+            'description' => $recipe->description !== null ? PortableRecipeBuilder::publishedText($recipe->description) : null,
+            'skill_markdown' => $recipe->skill_markdown !== null ? PortableRecipeBuilder::publishedText($recipe->skill_markdown) : null,
+            'steps' => $steps,
+        ]);
     }
 
     private function joinLineup(GameRecipe $recipe): void

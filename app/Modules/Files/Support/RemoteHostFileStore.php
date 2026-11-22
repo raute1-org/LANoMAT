@@ -93,7 +93,7 @@ final class RemoteHostFileStore implements FileStore
 
     public function download(string $path, string $name): Response
     {
-        $response = new RedirectResponse($this->signer->url($path, $name));
+        $response = new RedirectResponse($this->signer->url($path, UploadFileName::forDownload($name)));
         // The link is a short-lived credential: never cache it, never leak it in a Referer.
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->set('Referrer-Policy', 'no-referrer');

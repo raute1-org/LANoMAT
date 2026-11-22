@@ -6,6 +6,7 @@ import LiveIndicator from '@/components/LiveIndicator.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue';
 import ServerInstallActions from '@/components/servers/ServerInstallActions.vue';
+import ServerOccupants from '@/components/servers/ServerOccupants.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { GlobalServerRowDto } from '@/types';
@@ -165,6 +166,13 @@ onUnmounted(() => clearTimeout(copiedTimer));
                 </dd>
             </div>
         </dl>
+
+        <!-- Who of the accounts is on it (Presence); nothing at all when nobody is visible. -->
+        <ServerOccupants
+            class="mt-3"
+            :occupants="server.occupants ?? null"
+            :labels="labels"
+        />
 
         <PlayerListDisclosure
             class="mt-3"

@@ -123,7 +123,7 @@ const props = defineProps<{
         lan_ready: boolean;
     }[];
     active: string;
-    active_event: { slug: string; name: string } | null;
+    active_event: { slug: string; name: string; live?: boolean } | null;
     voice_url: string | null;
     game_modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
 }>();
@@ -458,16 +458,17 @@ function announceRound(): void {
                     class="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
                     data-test="launcher-download"
                 >
-                    Noch kein Launcher auf diesem PC? „Installieren“ führt zum
+                    Noch kein Launcher auf diesem PC? „Installieren“ führt zur
+                    Seite
                     <Link
                         :href="launcherDownload"
                         class="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
-                        Launcher-Download</Link
-                    >
-                    — der Ein-Klick-App, die {{ game.title }} holt, entpackt und
-                    startet. Ist der Launcher schon da, geht es über „Im
-                    Launcher öffnen“ direkt weiter.
+                        App herunterladen</Link
+                    >. Dort liegt der Launcher: die Ein-Klick-App, die
+                    {{ game.title }} holt, entpackt und startet. Ist der
+                    Launcher schon da, geht es über „Im Launcher öffnen“ direkt
+                    weiter.
                 </p>
 
                 <Separator class="my-8" />

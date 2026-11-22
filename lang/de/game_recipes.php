@@ -55,9 +55,26 @@ return [
         'updated' => 'Aktualisiert',
     ],
 
+    // The requirement keys the requirements repeater has no field for. They are
+    // shown read-only under each requirement, so a reviewer sees a Windows-only
+    // or hand-fetched file before releasing it.
+    'requirement_details' => [
+        'heading' => 'Angaben zur Datei',
+        'os' => 'Nur für :os',
+        'manual' => 'Von Hand zu besorgen (wird nicht auf dem Share gesucht)',
+        'notes' => 'Hinweis: :value',
+        'author' => 'Autor: :value',
+        'license' => 'Lizenz: :value',
+        'tags' => 'Schlagwörter: :value',
+    ],
+
     'actions' => [
         'publish' => 'Veröffentlichen',
         'published' => 'Rezept veröffentlicht',
+        // One line in the publish confirmation while the catalogue checks would
+        // refuse the pull request (see CatalogPreview).
+        'publish_pr_warning' => 'Der Pull Request wird nicht gesendet',
+        'publish_pr_warning_detail' => 'ein offener Punkt – der Grund steht im Abschnitt „Katalog (Pull Request)“.|:count offene Punkte – die Gründe stehen im Abschnitt „Katalog (Pull Request)“.',
         'publish_with_files' => 'Dateien freigeben und veröffentlichen',
         'publish_with_files_confirm' => 'Diese Dateien werden freigegeben und das Rezept wird veröffentlicht:',
         'publish_with_files_submit' => 'Freigeben und veröffentlichen',
@@ -138,7 +155,7 @@ return [
     // The publish confirmation: what lands on the players' PCs.
     'release' => [
         'heading' => 'Das wird veröffentlicht',
-        'counts' => ':steps Schrittbefehle und :launch Startbefehle',
+        'counts' => 'Schrittbefehle: :steps · Startbefehle: :launch',
         'runs_on_players' => 'Diese Befehle laufen auf den PCs der Spieler.',
         'no_launch' => 'Keine Startbefehle hinterlegt.',
     ],

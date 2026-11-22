@@ -7,6 +7,7 @@ namespace App\Modules\Mcp\Server;
 use App\Modules\Mcp\Prompts\ImportMenuPrompt;
 use App\Modules\Mcp\Prompts\InstallGamePrompt;
 use App\Modules\Mcp\Resources\ImportMenuSkillResource;
+use App\Modules\Mcp\Resources\RecipeContributeSkillResource;
 use App\Modules\Mcp\Resources\RecipeSkillResource;
 use App\Modules\Mcp\Server\Methods\ListTools as LanomatListTools;
 use App\Modules\Mcp\Tools\CateringMenuGetTool;
@@ -65,6 +66,11 @@ For "import this menu" (orga/admin only): follow the import-menu prompt — read
 PDF/page yourself, catering_menu_preview, show the human, then catering_menu_import. Menus belong to a
 restaurant (restaurants_list); a round is created separately with catering_round_create.
 
+For "share this game" / "contribute a recipe": read lanomat://skills/contribute-recipe,
+send recipe_contribute with the fields it lists, then fix what the answer's
+catalog.problems names and call it again with the same slug and the complete recipe
+(a call replaces the draft) until problems is empty.
+
 Never invent ids or prices. Everything you need comes from the tools.
 TEXT)]
 class LanomatServer extends Server
@@ -114,6 +120,7 @@ class LanomatServer extends Server
     protected array $resources = [
         RecipeSkillResource::class,
         ImportMenuSkillResource::class,
+        RecipeContributeSkillResource::class,
     ];
 
     /** @var array<int, class-string<Prompt>> */

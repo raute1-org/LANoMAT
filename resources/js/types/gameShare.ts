@@ -46,8 +46,10 @@ export interface GameShareFile {
     sizeBytes: number;
     visibility: GameSharePickableVisibility;
     createdAt: string;
-    /** False when the name is not an allowed archive extension. */
+    /** False when the file cannot be shared as a game. */
     usable: boolean;
+    /** Why an archive cannot be shared (its name); null when usable or when it is no archive. */
+    unusableReason?: string | null;
 }
 
 export interface GameShareSharedFile {
@@ -55,10 +57,18 @@ export interface GameShareSharedFile {
     visibility: GameShareSharedFileVisibility;
 }
 
+/**
+ * Where the catalogue pull request stands — `GameRecipes\Enums\PullRequestState`.
+ * `open|merged|closed` exist in the repository; `blocked|failed` are local
+ * (never sent, or the repository could not be reached).
+ */
+export type GameSharePullRequestState =
+    'open' | 'merged' | 'closed' | 'blocked' | 'failed';
+
 export interface GameSharePullRequest {
     number: number | null;
     url: string | null;
-    state: string;
+    state: GameSharePullRequestState;
     label: string;
 }
 

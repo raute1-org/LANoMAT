@@ -38,13 +38,16 @@ return [
     | Our NFS-Online server
     |--------------------------------------------------------------------------
     |
-    | The seeder registers this host as the permanent NFSU2 server. The tested
-    | laptop fallback stays the default; a venue overrides it before seeding.
+    | The host `LauncherLineupSeeder` registers as the permanent NFSU2 server.
+    | There is no built-in address: without NFS_SERVER_HOST the seeder
+    | registers no native NFSU2 server and says so on the console. A recipe
+    | never names this installation's server anyway — an install plan fills
+    | {{server_host}} in from a running server of the game the viewer may see.
     |
     */
 
     'nfs' => [
-        'server_host' => env('NFS_SERVER_HOST', '10.23.3.220'),
+        'server_host' => env('NFS_SERVER_HOST'),
     ],
 
 ];

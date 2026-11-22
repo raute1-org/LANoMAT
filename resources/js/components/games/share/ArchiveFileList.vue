@@ -111,8 +111,14 @@ function visibilityLabel(file: GameShareFile): string {
                         v-if="!file.usable"
                         class="mt-0.5 block text-xs text-muted-foreground"
                     >
-                        Kein Archiv — lade den entpackten Spielordner als
-                        {{ archiveExtensions.join(' oder ') }} hoch.
+                        <template v-if="file.unusableReason">{{
+                            file.unusableReason
+                        }}</template>
+                        <template v-else
+                            >Kein Archiv — lade den entpackten Spielordner als
+                            {{ archiveExtensions.join(' oder ') }}
+                            hoch.</template
+                        >
                     </span>
                 </span>
             </label>

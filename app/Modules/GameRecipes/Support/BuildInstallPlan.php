@@ -19,10 +19,20 @@ use Illuminate\Support\Str;
  * agent. The server never executes anything: it resolves LAN downloads,
  * orders the steps, and reports what is missing. Every requested plan is
  * recorded (who, which OS) for orga support.
+ *
+ * A recipe never names this installation's server: `{{server_host}}` and
+ * `{{server_port}}` are filled in here, before the plan leaves the server, from
+ * a server of the recipe's game the viewer may see ({@see PlanServerAddress}).
+ * Every consumer — the agent route, the MCP tool, the native client — goes
+ * through this one class, so all of them receive the same final text. The
+ * clients keep substituting `{{target}}` and `{{downloads}}` themselves.
  */
 final class BuildInstallPlan
 {
-    public function __construct(private readonly RecipeFileMatcher $matcher) {}
+    public function __construct(
+        private readonly RecipeFileMatcher $matcher,
+        private readonly PlanServerAddress $servers,
+    ) {}
 
     private InstallPlanUrls $urls;
 
@@ -32,6 +42,9 @@ final class BuildInstallPlan
         $this->urls = $urls ?? new McpInstallPlanUrls;
         $os = $this->normalizeOs($os);
         $matches = $this->matcher->matchesFor($recipe, $viewer, $event);
+
+        // A recipe without the placeholders costs no server query.
+        $variables = $this->servers->variablesFor($recipe, $viewer, $event);
 
         $files = [];
         $missing = [];
@@ -79,7 +92,7 @@ final class BuildInstallPlan
         }
 
         $steps = array_values(array_filter(
-            array_map(fn (array $step): array => $this->stepDto($step), $recipe->steps ?? []),
+            array_map(fn (array $step): array => $this->stepDto($step, $variables), $recipe->steps ?? []),
             fn (array $step): bool => $step['os'] === 'any' || $step['os'] === $os,
         ));
 
@@ -95,8 +108,8 @@ final class BuildInstallPlan
                 'title' => $recipe->title,
                 'version' => $recipe->version,
                 'skill' => $this->skillName($recipe),
-                'launch_target' => $recipe->launchTarget(),
-                'launch_targets' => $recipe->launchTargets(),
+                'launch_target' => PlanServerAddress::text($recipe->launchTarget(), $variables),
+                'launch_targets' => PlanServerAddress::launchTargets($recipe->launchTargets(), $variables),
                 'launch_command' => $recipe->launchCommand(),
                 'play_url' => $recipe->playUrl(),
             ],
@@ -191,8 +204,9 @@ final class BuildInstallPlan
     }
 
     /** @param array<string, mixed> $step
+     *  @param array<string, string> $variables
      *  @return array<string, mixed> */
-    private function stepDto(array $step): array
+    private function stepDto(array $step, array $variables): array
     {
         return [
             'id' => (string) ($step['id'] ?? ''),
@@ -201,13 +215,16 @@ final class BuildInstallPlan
             'optional' => (bool) ($step['optional'] ?? false),
             'detail' => (string) ($step['detail'] ?? ''),
             'commands' => array_map(
-                static fn (array $command): array => [
+                fn (array $command): array => [
                     'shell' => (string) ($command['shell'] ?? 'bash'),
-                    'run' => (string) ($command['run'] ?? ''),
+                    'run' => PlanServerAddress::text((string) ($command['run'] ?? ''), $variables),
                 ],
                 (array) ($step['commands'] ?? []),
             ),
-            'verify' => array_values((array) ($step['verify'] ?? [])),
+            'verify' => array_values(array_map(
+                fn (mixed $check): mixed => is_array($check) ? PlanServerAddress::check($check, $variables) : $check,
+                (array) ($step['verify'] ?? []),
+            )),
         ];
     }
 

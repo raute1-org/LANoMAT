@@ -47,6 +47,9 @@ final class ContributeRecipe
         // stays on one line: a line break in a title could otherwise end the
         // SKILL.md front matter or start a new Markdown block.
         $oneLine = 'not_regex:/[\x00-\x1F\x7F]/';
+        // Text that is meant to span lines (the SKILL.md, a description) keeps
+        // line breaks and tabs and nothing else from the control range.
+        $multiLine = 'not_regex:/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/';
 
         $validator = Validator::make($payload, [
             // `required` is decided by RecipeValidator, which reports every
@@ -65,7 +68,9 @@ final class ContributeRecipe
             'launch_targets' => ['nullable', 'array', 'max:10'],
             'metadata' => ['nullable', 'array'],
             'skill_description' => ['nullable', 'string', 'max:1024', $oneLine],
-            'skill_markdown' => ['nullable', 'string', 'max:65535'],
+            'skill_markdown' => ['nullable', 'string', 'max:65535', $multiLine],
+            // Longer text is shortened below, as before; only the characters are checked here.
+            'description' => ['nullable', 'string', $multiLine],
         ]);
 
         if ($validator->fails()) {
@@ -139,14 +144,23 @@ final class ContributeRecipe
 
             $this->validator->validate($recipe, 'contribution:'.$slug);
 
-            // An admin's pin survives a contributor's edit, exactly as it
-            // survives a directory sync: it is keyed by role and label.
-            $kept = $existing instanceof GameRecipe
-                ? $existing->files()->get()
-                    ->filter(static fn (GameRecipeFile $file): bool => $file->shared_file_id !== null)
-                    ->mapWithKeys(static fn (GameRecipeFile $file): array => [$file->role->value.'|'.$file->label => $file->shared_file_id])
-                    ->all()
-                : [];
+            // File rows are updated in place, exactly as SyncRecipes does it:
+            // `recipe_file_id` is handed to the launcher and stored inside past
+            // install plans, so recreating the rows would leave every stored
+            // plan pointing at a deleted id. Role and label identify a row; a
+            // row whose key disappeared is deleted afterwards. The lists keep
+            // two requirements that happen to share role and label apart.
+            /** @var array<string, list<GameRecipeFile>> $current */
+            $current = [];
+
+            // A file row is its requirement's role and label. An admin's pin on
+            // it survives a contributor's edit as long as the requirement still
+            // asks for the same file (see below).
+            if ($existing instanceof GameRecipe) {
+                foreach ($existing->files()->get() as $file) {
+                    $current[$file->role->value.'|'.$file->label][] = $file;
+                }
+            }
 
             $model = GameRecipe::query()->updateOrCreate(
                 ['slug' => $slug],
@@ -170,7 +184,7 @@ final class ContributeRecipe
                 ],
             );
 
-            $model->files()->delete();
+            $kept = [];
 
             foreach ($recipe['requirements'] as $index => $requirement) {
                 if (! is_array($requirement)) {
@@ -179,8 +193,10 @@ final class ContributeRecipe
 
                 $role = (string) ($requirement['role'] ?? 'content');
                 $label = (string) ($requirement['label'] ?? 'File');
+                $key = $role.'|'.$label;
+                $row = isset($current[$key]) && $current[$key] !== [] ? array_shift($current[$key]) : null;
 
-                $model->files()->create([
+                $attributes = [
                     'role' => $role,
                     'label' => $label,
                     'match_patterns' => array_values(array_map('strval', (array) ($requirement['match'] ?? []))),
@@ -190,7 +206,6 @@ final class ContributeRecipe
                     // Same default as the YAML parser: the base file blocks the install.
                     'required' => (bool) ($requirement['required'] ?? in_array($role, [RecipeFileRole::Base->value, RecipeFileRole::Iso->value], true)),
                     'sort' => $index,
-                    'shared_file_id' => $pins[$index] ?? $kept[$role.'|'.$label] ?? null,
                     'metadata' => array_filter([
                         // Same contract as the YAML parser: `os` narrows the file
                         // to one platform, absent means every plan sees it.
@@ -202,8 +217,30 @@ final class ContributeRecipe
                         'notes' => $requirement['notes'] ?? null,
                         'tags' => $requirement['tags'] ?? null,
                     ], static fn (mixed $value): bool => $value !== null && $value !== []),
-                ]);
+                ];
+
+                if ($row instanceof GameRecipeFile) {
+                    // A pin from the payload wins for its own requirement. A pin
+                    // already on the row (an admin's choice of file) survives
+                    // only while the requirement still names the same file by
+                    // pattern and digest: an edit that asks for another file
+                    // must not keep the old one attached under a new description.
+                    $sameFile = $this->patternSet($row->match_patterns) === $this->patternSet($attributes['match_patterns'])
+                        && $row->sha256 === $attributes['sha256'];
+
+                    $row->fill(['shared_file_id' => $pins[$index] ?? ($sameFile ? $row->shared_file_id : null)] + $attributes)->save();
+                    $kept[] = $row->id;
+                } else {
+                    // A requirement that is new by role and label starts without
+                    // a pin unless the payload brings one: a renamed requirement
+                    // is a new one, and no pin is ever handed out twice.
+                    $kept[] = $model->files()->create(['shared_file_id' => $pins[$index] ?? null] + $attributes)->id;
+                }
             }
+
+            // Only rows of requirements that are gone; a recipe that loses every
+            // requirement keeps no file row at all.
+            $model->files()->when($kept !== [], static fn ($query) => $query->whereNotIn('id', $kept))->delete();
 
             return $model->refresh();
         });
@@ -211,6 +248,22 @@ final class ContributeRecipe
         RecipeContributed::dispatch($model, $user->id);
 
         return $model;
+    }
+
+    /**
+     * Match patterns as a set: order and case do not change which file is meant.
+     *
+     * @return list<string>
+     */
+    private function patternSet(mixed $patterns): array
+    {
+        $set = array_values(array_unique(array_map(
+            static fn (mixed $pattern): string => mb_strtolower(trim((string) $pattern)),
+            (array) $patterns,
+        )));
+        sort($set);
+
+        return $set;
     }
 
     /**

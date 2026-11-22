@@ -6,6 +6,12 @@ export interface SharedFileDto {
     visibility: 'pending' | 'approved' | 'rejected';
     createdAt: string;
     mine: boolean;
+    /**
+     * Whether a shared game can be built from this file (see
+     * FilePageController::fileDto) — the recipe catalogue's archive rule,
+     * answered by the server. False while the game recipes module is off.
+     */
+    shareableAsGame: boolean;
 }
 
 /**

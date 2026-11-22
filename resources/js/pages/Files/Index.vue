@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useModules } from '@/composables/useModules';
 import { usePageLoadState } from '@/composables/usePageLoadState';
 import { formatBytes } from '@/lib/bytes';
 import { formatInstant } from '@/lib/datetime';
@@ -47,8 +46,6 @@ const quotaIsNearCap = computed(() => quotaRatio.value >= 0.9);
 
 const { isNavigating, hasError } = usePageLoadState();
 
-const modules = useModules();
-
 const form = useForm<{ file: File | null }>({
     file: null,
 });
@@ -79,21 +76,6 @@ function remove(file: SharedFileDto) {
 
 function formatDateTime(iso: string): string {
     return formatInstant(iso, { dateStyle: 'short', timeStyle: 'short' });
-}
-
-/**
- * A ready-to-run archive is the only file that can back a shared game, so the
- * quiet "Als Spiel teilen" link only appears on the viewer's own `.zip` and
- * `.tar.bz2` uploads (and only while the game recipes module is on).
- */
-function isGameArchive(file: SharedFileDto): boolean {
-    if (!file.mine) {
-        return false;
-    }
-
-    const name = file.originalName.toLowerCase();
-
-    return name.endsWith('.zip') || name.endsWith('.tar.bz2');
 }
 </script>
 
@@ -237,11 +219,9 @@ function isGameArchive(file: SharedFileDto): boolean {
                         </span>
 
                         <div class="flex flex-wrap items-center gap-2">
+                            <!-- The server decides (shareableAsGame): an archive the share page accepts, the viewer's own. -->
                             <Link
-                                v-if="
-                                    modules.has('game_recipes') &&
-                                    isGameArchive(file)
-                                "
+                                v-if="file.mine && file.shareableAsGame"
                                 :href="`/games/share?file=${file.id}`"
                                 class="inline-flex min-h-11 items-center rounded-sm text-sm text-muted-foreground underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none sm:min-h-0"
                             >

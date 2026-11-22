@@ -9,6 +9,7 @@ use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
 use App\Modules\Files\Support\SharedFileHasher;
+use App\Modules\Files\Support\UploadFileName;
 use App\Modules\Files\Support\UploadQuota;
 use App\Modules\Files\Support\UploadReview;
 use App\Modules\Files\Support\UploadTypeGuard;
@@ -53,14 +54,26 @@ class UploadSharedFile
      */
     public function handle(Event $event, User $actor, UploadedFile $file): SharedFile
     {
-        $this->validateFile($file);
+        // The browser's name is stored cleaned, not as delivered: the file host
+        // rows and the recipe text of a shared game must read the same no
+        // matter which upload path produced them (see UploadFileName).
+        $name = UploadFileName::clean($file->getClientOriginalName());
+
+        if ($name === '') {
+            // A name of control characters only: nothing is left to store or show.
+            throw ValidationException::withMessages([
+                'file' => trans('files.errors.invalid_name'),
+            ]);
+        }
+
+        $this->validateFile($file, $name);
 
         $store = $this->stores->default();
         $path = 'event-'.$event->id.'/'.Str::uuid();
         $stored = false;
 
         try {
-            return $this->persist($event, $actor, $file, $store, $path, $stored);
+            return $this->persist($event, $actor, $file, $name, $store, $path, $stored);
         } catch (Throwable $exception) {
             if ($stored) {
                 // No file without a row: undo the store write, the original error wins.
@@ -74,9 +87,9 @@ class UploadSharedFile
         }
     }
 
-    private function persist(Event $event, User $actor, UploadedFile $file, FileStore $store, string $path, bool &$stored): SharedFile
+    private function persist(Event $event, User $actor, UploadedFile $file, string $name, FileStore $store, string $path, bool &$stored): SharedFile
     {
-        return DB::transaction(function () use ($event, $actor, $file, $store, $path, &$stored): SharedFile {
+        return DB::transaction(function () use ($event, $actor, $file, $name, $store, $path, &$stored): SharedFile {
             // Serializes concurrent uploads from the same user against the
             // same event, even when the user has zero prior files (and thus
             // no rows for `lockForUpdate()` to lock below).
@@ -120,7 +133,7 @@ class UploadSharedFile
             $sharedFile = new SharedFile([
                 'event_id' => $event->id,
                 'user_id' => $actor->id,
-                'original_name' => $file->getClientOriginalName(),
+                'original_name' => $name,
             ]);
 
             $sharedFile->forceFill([
@@ -141,7 +154,7 @@ class UploadSharedFile
         });
     }
 
-    private function validateFile(UploadedFile $file): void
+    private function validateFile(UploadedFile $file, string $name): void
     {
         $maxBytes = (int) config('files.max_upload_mb') * 1024 * 1024;
         $size = $file->getSize();
@@ -152,7 +165,12 @@ class UploadSharedFile
             ]);
         }
 
-        if (UploadTypeGuard::fromConfig()->isBlocked($file)) {
+        // The type is judged on the stored (cleaned) name, exactly as the tus
+        // path judges the reservation's name: a control character after ".html"
+        // must not hide the suffix from the extension rule.
+        $guard = UploadTypeGuard::fromConfig();
+
+        if ($guard->isBlockedType($name, $guard->sniffMime($file), $file->getClientMimeType(), $file->getMimeType())) {
             throw ValidationException::withMessages([
                 'file' => trans('files.errors.blocked_type'),
             ]);

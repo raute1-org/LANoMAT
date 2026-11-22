@@ -17,17 +17,13 @@ use Illuminate\Support\Collection;
  *
  * Recipes outside the lineup stay in the database: the Filament admin, the
  * sync and the recipe APIs still see them. Only the player-facing read paths
- * filter through this class.
+ * filter through this class, and they all ask the same rule: {@see allows()}
+ * for a slug, {@see allowsSlug()} for a row whose `in_lineup` the caller has
+ * already read (the server install block filters its catalogue that way, in
+ * PHP, so a case-sensitive `whereIn` can never disagree with this class).
  */
 final class LauncherLineup
 {
-    /** The tested games shipped as the default lineup. */
-    public const DEFAULT = [
-        'unreal-tournament-2004',
-        'need-for-speed-underground-2',
-        'need-for-speed-underground-2-browser',
-    ];
-
     /** @var list<string>|null recipes the orga put on the lineup in the panel, read once per instance */
     private ?array $flagged = null;
 
@@ -48,12 +44,7 @@ final class LauncherLineup
             return [];
         }
 
-        $this->flagged ??= array_values(array_map(
-            static fn (mixed $slug): string => mb_strtolower((string) $slug),
-            GameRecipe::query()->where('in_lineup', true)->orderBy('slug')->pluck('slug')->all(),
-        ));
-
-        return array_values(array_unique([...$configured, ...$this->flagged]));
+        return array_values(array_unique([...$configured, ...$this->flaggedSlugs()]));
     }
 
     /**
@@ -93,14 +84,36 @@ final class LauncherLineup
     /** Whether the allowlist is empty, i.e. every visible recipe may be shown. */
     public function isUnrestricted(): bool
     {
-        return $this->slugs() === [];
+        return $this->configuredSlugs() === [];
     }
 
     public function allows(string $slug): bool
     {
-        $slugs = $this->slugs();
+        if ($this->isUnrestricted()) {
+            return true;
+        }
 
-        return $slugs === [] || in_array(mb_strtolower($slug), $slugs, true);
+        return $this->allowsSlug($slug, in_array(mb_strtolower($slug), $this->flaggedSlugs(), true));
+    }
+
+    /**
+     * The one lineup rule: a recipe is on the lineup when the configured
+     * allowlist is empty (unrestricted), names its slug, or the orga switched
+     * the recipe on in the panel.
+     *
+     * `$inLineup` is the recipe row's own `game_recipes.in_lineup`. A caller
+     * that already read the catalogue in one query answers from that column
+     * instead of asking for the flagged slugs again; {@see allows()} looks the
+     * column up itself and takes exactly this decision, so the two never
+     * differ.
+     */
+    public function allowsSlug(string $slug, bool $inLineup): bool
+    {
+        $configured = $this->configuredSlugs();
+
+        return $configured === []
+            || $inLineup
+            || in_array(mb_strtolower($slug), $configured, true);
     }
 
     /**
@@ -129,5 +142,14 @@ final class LauncherLineup
             ->values();
 
         return $filtered;
+    }
+
+    /** @return list<string> the slugs the orga switched on in the panel, read once per instance */
+    private function flaggedSlugs(): array
+    {
+        return $this->flagged ??= array_values(array_map(
+            static fn (mixed $slug): string => mb_strtolower((string) $slug),
+            GameRecipe::query()->where('in_lineup', true)->orderBy('slug')->pluck('slug')->all(),
+        ));
     }
 }

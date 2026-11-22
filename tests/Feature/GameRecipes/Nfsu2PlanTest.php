@@ -5,10 +5,16 @@ declare(strict_types=1);
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Actions\ProposeRecipe;
 use App\Modules\GameRecipes\Actions\SyncRecipes;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\LauncherSupport;
+use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Domain\JoinInfo;
+use App\Modules\GameServers\Enums\ServerLinkStatus;
+use App\Modules\GameServers\Enums\ServerSource;
+use App\Modules\GameServers\Models\ServerLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -131,4 +137,72 @@ it('builds a linux plan that keeps the same base and picks the wine launch targe
     expect($steps->keys()->all())->toContain('install-base-linux', 'install-nfs-online-linux')
         ->and($steps->keys()->all())->not->toContain('install-base')
         ->and($recipe->launchTarget(os: 'linux'))->toContain('wine');
+});
+
+/** A permanent, ready server row of the game the NFSU2 recipe installs. */
+function nfsu2Server(string $address, int $port = 20922): ServerLink
+{
+    $game = Game::query()->updateOrCreate(
+        ['slug' => 'need-for-speed-underground-2'],
+        ['name' => 'Need for Speed: Underground 2', 'min_team_size' => 1, 'max_team_size' => 6],
+    );
+
+    return ServerLink::factory()->create([
+        'game_id' => $game->id,
+        'title' => 'NFSU2 (NFS-Online, unser Server)',
+        'permanent' => true,
+        'status' => ServerLinkStatus::Ready,
+        'source' => ServerSource::External,
+        'join_info' => new JoinInfo(address: $address, port: $port),
+    ]);
+}
+
+it('writes the LAN host the plan carries into net_u2.ini on windows and linux', function () {
+    $recipe = nfsu2Recipe();
+    nfsu2Server('203.0.113.9');
+
+    $windows = collect(nfsu2Plan($recipe, 'windows')['steps'])->keyBy('id')['install-nfs-online'];
+    $linux = collect(nfsu2Plan($recipe, 'linux')['steps'])->keyBy('id')['install-nfs-online-linux'];
+
+    $windowsRun = $windows['commands'][0]['run'];
+    $linuxRun = $linux['commands'][2]['run'];
+
+    expect($windowsRun)->toContain("\$serverHost = '203.0.113.9'")
+        ->and($windowsRun)->toContain('if ($serverHost -ne \'\')')
+        ->and($linuxRun)->toContain("host='203.0.113.9'")
+        ->and($linuxRun)->toContain('if [ -n "$host" ]')
+        // The ports are fixed by the server software, never the plan variable.
+        ->and($windowsRun)->toContain('bootstrap_port = 20921')
+        ->and($windowsRun)->toContain('race_port = 20000')
+        ->and($linuxRun)->toContain('race_port = 20000')
+        ->and($windowsRun)->not->toContain('{{server_host}}')
+        ->and($linuxRun)->not->toContain('{{server_host}}');
+});
+
+it('leaves the host lines alone when the plan carries no server', function () {
+    $recipe = nfsu2Recipe();
+
+    $windows = collect(nfsu2Plan($recipe, 'windows')['steps'])->keyBy('id')['install-nfs-online'];
+    $linux = collect(nfsu2Plan($recipe, 'linux')['steps'])->keyBy('id')['install-nfs-online-linux'];
+
+    expect($windows['commands'][0]['run'])->toContain("\$serverHost = ''")
+        ->and($windows['commands'][0]['run'])->toContain('if ($serverHost -ne \'\')')
+        ->and($linux['commands'][2]['run'])->toContain("host=''")
+        ->and($linux['commands'][2]['run'])->toContain('if [ -n "$host" ]')
+        // Both steps tell the assistant where the address comes from instead.
+        ->and($windows['detail'])->toContain('/servers')
+        ->and($linux['detail'])->toContain('/servers');
+});
+
+it('names no address of its own and exports text the pull request gate accepts', function () {
+    $recipe = nfsu2Recipe();
+
+    expect(json_encode($recipe->metadata))->not->toContain('live_url')
+        ->and(json_encode($recipe->steps))->not->toContain('10.23.')
+        ->and((string) $recipe->skill_markdown)->not->toContain('10.23.');
+
+    $problems = app(ProposeRecipe::class)->preview($recipe);
+
+    // Nothing of the catalogue gate objects, and no address class in particular.
+    expect($problems)->toBe([]);
 });

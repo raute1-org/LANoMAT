@@ -31,7 +31,7 @@ class GlobalServerPageController extends Controller
     {
         Gate::authorize('viewPermanent', ServerLink::class);
 
-        $all = ServerListProjection::forGlobalBrowser(withPlayerList: $request->user() !== null);
+        $all = ServerListProjection::forGlobalBrowser(withPlayerList: $request->user() !== null, viewer: $request->user());
 
         /** @var list<string> $games */
         $games = [];

@@ -7,6 +7,7 @@ use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ContributionFiles;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ContributionFileState;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\PullRequestColor;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\PullRequestReason;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -67,6 +68,9 @@ class RecipesTable
                         ? $record->pr_url
                         : null)
                     ->openUrlInNewTab()
+                    // Why the proposal was refused: the first line of `pr_error`,
+                    // a model column, so no extra query per row.
+                    ->description(fn (GameRecipe $record): ?string => PullRequestReason::for($record))
                     ->placeholder('—')
                     ->toggleable(),
                 TextColumn::make('reviewed_at')

@@ -9,17 +9,21 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\GameRecipes\Actions\ContributeRecipe;
+use App\Modules\GameRecipes\Exceptions\RecipeException;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\AvatarCatalog;
 use App\Modules\GameRecipes\Support\BuildInstallPlan;
 use App\Modules\GameRecipes\Support\LauncherLineup;
 use App\Modules\GameRecipes\Support\LauncherSupport;
+use App\Modules\GameRecipes\Support\PlanServerAddress;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
+use App\Modules\Mcp\Support\ContributionCatalog;
 use App\Modules\Mcp\Support\SafeText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 /** The agent's REST surface for recipes: list, read, skill, plan, files, avatars, contribute. */
@@ -84,11 +88,14 @@ class RecipeController extends Controller
         ], 200, ['Cache-Control' => 'no-store, private']);
     }
 
-    public function show(Request $request, string $slug, RecipeFileMatcher $matcher, LauncherSupport $support): JsonResponse
+    public function show(Request $request, string $slug, RecipeFileMatcher $matcher, LauncherSupport $support, PlanServerAddress $servers): JsonResponse
     {
         $user = $this->authUser($request);
         $recipe = $this->findRecipe($request, $slug);
         $matches = $matcher->matchesFor($recipe, $user);
+        // An agent reads its launch targets from here, so the plan variables are
+        // filled here as well: no client ever receives a raw `{{server_host}}`.
+        $variables = $servers->variablesFor($recipe, $user);
 
         return response()->json([
             'recipe' => [
@@ -108,13 +115,13 @@ class RecipeController extends Controller
                 'launcher_supported' => $support->supports($recipe),
                 'portable' => $support->isPortable($recipe),
                 'pull_request' => $this->pullRequestFor($recipe, $user),
-                'launch_target' => $recipe->launchTarget(),
-                'launch_targets' => $this->launchTargets($recipe),
+                'launch_target' => PlanServerAddress::text($recipe->launchTarget(), $variables),
+                'launch_targets' => PlanServerAddress::launchTargets($this->launchTargets($recipe), $variables),
                 'supports_multiplayer' => $recipe->supportsMultiplayer(),
                 'install_command' => $recipe->installCommand(),
                 'launch_command' => $recipe->launchCommand(),
                 'requirements' => $recipe->requirements,
-                'steps' => $recipe->steps,
+                'steps' => array_map(static fn (array $step): array => PlanServerAddress::step($step, $variables), array_values(array_filter((array) ($recipe->steps ?? []), 'is_array'))),
                 'files' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                     'id' => $file->id,
                     'role' => $file->role->value,
@@ -289,7 +296,11 @@ class RecipeController extends Controller
             'metadata.launcher_supported' => ['nullable', 'boolean'],
             'steps' => ['nullable', 'array', 'max:50'],
             'skill_description' => ['nullable', 'string', 'max:1024'],
-            'skill_markdown' => ['nullable', 'string', 'max:65535'],
+            'skill_markdown' => ['nullable', 'string', 'max:65535', 'not_regex:/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/'],
+        ], [
+            // ContributeRecipe's own validator only caps the length; a control
+            // character would travel into a public SKILL.md.
+            'skill_markdown.not_regex' => 'The skill_markdown may only contain printable characters, newlines, carriage returns and tabs.',
         ]);
 
         // Only the keys a contribution may set reach the action; the rest of a
@@ -312,7 +323,14 @@ class RecipeController extends Controller
 
         $data['via'] = 'api';
 
-        $recipe = $contribute->handle($user, $data);
+        try {
+            $recipe = $contribute->handle($user, $data);
+        } catch (RecipeException $exception) {
+            // The schema check of the assembled recipe (a step without an id,
+            // an unknown platform, …): every problem at once, as a validation
+            // answer the caller can act on instead of a server error.
+            throw ValidationException::withMessages(['recipe' => $exception->problems]);
+        }
 
         return response()->json([
             'recipe' => [
@@ -322,6 +340,7 @@ class RecipeController extends Controller
                 'launcher_supported' => $support->supports($recipe),
                 'pull_request' => $recipe->pullRequest(),
             ],
+            'catalog' => app(ContributionCatalog::class)->for($recipe),
         ], 201, ['Cache-Control' => 'no-store, private']);
     }
 

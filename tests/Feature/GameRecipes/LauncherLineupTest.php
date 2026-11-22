@@ -6,6 +6,9 @@ use App\Models\User;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Support\LauncherLineup;
+use App\Modules\Games\Models\Game;
+use App\Modules\GameServers\Contracts\GameInstallLinks;
+use App\Modules\GameServers\Models\ServerLink;
 use App\Modules\Mcp\Models\McpToken;
 use App\Modules\Mcp\Server\LanomatServer;
 use App\Modules\Mcp\Support\McpCodes;
@@ -211,7 +214,24 @@ it('parses, normalizes and ignores malformed lineup entries', function () {
     ])->and($lineup->allows('apocalypse'))->toBeFalse();
 });
 
+it('decides the lineup for a server install block exactly as allows() does', function () {
+    // The schema forbids uppercase slugs, but a row that has one must not be
+    // hidden by a case-sensitive query while allows() says yes: one rule only.
+    Config::set('launcher.lineup', 'mixedcase');
+
+    $recipe = lineupRecipe('MixedCase', 'Mixed Case');
+    $game = Game::factory()->create(['slug' => 'mixedcase', 'name' => 'Mixed Case']);
+
+    $install = app(GameInstallLinks::class)->forServer($game->slug, $game->name, '203.0.113.5', 7777, null);
+
+    expect(app(LauncherLineup::class)->allows($recipe->slug))->toBeTrue()
+        ->and((new LauncherLineup)->filter(collect([$recipe])))->toHaveCount(1)
+        ->and($install['recipeSlug'] ?? null)->toBe('MixedCase');
+});
+
 it('registers the browser and native servers once without touching other servers', function () {
+    Config::set('launcher.nfs.server_host', '203.0.113.12');
+
     $user = User::factory()->create();
 
     $this->seed(LauncherLineupSeeder::class);
@@ -227,6 +247,25 @@ it('registers the browser and native servers once without touching other servers
             ->where('permanent.0.port', 443)
             ->where('permanent.0.connectString', 'https://nfsu2.xyz/')
             ->where('permanent.1.title', 'NFSU2 (NFS-Online, unser Server)')
-            ->where('permanent.1.address', '10.23.3.220')
+            ->where('permanent.1.address', '203.0.113.12')
             ->where('permanent.1.port', 20922));
+});
+
+it('registers no native NFSU2 server and says so when no host is configured', function () {
+    Config::set('launcher.nfs.server_host', null);
+
+    $user = User::factory()->create();
+
+    $this->artisan('db:seed', ['--class' => LauncherLineupSeeder::class])
+        ->expectsOutputToContain('NFS_SERVER_HOST')
+        ->assertSuccessful();
+
+    $this->actingAs($user)
+        ->get('/servers')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('permanent', 1)
+            ->where('permanent.0.title', 'NFSU2 (Browser)'));
+
+    expect(ServerLink::query()->where('title', 'NFSU2 (NFS-Online, unser Server)')->exists())->toBeFalse();
 });

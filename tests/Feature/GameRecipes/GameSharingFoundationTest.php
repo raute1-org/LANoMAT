@@ -388,3 +388,23 @@ it('refuses to pin an approved file of an event that is not public yet', functio
     expect(fn () => app(ContributeRecipe::class)->handle($user, $payload))
         ->toThrow(ValidationException::class);
 });
+
+it('keeps line breaks in a SKILL.md and a description but no other control character', function (string $field, string $value, bool $accepted) {
+    $user = User::factory()->create();
+    $run = fn () => app(ContributeRecipe::class)->handle($user, sharedGamePayload([$field => $value]));
+
+    if ($accepted) {
+        expect($run()->slug)->toBe('tiny-racer');
+
+        return;
+    }
+
+    expect($run)->toThrow(ValidationException::class);
+    expect(GameRecipe::query()->count())->toBe(0);
+})->with([
+    'skill with line breaks and a tab' => ['skill_markdown', "---\nname: tiny-racer\ndescription: \"Install Tiny Racer.\"\n---\n\n# Tiny Racer\n\n\tindented\r\n", true],
+    'skill with a bell' => ['skill_markdown', "---\nname: tiny-racer\n---\n\x07", false],
+    'skill with an escape sequence' => ['skill_markdown', "# Tiny Racer\n\x1B[2J", false],
+    'description with line breaks' => ['description', "First paragraph.\n\nSecond paragraph.", true],
+    'description with a null byte' => ['description', "First\x00Second", false],
+]);

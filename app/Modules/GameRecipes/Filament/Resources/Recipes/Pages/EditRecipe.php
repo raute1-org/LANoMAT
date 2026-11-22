@@ -11,6 +11,7 @@ use App\Modules\GameRecipes\Enums\RecipeStatus;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\ResolvesReviewer;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Pages\Concerns\SyncsRequirementPins;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\RecipeResource;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\CatalogPreview;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ContributionFiles;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\LauncherReview;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\ReviewStamp;
@@ -276,10 +277,20 @@ class EditRecipe extends EditRecord
         return $data;
     }
 
-    /** What the confirmation shows: the files that get approved (optional) and what runs on the players' PCs. */
+    /**
+     * What the confirmation shows: the pull request warning first (the orga
+     * learns before confirming that the catalogue would refuse the text), the
+     * files that get approved (optional) and what runs on the players' PCs.
+     */
     private function releaseDescription(GameRecipe $record, bool $withFiles): HtmlString
     {
         $parts = [];
+
+        $warning = CatalogPreview::publishWarning($record);
+
+        if ($warning !== null) {
+            $parts[] = '<strong>'.e($warning).'</strong>';
+        }
 
         if ($withFiles) {
             $parts[] = implode('<br>', [

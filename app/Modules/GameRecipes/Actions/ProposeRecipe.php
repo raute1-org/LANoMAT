@@ -52,22 +52,8 @@ final class ProposeRecipe
 
         $export = $this->exporter->export($recipe);
         $title = $this->titleText($recipe);
-        $rawTitle = $this->rawTitle($recipe);
         $body = $this->body($recipe, neutralise: true);
-        $rawBody = $this->body($recipe, neutralise: false);
-
-        // Check both commit titles before the first request: the verb depends
-        // on the base branch, the sensitive part is the recipe title. The raw
-        // text is checked, not the escaped Markdown: escaping must not hide an
-        // address from the gate.
-        $problems = [
-            ...(new CatalogReadiness)->problems($export, $recipe->slug),
-            ...$this->problems('recipe.yaml', $export['yaml']),
-            ...$this->problems('SKILL.md', $export['skill']),
-            ...$this->problems('the pull request title', 'feat(recipes): add '.$rawTitle),
-            ...$this->problems('the pull request title', 'feat(recipes): update '.$rawTitle),
-            ...$this->problems('the pull request body', $rawBody),
-        ];
+        $problems = $this->problemsOf($recipe, $export);
 
         if ($problems !== []) {
             return $this->block($recipe, $problems);
@@ -78,6 +64,53 @@ final class ProposeRecipe
         } catch (RecipeRepositoryException $exception) {
             return $this->fail($recipe, $exception);
         }
+    }
+
+    /**
+     * What would keep this recipe out of the repository right now: the
+     * catalogue rules its text does not meet and everything the public-safety
+     * gate refuses. Reads nothing from the repository and writes nothing, so
+     * a review screen or a contribution answer can show it before anyone asks
+     * for a pull request. An empty list means the text is ready to be sent.
+     *
+     * The catalogue holds a draft to stricter rules than a published recipe
+     * (3 to 6 steps, a "needs verification" note). `$as` answers the question
+     * for another status than the stored one, e.g. "and once it is published?".
+     *
+     * @return list<string>
+     */
+    public function preview(GameRecipe $recipe, ?RecipeStatus $as = null): array
+    {
+        if ($as !== null && $as !== $recipe->status) {
+            // An in-memory copy: the stored recipe keeps its status.
+            $recipe = clone $recipe;
+            $recipe->status = $as;
+        }
+
+        return $this->problemsOf($recipe, $this->exporter->export($recipe));
+    }
+
+    /**
+     * Both commit titles are checked before the first request: the verb
+     * depends on the base branch, the sensitive part is the recipe title. The
+     * raw text is checked, not the escaped Markdown: escaping must not hide an
+     * address from the gate.
+     *
+     * @param  array{yaml: string, skill: string}  $export
+     * @return list<string>
+     */
+    private function problemsOf(GameRecipe $recipe, array $export): array
+    {
+        $rawTitle = $this->rawTitle($recipe);
+
+        return [
+            ...(new CatalogReadiness)->problems($export, $recipe->slug),
+            ...$this->problems('recipe.yaml', $export['yaml']),
+            ...$this->problems('SKILL.md', $export['skill']),
+            ...$this->problems('the pull request title', 'feat(recipes): add '.$rawTitle),
+            ...$this->problems('the pull request title', 'feat(recipes): update '.$rawTitle),
+            ...$this->problems('the pull request body', $this->body($recipe, neutralise: false)),
+        ];
     }
 
     /**

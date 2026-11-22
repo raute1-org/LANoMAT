@@ -15,10 +15,15 @@ use Illuminate\Database\Seeder;
  * The one manual browser server of the first lineup.
  *
  * The launcher lineup ships two games. UT2004 already has its permanent
- * `10.23.0.40:7777` link; NFSU2 has no process LANoMAT controls, just the
- * public Underground 2 Revived page. This seeder registers that page once as a
+ * server link; NFSU2 has no process LANoMAT controls, just the public
+ * Underground 2 Revived page. This seeder registers that page once as a
  * permanent external server so `/servers` and the game page agree:
  * `NFSU2 (Browser)`, `nfsu2.xyz:443`, joined through `https://nfsu2.xyz/`.
+ *
+ * It then registers our own native NFSU2 server (NFS-Online) when the venue
+ * configured its host — `NFS_SERVER_HOST` through `launcher.nfs.server_host`;
+ * there is no built-in address. Without one it registers no native server and
+ * says so on the console; an existing row is left alone either way.
  *
  * Idempotent, and it never touches another server row. It is not called by
  * `DatabaseSeeder`: run it explicitly on a fresh installation
@@ -56,9 +61,30 @@ final class LauncherLineupSeeder extends Seeder
             ),
         ])->save();
 
-        // Our own native NFSU2 server (NFS-Online). The event address is
-        // 10.23.0.12; 10.23.3.220 is the tested laptop fallback. Override it
-        // with NFS_SERVER_HOST before seeding on the venue server.
+        // Our own native NFSU2 server (NFS-Online). The venue sets its host;
+        // without one there is no server to register, and guessing an address
+        // is exactly what this seeder must not do.
+        $nfsHost = trim((string) config('launcher.nfs.server_host'));
+
+        if ($nfsHost === '') {
+            // A server registered by an earlier run is the venue's own record:
+            // it is neither changed nor removed here, and its address is what
+            // NFSU2 install plans keep naming.
+            $existing = ServerLink::query()
+                ->where('title', 'NFSU2 (NFS-Online, unser Server)')
+                ->where('permanent', true)
+                ->first();
+
+            $this->command?->warn($existing instanceof ServerLink
+                ? 'NFS_SERVER_HOST is empty: the native NFSU2 (NFS-Online) server registered earlier was left as it is ('
+                    .($existing->join_info->address ?? 'no address').'). Set NFS_SERVER_HOST in .env and run '
+                    .'`php artisan db:seed --class=LauncherLineupSeeder --force` again to move it, or edit the server in the admin panel.'
+                : 'NFS_SERVER_HOST is empty: no native NFSU2 (NFS-Online) server was registered. '
+                    .'Set it in .env and run `php artisan db:seed --class=LauncherLineupSeeder --force` again to add one.');
+
+            return;
+        }
+
         $nativeGame = Game::query()->updateOrCreate(
             ['slug' => 'need-for-speed-underground-2'],
             [
@@ -72,8 +98,6 @@ final class LauncherLineupSeeder extends Seeder
             'title' => 'NFSU2 (NFS-Online, unser Server)',
             'permanent' => true,
         ]);
-
-        $nfsHost = (string) config('launcher.nfs.server_host', '10.23.3.220');
 
         $nativeLink->forceFill([
             'game_id' => $nativeGame->id,

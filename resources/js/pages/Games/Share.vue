@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { usePageLoadState } from '@/composables/usePageLoadState';
+import { selectUploadedArchive } from '@/lib/archiveSelection';
 import type {
     GameShareFile,
     GameShareForm,
@@ -66,6 +67,21 @@ const preselected = props.files.find(
 
 const selectedFileId = ref<number | null>(preselected?.id ?? null);
 
+/**
+ * True while the selection came from the participant's own click on the list.
+ * An upload never replaces it; a selection the page made itself is replaced.
+ */
+const manualSelection = ref(false);
+
+/** What the next partial file-list reload is for, if anything. */
+let pendingUpload: {
+    uploadedName: string | null;
+    knownIds: number[];
+} | null = null;
+
+/** The file ids from before a form upload started. */
+let uploadStartIds: number[] | null = null;
+
 watch(
     () => props.files,
     (files) => {
@@ -76,8 +92,51 @@ watch(
         }
 
         selectedFileId.value = null;
+        manualSelection.value = false;
     },
 );
+
+/**
+ * After an upload on this page the new archive is the selection — no second
+ * hunt in the list. The decision is `selectUploadedArchive` (unit-tested); a
+ * hand-picked selection wins and an unusable new file changes nothing.
+ */
+function applyPendingUpload(): void {
+    if (pendingUpload === null) {
+        return;
+    }
+
+    // Nothing new in the list yet (resumable mode): wait for the reload.
+    const known = new Set(pendingUpload.knownIds);
+
+    if (!props.files.some((file) => !known.has(file.id))) {
+        return;
+    }
+
+    const pending = pendingUpload;
+    pendingUpload = null;
+
+    const next = selectUploadedArchive({
+        previousIds: pending.knownIds,
+        files: props.files,
+        uploadedName: pending.uploadedName,
+        current: selectedFileId.value,
+        manual: manualSelection.value,
+    });
+
+    if (next !== selectedFileId.value) {
+        selectedFileId.value = next;
+        manualSelection.value = false;
+    }
+}
+
+watch(() => props.files, applyPendingUpload);
+
+/** The list's own click: remembered as the participant's choice. */
+function selectArchive(id: number): void {
+    manualSelection.value = true;
+    selectedFileId.value = id;
+}
 
 watch(
     selectedFileId,
@@ -170,6 +229,34 @@ function refreshFiles(): void {
     router.reload({ only: ['files', 'quota'] });
 }
 
+/**
+ * A form upload starts. Its POST redirects back to this page, so the list the
+ * page gets after it already contains the new archive — the baseline for "which
+ * file is new" has to be taken before the request, not after it.
+ */
+function uploadStarted(): void {
+    uploadStartIds = props.files.map((file) => file.id);
+}
+
+/**
+ * The uploader finished. In resumable mode the list has not changed yet, so its
+ * current ids are the baseline; in form mode the baseline is the one taken
+ * before the POST. The new archive is selected when the list arrives.
+ */
+function archiveUploaded(uploadedName: string | null): void {
+    pendingUpload = {
+        uploadedName,
+        knownIds: uploadStartIds ?? props.files.map((file) => file.id),
+    };
+    uploadStartIds = null;
+
+    // A form upload answers with the new list before this event arrives, and a
+    // reload that brings the same list back does not run the watcher: decide
+    // here when the new file is already there.
+    applyPendingUpload();
+    refreshFiles();
+}
+
 // --- submit ----------------------------------------------------------------
 
 const fieldOrder: Array<{ key: keyof GameShareForm; id: string }> = [
@@ -233,6 +320,9 @@ function submit(): void {
             // are reset one by one: `platforms` is an array that v-model
             // mutates in place, which a plain `reset()` would keep.
             const keep = selectedFileId.value;
+            // The kept file belonged to the game just shared: the next upload
+            // on this page is selected like the first one was.
+            manualSelection.value = false;
             form.reset(
                 'title',
                 'executable',
@@ -321,7 +411,8 @@ function submit(): void {
                             :upload="upload"
                             :upload-labels="uploadLabels"
                             :archive-extensions="limits.archiveExtensions"
-                            @finished="refreshFiles"
+                            @started="uploadStarted"
+                            @finished="archiveUploaded"
                         />
                         <QuotaGauge v-if="quota" :quota="quota" />
                     </div>
@@ -348,7 +439,7 @@ function submit(): void {
                         :archive-extensions="limits.archiveExtensions"
                         :can-upload="event !== null && upload !== null"
                         :error="form.errors.shared_file_id"
-                        @update:selected="selectedFileId = $event"
+                        @update:selected="selectArchive"
                     />
                 </Panel>
             </section>

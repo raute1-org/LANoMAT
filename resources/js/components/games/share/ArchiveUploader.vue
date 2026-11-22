@@ -11,8 +11,9 @@ import type { GameShareUpload } from '@/types/gameShare';
  * files page: chunked uploads straight to the file host when a ticket exists,
  * otherwise the plain multipart form. Either way the file only lands in the
  * viewer's file list (as `pending`) — the share itself is a separate step on
- * this page. The pick button is outline here: "Spiel teilen" stays the page's
- * one primary (amber) action.
+ * this page, and the page selects the archive it just received. The pick
+ * button is outline here: "Spiel teilen" stays the page's one primary (amber)
+ * action.
  */
 const props = defineProps<{
     upload: GameShareUpload;
@@ -20,7 +21,12 @@ const props = defineProps<{
     archiveExtensions: string[];
 }>();
 
-const emit = defineEmits<{ finished: [] }>();
+const emit = defineEmits<{
+    /** A form upload starts: the page snapshots the list to compare against. */
+    started: [];
+    /** The upload finished; the picked name when the mode reports it. */
+    finished: [uploadedName: string | null];
+}>();
 
 const form = useForm<{ file: File | null }>({ file: null });
 
@@ -28,13 +34,15 @@ const accept = computed<string>(() => props.archiveExtensions.join(','));
 
 const selectedName = ref<string | null>(null);
 
+// About the next upload, not about the list below: an archive can be selected
+// there while nothing is picked here.
 const pickerStatus = computed<string>(
-    () => selectedName.value ?? 'Keine Datei ausgewählt',
+    () => selectedName.value ?? 'Noch keine Datei zum Hochladen gewählt',
 );
 
 const uploadHint = computed<string>(
     () =>
-        `Erlaubt sind ${props.archiveExtensions.join(' und ')}, bis ${formatBytes(props.upload.maxFileBytes)} pro Datei. Nach dem Hochladen erscheint die Datei unten in der Liste — wähle sie dort aus.`,
+        `Erlaubt sind ${props.archiveExtensions.join(' und ')}, bis ${formatBytes(props.upload.maxFileBytes)} pro Datei. Nach dem Hochladen ist die Datei unten ausgewählt.`,
 );
 
 /** The hint is always described; the error only while the server rejects it. */
@@ -55,19 +63,27 @@ function submit(): void {
         return;
     }
 
+    const name = form.file.name;
+
+    // The POST redirects back to this page (`back()`), so the list the page
+    // receives already holds the new file; the baseline has to be taken now.
+    emit('started');
+
     form.post(props.upload.storeUrl, {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             form.reset();
             selectedName.value = null;
-            emit('finished');
+            emit('finished', name);
         },
     });
 }
 
 function resumableFinished(): void {
-    emit('finished');
+    // The resumable uploader reports completion, not the file it finished, so
+    // the page picks the newest archive that appeared instead of guessing.
+    emit('finished', null);
 }
 </script>
 

@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Modules\Events\Models\Event as LanEvent;
 use App\Modules\Files\Enums\FileVisibility;
 use App\Modules\Files\Models\SharedFile;
+use App\Modules\GameRecipes\Actions\ProposeRecipe;
 use App\Modules\GameRecipes\Actions\PublishRecipe;
+use App\Modules\GameRecipes\Actions\ShareGame;
 use App\Modules\GameRecipes\Contracts\RecipeRepository;
 use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
@@ -52,6 +55,36 @@ function publishRecipeContribution(User $contributor, ?SharedFile $file = null, 
 function publishRecipePendingFile(string $name = 'tiny-racer.zip'): SharedFile
 {
     return SharedFile::factory()->create(['original_name' => $name, 'size_bytes' => 12_300_000]);
+}
+
+/**
+ * A shared game whose catalogue text is ready as it is (the share builder
+ * writes the SKILL.md and the steps the catalogue asks for).
+ */
+function publishRecipeReady(User $contributor): GameRecipe
+{
+    $archive = SharedFile::factory()->approved()->create([
+        'user_id' => $contributor->id,
+        'event_id' => LanEvent::factory()->registration()->create()->id,
+        'original_name' => 'micro-racer.zip',
+    ]);
+
+    return app(ShareGame::class)->handle($contributor, [
+        'title' => 'Micro Racer',
+        'shared_file_id' => $archive->id,
+        'platforms' => ['windows', 'linux'],
+        'executable' => 'bin/TinyRacer.exe',
+        'linux_runner' => 'wine',
+        'multiplayer' => true,
+    ]);
+}
+
+/** The modal description of a header action, as the orga sees it before confirming. */
+function publishRecipeConfirmation(GameRecipe $recipe, string $action): string
+{
+    return (string) Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+        ->mountAction($action)
+        ->instance()->getMountedAction()?->getModalDescription();
 }
 
 it('publishes a contribution, stamps the reviewer, adds it to the lineup and announces it once', function () {
@@ -347,6 +380,88 @@ it('does not offer a pull request for a recipe that came from a synced source', 
         ->assertActionHidden('proposePullRequest');
 });
 
+it('warns first in the publish confirmation that the pull request will not be sent', function () {
+    fakeRecipeRepository();
+    $recipe = publishRecipeContribution(User::factory()->create());
+    $this->actingAs($this->orga);
+
+    $problems = app(ProposeRecipe::class)->preview($recipe, RecipeStatus::Published);
+
+    expect($problems)->not->toBeEmpty();
+
+    $description = publishRecipeConfirmation($recipe, 'publish');
+    $detail = trans_choice('game_recipes.actions.publish_pr_warning_detail', count($problems), ['count' => count($problems)]);
+
+    expect($description)
+        ->toContain(__('game_recipes.actions.publish_pr_warning'))
+        ->toContain($detail)
+        // Where to read the reasons.
+        ->toContain(__('recipe_pull_requests.section'))
+        ->and(mb_strpos($description, __('game_recipes.actions.publish_pr_warning')))
+        ->toBeLessThan(mb_strpos($description, __('game_recipes.release.heading')));
+});
+
+it('warns in the combined confirmation as well, before the files it releases', function () {
+    Event::fake([RecipePublished::class]);
+    fakeRecipeRepository();
+    $file = publishRecipePendingFile();
+    $recipe = publishRecipeContribution(User::factory()->create(), $file);
+    $this->actingAs($this->orga);
+
+    $problems = app(ProposeRecipe::class)->preview($recipe, RecipeStatus::Published);
+
+    expect($problems)->not->toBeEmpty();
+
+    $description = publishRecipeConfirmation($recipe, 'publishWithFiles');
+
+    expect($description)
+        ->toContain(__('game_recipes.actions.publish_pr_warning'))
+        ->toContain(trans_choice('game_recipes.actions.publish_pr_warning_detail', count($problems), ['count' => count($problems)]))
+        ->toContain(__('game_recipes.actions.publish_with_files_confirm'))
+        ->and(mb_strpos($description, __('game_recipes.actions.publish_pr_warning')))
+        ->toBeLessThan(mb_strpos($description, __('game_recipes.actions.publish_with_files_confirm')));
+
+    // The warning changes nothing about the release itself.
+    Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+        ->callAction('publishWithFiles')
+        ->assertNotified();
+
+    expect($recipe->fresh()->status)->toBe(RecipeStatus::Published)
+        ->and($file->fresh()->visibility)->toBe(FileVisibility::Approved);
+});
+
+it('publishes anyway after warning about the pull request', function () {
+    Event::fake([RecipePublished::class]);
+    fakeRecipeRepository();
+    $recipe = publishRecipeContribution(User::factory()->create());
+    $this->actingAs($this->orga);
+
+    expect(publishRecipeConfirmation($recipe, 'publish'))->toContain(__('game_recipes.actions.publish_pr_warning'));
+
+    Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+        ->callAction('publish')
+        ->assertNotified(__('game_recipes.actions.published'));
+
+    expect($recipe->fresh()->status)->toBe(RecipeStatus::Published);
+});
+
+it('carries no pull request warning while the pipeline is off or the text is ready', function () {
+    $this->actingAs($this->orga);
+
+    // The default binding is the null repository: no pull request, no warning.
+    $unconfigured = publishRecipeContribution(User::factory()->create());
+
+    expect(publishRecipeConfirmation($unconfigured, 'publish'))
+        ->not->toContain(__('game_recipes.actions.publish_pr_warning'));
+
+    fakeRecipeRepository();
+    $ready = publishRecipeReady(User::factory()->create());
+
+    expect(app(ProposeRecipe::class)->preview($ready, RecipeStatus::Published))->toBe([])
+        ->and(publishRecipeConfirmation($ready, 'publish'))
+        ->not->toContain(__('game_recipes.actions.publish_pr_warning'));
+});
+
 it('queues the pull request for the recipe the orga asked for', function () {
     Bus::fake([ProposeRecipePullRequestJob::class]);
     fakeRecipeRepository();
@@ -391,4 +506,46 @@ it('makes a published contribution visible on the games page under a curated lin
             ->has('games', 1)
             ->where('games.0.slug', $recipe->slug)
             ->where('games.0.title', 'Tiny Racer'));
+});
+
+it('stops calling a shared game a draft once it is published', function () {
+    $sharer = User::factory()->create();
+    $archive = SharedFile::factory()->approved()->create([
+        'user_id' => $sharer->id,
+        'event_id' => LanEvent::factory()->registration()->create()->id,
+        'original_name' => 'tiny-racer.zip',
+    ]);
+
+    $recipe = app(ShareGame::class)->handle($sharer, [
+        'title' => 'Tiny Racer',
+        'shared_file_id' => $archive->id,
+        'platforms' => ['windows', 'linux'],
+        'executable' => 'bin/TinyRacer.exe',
+        'linux_runner' => 'wine',
+        'multiplayer' => true,
+    ]);
+
+    // As a draft the text says so: the catalogue asks a draft to.
+    expect($recipe->description)->toContain('This draft needs verification')
+        ->and($recipe->skill_markdown)->toContain('It is a draft recipe');
+
+    $published = app(PublishRecipe::class)->handle($recipe, $this->orga)->refresh();
+    $text = $published->description.$published->skill_markdown.json_encode($published->steps);
+
+    expect($text)->not->toContain('draft')
+        ->and($published->description)->toContain('The orga reviewed and published it')
+        // Nothing else moved: the SKILL.md keeps its length for the catalogue.
+        ->and(count(explode("\n", (string) $published->skill_markdown)))->toBe(count(explode("\n", (string) $recipe->skill_markdown)));
+});
+
+it('leaves text alone that the share page did not write', function () {
+    $recipe = GameRecipe::factory()->draft()->contributedBy(User::factory()->create())->create([
+        'description' => 'A hand-written description of a draft idea.',
+        'skill_markdown' => "# Hand-written\n\nMy own draft notes.\n",
+    ]);
+
+    $published = app(PublishRecipe::class)->handle($recipe, $this->orga)->refresh();
+
+    expect($published->description)->toBe('A hand-written description of a draft idea.')
+        ->and($published->skill_markdown)->toBe("# Hand-written\n\nMy own draft notes.\n");
 });

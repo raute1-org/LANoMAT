@@ -8,6 +8,7 @@ use App\Concerns\ResolvesAuthenticatedUser;
 use App\Http\Controllers\Controller;
 use App\Modules\Events\Enums\EventStatus;
 use App\Modules\Events\Models\Event;
+use App\Modules\Events\Support\CurrentEvent;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
@@ -131,7 +132,7 @@ class GamePageController extends Controller
 
         return Inertia::render('Games/Index', [
             'games' => $games->all(),
-            'active_event' => $event === null ? null : ['slug' => $event->slug, 'name' => $event->name],
+            'active_event' => $event === null ? null : ['slug' => $event->slug, 'name' => $event->name, 'live' => $event->status === EventStatus::Live],
             'filters' => ['only_lan' => $onlyLan],
             // Renamed from `modules`: the shell already shares a `modules` list
             // (enabled module keys), and an object with the same prop shadows it
@@ -210,7 +211,7 @@ class GamePageController extends Controller
                 'author' => $post->user?->name,
                 'expires_at' => $post->expires_at->toIso8601String(),
             ])->all(),
-            'active_event' => $event === null ? null : ['slug' => $event->slug, 'name' => $event->name],
+            'active_event' => $event === null ? null : ['slug' => $event->slug, 'name' => $event->name, 'live' => $event->status === EventStatus::Live],
             'voice_url' => $modules->enabled(Module::WebVoice) ? route('webvoice.index') : null,
             'library' => $recipes
                 ->map(fn (GameRecipe $candidate): array => $this->sidebarItem(
@@ -252,20 +253,15 @@ class GamePageController extends Controller
 
     private function activeEvent(): ?Event
     {
-        // One query: the newest event whose lifecycle is active wins, otherwise
-        // the newest publicly visible one. (The old version ran the second
-        // query whenever no active event existed, on every page load.)
-        $active = [EventStatus::Live->value, EventStatus::Registration->value, EventStatus::Announced->value];
-
-        return Event::query()
-            ->publiclyVisible()
-            ->orderByRaw(
-                'case when status in (?, ?, ?) then 1 else 0 end desc',
-                $active,
-            )
-            ->orderByDesc('starts_at')
-            ->orderByDesc('id')
-            ->first();
+        // The event the whole app treats as current (live before registration
+        // before announced), so this page never names another LAN than the
+        // shell does; without one, the newest publicly visible event.
+        return app(CurrentEvent::class)->get()
+            ?? Event::query()
+                ->publiclyVisible()
+                ->orderByDesc('starts_at')
+                ->orderByDesc('id')
+                ->first();
     }
 
     /** @return Collection<int, GameRecipe> */
@@ -695,6 +691,9 @@ class GamePageController extends Controller
             }
         }
 
+        // "On the LAN" means playable here: a running server counts even while
+        // the install file is missing (many players bring the game with them).
+        // Whether a fresh install works is said next to the server's actions.
         return $servers !== [];
     }
 

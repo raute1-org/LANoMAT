@@ -173,6 +173,13 @@ it('knows which archive names can be shared', function (string $name, bool $shar
     'line break' => ["Doom\nLoad.zip", false],
     'tab' => ["Doom\tLoad.zip", false],
     'control character' => ["Doom\x01Load.zip", false],
+    // Names the installing client would store under another name.
+    'colon' => ['Game: Deluxe.zip', false],
+    'double quote' => ['a"b.zip', false],
+    'pipe' => ['a|b.zip', false],
+    'angle bracket' => ['a<b>.zip', false],
+    'leading dot' => ['.hidden.zip', false],
+    'two dots in a row' => ['game..final.zip', false],
 ]);
 
 it('turns bracket globs in the archive name into a matching glob', function () {

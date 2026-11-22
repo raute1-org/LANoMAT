@@ -305,6 +305,10 @@ return [
         'who_hint' => 'In-Game-Spitznamen, keine LANoMAT-Konten.',
         'who_score' => 'Punkte',
         'who_time' => 'Zeit',
+        // Who of the LANoMAT accounts is on this server right now (Presence read model):
+        // the counterpart to the in-game nicknames above.
+        'occupants_label' => 'Hier spielen',
+        'occupants_more' => ':count weitere',
         'map_label' => 'Karte',
         'server_name_label' => 'Servername',
         'checked_ago' => 'Stand :time',
@@ -337,9 +341,15 @@ return [
         // The recipe way onto this server's game (ServerInstallActions).
         'install_launcher' => 'Im Launcher beitreten',
         'install_launcher_hint' => 'Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.',
+        // A join link that cannot name the server (no join URL the launcher could
+        // open): the launcher installs and starts the game, the player picks the server.
+        'install_launcher_start' => 'Im Launcher starten',
+        'install_launcher_start_hint' => 'Der Launcher installiert das Spiel, falls es fehlt, und startet es. Den Server wählst du dann im Spiel; seine Adresse steht in dieser Zeile.',
         'install_game' => 'Spiel installieren',
         'install_game_short' => 'Zum Spiel',
         'install_find_players' => 'Mitspieler suchen',
+        // Said when the game's files are not on the LAN right now (`install.lanReady` false).
+        'install_not_on_lan' => 'Für dieses Spiel liegen gerade nicht alle Dateien auf dem LAN-Server; eine Neuinstallation kann deshalb scheitern. Wer das Spiel schon hat, kann trotzdem beitreten — die Orga hilft, wenn etwas fehlt.',
     ],
     'resource' => [
         'label' => 'Spielserver',

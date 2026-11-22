@@ -263,7 +263,8 @@
                 },
                 "command": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "description": "Launch command. {{target}} is substituted by the launcher; {{server_host}}/{{server_port}} are already filled in (or empty) by the plan."
                 },
                 "shell": {
                     "enum": ["powershell", "cmd", "bash"]
@@ -348,7 +349,8 @@
                 },
                 "run": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "description": "One shell command. {{target}}, {{downloads}}, {{os}}, {{server_host}} and {{server_port}} are substituted before it runs; {{server_host}}/{{server_port}} are filled in by LANoMAT when it builds the plan and are the empty string when no server of the game is visible."
                 }
             }
         },
@@ -362,11 +364,13 @@
                 },
                 "path": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "description": "Path the check looks for. {{target}}, {{downloads}}, {{os}}, {{server_host}} and {{server_port}} are substituted before the check runs."
                 },
                 "command": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "description": "Command the check runs. Same template variables as a step command."
                 },
                 "os": {
                     "enum": ["windows", "linux", "macos", "any"],

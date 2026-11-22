@@ -7,6 +7,7 @@ namespace App\Modules\Mcp\Tools;
 use App\Modules\GameRecipes\Models\GameRecipe;
 use App\Modules\GameRecipes\Models\GameRecipeFile;
 use App\Modules\GameRecipes\Support\LauncherSupport;
+use App\Modules\GameRecipes\Support\PlanServerAddress;
 use App\Modules\GameRecipes\Support\RecipeFileMatcher;
 use App\Modules\Mcp\Support\SafeText;
 use App\Support\Modules\Module;
@@ -52,6 +53,8 @@ class RecipeGetTool extends LanomatTool
         abort_unless($recipe instanceof GameRecipe, 404, 'Recipe not found.');
 
         $matches = $matcher->matchesFor($recipe, $user);
+        // No client receives a raw `{{server_host}}`: see PlanServerAddress.
+        $variables = app(PlanServerAddress::class)->variablesFor($recipe, $user);
 
         return $this->structured([
             'recipe' => [
@@ -75,10 +78,10 @@ class RecipeGetTool extends LanomatTool
                 // The MCP request wrapper has no host; the HTTP request does, and a
                 // tool always runs inside one (streamable HTTP transport).
                 'play_url' => $recipe->playUrlFor(request()->getHost()),
-                'launch_target' => $recipe->launchTarget(),
+                'launch_target' => PlanServerAddress::text($recipe->launchTarget(), $variables),
                 // Everything below is authored (or uploaded) by users and ends up
                 // in an LLM context: flatten it before it leaves the server.
-                'launch_targets' => collect($recipe->launchTargets())->map(function (array $target): array {
+                'launch_targets' => collect(PlanServerAddress::launchTargets($recipe->launchTargets(), $variables))->map(function (array $target): array {
                     $target['label'] = SafeText::line($target['label']) ?? '';
                     $target['notes'] = SafeText::line($target['notes']) ?: null;
 
@@ -92,10 +95,10 @@ class RecipeGetTool extends LanomatTool
 
                     return $requirement;
                 })->all(),
-                'steps' => collect($recipe->steps ?? [])->map(function (array $step): array {
+                'steps' => collect($recipe->steps ?? [])->map(function (array $step) use ($variables): array {
                     $step['title'] = SafeText::line((string) ($step['title'] ?? '')) ?? '';
 
-                    return $step;
+                    return PlanServerAddress::step($step, $variables);
                 })->all(),
                 'files' => $recipe->files->map(fn (GameRecipeFile $file): array => [
                     'id' => $file->id,

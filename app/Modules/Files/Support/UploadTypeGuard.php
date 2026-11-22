@@ -39,16 +39,6 @@ final class UploadTypeGuard
         return new self($extensions, $mimes);
     }
 
-    public function isBlocked(UploadedFile $file): bool
-    {
-        return $this->isBlockedType(
-            $file->getClientOriginalName(),
-            $this->sniffMime($file),
-            $file->getClientMimeType(),
-            $file->getMimeType(),
-        );
-    }
-
     public function isBlockedType(string $clientName, ?string $sniffedMime, ?string $clientMime, ?string $guessedMime = null): bool
     {
         if (in_array(self::extension($clientName), $this->blockedExtensions, true)) {

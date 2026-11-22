@@ -15,7 +15,7 @@ return [
         'file_missing' => 'Diese Datei gehört dir nicht oder ist nicht freigegeben. Lade sie selbst hoch oder wähle eine freigegebene Datei.',
         'file_rejected' => 'Diese Datei wurde abgelehnt. Lade sie neu hoch oder wähle eine andere Datei.',
         'file_type' => 'Nur .zip- und .tar.bz2-Archive können als Spiel geteilt werden.',
-        'file_name' => 'Bitte benenne die Datei um: Ein Backtick, ein Steuerzeichen, ein Sternchen oder ein Fragezeichen im Dateinamen macht das Rezept unsicher.',
+        'file_name' => 'Bitte benenne die Datei um: Der Dateiname darf keinen Backtick, kein Steuerzeichen und keines der Zeichen * ? : " < > | enthalten, nicht mit einem Punkt beginnen und keine zwei Punkte hintereinander haben.',
         'file_name_pattern' => 'Bitte benenne die Datei um: Der Name enthält zu wenige Buchstaben oder Ziffern, das Dateimuster würde auch fremde Archive treffen.',
         'one_line' => 'Der Text darf keine Zeilenumbrüche oder Steuerzeichen enthalten.',
         'path' => 'Der Pfad muss relativ zum Spielordner sein: ohne führenden Schrägstrich, ohne Laufwerksbuchstabe, ohne „..“ und ohne Anführungszeichen, Semikolon, Sternchen oder andere Sonderzeichen.',

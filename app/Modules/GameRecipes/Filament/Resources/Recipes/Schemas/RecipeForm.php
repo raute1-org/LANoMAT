@@ -6,6 +6,7 @@ use App\Modules\Files\Models\SharedFile;
 use App\Modules\GameRecipes\Enums\PullRequestState;
 use App\Modules\GameRecipes\Enums\RecipeFileRole;
 use App\Modules\GameRecipes\Enums\RecipeStatus;
+use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\CatalogPreview;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\LauncherReview;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\PullRequestColor;
 use App\Modules\GameRecipes\Filament\Resources\Recipes\Support\RecipeStatusOptions;
@@ -116,6 +117,19 @@ class RecipeForm
                         ->helperText(__('game_recipes.fields.shared_file_help')),
                     Toggle::make('required')
                         ->label(__('game_recipes.fields.required')),
+                    // The platform, manual flag, notes, author, licence and
+                    // tags have no form field: they survive a save but a
+                    // reviewer could not see that a file is Windows-only or
+                    // must be fetched by hand. The entry carries its own name
+                    // so the repeater keeps the real keys on save; a component
+                    // bound to a real key dropped it (see verify_display).
+                    TextEntry::make('requirement_details_display')
+                        ->label(__('game_recipes.requirement_details.heading'))
+                        ->hiddenLabel()
+                        ->state(fn (Get $get): array => self::requirementDetailLines($get))
+                        ->listWithLineBreaks()
+                        ->visible(fn (Get $get): bool => self::requirementDetailLines($get) !== [])
+                        ->columnSpanFull(),
                 ])
                 ->columns(2)
                 ->defaultItems(0)
@@ -167,12 +181,15 @@ class RecipeForm
                 ->visible(fn (?GameRecipe $record): bool => $record instanceof GameRecipe)
                 ->schema(fn (?GameRecipe $record): array => self::launcherEntries($record)),
             // Where the recipe stands in the git catalogue. Read-only: the
-            // proposal job and the status sync are the only writers.
+            // proposal job and the status sync are the only writers. While pull
+            // requests are configured it also shows, before anything is sent,
+            // what the catalogue checks would refuse — including when nothing
+            // was ever proposed.
             Section::make(__('recipe_pull_requests.section'))
                 ->description(__('recipe_pull_requests.section_help'))
                 ->columnSpanFull()
                 ->visible(fn (?GameRecipe $record): bool => $record instanceof GameRecipe
-                    && $record->pr_state instanceof PullRequestState)
+                    && ($record->pr_state instanceof PullRequestState || CatalogPreview::appliesTo($record)))
                 ->schema(fn (?GameRecipe $record): array => self::pullRequestEntries($record)),
         ]);
     }
@@ -211,6 +228,55 @@ class RecipeForm
         $os = is_string($state['os'] ?? null) && $state['os'] !== '' ? $state['os'] : null;
 
         return $os === null ? $line : $line.__('game_recipes.launcher.verify_os', ['os' => $os]);
+    }
+
+    /**
+     * One read-only line per requirement key the form has no field for.
+     *
+     * @return list<string>
+     */
+    private static function requirementDetailLines(Get $get): array
+    {
+        $lines = [];
+
+        $os = $get('os');
+
+        if (is_string($os) && $os !== '' && $os !== 'any') {
+            $lines[] = __('game_recipes.requirement_details.os', ['os' => ['windows' => 'Windows', 'linux' => 'Linux', 'macos' => 'macOS'][$os] ?? $os]);
+        }
+
+        if (self::isTrue($get('manual'))) {
+            $lines[] = __('game_recipes.requirement_details.manual');
+        }
+
+        foreach (['notes', 'author', 'license'] as $key) {
+            $value = $get($key);
+
+            if (is_string($value) && trim($value) !== '') {
+                $lines[] = __('game_recipes.requirement_details.'.$key, ['value' => trim($value)]);
+            }
+        }
+
+        $tags = $get('tags');
+
+        if (is_array($tags) && $tags !== []) {
+            $labels = array_values(array_filter(
+                array_map(static fn (mixed $tag): string => is_string($tag) ? trim($tag) : '', $tags),
+                static fn (string $tag): bool => $tag !== '',
+            ));
+
+            if ($labels !== []) {
+                $lines[] = __('game_recipes.requirement_details.tags', ['value' => implode(', ', $labels)]);
+            }
+        }
+
+        return $lines;
+    }
+
+    /** A JSON/panel boolean in any of its spellings. */
+    private static function isTrue(mixed $value): bool
+    {
+        return $value === true || $value === 1 || $value === '1' || $value === 'true';
     }
 
     /**
@@ -320,23 +386,35 @@ class RecipeForm
     /** @return list<Component> */
     private static function pullRequestEntries(?GameRecipe $record): array
     {
-        if (! $record instanceof GameRecipe || ! $record->pr_state instanceof PullRequestState) {
+        if (! $record instanceof GameRecipe) {
             return [];
         }
 
+        $entries = [];
         $state = $record->pr_state;
 
-        $entries = [
-            Text::make($state->label())->badge()->color(PullRequestColor::for($state)),
-        ];
+        if ($state instanceof PullRequestState) {
+            $entries[] = Text::make($state->label())->badge()->color(PullRequestColor::for($state));
 
-        if ($state->existsRemotely() && is_string($record->pr_url) && $record->pr_url !== '') {
-            $entries[] = TextEntry::make($record->pr_url)
-                ->url($record->pr_url, shouldOpenInNewTab: true)
-                ->color('primary');
+            if ($state->existsRemotely() && is_string($record->pr_url) && $record->pr_url !== '') {
+                $entries[] = TextEntry::make($record->pr_url)
+                    ->url($record->pr_url, shouldOpenInNewTab: true)
+                    ->color('primary');
+            }
+        }
+
+        // Asked once per question and render, and only while the pipeline would
+        // take this recipe; a recipe nobody would send has no preview.
+        if (CatalogPreview::appliesTo($record)) {
+            $entries = [...$entries, ...self::catalogPreviewEntries($record)];
+        }
+
+        if (! $state instanceof PullRequestState) {
+            return $entries;
         }
 
         if (in_array($state, [PullRequestState::Blocked, PullRequestState::Failed], true) && filled($record->pr_error)) {
+            $entries[] = Text::make(__('recipe_pull_requests.stored_reason'))->weight(FontWeight::SemiBold);
             $entries[] = Text::make((string) $record->pr_error)->color('danger');
         }
 
@@ -347,5 +425,89 @@ class RecipeForm
             ]));
 
         return $entries;
+    }
+
+    /**
+     * What would block the pull request: for a draft both what the catalogue
+     * wants from a draft and what would still be missing once it is published
+     * (the default trigger opens the pull request while publishing, so the
+     * second list is the one that decides), for a published recipe only what
+     * blocks it now. The reasons are the checks' own English sentences, shown
+     * verbatim and escaped; the framing is German.
+     *
+     * @return list<Component>
+     */
+    private static function catalogPreviewEntries(GameRecipe $record): array
+    {
+        $entries = [Text::make(__('recipe_pull_requests.preview.heading'))->weight(FontWeight::SemiBold)];
+
+        $published = CatalogPreview::problems($record, RecipeStatus::Published);
+
+        if ($record->status !== RecipeStatus::Draft) {
+            // The stored status is what the next proposal would carry; an
+            // archived recipe with an open pull request is the one case where
+            // that is not "published".
+            $current = $record->status === RecipeStatus::Published
+                ? $published
+                : CatalogPreview::problems($record);
+
+            if ($current === []) {
+                $entries[] = Text::make(__('recipe_pull_requests.preview.ready'))->color('success');
+
+                return $entries;
+            }
+
+            $entries[] = Text::make(__('recipe_pull_requests.preview.now'))->weight(FontWeight::SemiBold);
+            $entries[] = self::catalogReasonList($current, 'catalog_preview_now', __('recipe_pull_requests.preview.now'));
+
+            return $entries;
+        }
+
+        $draft = CatalogPreview::problems($record);
+
+        if ($draft === [] && $published === []) {
+            $entries[] = Text::make(__('recipe_pull_requests.preview.ready'))->color('success');
+
+            return $entries;
+        }
+
+        $entries[] = Text::make(__('recipe_pull_requests.preview.reasons_help'))->size(TextSize::Small)->color('gray');
+
+        if ($draft !== []) {
+            $entries[] = Text::make(__('recipe_pull_requests.preview.draft'))->weight(FontWeight::SemiBold);
+            $entries[] = self::catalogReasonList($draft, 'catalog_preview_draft', __('recipe_pull_requests.preview.draft'));
+            $entries[] = Text::make(__('recipe_pull_requests.preview.draft_help'))->size(TextSize::Small)->color('gray');
+        }
+
+        if ($published !== []) {
+            $entries[] = Text::make(__('recipe_pull_requests.preview.published'))->weight(FontWeight::SemiBold);
+            $entries[] = self::catalogReasonList($published, 'catalog_preview_published', __('recipe_pull_requests.preview.published'));
+            $entries[] = Text::make(self::publishedPreviewHelp())->size(TextSize::Small)->color('gray');
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @param  list<string>  $reasons
+     */
+    private static function catalogReasonList(array $reasons, string $name, string $label): TextEntry
+    {
+        // The label is hidden but announced: it names the list for a screen
+        // reader instead of the entry's machine name.
+        return TextEntry::make($name)
+            ->label($label)
+            ->hiddenLabel()
+            ->state($reasons)
+            ->listWithLineBreaks()
+            ->columnSpanFull();
+    }
+
+    /** Which list decides the pull request, from the configured trigger. */
+    private static function publishedPreviewHelp(): string
+    {
+        return config('recipes.pull_requests.trigger') === 'contribute'
+            ? __('recipe_pull_requests.preview.published_help_contribute')
+            : __('recipe_pull_requests.preview.published_help_publish');
     }
 }

@@ -55,6 +55,7 @@ final class PortableRecipeBuilder
      * Markdown code span and the requirement's glob. A backtick would end a
      * code span, a control character a line, a newline a front matter, and
      * `*`/`?` would turn the pinned glob into a wildcard for other archives.
+     * The name must also be one the installing client keeps as it is.
      */
     public static function hasUnsafeArchiveName(string $name): bool
     {
@@ -63,7 +64,13 @@ final class PortableRecipeBuilder
         return str_contains($name, '`')
             || str_contains($name, '*')
             || str_contains($name, '?')
-            || preg_match('/[\x00-\x1F\x7F]/', $name) === 1;
+            || preg_match('/[\x00-\x1F\x7F]/', $name) === 1
+            // The installing client stores a download under a name it rewrites
+            // (`: " < > |` and a ".." become "-", leading dots go). A recipe
+            // command that still names the original would never find the file.
+            || preg_match('/[:"<>|]/', $name) === 1
+            || str_contains($name, '..')
+            || str_starts_with($name, '.');
     }
 
     /**
@@ -95,6 +102,53 @@ final class PortableRecipeBuilder
         return self::isArchiveName($name)
             && ! self::hasUnsafeArchiveName($name)
             && self::hasReliableMatchPattern($name);
+    }
+
+    /**
+     * What the generated text says while the recipe is a draft, each with what
+     * it says once the orga has published it. The catalogue asks a draft to say
+     * that it still needs verification on the LAN; a published game that keeps
+     * calling itself a draft would be telling its players something untrue.
+     *
+     * @var array{0: string, 1: string}
+     */
+    private const array DRAFT_STEP_NOTE = [
+        'The launcher checks these files itself; this draft needs verification on the LAN before the orga publishes it.',
+        'The launcher checks these files itself.',
+    ];
+
+    /** @var array{0: string, 1: string} */
+    private const array DRAFT_DESCRIPTION_NOTE = [
+        'This draft needs verification on the LAN before the orga publishes it.',
+        'The orga reviewed and published it for this LAN.',
+    ];
+
+    /** @var array{0: string, 1: string} */
+    private const array DRAFT_SKILL_NOTE = [
+        'It is a draft recipe: it needs verification on the LAN before the orga publishes it.',
+        'The orga reviewed and published this recipe for the LAN.',
+    ];
+
+    /** @var array{0: string, 1: string} */
+    private const array DRAFT_TROUBLE_NOTE = [
+        '- Still failing: this draft needs verification on the LAN; note what failed for the orga.',
+        '- Still failing: note what failed and tell the orga.',
+    ];
+
+    /**
+     * The generated text of a shared game as it reads once published: every
+     * sentence the builder wrote about "this draft" replaced by its published
+     * form. Text the builder did not write (an orga's edit, a hand-written
+     * SKILL.md) contains none of these sentences and comes back unchanged.
+     */
+    public static function publishedText(string $text): string
+    {
+        return strtr($text, [
+            self::DRAFT_STEP_NOTE[0] => self::DRAFT_STEP_NOTE[1],
+            self::DRAFT_DESCRIPTION_NOTE[0] => self::DRAFT_DESCRIPTION_NOTE[1],
+            self::DRAFT_SKILL_NOTE[0] => self::DRAFT_SKILL_NOTE[1],
+            self::DRAFT_TROUBLE_NOTE[0] => self::DRAFT_TROUBLE_NOTE[1],
+        ]);
     }
 
     /**
@@ -392,7 +446,7 @@ final class PortableRecipeBuilder
             $detail .= 'On Linux the native binary starts directly from the unpacked folder. ';
         }
 
-        return $detail.'The launcher checks these files itself; this draft needs verification on the LAN before the orga publishes it.';
+        return $detail.self::DRAFT_STEP_NOTE[0];
     }
 
     /**
@@ -492,7 +546,7 @@ final class PortableRecipeBuilder
         return $title.' is a portable game archive shared by a participant on the LANoMAT file host. '
             .'The archive holds a ready-to-run game folder: unpack it into the target folder and'.$start.'; '
             .'the game files are user-supplied and never leave the LAN. '
-            .'This draft needs verification on the LAN before the orga publishes it.';
+            .self::DRAFT_DESCRIPTION_NOTE[0];
     }
 
     /** @param array<string, mixed> $input */
@@ -554,7 +608,7 @@ final class PortableRecipeBuilder
             $summaryText,
             '',
             'This skill installs the game from a portable archive that a participant shared on the LAN file host.',
-            'It is a draft recipe: it needs verification on the LAN before the orga publishes it.',
+            self::DRAFT_SKILL_NOTE[0],
             '',
             '## When to use',
             '',
@@ -650,7 +704,7 @@ final class PortableRecipeBuilder
             '- Windows blocks the executable: unblock the game folder in its file properties or with `Unblock-File`.',
             '- Linux starts Wine but no window appears: check that a 32-bit Wine prefix exists for older games.',
             '- A server does not appear: compare the address and port on the server card with the game\'s server list.',
-            '- Still failing: this draft needs verification on the LAN; note what failed for the orga.',
+            self::DRAFT_TROUBLE_NOTE[0],
             '',
         ];
 

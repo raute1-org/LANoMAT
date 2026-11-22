@@ -6,6 +6,7 @@ import LauncherLink from '@/components/LauncherLink.vue';
 import JoinOptions from '@/components/servers/JoinOptions.vue';
 import { Button } from '@/components/ui/button';
 import { isAllowedJoinUrl } from '@/composables/useJoinOption';
+import { joinLinkNamesServer } from '@/lib/launcherJoin';
 import type { JoinOptionDto, ServerInstallDto } from '@/types';
 
 /**
@@ -42,6 +43,16 @@ const launcherJoinUrl = computed<string | null>(() => {
 
     return url !== null && url.startsWith('lanomat://join/') ? url : null;
 });
+
+/** False for a link that installs and starts the game but cannot name this server. */
+const joinsServer = computed(() => joinLinkNamesServer(launcherJoinUrl.value));
+
+/**
+ * `install.lanReady` false: the game's files are not on the LAN right now, so
+ * the launcher starts an existing install but cannot install fresh. The same
+ * words as `install_not_on_lan` in `lang/de/gameservers.php`.
+ */
+const missingOnLan = computed(() => props.server.install?.lanReady === false);
 
 /**
  * A connect string only becomes a link on the same scheme allowlist
@@ -127,14 +138,35 @@ const labels: Record<string, string> = {
                     "
                 >
                     <Play class="size-4" aria-hidden="true" />
-                    Im Launcher beitreten
+                    {{
+                        joinsServer
+                            ? 'Im Launcher beitreten'
+                            : 'Im Launcher starten'
+                    }}
                 </LauncherLink>
             </div>
 
             <!-- Holds for every game the launcher can install, not just the first. -->
-            <p class="text-xs text-muted-foreground">
+            <p v-if="joinsServer" class="text-xs text-muted-foreground">
                 Der Launcher installiert das Spiel bei Bedarf und startet direkt
                 auf diesem Server.
+            </p>
+            <p v-else class="text-xs text-muted-foreground">
+                Der Launcher installiert das Spiel bei Bedarf und startet es.
+                Den Server wählst du dann im Spiel; seine Adresse steht oben.
+            </p>
+
+            <!-- The archive is not on the LAN: install-fresh is blocked, the
+                 join above still starts an existing install. -->
+            <p
+                v-if="missingOnLan"
+                class="text-xs text-muted-foreground"
+                data-test="install-not-on-lan"
+            >
+                Für dieses Spiel liegen gerade nicht alle Dateien auf dem
+                LAN-Server; eine Neuinstallation kann deshalb scheitern. Wer das
+                Spiel schon hat, kann trotzdem beitreten — die Orga hilft, wenn
+                etwas fehlt.
             </p>
 
             <details v-if="hasAlternatives" class="group text-xs">

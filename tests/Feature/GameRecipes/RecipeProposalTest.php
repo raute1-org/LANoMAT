@@ -820,3 +820,66 @@ it('neutralises participant markdown in the title and body', function () {
         ->and($body)->toContain('\|')
         ->and($body)->toContain('\@org/team');
 });
+
+it('previews what would block a proposal without touching the repository or the recipe', function () {
+    $fake = fakeRecipeRepository();
+    $user = User::factory()->create();
+
+    $recipe = app(ContributeRecipe::class)->handle($user, [
+        'slug' => 'bare-game',
+        'title' => 'Bare Game',
+        'summary' => 'A game added through the MCP tool.',
+        'platforms' => ['windows'],
+        'requires' => [[
+            'role' => 'base',
+            'label' => 'Bare game archive',
+            'match' => ['bare-game.zip'],
+            'required' => true,
+        ]],
+        'steps' => [[
+            'id' => 'install',
+            'title' => 'Install',
+            'os' => 'any',
+            'optional' => false,
+            'detail' => 'Unpack the archive.',
+        ]],
+        'via' => 'mcp',
+    ]);
+
+    $asDraft = app(ProposeRecipe::class)->preview($recipe);
+    $asPublished = app(ProposeRecipe::class)->preview($recipe, RecipeStatus::Published);
+
+    // The catalogue holds a draft to more rules than a published recipe.
+    expect(implode("\n", $asDraft))->toContain('SKILL.md has')
+        ->and(implode("\n", $asDraft))->toContain('3 to 6 steps')
+        ->and(implode("\n", $asPublished))->toContain('SKILL.md has')
+        ->and(implode("\n", $asPublished))->not->toContain('3 to 6 steps')
+        // Asking is free: no request, no state, and the stored status is untouched.
+        ->and($recipe->status)->toBe(RecipeStatus::Draft)
+        ->and($recipe->refresh()->pr_state)->toBeNull()
+        ->and($recipe->pr_error)->toBeNull();
+
+    $fake->assertNothingProposed();
+});
+
+it('previews nothing for a shared game, whose text is ready as it is', function () {
+    fakeRecipeRepository();
+    $user = User::factory()->create();
+    $archive = SharedFile::factory()->approved()->create([
+        'user_id' => $user->id,
+        'event_id' => Event::factory()->registration()->create()->id,
+        'original_name' => 'tiny-racer.zip',
+    ]);
+
+    $recipe = app(ShareGame::class)->handle($user, [
+        'title' => 'Tiny Racer',
+        'shared_file_id' => $archive->id,
+        'platforms' => ['windows', 'linux'],
+        'executable' => 'bin/TinyRacer.exe',
+        'linux_runner' => 'wine',
+        'multiplayer' => true,
+    ]);
+
+    expect(app(ProposeRecipe::class)->preview($recipe))->toBe([])
+        ->and(app(ProposeRecipe::class)->preview($recipe, RecipeStatus::Published))->toBe([]);
+});

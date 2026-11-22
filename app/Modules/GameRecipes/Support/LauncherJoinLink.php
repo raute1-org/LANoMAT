@@ -16,8 +16,15 @@ use App\Modules\GameServers\Support\JoinLinkTemplates;
  * installed game already on the server (`?address=<host>:<port>`); every other
  * recipe launches normally and then opens the server's own join URL
  * (`?url=<urlencoded url>`, for example a `steam://connect/...` link). A server
- * with neither, or a join URL the browser would refuse to open, yields no
- * link — the caller then keeps the server's own fallback action.
+ * without an address and without a join URL yields no link — the caller then
+ * keeps the server's own fallback action.
+ *
+ * A third shape exists and is honest about less: a server that has an address
+ * but no join URL the launcher could open, for any recipe other than UT2004,
+ * gets the bare `lanomat://join/<slug>`. The launcher then installs and
+ * starts the game; it cannot put the player on the server. The website tells
+ * the two apart by the query (`joinLinkNamesServer` in the frontend) and
+ * calls the bare one "Im Launcher starten".
  */
 final class LauncherJoinLink
 {

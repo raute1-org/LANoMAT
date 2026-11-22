@@ -79,7 +79,7 @@ final class LocalFileStore implements FileStore
         abort_unless($this->exists($path), 404);
 
         // Always an opaque attachment: never rendered from our origin, never sniffed.
-        return Storage::disk($this->disk)->download($path, $name, [
+        return Storage::disk($this->disk)->download($path, UploadFileName::forDownload($name), [
             'Content-Type' => 'application/octet-stream',
             'X-Content-Type-Options' => 'nosniff',
         ]);

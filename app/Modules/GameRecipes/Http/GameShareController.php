@@ -156,7 +156,30 @@ final class GameShareController extends Controller
             'visibility' => $file->visibility->value,
             'createdAt' => ($file->created_at ?? now())->toIso8601String(),
             'usable' => PortableRecipeBuilder::isShareableArchive($file->original_name),
+            'unusableReason' => $this->unusableReason($file->original_name),
         ];
+    }
+
+    /**
+     * Why a real archive still cannot be shared (its name), in the words the
+     * share action would refuse it with; null for a usable file and for a
+     * file that is no archive at all (the list explains that case itself).
+     */
+    private function unusableReason(string $name): ?string
+    {
+        if (! PortableRecipeBuilder::isArchiveName($name)) {
+            return null;
+        }
+
+        if (PortableRecipeBuilder::hasUnsafeArchiveName($name)) {
+            return (string) __('game_share.errors.file_name');
+        }
+
+        if (! PortableRecipeBuilder::hasReliableMatchPattern($name)) {
+            return (string) __('game_share.errors.file_name_pattern');
+        }
+
+        return null;
     }
 
     /**

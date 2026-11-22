@@ -49,9 +49,21 @@ class GameServerPageController extends Controller
 
         $servers = [];
 
+        // One resolver for the whole page: one recipe-catalogue read and one location-snapshot
+        // read for all rows, never one per server.
+        $install = ServerListProjection::installLinks();
+        $occupants = ServerListProjection::occupants();
+
         if ($event instanceof Event) {
             $servers = ServerListProjection::linksForEvent($event)->map(
-                fn (ServerLink $link): array => ServerListProjection::dto($link, withPlayerList: true) + [
+                fn (ServerLink $link): array => ServerListProjection::dto(
+                    $link,
+                    withPlayerList: true,
+                    install: $install,
+                    occupants: $occupants,
+                    occupantEvent: $event,
+                    occupantViewer: $viewer,
+                ) + [
                     'isMine' => $viewer instanceof User && ServerListProjection::viewerPlaysIn($link->match, $viewer),
                 ],
             )->values()->all();
@@ -61,8 +73,16 @@ class GameServerPageController extends Controller
 
         // `canManage` is decided here, per server, by the same policy the Actions enforce.
         // The admin props (map list, current map) exist only for those who may manage.
-        $permanent = ServerListProjection::permanentLinks()->map(function (ServerLink $link) use ($viewer, &$manageable): array {
-            $dto = ServerListProjection::permanentDto($link, withPlayerList: $viewer instanceof User);
+        $permanent = ServerListProjection::permanentLinks()->map(function (ServerLink $link) use ($viewer, $install, $occupants, $current, &$manageable): array {
+            // Permanent servers belong to no event: their occupant line is the current LAN's.
+            $dto = ServerListProjection::permanentDto(
+                $link,
+                withPlayerList: $viewer instanceof User,
+                install: $install,
+                occupants: $occupants,
+                occupantEvent: $current,
+                occupantViewer: $viewer,
+            );
             $driver = $link->controlDriver();
             $canManage = $viewer instanceof User
                 && ($driver === ControlDriver::RemoteDocker || ($driver === ControlDriver::Pelican && $link->hasPelicanLink()))

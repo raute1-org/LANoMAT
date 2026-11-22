@@ -74,7 +74,7 @@ type RecentGame = GameCard & { last_played_at: string };
 
 const props = defineProps<{
     games: GameCard[];
-    active_event: { slug: string; name: string } | null;
+    active_event: { slug: string; name: string; live?: boolean } | null;
     game_modules: { game_servers: boolean; web_voice: boolean; lfg: boolean };
     filters: { only_lan: boolean };
 }>();
@@ -320,7 +320,8 @@ function absoluteTime(iso: string): string {
                     v-if="active_event"
                     class="mt-3 font-mono text-xs text-muted-foreground"
                 >
-                    ● LIVE {{ active_event.name }}
+                    <template v-if="active_event.live">● LIVE </template
+                    >{{ active_event.name }}
                     <span v-if="game_modules.web_voice">
                         — Sprachchat offen</span
                     >

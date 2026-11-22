@@ -10,6 +10,7 @@ use App\Modules\Files\Enums\UploadReservationStatus;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\UploadReservation;
 use App\Modules\Files\Support\ResumableUploads;
+use App\Modules\Files\Support\UploadFileName;
 use App\Modules\Files\Support\UploadQuota;
 use App\Modules\Files\Support\UploadTypeGuard;
 use Illuminate\Support\Facades\DB;
@@ -41,13 +42,17 @@ class IssueUploadTicket
             throw FileException::uploadsUnavailable();
         }
 
-        $name = self::cleanName($name);
+        $name = UploadFileName::clean($name);
 
         if ($size < 1 || $size > UploadQuota::maxFileBytes()) {
             throw FileException::tooLarge();
         }
 
-        if ($name === '' || UploadTypeGuard::fromConfig()->isBlockedType($name, null, $clientMime)) {
+        if ($name === '') {
+            throw FileException::invalidName();
+        }
+
+        if (UploadTypeGuard::fromConfig()->isBlockedType($name, null, $clientMime)) {
             throw FileException::blockedType();
         }
 
@@ -98,18 +103,5 @@ class IssueUploadTicket
         });
 
         return ['ticket' => $ticket, 'reservation' => $reservation];
-    }
-
-    /**
-     * The name as stored and compared: no control characters, no path parts
-     * (only the base name is ever shown or used as a download name), bounded.
-     */
-    public static function cleanName(string $name): string
-    {
-        $name = (string) preg_replace('/[\x00-\x1F\x7F]/u', '', $name);
-        $name = trim(str_replace('\\', '/', $name));
-        $name = basename($name);
-
-        return mb_substr($name, 0, 255);
     }
 }

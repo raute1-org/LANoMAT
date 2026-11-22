@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Events\Models\Event;
 use App\Modules\Files\Actions\DeleteSharedFile;
 use App\Modules\Files\Actions\UploadSharedFile;
+use App\Modules\Files\Contracts\ShareableGameArchive;
 use App\Modules\Files\Exceptions\FileException;
 use App\Modules\Files\Models\SharedFile;
 use App\Modules\Files\Support\FileStores;
@@ -32,8 +33,12 @@ class FilePageController extends Controller
      * `mine` so the UI can show a "waiting for approval" indicator. The
      * `mine` flag is derived from the request's authenticated user — never
      * from client input.
+     *
+     * `shareableAsGame` says whether "Als Spiel teilen" may appear on a row.
+     * It comes from the Files-owned contract, so the page never re-guesses the
+     * recipe catalogue's archive rule in Vue and never imports GameRecipes.
      */
-    public function index(Request $request, Event $event): Response
+    public function index(Request $request, Event $event, ShareableGameArchive $shareableArchives): Response
     {
         abort_unless($event->isPubliclyVisible(), 404);
 
@@ -43,7 +48,7 @@ class FilePageController extends Controller
 
         return Inertia::render('Files/Index', [
             'event' => ['name' => $event->name, 'slug' => $event->slug],
-            'files' => $files->map(fn (SharedFile $file): array => $this->fileDto($file, $userId))->all(),
+            'files' => $files->map(fn (SharedFile $file): array => $this->fileDto($file, $userId, $shareableArchives))->all(),
             'labels' => trans('files.page'),
             'quota' => $this->quotaDto($event, $request->user()),
             'upload' => $this->uploadDto($event),
@@ -157,7 +162,7 @@ class FilePageController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function fileDto(SharedFile $file, ?int $userId): array
+    private function fileDto(SharedFile $file, ?int $userId, ShareableGameArchive $shareableArchives): array
     {
         return [
             'id' => $file->id,
@@ -167,6 +172,7 @@ class FilePageController extends Controller
             'visibility' => $file->visibility->value,
             'createdAt' => ($file->created_at ?? now())->toIso8601String(),
             'mine' => $userId !== null && $file->user_id === $userId,
+            'shareableAsGame' => $shareableArchives->isShareable($file),
         ];
     }
 }

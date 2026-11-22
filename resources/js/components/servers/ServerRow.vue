@@ -8,6 +8,7 @@ import PlayerListDisclosure from '@/components/servers/PlayerListDisclosure.vue'
 import RemoteDockerControls from '@/components/servers/RemoteDockerControls.vue';
 import ServerAdminControls from '@/components/servers/ServerAdminControls.vue';
 import ServerInstallActions from '@/components/servers/ServerInstallActions.vue';
+import ServerOccupants from '@/components/servers/ServerOccupants.vue';
 import { Button } from '@/components/ui/button';
 import { useJoinOption } from '@/composables/useJoinOption';
 import { serverLiveVariant } from '@/lib/serverStatus';
@@ -278,6 +279,12 @@ onUnmounted(() => clearTimeout(hintTimer));
                 :query="server.query ?? null"
                 :labels="labels"
                 default-open
+            />
+
+            <!-- Who of the accounts is on it (Presence); nothing when nobody is visible. -->
+            <ServerOccupants
+                :occupants="server.occupants ?? null"
+                :labels="labels"
             />
 
             <p v-if="server.status === 'offline'" class="text-muted-foreground">

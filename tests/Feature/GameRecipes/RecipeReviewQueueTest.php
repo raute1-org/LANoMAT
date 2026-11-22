@@ -150,7 +150,12 @@ it('keeps the list query count flat as shared games are added', function () {
     $seed = function (int $from, int $to): void {
         for ($i = $from; $i <= $to; $i++) {
             $file = SharedFile::factory()->create(['original_name' => 'shared-'.$i.'.zip']);
-            reviewQueueContribution('shared-game-'.$i, $file);
+            $recipe = reviewQueueContribution('shared-game-'.$i, $file);
+            // The stored reason is a model column, so it must not cost a query.
+            $recipe->forceFill([
+                'pr_state' => PullRequestState::Blocked,
+                'pr_error' => 'the pull request title: line 1: a private IPv4 address 19[REDACTED len=12].',
+            ])->save();
         }
     };
 
@@ -168,9 +173,51 @@ it('keeps the list query count flat as shared games are added', function () {
     $seed(3, 8);
 
     $queries = 0;
-    $this->get('/admin/recipes')->assertOk();
+    $this->get('/admin/recipes')
+        ->assertOk()
+        ->assertSee('a private IPv4 address 19[REDACTED len=12].');
 
     expect($queries)->toBe($small);
+});
+
+it('shows the stored reason of a blocked or failed proposal with its state', function () {
+    $blocked = reviewQueueContribution('blocked-game');
+    $blocked->forceFill([
+        'pr_state' => PullRequestState::Blocked,
+        'pr_error' => "the pull request title: line 1: a private IPv4 address 19[REDACTED len=12].\nSKILL.md has 15 lines.",
+    ])->save();
+
+    $failed = reviewQueueContribution('failed-game');
+    $failed->forceFill([
+        'pr_state' => PullRequestState::Failed,
+        'pr_error' => '<script>alert(1)</script> the repository could not be reached',
+    ])->save();
+
+    // A pull request that exists says nothing about an old local reason.
+    $open = reviewQueueContribution('open-game');
+    $open->forceFill([
+        'pr_number' => 7,
+        'pr_url' => 'https://github.test/lanomat/pull/7',
+        'pr_state' => PullRequestState::Open,
+        'pr_error' => 'an old reason that no longer applies',
+    ])->save();
+
+    $firstLine = 'the pull request title: line 1: a private IPv4 address 19[REDACTED len=12].';
+    $this->actingAs($this->orga);
+
+    Livewire::test(ListRecipes::class)
+        ->assertTableColumnHasDescription('pr_state', $firstLine, $blocked)
+        ->assertTableColumnHasDescription('pr_state', '<script>alert(1)</script> the repository could not be reached', $failed)
+        ->assertTableColumnDoesNotHaveDescription('pr_state', 'an old reason that no longer applies', $open);
+
+    $this->get('/admin/recipes')
+        ->assertOk()
+        // The first line only, escaped, never the raw markup.
+        ->assertSee($firstLine)
+        ->assertDontSee('SKILL.md has 15 lines')
+        ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt; the repository could not be reached', false)
+        ->assertDontSee('<script>alert(1)</script> the repository could not be reached', false)
+        ->assertDontSee('an old reason that no longer applies');
 });
 
 it('shows the pull request state of a recipe read-only on the edit page', function () {
@@ -213,6 +260,16 @@ it('hides the pull request section while nothing was ever proposed', function ()
     $this->get('/admin/recipes/'.$recipe->id.'/edit')
         ->assertOk()
         ->assertDontSee(__('recipe_pull_requests.section'));
+});
+
+it('shows no catalogue preview on the list page', function () {
+    fakeRecipeRepository();
+    GameRecipe::factory()->contributedBy(User::factory()->create())->create();
+    $this->actingAs($this->orga);
+
+    $this->get('/admin/recipes')
+        ->assertOk()
+        ->assertDontSee(__('recipe_pull_requests.preview.heading'));
 });
 
 it('keeps the lineup switch on the edit form and explains it', function () {

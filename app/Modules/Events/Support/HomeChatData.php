@@ -319,10 +319,13 @@ final class HomeChatData
      */
     private function serverCards(Collection $links, ?Event $event): array
     {
+        // One catalogue read for the whole card strip (the chat shows up to eight).
+        $install = ServerListProjection::installLinks();
+
         return array_values($links
             ->take(self::MAX_SERVERS)
-            ->map(function (ServerLink $link) use ($event): array {
-                $dto = ServerListProjection::dto($link);
+            ->map(function (ServerLink $link) use ($event, $install): array {
+                $dto = ServerListProjection::dto($link, install: $install);
                 $query = is_array($dto['query'] ?? null) ? $dto['query'] : [];
                 $game = is_string($dto['game'] ?? null) ? $dto['game'] : null;
                 $title = is_string($dto['title'] ?? null) && $dto['title'] !== '' ? $dto['title'] : '';

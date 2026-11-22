@@ -14,6 +14,12 @@ import type { MatchServerDto, SpectateHintDto } from '@/types';
  * server is Ready — a real `steam://`/direct-connect link when available,
  * otherwise a copy-to-clipboard fallback for `address:port`.
  *
+ * The join is never the card's amber action: the match card's own primary is
+ * reporting, confirming or going live, and a ready server can be on screen at
+ * the same time (docs/design.md: one amber action per screen). `JoinOptions`
+ * therefore renders `primary: false` here, and the plain "Verbinden" is
+ * outline like everywhere except a "Dein Match" row of the server overview.
+ *
  * Hidden entirely while `server` is null (no ServerLink provisioned at
  * all — most matches, most of the time) to keep the calm/quiet card from
  * growing a permanent empty slot.
@@ -120,6 +126,7 @@ async function copyAddress() {
                 :address="addressPort"
                 :labels="labels"
                 handler-help
+                :primary="false"
             />
         </div>
 
