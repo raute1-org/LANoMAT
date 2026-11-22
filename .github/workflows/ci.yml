@@ -173,6 +173,12 @@ jobs:
       - run: npm run format:check
       - run: npm run types:check
 
+      # `tests/js/*.test.ts` needs the root dependencies (two suites import
+      # `vue`) and nothing else; the launcher UI guard is dependency-free and
+      # also runs on its own in .github/workflows/frontend-guards.yml.
+      - run: npm run test:js
+      - run: node clients/launcher/app/ui/check-ui.mjs
+
   # Aggregate gate: one required check name regardless of the job matrix.
   ci:
     name: ci

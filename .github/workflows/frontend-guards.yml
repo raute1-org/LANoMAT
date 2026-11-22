@@ -1,0 +1,112 @@
+# The two frontend checks that nothing ran automatically.
+#
+#   * `tests/js/*.test.ts` — the launcher-link heuristics, the catering menu
+#     logic and the assistant's stream and Markdown handling (run by
+#     hand until now with `npm run test:js`).
+#   * `clients/launcher/app/ui/check-ui.mjs` — the launcher UI's static contract
+#     (required ids, German copy, shell command names, Signalpult tokens;
+#     600+ checks, no dependencies).
+#
+# Why a separate workflow (and not a job in ci.yml):
+#   * ci.yml is switched off by hand right now (Settings -> Actions -> Disable)
+#     while its sharded rewrite waits in a draft pull request. Both checks are
+#     cheap and dependency-light, so they can run the whole time;
+#   * it wakes only for the files it covers, so a PHP or docs-only change costs
+#     no run;
+#   * it has no aggregate gate to keep stable and no service containers.
+# Both commands also stand in ci.yml's `frontend` job next to the other
+# frontend checks, so switching ci.yml back on changes nothing about the result.
+#
+# Triggers: pull requests and pushes to main that touch the tests, the frontend
+# sources those tests import (`resources/js/lib`, `composables` and `types` —
+# deliberately not all of `resources/js`, which is far larger), the launcher UI,
+# or the root package files.
+#
+# Every `uses:` is pinned to a commit SHA with the release in a trailing comment,
+# in the same style as .github/workflows/recipes.yml and client-agent.yml.
+#
+# Plain `pull_request` (never `pull_request_target`): a fork pull request runs
+# untrusted YAML, so it must not get repository secrets. It needs none.
+#
+# Not part of branch protection on its own yet: mark `JS unit tests` and
+# `Launcher UI contract` as required next to `ci` once the sharded ci.yml lands.
+name: Frontend guards
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/js/**'
+      - 'resources/js/lib/**'
+      - 'resources/js/composables/**'
+      - 'resources/js/types/**'
+      - 'clients/launcher/app/ui/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/frontend-guards.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/js/**'
+      - 'resources/js/lib/**'
+      - 'resources/js/composables/**'
+      - 'resources/js/types/**'
+      - 'clients/launcher/app/ui/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/frontend-guards.yml'
+
+permissions:
+  contents: read
+
+# A newer push to the same PR supersedes the running one; runs on main are never
+# cancelled (every merge commit gets a full result).
+concurrency:
+  group: frontend-guards-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  unit:
+    name: JS unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # '22' resolves to the newest 22.x LTS patch (>= 22.18.0), the release where
+      # TypeScript type stripping became the default: `node --test` runs the .ts
+      # test files with no loader, no ts-node and no --experimental-strip-types.
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # Two of the suites import `vue` (a reactive ref in
+      # useLauncherLink and the assistant stream), so the root dependencies are
+      # needed. The type-only `@/…` imports in the sources are stripped, so no
+      # tsconfig path mapping or Vite alias is involved.
+      - name: Install (lockfile-exact)
+        run: npm ci --no-audit --no-fund
+
+      - name: Unit tests (node --test)
+        run: npm run test:js
+
+  launcher-ui:
+    name: Launcher UI contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      # No `npm ci` and no npm cache on purpose: the check imports nothing but
+      # node:fs/node:path and only reads files under clients/launcher/app/ui, so
+      # it finishes in well under a second.
+      - name: check-ui.mjs
+        run: node clients/launcher/app/ui/check-ui.mjs
