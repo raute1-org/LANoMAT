@@ -311,7 +311,7 @@ impl Features {
         if !state.enabled {
             return (None, state.reason.or(Some("server_error")));
         }
-        match self.games_list().await {
+        match self.games_list_with(false).await {
             Ok(list) => (Some(list.recipes), None),
             Err(e) => (None, Some(reason(e))),
         }

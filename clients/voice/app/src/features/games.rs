@@ -290,10 +290,20 @@ impl Features {
 
     /// The catalogue with availability and local state, in the server's order.
     pub async fn games_list(&self) -> Result<GamesList, UiError> {
+        self.games_list_with(true).await
+    }
+
+    /// `fill_plans` off: only the recipe list is fetched and availability comes from what the
+    /// cache already holds (else `unknown`). The library uses this so slow plan lookups never
+    /// hold it back or get cut off by its time bound; a later `games_list` or `game_detail`
+    /// fills the gaps.
+    pub(super) async fn games_list_with(&self, fill_plans: bool) -> Result<GamesList, UiError> {
         let api = self.games_api()?;
         let recipes = api.recipes().await.map_err(|e| self.games_error(e, true))?;
 
-        self.fill_plan_cache(&api, &recipes).await;
+        if fill_plans {
+            self.fill_plan_cache(&api, &recipes).await;
+        }
 
         let now = Instant::now();
         let cache = lock(&self.games);

@@ -1498,6 +1498,44 @@ mod library {
     }
 
     #[tokio::test]
+    async fn slow_plan_lookups_do_not_hold_the_library_back() {
+        let r = rig().await;
+        mount_launcher_config(&r).await;
+        mount_recipes(
+            &r,
+            vec![game_summary("cs16", json!({"store_ids": {"steam": "10"}}))],
+        )
+        .await;
+        Mock::given(method("GET"))
+            .and(path("/api/voice-client/v1/recipes/cs16/plan"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(3))
+                    .set_body_json(json!({})),
+            )
+            .mount(&r.server)
+            .await;
+        r.features.set_library_env(LibraryEnv {
+            sources: Box::new(|| {
+                let (reg, fs) = steam_only();
+                Sources {
+                    reg: Box::new(reg),
+                    fs: Box::new(fs),
+                    env: StoreEnv::default(),
+                }
+            }),
+            opener: Box::new(|_| Ok(())),
+            recipe_timeout: Duration::from_millis(500),
+        });
+        let started = std::time::Instant::now();
+        let list = r.features.library_list().await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(list.recipes_reason, None);
+        assert_eq!(list.entries[0].key, "recipe:cs16");
+        assert!(plan_requests(&r).await.is_empty());
+    }
+
+    #[tokio::test]
     async fn the_last_good_recipes_survive_a_failed_load_but_not_a_logout() {
         let r = rig().await;
         mount_launcher_config(&r).await;
