@@ -1,7 +1,7 @@
 # Plain slim Python image. The sidecar speaks the Denon telnet control
 # protocol over the standard-library socket module, so no compiled extension
 # or apt package is needed (same reasoning as docker/teamspeak-admin).
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 

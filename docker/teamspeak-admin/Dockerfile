@@ -3,7 +3,7 @@
 # raw ServerQuery over a standard-library TCP socket (see app.py's
 # `_ServerQueryConnection`) — no compiled extension or apt package needed, so
 # a slim image is enough.
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 

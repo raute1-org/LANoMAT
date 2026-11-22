@@ -12,7 +12,7 @@
 #     -t lanomat/nfs-online:local docker/nfs-online
 #
 # docker/nfs-online/compose.yml does this automatically.
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
