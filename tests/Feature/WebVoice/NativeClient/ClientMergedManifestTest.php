@@ -168,25 +168,25 @@ it('lists the windows installer and the portable exe on the download page', func
     mergedDist();
     $user = User::factory()->create();
 
-    $this->actingAs($user)->withHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130')->get('/talk/client')
+    $this->actingAs($user)->withHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130')->get('/app')
         ->assertOk()->assertInertia(
-            fn ($page) => $page->component('WebVoice/ClientDownload')
-                ->where('state', 'current')
+            fn ($page) => $page->component('App/Download')
+                ->where('downloads.0.state', 'current')
                 ->where('detectedOs', 'windows')
-                ->has('builds', 5)
-                ->where('builds.2.os', 'windows')
-                ->where('builds.2.kind', 'app')
-                ->where('builds.2.variant', 'installer')
-                ->where('builds.2.signed', false)
-                ->where('builds.2.url', '/talk/client/download/lanomat-voice-app-m12-9-gabc1234-windows-x86_64-setup.exe')
-                ->where('builds.3.variant', 'portable')
-                ->where('builds.3.url', '/talk/client/download/lanomat-voice-app-m12-9-gabc1234-windows-x86_64-portable.exe')
-                ->where('builds.4.kind', 'cli')
-                ->where('builds.4.variant', 'archive')
-                ->where('builds.0.signed', null)
+                ->has('downloads.0.builds', 5)
+                ->where('downloads.0.builds.2.os', 'windows')
+                ->where('downloads.0.builds.2.kind', 'app')
+                ->where('downloads.0.builds.2.variant', 'installer')
+                ->where('downloads.0.builds.2.signed', false)
+                ->where('downloads.0.builds.2.url', '/talk/client/download/lanomat-voice-app-m12-9-gabc1234-windows-x86_64-setup.exe')
+                ->where('downloads.0.builds.3.variant', 'portable')
+                ->where('downloads.0.builds.3.url', '/talk/client/download/lanomat-voice-app-m12-9-gabc1234-windows-x86_64-portable.exe')
+                ->where('downloads.0.builds.4.kind', 'cli')
+                ->where('downloads.0.builds.4.variant', 'archive')
+                ->where('downloads.0.builds.0.signed', null)
                 ->where('labels.variant_installer', 'Installer (empfohlen)')
                 ->where('labels.variant_portable', 'Portable EXE (ohne Installation)')
-                ->where('labels.step_win_smartscreen', fn ($text) => str_contains($text, 'Weitere Informationen') && str_contains($text, 'Trotzdem ausführen'))
+                ->where('labels.steps.win_smartscreen', fn ($text) => str_contains($text, 'Weitere Informationen') && str_contains($text, 'Trotzdem ausführen'))
                 ->where('labels.webview2_note', fn ($text) => str_contains($text, 'WebView2') && str_contains($text, 'Internet'))
                 ->where('labels.unsigned_title', 'Diese Windows-Datei ist nicht signiert'),
         );
@@ -195,11 +195,11 @@ it('lists the windows installer and the portable exe on the download page', func
 it('marks an old zip manifest as an archive variant on the download page', function () {
     mergedDist(legacy: true);
 
-    $this->actingAs(User::factory()->create())->get('/talk/client')
+    $this->actingAs(User::factory()->create())->get('/app')
         ->assertOk()->assertInertia(
-            fn ($page) => $page->has('builds', 4)
-                ->where('builds.2.variant', 'archive')
-                ->where('builds.2.url', '/talk/client/download/lanomat-voice-app-m12-9-gabc1234-windows-x86_64.zip'),
+            fn ($page) => $page->has('downloads.0.builds', 4)
+                ->where('downloads.0.builds.2.variant', 'archive')
+                ->where('downloads.0.builds.2.url', '/talk/client/download/lanomat-voice-app-m12-9-gabc1234-windows-x86_64.zip'),
         );
 });
 

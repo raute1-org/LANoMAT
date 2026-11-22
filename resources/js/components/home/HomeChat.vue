@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
                     <Link href="/servers">Server ansehen</Link>
                 </Button>
                 <Button as-child variant="outline" size="sm">
-                    <Link href="/launcher">Launcher herunterladen</Link>
+                    <Link href="/app">App herunterladen</Link>
                 </Button>
             </div>
 

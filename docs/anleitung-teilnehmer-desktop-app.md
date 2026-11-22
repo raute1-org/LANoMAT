@@ -10,7 +10,7 @@ du siehst auf einen Blick, was als Nächstes für dich ansteht.
 
 Du lädst die App direkt in LANoMAT herunter, immer in der Version, die zum Server passt:
 
-- in der Seitenleiste unter **Desktop-App**,
+- in der Seitenleiste und oben rechts unter **App herunterladen** (Seite `/app`),
 - über die kurze Adresse `/app` (zum Beispiel `https://lan.raute1.org/app`),
 - oder direkt auf der Seite `/talk/client`.
 
@@ -154,7 +154,7 @@ unter `/talk/connect` kannst du im Abschnitt **Verbundene Geräte** jedes Gerät
 ## Updates
 
 Die App aktualisiert sich nicht selbst. LANoMAT bietet dir immer genau die Version an, die zum Server passt:
-Wenn die Orga den Server aktualisiert hat, lädst du die neue App einfach wieder unter **Desktop-App** (`/app`)
+Wenn die Orga den Server aktualisiert hat, lädst du die neue App einfach wieder unter **App herunterladen** (`/app`)
 herunter und ersetzt die alte. Deine Anmeldung bleibt dabei erhalten.
 
 ## Wenn etwas nicht funktioniert

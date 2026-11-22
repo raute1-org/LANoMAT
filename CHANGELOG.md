@@ -17,6 +17,7 @@ and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-
 
 ### Changed
 
+- One download entry for the LANoMAT app: the sidebar, header, Filament navigation/topbar and all links use the label "App herunterladen" and lead to the unified page `/app` (voice app and launcher side by side while both builds exist); `/launcher` and `/talk/client` redirect there, file routes unchanged; the launcher page's live-server list is removed (use `/servers`)
 - Docs/spike: all-in-one client phase 0 (decision record, workspace-merge and deep-link spike, download-engine comparison, recipe inventory); spike code in `clients/voice` is not for production
 ### Added
 

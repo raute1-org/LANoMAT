@@ -94,9 +94,7 @@ honest action per row, in this order:
 The same recipe actions appear wherever a server row knows its game. On `/servers` and
 `/servers/all` a card offers **Im Launcher beitreten** with the hint „Der Launcher installiert das
 Spiel, falls es fehlt, und startet es auf diesem Server.“, **Spiel installieren** (or **Zum Spiel**
-in a narrow row) and **Mitspieler suchen**, which opens the page's „Zusammen spielen“ card. On
-`/launcher`, each live server has **Beitreten**; a server with nothing to join keeps **Server
-ansehen** and a quiet **Zum Spiel**.
+in a narrow row) and **Mitspieler suchen**, which opens the page's „Zusammen spielen“ card.
 
 ### Running tournaments
 

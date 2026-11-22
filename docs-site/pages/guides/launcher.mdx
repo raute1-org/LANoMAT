@@ -92,9 +92,11 @@ in the design system, [Start-page chat](https://github.com/raute1-org/LANoMAT/bl
 
 ## Download
 
-After the Discord login, open the **Launcher** entry in the sidebar, the **Launcher herunterladen**
-shortcut on **Jetzt** (the start page after login), or the page directly at `/launcher` — for
-example [lan.raute1.org/launcher](https://lan.raute1.org/launcher). Guests see the login gate at
+After the Discord login, open the **App herunterladen** entry in the sidebar, the same button in
+the top-right of every page or on **Jetzt** (the start page after login), or the page directly at
+`/app` — for example [lan.raute1.org/app](https://lan.raute1.org/app). The old `/launcher` address
+still works and redirects there. The page lists the launcher under **Spiele (Launcher)**, next to the
+desktop app for voice and chat. Guests see the login gate at
 `/` (and the public team/profile pages), so the launcher and its downloads are reached after
 login. The primary build for each OS
 is listed with its size, its SHA-256 and the steps for that file; extra files appear further down
@@ -112,7 +114,7 @@ under **Weitere Dateien**:
 
 Each primary build has a **Herunterladen** button and a **Kopieren** button for its SHA-256.
 **Weitere Dateien** (for example a portable exe next to an archive) lists the additional files with
-their name and size, each with its own download button. The `/launcher` page reads
+their name and size, each with its own download button. The `/app` page reads
 `clients-dist/launcher/manifest.json`; a file that is not in that manifest is not offered, and the
 page says "Es ist noch kein Launcher-Build veröffentlicht" when the Orga has not copied one. The
 Preflight check `launcher_build` watches exactly that manifest: it warns when nothing is published,
@@ -213,11 +215,10 @@ same server list the chat card and the website use — so a fresh PC goes from d
 without typing an address. `lanomat://install/<slug>` and `lanomat://launch/<slug>` do the same from
 a browser once the launcher is installed; the `.desktop` entry registers the scheme.
 
-The one-click join is not tied to `/launcher`. Wherever a server row knows its recipe, the row
+The one-click join is not tied to the download page. Wherever a server row knows its recipe, the row
 offers it:
 
-- on `/launcher`, each live server has **Beitreten**; without a join link it offers **Server
-  ansehen** and a quiet **Zum Spiel**;
+- the live servers are listed on `/servers` (the download page no longer carries a server list);
 - on `/servers` and `/servers/all`, a server card offers **Im Launcher beitreten** first, with the
   hint „Der Launcher installiert das Spiel, falls es fehlt, und startet es auf diesem Server.“, then
   **Spiel installieren** and **Mitspieler suchen** (a compact row keeps only the quiet **Zum Spiel**);
@@ -232,15 +233,15 @@ as `?url=<urlencoded url>`. A server with neither an address nor an accepted joi
 launcher link, so the row keeps its own fallback action.
 
 A click that nobody answers does not fail silently: after about 2.5 seconds without the page losing
-focus, the same spot asks **„Kein Launcher-Fenster aufgegangen?“** and offers **Launcher
-herunterladen** (`/launcher`) and **Nochmal versuchen**. When something did take over, a short
+focus, the same spot asks **„Kein Launcher-Fenster aufgegangen?“** and offers **App
+herunterladen** (`/app`) and **Nochmal versuchen**. When something did take over, a short
 confirmation reads **„Launcher geöffnet. Schau in die Taskleiste, falls du kein Fenster siehst.“**
 and disappears after a few seconds — the page cannot know more than that.
 
 The footer of the launcher window names the build it is running (`Launcher <version> · <commit>`) —
 handy when something has to be reported. When the server publishes a different build, one link
 appears next to it: „Neue Launcher-Version verfügbar: &lt;version&gt; — Launcher-Seite öffnen". It opens
-`/launcher` in the browser, where the file is one click away.
+`/app` in the browser, where the file is one click away.
 
 ## Spiel teilen
 
@@ -340,7 +341,7 @@ at the same time, each with its own token — revoking one does not revoke the o
 
 `scripts/ops/build-launcher.sh` compiles the Linux release in the launcher's Docker image and writes
 `clients-dist/launcher/`: the tarball, `SHA256SUMS` and `manifest.json` (`manifest.json` is renamed
-into place last, so `/launcher` never serves a half-written release). It only compiles — the
+into place last, so `/app` never serves a half-written release). It only compiles — the
 format, clippy and workspace test gate is `clients/launcher/ci/build.sh`, which the release
 workflow runs (PR CI has no launcher job yet). It refuses
 a working tree that is not clean (tracked changes anywhere, untracked files outside the known build
@@ -362,7 +363,7 @@ only triggers, its prefix never becomes the version, which stays the commit's ow
 string). The workflow's `package` job merges both builds into one `launcher-release` artifact: the
 tarball, the exe of the same version, the two PowerShell installers (`install-desktop.ps1`,
 `install-terminal.ps1`), a manifest listing both builds and matching `SHA256SUMS`. Copy that
-folder's contents into `clients-dist/launcher/` and `/launcher` offers Linux and Windows. (Without
+folder's contents into `clients-dist/launcher/` and `/app` offers Linux and Windows. (Without
 the workflow: put an exe of the same version next to the tarball and re-run `build-launcher.sh`; an
 exe of another version is ignored and left for its own release.) Build and workflow details are in
 [`clients/launcher/README.md`](https://github.com/raute1-org/LANoMAT/blob/main/clients/launcher/README.md).

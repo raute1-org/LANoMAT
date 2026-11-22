@@ -192,7 +192,7 @@ const dateRange = computed(() => {
                     variant="outline"
                     size="lg"
                 >
-                    <Link href="/launcher">Launcher herunterladen</Link>
+                    <Link href="/app">App herunterladen</Link>
                 </Button>
             </div>
 

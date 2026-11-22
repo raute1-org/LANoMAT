@@ -57,8 +57,8 @@ it('offers the app to a desktop visitor whose OS has a matching build', function
 
     $this->actingAs($this->user)->withHeader('User-Agent', LINUX_UA)->get('/')->assertInertia(
         fn ($page) => $page->where('desktopClient', [
-            'url' => '/talk/client', 'version' => 'v1', 'os' => 'linux', 'available' => true,
-        ])->where('clientHint.cta', 'Desktop-App holen')
+            'url' => '/app', 'version' => 'v1', 'os' => 'linux', 'available' => true,
+        ])->where('clientHint.cta', 'App herunterladen')
             ->where('clientHint.heading', 'Alles in einer App: Sprache, Chat, Essen, Abstimmungen, Server'),
     );
 });
@@ -147,10 +147,11 @@ it('caches the manifest summary for 60 seconds and re-reads when the manifest ch
     expect($builds()->offer()['version'])->toBe('v2');
 });
 
-it('redirects the short alias /app: guests to the login, users to the download page', function () {
+it('serves the unified download page at /app: guests to the login, users get the page, the old URL redirects', function () {
     $this->get('/app')->assertRedirect('/login');
 
-    $this->actingAs($this->user)->get('/app')->assertStatus(302)->assertRedirect('/talk/client');
+    $this->actingAs($this->user)->get('/app')->assertOk();
+    $this->actingAs($this->user)->get('/talk/client')->assertStatus(302)->assertRedirect('/app');
 
-    expect(route('client.download.short', absolute: false))->toBe('/app');
+    expect(route('app.download', absolute: false))->toBe('/app');
 });

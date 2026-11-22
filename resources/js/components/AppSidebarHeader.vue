@@ -22,10 +22,10 @@ const page = usePage();
 const { has } = useModules();
 const isAuthenticated = computed(() => page.props.auth.user !== null);
 const notificationLabels = computed(() => page.props.notificationLabels);
-// The launcher is the way onto the LAN: the download is the one shell action
-// that must never hide in the sidebar. The route only exists with GameRecipes.
-const launcherAvailable = computed(
-    () => isAuthenticated.value && has('game_recipes'),
+// The app is the way onto the LAN: the download is the one shell action
+// that must never hide in the sidebar. The page exists with WebVoice or GameRecipes.
+const appAvailable = computed(
+    () => isAuthenticated.value && (has('web_voice') || has('game_recipes')),
 );
 </script>
 
@@ -42,19 +42,16 @@ const launcherAvailable = computed(
 
         <div v-if="isAuthenticated" class="ml-auto flex items-center gap-2">
             <Button
-                v-if="launcherAvailable"
+                v-if="appAvailable"
                 as-child
                 size="lg"
                 class="gap-2 px-3 font-semibold shadow-sm sm:px-4"
-                data-test="header-launcher"
+                data-test="header-app-download"
             >
-                <a
-                    href="/launcher/download-latest"
-                    aria-label="Launcher herunterladen"
-                >
+                <a href="/app" aria-label="App herunterladen">
                     <Download class="size-4" aria-hidden="true" />
-                    <span class="hidden sm:inline">Launcher herunterladen</span>
-                    <span class="sm:hidden">Launcher</span>
+                    <span class="hidden sm:inline">App herunterladen</span>
+                    <span class="sm:hidden">App</span>
                 </a>
             </Button>
             <NotificationBell :labels="notificationLabels" />

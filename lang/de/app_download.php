@@ -1,0 +1,95 @@
+<?php
+
+// The unified download page `/app` (AppDownloadController). One page for every build of the LANoMAT app:
+// the desktop app for voice and chat and the launcher for games, as long as they are two builds.
+return [
+    'title' => 'LANoMAT-App',
+    'description' => 'Lade die App für deinen Rechner herunter: Sprache und Chat, Spiele installieren und mit einem Klick auf den Server.',
+    'back' => 'Zurück zur Startseite',
+    'loading' => 'Download-Seite wird geladen',
+    'error' => 'Die Download-Seite konnte nicht geladen werden. Lade die Seite neu.',
+    'retry' => 'Erneut versuchen',
+    'detected' => 'Erkannt',
+    'platforms' => 'Betriebssystem',
+    'os_linux' => 'Linux',
+    'os_windows' => 'Windows',
+    'os_macos' => 'macOS',
+
+    'none_all_title' => 'Noch keine App veröffentlicht',
+    'none_all_body' => 'Auf diesem Server liegt noch kein Download. Die Orga muss die App bauen und veröffentlichen. Bis dahin geht der Sprachchat im Browser und die Spiele installierst du von Hand über die Spiele-Bibliothek.',
+
+    'downloads' => [
+        'voice' => [
+            'title' => 'Sprache und Chat (Desktop-App)',
+            'text' => 'Sprachräume, Chat, Essen, Abstimmungen und Server in einer App, immer in der Version, die zu diesem Server passt.',
+            'none' => 'Auf diesem Server liegt keine Desktop-App zum Herunterladen. Die Orga muss den Client neu bauen und veröffentlichen.',
+            'no_build_linux' => 'Für Linux gibt es gerade keinen Build.',
+            'no_build_windows' => 'Für Windows gibt es noch keinen Build. Bis dahin kannst du den Sprachchat im Browser nutzen.',
+            'no_build_macos' => 'Für macOS gibt es noch keinen Build. Bis dahin kannst du den Sprachchat im Browser nutzen.',
+            'kind_app' => 'Desktop-App mit Oberfläche',
+            'kind_cli' => 'Kommandozeile (lanomat-voice)',
+        ],
+        'launcher' => [
+            'title' => 'Spiele (Launcher)',
+            'text' => 'Ein Klick: Spiel installieren, starten und direkt auf den Server.',
+            'none' => 'Noch kein Launcher veröffentlicht. Bis dahin installierst du die Spiele wie gewohnt von Hand über die Spiele-Bibliothek.',
+            'no_build_linux' => 'Für Linux gibt es noch keinen Launcher-Build.',
+            'no_build_windows' => 'Für Windows gibt es noch keinen Launcher-Build.',
+            'no_build_macos' => 'Für macOS gibt es noch keinen Launcher-Build. Nimm die Datei für ein anderes System oder frag im Orga-Team nach.',
+            'kind_app' => 'Launcher mit Oberfläche',
+            'kind_cli' => 'Kommandozeile',
+            'games_link' => 'Zur Spiele-Bibliothek',
+        ],
+    ],
+
+    'compatible_note' => 'Gebaut für Version :version, kompatibel mit diesem Server (gleiche API-Version).',
+    'mismatch_title' => 'Build für andere Serverversion',
+    'mismatch_body' => 'Die angebotene App wurde für eine andere API-Version von LANoMAT gebaut und funktioniert womöglich nicht richtig. Die Orga muss den Client neu bauen.',
+    'server_version' => 'Server',
+    'client_version' => 'Client',
+    'version' => 'Version',
+    'built' => 'Gebaut am',
+
+    'variant_installer' => 'Installer (empfohlen)',
+    'variant_installer_hint' => 'Setup-Datei, installiert die App für dein Konto',
+    'variant_portable' => 'Portable EXE (ohne Installation)',
+    'variant_portable_hint' => 'Eine einzelne Datei, die du direkt startest',
+    'variant_archive' => 'Archiv',
+    'download' => 'Herunterladen',
+    'sha256' => 'SHA-256-Prüfsumme',
+    'copy' => 'Kopieren',
+    'copied' => 'Kopiert',
+    'copy_sha' => 'Prüfsumme kopieren',
+    'signed_label' => 'signiert',
+    'unsigned_label' => 'nicht signiert',
+    'steps_heading' => 'So installierst du es',
+
+    'unsigned_title' => 'Diese Windows-Datei ist nicht signiert',
+    'unsigned_body' => 'Die Datei hat (noch) keine digitale Signatur von einem Herausgeber. Windows SmartScreen zeigt deshalb beim ersten Start die Warnung "Der Computer wurde durch Windows geschützt". Das ist kein Zeichen für Schadsoftware: Vergleiche die SHA-256-Prüfsumme unten mit der Datei, dann ist sicher, dass du genau den Build dieses Servers hast.',
+    'webview2_note' => 'WebView2: Der Installer holt die Laufzeit einmalig aus dem Internet, falls sie fehlt. In einem LAN ohne Internet muss sie vorher installiert sein (die portable Datei lädt sie nie nach).',
+
+    // Install steps. `:name` is the downloaded file name.
+    'steps' => [
+        'win_installer_run' => 'Die heruntergeladene Setup-Datei doppelklicken. Du brauchst keine Administratorrechte: die App wird nur für dein Windows-Konto installiert (Sprache: Deutsch oder Englisch, je nach Windows).',
+        'win_installer_start' => 'Danach startest du die App über das Startmenü. Entfernen kannst du sie unter "Einstellungen, Apps, Installierte Apps".',
+        'win_portable_place' => 'Die Datei an einen festen Platz legen, zum Beispiel in deine Dokumente. Es wird nichts installiert; die Einstellungen liegen in deinem Benutzerprofil, nicht neben der Datei.',
+        'win_portable_start' => 'Die Datei doppelklicken. Du brauchst nur die WebView2-Laufzeit, die ab Windows 11 und in aktuellen Windows-10-Installationen schon dabei ist.',
+        'win_extract' => 'ZIP-Datei entpacken (Rechtsklick, "Alle extrahieren") und den Ordner an einen festen Platz legen, zum Beispiel in deine Dokumente.',
+        'win_start' => 'Die exe im entpackten Ordner starten. Du brauchst nur die WebView2-Laufzeit, die ab Windows 11 und in aktuellen Windows-10-Installationen schon dabei ist.',
+        'win_smartscreen' => 'Zeigt Windows eine blaue Warnung an, klickst du auf "Weitere Informationen" und dann auf "Trotzdem ausführen".',
+        'linux_extract' => 'Archiv entpacken: tar -xzf :name',
+        'linux_chmod' => 'Programm ausführbar machen (chmod +x auf die entpackte Programmdatei).',
+        'linux_start' => 'Die Programmdatei starten oder die mitgelieferte .desktop-Datei nach ~/.local/share/applications kopieren, dann erscheint die App im Startmenü.',
+        'macos_extract' => 'Archiv entpacken und die App in den Programme-Ordner ziehen.',
+        'macos_open' => 'Beim ersten Start mit Rechtsklick "Öffnen" bestätigen.',
+        'cli_extract' => 'Archiv entpacken und die Datei in einen Ordner deiner Wahl legen.',
+        'cli_start' => 'Im Terminal starten und der Anleitung folgen.',
+    ],
+
+    'pair_heading' => 'Danach verbinden',
+    'pair_hint' => 'Beim ersten Start fragt die App nach der Adresse dieses Servers und zeigt einen Code, den du hier im Browser bestätigst.',
+    'pair_server' => 'Server-Adresse',
+    'pair_copy' => 'Adresse kopieren',
+    'pair_link' => 'Verbundene Geräte',
+    'pair_link_hint' => 'Gekoppelte Geräte verwaltest du unter',
+];

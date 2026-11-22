@@ -4,7 +4,6 @@ import {
     Gamepad2,
     CalendarClock,
     CalendarDays,
-    Download,
     FolderOpen,
     HandHelping,
     MonitorPlay,
@@ -75,10 +74,7 @@ import { leaderboard as statsLeaderboard } from '@/routes/stats';
 import { index as teamsIndex } from '@/routes/teams';
 import { index as tournamentsIndex } from '@/routes/tournaments';
 import { setup as voiceSetup } from '@/routes/voice';
-import {
-    client as webVoiceClient,
-    index as webVoiceIndex,
-} from '@/routes/webvoice';
+import { index as webVoiceIndex } from '@/routes/webvoice';
 import type { NavItem } from '@/types';
 import type { EventSummary } from '@/types/events';
 import type { NavBadge, NavSignals } from '@/types/navigation';
@@ -272,9 +268,20 @@ const moreItems = computed<NavItem[]>(() => {
 
     if (has('game_recipes')) {
         items.push({ title: 'Spiele', href: '/games', icon: Gamepad2 });
-        // The launcher page is behind login like every participant page; the
-        // entry stays gated because the route belongs to GameRecipes.
-        items.push({ title: 'Launcher', href: '/launcher', icon: Download });
+    }
+
+    // The one download entry of the LANoMAT app (same label as the header action and the Filament
+    // navigation: App\Support\Brand\ShellParity::APP_DOWNLOAD_LABEL). The page exists while
+    // WebVoice or GameRecipes has routes; the indicator prop is null for guests and without WebVoice.
+    if (has('web_voice') || has('game_recipes')) {
+        items.push({
+            title: 'App herunterladen',
+            href: '/app',
+            icon: MonitorDown,
+            ...(desktopClient.value?.available
+                ? { indicator: 'Für dein System verfügbar' }
+                : {}),
+        });
     }
 
     if (has('game_servers')) {
@@ -320,22 +327,9 @@ const voiceItems = computed<NavItem[]>(() => [
     ...(has('voice')
         ? [{ title: 'Voice einrichten', href: voiceSetup(), icon: Mic }]
         : []),
-    // The shared prop is null for guests and when the WebVoice module is not routable.
-    ...(has('web_voice') && desktopClient.value
-        ? [
-              {
-                  title: 'Desktop-App',
-                  href: webVoiceClient(),
-                  icon: MonitorDown,
-                  ...(desktopClient.value.available
-                      ? { indicator: 'Für dein System verfügbar' }
-                      : {}),
-              },
-          ]
-        : []),
 ]);
 
-/** Same label as the Filament navigation item (shell parity, App\\Support\\Brand\\ShellParity). */
+/** Same label as the Filament navigation item (shell parity, App\Support\Brand\ShellParity). */
 const ASSISTANT_LABEL = 'Assistent';
 
 const orgaItems = computed<NavItem[]>(() => {

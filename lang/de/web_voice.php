@@ -171,10 +171,10 @@ return [
 
     // Entry points to the download page outside the voice area (Jetzt page, device page, ...).
     'client_hint' => [
-        'region' => 'Desktop-App',
+        'region' => 'LANoMAT-App',
         'heading' => 'Alles in einer App: Sprache, Chat, Essen, Abstimmungen, Server',
-        'body' => 'Die Desktop-App gibt es für :os, passend zu dieser Version von LANoMAT.',
-        'cta' => 'Desktop-App holen',
+        'body' => 'Die LANoMAT-App gibt es für :os, passend zu dieser Version von LANoMAT.',
+        'cta' => 'App herunterladen',
         'dismiss' => 'Hinweis ausblenden',
         'os_linux' => 'Linux',
         'os_windows' => 'Windows',

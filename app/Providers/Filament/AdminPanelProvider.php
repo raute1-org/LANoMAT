@@ -63,28 +63,23 @@ class AdminPanelProvider extends PanelProvider
                     ->url('/docs')
                     ->openUrlInNewTab(),
             ])
-            // Same entry as the participant sidebar ("Desktop-App"), shown while WebVoice has routes.
+            // The one download entry, same label and URL as the participant sidebar, shown while either
+            // WebVoice or GameRecipes has routes (the unified `/app` page lists both builds).
             ->navigationItems([
-                NavigationItem::make(ShellParity::DESKTOP_APP_LABEL)
-                    ->url(ShellParity::DESKTOP_APP_URL)
+                NavigationItem::make(ShellParity::APP_DOWNLOAD_LABEL)
+                    ->url(ShellParity::APP_DOWNLOAD_URL)
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(1000)
-                    ->visible(fn (): bool => app(Modules::class)->routable(Module::WebVoice)),
-                // The launcher download page, same label as the participant sidebar.
+                    ->visible(fn (): bool => app(Modules::class)->routable(Module::WebVoice) || app(Modules::class)->routable(Module::GameRecipes)),
                 // The orga chat, same label as the participant sidebar's Orga group.
                 NavigationItem::make(ShellParity::ASSISTANT_LABEL)
                     ->url(ShellParity::ASSISTANT_URL)
                     ->icon('heroicon-o-sparkles')
                     ->sort(1002)
                     ->visible(fn (): bool => app(Modules::class)->routable(Module::Assistant)),
-                NavigationItem::make(ShellParity::LAUNCHER_LABEL)
-                    ->url(ShellParity::LAUNCHER_URL)
-                    ->icon('heroicon-o-rocket-launch')
-                    ->sort(1001)
-                    ->visible(fn (): bool => app(Modules::class)->routable(Module::GameRecipes)),
             ])
             ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.shell.admin-stripe'))
-            ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.launcher-download'))
+            ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.app-download'))
             ->renderHook(PanelsRenderHook::TOPBAR_END, fn () => view('filament.shell.back-to-app'))
             // Closure: resolved at render time, after AppServiceProvider::boot() has
             // forced https in production (asset() here would bake in http://).

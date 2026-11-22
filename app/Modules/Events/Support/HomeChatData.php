@@ -185,7 +185,7 @@ final class HomeChatData
         }
 
         $matches = $this->matchedFiles($event, $recipes);
-        $launcherUrl = $this->launcher->builds() === [] ? null : route('launcher.index', absolute: false);
+        $launcherUrl = $this->launcher->builds() === [] ? null : route('app.download', absolute: false);
 
         return array_values($recipes->map(function (GameRecipe $recipe) use ($matches, $links, $launcherUrl): array {
             $recipeServers = $this->serversForRecipe($recipe, $links);

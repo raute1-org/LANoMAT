@@ -36,23 +36,18 @@ final class ShellParity
     /** German label of the Filament user-menu link back to the participant app. */
     public const FILAMENT_BACK_LABEL = 'Zur App';
 
-    /** German label of the desktop-app download entry; sidebar item in the Vue app AND navigation item in Filament. */
-    public const DESKTOP_APP_LABEL = 'Desktop-App';
+    /**
+     * The one download entry of the LANoMAT app, in both shells: the participant sidebar item, the
+     * top-right header action and the Filament navigation item + topbar button all use this label
+     * and URL (the unified page lists every build while the voice app and the launcher are separate).
+     */
+    public const APP_DOWNLOAD_LABEL = 'App herunterladen';
 
-    /** Short stable URL both shells link to (redirects to the download page for logged-in users). */
-    public const DESKTOP_APP_URL = '/app';
+    /** Short form of the label for narrow headers (below the `sm` breakpoint). */
+    public const APP_DOWNLOAD_SHORT_LABEL = 'App';
 
-    /** German label of the launcher download entry; sidebar item in the Vue app AND navigation item in Filament. */
-    public const LAUNCHER_LABEL = 'Launcher';
-
-    /** The launcher download page (behind the Discord login). */
-    public const LAUNCHER_URL = '/launcher';
-
-    /** The one prominent download action in the top-right of both shells. */
-    public const LAUNCHER_DOWNLOAD_LABEL = 'Launcher herunterladen';
-
-    /** Starts the best build for the visitor's system, then falls back to the page. */
-    public const LAUNCHER_DOWNLOAD_URL = '/launcher/download-latest';
+    /** The unified download page (behind the Discord login); `/launcher` and `/talk/client` redirect here. */
+    public const APP_DOWNLOAD_URL = '/app';
 
     /** German label of the `mcp/connect` user-menu entry, shared by both shells; the copy stays device-neutral. */
     public const DEVICES_MCP_LABEL = 'Geräte & MCP';
