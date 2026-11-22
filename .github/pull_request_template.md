@@ -6,6 +6,7 @@
 
 - [ ] Tests added/updated; `composer check` is green (and the four frontend gates if JS/TS changed)
 - [ ] Docs updated (`README.md`, `docs/`, `CLAUDE.md` where relevant)
+- [ ] **New or changed module, env variable, service, port, script or setup step?** `docs/setup/agent-setup.md` (and the runbook it points to) updated in this PR, or not affected
 - [ ] **Shell/branding/navigation/layout change?** Applied to BOTH the participant app (Inertia/Vue) AND the Filament admin panel; `tests/Feature/ShellParity` passes; screenshots of both (`/dashboard` and `/admin`) attached. See `docs/design.md` "Two apps, one shell (parity rules)".
 - [ ] UI follows `docs/design.md` (tokens, German copy, all four states)
 - [ ] No sensitive data (IPs, IDs, emails, keys, secrets) added — public repo

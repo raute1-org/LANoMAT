@@ -27,6 +27,28 @@ The human can start with one sentence:
    `lanomat:install`, `lanomat:preflight`, `scripts/ops/backup.sh`. Open the document a step names; do not
    work from memory of an older version.
 
+## 0. Tell the human what LANoMAT can do
+
+Before you ask anything, give the human a short picture of what they are about to set up. Five or six
+sentences in your own words, from this overview (the module reference at the end has the details). Do not
+paste the list; adapt it to what they said about their LAN, and say which parts they can leave off.
+
+- **For participants:** log in with Discord, register and get a QR ticket, choose a seat on the seating map,
+  form teams, enter tournaments and follow live brackets (single and double elimination, round robin),
+  report results, see the schedule, order food together, vote on games, find players (LFG), see who is
+  online, share files and photos, chat and talk (TeamSpeak or in the browser), and get notifications in the
+  app or by Discord message. There is a desktop app for voice and the game library.
+- **For the orga:** an admin panel for events, tickets and payment status, QR check-in (also self check-in
+  and walk-ins), seating, tournaments, schedule, catering rounds, polls and news; a beamer view for the
+  projector; game servers started from presets; a Discord bot that opens match channels and announces
+  things; a health check (Preflight) that shows what is broken; an AI assistant and an MCP server; nightly
+  backups.
+- **How it is built:** one web application (Laravel, Vue, a Filament admin panel) on Docker, with a database
+  and Redis. Everything beyond the core is optional and can be switched on later without losing data.
+
+Then ask what kind of LAN it is (size, venue, internet at the venue, who helps) and use the answers in
+section 1. A longer tour with screenshots is in [`docs-site/pages/start/tour.md`](../../docs-site/pages/start/tour.md).
+
 ## 1. Decisions to collect first
 
 | Question | Options | Default |
@@ -174,3 +196,52 @@ without a panel), switch the module off instead of living with a red Preflight r
 - [ ] A backup ran, a copy is on another machine, and a restore was tested.
 - [ ] The human has the `.env` stored safely outside the server, and a short note of what was set up.
 - [ ] Nothing real was committed; `scripts/ops/check-public-safe.sh` passes if the repository was touched.
+
+## 9. Module reference
+
+Every module has a switch (`MODULE_<KEY>=true|false`, key in the first column). The nine core modules are on in
+the `core` profile; everything else needs `MODULES_PROFILE=full` or its own switch. A module that requires
+another one cannot run without it. **Keep this table in step with `app/Support/Modules/Module.php`; a test
+fails when a module is missing here.**
+
+| Key | Core | What it does | Needs |
+| --- | --- | --- | --- |
+| `identity` | yes | Discord login, profile, roles (admin, orga, participant) | a Discord application |
+| `events` | yes | The event and its lifecycle (draft, announced, registration, running, finished) | |
+| `registration` | yes | Sign-up, priced ticket types, payment status, QR tickets, check-in, self check-in, arrival planning | |
+| `seating` | yes | Seating chart editor, seat choice, network details per seat | |
+| `teams` | yes | Teams across events, rosters, join requests | |
+| `games` | yes | The game catalogue used by tournaments and votes | |
+| `tournaments` | yes | Brackets, check-in, result reporting and disputes, live bracket | Reverb (part of the stack) |
+| `notifications` | yes | In-app bell and Discord messages, per category | |
+| `preflight` | yes | Health checks, `lanomat:preflight`, admin tile | |
+| `schedule` | | Timeline, manual slots, calendar export | |
+| `catering` | | Group food orders, restaurants and menus, cost split, payment link | |
+| `voting` | | Game votes and polls | |
+| `lfg` | | Looking-for-group posts | |
+| `discord` | | Bot: announcements, reminders, match channels, slash commands, voice presence | bot token, guild id, `discord-gateway` |
+| `voice` | | TeamSpeak or Mumble channels for teams and matches | the voice server and its admin sidecar |
+| `web_voice` | | Voice and chat in the browser (LiveKit), per match and team | LiveKit, DNS name, UDP port |
+| `infoscreen` | | Beamer scenes for the projector | |
+| `game_servers` | | Match servers from presets via Pelican, permanent servers (also Docker on a host) | Pelican, or a `hosts` entry |
+| `game_recipes` | | Game install recipes, avatars, launcher catalogue | `files`, `mcp` |
+| `mcp` | | MCP server and agent API, device pairing | |
+| `assistant` | | Orga AI chat with approval cards before changes | a model provider and key |
+| `stats` | | Leaderboards and badges across events | `voting` |
+| `friends` | | Friend requests, suggestions, blocking | `presence` |
+| `presence` | | Who is online, playing or free; location sharing with opt-out | |
+| `casting` | | Stream links and transparent OBS overlays | |
+| `jukebox` | | Shared LAN radio with a vote-ordered queue | Music Assistant |
+| `gallery` | | Photo gallery with moderation, zip download | `files` |
+| `recap` | | Post-LAN recap page | `gallery`, `jukebox`, `voting`, `presence` |
+| `news` | | Orga news on the home page | `gallery` |
+| `files` | | Shared files with quota and moderation, resumable uploads | optional file host |
+| `hosts` | | Managed remote hosts over SSH (pinned host key) | |
+| `custom_servers` | | Custom Docker game servers on a managed host | `hosts` |
+| `lancache` | | LanCache bootstrap on a separate host | `hosts` |
+| `provisioning` | | Automated test-VM setup (Proxmox), dry run first | `hosts`, `lancache` |
+| `lighting` | | DMX light bridge driven by game status | a light bridge |
+| `room_audio` | | Venue receiver volume and state | a Denon receiver and its sidecar |
+
+Further reading: [`docs/architecture.md`](../architecture.md) (module table and contracts), the user and admin
+documentation in `docs-site/`.

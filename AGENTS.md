@@ -79,6 +79,24 @@ fake implementations.
   database and uploads), dropping a database, `git push --force`, anything that touches a production host.
 - Ask rather than guess when a value, a domain or an account is not given.
 
+## Keep the setup documents current
+
+`docs/setup/agent-setup.md` is what a stranger's agent follows to set LANoMAT up. A stale step wastes their
+evening, so treat it as part of the code: **change it in the same pull request as the behaviour it describes.**
+Update it (and the documents it points to) when a change:
+
+- adds, renames or removes a **module** (the module reference must list every `Module` case; a test checks it),
+- adds or changes an **environment variable** that a setup needs (also `.env.example` and the runbook's `.env`
+  section),
+- adds, renames or removes a **compose service, port, DNS name or firewall rule**,
+- changes a **script or command** the guide names (`deploy.sh`, `lanomat:install`, `backup.sh`, ...),
+- changes the **order of setup** or a prerequisite (new required account, new required service),
+- fixes a **pitfall** you learned the hard way: add it to the pitfalls list.
+
+`tests/Architecture/SetupGuideTest.php` fails when a module is missing from the guide, or when a link or a
+repository path in it no longer exists. It cannot tell whether a step is still *correct*; that is your job. If
+you cannot verify a step, say so in the pull request instead of leaving it silently outdated.
+
 ## Where things are
 
 | Topic | Document |
