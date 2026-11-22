@@ -13,6 +13,12 @@ lives in the git log, the roadmap
 ([`docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md`](docs/superpowers/plans/2026-07-14-lanomat-v2-roadmap.md))
 and the phase tags `m0` to `m13`. This file starts at the pre-LAN state of 2026-10-30.
 
+## 2026-11-22
+
+### Added
+
+- Native client API: `GET /api/voice-client/v1/recipes`, `recipes/{slug}` and `recipes/{slug}/plan` give the voice token the game library and the install plan (published recipes only, exact slug, GameRecipes module gated); the plan carries `plan_version` and signed file-host links minted through the file policy (`InstallPlanUrls` strategy: the agent API keeps `mcp.files.download`); `GET config` reports `features.launcher`. `api_version` stays 1
+
 ## 2026-11-21
 
 ### Added

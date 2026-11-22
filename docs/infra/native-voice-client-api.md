@@ -86,7 +86,7 @@ revoked or expired token is `401` with a `WWW-Authenticate: Bearer` header.
 | `GET me` | `{id, name, role, identity}`; `identity` is the LiveKit identity (`u<id>`) the client will have in a room |
 | `GET rooms` | `{rooms: [{id, name, description, kind}]}`: exactly the rooms the browser page lists for that user (`VisibleChannels`: general rooms, the user's own match rooms, orga and admins see every live room; archived never) |
 | `POST rooms/{room}/token` | the same payload as the browser, from the same action (`IssueJoinToken`): `{url, token, identity, muted, audio}`. A moderator mute arrives as `muted: true` and a token without the publish right. Never takes identity or room name from the client. |
-| `GET config` | `{api_version, livekit_url, voice_ready, audio, modules, realtime, client}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`), the Reverb connection info (see "Realtime") and `modules`, which maps every module key (the `MODULE_<KEY>` names, e.g. `game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`) to whether this deployment runs it, so the client can hide what the event does not use. `client` is the version block described under "Versions and the client download". No secrets. |
+| `GET config` | `{api_version, livekit_url, voice_ready, audio, modules, realtime, client}`: the LiveKit URL the client must use, the audio tuning defaults (bitrate, DTX, RED, `jitter_buffer_target_ms`), the Reverb connection info (see "Realtime") and `modules`, which maps every module key (the `MODULE_<KEY>` names, e.g. `game_servers`, `catering`, `voting`, `files`, `tournaments`, `schedule`, `lfg`) to whether this deployment runs it, so the client can hide what the event does not use. `features` is a map of capability flags (additive, `api_version` stays 1): `launcher` is true while the GameRecipes module runs, i.e. while the `recipes` routes below exist; a client built before the flag simply never reads it. `client` is the version block described under "Versions and the client download". No secrets. |
 
 | `GET avatars/{user}/{hash}` | The avatar of a person, see "Avatars" below. |
 
@@ -531,6 +531,66 @@ browser (see [file-host.md](file-host.md)). Body `{"name": "game.zip", "size": 1
 `uploads_unavailable` (`upload.resumable` is `false`: the deployment has no file host, there is no form
 upload in this API). The quota is reserved when the ticket is issued. A file the app finalises after the
 upload starts as `pending` and goes through the same moderation as every browser upload.
+
+## Recipes: game library and install plan (module GameRecipes)
+
+The launcher functions for the one app. Routes exist only while the GameRecipes module is on (`features.launcher`);
+otherwise they are `404` like any unknown path. Published recipes only (a draft is never visible here, not even
+its contributor's own), in the launcher lineup order of the web library. A recipe is addressed by its exact slug
+(`[a-z0-9]+(-[a-z0-9]+)*`; aliases are an agent convenience and do not resolve here). Answers carry
+`Cache-Control: no-store, private`.
+
+| Route | Result |
+|-------|--------|
+| `GET recipes` | `{recipes: [summary]}` |
+| `GET recipes/{slug}` | `{recipe: summary + {description, aliases, homepage, license, portable, supports_multiplayer, launch_target, launch_targets}}` |
+| `GET recipes/{slug}/plan?os=windows&event_slug=&dry_run=` | the install plan for the caller's OS, below. Rate limited to 30 per minute per token. A `GET` that records who asked (the orga's install audit) unless `dry_run=1`. |
+
+`summary`: `slug, title, summary, version, status, platforms, genre, players, players_max, size_bytes, installable,
+launcher_supported, in_lineup, play_url, updated_at`. `size_bytes` is the sum of the sizes the recipe declares for
+its files (`null` when it declares none); `genre`, `players` (text, e.g. `"2-16"`) and `players_max` come from the
+recipe's metadata and may be `null`. `launcher_supported` is the server's verdict on the recipe; whether this client
+build can drive it is the client's call. A client must treat a missing field as unknown.
+
+### The plan
+
+The same document the agent API (`POST /api/v1/recipes/{slug}/plan`) builds, plus a top-level `plan_version`
+(integer, currently `1`). Additive changes keep the version; a breaking plan format raises it and a client refuses a
+plan newer than it knows ("update the app"). Clients ignore unknown fields.
+
+```json
+{
+  "plan_version": 1,
+  "recipe": {"slug": "game-slug", "title": "Game", "version": "1.0", "skill": "install-game-slug",
+             "launch_target": "{{target}}/Game.exe", "launch_targets": [], "launch_command": "...", "play_url": null},
+  "os": "windows",
+  "target_dir": "<dir>",
+  "downloads_dir": "<dir>/.lanomat-downloads",
+  "steps": [{"id": "check-install", "title": "...", "os": "any", "optional": false, "detail": "...", "commands": [], "verify": []}],
+  "files": [{
+    "recipe_file_id": 3, "requirement": "base", "label": "Portable archive", "os": "any", "status": "matched",
+    "required": true, "source": "lan", "name": "game-portable.zip", "size_bytes": 4096,
+    "sha256": "<64 hex>", "shared_file_id": 21,
+    "download_url": "https://files.example/<signed path>?expires=1790000000&sig=...",
+    "download_expires_at": "2026-11-22T12:00:00+00:00",
+    "fallback_url": null
+  }],
+  "downloads": ["the files with status matched or external"],
+  "avatars": [],
+  "missing": [],
+  "generated_at": "2026-11-22T11:50:00+00:00"
+}
+```
+
+Download links: a LAN file (`source: "lan"`) carries the signed, short-lived file-host URL, minted like
+`GET files/{sharedFile}/download` (same policy check for the caller, same TTL); `download_expires_at` says when it
+stops working, so a client fetches the plan again before a long queue. No bearer is sent to that URL. Where the store
+has no signed link (the legacy local store streams through the app) `download_url` is the bearer route
+`.../api/voice-client/v1/files/{id}/download` instead, which then answers the signed URL as documented under Files;
+the client sends its bearer only to the host it paired with. `source: "external"` files carry the recipe's own
+public URL in `download_url`/`fallback_url` and `sha256` where the recipe pins one; `source: "manual"` has no
+download. `sha256` of a LAN file is the recipe's pin, else the stored digest (may be `null` for a file not hashed yet).
+No storage path or internal host ever appears in a plan.
 
 ## Text chat
 
