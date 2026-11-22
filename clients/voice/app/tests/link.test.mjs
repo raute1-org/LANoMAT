@@ -10,9 +10,8 @@ const dir = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '../ui/js',
 );
-const { ignoresAuthLoss, provesOnline, singleFlightRetry } = await import(
-    path.join(dir, 'link.js')
-);
+const { ignoresAuthLoss, provesOnline, resumeTab, singleFlightRetry } =
+    await import(path.join(dir, 'link.js'));
 
 test('local commands do not prove the server is reachable', () => {
     for (const cmd of [
@@ -54,6 +53,16 @@ test('a lost session is ignored while signed out', () => {
     ]) {
         assert.equal(ignoresAuthLoss(st), false);
     }
+});
+
+test('a reconnect retry keeps the open tab', () => {
+    assert.deepEqual(resumeTab(null, false), { tab: 'jetzt', force: false });
+    assert.deepEqual(resumeTab(null, true), { tab: 'jetzt', force: false });
+    assert.deepEqual(resumeTab('spiele', false), {
+        tab: 'spiele',
+        force: false,
+    });
+    assert.deepEqual(resumeTab('spiele', true), { tab: 'spiele', force: true });
 });
 
 test('a running task is not started a second time', async () => {

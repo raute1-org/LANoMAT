@@ -51,6 +51,15 @@ export const LOCAL_COMMANDS = new Set([
 export const ignoresAuthLoss = (status) =>
     Boolean(status) && status.state === 'signed_out';
 
+// Where the setup after a reconnect lands. Every retry of the setup ends by showing a screen; a
+// retry must not pull the person away from the tab they opened meanwhile. While setup still fails
+// (`setupDone` false) the open screen is left alone; once it works the same screen is shown again
+// so its data reloads. No tab open yet: Jetzt. (`go` falls back to Jetzt for a hidden tab.)
+export const resumeTab = (current, setupDone) => ({
+    tab: current || 'jetzt',
+    force: Boolean(current) && setupDone === true,
+});
+
 // True when a successful answer to `cmd` shows the server is reachable.
 export const provesOnline = (cmd) => !LOCAL_COMMANDS.has(cmd);
 

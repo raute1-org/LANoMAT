@@ -3,10 +3,11 @@
 import * as connect from './connect.js';
 import * as food from './food.js';
 import * as games from './games.js';
-import { ignoresAuthLoss, singleFlightRetry } from './link.js';
+import { ignoresAuthLoss, resumeTab, singleFlightRetry } from './link.js';
 import * as more from './more.js';
 import {
     buildTabs,
+    currentTab,
     go,
     initHeader,
     paintQuiet,
@@ -218,7 +219,9 @@ async function afterConnect({ fresh }) {
         return;
     }
 
-    await go('jetzt');
+    // A retry of the setup must not reset the tab the person is on.
+    const next = resumeTab(currentTab(), setupDone);
+    await go(next.tab, { force: next.force });
 }
 
 async function finishOnboarding() {
